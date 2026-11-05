@@ -781,6 +781,9 @@ export const normalize = (t: string, cell: GateCell, across = false) => {
     .join(':<xport>')
     .replace(/\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d-\d{3}Z/g, '<t>') // a `_trash/<stamp>__…` dir
     .replace(/\d{4}-\d\d-\d\dT[\d:.]+Z?/g, '<t>')
+    // the project's root identity is 12 hex chars of a path hash — sometimes all digits (~0.4 %), which
+    // the number rule below would read as <n> on one server and <id> on the other (a CI flake)
+    .replace(/"rootId":"[0-9a-f]{12}"/g, '"rootId":"<id>"')
     .replace(/\b\d{9,}(\.\d+)?\b/g, '<n>')
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<uuid>')
     .replace(/^etag: .*$/m, 'etag: <etag>');

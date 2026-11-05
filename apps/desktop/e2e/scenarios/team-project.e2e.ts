@@ -318,8 +318,9 @@ describe('team-project (native-desktop)', () => {
     expect(await (await sheet.$('h2')).getText()).toBe('Sign in to your own hub');
     expect(await (await $(tid('onb-hub-go'))).getText()).toBe('Sign in');
     // #204 K2: no email or password field in the app
-    expect(await (await $(tid('onb-hub-email'))).isExisting()).toBe(false);
-    expect(await (await $(tid('onb-hub-password'))).isExisting()).toBe(false);
+    // (by input type, not by the retired testids — those are not hooks any more)
+    expect(await (await sheet.$('input[type="password"]')).isExisting()).toBe(false);
+    expect(await (await sheet.$('input[type="email"]')).isExisting()).toBe(false);
     await capture('01h-home-hub-sheet');
   });
 
