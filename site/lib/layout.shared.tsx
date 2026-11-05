@@ -1,6 +1,6 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
 import { MaudeMark } from '@/components/mdcc/maude-mark';
-import { CLOUD_CTA_ON } from '@/components/v2/pilot';
+import { CLOUD_CTA_ON, PRICING_ON } from '@/components/v2/pilot';
 import { gitConfig } from './shared';
 
 // Mobile theme toggle — fumadocs renders it inside the burger menu (HomeLayout
@@ -22,7 +22,7 @@ export function baseOptions(): BaseLayoutProps {
     links: [
       { text: 'Product', url: '/', active: 'url' },
       { text: 'Docs', url: '/docs', active: 'nested-url' },
-      { text: 'Pricing', url: '/cloud', active: 'nested-url' },
+      ...(PRICING_ON ? [{ text: 'Pricing', url: '/cloud', active: 'nested-url' as const }] : []),
       { text: 'GitHub', url: githubUrl, external: true },
       { type: 'button', text: 'Download', url: '/desktop', secondary: true },
       ...(CLOUD_CTA_ON

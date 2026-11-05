@@ -9,7 +9,7 @@ import { DragFloat } from './drag-float.client';
 import { HeroHeadline } from './hero-headline.client';
 import { Cursor, Sticky } from './kit/canvas';
 import { Icon } from './kit/glyphs';
-import { CLOUD_CTA_ON } from './pilot';
+import { CLOUD_CTA_ON, PRICING_ON } from './pilot';
 import { PRICE } from './price';
 
 const newest = whatsNew.entries[0];
@@ -85,8 +85,11 @@ export function Hero() {
           A desktop app for Mac and Windows. Maude Cloud also opens in the browser.
         </span>
         <span className="ps-fine ps-a ps-a--fade ps-fine-d" style={at(T.ctas + 100)}>
-          Desktop app for Mac and Windows, free and open-source. Maude Cloud from {PRICE.project} a
-          month per project, for the whole team. <a href="#intro">Watch the 1-minute intro</a>
+          Desktop app for Mac and Windows, free and open-source.
+          {PRICING_ON
+            ? ` Maude Cloud from ${PRICE.project} a month per project, for the whole team.`
+            : ''}{' '}
+          <a href="#intro">Watch the 1-minute intro</a>
         </span>
       </div>
     </section>

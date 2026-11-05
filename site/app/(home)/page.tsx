@@ -6,6 +6,7 @@ import { Hero } from '@/components/v2/hero';
 import { HeroShot, HeroShotMobile } from '@/components/v2/hero-shot';
 import { How } from '@/components/v2/how';
 import { IntroFilm } from '@/components/v2/intro-film';
+import { PRICING_ON } from '@/components/v2/pilot';
 import { PlainHtml } from '@/components/v2/plain-html';
 import { Proof } from '@/components/v2/proof';
 import { WhatsNewTeaser } from '@/components/v2/whats-new-teaser';
@@ -33,7 +34,7 @@ export default function HomePage() {
       <Features />
       <Yours />
       <PlainHtml />
-      <CloudBand />
+      {PRICING_ON ? <CloudBand /> : null}
       <AdvancedDoor />
       <WhatsNewTeaser />
     </main>

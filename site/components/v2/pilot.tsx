@@ -5,6 +5,13 @@ import { Icon } from './kit/glyphs';
 /** True while Maude Cloud takes no live payments. */
 export const PILOT_ON = true;
 
+/** Every price and pricing link on the site (nav, footer, Home's Cloud band, the hero line, /cloud,
+ *  the docs pricing page). Off until Cloud opens with its final prices: /cloud and
+ *  /docs/cloud/pricing redirect away (next.config.mjs) and the docs sidebar drops the page
+ *  (content/docs/cloud/meta.json). Turning it on means flipping this AND those two files back.
+ *  The legal pages keep their prices: they are the contract text Stripe links to. */
+export const PRICING_ON = false;
+
 /** Every "Get Maude Cloud" / "Try Maude Cloud" / plan button on the site. Off until Cloud opens for
  *  sign-up (live Stripe catalog, checkout change, B3 purchase): the pricing stays visible, the
  *  buttons don't render, and the plan cards say "Opening soon". One edit turns them back on. */

@@ -2,14 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { PRICING_ON } from './pilot';
 
-const LINKS = [
+const ALL = [
   { id: 'product', text: 'Product', href: '/' },
   { id: 'docs', text: 'Docs', href: '/docs' },
   { id: 'cloud', text: 'Pricing', href: '/cloud' },
 ] as const;
+const LINKS = ALL.filter((l) => PRICING_ON || l.id !== 'cloud');
 
-function current(path: string): (typeof LINKS)[number]['id'] | null {
+function current(path: string): (typeof ALL)[number]['id'] | null {
   if (path.startsWith('/docs')) return 'docs';
   if (path.startsWith('/cloud')) return 'cloud';
   if (path === '/' || path.startsWith('/desktop')) return 'product';
