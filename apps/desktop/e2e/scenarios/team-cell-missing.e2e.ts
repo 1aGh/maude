@@ -691,7 +691,7 @@ describe('team-cell-missing (native-desktop)', () => {
       const before = ids(read(join(root, '.design', RACE)));
       if (here) {
         // the app's own sidecar: a crash, so nothing in memory survives; the supervisor respawns it
-        await waitForRespawn(killSidecar(c.designer));
+        await waitForRespawn(killSidecar(c.designer), 120_000, c.designer);
         await waitForSidecar();
       } else {
         await restartTeammate(c);

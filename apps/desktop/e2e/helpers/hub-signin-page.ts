@@ -8,26 +8,43 @@ import { browser } from '@wdio/globals';
  * take the page URL the webview asked for and walk the browser's hops themselves.
  */
 
-/** In the focused webview: answer `open_team_server_signin` by keeping the URL instead of a browser. */
+/**
+ * In the focused webview: answer `open_team_server_signin` by keeping the URL instead of a browser.
+ *
+ * `window.__TAURI__.core` is an `Object.freeze`d module object (Tauri's bundle.global.js), so assigning
+ * `core.invoke` was silently ignored: the REAL command ran and opened the hub's page in the person's
+ * browser, and the spec saw no URL. The `__TAURI__` object itself is a plain one and every caller
+ * (`home-api.js` `shellInvoke`, `github.js` `invoke`) reads `window.__TAURI__.core` at call time, so
+ * the wrapper replaces `core` with an unfrozen copy. Throws if the wrap did not take.
+ *
+ * No arrow function as an object-literal property in the page function: the e2e loader (esbuild,
+ * keepNames) wraps it in `__name(…)`, which the page does not define — the assignment then threw a
+ * ReferenceError before it ran.
+ */
 export async function captureTeamServerSignIn(): Promise<void> {
-  await browser.execute(() => {
-    const core = (
-      window as unknown as {
-        __TAURI__: { core: { invoke: (cmd: string, args?: unknown) => Promise<unknown> } };
-      }
-    ).__TAURI__.core;
+  const wrapped = await browser.execute(function wrapInvoke() {
+    type Invoke = (cmd: string, args?: unknown) => Promise<unknown>;
+    const tauri = (window as unknown as { __TAURI__: { core: { invoke: Invoke } } }).__TAURI__;
     const w = window as unknown as { __e2eHubSignInWrapped?: boolean; __e2eHubSignIn?: string };
-    if (w.__e2eHubSignInWrapped) return;
-    w.__e2eHubSignInWrapped = true;
-    const real = core.invoke.bind(core);
-    core.invoke = (cmd: string, args?: unknown) => {
-      if (cmd === 'open_team_server_signin') {
-        w.__e2eHubSignIn = (args as { url?: string } | undefined)?.url;
-        return Promise.resolve();
-      }
-      return real(cmd, args);
-    };
+    if (!w.__e2eHubSignInWrapped) {
+      const core = tauri.core;
+      const real = core.invoke.bind(core);
+      const copy = Object.assign({}, core);
+      // biome-ignore lint/complexity/useArrowFunction: runs in the page; no loader helper (__name) may wrap it
+      copy.invoke = function (cmd: string, args?: unknown) {
+        if (cmd === 'open_team_server_signin') {
+          w.__e2eHubSignIn = (args as { url?: string } | undefined)?.url;
+          return Promise.resolve();
+        }
+        return real(cmd, args);
+      };
+      tauri.core = copy;
+      w.__e2eHubSignInWrapped = tauri.core === copy;
+    }
+    return w.__e2eHubSignInWrapped ? 'wrapped' : 'not wrapped';
   });
+  if (wrapped !== 'wrapped')
+    throw new Error(`could not wrap __TAURI__.core.invoke in this webview (${String(wrapped)})`);
 }
 
 /** The page URL the webview last asked Rust to open (after `captureTeamServerSignIn`). */
