@@ -89,8 +89,13 @@ fi
 if [ -n "$SERVER_BIN" ]; then
   _sbase="$(basename "$SERVER_BIN")"
   _sparent="$(basename "$(dirname "$SERVER_BIN")")"
-  case "$_sbase:$_sparent" in
-    maude:maude-* | maude.exe:maude-*) : ;;
+  # fix/ds-convert-hooks-cli #13 — or the desktop app's own bundled server, which the sidecar
+  # hands every helper (sidecar.rs, DDR-166 T0b): <Name>.app/Contents/MacOS/maude-server.
+  _sapp="$(basename "$(dirname "$(dirname "$(dirname "$SERVER_BIN")")")")"
+  _scontents="$(basename "$(dirname "$(dirname "$SERVER_BIN")")")"
+  case "$_sbase:$_sparent:$_scontents:$_sapp" in
+    maude:maude-*:*:* | maude.exe:maude-*:*:*) : ;;
+    maude-server:MacOS:Contents:*.app) : ;;
     *)
       echo "server-up.sh: ignoring dev-server binary outside the expected maude-<slug>/ layout ($SERVER_BIN) — falling back to source" >&2
       SERVER_BIN=""
