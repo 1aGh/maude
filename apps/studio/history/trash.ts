@@ -93,6 +93,12 @@ export interface CanvasItem extends StoreCanvasItem, ItemWho {
   id: `canvas:${string}`;
   kind: 'canvas';
   group: 'today' | 'earlier';
+  /**
+   * A live canvas holds this item's path right now (one made again at the old place): this is an OLDER
+   * copy, not the canvas a tab has open. The "moved to the trash" bar never shows for it. Set by
+   * GET /_api/trash (routes/trash.ts); absent when the home cannot list live documents.
+   */
+  liveAtPath?: boolean;
 }
 
 export interface ArtboardItem extends StoreArtboardItem, ItemWho {
