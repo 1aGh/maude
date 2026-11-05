@@ -2,6 +2,24 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "faster-steadier-uploads",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Faster, steadier uploads",
+      "summary": "A big project's pictures and media now go up to your team server a few at a time, so one slow file no longer holds up the rest, and a file that timed out gets a second try. Sync details counts only the files that still have to move, and files in deeply nested folders, like a 3D asset pack, now sync too. A server too old to take them lists each one with the reason.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "first-download-stops-repeating",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "A first download from an older team server finishes",
+      "summary": "Getting a project from a team server that runs an older Maude no longer asks for the same files over and over. A file that can't be fetched waits with a reason instead of being asked for on every pass, and a server that doesn't answer is asked again a minute later.",
+      "surface": "design-ui"
+    },
+    {
       "id": "team-server-browser-signin",
       "version": "2.0.4",
       "date": "2026-11-05",
