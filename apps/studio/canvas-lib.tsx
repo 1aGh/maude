@@ -1256,6 +1256,14 @@ export function getLiveViewport(): ViewportState | null {
  * through the scene. Node → the world it sits in (only that world's writes feed it).
  */
 const screenSizedNodes = new Map<HTMLElement, HTMLElement | null>();
+/**
+ * True on Blink, where CSS-counter-scaled chrome (`screenSizedRef`) is used. WebKit (Safari + the WKWebView
+ * desktop app) keeps sizing that chrome from `useLiveViewport()`: the per-frame transform was not shown to be
+ * free there, and the desktop app must not regress (2.0.5 W2).
+ */
+export function cssCounterScaledChrome(): boolean {
+  return !IS_WEBKIT;
+}
 export function screenSizedRef(node: HTMLElement | null): (() => void) | undefined {
   if (!node) return undefined;
   const world = node.closest<HTMLElement>('.dc-world');
