@@ -15,7 +15,9 @@ const tid = (s: string) => `[data-testid="${s}"]`;
 
 describe('project-account-card', () => {
   before(async () => {
-    startReport('project-account-card — your face opens the project account; the sync word opens Sync');
+    startReport(
+      'project-account-card — your face opens the project account; the sync word opens Sync'
+    );
     await waitForSidecar();
   });
 
