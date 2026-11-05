@@ -261,7 +261,9 @@ function humanSystem(r: SystemReport): string {
     `  C7: ${r.c7.families} accent famil${r.c7.families === 1 ? 'y' : 'ies'} vs ${r.c7.strategy} → ${r.c7.pass ? 'pass' : 'FAIL'}`
   );
   for (const n of r.notes)
-    lines.push(`  note: ${n.id}${n.name ? ` (${n.name})` : ''} — ${n.detail}`);
+    lines.push(
+      `  ${n.id === 'root-only-roles' ? 'warning' : 'note'}: ${n.id}${n.name ? ` (${n.name})` : ''} — ${n.detail}`
+    );
   return lines.join('\n');
 }
 
