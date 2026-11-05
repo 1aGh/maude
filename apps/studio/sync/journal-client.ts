@@ -249,31 +249,109 @@ export async function hubHealth(opts: {
   hubUrl: string;
   fetchImpl?: typeof fetch;
   signal?: AbortSignal;
-}): Promise<{ capabilities: string[] | null; formatVersion: number | null }> {
+  /** Override the 4 s ceiling (the lane probe asks with a longer one). */
+  timeoutMs?: number;
+}): Promise<{
+  capabilities: string[] | null;
+  formatVersion: number | null;
+  /**
+   * Did the HUB answer (2.0.5)? False for a timeout, a network error, a 5xx, a
+   * 429 or an unreadable body — none of which says anything about what the hub
+   * can do. `capabilities: null` with `answered: true` is a real answer: a hub
+   * that predates capabilities.
+   */
+  answered: boolean;
+}> {
   const fetchImpl = opts.fetchImpl ?? fetch;
   const base = opts.hubUrl.replace(/\/+$/, '');
   try {
-    const timeout = AbortSignal.timeout(HEALTH_TIMEOUT_MS);
+    const timeout = AbortSignal.timeout(opts.timeoutMs ?? HEALTH_TIMEOUT_MS);
     const res = await fetchImpl(`${base}/health`, {
       // a hub answers its own /health: a redirect is never followed (gate-b-sec1 A5 — a bounce to an internal
       // http address from a cell). The other sync requests do not follow one either (`redirect: 'manual'`).
       redirect: 'error',
       signal: opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout,
     });
-    if (!res.ok) return { capabilities: null, formatVersion: null };
+    if (!res.ok) {
+      // A hub without the route (404) has answered: it has no capabilities. A
+      // server error or a rate limit has not.
+      const answered = res.status < 500 && res.status !== 429 && res.status !== 408;
+      return { capabilities: null, formatVersion: null, answered };
+    }
     const body = (await res.json()) as { capabilities?: unknown; formatVersion?: unknown };
     const fv = body?.formatVersion;
     const formatVersion = typeof fv === 'number' && Number.isSafeInteger(fv) && fv >= 1 ? fv : null;
-    if (!Array.isArray(body?.capabilities)) return { capabilities: null, formatVersion };
+    if (!Array.isArray(body?.capabilities))
+      return { capabilities: null, formatVersion, answered: true };
     return {
       capabilities: body.capabilities
         .filter((c): c is string => typeof c === 'string')
         .slice(0, 32),
       formatVersion,
+      answered: true,
     };
   } catch {
-    return { capabilities: null, formatVersion: null };
+    return { capabilities: null, formatVersion: null, answered: false };
   }
+}
+
+/** The lane probe's patience: a longer ceiling than the 4 s boot probe. */
+const LANE_PROBE_TIMEOUT_MS = 10_000;
+/** Waits between attempts — a cold cell or a busy hub gets a moment. */
+const LANE_PROBE_BACKOFF_MS = [2_000, 5_000] as const;
+
+/**
+ * Which file lane this hub needs, decided only from an ANSWER (2.0.5).
+ *
+ * The boot used to ask `/health` once with a 4 s ceiling and read a timeout as
+ * "no journal here" — so a hub that was merely slow sent a 2.0 desktop down the
+ * legacy v1 lane on a ledger hub for the whole boot: no ledger, no held
+ * states, files the person had deleted pulled back, and (with the poll's
+ * overlapping passes) a core pinned at 2–4 GB. Now: up to `attempts` tries
+ * with a backoff and a longer ceiling; `legacy` only from a hub that answered
+ * without `ledger`; `unknown` when it never answered — the caller asks again
+ * later and runs no file lane meanwhile.
+ */
+export async function probeFileLane(opts: {
+  hubUrl: string;
+  fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+  attempts?: number;
+  timeoutMs?: number;
+  backoffMs?: readonly number[];
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<{
+  lane: 'plane' | 'legacy' | 'unknown';
+  capabilities: string[] | null;
+  formatVersion: number | null;
+}> {
+  const attempts = Math.max(1, opts.attempts ?? 3);
+  const backoff = opts.backoffMs ?? LANE_PROBE_BACKOFF_MS;
+  const sleep =
+    opts.sleep ??
+    ((ms: number) =>
+      new Promise<void>((r) => {
+        const t = setTimeout(r, ms);
+        (t as { unref?: () => void }).unref?.();
+      }));
+  for (let i = 0; i < attempts; i++) {
+    if (opts.signal?.aborted) break;
+    const h = await hubHealth({
+      hubUrl: opts.hubUrl,
+      ...(opts.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
+      ...(opts.signal ? { signal: opts.signal } : {}),
+      timeoutMs: opts.timeoutMs ?? LANE_PROBE_TIMEOUT_MS,
+    });
+    if (h.answered) {
+      return {
+        lane: hasLedger(h.capabilities) ? 'plane' : 'legacy',
+        capabilities: h.capabilities,
+        formatVersion: h.formatVersion,
+      };
+    }
+    if (i < attempts - 1) await sleep(backoff[Math.min(i, backoff.length - 1)] ?? 5_000);
+  }
+  return { lane: 'unknown', capabilities: null, formatVersion: null };
 }
 
 /** Does this hub keep annotations as the v2 element model (DDR-242)? */
@@ -296,4 +374,15 @@ export const FILE_CLASSES_V2_CAPABILITY = 'file-classes-v2';
  */
 export function hasFileClassesV2(capabilities: string[] | null): boolean {
   return Array.isArray(capabilities) && capabilities.includes(FILE_CLASSES_V2_CAPABILITY);
+}
+
+/** The capability a hub advertises when its doors take paths up to 32 segments deep (fix/205). */
+export const FILE_DEPTH_V2_CAPABILITY = 'file-depth-v2';
+
+/**
+ * Does this hub take paths deeper than 8 segments? Every hub before fix/205 answers them
+ * `400 invalid path`, so the desktop holds them for it with a reason (`olderDoorRefusesDepth`).
+ */
+export function hasFileDepthV2(capabilities: string[] | null): boolean {
+  return Array.isArray(capabilities) && capabilities.includes(FILE_DEPTH_V2_CAPABILITY);
 }

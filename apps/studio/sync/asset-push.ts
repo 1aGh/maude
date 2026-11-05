@@ -44,12 +44,18 @@ import { randomBytes } from 'node:crypto';
 import { type Dirent, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
-import { type CanvasGroupLike, classifyProjectFile, isFilePlaneClass } from './file-membership.ts';
+import {
+  type CanvasGroupLike,
+  classifyProjectFile,
+  isFilePlaneClass,
+  MAX_SEGMENTS,
+  OLDER_HUB_DEPTH_REASON,
+  olderDoorRefusesDepth,
+} from './file-membership.ts';
 import { readLfsPointer } from './lfs-pointer.ts';
 import { failureReason, retryAfterMs } from './retry-after.ts';
 
-/** Max designRoot-relative depth (matches the classifier's 8-segment cap). */
-const MAX_SEGMENTS = 8;
+export { OLDER_HUB_DEPTH_REASON };
 
 /** A 2 GB file in an assets dir is a mistake — don't move it silently. */
 const MAX_PUSH_BYTES = 512 * 1024 * 1024;
@@ -273,11 +279,21 @@ export function listPushableAssets(
     .sort();
 }
 
+/**
+ * The hub's bucket key shape (`apps/hub/src/assets.mjs` ASSET_KEY): at most five
+ * segments under `assets/`, no spaces, each segment ≤ 64 characters. A top-level
+ * path it cannot key — an asset pack's `Models/GLTF format/…` — was sent to the
+ * bucket route anyway and refused `400` every boot (fix/205); it goes to the
+ * checkout route, which takes any classifier-admitted path.
+ */
+const BUCKET_KEY =
+  /^(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9][A-Za-z0-9._-]{0,63}(?:\/[A-Za-z0-9][A-Za-z0-9._-]{0,63}){0,4}$/;
+
 /** Where a given asset pushes: the bucket-backed route (top-level `assets/`) or
  *  the checkout route (a nested `…/assets/…` served from disk). */
 function routeFor(rel: string): { url: string } {
   const parts = rel.split('/');
-  if (parts[0] === 'assets') {
+  if (parts[0] === 'assets' && BUCKET_KEY.test(parts.slice(1).join('/'))) {
     // Top-level content-addressed → the bucket `/assets/<key>` route.
     return { url: `/assets/${parts.slice(1).join('/')}` };
   }
@@ -361,6 +377,8 @@ async function putWithRetry(ctx: {
   /** Mutable per-sweep pause budget, shared across every asset. */
   backoff: { remainingMs: number };
   timeoutFor: (bytes: number) => number;
+  /** Told when the hub answered 429 — the caller narrows the sweep. */
+  onThrottled?: () => void;
 }): Promise<Response> {
   const send = (): Promise<Response> => {
     const body = Bun.file(ctx.file);
@@ -379,6 +397,7 @@ async function putWithRetry(ctx: {
   };
   const first = await send();
   if (first.status === 429) {
+    ctx.onThrottled?.();
     const wait = retryAfterMs(first.headers?.get?.('retry-after') ?? null);
     if (wait > ctx.backoff.remainingMs) return first;
     ctx.backoff.remainingMs -= wait;
@@ -390,11 +409,52 @@ async function putWithRetry(ctx: {
 }
 
 /**
- * Mirror local assets up to the hub. Idempotent and skip-first (one HEAD per
- * asset per boot; upload only on a miss), sequential on purpose — assets run
- * to videos, and saturating the link a fresh sync is also using would starve
- * the handshakes this rides behind. Never throws; a failed upload is retried
- * for free on the next boot.
+ * How many uploads one sweep keeps on the wire (fix/205-sync-assets).
+ *
+ * It was ONE, "sequential on purpose" so a video upload could not starve the
+ * handshakes a fresh sync rides on. That made one hung PUT the whole lane's
+ * problem: the studyfi first sync (5,534 assets) sat on one SVG for its full
+ * budget. Four is enough that a slow file no longer stalls the rest and still
+ * far from saturating a link — the text lanes keep their share.
+ */
+export const UPLOAD_WIDTH_MAX = 4;
+/** Reads per minute (the hub's advertised `readsPerMinute`) one upload lane is worth. */
+const READS_PER_UPLOAD_LANE = 120;
+const LIMITS_TIMEOUT_MS = 10_000;
+
+/**
+ * The sweep's width: UPLOAD_WIDTH_MAX, narrowed when the hub says its rate is
+ * low (`/api/file-limits` `readsPerMinute`, #204). Hub-supplied (DDR-054), so
+ * it can only slow us down — to one — never widen past the maximum. A hub
+ * without the route (every journal-less hub this lane serves, most likely), or
+ * one that does not answer, gets the default: its 429s narrow the sweep anyway.
+ */
+async function uploadWidth(ctx: {
+  fetchImpl: typeof fetch;
+  base: string;
+  token: () => string;
+}): Promise<number> {
+  try {
+    const res = await ctx.fetchImpl(`${ctx.base}/api/file-limits`, {
+      headers: { authorization: `Bearer ${ctx.token()}` },
+      signal: AbortSignal.timeout(LIMITS_TIMEOUT_MS),
+    });
+    if (!res.ok) return UPLOAD_WIDTH_MAX;
+    const body = (await res.json()) as { readsPerMinute?: unknown };
+    const rpm = body?.readsPerMinute;
+    if (typeof rpm !== 'number' || !Number.isFinite(rpm) || rpm <= 0) return UPLOAD_WIDTH_MAX;
+    return Math.max(1, Math.min(UPLOAD_WIDTH_MAX, Math.floor(rpm / READS_PER_UPLOAD_LANE)));
+  } catch {
+    return UPLOAD_WIDTH_MAX;
+  }
+}
+
+/**
+ * Mirror local assets up to the hub. Idempotent and skip-first (one batch probe
+ * per boot, per-file HEAD only on a hub without it; upload only on a miss), a
+ * few at a time (UPLOAD_WIDTH_MAX). A first-attempt timeout is tried once more
+ * after the rest of the sweep. Never throws; a failed upload is retried for
+ * free on the next boot.
  */
 export async function pushAssets(opts: {
   designRoot: string;
@@ -406,6 +466,12 @@ export async function pushAssets(opts: {
   canvasGroups?: readonly CanvasGroupLike[];
   /** The file-plane flag; absent ⇒ read from config/env the same way. */
   syncFiles?: boolean;
+  /**
+   * fix/205 — the hub advertises `file-depth-v2`. False ⇒ a path deeper than 8 segments is not
+   * sent (an older hub answers `400 invalid path`, and one such path in the batch probe refuses
+   * the whole probe): it is reported as failed with OLDER_HUB_DEPTH_REASON, by name. Absent ⇒ true.
+   */
+  hubTakesDeepPaths?: boolean;
   fetchImpl?: typeof fetch;
   log?: Pick<Console, 'log' | 'warn'>;
   /** feature-sync-progress-modal — incremental progress (throttled; failures
@@ -474,30 +540,48 @@ export async function pushAssets(opts: {
 
   // One question for the whole set, when the hub can answer it. Null = this hub
   // predates the route, so every file falls back to its own probe below.
+  // fix/205 — a hub older than `file-depth-v2` refuses a path deeper than 8 segments. Never sent,
+  // never silent: each is named with the reason (the panel lists failures by path).
+  const tooDeep =
+    opts.hubTakesDeepPaths === false ? assets.filter((rel) => olderDoorRefusesDepth(rel)) : [];
+  for (const rel of tooDeep) out.failed.push({ key: rel, reason: OLDER_HUB_DEPTH_REASON });
+  const sendable =
+    tooDeep.length > 0 ? assets.filter((rel) => !olderDoorRefusesDepth(rel)) : assets;
+  if (tooDeep.length > 0)
+    log.warn?.(
+      `[sync/assets] ${tooDeep.length} file(s) sit deeper than ${base} takes (8 folders) — update the hub`
+    );
+
   const known =
-    assets.length > 0
+    sendable.length > 0
       ? await probePresent({
           fetchImpl,
           base,
           headers: { authorization: `Bearer ${opts.token()}` },
-          paths: assets,
+          paths: sendable,
         })
       : null;
 
-  for (const rel of assets) {
-    if (opts.cancelled?.()) break;
+  // fix/205 — what the batch already answered is settled NOW, not lazily in
+  // loop order: "5463 moving" for a set the hub held all but 74 of was the
+  // panel counting files nobody was going to send.
+  const queue = known ? sendable.filter((rel) => !known.has(rel)) : sendable;
+  if (known) out.skipped = sendable.length - queue.length;
+  if (assets.length > 0) emitProgress(queue[0] ?? null, false, true);
+
+  // How many uploads may be on the wire at once. See UPLOAD_WIDTH_MAX.
+  let width = queue.length > 0 ? await uploadWidth({ fetchImpl, base, token: opts.token }) : 1;
+  let stop = false;
+  /** Files whose FIRST attempt timed out — they get one more go after the rest of the sweep. */
+  const timedOut: string[] = [];
+
+  const one = async (rel: string, lastTry: boolean): Promise<void> => {
     emitProgress(rel, false);
     const url = `${base}${routeFor(rel).url}`;
     const headers = { authorization: `Bearer ${opts.token()}` };
-    if (known) {
-      if (known.has(rel)) {
-        out.skipped += 1;
-        continue;
-      }
+    try {
       // The batch answered, and it said this one is missing — no per-file probe
       // can add anything, so go straight to the upload.
-    }
-    try {
       const head = known
         ? null
         : await fetchImpl(url, {
@@ -507,7 +591,7 @@ export async function pushAssets(opts: {
           });
       if (head?.ok) {
         out.skipped += 1;
-        continue;
+        return;
       }
       // A hub that refuses the PROBE refuses the upload — pushing the body
       // anyway just streams megabytes at a door that already said no. The
@@ -521,7 +605,12 @@ export async function pushAssets(opts: {
       if (head && (head.status === 401 || head.status === 403)) {
         out.failed.push({ key: rel, reason: await failureReason(head) });
         emitProgress(rel, false, true);
-        continue;
+        return;
+      }
+      // The cancel may land while the probe was out — never start a body after it.
+      if (stop || opts.cancelled?.()) {
+        stop = true;
+        return;
       }
       const put = await putWithRetry({
         fetchImpl,
@@ -531,19 +620,30 @@ export async function pushAssets(opts: {
         sleep,
         backoff,
         timeoutFor,
+        // The hub is pacing us: the rest of this sweep goes one file at a time.
+        onThrottled: () => {
+          width = 1;
+        },
       });
       if (put.ok) out.pushed.push(rel);
       else if (put.status === 405) {
         // `this hub does not accept file writes`: no checkout, so no file can ever land here. Stop the pass — the
         // next file would get the same answer — and say it is not a failure; the media stays on this Mac.
         out.refused = 'no-checkout';
-        break;
+        stop = true;
       } else {
         out.failed.push({ key: rel, reason: await failureReason(put) });
         emitProgress(rel, false, true);
       }
     } catch (err) {
       const e = err as Error;
+      // One hung request used to cost the file its whole boot. A timeout is the
+      // likeliest refusal to be transient, so it waits for the end of the sweep
+      // and goes once more (lastTry) — a second timeout is reported.
+      if (e.name === 'TimeoutError' && !lastTry) {
+        timedOut.push(rel);
+        return;
+      }
       out.failed.push({
         key: rel,
         // "TimeoutError: The operation timed out" tells a person nothing about
@@ -552,6 +652,24 @@ export async function pushAssets(opts: {
       });
       emitProgress(rel, false, true);
     }
+  };
+
+  let next = 0;
+  const worker = async (id: number): Promise<void> => {
+    // A worker past the current width retires (a 429 narrows the sweep to one).
+    while (!stop && id < width && next < queue.length) {
+      if (opts.cancelled?.()) {
+        stop = true;
+        break;
+      }
+      const rel = queue[next++] as string;
+      await one(rel, false);
+    }
+  };
+  await Promise.all(Array.from({ length: width }, (_, id) => worker(id)));
+  for (const rel of timedOut) {
+    if (stop || opts.cancelled?.()) break;
+    await one(rel, true);
   }
   // No assets → no emits at all: a project without an assets/ dir should not
   // grow an empty assets section in its Sync panel.

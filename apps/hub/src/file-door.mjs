@@ -81,6 +81,13 @@ export const FILE_DOOR_PREFIX = '/api/file/';
  */
 export const FILE_CLASSES_V2_CAPABILITY = 'file-classes-v2';
 
+/**
+ * Advertised on `/health` (fix/205-sync-assets): this hub's doors take paths up to the
+ * classifier's 32 segments. Every older door refuses anything past 8 with `400 invalid path`, so
+ * a desktop holds those for a hub without this word — with a reason, never silently.
+ */
+export const FILE_DEPTH_V2_CAPABILITY = 'file-depth-v2';
+
 /** One PUT body. Kept BELOW the platform's own body limit on purpose; a larger
  *  file goes up as an upload session (upload-sessions.mjs, plan T18). */
 const MAX_FILE_BYTES = SINGLE_PUT_BYTES;

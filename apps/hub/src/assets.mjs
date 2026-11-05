@@ -27,7 +27,7 @@ import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileAccessFor } from './access-files.mjs';
 import { assetObjectKey, assetPrefixFromEnv } from './asset-key.mjs';
 import { resolveCheckoutFileWrite } from './file-manifest.mjs';
-import { isProjectFileShape } from './file-membership.mjs';
+import { isProjectFileShape, MAX_SEGMENTS } from './file-membership.mjs';
 import { isContainedReal, realpathOfDeepestExisting } from './path-contain.mjs';
 import { getObject, headObject } from './s3.mjs';
 import { verifyToken } from './tokens.mjs';
@@ -406,7 +406,8 @@ export function checkoutRelShape(rel) {
   if (/[\u0000-\u001f\u007f]/.test(rel)) return null;
   if (rel.startsWith('/') || rel.includes('\\') || /^[A-Za-z]:/.test(rel)) return null;
   const parts = rel.split('/');
-  if (parts.length < 2 || parts.length > 8) return null;
+  // The classifier's depth cap (fix/205) — a deep asset must be probeable and readable too.
+  if (parts.length < 2 || parts.length > MAX_SEGMENTS) return null;
   for (const p of parts) {
     if (!p || p === '.' || p === '..') return null;
     if (!/^[A-Za-z0-9][A-Za-z0-9 ._-]*$/.test(p)) return null;

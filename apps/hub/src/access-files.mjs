@@ -46,6 +46,7 @@ import {
 } from '../../studio/access/scope.ts';
 import { docSlugOf } from './access-docs.mjs';
 import { claimForMatch, NOT_IN_SCOPE_REFUSAL } from './access-gate.mjs';
+import { MAX_SEGMENTS } from './file-membership.mjs';
 import { cachedJournal } from './journal.mjs';
 import { matchesScope } from './tokens.mjs';
 
@@ -53,7 +54,7 @@ export { NOT_IN_SCOPE_REFUSAL };
 
 /** Walk ceilings — the manifest's (`file-manifest.mjs`): files, depth. */
 const MAX_WALK_FILES = 20_000;
-const MAX_WALK_DEPTH = 8;
+const MAX_WALK_DEPTH = MAX_SEGMENTS;
 /** A file name that could be a canvas (closure.ts `grantedBySlug`'s twin scan). */
 const CANVAS_SHAPED_RE = /\.(tsx|html)$/i;
 /** A text larger than this is not scanned for references (a canvas is KBs). */

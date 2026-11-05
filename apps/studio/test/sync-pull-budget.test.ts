@@ -159,7 +159,8 @@ describe('file-pull honours the pass budget', () => {
 
       expect(out.pulled).toEqual([]);
       expect(out.budgetExhausted).toBe(true);
-      expect(out.failed[0]?.reason).toContain('declared 1 B, sent 5000 B');
+      // Streamed: the transfer stops at the ceiling instead of reading all 5000 B.
+      expect(out.failed[0]?.reason).toContain('declared 1 B, sent more than');
       // And crucially: nothing landed on disk.
       expect(readdirSync(join(dir, 'assets'))).toEqual([]);
     } finally {

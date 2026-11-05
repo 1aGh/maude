@@ -46,7 +46,12 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { declaredCanvasGroups } from '../../studio/sync/canvas-path.ts';
 import { fileAccessFor } from './access-files.mjs';
 import { MAX_PROJECT_FILE_BYTES, parseRange } from './file-limits.mjs';
-import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
+import {
+  classifyProjectFile,
+  isFilePlaneClass,
+  isProjectFileShape,
+  MAX_SEGMENTS,
+} from './file-membership.mjs';
 import { isContainedReal, realpathOfDeepestExisting } from './path-contain.mjs';
 import { verifyToken } from './tokens.mjs';
 
@@ -61,9 +66,9 @@ export const PROJECT_FILE_PREFIX = '/_project-file/';
  *  because a silent cap reads as "sync is broken" with no cause. */
 const MAX_MANIFEST_FILES = 20_000;
 
-/** Walk depth ceiling — matches the classifier's 8-segment shape cap, so the
- *  walk can never even visit a path the classifier would refuse. */
-const MAX_WALK_DEPTH = 8;
+/** Walk depth ceiling — the classifier's own segment cap, so the walk can never
+ *  even visit a path the classifier would refuse. */
+const MAX_WALK_DEPTH = MAX_SEGMENTS;
 
 /** Refuse to serve an implausible file rather than stream it. Same figure as
  *  the asset lanes' MAX_PULL_BYTES / MAX_PUSH_BYTES. */

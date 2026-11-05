@@ -26,7 +26,7 @@ import { existsSync, lstatSync } from 'node:fs';
 import path from 'node:path';
 
 import { listPushableAssets } from './asset-push.ts';
-import { type CanvasGroupLike, classifyProjectFile } from './file-membership.ts';
+import { type CanvasGroupLike, classifyProjectFile, MAX_SEGMENTS } from './file-membership.ts';
 import { hasLfsObject, lfsObjectsDir, readLfsPointer } from './lfs-pointer.ts';
 
 export interface AssetWho {
@@ -73,7 +73,8 @@ export function isAssetStateRel(rel: unknown): rel is string {
   // biome-ignore lint/suspicious/noControlCharactersInRegex: refusing them is the point.
   if (/[\u0000-\u001f\u007f]/.test(rel)) return false;
   const parts = rel.split('/');
-  if (parts.length < 2 || parts.length > 8) return false;
+  // The classifier's depth cap (32 since fix/205) — a deep asset must be askable too.
+  if (parts.length < 2 || parts.length > MAX_SEGMENTS) return false;
   return parts.every((p) => p && p !== '.' && p !== '..' && !p.startsWith('_'));
 }
 
