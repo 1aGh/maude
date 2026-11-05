@@ -178,8 +178,10 @@ describe('the cover sweep (P8 perf fix, V2-8.14 covers)', () => {
   // 2.0.5 W5: a cover that is one flat white is a miss, not a cover (decision
   // v2-205-blank-in-shim-reject-on-server) — and TWO's artboards are white with a two-letter label, which
   // at cover size IS flat white. This render measures the settle, so its artboards are painted.
-  const PAINTED = TWO(2).replace(/<div>(2[ab])<\/div>/g, (_m, t) =>
-    `<div style={{ width: '100%', height: '100%', background: '#2f6fdb', color: '#fff' }}>${t}</div>`
+  const PAINTED = TWO(2).replace(
+    /<div>(2[ab])<\/div>/g,
+    (_m, t) =>
+      `<div style={{ width: '100%', height: '100%', background: '#2f6fdb', color: '#fff' }}>${t}</div>`
   );
   async function settleMs(withCount: boolean): Promise<number> {
     const replies: Array<Record<string, unknown>> = [];
