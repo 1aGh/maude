@@ -117,6 +117,20 @@ describe('LiveRegistry', () => {
     expect(r.get('a')).toEqual({ live: false, seen: false });
   });
 
+  test('light mode mounts nothing in the overview (zoomed out), however near', () => {
+    const m = manual();
+    const r = new LiveRegistry('light', m.schedule);
+    r.subscribe('a', () => {});
+    r.setZoom(0.1);
+    r.setNear('a', true);
+    r.setVisible('a', true);
+    m.flush();
+    expect(r.get('a')).toEqual({ live: false, seen: false });
+    r.setZoom(1);
+    m.flush();
+    expect(r.get('a')).toEqual({ live: true, seen: true });
+  });
+
   test('no wake while a gesture is in flight; the queue drains when it settles', () => {
     const m = manual();
     const r = new LiveRegistry('sleep', m.schedule);

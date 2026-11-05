@@ -37,7 +37,8 @@ export const WAKE_PER_FRAME = 3;
 /**
  * `off`   — every artboard live, every child mounted (captures, exports, headless, tests): the pre-2.0.5 behaviour.
  * `sleep` — the studio default: offscreen / overview artboards sleep, their DOM stays mounted.
- * `light` — "Show visible artboards only" after a crash: an artboard's children mount only while it is near.
+ * `light` — "Show visible artboards only" after a crash: an artboard's children mount only while it is live
+ *           (near the viewport and the canvas not in its overview).
  */
 export type LiveMode = 'off' | 'sleep' | 'light';
 
@@ -75,7 +76,7 @@ export function decideLive(s: {
 export interface ArtboardLiveState {
   /** Runs its heavy content. */
   live: boolean;
-  /** Its children may be mounted (always true in `sleep`/`off` once seen; follows `near` in `light`). */
+  /** Its children may be mounted (always true in `sleep`/`off` once seen; follows `live` in `light`). */
   seen: boolean;
 }
 
@@ -211,8 +212,10 @@ export class LiveRegistry {
       visibleCount: this.visibleCount(),
       forceAll: force,
     });
-    // `light` unmounts what left the viewport; `sleep` keeps whatever was once mounted.
-    const admitted = force || s.near || (this.mode === 'sleep' && s.admitted);
+    // `sleep` mounts what came near and keeps it. `light` (after a crash) mounts only what is LIVE — near and
+    // not in the overview — so a zoomed-out view of 60 scenes mounts none of them, and unmounts what leaves.
+    const admitted =
+      this.mode === 'light' ? live : force || s.near || (this.mode === 'sleep' && s.admitted);
     return { live, admitted };
   }
 

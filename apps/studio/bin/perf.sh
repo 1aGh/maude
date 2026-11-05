@@ -18,7 +18,7 @@
 #           [--pan N] [--zoom N] [--timeout S] [--repeat N]
 #           [--engine chromium|safari] [--studio] [--fit-all]
 #           [--window WxH] [--frame today|pinned|full|WxH] [--compare-frame <same>]
-#           [--variant <tag>] [--inject-css <css>]
+#           [--variant <tag>] [--inject-css <css>] [--query <k=v&…>]
 #           [--history <path>] [--json]
 #
 #   --engine safari measures WebKit through safaridriver (one-time
@@ -50,6 +50,8 @@
 #              difference. Refuses (exit 1) when the two geometries showed a
 #              different number of artboards on screen — not the same content.
 #   --variant  A label for an A/B arm; keys the history row with the canvas.
+#   --query    Extra canvas-page parameters for an A/B arm on the bare page (not --studio), e.g.
+#              `artboard-live=off` vs `artboard-live=sleep` (2.0.5 heavy canvases). Letters, digits, `=&_-` only.
 #   --inject-css  CSS injected into the canvas document before each pass, to
 #              test a rendering hypothesis against the same build.
 #
@@ -110,6 +112,7 @@ while [ $# -gt 0 ]; do
     --compare-frame) COMPARE_FRAME="$2"; shift 2 ;;
     --variant)  VARIANT="$2"; shift 2 ;;
     --inject-css) INJECT_CSS="$2"; shift 2 ;;
+    --query)    QUERY="$2"; shift 2 ;;
     --help|-h)
       sed -n '2,/^[^#]/p' "$0" | sed '$d' | sed -E 's/^# ?//'
       exit 0
@@ -227,6 +230,13 @@ esac
 # or `%` would otherwise truncate or rewrite the query string.
 REL_ENC=$("$JS_RUNTIME" -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$REL_FULL")
 URL="http://localhost:${PORT}/_canvas-shell.html?canvas=${REL_ENC}"
+if [ -n "${QUERY:-}" ]; then
+  case "$QUERY" in
+    *[!A-Za-z0-9=\&_-]*) echo "perf.sh: --query takes letters, digits and = & _ - only" >&2; exit 2 ;;
+  esac
+  [ "$STUDIO" = "1" ] && { echo "perf.sh: --query applies to the bare canvas page, not --studio" >&2; exit 2; }
+  URL="${URL}&${QUERY}"
+fi
 . "$SCRIPT_DIR/_url-guard.sh" && maude_url_guard "$URL" || exit 2 # V2-8.9 B2 — http(s) to this Mac only
 
 # ---------- history path ----------
