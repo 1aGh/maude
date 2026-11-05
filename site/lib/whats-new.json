@@ -3,6 +3,15 @@
   "version": "2.0.4",
   "entries": [
     {
+      "id": "heavy-canvases-stay-up",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Heavy canvases no longer crash the window",
+      "summary": "Only the artboards near where you look run live. Offscreen artboards, and every artboard when you zoom far out, pause their 3D scenes, videos and animations and keep their last picture, so a canvas with dozens of scenes pans smoothly. The design system canvas draws each page when you reach it. A canvas that still crashes twice opens with Show visible artboards only instead of crashing again. Exports still draw everything.",
+      "surface": "design-ui"
+    },
+    {
       "id": "home-accounts",
       "version": null,
       "date": null,
