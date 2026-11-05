@@ -17,10 +17,12 @@
     "gen:whatsnew": "node scripts/build-whats-new.mjs",
     "gen:pricing": "node scripts/build-pricing.mjs",
     "sync:tokens": "node scripts/sync-mdcc-tokens.mjs",
-    "sync:tokens:check": "node scripts/sync-mdcc-tokens.mjs --check"
+    "sync:tokens:check": "node scripts/sync-mdcc-tokens.mjs --check",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare deploy"
   },
   "dependencies": {
-    "@vercel/analytics": "^2.0.1",
     "fumadocs-core": "16.11.1",
     "fumadocs-mdx": "15.1.0",
     "fumadocs-ui": "16.11.1",
@@ -30,6 +32,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "1.20.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/mdx": "^2.0.14",
     "@types/node": "^25.9.1",
@@ -37,6 +40,7 @@
     "@types/react-dom": "^19.2.3",
     "postcss": "^8.5.16",
     "tailwindcss": "^4.3.2",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "wrangler": "^4.157.0"
   }
 }

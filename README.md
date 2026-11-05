@@ -134,7 +134,7 @@ The repo is a **pnpm workspace monorepo** with one published npm package (`@1agh
 | Workspace | Purpose |
 | --------- | ------- |
 | `.` (root) | The single npm publisher — CLI, dev-server entry, plugin templates that ship to npm. |
-| `site/` | Docs site — Fumadocs + Next.js, deployed to Vercel ([DDR-005](.ai/archive/decisions/DDR-005-docs-site-stack-and-hosting.md)). |
+| `site/` | Docs site — Fumadocs + Next.js, built for Cloudflare Workers, on Vercel until the DNS switch ([DDR-005](.ai/archive/decisions/DDR-005-docs-site-stack-and-hosting.md)). |
 | `apps/studio/` | Zero-dep Node dev server + browser client. Bundled output (`dist/`) is the only thing in the npm tarball. |
 | `apps/hub/` | Reserved for the v1.1 federated hub (Phase 9). |
 

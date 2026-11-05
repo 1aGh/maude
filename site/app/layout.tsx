@@ -1,4 +1,3 @@
-import { Analytics } from '@vercel/analytics/next';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
@@ -78,6 +77,11 @@ const jsonLd = {
   ],
 };
 
+// Cloudflare Web Analytics (cookieless). The token is a public identifier that the
+// beacon sends to Cloudflare, but it is supplied by the deploy (GitHub variable
+// CF_BEACON_TOKEN → NEXT_PUBLIC_CF_BEACON_TOKEN), never committed. Unset = no beacon.
+const cfBeaconToken = process.env.NEXT_PUBLIC_CF_BEACON_TOKEN;
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
@@ -112,7 +116,13 @@ export default function Layout({ children }: LayoutProps<'/'>) {
           Skip to main
         </a>
         <RootProvider>{children}</RootProvider>
-        <Analytics />
+        {cfBeaconToken ? (
+          <script
+            defer
+            src="https://static.cloudflareinsights.com/beacon.min.js"
+            data-cf-beacon={JSON.stringify({ token: cfBeaconToken })}
+          />
+        ) : null}
       </body>
     </html>
   );
