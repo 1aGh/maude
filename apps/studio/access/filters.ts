@@ -597,7 +597,8 @@ const sources = new WeakMap<object, ProjectVisibility>();
  * write gate (http.ts) and the read filters (api.ts) compute the same closure once.
  *
  * gate-b-c4j — judged with the studio's EFFECTIVE config (`ctx.cfg`, read per call: a config
- * reload swaps it), not `<designRoot>/config.json`, which a custom designRoot does not have.
+ * reload swaps it) when `<designRoot>/config.json` does not exist (a custom designRoot); 2.0.5 —
+ * otherwise with that file, the one the board build reads (`config` below).
  */
 export function projectVisibility(
   ctx: Pick<Context, 'paths' | 'bus'> & { cfg?: Context['cfg'] }
@@ -625,6 +626,8 @@ export function projectVisibility(
     await listMaterializable();
   };
   // p8-c4b — plus the canvases the authority knows of (a stored grant), re-read per call.
+  // 2.0.5 — `closureConfigFor` reads the design systems from `<designRoot>/config.json` when it exists
+  // (the file the board build reads), so the closure and the build cannot disagree.
   const config = () =>
     closureConfigFor(ctx) ?? projectClosureConfig(reader, knownCanvasesFor(undefined));
   const closureOf = (access: Access): Closure | null =>
