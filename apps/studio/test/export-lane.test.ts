@@ -130,6 +130,9 @@ describe('lane remote', () => {
   test('a browser format POSTs the resolved job and the artifact comes back', async () => {
     const seen: { auth?: string | null; body?: Record<string, unknown> } = {};
     const service = Bun.serve({
+      // the lane asks 127.0.0.1:<port>; bound to every address, another listener on the same port's
+      // IPv4 loopback (seen on the mini) answers instead
+      hostname: '127.0.0.1',
       port: 0,
       fetch: async (req) => {
         seen.auth = req.headers.get('authorization');
@@ -198,6 +201,9 @@ describe('lane remote', () => {
   test('a hostile filename header cannot escape the job directory (path traversal)', async () => {
     // security-review defender: x-maude-filename lands in Bun.write(join(dir, name)).
     const service = Bun.serve({
+      // the lane asks 127.0.0.1:<port>; bound to every address, another listener on the same port's
+      // IPv4 loopback (seen on the mini) answers instead
+      hostname: '127.0.0.1',
       port: 0,
       fetch: () =>
         new Response(new Uint8Array([1, 2, 3]), {
@@ -226,6 +232,9 @@ describe('lane remote', () => {
   test('an oversized artifact is refused rather than buffered whole (OOM cap)', async () => {
     // A body over the cap (the cap floors at 1 MB, so the body must clear it).
     const service = Bun.serve({
+      // the lane asks 127.0.0.1:<port>; bound to every address, another listener on the same port's
+      // IPv4 loopback (seen on the mini) answers instead
+      hostname: '127.0.0.1',
       port: 0,
       fetch: () =>
         new Response(new Uint8Array(1_100_000), { headers: { 'content-type': 'image/png' } }),
@@ -246,6 +255,9 @@ describe('lane remote', () => {
 
   test('a refusing service surfaces its reason as the job error', async () => {
     const service = Bun.serve({
+      // the lane asks 127.0.0.1:<port>; bound to every address, another listener on the same port's
+      // IPv4 loopback (seen on the mini) answers instead
+      hostname: '127.0.0.1',
       port: 0,
       fetch: () => new Response('bad token', { status: 403 }),
     });
