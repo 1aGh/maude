@@ -232,7 +232,11 @@ describe('#14 — a held css conflict is the canvas’s conflict until the css i
     s.projection.applyFromFs(fsEvt(paths().css));
     await settle();
     publish(doc, SRC, css('purple'));
-    s.sent[0]?.answer({ status: 'rejected', code: 'base-conflict', head: hashBytes(css('purple')) });
+    s.sent[0]?.answer({
+      status: 'rejected',
+      code: 'base-conflict',
+      head: hashBytes(css('purple')),
+    });
     await settle();
     const sides = s.projection.heldCss();
     expect(sides).toEqual({ mine: css('green'), theirs: css('purple') });
@@ -270,7 +274,11 @@ describe('#14 — a held css conflict is the canvas’s conflict until the css i
     s.projection.applyFromFs(fsEvt(paths().css));
     await settle();
     publish(doc, SRC, css('purple'));
-    s.sent[0]?.answer({ status: 'rejected', code: 'base-conflict', head: hashBytes(css('purple')) });
+    s.sent[0]?.answer({
+      status: 'rejected',
+      code: 'base-conflict',
+      head: hashBytes(css('purple')),
+    });
     await settle();
     expect(s.projection.takeAccepted()).toBe(true);
     await settle();

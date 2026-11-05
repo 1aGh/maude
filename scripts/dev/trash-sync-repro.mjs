@@ -648,10 +648,7 @@ async function stopStudio(p) {
   if (i >= 0) children.splice(i, 1);
 }
 async function startAgain(p) {
-  Object.assign(
-    p,
-    await startStudio(p.name, p.root, join(scratch, `${p.name}-cfg`, 'hubs.json'))
-  );
+  Object.assign(p, await startStudio(p.name, p.root, join(scratch, `${p.name}-cfg`, 'hubs.json')));
 }
 async function hubCss(rel) {
   try {
@@ -668,7 +665,10 @@ async function hubCss(rel) {
 async function cssRun(n) {
   const rel = `ui/Css${n}.tsx`;
   const cssRel = rel.replace(/\.tsx$/, '.css');
-  const slug = rel.replace(/\//g, '-').replace(/\.tsx$/, '').toLowerCase();
+  const slug = rel
+    .replace(/\//g, '-')
+    .replace(/\.tsx$/, '')
+    .toLowerCase();
   const editor =
     (CSS_EDITOR === 'mixed' ? (n % 2 ? 'alice' : 'bob') : CSS_EDITOR) === 'bob' ? bob : alice;
   const other = editor === bob ? alice : bob;
