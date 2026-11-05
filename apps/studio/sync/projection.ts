@@ -1341,6 +1341,12 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     // on disk now: the rest of its revision may show.
     const stamped = acceptedOn() ? stampedCohort() : null;
     if (stamped && !seenStamp) observeStamp(stamped);
+    // fix/205-s515 — a publication that arrived before the cold start decided (the creator's own
+    // `doc.create`, published over the socket before its HTTP answer) was refused by `flush`
+    // (not ready) and is first seen HERE. It is on disk now: say it is applied, exactly as
+    // `flush` would — or nothing else changes on this document and the replica's applied
+    // revision stays one behind the head.
+    if (stamped && !held.has('html') && !pending.has('html')) opts.onRevisionApplied?.(stamped[0]);
   }
 
   return {
