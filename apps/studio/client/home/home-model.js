@@ -108,6 +108,16 @@ const hostOfUrl = (url) => {
   }
 };
 
+// What a row calls a hub: the host, plus the port when it is not the scheme's default (URL.host drops
+// 443/80 itself) — the same words the account card and the project's account card use.
+const hubLabelOf = (url) => {
+  try {
+    return new URL(String(url)).host.toLowerCase();
+  } catch {
+    return '';
+  }
+};
+
 /**
  * A hub of Maude Cloud (the control plane's host or a cell under it) — connections-model's rule.
  * `cloudUrl` is the control plane this Home server talks to (`/_config.cloudOrigin`, from
@@ -146,17 +156,17 @@ export function connectionOf({ hub, profileEmail = null, hubAccount = null, clou
   if (!hub) return { kind: 'local', host: null, account: null, words: 'Local · this Mac only' };
   // the control plane is not known yet (Home's /_config has not answered): say nothing rather
   // than call a Maude Cloud project a team server
-  if (!cloudUrl) return { kind: 'unknown', host: hostOfUrl(hub), account: null, words: null };
+  if (!cloudUrl) return { kind: 'unknown', host: hubLabelOf(hub), account: null, words: null };
   if (isCloudHubUrl(hub, cloudUrl)) {
     const account = profileEmail || null;
     return {
       kind: 'cloud',
-      host: hostOfUrl(hub),
+      host: hubLabelOf(hub),
       account,
       words: ['Maude Cloud', account].filter(Boolean).join(' · '),
     };
   }
-  const host = hostOfUrl(hub);
+  const host = hubLabelOf(hub);
   const account = hubAccount || null;
   return {
     kind: 'team',

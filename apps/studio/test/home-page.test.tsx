@@ -512,6 +512,37 @@ describe('Home page in the desktop app', () => {
     expect($(`home-recent-row-${P1}-ui-uniformy-2027`)).not.toBeNull();
   });
 
+  // 2.0.5 packaged-app finding: right after a sign-in or sign-out the rows read "Team server · host"
+  // and only a reload added "· account" — the accounts were fetched only when the profile ids changed.
+  test('/_home/accounts is read again on index://changed and after a Home sign-out', async () => {
+    shellOverride = {
+      ...SHELL,
+      profiles: [{ id: 'work', label: 'StudyFi' }],
+    };
+    fetchAnswers['/_home/accounts'] = [
+      200,
+      { ok: true, profiles: [{ id: 'work', hubs: [{ url: 'https://design.studyfi.com' }] }] },
+    ];
+    fetchAnswers['/_home/hub/signout'] = [200, { ok: true }];
+    mount();
+    await flush();
+    const accountReads = () => calls.filter((c) => c.url.startsWith('/_home/accounts')).length;
+    const first = accountReads();
+    expect(first).toBeGreaterThan(0);
+    await act(async () => listeners['index://changed']?.({ payload: { pids: [P2] } }));
+    await flush();
+    expect(accountReads()).toBeGreaterThan(first);
+    const second = accountReads();
+    // the face's own sign-out reloads Home, and the rows' accounts with it
+    act(() => $('home-top-face')?.click());
+    await flush();
+    act(() => $('home-account-signout-work-team')?.click());
+    await flush(2);
+    act(() => $('home-accounts-signout-confirm')?.click());
+    await flush(4);
+    expect(accountReads()).toBeGreaterThan(second);
+  });
+
   test('shell://state with a moved place refetches that pid only', async () => {
     mount();
     await flush();

@@ -130,6 +130,20 @@ describe('1 · the status word opens Diagnostics › Sync', () => {
 
 const profile = { id: 'work', label: 'Work' };
 describe('2 · the model: which account this project uses, and how', () => {
+  test('a team server on a non-default port names host:port, the same as the Home card', () => {
+    const base = { native: true, profile, cloudUrl: 'https://cloud.maude.sh' };
+    expect(
+      projectAccount({ ...base, linkedHub: { url: 'http://127.0.0.1:60542', credentialed: true } })
+        .where
+    ).toBe('127.0.0.1:60542');
+    expect(
+      projectAccount({
+        ...base,
+        linkedHub: { url: 'https://hub.studio.cz:443', credentialed: true },
+      }).where
+    ).toBe('hub.studio.cz');
+  });
+
   test('team server: kind, profile, host, the recorded account', () => {
     const a = projectAccount({
       native: true,

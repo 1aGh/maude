@@ -538,6 +538,30 @@ describe('W4b — how each project is connected, and as whom', () => {
     expect(by('l00000000000000c7')).toBe('Team server · design.team.example · tereza@team.example');
   });
 
+  test('a team server on a non-default port shows host:port, the default port shows the host', () => {
+    expect(
+      connectionOf({ hub: 'http://127.0.0.1:60542', cloudUrl: 'https://cloud.example.test' })
+    ).toMatchObject({
+      kind: 'team',
+      host: '127.0.0.1:60542',
+      words: 'Team server · 127.0.0.1:60542',
+    });
+    expect(
+      connectionOf({
+        hub: 'https://design.team.example:443',
+        hubAccount: 'tereza@team.example',
+        cloudUrl: 'https://cloud.example.test',
+      }).words
+    ).toBe('Team server · design.team.example · tereza@team.example');
+    // the cloud test still matches on the bare host, whatever its port
+    expect(
+      connectionOf({
+        hub: 'https://a.cloud.example.test:8443',
+        cloudUrl: 'https://cloud.example.test',
+      }).kind
+    ).toBe('cloud');
+  });
+
   test('before Home knows its control plane, a linked row says nothing (no vendor default)', () => {
     const f = dupFixtures();
     const m = buildHomeModel({ ...(f as Parameters<typeof buildHomeModel>[0]), cloudUrl: null });

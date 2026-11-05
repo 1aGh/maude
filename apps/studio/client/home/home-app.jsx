@@ -127,6 +127,11 @@ function cloudOriginOf(cfg) {
   return typeof o === 'string' && /^https?:\/\/[^/]+$/i.test(o) ? o : null;
 }
 
+/** Who each profile is signed in as (id · e-mail · GitHub login): changes on a sign-in or sign-out. */
+function profileSignature(s) {
+  return (s?.profiles ?? []).map((p) => [p?.id, p?.email, p?.github].join('|')).join(',');
+}
+
 // ── data ─────────────────────────────────────────────────────────────────────────────────────
 function useHomeData() {
   const [shell, setShell] = useState(null);
@@ -182,6 +187,11 @@ function useHomeData() {
     }
   }, [native]);
 
+  // 2.0.5 — counts the moments the team-server accounts may have changed (a reload after a sign-in or
+  // sign-out, an index change, a profile change); the rows read /_home/accounts again on every tick
+  const [accountsEpoch, setAccountsEpoch] = useState(0);
+  const bumpAccounts = useCallback(() => setAccountsEpoch((e) => e + 1), []);
+
   const loadAll = useCallback(async () => {
     const s = await readShell();
     shellRef.current = s;
@@ -189,7 +199,8 @@ function useHomeData() {
     const ok = await fetchIndexFor(s, null);
     setStatus(ok ? 'ready' : 'offline');
     fetchClouds(s);
-  }, [readShell, fetchIndexFor, fetchClouds]);
+    bumpAccounts();
+  }, [readShell, fetchIndexFor, fetchClouds, bumpAccounts]);
 
   // step 5 — re-run 1–2 for the pids whose place changed (or that are new)
   const onShellState = useCallback(
@@ -209,8 +220,10 @@ function useHomeData() {
       if (changed.length) fetchIndexFor(s, changed);
       const profiles = (s.profiles ?? []).map((p) => p.id).join();
       if (profiles !== (prev?.profiles ?? []).map((p) => p.id).join()) fetchClouds(s);
+      // a profile signed in or out keeps its id but changes its e-mail / GitHub login
+      if (profileSignature(s) !== profileSignature(prev)) bumpAccounts();
     },
-    [readShell, fetchIndexFor, fetchClouds]
+    [readShell, fetchIndexFor, fetchClouds, bumpAccounts]
   );
 
   useEffect(() => {
@@ -223,6 +236,7 @@ function useHomeData() {
     shellListen('index://changed', (p) => {
       const pids = Array.isArray(p?.pids) ? p.pids : null;
       fetchIndexFor(shellRef.current, pids);
+      bumpAccounts();
     }).then((off) => (alive ? offs.push(off) : off()));
     const onVisible = () => {
       if (document.visibilityState === 'visible') loadAll();
@@ -233,7 +247,7 @@ function useHomeData() {
       for (const off of offs) off();
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [loadAll, onShellState, fetchIndexFor]);
+  }, [loadAll, onShellState, fetchIndexFor, bumpAccounts]);
 
   const patchPin = useCallback((pid, rel, pinnedAt) => {
     setIndex((prev) => {
@@ -248,7 +262,17 @@ function useHomeData() {
     });
   }, []);
 
-  return { native, shell, index, clouds, cloudsReady, status, reload: loadAll, patchPin };
+  return {
+    native,
+    shell,
+    index,
+    clouds,
+    cloudsReady,
+    status,
+    accountsEpoch,
+    reload: loadAll,
+    patchPin,
+  };
 }
 
 // ── maude:// links (V2-3.5) ───────────────────────────────────────────────────────────────────
@@ -432,6 +456,7 @@ export function HomeApp() {
     .map((p) => p?.id)
     .filter(Boolean)
     .join(',');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `accountsEpoch` is the trigger — it ticks on every sign-in / sign-out / index change
   useEffect(() => {
     if (!profileKey) return undefined;
     let live = true;
@@ -449,7 +474,7 @@ export function HomeApp() {
     return () => {
       live = false;
     };
-  }, [profileKey]);
+  }, [profileKey, data.accountsEpoch]);
   const model = useMemo(
     () =>
       buildHomeModel({

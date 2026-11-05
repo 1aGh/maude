@@ -27,9 +27,10 @@
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { isCloudHub } from '../settings/connections-model.js';
 
+// host, plus the port when it is not the scheme's default (URL.host drops 443/80) — as the Home card says it
 const hostOf = (url) => {
   try {
-    return new URL(String(url)).hostname.toLowerCase();
+    return new URL(String(url)).host.toLowerCase();
   } catch {
     return '';
   }
