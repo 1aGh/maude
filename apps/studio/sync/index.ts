@@ -1369,6 +1369,8 @@ export function createSyncRuntime(
   // two-doc agent path has no proposal lane and stays legacy.
   /** Resolves once a previous run's outbox is drained: doc → own accepted html. */
   let outboxDrained: Promise<Map<string, string>> = Promise.resolve(new Map());
+  /** #14 — the same drain's css: doc → own accepted css (filled by the time it resolves). */
+  const drainedCss = new Map<string, string>();
   /** S6.13 — documents whose `doc.create` that drain had accepted: made BY
    *  THIS MAC in a previous run, so they join as a create, not a reconcile. */
   const drainedCreates = new Set<string>();
@@ -2923,6 +2925,17 @@ export function createSyncRuntime(
                   : o.op === 'doc.create'
                     ? (o.lanes as Record<string, unknown> | undefined)?.html
                     : undefined;
+              // #14 — the css twin's save is judged the same way (see accepted-cold-start.ts)
+              const css =
+                o.op === 'lane.replace' && o.lane === 'css'
+                  ? o.content
+                  : o.op === 'doc.create'
+                    ? (o.lanes as Record<string, unknown> | undefined)?.css
+                    : undefined;
+              if (typeof o.doc === 'string' && typeof css === 'string') {
+                if (result.status === 'accepted') drainedCss.set(o.doc, css);
+                else drainedCss.delete(o.doc);
+              }
               if (typeof o.doc !== 'string' || typeof html !== 'string') continue;
               if (result.status === 'accepted') own.set(o.doc, html);
               else own.delete(o.doc);
@@ -3942,6 +3955,8 @@ export function createSyncRuntime(
         // previous run left (S6.13) has made it a member by now.
         const drained = await outboxDrained;
         const ownAccepted = drained.get(docName) ?? null;
+        const ownAcceptedCss = drainedCss.get(docName) ?? null;
+        drainedCss.delete(docName);
         // S6.13b — a canvas this Mac renamed because its name was taken joins
         // as that renamed create did.
         const renamed = renamedCreates.get(docName);
@@ -3979,6 +3994,7 @@ export function createSyncRuntime(
           journal: journal ?? undefined,
           commentLedger: commentLedgerFor(ctx.paths.designRoot),
           ownAccepted,
+          ownAcceptedCss,
           wasAccepted: (content) => acceptedLink.client.holdsValue(content),
           createDoc:
             createdHere !== null
@@ -6664,10 +6680,22 @@ export function createSyncRuntime(
         return { status: 'taken' };
       }
       if (sides.mine === null) return { status: 'rejected', code: 'no-local-version' };
+      // #14 — the css twin's side first (read before the html proposal can move anything): a
+      // conflict on the css lane is the canvas's conflict too, and Keep mine that answered only
+      // the html left the css held here and the project's css in the project — the notice went,
+      // and came back after the next restart.
+      const css = projection.heldCss();
       // Mine, on top of the version that won — a new action, never a rewind.
       const r = await projection.proposeLane('html', sides.mine, { baseContent: sides.theirs });
       if (!r) return null;
-      if (r.status === 'accepted') statusStore?.clearSourceConflict?.(slug);
+      if (r.status !== 'accepted') return { status: r.status, ...(r.code ? { code: r.code } : {}) };
+      if (css && css.mine !== null) {
+        const c = await projection.proposeLane('css', css.mine, { baseContent: css.theirs });
+        if (!c) return null;
+        if (c.status !== 'accepted')
+          return { status: c.status, ...(c.code ? { code: c.code } : {}) };
+      }
+      statusStore?.clearSourceConflict?.(slug);
       return { status: r.status, ...(r.code ? { code: r.code } : {}) };
     },
     beginAiAction: (key, label, meta) => {
