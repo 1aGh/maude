@@ -14,7 +14,7 @@ const cookieCanvas = (
 document.cookie = "${name}=1; path=/; max-age=3600";
 export default function C() {
   return (<DesignCanvas><DCSection id="s" title="C">
-    <DCArtboard id="one" label="One" width={200} height={100}><div style={{ background: "#333", height: "100%" }} /></DCArtboard>
+    <DCArtboard id="one" label="One" width={200} height={100}><div style={{ background: "#333", height: 90 }} /></DCArtboard>
   </DCSection></DesignCanvas>);
 }
 `;

@@ -44,7 +44,7 @@ import {
   versionLaneHashes,
 } from './keys.ts';
 import { hasThumb, pruneThumbs, readThumb, writeThumb } from './store.ts';
-import { checkJpeg, jpegSize } from './validate.ts';
+import { checkJpeg, coverWorthy, jpegSize } from './validate.ts';
 
 export type ThumbAt = 'now' | { rev: number } | { sha: string };
 export interface ThumbRequest {
@@ -522,6 +522,9 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
     const bytes = Uint8Array.from(Buffer.from(b64, 'base64'));
     const check = checkJpeg(bytes, t.px);
     if (!check.ok) return false;
+    // W5: a cover is shown at ~16:10 on Home — a sliver (a header strip, a 3320 x 200 artboard) or a
+    // thumbnail under the floor is not a cover. Not stored; Home keeps its placeholder.
+    if (t.artboard === null && !coverWorthy(check.w, check.h)) return false;
     writeThumb(o.pid, t.key, bytes);
     dims.set(t.key, { w: check.w, h: check.h });
     reference(t.key);
@@ -626,7 +629,9 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
         noArtboard.add(t.key);
         continue;
       }
-      if (!shot || !store(job, t, shot.jpeg)) fail(t.key);
+      // W5: a flat-colour cover (the renderer looked at its pixels) is a miss like any other failure
+      if (!shot || (t.artboard === null && shot.blank === true) || !store(job, t, shot.jpeg))
+        fail(t.key);
       else if (shot.partial === true) partial = true;
     }
     if (partial && !job.retryOfPartial)

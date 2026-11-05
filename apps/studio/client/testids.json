@@ -11302,7 +11302,7 @@
     "hook": "home-shared-empty",
     "kind": "testid",
     "pattern": false,
-    "meaning": "\"Nothing shared with you yet.\" — ghost cards and a line, deliberately no button.",
+    "meaning": "\"Nothing shared with you yet.\" — one quiet glyph and a line, deliberately no button.",
     "producer": {
       "file": "apps/studio/client/home/Shelves.jsx",
       "symbol": "SharedWithYou"

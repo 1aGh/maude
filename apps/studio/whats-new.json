@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "home-covers-and-shared-empty",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Better covers and a calmer empty Shared card on Home",
+      "summary": "A canvas whose first artboard is a thin header now gets a cover of its real content, whiteboards show their board, and blank pictures no longer stick as covers. The empty Shared with you card is a single quiet line instead of tilted placeholders.",
+      "surface": "design-ui"
+    },
+    {
       "id": "board-zoom-stays-smooth",
       "version": null,
       "date": null,

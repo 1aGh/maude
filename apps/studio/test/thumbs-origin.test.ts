@@ -43,7 +43,7 @@ export default function Probe() {
     <DesignCanvas>
       <DCSection id="s" title="Probe">
         <DCArtboard id="probe" label="Probe" width={denied ? 200 : 300} height={100}>
-          <div style={{ background: "#204060", height: "100%" }} />
+          <div style={{ background: "#204060", height: 90 }} />
         </DCArtboard>
       </DCSection>
     </DesignCanvas>
