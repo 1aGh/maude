@@ -26,7 +26,9 @@ export async function liveRefusals(root, { locate = locateStudio, timeoutMs = 15
   try {
     const studio = await locate(root, { timeoutMs });
     if (!studio) return NO_STUDIO;
-    const res = await fetch(`${studio.base}/_index-data`, { signal: AbortSignal.timeout(timeoutMs) });
+    const res = await fetch(`${studio.base}/_index-data`, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
     if (!res.ok) return NO_STUDIO;
     return { live: true, refused: refusedFromIndex(await res.json()) };
   } catch {

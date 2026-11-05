@@ -321,7 +321,9 @@ describe('team-project (native-desktop)', () => {
     // (by input type, not by the retired testids — those are not hooks any more)
     // the one masked field is the invite / access-token paste (decision v2-michal-hub-token-paste-stays-password-goes)
     expect(
-      await (await sheet.$('input[type="password"]:not([data-testid="onb-hub-invite"])')).isExisting()
+      await (
+        await sheet.$('input[type="password"]:not([data-testid="onb-hub-invite"])')
+      ).isExisting()
     ).toBe(false);
     expect(await (await sheet.$('input[type="email"]')).isExisting()).toBe(false);
     await capture('01h-home-hub-sheet');

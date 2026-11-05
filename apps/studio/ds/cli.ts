@@ -4,9 +4,9 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { runCanvasModes } from './canvas-cli.ts';
-import type { PostBuild } from './post-build.ts';
 import { checkSystem, type SystemReport } from './check.ts';
 import { emitTokensJson } from './emit.ts';
+import type { PostBuild } from './post-build.ts';
 import { indexRegistry, loadRegistry } from './registry.ts';
 import {
   diskFs,

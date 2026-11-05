@@ -24,7 +24,8 @@ export function refusedFromIndex(index: unknown): Map<string, string[]> {
   const out = new Map<string, string[]>();
   if (!index || typeof index !== 'object') return out;
   const rec = index as { designRoot?: unknown; canvasRefusedInputs?: unknown };
-  const designRel = typeof rec.designRoot === 'string' && rec.designRoot ? rec.designRoot : '.design';
+  const designRel =
+    typeof rec.designRoot === 'string' && rec.designRoot ? rec.designRoot : '.design';
   const raw = rec.canvasRefusedInputs;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
   for (const [key, list] of Object.entries(raw as Record<string, unknown>)) {

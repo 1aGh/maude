@@ -117,7 +117,15 @@ describe('a running studio', () => {
 
   test('the shim asks the studio itself (maude design ds-check)', async () => {
     const p = Bun.spawn(
-      ['bun', 'run', join(import.meta.dir, '../bin/_ds-check.mjs'), '--canvas', 'ui/c.tsx', '--root', root],
+      [
+        'bun',
+        'run',
+        join(import.meta.dir, '../bin/_ds-check.mjs'),
+        '--canvas',
+        'ui/c.tsx',
+        '--root',
+        root,
+      ],
       { stdout: 'pipe', stderr: 'pipe', env: { ...process.env, CLAUDE_PROJECT_DIR: '' } }
     );
     const out = await new Response(p.stdout).text();

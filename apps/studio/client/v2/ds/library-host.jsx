@@ -177,25 +177,25 @@ export function DsLibraryHost({
    *  `fx`: the fetch ds-refresh tracks, so a hub that does not answer backs the next read off. */
   const refresh = useCallback(
     async (fx) => {
-    const fetchFn = typeof fx === 'function' ? fx : f();
-    const first = await loadLinked(fetchFn);
-    setRows(first);
-    for (const r of first) {
-      const c = await checkLibrary(r.ds, fetchFn);
-      if (c.ok) {
-        setAccess((a) => ({ ...a, [r.ds]: 'yes' }));
-        setErrors((e) => ({ ...e, [r.ds]: null }));
-        setUsed((u) => ({ ...u, [r.ds]: c.usedBy }));
-      } else if (c.noGrant || c.relink) {
-        setAccess((a) => ({ ...a, [r.ds]: c.relink ? 'relink' : 'no' }));
-        setErrors((e) => ({ ...e, [r.ds]: null }));
-      } else if (c.code === 'ds-library-unreachable' || c.code === 'unreachable') {
-        setErrors((e) => ({ ...e, [r.ds]: LIBRARY_WORDS.offline }));
-      } else if (c.code === 'ds-library-denied') {
-        setErrors((e) => ({ ...e, [r.ds]: LIBRARY_WORDS.denied }));
+      const fetchFn = typeof fx === 'function' ? fx : f();
+      const first = await loadLinked(fetchFn);
+      setRows(first);
+      for (const r of first) {
+        const c = await checkLibrary(r.ds, fetchFn);
+        if (c.ok) {
+          setAccess((a) => ({ ...a, [r.ds]: 'yes' }));
+          setErrors((e) => ({ ...e, [r.ds]: null }));
+          setUsed((u) => ({ ...u, [r.ds]: c.usedBy }));
+        } else if (c.noGrant || c.relink) {
+          setAccess((a) => ({ ...a, [r.ds]: c.relink ? 'relink' : 'no' }));
+          setErrors((e) => ({ ...e, [r.ds]: null }));
+        } else if (c.code === 'ds-library-unreachable' || c.code === 'unreachable') {
+          setErrors((e) => ({ ...e, [r.ds]: LIBRARY_WORDS.offline }));
+        } else if (c.code === 'ds-library-denied') {
+          setErrors((e) => ({ ...e, [r.ds]: LIBRARY_WORDS.denied }));
+        }
       }
-    }
-    setRows(await loadLinked(fetchFn));
+      setRows(await loadLinked(fetchFn));
     },
     [f]
   );

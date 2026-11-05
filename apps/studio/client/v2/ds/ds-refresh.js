@@ -140,7 +140,8 @@ export function dsRefresh(load, opts = {}) {
   for (const name of opts.events ?? []) win?.addEventListener?.(name, onChanged);
 
   let first = null;
-  if (opts.skipFirst) next(); // the host just read: wait for an event (or the slow clock)
+  if (opts.skipFirst)
+    next(); // the host just read: wait for an event (or the slow clock)
   else if (opts.firstMs && opts.firstMs > 0) first = set(() => void now(), opts.firstMs);
   else void now();
 

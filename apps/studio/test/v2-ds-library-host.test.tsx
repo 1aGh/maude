@@ -355,9 +355,7 @@ describe('the library host', () => {
     ] as const) {
       document.body.innerHTML = '';
       for (const r of roots.splice(0)) await act(async () => r.unmount());
-      const refused = await longTimers(() =>
-        mount(checkAnswers(wire(L).impl, status, code), [])
-      );
+      const refused = await longTimers(() => mount(checkAnswers(wire(L).impl, status, code), []));
       expect(refused).toEqual([]);
     }
   });
