@@ -19,6 +19,7 @@ import {
 } from './canvas-check.ts';
 import { checkSystem, type SystemReport } from './check.ts';
 import type { DsCheckArgs, Project, RunResult } from './cli.ts';
+import { NO_STUDIO_NOTE, type PostBuild } from './post-build.ts';
 import { indexRegistry, loadRegistry } from './registry.ts';
 import { diskFs, loadSystem, type SystemModel } from './system.ts';
 
@@ -200,7 +201,8 @@ export function runCanvasModes(
   project: Project,
   systemsSelected: SystemReport[] | null,
   t0: number,
-  hookInput: string | null
+  hookInput: string | null,
+  post: PostBuild | null = null
 ): RunResult {
   const ctx = canvasContext(project);
   if (args.cheatsheet) {
@@ -330,6 +332,8 @@ export function runCanvasModes(
       registry: 1,
       durationMs: Math.round(performance.now() - t0),
       systems: systemsSelected ?? [],
+      studio: post?.live ?? null,
+      refusedInputs: Object.fromEntries(post?.refused ?? []),
       canvases: reports.map((r) => ({ ...r, findings: r.findings.map(({ span: _s, ...f }) => f) })),
       ...(args.fix ? { fixed, dryRun: args.dryRun } : {}),
     };
@@ -342,43 +346,55 @@ export function runCanvasModes(
         ? `${args.dryRun ? 'would fix' : 'fixed'}: ${fixed.map((f) => `${f.file} (${f.edits})`).join(', ')}`
         : 'nothing to fix'
     );
-  const why = refusedWhy(project, reports);
+  const why = refusedWhy(project, reports, post);
   for (const r of reports) {
     lines.push(...(args.quiet ? [`${r.path}: ${r.state}`] : summarize(r)));
     for (const line of why.get(r.path) ?? []) lines.push(`  ✗ ${line}`);
   }
   if (!reports.length) lines.push('no canvas matched');
+  else if (post && !post.live) lines.push(NO_STUDIO_NOTE);
   return { code, stdout: `${lines.join('\n')}\n`, stderr: '' };
 }
 
 /**
- * 2.0.5 (#205) — a canvas whose import walk reaches another canvas's code renders nothing in its frame (the
- * studio refuses its module, access/closure.ts `walkImports`). Say why, in the shell card's words
- * (client/v2/code/canvas-imports-words.js), with the closure config the studio judges with.
+ * 2.0.5 (#205) — why a canvas renders nothing in its frame, in the shell card's words
+ * (client/v2/code/canvas-imports-words.js): (1) its import walk reaches another canvas's code (the studio
+ * refuses its module, access/closure.ts `walkImports`; judged with the closure config the studio uses), and
+ * (2) — only a running studio knows — its BUILT module was refused for a file another canvas owns (`post`,
+ * read from `/_index-data` by bin/_ds-check-live.mjs).
  */
-function refusedWhy(project: Project, reports: CanvasReport[]): Map<string, string[]> {
+function refusedWhy(
+  project: Project,
+  reports: CanvasReport[],
+  post: PostBuild | null
+): Map<string, string[]> {
   const out = new Map<string, string[]>();
   if (!reports.length) return out;
+  let walked = new Map<string, string[]>();
   try {
     const reader = diskProjectReader(project.designRoot, () => 'ds-check');
     const cfg = closureConfigFor({
       cfg: project.config as { linkedHub?: { url?: string } | null },
       paths: { designRoot: project.designRoot },
     });
-    const report = canvasImportsReport(
+    walked = canvasImportsReport(
       reader,
       reports.map((r) => r.path),
       cfg
     );
-    const dir =
-      typeof project.config.newComponentDir === 'string' ? project.config.newComponentDir : '';
-    for (const [canvas, imports] of report)
-      out.set(
-        canvas,
-        canvasImportsLines(imports, dir).filter((l): l is string => typeof l === 'string')
-      );
   } catch {
     /* the walk is a courtesy here: the report stands without it */
+  }
+  const dir =
+    typeof project.config.newComponentDir === 'string' ? project.config.newComponentDir : '';
+  for (const r of reports) {
+    const imports = walked.get(r.path) ?? [];
+    const built = post?.refused.get(r.path) ?? [];
+    if (!imports.length && !built.length) continue;
+    out.set(
+      r.path,
+      canvasImportsLines(imports, dir, built).filter((l): l is string => typeof l === 'string')
+    );
   }
   return out;
 }
