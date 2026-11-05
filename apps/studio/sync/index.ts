@@ -137,6 +137,7 @@ import {
   parkReducer,
   parseCellState,
 } from './park.ts';
+import { takePendingDeletes } from './pending-deletes.ts';
 import { hasSelfRetryingWork } from './presentation.ts';
 import { createProjectConfigPusher } from './project-config-push.ts';
 import { createDocProjection, type DocProjection } from './projection.ts';
@@ -2950,6 +2951,11 @@ export function createSyncRuntime(
       const slug = slugFromDocName(stone.name);
       if (slug) tombstoned.add(slug);
     }
+    // #7 — a deletion made while no studio ran (an in-process `ds convert --restore`) is a
+    // deletion too: the boot pull must not fetch it back; it is told below, once the outbound
+    // lane is up (sync/pending-deletes.ts).
+    const offlineDeletes = takePendingDeletes(ctx.paths.designRoot);
+    for (const d of offlineDeletes) tombstoned.add(d.slug);
     noteHubListing(remoteListing?.documents ?? null);
     const remoteDiff = diffRemoteDocs(
       localCanvases.map((c) => docNameFor(c.slug)),
@@ -5020,6 +5026,11 @@ export function createSyncRuntime(
     createdUnsub = ctx.bus.on('canvas-created', (p: { slug?: unknown }) =>
       noteToHub(p?.slug, true)
     );
+    // #7 — the deletions written down while no studio ran, told the way the routes tell them.
+    for (const d of offlineDeletes) {
+      console.log(`[sync] telling the project ${d.rel} was deleted while Maude was closed.`);
+      ctx.bus.emit('canvas-deleted', { slug: d.slug });
+    }
 
     /**
      * Apply the project's deletions to this machine.

@@ -18,8 +18,14 @@ import path from 'node:path';
 import { createApi } from '../api.ts';
 import { type Context, createBus } from '../context.ts';
 import { createDsConvert, RESTORE_TRASH_REL, trashFolderDsCanvas } from '../ds/convert.ts';
+import { execDsPlan } from '../ds/ds-verb.ts';
 import { createDsEngine } from '../ds/engine.ts';
 import { runConvertOp } from '../routes/ds-convert.ts';
+import {
+  readPendingDeletes,
+  recordPendingDelete,
+  takePendingDeletes,
+} from '../sync/pending-deletes.ts';
 
 const PERSON = { kind: 'person', name: 'Tereza' } as const;
 const dirs: string[] = [];
@@ -163,5 +169,38 @@ describe('#8 a stale Design system canvas goes to the Trash Restore uses', () =>
     expect(!again.ok && again.error).toContain('--restore');
     expect(trashFolderDsCanvas(p.designRoot, 'system/gator')).toBeNull();
     expect(existsSync(path.join(p.designRoot, DS_CANVAS_REL))).toBe(true);
+  });
+});
+
+// #7, studio closed — `maude design ds convert <ds> --restore` runs IN-PROCESS when no studio
+// answers (ds/ds-verb.ts execDsPlan, studio: null). There is no bus, so the deletion went nowhere and
+// the next boot pulled the hub's copy back (live repro on a local cell, 2026-11-05). The run now
+// writes the deletion down; the next sync boot keeps the pull off it and tells the project.
+describe('#7 Restore with no studio running', () => {
+  test('an in-process Restore records the Design system canvas as a pending deletion', async () => {
+    const p = makeProject();
+    const o = { root: p.root, studio: null, by: PERSON };
+    const conv = await execDsPlan({ op: 'convert', input: { systems: ['gator'] } } as never, o);
+    expect(conv.status).toBe(200);
+    expect(readPendingDeletes(p.designRoot)).toEqual([]);
+    const r = await execDsPlan({ op: 'convert', input: { restore: 'gator' } } as never, o);
+    expect(r.status).toBe(200);
+    expect(readPendingDeletes(p.designRoot).map((d) => [d.slug, d.rel])).toEqual([
+      ['system-gator-design-system', DS_CANVAS_REL],
+    ]);
+    // Boot takes it once: still a deletion (the file is gone), and the record is cleared.
+    expect(takePendingDeletes(p.designRoot).map((d) => d.slug)).toEqual([
+      'system-gator-design-system',
+    ]);
+    expect(readPendingDeletes(p.designRoot)).toEqual([]);
+  });
+
+  test('a canvas that is back by the next boot is no longer a deletion', () => {
+    const p = makeProject();
+    expect(recordPendingDelete(p.designRoot, { slug: 'ui-home', rel: 'ui/Home.tsx' })).toBe(true);
+    expect(takePendingDeletes(p.designRoot)).toEqual([]);
+    // Nothing outside the design root or under runtime state is ever recorded.
+    expect(recordPendingDelete(p.designRoot, { slug: 'x', rel: '../outside.tsx' })).toBe(false);
+    expect(recordPendingDelete(p.designRoot, { slug: 'y', rel: '_trash/y.tsx' })).toBe(false);
   });
 });
