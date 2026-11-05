@@ -11,7 +11,7 @@ name: Site deploy (Cloudflare Workers)
 # GIT HISTORY AND TAGS. So the `paths` filter below lists those inputs: a docs-only
 # or roadmap-only commit must still redeploy, and a commit that touches none of them
 # (a hub fix, a studio refactor) must not. If a generator gains a new input, add it
-# here. Vercel did not need this: it rebuilt on every push.
+# here.
 #
 # fetch-depth: 0 is load-bearing. build-stats.mjs counts release tags, reads the
 # latest tag's date and runs `git log` per docs page for the "updated" dates; on a

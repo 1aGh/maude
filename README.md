@@ -121,7 +121,7 @@ Solo mode (the default) is fully local — no accounts, no telemetry, no network
 
 User-facing docs live in two places — the README points you the right way:
 
-- **Reference** (every command, every config key, recipes for Next.js / Expo / monorepo) → [`site/content/docs/`](./site/content/docs/) (served at https://maude.sh once Vercel is wired — see [DDR-005](.ai/archive/decisions/DDR-005-docs-site-stack-and-hosting.md)).
+- **Reference** (every command, every config key, recipes for Next.js / Expo / monorepo) → [`site/content/docs/`](./site/content/docs/) (served at https://maude.sh — see [DDR-005](.ai/archive/decisions/DDR-005-docs-site-stack-and-hosting.md)).
 - **kgai knowledge-graph backend** (opt-in shared decision memory across repos) → [`docs/kgai-onboarding.md`](./docs/kgai-onboarding.md) (per user) + [`docs/kgai-company-setup.md`](./docs/kgai-company-setup.md) (one-time admin). Off by default — absent `kg`, every command runs its classic `.ai/` path.
 - **Quickstart** + **contributor info** → this README.
 
@@ -134,7 +134,7 @@ The repo is a **pnpm workspace monorepo** with one published npm package (`@1agh
 | Workspace | Purpose |
 | --------- | ------- |
 | `.` (root) | The single npm publisher — CLI, dev-server entry, plugin templates that ship to npm. |
-| `site/` | Docs site — Fumadocs + Next.js, built for Cloudflare Workers, on Vercel until the DNS switch ([DDR-005](.ai/archive/decisions/DDR-005-docs-site-stack-and-hosting.md)). |
+| `site/` | Docs site — Fumadocs + Next.js, served by Cloudflare Workers ([DDR-005](.ai/archive/decisions/DDR-005-docs-site-stack-and-hosting.md)). |
 | `apps/studio/` | Zero-dep Node dev server + browser client. Bundled output (`dist/`) is the only thing in the npm tarball. |
 | `apps/hub/` | Reserved for the v1.1 federated hub (Phase 9). |
 

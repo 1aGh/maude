@@ -154,7 +154,7 @@ jobs:
         # --no-frozen-lockfile: the optionalDependencies bootstrap pins the 7
         # @1agh/maude-<platform> sub-packages at the release version, which the
         # committed lockfile can't enumerate until the build-binaries matrix
-        # publishes them (mirrors build-binaries.yml > publish-main + vercel.json).
+        # publishes them (mirrors build-binaries.yml > publish-main).
         run: pnpm install --no-frozen-lockfile
 
       - name: Build dev-server sidecar binary
