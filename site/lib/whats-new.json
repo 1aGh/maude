@@ -1,11 +1,11 @@
 {
-  "generated": "2026-11-04T00:00:00.000Z",
-  "version": "2.0.3",
+  "generated": "2026-11-05T00:00:00.000Z",
+  "version": "2.0.4",
   "entries": [
     {
       "id": "team-server-browser-signin",
-      "version": null,
-      "date": null,
+      "version": "2.0.4",
+      "date": "2026-11-05",
       "kind": "feature",
       "title": "Sign in to a team server in your browser",
       "summary": "Signing in to your own team server now opens that server's sign-in page in your browser, with every way it offers, such as your company account. When you're done, you're back in the app. The app no longer asks for a team server's password.",
@@ -13,8 +13,8 @@
     },
     {
       "id": "canvas-says-what-it-waits-for",
-      "version": null,
-      "date": null,
+      "version": "2.0.4",
+      "date": "2026-11-05",
       "kind": "fix",
       "title": "A canvas says what it is waiting for",
       "summary": "A canvas that is still downloading shows how far along it is and opens by itself when its files arrive. One that can't open yet, or a design system that is still building, says why instead of \"can't be drawn\".",
@@ -22,8 +22,8 @@
     },
     {
       "id": "faster-first-download",
-      "version": null,
-      "date": null,
+      "version": "2.0.4",
+      "date": "2026-11-05",
       "kind": "fix",
       "title": "A new Mac gets a project much faster",
       "summary": "Opening a big project on another Mac for the first time downloads it several times faster, and the canvas you have open comes first. A cloud project's shared code now arrives too, so canvases that use it draw everywhere.",
@@ -31,8 +31,8 @@
     },
     {
       "id": "less-memory-and-rest",
-      "version": null,
-      "date": null,
+      "version": "2.0.4",
+      "date": "2026-11-05",
       "kind": "fix",
       "title": "Less memory, quieter when idle",
       "summary": "Maude keeps far less in memory as you move between canvases and uses almost no CPU when you're not working. Up to three projects run at once, and a project you haven't used for 15 minutes rests until you come back to it.",
@@ -40,8 +40,8 @@
     },
     {
       "id": "folders-trash-spotlight",
-      "version": null,
-      "date": null,
+      "version": "2.0.4",
+      "date": "2026-11-05",
       "kind": "fix",
       "title": "Folders, trash and a bigger look",
       "summary": "New folder and Rename work again. Moving canvases to the trash shows right away and handles several in a row. Double-click a picture or video in Assets to see it large.",
@@ -49,8 +49,8 @@
     },
     {
       "id": "ai-background-work-shown",
-      "version": null,
-      "date": null,
+      "version": "2.0.4",
+      "date": "2026-11-05",
       "kind": "feature",
       "title": "See what the AI runs in the background",
       "summary": "When the AI starts helpers or long commands, the chat shows what is still running and for how long, until it's done.",
