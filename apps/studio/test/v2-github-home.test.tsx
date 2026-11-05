@@ -189,13 +189,19 @@ describe('S6.10 · From GitHub', () => {
 
   test('a signed-out profile signs in to GitHub from Home, then lists the profile Rust chose', async () => {
     let n = 0;
+    // The sign-in finishes only when the test says so: a 5 ms timer let a slow CI runner finish it
+    // before the device-code line was asserted, so the sheet had already moved on to the repo list.
+    let finishSignIn: () => void = () => {};
+    const signedIn = new Promise<void>((r) => {
+      finishSignIn = r;
+    });
     const m = mount({
       github_repos: (a) =>
         n++ === 0
           ? { profile: 'work', signedIn: false, repos: [] }
           : { profile: a.profile, signedIn: true, login: 'michal', repos: REPOS.slice(0, 1) },
       home_github_sign_in: async () => {
-        await new Promise((r) => setTimeout(r, 5));
+        await signedIn;
         return { profile: 'p-fresh', login: 'michal' };
       },
     });
@@ -206,6 +212,7 @@ describe('S6.10 · From GitHub', () => {
     await act(async () => $('onb-github-signin')?.click());
     await act(async () => m.listeners.get('github://device-code')?.({ user_code: 'WDJB-MJHT' }));
     expect(host.textContent).toContain('Enter WDJB-MJHT on github.com/login/device');
+    finishSignIn();
     await flush(12);
     expect(m.calls.map((c) => c[0])).toEqual([
       'github_repos',
