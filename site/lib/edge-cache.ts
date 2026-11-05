@@ -1,13 +1,13 @@
 // Cache-Control for the two GitHub-backed routes (the updater feed and the
 // download redirect), on hosts that do not cache a function's response by itself.
 //
-// On Vercel the CDN honours the route's `s-maxage`. A Cloudflare Worker sits IN
+// A host CDN in front of the function (the old Vercel setup) honoured `s-maxage`. A Cloudflare Worker sits IN
 // FRONT of the CDN, so every request would run the route, and each run is a GitHub
 // API call (60/h without a token, shared by every Worker on the egress IP). The
 // Workers Cache API closes that gap: the stored copy lives for the response's own
 // `s-maxage`, so the route's Cache-Control stays the one place the lifetime is set.
 //
-// Anywhere the Cache API is absent (Vercel's Node runtime, `next dev`) this is a
+// Anywhere the Cache API is absent (`next dev`, tests) this is a
 // pass-through. The Cache API is also a no-op on a `*.workers.dev` hostname, so the
 // cache starts working once the custom domain is attached.
 
