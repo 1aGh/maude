@@ -39,8 +39,64 @@ test('no quality.yml job or step is continue-on-error', () => {
 
 test('the studio-suite job runs the FULL suite', () => {
   assert.match(text, /^ {2}studio-suite:\n/m, 'the studio-suite job is gone');
-  assert.match(text, /bun test --isolate --timeout 20000\)/, 'the full-suite invocation changed');
   assert.match(text, /name: Studio suite \(full\)\n/);
+  // Since 2026-11-05 the suite runs as shards; the invocation lives in the shard runner.
+  assert.match(text, /^ {2}studio-shard:\n/m, 'the studio-shard matrix job is gone');
+  assert.match(
+    text,
+    /node scripts\/studio-shard-run\.mjs --total 6 --index \$\{\{ matrix\.index \}\}/
+  );
+  assert.match(text, /index: \[1, 2, 3, 4, 5, 6\]/, 'the matrix must list every shard 1..--total');
+  const runner = readFileSync(join(ROOT, 'scripts', 'studio-shard-run.mjs'), 'utf8');
+  assert.match(
+    runner,
+    /\['test', '--isolate', '--timeout', '20000'/,
+    'the full-suite invocation changed'
+  );
+});
+
+test('the studio shards cover every studio test file exactly once, except the sync lane', async () => {
+  const { studioTestFiles, isSyncLane, planShards, loadTimings } = await import(
+    '../studio-shard.mjs'
+  );
+  const all = studioTestFiles();
+  const shards = planShards(
+    all.filter((f) => !isSyncLane(f)),
+    6,
+    loadTimings()
+  );
+  const ran = shards.flatMap((s) => s.files);
+  assert.equal(new Set(ran).size, ran.length, 'a file is in two shards');
+  const missing = all.filter((f) => !isSyncLane(f) && !ran.includes(f));
+  assert.deepEqual(missing, [], 'a studio test file is in no shard');
+  // The files left out must be exactly what the required sync lane runs.
+  assert.match(
+    text,
+    /bun test --isolate test\/sync-\*\.test\.ts --timeout 20000/,
+    'the sync lane glob changed'
+  );
+  for (const f of all.filter(isSyncLane)) assert.match(f, /^test\/sync-[^/]*\.test\.ts$/);
+  assert.ok(
+    !isSyncLane('test/sync-held-surface.test.tsx'),
+    'a .tsx sync test is not in the lane glob, so a shard runs it'
+  );
+});
+
+test('the studio shard plan is balanced and deterministic', async () => {
+  const { planShards } = await import('../studio-shard.mjs');
+  const files = Array.from({ length: 40 }, (_, i) => `test/f${i}.test.ts`);
+  const timings = Object.fromEntries(files.map((f, i) => [f, (i % 7) + 1]));
+  const a = planShards(files, 4, timings);
+  const b = planShards([...files].reverse(), 4, timings);
+  assert.deepEqual(
+    a.map((s) => s.files),
+    b.map((s) => s.files)
+  );
+  const secs = a.map((s) => s.seconds);
+  assert.ok(Math.max(...secs) - Math.min(...secs) <= 7, `unbalanced: ${secs}`);
+  // A file with no timing counts as the median instead of being dropped.
+  const c = planShards(['test/new.test.ts', ...files], 4, timings);
+  assert.equal(c.flatMap((s) => s.files).length, 41);
 });
 
 // V2-2.4b — a test under plugins/ is reached by neither `cli/**/*.test.mjs` (pnpm test) nor the
