@@ -115,6 +115,12 @@ import {
   type GuideDefinitions,
   type OverlayVisibility,
 } from './artboard-guides-overlay.tsx';
+import {
+  ARTBOARD_LIVE_CSS,
+  ArtboardLiveFeed,
+  ArtboardLiveGate,
+  holdAllLive,
+} from './artboard-live-gate.tsx';
 import { ArtboardNewSection, useNewSection } from './artboard-new-section.tsx';
 import {
   ArtboardWarnMark,
@@ -215,6 +221,9 @@ import { UndoStackProvider, useUndoSinks, useUndoStackOptional } from './use-und
 import { VideoComp } from './video-comp.tsx';
 import { VideoPlayLayer } from './video-play-overlay.tsx';
 
+// 2.0.5 — is this artboard running live (near the viewport, not zoomed out to the overview)? Gate a render
+// loop, a simulation or an expensive first mount on it. Always true in captures and exports.
+export { useArtboardActive, useArtboardSeen } from './artboard-live-gate.tsx';
 export type { CompSnapshot, VideoCompMeta, VideoCompProps } from './video-comp.tsx';
 // S7.5 — the comp vocabulary (V2-1.10 §5.3): literal-prop components; the build injects their
 // derived data (`__words`, `__speech`, video/inject.ts). A 1.x build lacks these exports, so a
@@ -524,6 +533,7 @@ const ENGINE_CSS = `
 /* S3.14 - Present draws the work only (04 md-present-*): the editor chrome list is present/present-stage.tsx
    PRESENT_HIDES, keyed on the root attribute the stage sets while any Present is on. */
 ${presentHidesCss()}
+${ARTBOARD_LIVE_CSS}
 .dc-canvas .dc-artboard-label {
   flex-shrink: 0;
   background: var(--maude-chrome-bg-2, #e8e3d8);
@@ -2290,6 +2300,8 @@ function useExportCaptureBridge() {
         ? m.artboardIds.filter((s): s is string => typeof s === 'string')
         : null;
       void (async () => {
+        // 2.0.5 — a capture renders every artboard live: wake the sleeping ones for the whole batch.
+        const releaseLive = await holdAllLive();
         const savedWorld = resetWorldPlane();
         // Hold the chrome suppression across the WHOLE batch. `svgForElement`
         // applies it per target too (ref-counted), but a 10-artboard deck would
@@ -2342,6 +2354,7 @@ function useExportCaptureBridge() {
           });
         } finally {
           releaseChrome();
+          releaseLive();
           restoreWorldPlane(savedWorld);
           busy = false;
         }
@@ -2818,6 +2831,7 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
           MORE than the mock — fit + actual-size — so no capability is lost. */}
       {showZoom ? <DCZoomToolbar /> : null}
       <ViewportZoomReporter />
+      <ArtboardLiveFeed zoom={controller.viewport.zoom} interacting={!!controller.isInteracting} />
       {/* ── S8.19 (L1) placeholder frames ── "Waiting for Jonas's Mac" / Missing over a picture
           that failed to load; driven only by the shell's dgn `asset-state` (asset-placeholder.tsx). */}
       <AssetPlaceholderLayer />
@@ -3200,7 +3214,14 @@ function DCArtboardBody({
       >
         <header className="dc-artboard-label sku">{label}</header>
         <div className="dc-artboard-body" ref={bodyRef} style={bodyStyle}>
-          {children}
+          <ArtboardLiveGate
+            id={id}
+            articleRef={articleRef}
+            bodyRef={bodyRef}
+            heightFloor={heightFloor}
+          >
+            {children}
+          </ArtboardLiveGate>
         </div>
       </article>
     );
@@ -3374,7 +3395,15 @@ function DCArtboardBody({
             containIntrinsicSize: `${rect.w}px ${rect.h}px`,
           }}
         >
-          {children}
+          {/* 2.0.5 — offscreen / zoomed-out artboards sleep (artboard-live.ts); captures run everything live */}
+          <ArtboardLiveGate
+            id={id}
+            articleRef={articleRef}
+            bodyRef={bodyRef}
+            heightFloor={heightFloor}
+          >
+            {children}
+          </ArtboardLiveGate>
         </div>
       </article>
       {showActivity ? (

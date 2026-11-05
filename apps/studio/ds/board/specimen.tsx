@@ -10,7 +10,7 @@
 // `Section`). Without them the system's `.<root>[data-theme]` token blocks never matched this wrapper, so a
 // specimen page stayed in Light while the seven sections switched.
 
-import { DSRoot } from '@maude/canvas-lib';
+import { DSRoot, useArtboardSeen } from '@maude/canvas-lib';
 import { Component, type ComponentType, type ReactNode } from 'react';
 import { getSpecimen, useBoardMode, useBoardModel } from './state.ts';
 import { themeFor } from './types.ts';
@@ -43,6 +43,17 @@ function Missing({ src, why }: { src: string; why: string }) {
 export function Specimen({ src, mode: modeProp }: { src: string; mode?: 'light' | 'dark' }) {
   const model = useBoardModel();
   const stored = useBoardMode();
+  // 2.0.5 — a specimen page mounts once its artboard first comes near the viewport (a board of 58 built
+  // every page at open). The artboard keeps its size meanwhile; captures and exports mount all of them.
+  const seen = useArtboardSeen();
+  if (!seen)
+    return (
+      <div
+        className="ds-board ds-specimen ds-specimen-pending"
+        data-ds-specimen={src}
+        aria-hidden="true"
+      />
+    );
   const mod = getSpecimen(src) as { default?: ComponentType } | ComponentType | undefined;
   const Comp = (typeof mod === 'function' ? mod : mod?.default) as ComponentType | undefined;
   if (!Comp) return <Missing src={src} why="is not loaded" />;
