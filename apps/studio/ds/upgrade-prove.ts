@@ -46,11 +46,15 @@ export const DIFF_FORMAT = 'maude.ds-upgrade-diff';
 export const REVIEW_FORMAT = 'maude.ds-upgrade-review';
 export const DELTA_E = 2;
 export const FAIL_RATIO = 0.005;
+/** one canvas's hard deadline in the visual gate */
+export const CANVAS_TIMEOUT = 180_000;
 
 export interface RenderCanvas {
   path: string;
   tokens: string | null;
   components: string | null;
+  /** the system's themes: an artboard that carries none of its own is measured in each */
+  themes?: string[];
 }
 export interface RenderJob {
   before: string;
@@ -59,6 +63,8 @@ export interface RenderJob {
   deltaE: number;
   ratio: number;
   timeout: number;
+  /** the hard deadline of one canvas (ms): past it the canvas is `timeout` and the run goes on */
+  canvasTimeout?: number;
 }
 export interface ArtboardDiff {
   id: string;
@@ -69,9 +75,23 @@ export interface ArtboardDiff {
   area?: number;
   fail: boolean;
   reason?: string;
+  /** failed before x after, but before x before failed alike: the gate's own noise, not a change */
+  noise?: boolean;
+  /** nothing rendered on either side */
+  empty?: boolean;
+  /** before x before (the noise control), when it ran */
+  control?: { changed: number; area: number; sized: boolean };
 }
 export interface RenderResult {
-  canvases: { path: string; error?: string; detail?: string; artboards: ArtboardDiff[] }[];
+  canvases: {
+    path: string;
+    /** before / after: that side showed an error; render: the gate threw; timeout: no answer */
+    error?: string;
+    detail?: string;
+    /** no artboard: the canvas's whole mount was measured */
+    specimen?: boolean;
+    artboards: ArtboardDiff[];
+  }[];
 }
 
 export interface Studio {
@@ -114,6 +134,9 @@ export interface Review {
   keepsOwn: { native: string; as: string }[];
   updatesCanvases: { path: string; edits: number; diff: 'pass' | 'fail' }[];
   refused: { path: string; reason: string }[];
+  /** canvases the gate could not measure (a timeout, a broken before): they block nothing, and a
+   *  codemod on one is not applied (it is in `refused` too) */
+  unmeasured?: { path: string; reason: string }[];
   needsPick: string[];
 }
 
@@ -373,6 +396,7 @@ function affectedCanvases(stageDir: string, ds: string): RenderCanvas[] {
     out.push({
       path: rel,
       tokens: sys?.tokensCssRel ?? null,
+      themes: sys?.themes ?? [],
       components: sys ? `${sys.path}/preview/_components.css` : null,
     });
   }
@@ -392,7 +416,21 @@ function reviewOf(
     path: r.path,
     reason: r.invariant,
   }));
+  const unmeasured: { path: string; reason: string }[] = [];
   for (const c of result.canvases) {
+    // A canvas that could not be measured (no answer in time, an error before the upgrade touched
+    // anything, the gate itself threw) proves nothing either way: it never blocks the system files,
+    // and its own codemod is not applied unproved. `after` alone is a finding: the upgrade broke it.
+    // Noise the control explained away is not a failure (`noise`, the shim's judge).
+    if (c.error && c.error !== 'after') {
+      const reason = c.error === 'timeout' ? 'timeout' : 'unmeasured';
+      unmeasured.push({ path: c.path, reason });
+      if (codemodded.has(c.path)) {
+        failedCanvases.add(c.path);
+        refused.push({ path: c.path, reason });
+      }
+      continue;
+    }
     const failed = c.error === 'after' || c.artboards.some((a) => a.fail);
     if (!failed) continue;
     if (codemodded.has(c.path)) {
@@ -438,6 +476,7 @@ function reviewOf(
       diff: failedCanvases.has(c.path) ? 'fail' : 'pass',
     })),
     refused,
+    ...(unmeasured.length ? { unmeasured } : {}),
     needsPick: items.filter((i) => i.status === 'needs-pick' && i.picked == null).map((i) => i.id),
   };
   return { review, failedCanvases };
@@ -511,6 +550,7 @@ export async function proveStage(
         deltaE: DELTA_E,
         ratio: FAIL_RATIO,
         timeout: 20000,
+        canvasTimeout: CANVAS_TIMEOUT,
       },
       {
         signal: ctl.signal,
