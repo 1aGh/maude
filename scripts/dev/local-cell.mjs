@@ -321,8 +321,15 @@ async function main() {
     }
   }
 
+  // A throwaway HOME for the hub and its studio child: the child's environment is an allowlist that
+  // passes HOME but not XDG_CONFIG_HOME, so with the caller's HOME the studio wrote the person's REAL
+  // ~/.config/maude/prefs.json (the 2.0.4 surface e2e did, twice). Nothing here may resolve to it.
+  const cellHome = join(root, 'home');
+  mkdirSync(join(cellHome, '.config'), { recursive: true });
   const env = {
     ...process.env,
+    HOME: cellHome,
+    XDG_CONFIG_HOME: join(cellHome, '.config'),
     PORT: String(port),
     DATA_DIR: dataDir,
     // Workspace mode IS what makes this a cell: the hub owns the checkout,

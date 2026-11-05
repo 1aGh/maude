@@ -514,3 +514,10 @@ test('#204: a progressing child that finally answers is ready', async () => {
   assert.equal(child.status().state, 'ready');
   assert.deepEqual(proc.killed, []);
 });
+
+test('2.0.4 — XDG_CONFIG_HOME reaches the studio child when the hub has one (never the person\'s real config by accident)', () => {
+  const on = childEnv({ PATH: '/bin', HOME: '/h', XDG_CONFIG_HOME: '/iso/.config' }, { port: 4399 });
+  assert.equal(on.XDG_CONFIG_HOME, '/iso/.config');
+  const off = childEnv({ PATH: '/bin', HOME: '/h' }, { port: 4399 });
+  assert.equal(off.XDG_CONFIG_HOME, undefined);
+});

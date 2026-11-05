@@ -254,6 +254,9 @@ export function childEnv(env = process.env, { port, formatFile = null, knownCanv
     ...(knownCanvasesFile ? { MAUDE_HUB_KNOWN_CANVASES_FILE: knownCanvasesFile } : {}),
     PATH: env.PATH ?? '/usr/local/bin:/usr/bin:/bin',
     HOME: env.HOME ?? '/tmp',
+    // where the studio keeps per-machine prefs: forwarded when the hub's own environment names it, so a
+    // harness that isolates config (or a host that relocates it) is not silently bypassed via HOME
+    ...(env.XDG_CONFIG_HOME ? { XDG_CONFIG_HOME: env.XDG_CONFIG_HOME } : {}),
     NODE_ENV: env.NODE_ENV ?? 'production',
     // The invariant, stated to the process that enforces it.
     MAUDE_WORKSPACE_MODE: '1',
