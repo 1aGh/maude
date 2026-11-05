@@ -9,10 +9,27 @@
 // Permissions (S10 Q15, V2-1.6 §5.12, rule 12): convert and Restore need Can edit on the WHOLE
 // project; a canvas-scoped grant is refused, the dry run included (it lists every system).
 
+import { canvasSlugFromRel } from '../canvas-slug.ts';
 import { createDsConvert, DsConvertError } from '../ds/convert.ts';
+import { DS_CANVAS } from '../ds/engine.ts';
 import type { DsOpAnswer, DsOpContext } from './ds.ts';
 
 const invalid = (m: string) => new DsConvertError('ds-convert-usage', m);
+
+/**
+ * fix/ds-convert-hooks-cli #7 — Restore moved the Design system canvas to the Trash: say so the way
+ * the canvas delete route does. `canvas-deleted` is what sync turns into a project deletion (a
+ * tombstone); a bare rename is only "gone from this disk", and the hub brought the canvas straight
+ * back (and with it, on the next convert, `ds-convert-exists`).
+ */
+function noteDsCanvasTrashed(c: DsOpContext, system: string): void {
+  const s = c.engine.systems().find((x) => x.name === system);
+  if (!s || !c.emit) return;
+  const rel = `${s.path}/${DS_CANVAS}`;
+  const slug = canvasSlugFromRel(rel, '');
+  c.emit('canvas-list-update', { action: 'removed', rel, slug });
+  c.emit('canvas-deleted', { slug });
+}
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
 export async function runConvertOp(
@@ -33,6 +50,7 @@ export async function runConvertOp(
     const r = await cv.restore({ ds: input.restore, by: c.by });
     c.outside?.invalidate(r.system);
     c.emit?.('ds:changed', { system: r.system });
+    if (r.moved.includes(DS_CANVAS)) noteDsCanvasTrashed(c, r.system);
     return { status: 200, body: { format: 'maude.ds-result', v: 1, ...r } };
   }
   let systems: string[] | undefined;
