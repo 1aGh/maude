@@ -2,8 +2,10 @@
 //
 // Measured on a 714-element annotations board (spike 2.0.5-annot-zoom, Chromium studio lane): CSS `zoom`
 // re-lays-out the whole world on every zoom frame (~2,400 dirty layout objects a frame), so zoom p95 sat at
-// 33 ms — every other frame dropped. A `transform: scale()` on the already-promoted `.dc-world` layer
-// re-lays-out nothing; CSS `zoom` is written back once the gesture settles so text re-rasters crisp and every
+// 33 ms — every other frame dropped. The gesture HOLDS the CSS zoom it started at and puts only the change
+// on a `transform: scale()` of the already-promoted `.dc-world` layer, so no gesture frame re-lays-out (the
+// spike's `zoom: ''` re-laid-out the world at 1x on the first scaling frame, and again when a symmetric zoom
+// came back to its start scale). CSS `zoom` takes the final scale once the gesture settles so text re-rasters crisp and every
 // reader of the settled camera (the export shims, `screenshot.sh`, `__maudeCanvasRects`) sees exactly the
 // camera it saw before. `data-dc-scale` says which path the world is on at every moment (it was stale: it
 // read 'zoom' while the world carried a transform scale). A pure pan never leaves CSS `zoom`.
@@ -69,22 +71,30 @@ describe('the Blink zoom gesture', () => {
     return { root, canvas, world };
   }
 
-  test('mid-zoom: no CSS zoom, a transform scale; settled: CSS zoom back, the scale gone', async () => {
+  test('mid-zoom: CSS zoom held, the change rides a transform scale; settled: CSS zoom moves, the scale gone', async () => {
     const { root, canvas, world } = await mount();
     expect(world.style.zoom).not.toBe('');
     expect(world.getAttribute('data-dc-scale')).toBe('zoom');
 
+    // the burst's first event opens the gesture (still a plain CSS-zoom write) …
     await act(async () => {
-      for (let i = 0; i < 4; i++) wheel(canvas, { deltaY: -20, ctrlKey: true });
+      wheel(canvas, { deltaY: -20, ctrlKey: true });
     });
-    // mid-gesture (inside the 220 ms quiet): the layer is scaled, nothing re-lays-out
-    expect(world.style.zoom).toBe('');
+    const held = world.style.zoom;
+    expect(held).not.toBe('');
+    // … every scaling frame after it changes no CSS zoom: nothing re-lays-out
+    await act(async () => {
+      for (let i = 0; i < 3; i++) wheel(canvas, { deltaY: -20, ctrlKey: true });
+    });
+    expect(world.style.zoom).toBe(held);
     expect(world.style.transform).toMatch(/translate\([^)]*\) scale\([\d.]+\)/);
     expect(world.style.transformOrigin).toBe('0 0');
     expect(world.getAttribute('data-dc-scale')).toBe('transform');
-    const midZoom = Number(/scale\(([\d.]+)\)/.exec(world.style.transform)?.[1]);
-    expect(midZoom).toBeGreaterThan(0);
-    expect(world.style.getPropertyValue('--dc-zoom')).toBe(String(midZoom));
+    const residual = Number(/scale\(([\d.]+)\)/.exec(world.style.transform)?.[1]);
+    expect(residual).toBeGreaterThan(1); // zoomed in past where the gesture started
+    const midZoom = Number(world.style.getPropertyValue('--dc-zoom'));
+    // the live zoom = held CSS zoom × the residual scale (what worldZoomFor and the counter-scaled chrome read)
+    expect(Number(held) * residual).toBeCloseTo(midZoom, 9);
 
     await sleep(320);
     // settled: CSS zoom carries the scale again, the transform is a bare pan

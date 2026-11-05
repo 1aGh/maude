@@ -1426,10 +1426,14 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     const z = v.zoom || 1;
     // 2.0.5 W2 — a Blink ZOOM gesture scales the already-promoted world layer with `transform` instead:
     // CSS `zoom` re-laid-out the whole world on every zoom frame (~2.4k layout objects on a 714-element
-    // board, zoom p95 33 ms). Only while a burst is changing scale and the write is not the settle one —
-    // the settle (`crisp`, from markInteracting's quiet timer) writes CSS `zoom` back, so text re-rasters
-    // crisp and every reader of a settled camera (export shims, screenshot, canvas-rects) sees CSS `zoom`
-    // exactly as before. A pure pan (scale unchanged) never leaves CSS `zoom`. WebKit is untouched.
+    // board, zoom p95 33 ms). The CSS `zoom` the gesture started at is HELD and only the residual scale
+    // (z / held) goes on the transform, so the gesture's first scaling frame lays out nothing either —
+    // dropping `zoom` to '' there re-laid-out the whole world at 1x (and again when a symmetric gesture
+    // came back to its start scale): two full-layout frames inside every zoom, which is the zoom p95.
+    // Only while a burst is changing scale and the write is not the settle one — the settle (`crisp`,
+    // from markInteracting's quiet timer) writes the final CSS `zoom`, so text re-rasters crisp and every
+    // reader of a settled camera (export shims, screenshot, canvas-rects) sees CSS `zoom` exactly as
+    // before. A pure pan (scale unchanged) never leaves CSS `zoom`. WebKit is untouched.
     const blinkGestureScale =
       !IS_WEBKIT && !opts?.crisp && interactingRef.current && z !== zoomAtInteractStartRef.current;
     if (IS_WEBKIT) {
@@ -1441,9 +1445,10 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       // cached bitmap.
       el.style.willChange = opts?.crisp ? 'auto' : 'transform';
     } else if (blinkGestureScale) {
-      el.style.zoom = '';
+      // under `zoom: held` the transform is in pre-zoom px: screen = held·(t + s·world) = x + z·world
+      const held = Number.parseFloat(el.style.zoom) || 1;
       el.style.transformOrigin = '0 0';
-      el.style.transform = `translate(${v.x}px, ${v.y}px) scale(${z})`;
+      el.style.transform = `translate(${v.x / held}px, ${v.y / held}px) scale(${z / held})`;
     } else {
       el.style.transformOrigin = '';
       el.style.transform = `translate(${v.x / z}px, ${v.y / z}px)`;
