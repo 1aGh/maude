@@ -517,14 +517,18 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
     }
   }
 
+  /** A canvas's whole-canvas picture (its Home cover) — what W5's blank / sliver checks are for. */
+  const isCover = (job: Job, t: Target): boolean => job.kind === 'canvas' && t.artboard === null;
+
   function store(job: Job, t: Target, b64: unknown): boolean {
     if (typeof b64 !== 'string' || b64.length > 2 * 1024 * 1024) return false;
     const bytes = Uint8Array.from(Buffer.from(b64, 'base64'));
     const check = checkJpeg(bytes, t.px);
     if (!check.ok) return false;
     // W5: a cover is shown at ~16:10 on Home — a sliver (a header strip, a 3320 x 200 artboard) or a
-    // thumbnail under the floor is not a cover. Not stored; Home keeps its placeholder.
-    if (t.artboard === null && !coverWorthy(check.w, check.h)) return false;
+    // thumbnail under the floor is not a cover. Not stored; Home keeps its placeholder. A canvas COVER
+    // only: an asset tile (also artboard-less) is the picture itself, whatever its shape.
+    if (isCover(job, t) && !coverWorthy(check.w, check.h)) return false;
     writeThumb(o.pid, t.key, bytes);
     dims.set(t.key, { w: check.w, h: check.h });
     reference(t.key);
@@ -629,8 +633,9 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
         noArtboard.add(t.key);
         continue;
       }
-      // W5: a flat-colour cover (the renderer looked at its pixels) is a miss like any other failure
-      if (!shot || (t.artboard === null && shot.blank === true) || !store(job, t, shot.jpeg))
+      // W5: a flat-colour cover (the renderer looked at its pixels) is a miss like any other failure —
+      // a canvas cover only; a tile of a flat picture is that picture
+      if (!shot || (isCover(job, t) && shot.blank === true) || !store(job, t, shot.jpeg))
         fail(t.key);
       else if (shot.partial === true) partial = true;
     }
