@@ -2,6 +2,7 @@
 // snapshots (Phase 6 _comments/<slug>.json) + the annotations board (DDR-242) + the
 // new `.ydoc.bin` cache under _state/<slug>.ydoc.bin.
 
+import { rmSync } from 'node:fs';
 import path from 'node:path';
 
 import * as Y from 'yjs';
@@ -378,5 +379,12 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
     await Bun.write(ydocBinPath(slug), state);
   }
 
-  return { seed, persistJson, persistBinary };
+  // fix/205 — a cache, never content (DDR-051: JSON is canonical): the canvas
+  // it cached was deleted, and a room seeded from it would carry the deleted
+  // lineage into a canvas re-created at the same slug.
+  async function forget(slug: string): Promise<void> {
+    rmSync(ydocBinPath(slug), { force: true });
+  }
+
+  return { seed, persistJson, persistBinary, forget };
 }

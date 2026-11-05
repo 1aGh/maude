@@ -145,6 +145,17 @@ export interface Registry {
    * under the new slug via `get()`. No-op if no room is live for the slug.
    */
   forceDrop(slug: string): Promise<void>;
+  /**
+   * fix/205 — throw away the room of a canvas that LEFT the project (deleted
+   * here, deleted in the project, moved away): no flush, and with
+   * `forgetCache` its `.ydoc.bin` goes too (`RoomCallbacks.forget`). Its Y.Doc is the deleted canvas's
+   * whole lineage; a canvas re-created at the same slug must start from a
+   * fresh doc, or the hub's new body merges onto the old one and the body
+   * doubles. Only an unpinned room with no browser connection is discarded —
+   * a connected browser's room is left to the last-browser-leaves `drop`.
+   * Returns whether a room was discarded.
+   */
+  discard(slug: string, opts?: { forgetCache?: boolean }): Promise<boolean>;
   /** Test/introspection. */
   size(): number;
 }
@@ -344,6 +355,26 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     await room.destroy();
   }
 
+  async function discard(slug: string, opts: { forgetCache?: boolean } = {}): Promise<boolean> {
+    if (pinned.has(slug)) return false;
+    const room = rooms.get(slug);
+    if (room && room.size() > 0) return false;
+    if (opts.forgetCache) {
+      try {
+        await callbacks.forget?.(slug);
+      } catch (err) {
+        console.warn(`[collab/${slug}] could not drop the cached document:`, err);
+      }
+    }
+    if (!room) return false;
+    teardownBridge(slug);
+    rooms.delete(slug);
+    // destroy() marks the room destroyed BEFORE its final flush, so nothing of
+    // the deleted canvas is written back (comments, annotations, the cache).
+    await room.destroy();
+    return true;
+  }
+
   async function destroyAll(): Promise<void> {
     for (const slug of Array.from(bridges.keys())) teardownBridge(slug);
     hubAwareness.clear();
@@ -375,6 +406,7 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     destroyAll,
     drop,
     forceDrop,
+    discard,
     size: () => rooms.size,
   };
 }

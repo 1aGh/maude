@@ -1650,7 +1650,16 @@ export function createKernel({
       const st = work.docs.get(doc);
       if (!st) continue;
       const lanes = {};
-      for (const lane of c.lanes) lanes[lane] = await work.laneContent(st, lane);
+      // A REVIVED document (an undone delete, a Trash restore) publishes every
+      // lane it holds, not only the ones this action touched: the delete
+      // dropped the live document (`deleteDocument`), so the replica it comes
+      // back into is empty. Publishing nothing left the hub's copy empty, and
+      // it only looked restored on a peer that still held the deleted doc —
+      // the stale lineage that doubles a re-created canvas (fix/205).
+      const names = new Set(c.lanes);
+      if (c.revived)
+        for (const [lane, h] of Object.entries(st.lanes ?? {})) if (h?.hash) names.add(lane);
+      for (const lane of names) lanes[lane] = await work.laneContent(st, lane);
       changes.push({
         doc,
         path: st.path,
