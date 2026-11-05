@@ -36,6 +36,32 @@ describe('ds-upgrade prove', () => {
     });
   });
 
+  test('a staged studio runs on a throwaway home: it can never write the real ~/.config/maude', () => {
+    const env = studioEnv(
+      '/tmp/stage/after',
+      '/tmp/m.json',
+      {
+        PATH: '/usr/bin',
+        HOME: '/Users/x',
+        XDG_CONFIG_HOME: '/Users/x/.config',
+        HUBS_CONFIG_PATH: '/Users/x/.config/maude/hubs.json',
+        MAUDE_CLOUD_CONFIG: '/Users/x/.config/maude/cloud.json',
+        MAUDE_INDEX_DIR: '/Users/x/index',
+      },
+      '/tmp/scratch/home'
+    );
+    expect(env).toEqual({
+      PATH: '/usr/bin',
+      HOME: '/tmp/scratch/home',
+      XDG_CONFIG_HOME: '/tmp/scratch/home/.config',
+      MAUDE_INDEX_DIR: '/tmp/scratch/home/index',
+      NO_OPEN: '1',
+      MAUDE_NO_AUTOBUILD: '1',
+      MAUDE_MACHINE_FILE: '/tmp/m.json',
+      CLAUDE_PROJECT_DIR: '/tmp/stage/after',
+    });
+  });
+
   test('a workspace cell refuses the proof: not-on-mac, nothing booted', async () => {
     const was = process.env.MAUDE_WORKSPACE_MODE;
     process.env.MAUDE_WORKSPACE_MODE = '1';

@@ -16,7 +16,7 @@
 // Output: `diff.json` (every measurement) and `review.json` (the four SCHEMA_FIX lines) beside the
 // stage record.
 
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import type { Subprocess } from 'bun';
@@ -258,15 +258,33 @@ const STAGED_DROP =
 export function studioEnv(
   projectRoot: string,
   machineFile: string,
-  from: Record<string, string | undefined> = process.env
+  from: Record<string, string | undefined> = process.env,
+  /** a throwaway home: the staged studio writes prefs (fold state…) under HOME/XDG_CONFIG_HOME,
+   *  and a staged copy must never write the person's real ~/.config/maude */
+  home?: string
 ): Record<string, string> {
   // the staged studio picks its own port, and runs as the studio (never as a bare bun)
   const drop = new Set(['BUN_BE_BUN', 'PORT', 'MDCC_DEV_PORT']);
+  // with a throwaway home, nothing may point back at the person's own config stores
+  const homeDrop = new Set([
+    'XDG_CONFIG_HOME',
+    'HUBS_CONFIG_PATH',
+    'MAUDE_CLOUD_CONFIG',
+    'MAUDE_INDEX_DIR',
+  ]);
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(from))
-    if (v !== undefined && !drop.has(k) && !STAGED_DROP.test(k)) env[k] = v;
+    if (v !== undefined && !drop.has(k) && !STAGED_DROP.test(k) && !(home && homeDrop.has(k)))
+      env[k] = v;
   return {
     ...env,
+    ...(home
+      ? {
+          HOME: home,
+          XDG_CONFIG_HOME: join(home, '.config'),
+          MAUDE_INDEX_DIR: join(home, 'index'),
+        }
+      : {}),
     NO_OPEN: '1',
     MAUDE_NO_AUTOBUILD: '1',
     MAUDE_MACHINE_FILE: machineFile,
@@ -278,10 +296,14 @@ export function studioEnv(
 export async function bootHeadlessStudio(projectRoot: string): Promise<Studio> {
   const designRoot = join(projectRoot, '.design');
   const scratch = mkdtempSync(join(tmpdir(), 'maude-ds-prove-machine-'));
+  mkdirSync(join(scratch, 'home', '.config'), { recursive: true });
   const server = serverCommand();
   const proc: Subprocess = Bun.spawn([...server.cmd, '--root', projectRoot, '--port', '0'], {
     cwd: DEV_SERVER_ROOT,
-    env: { ...studioEnv(projectRoot, join(scratch, 'machine.json')), ...server.env },
+    env: {
+      ...studioEnv(projectRoot, join(scratch, 'machine.json'), process.env, join(scratch, 'home')),
+      ...server.env,
+    },
     stdout: 'ignore',
     stderr: 'pipe',
   });
