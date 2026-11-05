@@ -10,7 +10,7 @@ const USING: [title: string, href: string, note?: string][] = [
   ['Getting started', '/docs/getting-started', '5 min'],
   ['The Mac app', '/docs/desktop'],
   ['Share links and inviting', '/docs/share-links'],
-  ['Maude Cloud', '/docs/cloud/pricing'],
+  ['Maude Cloud', '/docs/cloud/trust'],
   ['Moving from Maude 1', '/docs/moving-from-1'],
 ];
 

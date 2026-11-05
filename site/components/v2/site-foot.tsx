@@ -1,6 +1,8 @@
 // Ported once from .design/ui/Public Site v2.tsx on 2026-11-04; site/ is the source now.
+
 import Link from 'next/link';
 import { Mark } from './kit/glyphs';
+import { PRICING_ON } from './pilot';
 import { githubUrl } from './site-nav';
 
 type FootLink = [text: string, href: string];
@@ -11,8 +13,12 @@ const COLS: [string, FootLink[]][] = [
     'Product',
     [
       ['Download for Mac', '/desktop'],
-      ['Maude Cloud', '/cloud'],
-      ['Pricing', '/cloud#pricing'],
+      ...(PRICING_ON
+        ? ([
+            ['Maude Cloud', '/cloud'],
+            ['Pricing', '/cloud#pricing'],
+          ] as FootLink[])
+        : []),
       ["What's new", '/whats-new'],
     ],
   ],

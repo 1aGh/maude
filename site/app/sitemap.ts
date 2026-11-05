@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { PRICING_ON } from '@/components/v2/pilot';
 import { siteUrl } from '@/lib/shared';
 import { source } from '@/lib/source';
 
@@ -11,7 +12,9 @@ type ChangeFreq = NonNullable<MetadataRoute.Sitemap[number]['changeFrequency']>;
 const STATIC_ROUTES: { path: string; changeFrequency: ChangeFreq; priority: number }[] = [
   { path: '/', changeFrequency: 'weekly', priority: 1 },
   { path: '/docs', changeFrequency: 'weekly', priority: 0.9 },
-  { path: '/cloud', changeFrequency: 'monthly', priority: 0.8 },
+  ...(PRICING_ON
+    ? [{ path: '/cloud', changeFrequency: 'monthly' as ChangeFreq, priority: 0.8 }]
+    : []),
   { path: '/changelog', changeFrequency: 'weekly', priority: 0.8 },
   { path: '/desktop', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/roadmap', changeFrequency: 'monthly', priority: 0.6 },

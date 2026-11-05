@@ -1,9 +1,17 @@
 // Ported once from .design/ui/Public Site v2.tsx on 2026-11-04; site/ is the source now.
 // The file story for people who never opened one: a private format vs the web's own language,
 // told in four short beats, with a slider that wipes the design into the file behind it.
+
 import { Icon } from './kit/glyphs';
+import { PRICING_ON } from './pilot';
 import { PRICE } from './price';
 import { Wipe } from './wipe.client';
+
+// The card in the design-to-file demo. While PRICING_ON is off it is a made-up customer's plan,
+// so no Maude price appears on the site.
+const DEMO = PRICING_ON
+  ? { price: PRICE.project, tier: 'Cloud Project' }
+  : { price: '€49', tier: 'Season pass' };
 
 export function PlainHtml() {
   return (
@@ -52,7 +60,7 @@ export function PlainHtml() {
           </ol>
         </div>
         <div className="ps-html-demo">
-          <Wipe price={PRICE.project} tier="Cloud Project" />
+          <Wipe price={DEMO.price} tier={DEMO.tier} />
           <div className="ps-vs">
             <div className="ps-vs-cell">
               <span className="ps-who">A private format</span>
@@ -67,7 +75,7 @@ export function PlainHtml() {
               <span className="ps-who" style={{ color: 'var(--accent-text)' }}>
                 Maude
               </span>
-              <span className="ps-vs-plain">&lt;b&gt;{PRICE.project}&lt;/b&gt; a month</span>
+              <span className="ps-vs-plain">&lt;b&gt;{DEMO.price}&lt;/b&gt; a month</span>
               <span className="ps-small">
                 <Icon name="check" size={12} /> Opens in any editor, browser or AI
               </span>
