@@ -203,22 +203,9 @@ function ChatThread({
   useEffect(() => conn.onCaps(setCaps), [conn]);
   const parsedOptions = useMemo(() => parseConfigOptions(caps.configOptions), [caps.configOptions]);
 
-  // Warm up as soon as this chat becomes the VISIBLE one — the capability bar
-  // has nothing to show until a live session exists, and deferring the spawn
-  // to "the user typed a slash command" (the original Composer-only trigger,
-  // still below) left the model/effort/mode row completely EMPTY until then —
-  // read as "I lost the picker" in dogfooding, a real regression. Fires once
-  // per chat; a chat that's opened but never viewed still doesn't spawn
-  // `claude`, so a background/hidden chat keeps some of DDR-123's "opening
-  // the panel costs nothing" intent — only the chat actually on screen warms.
-  const warmedOnVisibleRef = useRef(false);
-  useEffect(() => {
-    // S5.13: nothing to warm while Claude Code is not ready; the effect runs again when it is.
-    if (hidden || unavailable || warmedOnVisibleRef.current) return;
-    warmedOnVisibleRef.current = true;
-    const p = picksRef.current;
-    conn.warm(chatId, p.model, p.effort, p.mode);
-  }, [hidden, unavailable, conn, chatId, picksRef]);
+  // No `warm` here (2.0.5). This effect used to spawn the claude adapter whenever a chat was on screen, so every
+  // webview reload started another process. The composer (v2/ai/Composer.jsx) warms it when the person focuses or
+  // types in it; a send spawns it itself.
 
   // One-time reconciliation: if the user's persisted pick (from a DIFFERENT
   // chat, or an earlier session) isn't what THIS freshly-established session

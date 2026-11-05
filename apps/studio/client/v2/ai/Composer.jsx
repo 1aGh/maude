@@ -308,7 +308,15 @@ export function CommandPopover({ items, activeIndex, onPick, onHover }) {
 // but ONLY when that token is a command that exists (the badge gate). The mirror
 // MUST match the textarea's box model exactly (see .chat-input / .chat-input-mirror
 // in v2/ai/chat.css) or the pill drifts off the text.
-function HighlightedInput({ existsSet, attachmentsRef, onAttachChange, attach, multi, onMulti }) {
+function HighlightedInput({
+  existsSet,
+  attachmentsRef,
+  onAttachChange,
+  attach,
+  multi,
+  onMulti,
+  onEngage,
+}) {
   const text = useComposer((c) => c.text);
   const mirrorRef = useRef(null);
   const wrapRef = useRef(null);
@@ -420,6 +428,9 @@ function HighlightedInput({ existsSet, attachmentsRef, onAttachChange, attach, m
         placeholder="Ask AI…"
         aria-label="Message to AI"
         onPaste={onPaste}
+        // 2.0.5 - the person is here: the first focus or keystroke wakes the adapter (once, in Composer)
+        onFocus={onEngage}
+        onInput={onEngage}
         onScroll={(e) => {
           if (mirrorRef.current) mirrorRef.current.scrollTop = e.currentTarget.scrollTop;
         }}
@@ -498,19 +509,24 @@ export function Composer({
     setMoreOpen(false);
   }, [match?.token]);
 
-  // Warm the adapter the first time the user starts a slash command, so the live
-  // catalogue arrives without a full prompt. Guarded to fire once per mount.
+  // Warm the adapter the first time the person ENGAGES: focuses the field, starts typing (a slash command included),
+  // or sends (a prompt spawns it itself). Never on mount or reload - a panel that only re-opened used to send `warm`
+  // from ChatPanel, and every webview reload started another `claude` (2.0.5). Focus is early enough that the
+  // capability row and the slash catalogue are usually there before the first word. Once per mount; not while Claude
+  // Code is not ready (S5.13) or for a viewer (the field is read-only).
   // model/effort/mode are the user's PERSISTED picks (read live off the ref so
-  // this effect doesn't need to re-run when they change) — applied once, live,
+  // this callback doesn't need to change when they change) - applied once, live,
   // by the bridge right after the session establishes.
   const warmedRef = useRef(false);
+  const warmOnce = useCallback(() => {
+    if (warmedRef.current || unavailable || viewer) return;
+    warmedRef.current = true;
+    const p = picksRef.current;
+    conn.warm(chatId, p.model, p.effort, p.mode);
+  }, [conn, chatId, picksRef, unavailable, viewer]);
   useEffect(() => {
-    if (menuOpen && !warmedRef.current) {
-      warmedRef.current = true;
-      const p = picksRef.current;
-      conn.warm(chatId, p.model, p.effort, p.mode);
-    }
-  }, [menuOpen, conn, chatId, picksRef]);
+    if (menuOpen) warmOnce();
+  }, [menuOpen, warmOnce]);
 
   // V2-4.6 — ⌘K "Ask AI": the query lands in the composer; the person still sends it. S10.16c: the DS hosts'
   // `askAI(text, { send: true, origin: 'ds-…' })` is the one ask that also sends (use-ask-ai.js; this file never does).
@@ -612,6 +628,7 @@ export function Composer({
             attach={attach}
             multi={multi}
             onMulti={setMulti}
+            onEngage={warmOnce}
           />
           {/* S5.12 — the model / effort / mode pickers and the info button moved to the panel's
               Advanced fold (Advanced.jsx); the field keeps only what 03 draws: the text and send
