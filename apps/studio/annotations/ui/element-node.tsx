@@ -41,7 +41,7 @@ import {
   type WorldPoint,
 } from '../../annotations-model.ts';
 import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
-import { countRender, useLiveViewport } from '../../canvas-lib.tsx';
+import { countRender, screenSizedRef, useLiveViewport } from '../../canvas-lib.tsx';
 import { SECTION_FOLDED_H } from '../constants.ts';
 import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
 import type { AnnotationElement } from '../types.ts';
@@ -945,22 +945,87 @@ export function sectionChip(label: string, zoom: number) {
   return { fontSize, chipH, gap, padX, chipW };
 }
 
-function SectionChip({
-  el,
-  interactive,
-  edit,
-  note,
-  count,
-}: {
+type SectionChipProps = {
   el: AnnotationElement;
   interactive: boolean;
   edit: EditRequest | null;
   note?: string;
   /** S4.13 - how many an open section holds, drawn as a small number after its name. */
   count?: string;
-}) {
+};
+
+/**
+ * 2.0.5 W2 — the chip is drawn once at its SCREEN size and counter-scaled by CSS: the viewport controller
+ * writes `--dc-zoom` straight onto it (`screenSizedRef`, past the scene's `--dc-zoom` reset), so a pan/zoom
+ * gesture renders no chip — it re-rendered every chip at ~20 Hz from `useLiveViewport()`. It scales about
+ * the section's top-left corner, where it hangs from.
+ */
+function SectionChip({ el, interactive, edit, note, count }: SectionChipProps) {
+  if (edit) return <SectionChipEditor el={el} interactive={interactive} edit={edit} />;
+  countRender('sectionChipRenders');
+  const { label, g, style, box } = sectionChipStyles(el, interactive, 1);
+  const lift = g.chipH + g.gap;
+  return (
+    <div
+      ref={screenSizedRef}
+      className="dc-annot-chip"
+      data-section-chip="1"
+      style={{
+        ...box,
+        width: note || count ? undefined : g.chipW,
+        whiteSpace: 'nowrap',
+        transform: 'scale(calc(1 / var(--dc-zoom, 1)))',
+        transformOrigin: `0 ${lift}px`,
+      }}
+    >
+      <div className="dc-annot-text dc-annot-text--nowrap" style={style}>
+        {label}
+        {count ? (
+          <span data-section-count="1" style={{ opacity: 0.65, marginLeft: 6, fontWeight: 500 }}>
+            {count}
+          </span>
+        ) : null}
+        {note ? (
+          <span data-fold-note="1" style={{ opacity: 0.75, marginLeft: 8, fontWeight: 500 }}>
+            {note}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Renaming a section: the editor sizes its text in world px, so it keeps the live-zoom sizing. */
+function SectionChipEditor({
+  el,
+  interactive,
+  edit,
+}: Pick<SectionChipProps, 'el' | 'interactive'> & { edit: EditRequest }) {
+  countRender('sectionChipRenders');
   // Counter-scaled chrome needs the live zoom, not the settle-cadence one.
   const zoom = useLiveViewport().zoom || 1;
+  const { label, g, style, box } = sectionChipStyles(el, interactive, zoom);
+  return (
+    <div className="dc-annot-chip" style={{ ...box, zIndex: 1 }}>
+      <TextEditor
+        initialText={label}
+        singleLine
+        className="dc-annot-text dc-annot-text--nowrap"
+        style={style}
+        size={{ kind: 'fit-both', minWidth: g.chipW }}
+        fmt={{ fontSize: g.fontSize }}
+        caretPoint={edit.caretPoint}
+        ariaLabel="Rename section"
+        onCommit={edit.onCommit}
+        onCancel={edit.onCancel}
+        onDraft={edit.onDraft}
+      />
+    </div>
+  );
+}
+
+/** The chip's box + title styles at `zoom` (1 = screen px, for the CSS-scaled chip). */
+function sectionChipStyles(el: AnnotationElement, interactive: boolean, zoom: number) {
   const label = str(el.label, 'Section');
   const color = str(el.color, '#8a8a8a');
   const g = sectionChip(label, zoom);
@@ -982,46 +1047,7 @@ function SectionChip({
     backgroundColor: color,
     pointerEvents: interactive ? 'auto' : 'none',
   };
-  if (edit) {
-    return (
-      <div className="dc-annot-chip" style={{ ...box, zIndex: 1 }}>
-        <TextEditor
-          initialText={label}
-          singleLine
-          className="dc-annot-text dc-annot-text--nowrap"
-          style={style}
-          size={{ kind: 'fit-both', minWidth: g.chipW }}
-          fmt={{ fontSize: g.fontSize }}
-          caretPoint={edit.caretPoint}
-          ariaLabel="Rename section"
-          onCommit={edit.onCommit}
-          onCancel={edit.onCancel}
-          onDraft={edit.onDraft}
-        />
-      </div>
-    );
-  }
-  return (
-    <div
-      className="dc-annot-chip"
-      data-section-chip="1"
-      style={{ ...box, width: note || count ? undefined : g.chipW, whiteSpace: 'nowrap' }}
-    >
-      <div className="dc-annot-text dc-annot-text--nowrap" style={style}>
-        {label}
-        {count ? (
-          <span data-section-count="1" style={{ opacity: 0.65, marginLeft: 6, fontWeight: 500 }}>
-            {count}
-          </span>
-        ) : null}
-        {note ? (
-          <span data-fold-note="1" style={{ opacity: 0.75, marginLeft: 8, fontWeight: 500 }}>
-            {note}
-          </span>
-        ) : null}
-      </div>
-    </div>
-  );
+  return { label, g, style, box };
 }
 
 function SectionView({ el, interactive, edit, foldNote }: ElementNodeProps) {

@@ -343,6 +343,8 @@ type DcPerfCounters = {
   annotationRenders: number;
   /** Annotation element nodes (re-)rendered — a drag should touch only what moves. */
   annotationNodeRenders?: number;
+  /** Section title chips (re-)rendered — a pan/zoom gesture should render none (2.0.5 W2). */
+  sectionChipRenders?: number;
   instrumented?: boolean;
 };
 
@@ -638,7 +640,8 @@ input.dc-artboard-rename {
 /* V2-8.8 (WebKit M7) - on the WebKit scale path (transform, see writeTransform) the name and the video badge get
    their OWN compositor layer. They are re-sized every zoom frame by the counter-scale above and paint outside the
    frame, so inside the board's layer (will-change, the per-board raster freeze) they moved its bounds every frame
-   and WebKit re-rastered every board on every zoom frame. Blink (CSS zoom) relayouts the world anyway; untouched. */
+   and WebKit re-rastered every board on every zoom frame. Settled Blink (CSS zoom) relayouts the world anyway;
+   during a Blink zoom gesture the world is on the transform path too (2.0.5 W2, writeTransform flips the flag). */
 .dc-world[data-dc-scale='transform'] .dc-artboard.dc-positioned > .dc-artboard-label,
 .dc-world[data-dc-scale='transform'] .dc-artboard.dc-positioned > .dc-artboard-video-badge {
   will-change: transform;
@@ -1244,6 +1247,27 @@ export function getLiveViewport(): ViewportState | null {
 }
 
 /**
+ * 2.0.5 W2 — counter-scaled chrome that sits BELOW a `--dc-zoom` reset. The annotation scene stops the
+ * world's `--dc-zoom` (a custom property inherits, so a zoom frame would otherwise restyle every element
+ * of the board), but a section's title chip still has to hold its screen size, and drawing it from
+ * `useLiveViewport()` re-rendered every chip at ~20 Hz through a gesture. A node given this ref gets
+ * `--dc-zoom` written straight onto it with every camera write (writeTransform), so its CSS
+ * (`scale(calc(1 / var(--dc-zoom, 1)))`) tracks the live zoom with no React work and no inheritance
+ * through the scene. Node → the world it sits in (only that world's writes feed it).
+ */
+const screenSizedNodes = new Map<HTMLElement, HTMLElement | null>();
+export function screenSizedRef(node: HTMLElement | null): (() => void) | undefined {
+  if (!node) return undefined;
+  const world = node.closest<HTMLElement>('.dc-world');
+  screenSizedNodes.set(node, world);
+  const z = world?.style.getPropertyValue('--dc-zoom');
+  if (z) node.style.setProperty('--dc-zoom', z);
+  return () => {
+    screenSizedNodes.delete(node);
+  };
+}
+
+/**
  * Viewport for the few consumers that must track a gesture AS IT HAPPENS —
  * the minimap indicator and the zoom % readout. Everything else reads the
  * published (settle-cadence) viewport and stays still while the user moves.
@@ -1400,6 +1424,14 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     const el = worldRef.current;
     if (!el) return;
     const z = v.zoom || 1;
+    // 2.0.5 W2 — a Blink ZOOM gesture scales the already-promoted world layer with `transform` instead:
+    // CSS `zoom` re-laid-out the whole world on every zoom frame (~2.4k layout objects on a 714-element
+    // board, zoom p95 33 ms). Only while a burst is changing scale and the write is not the settle one —
+    // the settle (`crisp`, from markInteracting's quiet timer) writes CSS `zoom` back, so text re-rasters
+    // crisp and every reader of a settled camera (export shims, screenshot, canvas-rects) sees CSS `zoom`
+    // exactly as before. A pure pan (scale unchanged) never leaves CSS `zoom`. WebKit is untouched.
+    const blinkGestureScale =
+      !IS_WEBKIT && !opts?.crisp && interactingRef.current && z !== zoomAtInteractStartRef.current;
     if (IS_WEBKIT) {
       el.style.zoom = '';
       el.style.transformOrigin = '0 0';
@@ -1408,10 +1440,19 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       // WebKit re-paints text crisp at the new scale instead of upscaling the
       // cached bitmap.
       el.style.willChange = opts?.crisp ? 'auto' : 'transform';
+    } else if (blinkGestureScale) {
+      el.style.zoom = '';
+      el.style.transformOrigin = '0 0';
+      el.style.transform = `translate(${v.x}px, ${v.y}px) scale(${z})`;
     } else {
+      el.style.transformOrigin = '';
       el.style.transform = `translate(${v.x / z}px, ${v.y / z}px)`;
       el.style.zoom = String(z);
     }
+    // The scale path the world is on RIGHT NOW (CSS keys off it — `[data-dc-scale='transform']`). The JSX
+    // seeds the engine default; on Blink it flips for the length of a zoom gesture.
+    const scaleMode = IS_WEBKIT || blinkGestureScale ? 'transform' : 'zoom';
+    if (el.dataset.dcScale !== scaleMode) el.dataset.dcScale = scaleMode;
     // Live zoom for counter-scaled chrome (section labels, connector dots,
     // selection bboxes — anything that must stay a constant number of SCREEN px
     // while the world scales). It has to be written per frame, right here: the
@@ -1419,7 +1460,11 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     // would scale with the world through a pinch and snap back at the end —
     // reintroducing exactly the fidelity-pop that was removed once already
     // (RCA addendum: the LOD toggle was reverted for visible flicker).
-    el.style.setProperty('--dc-zoom', String(z));
+    const zs = String(z);
+    el.style.setProperty('--dc-zoom', zs);
+    for (const [node, world] of screenSizedNodes) {
+      if (world === el) node.style.setProperty('--dc-zoom', zs);
+    }
     el.style.visibility = 'visible';
     runtimeWorldStyle.set(el, worldStyleKey(el));
   }, []);
@@ -1734,18 +1779,44 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     // pinch doesn't double-apply (WebKit may emit both event streams).
     const gesture = { active: false, lastScale: 1 };
 
+    // 2.0.5 W2 — the host's box, cached. A wheel event right after a camera write used to read
+    // `getBoundingClientRect()` + `clientWidth`/`clientHeight` here, forcing a synchronous style + layout
+    // of the whole world inside the input handler, every event. Measured at mount and from a
+    // ResizeObserver (delivered after layout, so its read is free); a window resize or scroll can move the
+    // host without resizing it, so those only mark the box stale and the next wheel measures once.
+    const hostBox = { left: 0, top: 0, width: 0, height: 0, fresh: false };
+    const measureHost = () => {
+      const r = host.getBoundingClientRect();
+      hostBox.left = r.left;
+      hostBox.top = r.top;
+      hostBox.width = host.clientWidth;
+      hostBox.height = host.clientHeight;
+      // no observer = nothing tells us it changed: keep the old read-per-event behaviour
+      hostBox.fresh = typeof ResizeObserver !== 'undefined';
+    };
+    const hostGeom = () => {
+      if (!hostBox.fresh) measureHost();
+      return hostBox;
+    };
+    const markHostStale = () => {
+      hostBox.fresh = false;
+    };
+    measureHost();
+    const hostRo = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measureHost) : null;
+    hostRo?.observe(host);
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const rect = host.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
+      const box = hostGeom();
+      const cx = e.clientX - box.left;
+      const cy = e.clientY - box.top;
       // Normalize line/page-mode deltas to pixels before anything below
       // reads them — see `wheelDeltaToPixels` (issue #94). Zoom's own
       // [-50, 50] clamp already absorbed this for the pinch/ctrl+wheel path,
       // but pan had no such clamp so a line-mode mouse wheel panned at only
       // a few px per notch.
-      const dx = wheelDeltaToPixels(e.deltaX, e.deltaMode, host.clientWidth);
-      const dy = wheelDeltaToPixels(e.deltaY, e.deltaMode, host.clientHeight);
+      const dx = wheelDeltaToPixels(e.deltaX, e.deltaMode, box.width);
+      const dy = wheelDeltaToPixels(e.deltaY, e.deltaMode, box.height);
       // Mac trackpad pinch fires wheel with ctrlKey:true automatically, even
       // without a physical Ctrl press — so the same branch covers both
       // Ctrl+wheel (mouse) and pinch-zoom (trackpad).
@@ -1794,9 +1865,9 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       ev.preventDefault();
       if (!gesture.active) return;
       const e = ev as SafariGestureEvent;
-      const rect = host.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
+      const box = hostGeom();
+      const cx = e.clientX - box.left;
+      const cy = e.clientY - box.top;
       const s = e.scale || 1;
       const factor = gesture.lastScale > 0 ? s / gesture.lastScale : 1;
       gesture.lastScale = s;
@@ -1939,8 +2010,14 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     host.addEventListener('gesturestart', onGestureStart, { passive: false });
     host.addEventListener('gesturechange', onGestureChange, { passive: false });
     host.addEventListener('gestureend', onGestureEnd, { passive: false });
+    const win = doc.defaultView;
+    win?.addEventListener('resize', markHostStale);
+    win?.addEventListener('scroll', markHostStale, { capture: true, passive: true });
 
     return () => {
+      hostRo?.disconnect();
+      win?.removeEventListener('resize', markHostStale);
+      win?.removeEventListener('scroll', markHostStale, { capture: true } as EventListenerOptions);
       doc.removeEventListener('wheel', captureWheel, { capture: true } as EventListenerOptions);
       doc.removeEventListener('keydown', captureKeyDown, { capture: true } as EventListenerOptions);
       doc.removeEventListener('keyup', captureKeyUp, { capture: true } as EventListenerOptions);
