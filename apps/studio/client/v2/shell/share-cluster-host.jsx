@@ -53,13 +53,66 @@ import { normalizeOpenPath } from '../../share-link.js';
 import { useAccount } from './use-account.js';
 import { useCanvasModeLane } from './use-canvas-mode-lane.js';
 import { usePanelLayout } from './use-panel-layout.js';
-import { isNativeApp } from '../../github.js';
+import { invoke as shellInvoke, isNativeApp, openTeamServerSignIn } from '../../github.js';
 import {
   chosenDisplay,
   presenterAvailable,
   usePresenterDisplays,
 } from '../present/presenter-store.js';
 import { servedFetch } from './served-routes.js';
+import { CLOUD_CHANGED_EVENT } from '../../panels/CloudBar.jsx';
+import { GitHubSignInSheet, useGitHubSignInHost } from './github-signin-host.jsx';
+import { ProjectAccountCard, ProjectAccountPopover } from './project-account-card.jsx';
+import { projectAccount } from './project-account-model.js';
+import { runTeamSwitch } from './team-switch.js';
+
+/** 2.0.5 W4 — the team server sign-in's recorded account (`GET /_api/connections/hub`, Settings' own read). */
+function useHubAccount(enabled, url) {
+  const [account, setAccount] = useState(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `url` re-reads when the folder's link moves
+  useEffect(() => {
+    if (!enabled) {
+      setAccount(null);
+      return undefined;
+    }
+    let live = true;
+    fetch('/_api/connections/hub')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (live) setAccount(typeof j?.hub?.account === 'string' ? j.hub.account : null);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [enabled, url]);
+  return account;
+}
+
+/** Settings' team-server "Sign out": POST /_api/cloud/detach — the link and its sign-in, this profile only. */
+async function detachHub(host) {
+  try {
+    const r = await fetch('/_api/cloud/detach', { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j?.ok) throw new Error(j?.error || String(r.status));
+    window.dispatchEvent(
+      new CustomEvent(CLOUD_CHANGED_EVENT, { detail: { from: 'account-card' } })
+    );
+    shellToast(`Signed out of ${host || 'the team server'}. Your work stays on this Mac.`, true);
+  } catch {
+    shellToast('Could not sign out. Nothing changed — try again.');
+  }
+}
+
+/** `{ ok, status, json }` of a same-origin JSON call (team-switch.js's `api`). */
+async function jsonFetch(path, init) {
+  try {
+    const r = await fetch(path, init);
+    return { ok: r.ok, status: r.status, json: await r.json().catch(() => null) };
+  } catch {
+    return { ok: false, status: 0, json: null };
+  }
+}
 
 const subscribeOnline = (fn) => {
   window.addEventListener('online', fn);
@@ -249,7 +302,8 @@ export function ShellShareCluster() {
   // S1.22a — the account chip (desktop): which Mac account this project tab is bound to. A cloud tab's
   // account is the hub's, a browser tab has none: both get no chip.
   const native = isNativeApp();
-  const acct = useAccount(native && !cfg?.cloud);
+  // 2.0.5 W4 — every non-cloud tab reads its account (a browser tab on this Mac shows the facts too)
+  const acct = useAccount(!cfg?.cloud);
   const projectName = cfg?.cloud?.projectName || project;
   const chip = useMemo(
     () =>
@@ -274,6 +328,61 @@ export function ShellShareCluster() {
           })
         : null,
     [chip, projectName, cfg?.profile, acct.email, acct.accounts]
+  );
+  // 2.0.5 W4 — the avatar (your face, or the chip) opens THIS project's account: kind, profile, hub or
+  // cloud project, the login; Sign out on the kind's existing path, Switch through bind-on-sign-in.
+  const gh = useGitHubSignInHost();
+  const [acctOpen, setAcctOpen] = useState(false);
+  const closeAcct = useCallback(() => setAcctOpen(false), []);
+  // the account's own read once it answered (it follows a sign-out), the shell's link until then
+  const linkHub = acct.linkedHub !== undefined ? acct.linkedHub : (cloudLinkedHub ?? null);
+  const hubAccount = useHubAccount(!cfg?.cloud && !!linkHub?.credentialed, linkHub?.url);
+  const projectAcct = useMemo(
+    () =>
+      projectAccount({
+        native,
+        cloudTab: cfg?.cloud ?? null,
+        profile: cfg?.profile,
+        project: projectName,
+        linkedHub: linkHub,
+        hubAccount,
+        cloudUrl: acct.cloudUrl,
+        cloudConnected: acct.connected,
+        cloudEmail: acct.email,
+        github: { state: gh.state, login: gh.login },
+      }),
+    [native, cfg?.cloud, cfg?.profile, projectName, linkHub, hubAccount, acct, gh.state, gh.login]
+  );
+  const signOutPath = useCallback(
+    async (path) => {
+      if (path === 'cloud-signout') return acct.signOut();
+      if (path === 'github-signout') return gh.signOut();
+      if (path === 'hub-detach') return detachHub(projectAcct.where);
+    },
+    [acct, gh, projectAcct.where]
+  );
+  // 2.0.5 W4b — Switch / Sign in for a team server: `team_sign_in_prepare` first (bind-on-sign-in for
+  // a hub), then the server's own page. Words come back as one toast.
+  const switchPath = useCallback(
+    async (spec) => {
+      if (spec?.path !== 'hub-switch') return;
+      const r = await runTeamSwitch({
+        url: spec.url,
+        native,
+        invoke: shellInvoke,
+        api: jsonFetch,
+        openPage: openTeamServerSignIn,
+        wait: (ms) => new Promise((res) => setTimeout(res, ms)),
+      });
+      if (r.cancelled) return;
+      if (r.message) shellToast(r.message, true);
+      else if (r.error) shellToast(r.error);
+      if (r.ok && !r.moved)
+        window.dispatchEvent(
+          new CustomEvent(CLOUD_CHANGED_EVENT, { detail: { from: 'account-card' } })
+        );
+    },
+    [native]
   );
   // S9.23 — the faces' menu and people list: where people are, Follow / Go to / Bring everyone here.
   const presence = usePresenceHost({
@@ -310,15 +419,32 @@ export function ShellShareCluster() {
       <ShareCluster
         cloud={!!cfg?.cloud}
         accountSlot={
-          chip ? (
-            <AccountChip
-              chip={chip}
-              card={card}
-              onSwitch={() => menuRunner.run('account.switch')}
-              onSignOut={acct.signOut}
-            />
-          ) : null
+          <>
+            <span className="sh-pa-anchor">
+              <ProjectAccountPopover open={acctOpen} onClose={closeAcct}>
+                <ProjectAccountCard
+                  account={projectAcct}
+                  run={(id) => menuRunner.run(id)}
+                  onSignOut={signOutPath}
+                  onSwitch={switchPath}
+                  onClose={closeAcct}
+                />
+              </ProjectAccountPopover>
+            </span>
+            {chip ? (
+              <AccountChip
+                chip={chip}
+                card={card}
+                onSwitch={() => menuRunner.run('account.switch')}
+                onSignOut={acct.signOut}
+                onOpen={() => setAcctOpen((o) => !o)}
+                opened={acctOpen}
+              />
+            ) : null}
+          </>
         }
+        onAccount={() => setAcctOpen((o) => !o)}
+        accountOpen={acctOpen}
         faces={faces}
         onFollow={lane.follow}
         presence={presence}
@@ -387,6 +513,7 @@ export function ShellShareCluster() {
         run={(id) => menuRunner.run(id)}
         onOpenTab={openTrashed}
       />
+      <GitHubSignInSheet gh={gh} />
     </>
   );
 }

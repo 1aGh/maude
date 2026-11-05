@@ -79,12 +79,35 @@ function toneStyle(name, you = false) {
   return { '--face-tone': toneVar(you ? YOU_TONE : toneFor(name)) };
 }
 
+/** 2.0.5 W4 — your own face is the avatar: a button that opens THIS project's account (the host's card). */
+function YouFace({ face, onYou, youOpen }) {
+  return (
+    <li className="sh-face-li">
+      <button
+        type="button"
+        className="sh-face is-you"
+        style={toneStyle(face.name, true)}
+        title={`${face.name} · Account`}
+        aria-label={`${face.name} — this project's account`}
+        aria-haspopup="dialog"
+        aria-expanded={youOpen ? 'true' : 'false'}
+        data-testid="share-cluster-face-you"
+        data-account-opener="true"
+        onClick={() => onYou()}
+      >
+        {face.initials}
+      </button>
+    </li>
+  );
+}
+
 /** The pre-S9.23 strip: a peer's face IS the Follow control. */
-function LegacyFaces({ faces, onFollow }) {
+function LegacyFaces({ faces, onFollow, onYou, youOpen }) {
   return (
     <ul className="sh-faces" aria-label="People here" data-testid="share-cluster-faces">
       {faces.map((f) => {
         const key = `${f.you ? 'you' : f.agent ? 'agent' : `peer-${f.clientID}`}:${f.name}`;
+        if (f.you && onYou) return <YouFace key={key} face={f} onYou={onYou} youOpen={youOpen} />;
         if (isPeer(f) && onFollow) {
           const label = f.following
             ? `Stop following ${firstName(f.name)}`
@@ -261,7 +284,7 @@ function PeopleList({ peers, presence, close, now, onPick }) {
   );
 }
 
-export function PresenceFaces({ faces, onFollow, presence = null }) {
+export function PresenceFaces({ faces, onFollow, presence = null, onYou = null, youOpen = false }) {
   const [open, setOpen] = useState(null); // { kind: 'face', clientID } | { kind: 'list' } | null
   const hostRef = useRef(null);
   const openerRef = useRef(null);
@@ -273,7 +296,8 @@ export function PresenceFaces({ faces, onFollow, presence = null }) {
     () => openerRef.current?.focus()
   );
   if (!faces?.length) return null;
-  if (!presence) return <LegacyFaces faces={faces} onFollow={onFollow} />;
+  if (!presence)
+    return <LegacyFaces faces={faces} onFollow={onFollow} onYou={onYou} youOpen={youOpen} />;
 
   const lead = faces.filter((f) => !isPeer(f));
   const peers = faces.filter(isPeer);
@@ -284,17 +308,21 @@ export function PresenceFaces({ faces, onFollow, presence = null }) {
   return (
     <span className="sh-faces-host" ref={hostRef}>
       <ul className="sh-faces" aria-label="People here" data-testid="share-cluster-faces">
-        {lead.map((f) => (
-          <li
-            key={f.you ? `you:${f.name}` : `agent:${f.name}`}
-            className={`sh-face${f.agent ? ' is-agent' : ''}${f.you ? ' is-you' : ''}`}
-            style={f.you ? toneStyle(f.name, true) : undefined}
-            title={f.name}
-            aria-label={f.name}
-          >
-            {f.agent ? <SparkGlyph size={12} /> : f.initials}
-          </li>
-        ))}
+        {lead.map((f) =>
+          f.you && onYou ? (
+            <YouFace key={`you:${f.name}`} face={f} onYou={onYou} youOpen={youOpen} />
+          ) : (
+            <li
+              key={f.you ? `you:${f.name}` : `agent:${f.name}`}
+              className={`sh-face${f.agent ? ' is-agent' : ''}${f.you ? ' is-you' : ''}`}
+              style={f.you ? toneStyle(f.name, true) : undefined}
+              title={f.name}
+              aria-label={f.name}
+            >
+              {f.agent ? <SparkGlyph size={12} /> : f.initials}
+            </li>
+          )
+        )}
         {shown.map((f) => {
           const idle = typeof f.idleSince === 'number' && f.idleSince > 0;
           const label = `${f.name} — ${whereOf(f, { labelOf: presence.labelOf, roleOf: presence.roleOf, now })}`;

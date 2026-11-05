@@ -529,6 +529,66 @@ describe('Home page in the desktop app', () => {
     expect(u.searchParams.get('running')).toBe(P2);
     expect($(`home-project-row-${P2}`)?.textContent).toContain('in a tab');
   });
+
+  // 2.0.5 W4b — the face lists every profile with its accounts; Sign out asks, then signs ONE
+  // profile out of ONE account; add / switch at the foot. Stubbed shell + routes only.
+  test('the face opens every account on this Mac; Sign out asks, then calls that account’s route', async () => {
+    shellOverride = {
+      ...SHELL,
+      profiles: [
+        { id: 'default', label: 'Personal', email: 'me@gmail.com', github: 'iagh' },
+        { id: 'work', label: 'StudyFi' },
+      ],
+    };
+    fetchAnswers['/_home/cloud'] = [
+      200,
+      {
+        ok: true,
+        profile: 'default',
+        signedIn: true,
+        account: { email: 'me@gmail.com' },
+        projects: [],
+        shared: [],
+      },
+    ];
+    fetchAnswers['/_home/accounts'] = [
+      200,
+      {
+        ok: true,
+        profiles: [
+          {
+            id: 'work',
+            hubs: [{ url: 'https://design.studyfi.com', account: 'michal@studyfi.com' }],
+          },
+        ],
+      },
+    ];
+    fetchAnswers['/_home/hub/signout'] = [200, { ok: true }];
+    mount();
+    await flush();
+    const face = $('home-top-face');
+    expect(face?.tagName).toBe('BUTTON');
+    act(() => face?.click());
+    await flush();
+    expect($('home-accounts')).not.toBeNull();
+    expect($('home-account-default-cloud')?.textContent).toContain('me@gmail.com');
+    expect($('home-account-default-github')?.textContent).toContain('@iagh');
+    expect($('home-account-signout-default-github')).toBeNull();
+    expect($('home-account-work-team')?.textContent).toContain('design.studyfi.com');
+    expect($('home-account-github-signin-work')).not.toBeNull();
+    expect($('home-accounts-add-cloud')).not.toBeNull();
+    act(() => $('home-account-signout-work-team')?.click());
+    await flush(2);
+    expect(calls.some((c) => c.url.includes('/_home/hub/signout'))).toBe(false);
+    act(() => $('home-accounts-signout-confirm')?.click());
+    await flush();
+    const out = calls.filter((c) => c.url.includes('/_home/hub/signout'));
+    expect(out.map((c) => c.body)).toEqual([
+      { profile: 'work', url: 'https://design.studyfi.com' },
+    ]);
+    expect(out[0]?.headers['x-maude-home']).toBeDefined();
+    await flush(10);
+  });
 });
 
 // V2-3.5 — Rust routes a maude:// link Home's way when no project tab can take it (deep_link.rs).
@@ -873,8 +933,10 @@ describe('home-api', () => {
         'cloudSignInCancel',
         'cloudSignInPoll',
         'cloudSignInStart',
+        'cloudSignOut',
         'createLocal',
         'createLocalFromPrompt',
+        'getAccounts',
         'getCloud',
         'getConfig',
         'getFirstRunSeen',
@@ -885,6 +947,7 @@ describe('home-api', () => {
         'hubSignInCancel',
         'hubSignInPoll',
         'hubSignInStart',
+        'hubSignOut',
         'hubTest',
         'inviteAccept',
         'invitePeek',

@@ -594,6 +594,7 @@ pub fn run() {
             windows::e2e_bind_profile,
             oauth::e2e_github_sign_in_as,
             profiles::cloud_sign_in_prepare,
+            profiles::team_sign_in_prepare,
             profiles::cloud_signed_in,
             profiles::home_cloud_sign_in_prepare,
             profiles::home_cloud_sign_in_open,

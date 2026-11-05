@@ -202,8 +202,7 @@ export function saveHubCredential(
  * for the same reason the save is: the file holds EVERY hub credential on the
  * machine, so a torn write drops them all.
  */
-export function deleteHubCredential(normUrl: string): void {
-  const path = hubsConfigPath();
+export function deleteHubCredential(normUrl: string, path: string = hubsConfigPath()): void {
   if (!existsSync(path)) return;
   let cfg: HubsFile;
   try {

@@ -24,7 +24,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOnline } from '../empty/use-empty-canvas.js';
-import { MENU_ACTION_EVENT } from '../shell/menu-runner.js';
+import { MENU_ACTION_EVENT, menuRunner } from '../shell/menu-runner.js';
 import { useBranchActions } from './branch-actions.js';
 import { COMPARE_PICTURES_WORDS as CW } from './compare-words.js';
 import { loadBranches, loadSourceAt } from './git-io.js';
@@ -51,6 +51,7 @@ import {
   BranchDialog,
   ChangedList,
   CopyButton,
+  GitHubSignInButton,
   GitRow,
   GitSub,
   GuardDialog,
@@ -138,6 +139,8 @@ function GitBody({ canvas, version, versionRow, role, canView, git, fetchImpl })
   const cloudHistory = git.historySource === 'cloud';
   const [branches, setBranches] = useState([]);
   const [banner, setBanner] = useState(null);
+  // 2.0.5 W4 — every "Sign in with GitHub to …" line starts the one sign-in (`account.github-signin`)
+  const signInGitHub = useCallback(() => menuRunner.run('account.github-signin'), []);
   const [busy, setBusy] = useState(null);
   const [dialog, setDialog] = useState(null); // 'save' | 'branch' | 'add'
   const [resumeDismissed, setResumeDismissed] = useState(false);
@@ -263,6 +266,7 @@ function GitBody({ canvas, version, versionRow, role, canView, git, fetchImpl })
         busy={busy}
         onGetLatest={getLatest}
         onDismiss={() => setBanner(null)}
+        onSignIn={signInGitHub}
       />
 
       {surface.mode === 'cloud' || surface.mode === 'cloud-saving' ? versions : null}
@@ -333,6 +337,9 @@ function GitBody({ canvas, version, versionRow, role, canView, git, fetchImpl })
             <p className="vh-git-err" role="alert">
               {actions.err}
             </p>
+          ) : null}
+          {actions.err && actions.errAuth && !dialog ? (
+            <GitHubSignInButton onSignIn={signInGitHub} />
           ) : null}
 
           {versionRow ? (

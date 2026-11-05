@@ -265,6 +265,130 @@
   .home-top-acct .home-face {
     box-shadow: 0 0 0 2px var(--bg-1);
   }
+  /* 2.0.5 W4b — the face is a button that opens every account on this Mac */
+  .home-top-acct {
+    position: relative;
+  }
+  .home-top-acct-btn {
+    display: inline-flex;
+    padding: 0;
+    border: 0;
+    background: none;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+  }
+  .home-top-acct-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .home-accts {
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    right: 0;
+    z-index: 50;
+    width: 320px;
+    max-height: 70vh;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    background: var(--bg-1);
+    border: 1px solid var(--line-1, var(--bg-3));
+    border-radius: var(--radius-lg, 12px);
+    box-shadow: var(--shadow-3, 0 8px 24px rgb(0 0 0 / 0.18));
+    text-align: left;
+  }
+  .home-accts-h {
+    margin: 0;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .home-accts-p {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .home-accts-ph {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .home-accts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .home-accts-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-left: calc(16px + var(--space-2));
+  }
+  .home-accts-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .home-accts-t strong {
+    font-weight: var(--w-medium, 500);
+    color: var(--fg-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .home-accts-none,
+  .home-accts-note {
+    margin: 0;
+    padding-left: calc(16px + var(--space-2));
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .home-accts-act {
+    align-self: flex-start;
+    padding: 2px 0 2px calc(16px + var(--space-2));
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: var(--type-xs);
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .home-accts-foot {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--line-1, var(--bg-3));
+  }
+  .home-accts-foot .home-accts-act {
+    padding-left: 0;
+  }
+  .home-accts-ask {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border-radius: var(--radius-md, 8px);
+    background: var(--bg-2);
+    font-size: var(--type-xs);
+  }
+  .home-accts-btns {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-1);
+  }
 
   /* the Search palette (k-pal.pn-pal): a centred 620 card over a veil, field at --type-md with an esc key */
   .home-pal-veil {
@@ -860,6 +984,25 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
+  }
+  /* 2.0.5 W4b — how a project is connected, and the folders folded into its row */
+  .home-prow-conn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .home-prow-copies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    /* under the name: past the 44px cover and the row's gap */
+    padding: 0 var(--space-2) var(--space-1) calc(44px + var(--space-3) + var(--space-2));
+  }
+  .home-root .chip.home-prow-copy {
+    font-size: var(--type-xs);
   }
   /* live state on a project row (V2-3.3): AI working · Needs you · Resting (canvas 11 pn-bmore-st) */
   .home-root .chip.home-prow-ai {

@@ -274,6 +274,17 @@ export function createMenuHandlers(d) {
     'handoff.open': () => d.setExportDialog({ mode: 'handoff' }),
     'canvas.close': () => d.onCloseCanvas(),
     'account.switch': () => d.onSwitchAccount(),
+    // 2.0.5 W4 — the GitHub device flow is the mounted host's (github-signin-host.jsx: its code sheet
+    // and state); it hears this the way IdentityBar hears project.new. A browser tab has no keychain.
+    'account.github-signin': () => {
+      if (!d.native) {
+        d.toast('Signing in with GitHub needs the Maude desktop app.');
+        return;
+      }
+      window.dispatchEvent(
+        new CustomEvent(MENU_ACTION_EVENT, { detail: { id: 'account.github-signin' } })
+      );
+    },
     // ── Edit ── (select / properties ride the canvas lane; artboards the shell's)
     // S2.20 — Undo / Redo run the ⌘Z projection over the op log (since p8-v1-drop the canvas keeps no
     // stack to fall back to). Undo history… opens the popover.

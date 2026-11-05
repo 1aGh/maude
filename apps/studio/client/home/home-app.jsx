@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createLocal,
   createLocalFromPrompt,
+  getAccounts,
   getCloud,
   getIndex,
   getFirstRunSeen,
@@ -56,6 +57,7 @@ import { HOME_MENU, homeMenuCtx, homeMenuState } from './home-menu.js';
 import { InviteSheet } from './InviteSheet.jsx';
 import { INVITE_WORDS, joinPendingAndOpen, useInviteFlow } from './invite-flow.js';
 import { HIcon, HMark, HSpark, ProjectSquare } from './home-icons.jsx';
+import { HomeAccounts } from './HomeAccounts.jsx';
 import {
   accountFace,
   buildHomeModel,
@@ -399,6 +401,31 @@ export function HomeApp() {
   const askingRef = useRef(false);
   const [seen, setSeen] = useState(readSeen);
 
+  // 2.0.5 W4b — the account each profile's team servers vouched for, so a row can say
+  // "Team server · <host> · <account>" (public handles from /_home/accounts, never a token)
+  const [hubAccounts, setHubAccounts] = useState(null);
+  const profileKey = (data.shell?.profiles ?? [])
+    .map((p) => p?.id)
+    .filter(Boolean)
+    .join(',');
+  useEffect(() => {
+    if (!profileKey) return undefined;
+    let live = true;
+    getAccounts(profileKey.split(',')).then((r) => {
+      if (!live || !r.ok || !Array.isArray(r.json?.profiles)) return;
+      setHubAccounts(
+        Object.fromEntries(
+          r.json.profiles.map((p) => [
+            p.id,
+            Object.fromEntries((p.hubs ?? []).map((h) => [h.url, h.account])),
+          ])
+        )
+      );
+    });
+    return () => {
+      live = false;
+    };
+  }, [profileKey]);
   const model = useMemo(
     () =>
       buildHomeModel({
@@ -406,21 +433,11 @@ export function HomeApp() {
         index: data.index ? { v: 1, projects: [...data.index.values()] } : null,
         clouds: data.clouds,
         filterPid: filterPid || null,
+        hubAccounts,
       }),
-    [data.shell, data.index, data.clouds, filterPid]
+    [data.shell, data.index, data.clouds, filterPid, hubAccounts]
   );
-  // the signed-in account's face at the top right (02 ob-home-new: a circle, never the project's square)
-  const face = useMemo(() => {
-    const c = data.clouds.find((x) => x?.signedIn);
-    if (!c) return null;
-    const id = c.profile || 'default';
-    const label = (data.shell?.profiles ?? []).find((p) => p.id === id)?.label || '';
-    const email = c.account?.email || '';
-    return {
-      ...accountFace({ id, label, email }),
-      title: [label, email].filter(Boolean).join(' · ') || 'Your account',
-    };
-  }, [data.clouds, data.shell]);
+  // 2.0.5 W4b — the face at the top right opens every account on this Mac (HomeAccounts.jsx)
   const searchPids = useMemo(
     () => (data.shell ? indexQuery(data.shell).pids : browserPids()),
     [data.shell]
@@ -895,22 +912,14 @@ export function HomeApp() {
             }}
             canOpen={data.native}
           />
-          {face ? (
-            <span
-              className="home-top-acct"
-              data-testid="home-top-face"
-              role="img"
-              aria-label={face.title}
-              title={face.title}
-            >
-              <span
-                className={`home-face home-face--md home-face--${face.tone}`}
-                aria-hidden="true"
-              >
-                {face.initial}
-              </span>
-            </span>
-          ) : null}
+          <HomeAccounts
+            shell={data.shell}
+            clouds={data.clouds}
+            native={data.native}
+            onAddCloud={() => signin.begin()}
+            onAddTeam={() => openSheet('hub')}
+            onChanged={data.reload}
+          />
         </div>
       </header>
 
@@ -1342,12 +1351,6 @@ const RECENT_CAP = 6;
 
 const STATE_WORD = {
   tab: 'in a tab',
-  mac: (
-    <>
-      <HIcon name="laptop" size={12} />
-      this Mac only
-    </>
-  ),
   cloud: (
     <>
       <HIcon name="cloud" size={12} />
@@ -1355,6 +1358,52 @@ const STATE_WORD = {
     </>
   ),
 };
+
+// 2.0.5 W4b — how a local project is connected and as whom: "Local · this Mac only",
+// "Maude Cloud · <account>", "Team server · <host> · <account>" (home-model `connectionOf`).
+const CONNECTION_ICON = { local: 'laptop', cloud: 'cloud', team: 'server' };
+function ConnectionWords({ row }) {
+  const c = row.connection;
+  if (!c?.words) return null;
+  return (
+    <span
+      className="home-prow-conn"
+      data-testid={`home-project-conn-${row.pid}`}
+      data-kind={c.kind}
+    >
+      <HIcon name={CONNECTION_ICON[c.kind] ?? 'laptop'} size={12} />
+      {c.words}
+    </span>
+  );
+}
+
+// 2.0.5 W4b — the folders folded into this row (a managed cloud copy; another folder on the same
+// design root). Each still opens its own project.
+function RowCopies({ row, canOpen, onOpen }) {
+  if (!row.copies?.length) return null;
+  return (
+    <span className="home-prow-copies">
+      {row.copies.map((c) => (
+        <button
+          key={c.pid}
+          type="button"
+          className="chip home-prow-copy"
+          data-testid={`home-project-copy-${c.pid}`}
+          data-kind={c.kind}
+          onClick={() => onOpen(c.pid)}
+          disabled={!canOpen}
+          {...reasonProps(!canOpen, 'homeBrowser')}
+          title={c.root}
+          aria-label={
+            c.kind === 'folder' ? `Open ${c.label}` : `Open the ${c.label} of ${row.name}`
+          }
+        >
+          {c.kind === 'folder' ? `also ${c.label}` : c.label}
+        </button>
+      ))}
+    </span>
+  );
+}
 
 // A project tab's live state (shell_state `ai` + `place`), canvas 11's words: AI working (a spark
 // while it runs) · Needs you (it is waiting on a decision — the one that asks for you wins) ·
@@ -1474,10 +1523,11 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
                       {[
                         r.canvasCount != null ? canvasCount(r.canvasCount) : null,
                         STATE_WORD[r.status] ?? null,
+                        r.connection ? <ConnectionWords key="conn" row={r} /> : null,
                       ]
                         .filter(Boolean)
                         .map((part, i) => (
-                          // biome-ignore lint/suspicious/noArrayIndexKey: a fixed two-part line
+                          // biome-ignore lint/suspicious/noArrayIndexKey: a fixed three-part line
                           <span key={i} className="home-prow-part">
                             {i ? ' · ' : ''}
                             {part}
@@ -1489,6 +1539,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
                   <ProjectSquare id={r.pid} name={r.name} />
                 </button>
               )}
+              <RowCopies row={r} canOpen={canOpen} onOpen={onOpen} />
             </li>
           )
         )}

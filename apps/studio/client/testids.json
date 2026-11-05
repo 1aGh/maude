@@ -7710,7 +7710,7 @@
     "hook": "share-cluster-status",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The status word (CONTRACT §6): `data-status` ∈ saved, syncing, offline, local, not-saved, or `access` (Can view / Can comment) for a person without edit rights.",
+    "meaning": "The status word (CONTRACT §6): `data-status` ∈ saved, syncing, offline, local, not-saved, or `access` (Can view / Can comment) for a person without edit rights. 2.0.5 W4: a button — Diagnostics › Sync (`diag.sync`) in every sync state, the held conflict's Compare while one waits; the access word stays a word.",
     "producer": {
       "file": "apps/studio/client/v2/shell/share-cluster.jsx",
       "symbol": "ShareCluster"
@@ -7744,6 +7744,80 @@
     "producer": {
       "file": "apps/studio/client/v2/shell/share-cluster.jsx",
       "symbol": "ShareCluster"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "share-cluster-face-you",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.5 W4: your own face in the Share cluster is the avatar — a button that opens THIS project's account (`project-account`). `aria-expanded` follows the card.",
+    "producer": {
+      "file": "apps/studio/client/v2/presence/faces.jsx",
+      "symbol": "YouFace"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/w4-account-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "project-account",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.5 W4: this project's account card (from `share-cluster-face-you` or `share-cluster-account`): kind (Team server / Maude Cloud / GitHub / This Mac only), account, server or project, the profile on this Mac.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-account-card.jsx",
+      "symbol": "ProjectAccountCard"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/w4-account-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "project-account-<part>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "2.0.5 W4: a part of the project account card. `<part>` ∈ kind, who, where, profile, github, github-note (the facts); switch (`account.switch`, `account.github-signin` for a GitHub-only project, or — W4b — `hub-switch` for a team server: `team_sign_in_prepare`, then the server's own sign-in page), github-signin (`account.github-signin`), signout, github-signout (each asks first), confirm, signout-cancel, signout-confirm. A row is drawn only where its path exists — a browser tab gets the facts and no button.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-account-card.jsx",
+      "symbol": "ProjectAccountCard"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/w4-account-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "git-signin-github",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.5 W4: \"Sign in with GitHub…\" beside a Versions › Advanced line that asks for a GitHub sign-in (publish / fetch / add to main refused for sign-in); runs `account.github-signin`.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "GitHubSignInButton"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/w4-account-ui.test.tsx",
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cp-github-signin",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.5 W4: New project… while signed out of GitHub — \"Sign in with GitHub… to publish\" is a button that runs `account.github-signin`.",
+    "producer": {
+      "file": "apps/studio/client/panels/CreateProject.jsx",
+      "symbol": "CreateProject"
     },
     "region": "other",
     "consumers": [],
@@ -43569,6 +43643,141 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/history-preview-restore.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-project-conn-<pid>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "2.0.5 W4b: how a local project row is connected and as whom — \"Local · this Mac only\", \"Maude Cloud · <account>\", \"Team server · <host> · <account>\" (`data-kind` = local / cloud / team). An account nobody recorded is left out.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "ConnectionWords"
+    },
+    "region": "home",
+    "consumers": [
+      "apps/studio/test/home-page-model.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-project-copy-<pid>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "2.0.5 W4b: a project folded into another row (by identity, never the label): a managed cloud copy of the folder that links the same hub (\"cloud copy\" / \"server copy\", `data-kind=cloud-copy`), or another folder on the same design-root realpath (\"also <folder>\", `data-kind=folder`). Click → `open_project({pid})` of that copy.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "RowCopies"
+    },
+    "region": "home",
+    "consumers": [
+      "apps/studio/test/home-page-model.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-top-face",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.5 W4b: the face at the top right of Home is a button that opens `home-accounts` (every account on this Mac). `aria-expanded` follows the card.",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAccounts.jsx",
+      "symbol": "HomeAccounts"
+    },
+    "region": "home",
+    "consumers": [
+      "apps/studio/test/home-page.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-accounts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.5 W4b: the accounts card on Home — every profile by its label with its accounts (Maude Cloud, team servers, GitHub), Sign out per account where Home has a path, Sign in with GitHub, and add / switch at the foot.",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAccounts.jsx",
+      "symbol": "HomeAccounts"
+    },
+    "region": "home",
+    "consumers": [
+      "apps/studio/test/home-page.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-accounts-profile-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "2.0.5 W4b: one profile in the Home accounts card (its label and accounts).",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAccounts.jsx",
+      "symbol": "HomeAccounts"
+    },
+    "region": "home",
+    "consumers": [
+      "apps/studio/test/home-page.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-account-<id>-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "2.0.5 W4b: one account of profile `<id>` in the Home accounts card; `<kind>` ∈ cloud, team, github.",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAccounts.jsx",
+      "symbol": "HomeAccounts"
+    },
+    "region": "home",
+    "consumers": [
+      "apps/studio/test/home-page.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-account-signout-<id>-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "2.0.5 W4b: Sign out… of one account (cloud → POST /_home/cloud/signout, team → POST /_home/hub/signout); asks first (`home-accounts-confirm`). GitHub has none on Home — it signs out in its project's account card.",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAccounts.jsx",
+      "symbol": "HomeAccounts"
+    },
+    "region": "home",
+    "consumers": [
+      "apps/studio/test/home-page.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-account-github-signin-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "2.0.5 W4b: Sign in with GitHub… for a profile with no GitHub login (`home_github_sign_in`); the code shows in `home-accounts-github-code`.",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAccounts.jsx",
+      "symbol": "HomeAccounts"
+    },
+    "region": "home",
+    "consumers": [
+      "apps/studio/test/home-page.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-accounts-<part>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "2.0.5 W4b: a part of the Home accounts card. `<part>` ∈ confirm, signout-cancel, signout-confirm (the sign-out ask), github-code, error, add-cloud (Home's Maude Cloud sign-in — a fresh profile when one is signed in), add-team (the Advanced › team server sheet).",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAccounts.jsx",
+      "symbol": "HomeAccounts"
+    },
+    "region": "home",
+    "consumers": [
+      "apps/studio/test/home-page.test.tsx"
     ],
     "v2": "new"
   }

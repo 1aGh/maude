@@ -29,6 +29,8 @@ fn main() {
                 "github_sign_out",
                 // V2-3.8 (profiles.rs): a Maude Cloud sign-in keeps its project's profile.
                 "cloud_sign_in_prepare",
+                // 2.0.5 W4b: a team-server Switch moves a shared-profile project first.
+                "team_sign_in_prepare",
                 "cloud_signed_in",
                 "pick_directory",
                 "resolve_dev_server_url",

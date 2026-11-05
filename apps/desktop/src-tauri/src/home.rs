@@ -764,6 +764,10 @@ pub struct ShellProfile {
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
+    /// 2.0.5 W4b — the GitHub login last signed in on this profile (public handle, from
+    /// profiles.json; Home's avatar names it). Never the token.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub github: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -833,6 +837,7 @@ fn current_shell_state(app: &AppHandle) -> ShellState {
             id: p.id,
             label: p.label,
             email: p.cloud_email,
+            github: p.github_login.filter(|g| !g.is_empty()),
         })
         .collect();
     let copies = crate::managed::bound_copies(app);

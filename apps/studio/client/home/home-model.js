@@ -99,12 +99,78 @@ function canvasRow(pid, projectName, c) {
 }
 
 const DEFAULT_PROFILE = { id: 'default', label: 'This Mac' };
+const DEFAULT_CLOUD = 'https://cloud.maude.sh';
+
+const hostOfUrl = (url) => {
+  try {
+    return new URL(String(url)).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+};
+
+/** A hub of Maude Cloud (the control plane's host or a cell under it) — connections-model's rule. */
+export function isCloudHubUrl(hubUrl, cloudUrl = DEFAULT_CLOUD) {
+  const host = hostOfUrl(hubUrl);
+  const cloud = hostOfUrl(cloudUrl || DEFAULT_CLOUD);
+  return !!host && !!cloud && (host === cloud || host.endsWith(`.${cloud}`));
+}
+
+/**
+ * 2.0.5 W4b — the project id of a managed copy, read from its folder: `managed.rs`
+ * `managed_key_for` names it `[<profile>@]<host>--<id>` under the app's data folder. null = the
+ * folder is not the copy of `boundHub` (a folder the person opened is never a copy).
+ */
+export function copyProjectId(root, boundHub) {
+  if (!boundHub) return null;
+  const base =
+    String(root || '')
+      .split('/')
+      .filter(Boolean)
+      .pop() ?? '';
+  const key = base.includes('@') ? base.slice(base.indexOf('@') + 1) : base;
+  const prefix = managedKey(boundHub, '');
+  return key.length > prefix.length && key.startsWith(prefix) ? key.slice(prefix.length) : null;
+}
+
+/**
+ * 2.0.5 W4b (3) — how a project is connected and as whom, in one line: "Local · this Mac only",
+ * "Maude Cloud · <account>", "Team server · <host> · <account>". An account nobody recorded is
+ * left out, never guessed.
+ */
+export function connectionOf({ hub, profileEmail = null, hubAccount = null, cloudUrl }) {
+  if (!hub) return { kind: 'local', host: null, account: null, words: 'Local · this Mac only' };
+  if (isCloudHubUrl(hub, cloudUrl)) {
+    const account = profileEmail || null;
+    return {
+      kind: 'cloud',
+      host: hostOfUrl(hub),
+      account,
+      words: ['Maude Cloud', account].filter(Boolean).join(' · '),
+    };
+  }
+  const host = hostOfUrl(hub);
+  const account = hubAccount || null;
+  return {
+    kind: 'team',
+    host,
+    account,
+    words: ['Team server', host, account].filter(Boolean).join(' · '),
+  };
+}
 
 /**
  * @param {{ shell?: object|null, index?: object|null, clouds?: object[]|null,
  *           filterPid?: string|null }} input
  */
-export function buildHomeModel({ shell = null, index = null, clouds = null, filterPid = null }) {
+export function buildHomeModel({
+  shell = null,
+  index = null,
+  clouds = null,
+  filterPid = null,
+  hubAccounts = null,
+  cloudUrl = DEFAULT_CLOUD,
+}) {
   const indexed = new Map();
   for (const p of index?.projects ?? []) if (p && typeof p.pid === 'string') indexed.set(p.pid, p);
 
@@ -142,7 +208,18 @@ export function buildHomeModel({ shell = null, index = null, clouds = null, filt
 
   // ── projects by profile ──────────────────────────────────────────────────────────────────
   const mru = new Map((shell?.recent ?? []).map((pid, i) => [pid, i]));
-  const localRows = registry.map((p) => {
+  const emailOf = (id) =>
+    (shell?.profiles ?? []).find((x) => x?.id === id)?.email ||
+    (clouds ?? []).find((c) => c?.profile === id)?.account?.email ||
+    null;
+  const accountsOn = new Map();
+  for (const [id, byHub] of Object.entries(hubAccounts ?? {})) {
+    const m = new Map();
+    for (const [url, who] of Object.entries(byHub ?? {}))
+      if (normHubUrl(url) && typeof who === 'string' && who) m.set(normHubUrl(url), who);
+    accountsOn.set(id, m);
+  }
+  const allLocal = registry.map((p) => {
     const ix = indexed.get(p.pid);
     const gone = ix?.state === 'gone';
     // `hub` (display + the 'mac' word) is the project's own linkedHub — a HINT it wrote itself.
@@ -153,11 +230,15 @@ export function buildHomeModel({ shell = null, index = null, clouds = null, filt
     // 'mac' = "this Mac only" — true only of a project with no hub; a linked one that is not in a
     // tab is plain 'closed' (no state word)
     const inTab = p.place === 'tab' || p.place === 'resting';
-    const status = gone ? 'gone' : inTab ? 'tab' : hub ? 'closed' : 'mac';
+    // W4b: a managed copy whose own config lost its claim is still the app's copy of a hub — never
+    // "this Mac only"
+    const status = gone ? 'gone' : inTab ? 'tab' : hub || boundHub ? 'closed' : 'mac';
+    const profile = p.profile || DEFAULT_PROFILE.id;
+    const shown = boundHub || hub;
     return {
       kind: 'local',
       pid: p.pid,
-      profile: p.profile || DEFAULT_PROFILE.id,
+      profile,
       name: ix?.project?.name || p.name || 'Untitled project',
       root: p.root || ix?.project?.root || '',
       status,
@@ -170,19 +251,29 @@ export function buildHomeModel({ shell = null, index = null, clouds = null, filt
       formatGate: p.formatGate ?? null,
       hub,
       boundHub,
+      copyOf: copyProjectId(p.root, boundHub),
+      designReal: !gone && typeof ix?.designReal === 'string' ? ix.designReal : null,
+      connection: connectionOf({
+        hub: shown,
+        profileEmail: emailOf(profile),
+        hubAccount: shown ? (accountsOn.get(profile)?.get(shown) ?? null) : null,
+        cloudUrl,
+      }),
+      copies: [],
       folder: (p.root || '').split('/').filter(Boolean).pop() ?? '',
       cover: firstCover(ix),
     };
   });
-  localRows.sort((a, b) => {
+  allLocal.sort((a, b) => {
     const ia = mru.has(a.pid) ? mru.get(a.pid) : Number.POSITIVE_INFINITY;
     const ib = mru.has(b.pid) ? mru.get(b.pid) : Number.POSITIVE_INFINITY;
     return ia - ib || a.name.localeCompare(b.name);
   });
+  const localRows = collapseDuplicates(allLocal, cloudUrl);
 
   // one profile's copy never hides another profile's cloud row
   const bound = new Set(
-    localRows.filter((r) => r.boundHub).map((r) => `${r.profile} ${r.boundHub}`)
+    allLocal.filter((r) => r.boundHub).map((r) => `${r.profile} ${r.boundHub}`)
   );
   const cloudRows = [];
   for (const listing of clouds ?? []) {
@@ -251,6 +342,64 @@ export function buildHomeModel({ shell = null, index = null, clouds = null, filt
     groups: ranked,
     projectCount: localRows.length + cloudRows.length,
   };
+}
+
+/**
+ * 2.0.5 W4b (4) — one row per project. Identity, never the label:
+ *   (a) a managed copy (profile + its bound hub + the project id in its folder name) folds into the
+ *       ONE folder of the same profile that links that hub; the folder the person opened stays the
+ *       row. Two copies on one hub, or two such folders, cannot be told apart: nothing folds.
+ *   (b) rows whose design root is one realpath (a `.design` symlink) fold into the last opened.
+ * A folded row stays openable from its primary's `copies`. Rows arrive MRU-sorted; nothing is
+ * removed from the registry — this is only what Home draws.
+ */
+function collapseDuplicates(rows, cloudUrl) {
+  const out = rows.map((r) => ({ ...r, copies: [] }));
+  const drop = new Set();
+  const live = (r) => r.status !== 'gone';
+  const fold = (primary, r, kind, label) => {
+    primary.copies.push({ pid: r.pid, kind, label, place: r.place, root: r.root, name: r.name });
+    if (primary.canvasCount == null && r.canvasCount != null) {
+      primary.canvasCount = r.canvasCount;
+      primary.byKind = r.byKind;
+    }
+    if (!primary.cover && r.cover) primary.cover = r.cover;
+    if (primary.status === 'mac' && r.status !== 'mac') primary.status = 'closed';
+    if (primary.connection?.kind === 'local' && r.connection?.kind !== 'local')
+      primary.connection = r.connection;
+    drop.add(r.pid);
+  };
+
+  // (a) a managed copy into the folder that links the same hub
+  for (const c of out) {
+    if (!c.copyOf || !live(c)) continue;
+    const sameHub = out.filter(
+      (x) => x.copyOf && x.profile === c.profile && x.boundHub === c.boundHub
+    );
+    if (sameHub.length !== 1) continue;
+    const folders = out.filter(
+      (x) =>
+        !x.copyOf && live(x) && !drop.has(x.pid) && x.profile === c.profile && x.hub === c.boundHub
+    );
+    if (folders.length !== 1) continue;
+    fold(
+      folders[0],
+      c,
+      'cloud-copy',
+      isCloudHubUrl(c.boundHub, cloudUrl) ? 'cloud copy' : 'server copy'
+    );
+  }
+
+  // (b) one design root, many folders: the last opened leads (rows are MRU-sorted)
+  const byReal = new Map();
+  for (const r of out) {
+    if (drop.has(r.pid) || !r.designReal || !live(r)) continue;
+    const key = `${r.profile} ${r.designReal}`;
+    const primary = byReal.get(key);
+    if (!primary) byReal.set(key, r);
+    else fold(primary, r, 'folder', r.folder || r.name);
+  }
+  return out.filter((r) => !drop.has(r.pid));
 }
 
 // ── where the sentence lands (S6.4 — the chip under the question) ─────────────────────────────

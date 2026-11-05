@@ -1700,6 +1700,11 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: human('native-window', 'the desktop app’s profiles; an agent never picks an account'),
   },
+  // 2.0.5 W4: GitHub's device flow — a person types the code in their own browser.
+  'account.github-signin': {
+    effect: 'none',
+    agent: human('native-window', 'GitHub’s device flow; an agent never signs anyone in'),
+  },
   // V2-3.9: the shell's tab bar — a person's window, never an agent's.
   'tab.close': { effect: 'none', agent: human('native-window') },
   'tab.next': { effect: 'none', agent: human('native-window') },

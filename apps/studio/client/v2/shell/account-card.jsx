@@ -29,7 +29,7 @@ function Face({ initial, tone, size = 'md' }) {
  * @param onSwitch () => void — the shell's `account.switch`
  * @param onSignOut () => Promise — the existing sign-out path
  */
-export function AccountChip({ chip, card, onSwitch, onSignOut }) {
+export function AccountChip({ chip, card, onSwitch, onSignOut, onOpen = null, opened = false }) {
   const [open, setOpen] = useState(false);
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -74,14 +74,20 @@ export function AccountChip({ chip, card, onSwitch, onSignOut }) {
       <button
         ref={btn}
         type="button"
-        className={`sh-acct-chip${open ? ' is-on' : ''}`}
+        className={`sh-acct-chip${open || opened ? ' is-on' : ''}`}
         data-testid="share-cluster-account"
         data-account={chip.id}
+        // 2.0.5 W4 — with `onOpen` the chip opens the project's account card (project-account-card.jsx)
+        data-account-opener={onOpen ? 'true' : undefined}
         aria-haspopup="dialog"
-        aria-expanded={open ? 'true' : 'false'}
+        aria-expanded={open || opened ? 'true' : 'false'}
         aria-label={`Account: ${chip.title}`}
         title={chip.title}
-        onClick={() => (open ? close(false) : setOpen(true))}
+        onClick={() => {
+          if (onOpen) onOpen();
+          else if (open) close(false);
+          else setOpen(true);
+        }}
       >
         <Face initial={chip.initial} tone={chip.tone} />
         <span className="sh-acct-name">{chip.label}</span>
