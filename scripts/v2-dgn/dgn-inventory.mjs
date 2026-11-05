@@ -40,7 +40,10 @@ export const DEFAULT_SCAN = [
   ['apps/hub/src', /\.(mjs|js|ts)$/],
   ['plugins/design/templates', /_shell\.html$/],
 ];
-const SKIP = /node_modules|\/dist\/|\/test\/|\.test\.|\/e2e\//;
+// Headless harness shims (apps/studio/bin/_*-playwright.mjs) drive a page from Node; they neither run in
+// the shell nor in a canvas, so a message they wait on is not a protocol handler (2.0.5: the DS proof
+// shim waits on `canvas-mounted`, which stays a shell-side orphan).
+const SKIP = /node_modules|\/dist\/|\/test\/|\.test\.|\/e2e\/|\/bin\/_[^/]*-playwright\.mjs$/;
 
 function walk(dir, re, out) {
   let ents;
