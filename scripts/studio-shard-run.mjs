@@ -52,8 +52,9 @@ const files = planShards(
   loadTimings()
 )[index - 1].files;
 
-// A file header is `##[group]<file>:` under GitHub Actions and `<file>:` elsewhere.
-const HEADER = /^(?:##\[group\])?(\S+(?:\.|_)(?:test|spec)\.[a-z]+):\s*$/;
+// A file header is `::group::<file>:` under GitHub Actions (the log viewer shows the
+// workflow command as `##[group]`) and `<file>:` elsewhere.
+const HEADER = /^(::group::|##\[group\])?(\S+(?:\.|_)(?:test|spec)\.[a-z]+):\s*$/;
 const RESULT = /^\((pass|fail|skip|todo)\) (.*?)(?: \[[\d.]+m?s\])?$/;
 const TALLY = /^\s*(\d+) (pass|fail|skip|todo)$/;
 const RAN = /Ran (\d+) tests? across (\d+) files?\./;
@@ -81,11 +82,11 @@ function onLine(raw, stream) {
   if (header) {
     const now = Date.now();
     closeFile(now);
-    current = header[1];
+    current = header[2];
     currentStart = now;
     seen += 1;
-    const label = `[${seen}/${files.length}] ${current}`;
-    stream.write(line.startsWith('##[group]') ? `##[group]${label}:\n` : `${label}:\n`);
+    // Keep the group command first on the line, or the Actions log stops folding the file.
+    stream.write(`${header[1] ?? ''}[${seen}/${files.length}] ${current}:\n`);
     return;
   }
   // Per-test `(pass)` lines appear only under GitHub Actions (or a TTY); `(fail)`
