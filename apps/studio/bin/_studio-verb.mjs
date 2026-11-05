@@ -10,7 +10,7 @@
 
 import { randomBytes } from 'node:crypto';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
-import { DESIGN_REL, findProjectRoot, locateStudio } from '../../../cli/lib/studio-locate.mjs';
+import { DESIGN_REL, findProjectRoot, probeStudio } from '../../../cli/lib/studio-locate.mjs';
 
 export { DESIGN_REL };
 
@@ -66,8 +66,23 @@ export function canvasRepoRel(root, canvas) {
   return `${DESIGN_REL}/${rel.split(sep).join('/')}`;
 }
 
+/** How long `/_health` gets, and how often it is asked, before a live studio counts as busy. */
+export const HEALTH_TIMEOUT_MS = 3000;
+export const HEALTH_ATTEMPTS = 3;
+
 /** The studio serving `root`, or null. */
-export const studioFor = (root) => locateStudio(root, { timeoutMs: 1500 });
+export const studioFor = async (root) => (await studioState(root)).studio ?? null;
+
+/** `{ studio }` | `{ state: 'none' | 'busy' }` (#13: a studio under load is not "not running"). */
+export const studioState = (root, env = process.env) =>
+  probeStudio(root, {
+    timeoutMs:
+      Number(env.MAUDE_HEALTH_TIMEOUT_MS) > 0
+        ? Number(env.MAUDE_HEALTH_TIMEOUT_MS)
+        : HEALTH_TIMEOUT_MS,
+    attempts: HEALTH_ATTEMPTS,
+    retryDelayMs: 500,
+  });
 
 /**
  * p8-a1-claims — a write names the chat this shell is (`MAUDE_CHAT_ID`, set per chat by the ACP spawn):
@@ -209,7 +224,13 @@ export async function connect(name, rootFlag) {
     );
     return { exit: 2 };
   }
-  const studio = await studioFor(root);
+  const { studio, state } = await studioState(root);
+  if (!studio && state === 'busy') {
+    process.stderr.write(
+      `maude design ${name}: the Maude studio for this project is busy — it is running but did not answer in time. Wait a moment and try again.\n`
+    );
+    return { exit: 3 };
+  }
   if (!studio) {
     process.stderr.write(
       `maude design ${name}: no Maude studio is running for this project. Open it in Maude (or \`maude design serve\`) and try again.\n`
