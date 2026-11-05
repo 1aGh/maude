@@ -435,7 +435,9 @@ fn remember_and_open(app: &tauri::AppHandle, path: PathBuf, caller: Option<Strin
 /// fix/ds-convert-hooks-cli #13b — `open -a Maude <folder>`, Finder's Open With, a folder on the
 /// Dock icon: macOS sends `RunEvent::Opened` with `file://` URLs. Each one that names a project
 /// folder (`folder_open` validates it like a deep link: untrusted) opens through File ▸ Open's
-/// own path — open-once, so an open project focuses its tab. The launch event can beat `setup`.
+/// own path — open-once, so an open project focuses its tab. The launch event arrives while
+/// `setup` is still building the boot tabs (fix/205-open-a-cold): its folders wait in
+/// `folder_open::BOOT_GATE` until `setup` opens it (`open_queued_folders`).
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 fn open_folders(app: &tauri::AppHandle, urls: &[tauri::Url]) {
     let (roots, refused) = folder_open::project_roots(urls);
@@ -445,22 +447,34 @@ fn open_folders(app: &tauri::AppHandle, urls: &[tauri::Url]) {
     if roots.is_empty() {
         return;
     }
+    let now = folder_open::BOOT_GATE.offer(roots);
+    if now.is_empty() {
+        sidecar::log_line("[maude] a folder was opened before the window was ready — it opens after boot");
+        return;
+    }
+    open_roots(app, now);
+}
+
+/// Open each folder root as File ▸ Open does (open-once), then show the window.
+fn open_roots(app: &tauri::AppHandle, roots: Vec<PathBuf>) {
+    for root in roots {
+        remember_and_open(app, root, None);
+    }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        for _ in 0..100 {
-            if app.try_state::<SidecarState>().is_some() {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-        }
-        if app.try_state::<SidecarState>().is_none() {
-            return;
-        }
-        for root in roots {
-            remember_and_open(&app, root, None);
-        }
         windows::reveal_front(&app);
     });
+}
+
+/// End of `setup`: the shell, Home and the boot tabs exist, so the folders a cold launch was
+/// handed (`open -a Maude <folder>`) open now. A folder the boot already shows focuses its tab.
+fn open_queued_folders(app: &tauri::AppHandle) {
+    let queued = folder_open::BOOT_GATE.open();
+    if queued.is_empty() {
+        return;
+    }
+    sidecar::log_line(&format!("[maude] opening {} folder(s) handed to the launch", queued.len()));
+    open_roots(app, queued);
 }
 
 /// Open project… (⌘O, Home's "Open a folder"): the folder picker, then open it
@@ -800,7 +814,8 @@ pub fn run() {
                 }
             }
             lifecycle::after_boot(&handle, crashed);
-
+            // fix/205-open-a-cold: only now may a folder handed to the launch open.
+            open_queued_folders(&handle);
 
             // 3. SIGTERM/SIGINT → kill sidecar + exit.
             #[cfg(unix)]

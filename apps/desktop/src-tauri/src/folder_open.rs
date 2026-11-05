@@ -75,9 +75,113 @@ pub fn project_roots(urls: &[tauri::Url]) -> (Vec<PathBuf>, Vec<(String, Refusal
     (roots, refused)
 }
 
+/// fix/205-open-a-cold — on a COLD launch (`open -a Maude <folder>` with the app not running)
+/// `Opened` arrives while `setup` is still building the shell, Home and the boot tabs. Opening
+/// then raced the boot's own open of the same project: both wrote the tab's book entry, the
+/// loser's failed webview build took the winner's entry back out, and the tab stayed on
+/// "Still starting" with the strip answering "no tab p-…". So folders wait here until boot is
+/// done (`open`), then open through File ▸ Open's open-once path — a folder the restored session
+/// already shows focuses its tab.
+pub struct BootGate {
+    inner: std::sync::Mutex<GateInner>,
+}
+
+struct GateInner {
+    booted: bool,
+    queued: Vec<PathBuf>,
+}
+
+impl BootGate {
+    pub const fn new() -> Self {
+        Self {
+            inner: std::sync::Mutex::new(GateInner {
+                booted: false,
+                queued: Vec::new(),
+            }),
+        }
+    }
+
+    /// The roots of one `Opened` event: returned to open NOW once boot is done; before that
+    /// queued (each once, at most `MAX_PER_EVENT` in all — a burst past it is dropped) and
+    /// nothing is returned.
+    pub fn offer(&self, roots: Vec<PathBuf>) -> Vec<PathBuf> {
+        // One lock for the check and the queue: an offer racing `open` is either drained by
+        // it or sees `booted` — never lost in between.
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        if g.booted {
+            return roots;
+        }
+        for root in roots {
+            if !g.queued.contains(&root) && g.queued.len() < MAX_PER_EVENT {
+                g.queued.push(root);
+            }
+        }
+        Vec::new()
+    }
+
+    /// Boot is done: the queued roots, in arrival order. Every later `offer` opens at once.
+    pub fn open(&self) -> Vec<PathBuf> {
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        g.booted = true;
+        std::mem::take(&mut g.queued)
+    }
+}
+
+impl Default for BootGate {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// The app's one gate: `RunEvent::Opened` offers, `setup` opens it after the boot tabs.
+pub static BOOT_GATE: BootGate = BootGate::new();
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn p(s: &str) -> PathBuf {
+        PathBuf::from(s)
+    }
+
+    #[test]
+    fn a_folder_offered_before_boot_waits_and_opens_once_boot_is_done() {
+        let gate = BootGate::new();
+        assert!(
+            gate.offer(vec![p("/a"), p("/b")]).is_empty(),
+            "nothing opens before boot"
+        );
+        assert!(gate.offer(vec![p("/c")]).is_empty());
+        assert_eq!(
+            gate.open(),
+            vec![p("/a"), p("/b"), p("/c")],
+            "arrival order"
+        );
+        // Drained: a second `open` hands out nothing again.
+        assert!(gate.open().is_empty());
+    }
+
+    #[test]
+    fn after_boot_a_folder_opens_at_once() {
+        let gate = BootGate::new();
+        assert!(gate.open().is_empty());
+        assert_eq!(gate.offer(vec![p("/a")]), vec![p("/a")]);
+        assert_eq!(
+            gate.offer(vec![p("/a")]),
+            vec![p("/a")],
+            "open-once is the window book's job"
+        );
+        assert!(gate.open().is_empty(), "nothing was queued");
+    }
+
+    #[test]
+    fn the_queue_holds_each_folder_once_and_at_most_three() {
+        let gate = BootGate::new();
+        assert!(gate.offer(vec![p("/a"), p("/b")]).is_empty());
+        assert!(gate.offer(vec![p("/a"), p("/c"), p("/d")]).is_empty());
+        assert!(gate.offer(vec![p("/e")]).is_empty());
+        assert_eq!(gate.open(), vec![p("/a"), p("/b"), p("/c")]);
+    }
 
     fn scratch(tag: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!(
