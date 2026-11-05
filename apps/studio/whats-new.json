@@ -2,12 +2,21 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "home-accounts",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "All your accounts on Home",
+      "summary": "Click your face on Home to see every account on this Mac: Maude Cloud, your team servers and GitHub. Sign out of one, or add another. Each project now says how it is connected and as whom, and a project you have in two places shows once.",
+      "surface": "design-ui"
+    },
+    {
       "id": "project-account-card",
       "version": null,
       "date": null,
       "kind": "feature",
       "title": "See which account a project uses",
-      "summary": "Click your face at the top right to see how this project is signed in: a team server, Maude Cloud or GitHub, which account, and which profile on this Mac. Sign out or switch accounts from there, and sign in with GitHub. Click the sync word, such as Syncing… or Offline, to open its details.",
+      "summary": "Click your face at the top right to see how this project is signed in: a team server, Maude Cloud or GitHub, which account, and which profile on this Mac. Sign out or switch accounts from there, a team server too, and sign in with GitHub. Click the sync word, such as Syncing… or Offline, to open its details.",
       "surface": "design-ui"
     },
     {

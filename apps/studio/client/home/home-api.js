@@ -89,6 +89,12 @@ export const getIndex = (pids, running = []) =>
   homeFetch(`/_home/index?pids=${pidParam(pids)}&running=${pidParam(running)}`);
 export const getCloud = (profile) =>
   homeFetch(`/_home/cloud?profile=${encodeURIComponent(profile)}`);
+/** 2.0.5 W4b — each profile's team-server sign-ins: `{ ok, profiles: [{ id, hubs: [{url, account}] }] }`. */
+export const getAccounts = (profiles) =>
+  homeFetch(`/_home/accounts?profiles=${pidParam(profiles)}`);
+/** 2.0.5 W4b — sign ONE profile out of one team server / of Maude Cloud. */
+export const hubSignOut = (profile, url) => post('/_home/hub/signout', { profile, url });
+export const cloudSignOut = (profile) => post('/_home/cloud/signout', { profile });
 export const search = (q, pids) =>
   homeFetch(`/_home/search?q=${encodeURIComponent(q)}&pids=${pidParam(pids)}`);
 export const getRecentSearches = () => homeFetch('/_home/recent-searches');

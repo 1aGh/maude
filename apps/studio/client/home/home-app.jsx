@@ -56,6 +56,7 @@ import { HOME_MENU, homeMenuCtx, homeMenuState } from './home-menu.js';
 import { InviteSheet } from './InviteSheet.jsx';
 import { INVITE_WORDS, joinPendingAndOpen, useInviteFlow } from './invite-flow.js';
 import { HIcon, HMark, HSpark, ProjectSquare } from './home-icons.jsx';
+import { HomeAccounts } from './HomeAccounts.jsx';
 import {
   accountFace,
   buildHomeModel,
@@ -409,18 +410,7 @@ export function HomeApp() {
       }),
     [data.shell, data.index, data.clouds, filterPid]
   );
-  // the signed-in account's face at the top right (02 ob-home-new: a circle, never the project's square)
-  const face = useMemo(() => {
-    const c = data.clouds.find((x) => x?.signedIn);
-    if (!c) return null;
-    const id = c.profile || 'default';
-    const label = (data.shell?.profiles ?? []).find((p) => p.id === id)?.label || '';
-    const email = c.account?.email || '';
-    return {
-      ...accountFace({ id, label, email }),
-      title: [label, email].filter(Boolean).join(' · ') || 'Your account',
-    };
-  }, [data.clouds, data.shell]);
+  // 2.0.5 W4b — the face at the top right opens every account on this Mac (HomeAccounts.jsx)
   const searchPids = useMemo(
     () => (data.shell ? indexQuery(data.shell).pids : browserPids()),
     [data.shell]
@@ -895,22 +885,14 @@ export function HomeApp() {
             }}
             canOpen={data.native}
           />
-          {face ? (
-            <span
-              className="home-top-acct"
-              data-testid="home-top-face"
-              role="img"
-              aria-label={face.title}
-              title={face.title}
-            >
-              <span
-                className={`home-face home-face--md home-face--${face.tone}`}
-                aria-hidden="true"
-              >
-                {face.initial}
-              </span>
-            </span>
-          ) : null}
+          <HomeAccounts
+            shell={data.shell}
+            clouds={data.clouds}
+            native={data.native}
+            onAddCloud={() => signin.begin()}
+            onAddTeam={() => openSheet('hub')}
+            onChanged={data.reload}
+          />
         </div>
       </header>
 
