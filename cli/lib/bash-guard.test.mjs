@@ -770,3 +770,25 @@ test('N3 bashBackgrounds — unparseable is backgrounding only when the caller f
   ])
     assert.equal(bashBackgrounds(cmd, { unparsed: false }), true, cmd);
 });
+
+// fix/ds-convert-hooks-cli #12 — not-a-writer is THIS project's design root, resolved: a throwaway
+// copy elsewhere (`/private/tmp/…/before/.design/…`) or a name that merely contains `.design`
+// (`ctx.designRoot`) is not it. The project's own root, relative or absolute, still is.
+test('#12 not-a-writer: a throwaway .design copy outside the project is free; the project root is not', () => {
+  const COPY = '/private/tmp/maude-copy/before/.design/ui/C.tsx';
+  for (const cmd of [
+    `cp /p/.design/ui/C.tsx ${COPY}`,
+    `sed -i '' 's/a/b/' ${COPY}`,
+    `python3 -c "open('${COPY}','w').write('x')"`,
+    `node -e "require('fs').writeFileSync('${COPY}','x')"`,
+    `python3 - <<'PY'\nimport pathlib\npathlib.Path('${COPY}').write_text('x')\nPY`,
+    `node -e "const r=ctx.designRoot; require('fs').writeFileSync('/tmp/x', r)"`,
+  ])
+    assert.equal(code(cmd), null, cmd);
+  for (const cmd of [
+    `python3 -c "open('/p/.design/ui/C.tsx','w').write('x')"`,
+    `python3 -c "import os; os.chdir('/x'); open('../p/.design/ui/C.tsx','w')"`,
+    `node -e "require('fs').writeFileSync('.design/ui/C.tsx','x')"`,
+  ])
+    assert.equal(code(cmd), 'not-a-writer', cmd);
+});
