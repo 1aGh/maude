@@ -935,6 +935,27 @@ describe('deletion propagates — Increment 6', () => {
     expect(hub.deletes).toEqual([]);
     expect(res.deleted).toEqual([]);
   });
+
+  // 2.0.5 rule (a) — the field ledger had 1 814 rows `on-hub` for files that
+  // were not on the disk at all ("7614 / 7617 delivered"). A row may claim
+  // delivery only while the file is here with that hash.
+  test('off ⇒ a file gone from here is held with a reason, never reported delivered', async () => {
+    const hub = fakeHub({ 'assets/blender/fonts/Bold.ttf': 'TTF' });
+    const p = plane(hub, { propagateDeletes: false });
+    await p.reconcile();
+    expect(ledger.row('assets/blender/fonts/Bold.ttf')?.state).toBe('on-hub');
+    rmSync(join(root, 'assets/blender'), { recursive: true });
+    await p.reconcile();
+    const row = ledger.row('assets/blender/fonts/Bold.ttf');
+    expect(row?.state).not.toBe('on-hub');
+    expect(row?.state).toBe('stuck');
+    expect(row?.reason).toMatch(/deleted on this Mac/);
+    expect(hub.deletes).toEqual([]);
+    // Put back by the person: agreement again, delivered again.
+    write('assets/blender/fonts/Bold.ttf', 'TTF');
+    await p.reconcile();
+    expect(ledger.row('assets/blender/fonts/Bold.ttf')?.state).toBe('on-hub');
+  });
 });
 
 describe('a trashed asset propagates like a trashed canvas — S8.13, both directions', () => {

@@ -82,6 +82,7 @@ import {
 import { LFS_POINTER_REASON, readLfsPointer } from './lfs-pointer.ts';
 import { createPullBudget } from './pull-budget.ts';
 import { createPullPacer, type PullPacer } from './pull-pacer.ts';
+import { DELETED_HERE_HELD_REASON } from './seed-progress.ts';
 import { activeCanvasWants } from './pull-priority.ts';
 import { failureReason, isBackpressure, refusalWords, retryAfterMs } from './retry-after.ts';
 import { classifyTransportError } from './transport-error.ts';
@@ -2327,6 +2328,21 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
             state: remoteHash !== null ? 'on-hub' : 'local-only',
           });
           out.synced += 1;
+        } else if (
+          !here &&
+          remoteHash !== null &&
+          !opts.propagateDeletes &&
+          state.ancestor === remoteHash
+        ) {
+          // 2.0.5 rule (a) — DELETED HERE, KEPT THERE, AND SAID SO. With delete
+          // sync off this is a deliberate hold (no resurrection, no delete), but
+          // the row still read `on-hub` from the pass that once delivered it:
+          // the field ledger claimed 7 614 of 7 617 delivered while 1 814 of
+          // those files were not on the disk. Held with a reason instead; a
+          // copy that comes back with the same bytes is agreement again.
+          if (!(kept?.state === 'stuck' && kept.reason === DELETED_HERE_HELD_REASON)) {
+            ledger.setState(rel, 'stuck', { reason: DELETED_HERE_HELD_REASON });
+          }
         }
         continue;
       }

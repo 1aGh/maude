@@ -91,7 +91,12 @@ import { createDocumentDiscovery } from './document-discovery.ts';
 import { createEchoGuard, hashBytes } from './echo-guard.ts';
 import { createFileLedger } from './file-ledger.ts';
 import { createFilePlane, MAX_DORUCEKA_ROWS } from './file-plane.ts';
-import { type FilePullResult, pullFiles } from './file-pull.ts';
+import {
+  createLegacyPullGate,
+  createPullFailureMemory,
+  type FilePullResult,
+  pullFiles,
+} from './file-pull.ts';
 import {
   declaredFormat,
   formatFromHub,
@@ -107,7 +112,7 @@ import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
 import { HUB_UNDO_READ_MAX_BYTES, hubTextUndoConflict } from './hub-text-undo.ts';
 import { accessFor, getHubRecord } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
-import { hasAnnotationsV2, hasFileClassesV2, hasLedger, hubHealth } from './journal-client.ts';
+import { hasAnnotationsV2, hasFileClassesV2, hasLedger, probeFileLane } from './journal-client.ts';
 import type { RestoreOptions } from './local-kernel.ts';
 import { isLoopbackHost } from './loopback.ts';
 import { createMediaGate, MEDIA_STAYS_LINE, readServerSignature } from './media-gate.ts';
@@ -319,6 +324,9 @@ export const DISCOVERY_DEBOUNCE_MS = 400;
  * and it is the ONLY discovery lane a hub of any version can serve.
  */
 export const REMOTE_POLL_MS = 20_000;
+
+/** 2.0.5 — how soon an unanswered lane probe asks the hub again. */
+const LANE_REPROBE_MS = 60_000;
 
 /**
  * Does this studio run the FILE plane (Plane B) against its linked hub?
@@ -1894,6 +1902,8 @@ export function createSyncRuntime(
    * suite long before it shows up as a bug.
    */
   let fileEventsProbe: AbortController | null = null;
+  /** 2.0.5 — the hub did not answer the lane probe: ask again, never fall back. */
+  let laneProbeTimer: ReturnType<typeof setTimeout> | null = null;
   /**
    * The Sync v2 file plane — ONE lane, both directions, one decision table.
    *
@@ -5299,14 +5309,37 @@ export function createSyncRuntime(
       }
       return bytes > 0 ? { bytes, ms } : null;
     };
+    const legacyPullGate = createLegacyPullGate({ baseMs: REMOTE_POLL_MS });
+    const legacyPullFailures = createPullFailureMemory();
     const noteFilePull = (result: FilePullResult): void => {
       fileTotals.synced = result.skipped + result.pulled.length;
       fileTotals.pulled += result.pulled.length;
       fileTotals.conflicts += result.conflicts.length;
+      // 2.0.5 — a file that could not land is HELD, and the panel says which and
+      // why, like any other held file (it used to be a log line, every pass).
+      const waiting = [
+        ...(result.held ?? []),
+        ...result.failed.filter((f) => !/budget/.test(f.reason)),
+      ];
+      const held: NonNullable<FilePlaneStatus['held']> =
+        waiting.length > 0
+          ? [
+              {
+                kind: 'pull-failed',
+                count: waiting.length,
+                paths: waiting.map((w) => w.rel).slice(0, 200),
+                detail: `${waiting.length} file(s) from the project could not be saved on this Mac (${
+                  waiting[0]?.reason ?? 'unknown reason'
+                }). Sync tries them again later, less often; nothing else waits for them.`,
+              },
+            ]
+          : [];
       // A journal-less hub's pass is the whole comparison there: say so, once the lane is decided.
       statusStore?.updateFiles?.({
         ...fileTotals,
         ...(legacyLane === true ? { lane: 'v1' as const } : {}),
+        ...(held.length > 0 ? { held } : {}),
+        ...(result.failed.length > 0 ? { failed: result.failed.length } : {}),
       });
     };
     /**
@@ -5439,14 +5472,26 @@ export function createSyncRuntime(
         await runPlanePass({ floor: false });
         return;
       }
-      const result = await pullFiles({
-        designRoot: ctx.paths.designRoot,
-        hubUrl: linkedHub.url,
-        token: () => token,
-        canvasGroups: ctx.cfg.canvasGroups,
-        allowCodeModules,
-      });
-      noteFilePull(result);
+      // 2.0.5 — THE v1 PULL RUNS ONLY ON A HUB THAT SAID IT HAS NO JOURNAL. While
+      // the lane probe is unanswered (or still in flight) no file lane runs: a
+      // ledger hub that was merely slow must not get the legacy pull, which has
+      // no ledger, resurrects what this person deleted, and cannot hold a file.
+      if (legacyLane !== true) return;
+      // One pass at a time; a pass that moved nothing backs off. Against a slow
+      // hub every 20 s tick used to start ANOTHER pass over the same 200 files.
+      await legacyPullGate.run(() =>
+        pullFiles({
+          designRoot: ctx.paths.designRoot,
+          hubUrl: linkedHub.url,
+          token: () => token,
+          canvasGroups: ctx.cfg.canvasGroups,
+          allowCodeModules,
+          failures: legacyPullFailures,
+        }).then((result) => {
+          if (!stopped) noteFilePull(result);
+          return result;
+        })
+      );
     };
     documentDiscovery = createDocumentDiscovery({
       run: pullRemoteOnce,
@@ -5775,143 +5820,171 @@ export function createSyncRuntime(
     // Not started in a cell: there the CHILD holds this channel (ws.ts), and
     // its job is healing the UI rather than triggering pulls.
     if (!cellPairing && ctx.cfg.linkedHub?.fileEvents !== false) {
-      fileEventsProbe = new AbortController();
-      void hubHealth({ hubUrl: linkedHub.url, signal: fileEventsProbe.signal })
-        .then(({ capabilities: caps, formatVersion: hubFormat }) => {
-          if (stopped) return;
-          // V2-1.12 §5.5 — `/health` names the project's format.
-          noteHubFormatSeen(hubFormat);
-          // DDR-242 — a hub that predates the annotations-v2 model still keeps
-          // boards as SVG: its workspace checkout and kernel would not carry
-          // this studio's `.annotations.json` edits. Say so loudly; the
-          // annotations themselves stay safe (a v1 hub never writes the v2
-          // replica, and this studio never reads its SVG as authoritative).
-          if (caps !== null && !hasAnnotationsV2(caps)) {
-            console.warn(
-              `[sync] ${linkedHub.url} does not advertise annotations-v2 — update the hub; ` +
-                'whiteboard edits will not reach its checkout until it is'
-            );
-          }
-          if (!hasLedger(caps)) {
-            // No journal on this hub ⇒ the legacy client carries the upward
-            // lane, exactly as the pre-v2 desktop did (Open decision 4).
-            decidePushLane(true);
-            return;
-          }
-          // The hub carries a journal, so the file plane becomes the ONE lane
-          // for this project. Built here rather than at start(): a client must
-          // never send a journal request to a hub that would not understand
-          // it (compat matrix §10 — BINDING).
-          if (syncFilesOn && !filePlane) {
-            fileLedger = createFileLedger({
-              designRoot: ctx.paths.designRoot,
-              hubUrl: linkedHub.url,
-            });
-            filePlane = createFilePlane({
-              designRoot: ctx.paths.designRoot,
-              hubUrl: linkedHub.url,
-              token: () => token,
-              // THE FILE PLANE CAN NOW ASK FOR A CREDENTIAL. It could not
-              // before: renewal was reachable only from the doc lane's
-              // WebSocket auth failure, so a token that expired mid-seed left
-              // hundreds of files refused with nothing ever asking for a new
-              // one (2026-09-03). Same single-flight entry point the doc lane
-              // uses — never a second renewal path.
-              onAuthFailure: () => {
-                void renewCredentialNow();
-              },
-              // V2-1.12 §5.4 — a 426 is the FORMAT door, never a credential
-              // failure: mirror what the hub named; nothing is renewed.
-              onFormatRefused: (fv) => noteHubFormatSeen(fv),
-              outboundPaused,
-              fetchImpl: hubFetch,
-              // A DELIVERED FILE IS PROGRESS. `renewalsSinceProgress` counted
-              // only doc handshakes, and a converged doc lane has none left to
-              // land — so during a long seed the cap was reached and the
-              // runtime stopped renewing while the file plane was still
-              // working.
-              onProgress: () => {
-                renewalsSinceProgress = 0;
-                lastFileProgressAt = Date.now();
-              },
-              // S10.3b — a delivered file is a PEER's change (the DS outside watcher's `peer`).
-              onDelivered: (rel) => ctx.bus.emit('file-plane:delivered', { rel }),
-              ledger: fileLedger,
-              canvasGroups: ctx.cfg.canvasGroups,
-              allowCodeModules,
-              canUploadCodeModules: cellPairing !== null || isProjectOwner,
-              // Issue #175 — a 1.x hub's door refuses the 2.0-only files with a 400; it is not
-              // offered them (they are held, with a reason, in Sync details).
-              hubTakesV2Files: hasFileClassesV2(caps),
-              unlimitedOutboundDeletes: unlimitedDeletes,
-              // Increment 6, DEFAULT ON: a hub-owned mirror that ignores
-              // deletes contradicts the model it is selling — you delete a
-              // file and it comes back. `linkedHub.propagateDeletes: false`
-              // is the per-project opt-out; the breakers hold either way.
-              propagateDeletes: linkedHub.propagateDeletes !== false,
-              // The answer to a first-anchor hold. A config key rather than a
-              // prompt because the hold outlives the pass that raised it, and
-              // DDR-177's user has no terminal to answer in.
-              ...(linkedHub.resolveFirstAnchor === 'keep-local' ||
-              linkedHub.resolveFirstAnchor === 'keep-cloud'
-                ? { resolveFirstAnchor: linkedHub.resolveFirstAnchor }
-                : {}),
-              // Same exposure class as `syncMeta.by`, and the same reasoning:
-              // a conflict copy nobody can attribute is a conflict copy nobody
-              // resolves.
-              label: hostname().slice(0, 32),
-            });
-            // S8.19 — the plane's held report (`/_asset-probe` held + sweep.final). This block
-            // is already `!cellPairing`; the token is read per send (silent renewal).
-            heldReporter = createHeldReporter({
-              designRoot: ctx.paths.designRoot,
-              canvasGroups: ctx.cfg.canvasGroups,
-              send: (rels) => reportHeld({ fetchImpl: hubFetch, base: linkedHub.url, token, rels }),
-            });
+      // 2.0.5 — THE LANE IS DECIDED FROM AN ANSWER. `probeFileLane` retries with
+      // a backoff and a longer ceiling; a hub that still has not answered is
+      // asked again in a minute, and until then NO file lane runs (pushes and
+      // the v1 pull both wait on `legacyLane`). It used to read one 4 s timeout
+      // as "no journal" and run the legacy lane for the whole boot.
+      let laneUnansweredSaid = false;
+      const reprobeLane = (): void => {
+        if (stopped) return;
+        laneProbeTimer = setTimeout(probeLane, LANE_REPROBE_MS);
+        laneProbeTimer.unref?.();
+      };
+      const probeLane = (): void => {
+        laneProbeTimer = null;
+        if (stopped) return;
+        fileEventsProbe = new AbortController();
+        void probeFileLane({ hubUrl: linkedHub.url, signal: fileEventsProbe.signal })
+          .then(({ lane, capabilities: caps, formatVersion: hubFormat }) => {
+            if (stopped) return;
+            if (lane === 'unknown') {
+              if (!laneUnansweredSaid) {
+                laneUnansweredSaid = true;
+                console.warn(
+                  `[sync/files] ${linkedHub.url} did not answer its health check — project files wait (nothing is lost) and sync asks again every ${Math.round(LANE_REPROBE_MS / 1000)} s.`
+                );
+              }
+              reprobeLane();
+              return;
+            }
+            // V2-1.12 §5.5 — `/health` names the project's format.
+            noteHubFormatSeen(hubFormat);
+            // DDR-242 — a hub that predates the annotations-v2 model still keeps
+            // boards as SVG: its workspace checkout and kernel would not carry
+            // this studio's `.annotations.json` edits. Say so loudly; the
+            // annotations themselves stay safe (a v1 hub never writes the v2
+            // replica, and this studio never reads its SVG as authoritative).
+            if (caps !== null && !hasAnnotationsV2(caps)) {
+              console.warn(
+                `[sync] ${linkedHub.url} does not advertise annotations-v2 — update the hub; ` +
+                  'whiteboard edits will not reach its checkout until it is'
+              );
+            }
+            if (!hasLedger(caps)) {
+              // No journal on this hub ⇒ the legacy client carries the upward
+              // lane, exactly as the pre-v2 desktop did (Open decision 4).
+              decidePushLane(true);
+              return;
+            }
+            // The hub carries a journal, so the file plane becomes the ONE lane
+            // for this project. Built here rather than at start(): a client must
+            // never send a journal request to a hub that would not understand
+            // it (compat matrix §10 — BINDING).
+            if (syncFilesOn && !filePlane) {
+              fileLedger = createFileLedger({
+                designRoot: ctx.paths.designRoot,
+                hubUrl: linkedHub.url,
+              });
+              filePlane = createFilePlane({
+                designRoot: ctx.paths.designRoot,
+                hubUrl: linkedHub.url,
+                token: () => token,
+                // THE FILE PLANE CAN NOW ASK FOR A CREDENTIAL. It could not
+                // before: renewal was reachable only from the doc lane's
+                // WebSocket auth failure, so a token that expired mid-seed left
+                // hundreds of files refused with nothing ever asking for a new
+                // one (2026-09-03). Same single-flight entry point the doc lane
+                // uses — never a second renewal path.
+                onAuthFailure: () => {
+                  void renewCredentialNow();
+                },
+                // V2-1.12 §5.4 — a 426 is the FORMAT door, never a credential
+                // failure: mirror what the hub named; nothing is renewed.
+                onFormatRefused: (fv) => noteHubFormatSeen(fv),
+                outboundPaused,
+                fetchImpl: hubFetch,
+                // A DELIVERED FILE IS PROGRESS. `renewalsSinceProgress` counted
+                // only doc handshakes, and a converged doc lane has none left to
+                // land — so during a long seed the cap was reached and the
+                // runtime stopped renewing while the file plane was still
+                // working.
+                onProgress: () => {
+                  renewalsSinceProgress = 0;
+                  lastFileProgressAt = Date.now();
+                },
+                // S10.3b — a delivered file is a PEER's change (the DS outside watcher's `peer`).
+                onDelivered: (rel) => ctx.bus.emit('file-plane:delivered', { rel }),
+                ledger: fileLedger,
+                canvasGroups: ctx.cfg.canvasGroups,
+                allowCodeModules,
+                canUploadCodeModules: cellPairing !== null || isProjectOwner,
+                // Issue #175 — a 1.x hub's door refuses the 2.0-only files with a 400; it is not
+                // offered them (they are held, with a reason, in Sync details).
+                hubTakesV2Files: hasFileClassesV2(caps),
+                unlimitedOutboundDeletes: unlimitedDeletes,
+                // Increment 6, DEFAULT ON: a hub-owned mirror that ignores
+                // deletes contradicts the model it is selling — you delete a
+                // file and it comes back. `linkedHub.propagateDeletes: false`
+                // is the per-project opt-out; the breakers hold either way.
+                propagateDeletes: linkedHub.propagateDeletes !== false,
+                // The answer to a first-anchor hold. A config key rather than a
+                // prompt because the hold outlives the pass that raised it, and
+                // DDR-177's user has no terminal to answer in.
+                ...(linkedHub.resolveFirstAnchor === 'keep-local' ||
+                linkedHub.resolveFirstAnchor === 'keep-cloud'
+                  ? { resolveFirstAnchor: linkedHub.resolveFirstAnchor }
+                  : {}),
+                // Same exposure class as `syncMeta.by`, and the same reasoning:
+                // a conflict copy nobody can attribute is a conflict copy nobody
+                // resolves.
+                label: hostname().slice(0, 32),
+              });
+              // S8.19 — the plane's held report (`/_asset-probe` held + sweep.final). This block
+              // is already `!cellPairing`; the token is read per send (silent renewal).
+              heldReporter = createHeldReporter({
+                designRoot: ctx.paths.designRoot,
+                canvasGroups: ctx.cfg.canvasGroups,
+                send: (rels) =>
+                  reportHeld({ fetchImpl: hubFetch, base: linkedHub.url, token, rels }),
+              });
+              console.log(
+                '[sync/files] journal file plane active — one lane, both directions, per-file delivery state in the Sync panel.'
+              );
+              // Anything the local disk already differs on goes now, rather than
+              // at the first 20 s tick.
+              schedulePlanePass();
+            }
+            // A ledger hub with the plane ON owns pushes; with the file-plane
+            // flag OFF the legacy client still carries the DDR-217 assets lane.
+            decidePushLane(filePlane === null);
+            makeFileEventsCtl = () =>
+              createCtlProvider({
+                url: linkedHub.url,
+                token,
+                onDocuments: () => documentDiscovery?.schedule(),
+                // S5.3 — server.ts forwards it to the AI run registry (`registry.poke`).
+                onRuns: (seq) => ctx.bus.emit('hub:runs', { seq }),
+                onPoke: () => {
+                  // Reuses `pollRemoteSoon` rather than calling the file lanes
+                  // directly, for two reasons: it already coalesces a burst into
+                  // one pass (a fresh link appends hundreds of rows), and it is
+                  // the exact path a reconnect takes — one behaviour to reason
+                  // about instead of two that can drift.
+                  //
+                  // The PULL itself is unchanged: missing-only, idempotent, and
+                  // re-validating everything it accepts. So a poke can at worst
+                  // cost one early pass, and the scheduled poll remains the
+                  // reconciler underneath it.
+                  pokesSeen += 1;
+                  pollRemoteSoon({ cooled: true });
+                },
+              });
+            // A desktop that parked before the capability probe answered keeps
+            // the channel closed; the unpark builds it.
+            if (!parkedNow) fileEventsCtl = makeFileEventsCtl();
             console.log(
-              '[sync/files] journal file plane active — one lane, both directions, per-file delivery state in the Sync panel.'
+              '[sync/ctl] file-event channel attached — cloud changes now arrive in seconds instead of on the 20 s tick.'
             );
-            // Anything the local disk already differs on goes now, rather than
-            // at the first 20 s tick.
-            schedulePlanePass();
-          }
-          // A ledger hub with the plane ON owns pushes; with the file-plane
-          // flag OFF the legacy client still carries the DDR-217 assets lane.
-          decidePushLane(filePlane === null);
-          makeFileEventsCtl = () =>
-            createCtlProvider({
-              url: linkedHub.url,
-              token,
-              onDocuments: () => documentDiscovery?.schedule(),
-              // S5.3 — server.ts forwards it to the AI run registry (`registry.poke`).
-              onRuns: (seq) => ctx.bus.emit('hub:runs', { seq }),
-              onPoke: () => {
-                // Reuses `pollRemoteSoon` rather than calling the file lanes
-                // directly, for two reasons: it already coalesces a burst into
-                // one pass (a fresh link appends hundreds of rows), and it is
-                // the exact path a reconnect takes — one behaviour to reason
-                // about instead of two that can drift.
-                //
-                // The PULL itself is unchanged: missing-only, idempotent, and
-                // re-validating everything it accepts. So a poke can at worst
-                // cost one early pass, and the scheduled poll remains the
-                // reconciler underneath it.
-                pokesSeen += 1;
-                pollRemoteSoon({ cooled: true });
-              },
-            });
-          // A desktop that parked before the capability probe answered keeps
-          // the channel closed; the unpark builds it.
-          if (!parkedNow) fileEventsCtl = makeFileEventsCtl();
-          console.log(
-            '[sync/ctl] file-event channel attached — cloud changes now arrive in seconds instead of on the 20 s tick.'
-          );
-        })
-        .catch(() => {
-          // No capability probe ⇒ no channel ⇒ exactly today's behaviour —
-          // which, for pushes, is the legacy client.
-          decidePushLane(true);
-        });
+          })
+          .catch((err) => {
+            // A throw in the verdict's own handling is not an answer about the
+            // hub: never a reason to pick the legacy lane (2.0.5). Ask again.
+            console.error('[sync/files] the lane probe failed:', err);
+            if (legacyLane === null) reprobeLane();
+          });
+      };
+      probeLane();
     } else if (!cellPairing) {
       // The probe is opted out (`linkedHub.fileEvents: false`), so no verdict
       // will ever arrive — the legacy client is the lane, as it always was.
@@ -5932,6 +6005,8 @@ export function createSyncRuntime(
     revisionBarrier.stop();
     fileEventsProbe?.abort();
     fileEventsProbe = null;
+    if (laneProbeTimer !== null) clearTimeout(laneProbeTimer);
+    laneProbeTimer = null;
     if (filePassTimer !== null) clearTimeout(filePassTimer);
     filePassTimer = null;
     planeResultSink = null;
