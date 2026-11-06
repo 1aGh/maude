@@ -99,6 +99,8 @@ const DEDICATED: Record<string, string> = {
   'shell-panels.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:shell-panels',
   // r2-p3 (TD1d): Edit -> Preview -> Edit keeps the frame (wdio.modes-frame.conf.ts).
   'modes-frame.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:modes-frame',
+  // 2.0.7 B2: Canvas | Pages on a six-artboard canvas it writes itself (wdio.pages-view.conf.ts).
+  'pages-view.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:pages-view',
   'ds-edges.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-edges',
   // S10.12: the advanced DS surfaces, seeded.
   'ds-advanced.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-advanced',
