@@ -343,8 +343,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.studio == 'true'
     runs-on: ubuntu-latest
-    # Hang guard — see the quality job.
-    timeout-minutes: 30
+    # Hang guard — see the quality job. 40, not 30: the tests take ~6 min, but
+    # a slow apt mirror can spend most of 20 min in the Chromium step.
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -375,17 +376,46 @@ jobs:
       # isn't installed` and exit 3, which read as "the suite is red" when the
       # suite had not finished running. A missing browser measures nothing — and
       # now that this job is required, it would block every PR for nothing.
+      # Browser downloads are cached, keyed on the lockfiles that pin Playwright
+      # and agent-browser. Every install step has its own timeout and one retry:
+      # in Nov 2026 these two steps took 20–30 min on a slow runner network and
+      # ran the shard out of its 30-minute budget before a single test ran.
+      - name: Cache browser downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/.agent-browser/browsers
+          key: browsers-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/studio/bun.lock') }}
+
+      # The slow part is apt (`--with-deps`): the Azure Ubuntu mirror once took
+      # 4 min for a single font package. A timed-out attempt leaves apt-get
+      # running and holding the dpkg lock, so a retry first waits for it.
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 20
+        run: |
+          for attempt in 1 2; do
+            timeout 600 npx playwright install --with-deps chromium && exit 0
+            echo "::warning::playwright install attempt $attempt failed or timed out"
+            while sudo fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 5; done
+          done
+          exit 1
 
       # SVG import's execution canary (DDR-167) renders every imported file in
       # a network-denied agent-browser session — a security control, so it
       # fails closed without the binary and the import routes 500. Use the
-      # pinned devDep of @maude/desktop (DDR-144) and fetch its Chrome.
+      # pinned devDep of @maude/desktop (DDR-144) and fetch its Chrome. The
+      # system libraries came with the Chromium step above (`--with-deps`), so
+      # this step only downloads the browser, and not again on a cache hit.
       - name: Install agent-browser
+        timeout-minutes: 12
         run: |
           echo "$GITHUB_WORKSPACE/apps/desktop/node_modules/.bin" >> "$GITHUB_PATH"
-          apps/desktop/node_modules/.bin/agent-browser install --with-deps
+          for attempt in 1 2; do
+            timeout 300 apps/desktop/node_modules/.bin/agent-browser install && exit 0
+            echo "::warning::agent-browser install attempt $attempt failed or timed out"
+          done
+          exit 1
 
       - name: Studio suite (this shard)
         env:
