@@ -1091,6 +1091,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.layers': { effect: 'none', agent: cli('maude design open --panel layers') },
   'view.inspector-on-select': PREF(),
   'view.minimap': PREF(),
+  // 2.0.7 B2 — Canvas | Pages and its paging are the person's own view of the canvas (the view file, per Mac)
+  'view.pages': PREF(),
+  'pages.next': PREF(),
+  'pages.prev': PREF(),
   'view.zoom-controls': PREF(),
   'view.print-guides': PREF(),
   'present.canvas': NAV('<canvas> --mode present'),

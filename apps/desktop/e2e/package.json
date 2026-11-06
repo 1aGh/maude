@@ -16,6 +16,7 @@
     "e2e:remember": "wdio run ./wdio.remember.conf.ts",
     "e2e:shell-panels": "wdio run ./wdio.shell-panels.conf.ts",
     "e2e:modes-frame": "wdio run ./wdio.modes-frame.conf.ts",
+    "e2e:pages-view": "wdio run ./wdio.pages-view.conf.ts",
     "e2e:tabs-identity": "wdio run ./wdio.tabs-identity.conf.ts",
     "e2e:tabs-cap": "wdio run ./wdio.tabs-cap.conf.ts",
     "e2e:cell-tab": "wdio run ./wdio.cell-tab.conf.ts",

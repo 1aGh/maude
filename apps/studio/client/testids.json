@@ -42146,6 +42146,102 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-view",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.7 B2: the Canvas | Pages switch on the canvas pill, beside Light | Dark. Pages shows one artboard at a time in the Present order (else the layout order); the pick is remembered per canvas per Mac (`canvasView` in the view file).",
+    "producer": {
+      "file": "apps/studio/canvas-pages-view.tsx",
+      "symbol": "CanvasPagesSwitch"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/b2-pages-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-view-<view>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The switch's Canvas / Pages button (`<view>` = canvas | pages); `aria-pressed` is the view the canvas shows.",
+    "producer": {
+      "file": "apps/studio/canvas-pages-view.tsx",
+      "symbol": "CanvasPagesSwitch"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/b2-pages-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pages-nav",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.7 B2: the pager on the pill, only in Pages: Previous page · n / N · Next page.",
+    "producer": {
+      "file": "apps/studio/canvas-pages-view.tsx",
+      "symbol": "CanvasPagesSwitch"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/b2-pages-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pages-prev",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Previous page (PageUp); disabled on the first page.",
+    "producer": {
+      "file": "apps/studio/canvas-pages-view.tsx",
+      "symbol": "CanvasPagesSwitch"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/b2-pages-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pages-next",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Next page (PageDown); disabled on the last page.",
+    "producer": {
+      "file": "apps/studio/canvas-pages-view.tsx",
+      "symbol": "CanvasPagesSwitch"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/b2-pages-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pages-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The pager's \"n / N\": which page of how many.",
+    "producer": {
+      "file": "apps/studio/canvas-pages-view.tsx",
+      "symbol": "CanvasPagesSwitch"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/b2-pages-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "layers-by-artboard",
     "kind": "testid",
     "pattern": false,

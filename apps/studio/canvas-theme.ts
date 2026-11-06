@@ -81,25 +81,26 @@ export function registerCanvasThemeSystem(ds: { name: string; themeDefault: stri
 /** The registered design system's name, or null on a canvas with none. */
 export const getCanvasThemeSystemName = (): string | null => store().dsName;
 
-/** Remember the pick for this canvas on this Mac (best-effort, fire-and-forget like the camera). */
+/**
+ * Remember the pick for this canvas on this Mac. The canvas writes nothing itself: its origin may PATCH only `layout`
+ * and `viewport` (routes/canvas-origin.ts), so its own `canvasTheme` PATCH was refused. It tells the studio
+ * `theme-pick`, and the shell writes `canvasTheme` into the view file for the canvas it has open, on the main origin
+ * (client/v2/shell/pages-pick.js) — the Canvas | Pages path. Outside the studio window nothing is remembered.
+ */
 function persist(mode: CanvasTheme): void {
-  if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
+  if (typeof window === 'undefined' || window.parent === window) return;
   // an embed, a Present follower and a past version are not the designer's own view (read-only-mode.ts)
   if (!persistsCanvasMeta()) return;
   const w = window as unknown as MetaWindow;
-  const file = typeof w.__canvas_meta_file__ === 'string' ? w.__canvas_meta_file__ : null;
-  if (!file) return;
   // keep the page-load snapshot current, so a soft remount reads the pick back (DDR-138)
   if (w.__canvas_meta__ && typeof w.__canvas_meta__ === 'object')
     w.__canvas_meta__.canvasTheme = mode;
   w.__maude_last_meta_self_write_at = Date.now();
-  fetch('/_api/canvas-meta', {
-    method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ file, patch: { canvasTheme: mode } }),
-  }).catch((err) => {
-    console.warn('[canvas-theme] persist failed:', err);
-  });
+  try {
+    window.parent.postMessage({ dgn: 'theme-pick', v: 1, theme: mode }, '*');
+  } catch {
+    /* detached */
+  }
 }
 
 /** Show `mode` on every artboard. `persist: false` is a preview — nothing is remembered. */

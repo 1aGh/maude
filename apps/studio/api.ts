@@ -2364,6 +2364,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return v === 'light' || v === 'dark' ? v : null;
   }
 
+  // 2.0.7 B2 — the person's Canvas | Pages pick for this canvas (canvas-pages.ts). Same class as canvasTheme:
+  // per user, per Mac, view.json only (DDR-115); a closed set from the untrusted canvas origin.
+  function normalizeCanvasView(v: unknown): 'canvas' | 'pages' | null {
+    return v === 'canvas' || v === 'pages' ? v : null;
+  }
+
   // Issue #91 security follow-up — `layout.artboards[]` (DDR-027 position-only
   // entries) is reachable from the untrusted canvas origin (DDR-054) via the
   // same PATCH lane as overlays/locked above, but previously had no count or
@@ -2420,6 +2426,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     overlays?: Record<string, boolean>;
     locked?: string[];
     canvasTheme?: 'light' | 'dark';
+    canvasView?: 'canvas' | 'pages';
   } | null> {
     const viewAbs = canvasViewPath(file);
     if (!viewAbs) return null;
@@ -2430,16 +2437,19 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         const ov = normalizeOverlays((obj as { overlays?: unknown }).overlays);
         const lk = normalizeLocked((obj as { locked?: unknown }).locked);
         const ct = normalizeCanvasTheme((obj as { canvasTheme?: unknown }).canvasTheme);
+        const cv = normalizeCanvasView((obj as { canvasView?: unknown }).canvasView);
         const result: {
           viewport?: { x: number; y: number; zoom: number };
           overlays?: Record<string, boolean>;
           locked?: string[];
           canvasTheme?: 'light' | 'dark';
+          canvasView?: 'canvas' | 'pages';
         } = {};
         if (vp) result.viewport = vp;
         if (ov && Object.keys(ov).length > 0) result.overlays = ov;
         if (lk && lk.length > 0) result.locked = lk;
         if (ct) result.canvasTheme = ct;
+        if (cv) result.canvasView = cv;
         return result;
       }
       return null;
@@ -2531,15 +2541,25 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     obj.locked = undefined;
     // r4 #6 — `canvasTheme` (the Light | Dark pick) is the same class.
     obj.canvasTheme = undefined;
+    // 2.0.7 B2 — `canvasView` (Canvas | Pages) is the same class.
+    obj.canvasView = undefined;
     const view = await loadCanvasView(file);
     if (view?.viewport) obj.viewport = view.viewport;
     if (view?.overlays) obj.overlays = view.overlays;
     if (view?.locked) obj.locked = view.locked;
     if (view?.canvasTheme) obj.canvasTheme = view.canvasTheme;
+    if (view?.canvasView) obj.canvasView = view.canvasView;
     // Preserve the historic contract: no meta AND no camera/overlays → null
     // (GET → {}, PATCH-on-rejected-path → 404). A view-only canvas still
     // returns its camera/overlays.
-    if (!hadMeta && !view?.viewport && !view?.overlays && !view?.locked && !view?.canvasTheme)
+    if (
+      !hadMeta &&
+      !view?.viewport &&
+      !view?.overlays &&
+      !view?.locked &&
+      !view?.canvasTheme &&
+      !view?.canvasView
+    )
       return null;
     return obj;
   }
@@ -2659,6 +2679,33 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
               await Bun.write(
                 viewAbs,
                 `${JSON.stringify({ ...current, canvasTheme: ct }, null, 2)}\n`
+              );
+            }
+          }
+        } catch {
+          /* best-effort */
+        }
+      }
+    }
+
+    // --- Per-user Canvas | Pages lane (2.0.7 B2): canvasView → view file, never the versioned meta. Same shape as
+    // the Light | Dark lane above: REPLACE, `null` forgets the pick (back to Canvas), anything else is a no-op.
+    if (patch.canvasView !== undefined) {
+      const viewAbs = canvasViewPath(file);
+      if (viewAbs) {
+        try {
+          const current = await readCanvasViewRaw(file);
+          if (patch.canvasView === null) {
+            const { canvasView: _drop, ...rest } = current;
+            await mkdir(sessionDir(paths.canvasStateDir), { recursive: true });
+            await Bun.write(viewAbs, `${JSON.stringify(rest, null, 2)}\n`);
+          } else {
+            const cv = normalizeCanvasView(patch.canvasView);
+            if (cv !== null) {
+              await mkdir(sessionDir(paths.canvasStateDir), { recursive: true });
+              await Bun.write(
+                viewAbs,
+                `${JSON.stringify({ ...current, canvasView: cv }, null, 2)}\n`
               );
             }
           }

@@ -82,6 +82,8 @@ export const PROJECT_MENU: readonly MenuNode[] = [
       { id: 'view.assets' },
       { id: 'view.exports' },
       { id: 'view.annotations' },
+      // 2.0.7 B2 — Canvas | Pages (the pill's switch): checked while the canvas shows one artboard at a time
+      { id: 'view.pages' },
       SEP,
       // S3.14 (04 md-keys "Menu › View, amended"): Preview ⌥⌘P opens the group, then S3.1's Present ⌥⌘↵ ·
       // Present from the start ⇧⌥⌘↵ · Present the canvas.

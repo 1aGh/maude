@@ -22,7 +22,7 @@ import { menuRunner } from '../v2/shell/menu-runner.js';
 import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
 import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
 import { roleRefuses } from '../v2/shell/role-gate.js';
-import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
+import { ROLE_DENIAL, usePagesView } from '../v2/shell/use-canvas-mode-lane.js';
 import { bindPaletteEnv, sendToAskAI } from '../v2/search/search-env.js';
 import { desktopProjectsEnv } from '../v2/search/search-projects.js';
 import { actionSearchRows, settingsSearchRows } from '../v2/search/search-model.js';
@@ -334,6 +334,7 @@ export function usePaletteAndPanels({
   const clipRowsVersion = useClipRowsVersion(); // S7.16 — the clips of the video on the timeline, by name
   // p8-v1-drop — the systems offered "Bring it up to the schema" (the Canvases panel publishes them)
   const dsUpgradeOffers = useSyncExternalStore(onUpgradeOffers, upgradeOffersKey, upgradeOffersKey);
+  const pagesOn = usePagesView(); // 2.0.7 B2 — Preview / Present greyed, Next / Previous page on
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => openNewCanvasDialog(),
@@ -389,6 +390,7 @@ export function usePaletteAndPanels({
       linkedHub: !!cloudLinkedHub?.url,
       // p8-v1-drop — "Bring it up to the schema" is a ⌘K row while a system is below Conformant
       dsUpgradeOffered: dsUpgradeOffers !== '',
+      pagesView: pagesOn,
     });
     // V2-4 gate (design blocker 6): a row's key is the registry's live chord in this shell, written by
     // `formatChord` (⌥⇧⌘), or none — never v1's display string (New canvas "N" was Sticky's key, the
@@ -466,6 +468,7 @@ export function usePaletteAndPanels({
     return [...v1, ...menuRows, ...leftRows, ...searchRows];
   }, [
     dsUpgradeOffers,
+    pagesOn,
     cfg.cloud,
     viewerMode,
     activePath,

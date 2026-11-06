@@ -375,6 +375,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'mode.preview',
     exec: 'canvas',
+    enabled: { notFacts: ['pagesView'] },
     keys: [
       {
         chord: '⌥⌘P',
@@ -422,12 +423,14 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'present.from-selection',
     exec: 'shell',
+    enabled: { notFacts: ['pagesView'] },
     fromCanvas: true,
     keys: [{ chord: '⌥⌘↵', layer: 'global', when: { mode: ['edit', 'viewing', 'preview'] } }],
   },
   {
     id: 'present.from-start',
     exec: 'shell',
+    enabled: { notFacts: ['pagesView'] },
     fromCanvas: true,
     keys: [{ chord: '⌥⇧⌘↵', layer: 'global', when: { mode: ['edit', 'viewing', 'preview'] } }],
   },
@@ -542,6 +545,38 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
         inText: true,
         alias: true,
         when: { focus: ['canvas', 'text'] },
+      },
+    ],
+  },
+  {
+    id: 'pages.next',
+    exec: 'canvas',
+    enabled: { facts: ['canvasOpen', 'pagesView'] },
+    keys: [
+      {
+        chord: 'PageDown',
+        layer: 'global',
+        when: { focus: ['canvas'], mode: ['edit', 'viewing'] },
+      },
+      {
+        chord: '→',
+        layer: 'global',
+        alias: true,
+        when: { focus: ['canvas'], mode: ['edit', 'viewing'], selection: ['none'] },
+      },
+    ],
+  },
+  {
+    id: 'pages.prev',
+    exec: 'canvas',
+    enabled: { facts: ['canvasOpen', 'pagesView'] },
+    keys: [
+      { chord: 'PageUp', layer: 'global', when: { focus: ['canvas'], mode: ['edit', 'viewing'] } },
+      {
+        chord: '←',
+        layer: 'global',
+        alias: true,
+        when: { focus: ['canvas'], mode: ['edit', 'viewing'], selection: ['none'] },
       },
     ],
   },
