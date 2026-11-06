@@ -126,6 +126,7 @@ export interface CanvasIndexPart {
   canvasDesignSystems: Record<string, string>;
   canvasKinds: Record<string, string>;
   canvasImportsCanvases?: Record<string, string[]>;
+  canvasMissingImports?: Record<string, string[]>;
   canvasDsRevs?: Record<string, string>;
   canvasDsKept?: Record<string, string>;
   systemHeads?: Record<string, string | null>;

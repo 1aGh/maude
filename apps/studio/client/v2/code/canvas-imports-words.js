@@ -37,6 +37,22 @@ export function canvasImportsText(imports, componentDir, refused = []) {
   };
 }
 
+/**
+ * 2.0.7 — the words for a canvas that imports a file which is not in the project (deleted, renamed, or not on
+ * this Mac yet). Its frame is refused before it builds, so without these the card could only say it "didn't
+ * finish loading". `missing`: designRoot-relative paths, from the index's `canvasMissingImports`.
+ */
+export function canvasMissingText(missing) {
+  const names = namesOf(missing);
+  return {
+    title: names.length
+      ? `This canvas imports ${listWords(names)}, which ${names.length > 1 ? 'are' : 'is'} not in the project.`
+      : 'This canvas imports a file that is not in the project.',
+    also: [],
+    body: 'Put the file back, or remove the import, to draw the canvas.',
+  };
+}
+
 /** The card's words as plain lines (title, the other reason, what to do) — for a terminal or a report. */
 export function canvasImportsLines(imports, componentDir, refused = []) {
   const { title, also, body } = canvasImportsText(imports, componentDir, refused);

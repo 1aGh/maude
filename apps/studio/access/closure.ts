@@ -860,7 +860,12 @@ function walkImports(
   env: WalkEnv,
   canvas: string,
   granted: ReadonlySet<string>
-): { visited: Array<{ rel: string; text: string }>; refused: Set<string>; blocked: boolean } {
+): {
+  visited: Array<{ rel: string; text: string }>;
+  refused: Set<string>;
+  missing: Set<string>;
+  blocked: boolean;
+} {
   // gate-b-c4e — what an import may pull into the closure. A file of the design root's runtime
   // state never (the build refuses it too); a canvas's board / meta / EDL never (they are that
   // canvas's, not a module). Helpers, components and the design system stay reachable.
@@ -871,6 +876,9 @@ function walkImports(
   const refused = new Set<string>();
   // gate-b-c4l — anything the walk does not follow, or cannot resolve, blocks the canvas.
   let blocked = false;
+  // 2.0.7 — the design-root paths of the imports that resolved to no file (a file deleted, renamed or not
+  // here yet): they block the canvas like any unresolved import, and the shell names them on its card.
+  const missing = new Set<string>();
   // p8-perf-814 (V2-8.14) — a same-name stylesheet's owner that is NO file and has no meta of its
   // own, and that folds to the slug of granted canvases only, IS the granted canvas: its only
   // canvas-ness is the granted canvas's own slug-keyed board. (`Combine-admin.tsx` importing
@@ -979,10 +987,20 @@ function walkImports(
         if (ownSurfaceStyle(dep) || importable(dep)) queue.push(dep);
         else blocked = true;
       }
-      if (!resolved) blocked = true;
+      if (!resolved) {
+        blocked = true;
+        const first = group[0];
+        if (first?.startsWith(`${VROOT}/`))
+          missing.add(
+            first
+              .slice(VROOT.length + 1)
+              .split(sep)
+              .join('/')
+          );
+      }
     }
   }
-  return { visited, refused, blocked: blocked || refused.size > 0 };
+  return { visited, refused, missing, blocked: blocked || refused.size > 0 };
 }
 
 /**
@@ -1004,6 +1022,29 @@ export function canvasImportsReport(
     if (!files.has(canvas)) continue;
     const { refused } = walkImports(env, canvas, new Set([canvas]));
     if (refused.size) out.set(canvas, [...refused].sort());
+  }
+  return out;
+}
+
+/**
+ * 2.0.7 — per canvas, the imports that resolve to no file in the design root (sorted; a canvas with none is
+ * absent). Such a canvas is blocked (c4l), so its frame is refused before the build and no build error
+ * could name the file: the shell reads this (`/_index-data` `canvasMissingImports`) to say which file is
+ * missing instead of "It didn't finish loading". Reader-free: the names come from the canvas's own source.
+ */
+export function canvasMissingImportsReport(
+  project: ProjectReader,
+  canvases: readonly string[],
+  config?: ClosureConfig
+): Map<string, string[]> {
+  const files = new Set<string>(project.list());
+  const cfg = config ?? closureConfigOf(readJsonObject(project, 'config.json'));
+  const env = walkEnv(project, files, cfg);
+  const out = new Map<string, string[]>();
+  for (const canvas of canvases) {
+    if (!files.has(canvas)) continue;
+    const { missing } = walkImports(env, canvas, new Set([canvas]));
+    if (missing.size) out.set(canvas, [...missing].sort());
   }
   return out;
 }

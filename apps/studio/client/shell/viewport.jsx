@@ -1,7 +1,13 @@
 // shell/viewport.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { canvasFrameCfg, canvasImportsOf, canvasRefusedOf, canvasUrl } from '../canvas-url.js';
+import {
+  canvasFrameCfg,
+  canvasImportsOf,
+  canvasMissingOf,
+  canvasRefusedOf,
+  canvasUrl,
+} from '../canvas-url.js';
 import { CompareHost } from '../v2/history/compare-view.jsx';
 import { useDsPreviewTarget, withDsPreview } from '../v2/ds/preview-mode.js';
 import { useViewing } from '../v2/history/history-host.jsx';
@@ -358,7 +364,9 @@ export function Viewport({
                 Reload canvas
               </button>
             </div>
-          ) : canvasImportsOf(cfg, canvasError.path) || canvasRefusedOf(cfg, canvasError.path) ? (
+          ) : canvasImportsOf(cfg, canvasError.path) ||
+            canvasRefusedOf(cfg, canvasError.path) ||
+            canvasMissingOf(cfg, canvasError.path) ? (
             // gate-b-c4j — it imports another canvas, so its frame refused the module: say that, not "can't
             // be drawn" (v2/code/canvas-imports-card.jsx). 2.0.5 (#205): or its built module inlined a file
             // another canvas owns — the card names that file too.
@@ -366,6 +374,7 @@ export function Viewport({
               key={`${canvasError.path}#imports`}
               imports={canvasImportsOf(cfg, canvasError.path)}
               refused={canvasRefusedOf(cfg, canvasError.path)}
+              missing={canvasMissingOf(cfg, canvasError.path)}
               componentDir={cfg?.newComponentDir}
             />
           ) : (
