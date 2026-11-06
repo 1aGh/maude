@@ -40,6 +40,7 @@ import {
   shellEscDecision,
 } from './canvas-mode.js';
 import { SEED_LADDER_MS } from './occlusion-insets.js';
+import { savePagesPick } from './pages-pick.js';
 import { appOnlyFor, ROLE_DENIAL, showRoleDenial } from './role-denial.js';
 import { insetsLane } from './use-occluded-insets.js';
 import { panelLayout, usePanelLayout } from './use-panel-layout.js';
@@ -312,6 +313,9 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
       } else if (m.dgn === 'pages-view') {
         // 2.0.7 B2 — the active canvas shows Pages (or stopped): Preview and Present follow (canvas-mode.js)
         shellMode.pages(m.on);
+      } else if (m.dgn === 'pages-pick') {
+        // 2.0.7 B2 — the person switched Canvas | Pages: remember it for the canvas the shell has open
+        void savePagesPick(L.activePath, L.cfg?.designRel, m.view);
       } else if (m.dgn === 'present-position') {
         // Present · Artboards moved on (S3.2a's stage echoes every step); the canvas's own hold
         // (_shell.html) lands its held write on the same move. Active canvas only (the table's gate).

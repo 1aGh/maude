@@ -405,6 +405,9 @@ export interface CanvasToShell {
   // 2.0.7 B2 — the canvas's Canvas | Pages view (canvas-pages.ts): Pages on, and which page of how many. The shell
   // turns Preview and Present off while it is on (canvas-mode.js `pages`).
   'pages-view': { v: 1; on: boolean; index: number; total: number };
+  // 2.0.7 B2 — a person switched Canvas | Pages: the shell writes `canvasView` for the canvas it has open
+  // (client/v2/shell/pages-pick.js); the canvas origin has no lane for it.
+  'pages-pick': { v: 1; view: 'canvas' | 'pages' };
   // S3.7a — `sid` / `seq` (S3-present-session §3): the presenting session, and its step count.
   'present-position': { index: number; total: number; artboardId: Id; sid?: string; seq?: number };
   // S3.6b — the Present run's artboards with their world rects and labels, in canvas order: the presenter
@@ -1891,6 +1894,12 @@ const c2s: C2S = {
     status: 'live',
     owner: 'canvas-pages-view.tsx (2.0.7 B2) → v2/shell/use-canvas-mode-lane',
     parse: p({ v: lit(1), on: bool, index: intIn(0, 10000), total: intIn(0, 10000) }),
+  },
+  'pages-pick': {
+    gate: 'active',
+    status: 'live',
+    owner: 'canvas-pages.ts (2.0.7 B2) → v2/shell/pages-pick (the view file, main origin)',
+    parse: p({ v: lit(1), view: lit('canvas', 'pages') }),
   },
   // S3.1 — live: the Present stage (S3.2a) reports through canvas-mode-store `reportPresentPosition`;
   // the shell's mode store keeps it (use-canvas-mode-lane).

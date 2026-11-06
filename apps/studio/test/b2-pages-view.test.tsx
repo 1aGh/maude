@@ -345,22 +345,34 @@ describe('the pill: Canvas | Pages beside Light | Dark, and ‹ n / N › in Pag
 });
 
 describe('the pick is remembered per canvas, per Mac — the view lane, never the meta', () => {
-  test('a press sends ONE patch holding only `canvasView` for this canvas', async () => {
+  test('a press tells the shell ONE pages-pick; the canvas writes nothing itself', async () => {
     await mountCanvas();
     (window as unknown as Record<string, unknown>).__canvas_meta_file__ = '.design/ui/paged.tsx';
     await press(q('canvas-view-pages'));
-    const writes = fetches.filter((f) => f.url === '/_api/canvas-meta');
-    expect(writes).toHaveLength(1);
-    expect(writes[0].body).toEqual({
-      file: '.design/ui/paged.tsx',
-      patch: { canvasView: 'pages' },
-    });
+    // the canvas origin has no lane for it (routes/canvas-origin.ts): the shell writes the view file
+    expect(fetches.filter((f) => f.url === '/_api/canvas-meta')).toHaveLength(0);
+    expect(parentPosts.filter((m) => m.dgn === 'pages-pick')).toEqual([
+      { dgn: 'pages-pick', v: 1, view: 'pages' },
+    ]);
+    // the page-load snapshot follows, so a soft remount reads the pick back
     expect(
       (window as unknown as { __canvas_meta__: { canvasView: string } }).__canvas_meta__.canvasView
     ).toBe('pages');
-    // paging writes nothing
+    // paging is not a pick
     await press(q('canvas-pages-next'));
-    expect(fetches.filter((f) => f.url === '/_api/canvas-meta')).toHaveLength(1);
+    expect(parentPosts.filter((m) => m.dgn === 'pages-pick')).toHaveLength(1);
+    await press(q('canvas-view-canvas'));
+    expect(parentPosts.filter((m) => m.dgn === 'pages-pick').map((m) => m.view)).toEqual([
+      'pages',
+      'canvas',
+    ]);
+  });
+
+  test('outside the studio window nothing is remembered', async () => {
+    framed(false);
+    await mountCanvas();
+    await act(async () => pages.setCanvasView('pages'));
+    expect(parentPosts.filter((m) => m.dgn === 'pages-pick')).toHaveLength(0);
   });
 
   test('the saved pick opens the canvas in Pages', async () => {

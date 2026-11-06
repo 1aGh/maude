@@ -70,24 +70,22 @@ export function getCanvasView(): CanvasView {
   return store().chosen ?? savedView() ?? 'canvas';
 }
 
-/** Remember the pick for this canvas on this Mac (best-effort, like the camera and the Light | Dark pick). */
+/**
+ * Remember the pick for this canvas on this Mac. The canvas writes nothing itself (its origin may PATCH only `layout`
+ * and `viewport`): it tells the studio `pages-pick`, and the shell writes `canvasView` into the view file for the
+ * canvas it has open (client/v2/shell/pages-pick.js). Outside the studio window nothing is remembered.
+ */
 function persist(view: CanvasView): void {
-  if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
-  if (!persistsView()) return;
+  if (typeof window === 'undefined' || !persistsView() || !framedByStudio()) return;
   const w = window as unknown as MetaWindow;
-  const file = typeof w.__canvas_meta_file__ === 'string' ? w.__canvas_meta_file__ : null;
-  if (!file) return;
   // keep the page-load snapshot current, so a soft remount reads the pick back (DDR-138)
   if (w.__canvas_meta__ && typeof w.__canvas_meta__ === 'object')
     w.__canvas_meta__.canvasView = view;
-  w.__maude_last_meta_self_write_at = Date.now();
-  fetch('/_api/canvas-meta', {
-    method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ file, patch: { canvasView: view } }),
-  }).catch((err) => {
-    console.warn('[canvas-pages] persist failed:', err);
-  });
+  try {
+    window.parent.postMessage({ dgn: 'pages-pick', v: 1, view }, '*');
+  } catch {
+    /* detached */
+  }
 }
 
 /** An embed, a Present follower and a past version are not the designer's own view (read-only-mode.ts). */

@@ -14,6 +14,7 @@ import { isEnabled } from '../actions/resolve.ts';
 import { acceptFromCanvas } from '../bridge/dgn-protocol.ts';
 import { createShellMode } from '../client/v2/shell/canvas-mode.js';
 import { ModeSwitch, PAGES_REASON } from '../client/v2/shell/mode-switch.jsx';
+import { pagesPickBody, savePagesPick } from '../client/v2/shell/pages-pick.js';
 import { menuCtx } from '../client/v2/shell/project-menu-model.js';
 
 const def = (id: string) => {
@@ -156,5 +157,51 @@ describe('the bridge: `pages-view` from the active canvas only', () => {
     expect(acceptFromCanvas(ev(msg, sibling), ctx)).toBeNull();
     expect(acceptFromCanvas(ev({ ...msg, on: 'yes' }, active), ctx)).toBeNull();
     expect(acceptFromCanvas(ev({ ...msg, v: 2 }, active), ctx)).toBeNull();
+  });
+});
+
+describe('the shell remembers the pick for the canvas it has open (main origin, the view file)', () => {
+  test('the body names the open canvas and only `canvasView`', () => {
+    expect(pagesPickBody('.design/ui/Six.tsx', '.design', 'pages')).toEqual({
+      file: '.design/ui/Six.tsx',
+      patch: { canvasView: 'pages' },
+    });
+    expect(pagesPickBody('ui/Six.tsx', '.design', 'canvas')).toEqual({
+      file: '.design/ui/Six.tsx',
+      patch: { canvasView: 'canvas' },
+    });
+    // nothing open, the Design system tab, a path that climbs out, or a value that is not a view: nothing
+    expect(pagesPickBody(null, '.design', 'pages')).toBeNull();
+    expect(pagesPickBody('__system__', '.design', 'pages')).toBeNull();
+    expect(pagesPickBody('ui/../../secrets.tsx', '.design', 'pages')).toBeNull();
+    expect(pagesPickBody('.design/ui/Six.tsx', '.design', 'slides')).toBeNull();
+  });
+
+  test('one PATCH to /_api/canvas-meta', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fake = async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response('{}');
+    };
+    await savePagesPick('.design/ui/Six.tsx', '.design', 'pages', fake as never);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe('/_api/canvas-meta');
+    expect(calls[0].init.method).toBe('PATCH');
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({
+      file: '.design/ui/Six.tsx',
+      patch: { canvasView: 'pages' },
+    });
+  });
+
+  test('`pages-pick` from the active canvas only, a closed set of views', () => {
+    const ORIGIN = 'http://canvas.test';
+    const active = { name: 'active' } as unknown as Window;
+    const ev = (data: unknown, source: unknown) =>
+      ({ data, source, origin: ORIGIN }) as unknown as MessageEvent;
+    const ctx = { canvasOrigin: ORIGIN, active };
+    const msg = { dgn: 'pages-pick', v: 1, view: 'pages' };
+    expect(acceptFromCanvas(ev(msg, active), ctx)).toEqual(msg as never);
+    expect(acceptFromCanvas(ev({ ...msg, view: 'slides' }, active), ctx)).toBeNull();
+    expect(acceptFromCanvas(ev(msg, { name: 'other' }), ctx)).toBeNull();
   });
 });
