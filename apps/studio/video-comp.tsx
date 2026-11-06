@@ -29,7 +29,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import { useArtboardActive } from './artboard-live-gate.tsx';
+import { useArtboardActive, useArtboardMedia } from './artboard-live-gate.tsx';
 import { canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { videoLabelTail } from './editing/video-label.ts';
 import { resolvedPoster } from './kinds/meta.ts';
@@ -585,10 +585,15 @@ export function VideoComp({
   // 2.0.5 — a comp in a sleeping artboard (offscreen, or the canvas zoomed out to its overview) stops
   // decoding: pause it, and play it again on wake only if WE paused it. Never in a capture (always live).
   const live = useArtboardActive();
+  // 2.0.7 — a video artboard is mounted wherever it is, so this comp registers (the link glyph, the Timeline's
+  // shared count and Present's format switch read the registry). Its Player — and so its <video preload="auto">,
+  // which fetches the whole file and decodes a frame — mounts only while the artboard is in the mount ring
+  // (`useArtboardMedia`), as the artboard itself did before. A capture always has it.
+  const media = useArtboardMedia() || capturing;
   const pausedAsleep = useRef(false);
   useEffect(() => {
     const p = ref.current;
-    if (!p) return;
+    if (!media || !p) return; // far: no Player yet
     try {
       if (!live) {
         if (p.isPlaying()) {
@@ -602,7 +607,7 @@ export function VideoComp({
     } catch {
       /* Player transitional — the next change settles it */
     }
-  }, [live]);
+  }, [live, media]);
 
   // Register with the seek bridge for the lifetime of this mount.
   useEffect(() => {
@@ -696,7 +701,7 @@ export function VideoComp({
   // iframe → shell: mirror the playhead so the Timeline panel tracks preview.
   useEffect(() => {
     const p = ref.current;
-    if (!p) return;
+    if (!media || !p) return;
     const onFrame = () => {
       try {
         const f = p.getCurrentFrame();
@@ -715,14 +720,14 @@ export function VideoComp({
         /* ignore */
       }
     };
-  }, [compId]);
+  }, [compId, media]);
 
   // S7.8 — the poster moved (set from the timeline, or by a peer): a video nobody has played or scrubbed
   // rests on the new picture; one whose playhead was moved keeps its place. The poster is keyed by the
   // enclosing artboard's id (the `<VideoComp id>` when it matches), so it is looked up once mounted too.
   const resting = useRef<number | null>(null);
   useEffect(() => {
-    if (typeof document === 'undefined' || capturing) return undefined;
+    if (typeof document === 'undefined' || capturing || !media) return undefined;
     const rest = () => {
       const p = ref.current;
       if (!p) return;
@@ -749,13 +754,13 @@ export function VideoComp({
     rest();
     document.addEventListener('maude:meta-refreshed', rest);
     return () => document.removeEventListener('maude:meta-refreshed', rest);
-  }, [compId, durationInFrames, capturing]);
+  }, [compId, durationInFrames, capturing, media]);
 
   // S7.8 — the Player is the truth about playing: tell the shell on every play / pause, so a click on the
   // artboard's own button and the Timeline's Space or button can never disagree.
   useEffect(() => {
     const p = ref.current;
-    if (!p || capturing) return undefined;
+    if (!media || !p || capturing) return undefined;
     const tell = (playing: boolean) => () =>
       postToShell({ dgn: 'timeline-playing', id: compId, playing });
     const onPlay = tell(true);
@@ -770,7 +775,7 @@ export function VideoComp({
         /* unmounted */
       }
     };
-  }, [compId, capturing]);
+  }, [compId, capturing, media]);
 
   // iframe → shell: with loop off (now the default), the Player stops itself
   // at the last frame — nothing else tells the Timeline panel's Play/Pause
@@ -779,7 +784,7 @@ export function VideoComp({
   // artboard-loop-defaults-on).
   useEffect(() => {
     const p = ref.current;
-    if (!p) return;
+    if (!media || !p) return;
     const onEnded = () => postToShell({ dgn: 'timeline-ended', id: compId });
     p.addEventListener('ended', onEnded);
     return () => {
@@ -789,7 +794,7 @@ export function VideoComp({
         /* ignore */
       }
     };
-  }, [compId]);
+  }, [compId, media]);
 
   const style = useMemo(() => ({ width: '100%', height: '100%', display: 'block' as const }), []);
 
@@ -800,36 +805,43 @@ export function VideoComp({
       data-comp-id={compId}
       style={{ width, height, maxWidth: '100%', position: 'relative' }}
     >
-      <Player
-        ref={ref}
-        component={component}
-        durationInFrames={Math.max(1, Math.round(durationInFrames))}
-        fps={fps}
-        compositionWidth={width}
-        compositionHeight={height}
-        inputProps={inputProps ?? {}}
-        controls={showControls}
-        loop={loopFor(loopState, presenting)}
-        autoPlay={play}
-        initialFrame={initialFrame}
-        // Clicking the artboard must NOT toggle playback — it selects elements
-        // for editing (the whole point of a canvas). Play only via the explicit
-        // transport button (Player controls / Timeline panel). Same for the
-        // spacebar, which is the canvas pan chord. (DDR-148 feedback #2.)
-        clickToPlay={false}
-        spaceKeyToPlayOrPause={false}
-        doubleClickToFullscreen={false}
-        // We ship Remotion in-house and disclose the license (DDR-148); ack in
-        // code so the Player never nags/watermarks the preview.
-        acknowledgeRemotionLicense
-        style={style}
-      />
-      {capturing || presenting ? null : (
-        <VideoPlayChrome
-          playerRef={ref}
-          fps={fps}
-          durationInFrames={Math.max(1, Math.round(durationInFrames))}
-        />
+      {media ? (
+        <>
+          <Player
+            ref={ref}
+            component={component}
+            durationInFrames={Math.max(1, Math.round(durationInFrames))}
+            fps={fps}
+            compositionWidth={width}
+            compositionHeight={height}
+            inputProps={inputProps ?? {}}
+            controls={showControls}
+            loop={loopFor(loopState, presenting)}
+            autoPlay={play}
+            initialFrame={initialFrame}
+            // Clicking the artboard must NOT toggle playback — it selects elements
+            // for editing (the whole point of a canvas). Play only via the explicit
+            // transport button (Player controls / Timeline panel). Same for the
+            // spacebar, which is the canvas pan chord. (DDR-148 feedback #2.)
+            clickToPlay={false}
+            spaceKeyToPlayOrPause={false}
+            doubleClickToFullscreen={false}
+            // We ship Remotion in-house and disclose the license (DDR-148); ack in
+            // code so the Player never nags/watermarks the preview.
+            acknowledgeRemotionLicense
+            style={style}
+          />
+          {capturing || presenting ? null : (
+            <VideoPlayChrome
+              playerRef={ref}
+              fps={fps}
+              durationInFrames={Math.max(1, Math.round(durationInFrames))}
+            />
+          )}
+        </>
+      ) : (
+        // far from the viewport: same size, nothing fetched, nothing decoded
+        <div data-dc-video-resting="" aria-hidden="true" style={style} />
       )}
     </div>
   );

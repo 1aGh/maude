@@ -117,6 +117,12 @@ export interface ArtboardLiveState {
   live: boolean;
   /** Its children may be mounted (always true in `sleep`/`off` once seen; follows `live` in `light`). */
   seen: boolean;
+  /**
+   * Its media may load (a `<video>`'s src, a Player). Equal to `seen`, except on an eager artboard: that one is
+   * mounted wherever it is so its comp registers, but its media follows the ring as a lazy artboard's children
+   * would — near or on screen, kept inside the keep ring, released after the grace (2.0.7).
+   */
+  media: boolean;
 }
 
 interface Slot {
@@ -139,14 +145,16 @@ interface Slot {
   eager: boolean;
   admitted: boolean;
   live: boolean;
+  /** Its media may load: `admitted`, except on an eager artboard, where it is the ring's own answer. */
+  media: boolean;
   /** The last state handed out — one object per change, so React's external store sees a stable snapshot. */
   view: ArtboardLiveState;
   subs: Set<(s: ArtboardLiveState) => void>;
 }
 
-const ASLEEP: ArtboardLiveState = Object.freeze({ live: false, seen: false });
+const ASLEEP: ArtboardLiveState = Object.freeze({ live: false, seen: false, media: false });
 
-const ALL_LIVE: ArtboardLiveState = Object.freeze({ live: true, seen: true });
+const ALL_LIVE: ArtboardLiveState = Object.freeze({ live: true, seen: true, media: true });
 
 /**
  * One per canvas document. Fed by two IntersectionObservers (near / visible), the published zoom and the
@@ -407,6 +415,7 @@ export class LiveRegistry {
         eager: false,
         admitted: false,
         live: false,
+        media: false,
         view: ASLEEP,
         subs: new Set(),
       };
@@ -415,7 +424,7 @@ export class LiveRegistry {
     return s;
   }
 
-  private target(s: Slot): { live: boolean; admitted: boolean } {
+  private target(s: Slot): { live: boolean; admitted: boolean; media: boolean } {
     const force = this.forceAll > 0;
     const live = decideLive({
       near: s.near,
@@ -428,23 +437,25 @@ export class LiveRegistry {
     // `sleep` (2.0.7): wanted while in the prefetch ring or on screen, KEPT while inside the keep ring, and
     // released only after `RELEASE_AFTER_MS` outside it (the sweep). Whether a first mount fits the DOM budget
     // is the queue's call (drain).
-    const admitted =
+    // The ring's answer is the same for an eager artboard (a video), but there it decides its MEDIA only: the
+    // artboard itself is mounted wherever it is (its comp registers), its Player and <video> load in the ring.
+    const held = s.eager ? s.media : s.admitted;
+    const ring =
       this.mode === 'light'
         ? live
         : force ||
           s.near ||
           s.visible ||
-          (this.mode === 'sleep' && s.eager) ||
-          (this.mode === 'sleep' && s.admitted && !this.releasable(s));
-    return { live, admitted };
+          (this.mode === 'sleep' && held && !this.releasable(s, held));
+    const admitted = ring || (this.mode === 'sleep' && s.eager);
+    return { live, admitted, media: ring };
   }
 
-  /** Mounted, outside the keep ring for long enough, not on screen, and no gesture in flight. */
-  private releasable(s: Slot): boolean {
+  /** Mounted (`held`), outside the keep ring for long enough, not on screen, and no gesture in flight. */
+  private releasable(s: Slot, held: boolean): boolean {
     return (
-      s.admitted &&
+      held &&
       !s.pinned &&
-      !s.eager &&
       !s.keep &&
       !s.visible &&
       !s.near &&
@@ -460,11 +471,12 @@ export class LiveRegistry {
     let changed = false;
     for (const [id, s] of this.slots) {
       const t = this.target(s);
-      const goesDown = (s.live && !t.live) || (s.admitted && !t.admitted);
-      const goesUp = (!s.live && t.live) || (!s.admitted && t.admitted);
+      const goesDown = (s.live && !t.live) || (s.admitted && !t.admitted) || (s.media && !t.media);
+      const goesUp = (!s.live && t.live) || (!s.admitted && t.admitted) || (!s.media && t.media);
       if (goesDown && !goesUp) {
         s.live = t.live;
         s.admitted = t.admitted;
+        s.media = t.media;
         this.pending.delete(id);
         this.notify(id, s);
         changed = true;
@@ -472,13 +484,15 @@ export class LiveRegistry {
         if (force) {
           s.live = t.live;
           s.admitted = t.admitted;
+          s.media = t.media;
           this.pending.delete(id);
           this.notify(id, s);
           changed = true;
         } else {
           // The part that goes down applies now; the part that goes up waits for the queue.
-          if (s.live && !t.live) {
-            s.live = false;
+          if ((s.live && !t.live) || (s.media && !t.media)) {
+            if (!t.live) s.live = false;
+            if (!t.media) s.media = false;
             this.notify(id, s);
             changed = true;
           }
@@ -505,7 +519,9 @@ export class LiveRegistry {
   private hasVisibleMount(): boolean {
     for (const id of this.pending) {
       const s = this.slots.get(id);
-      if (s?.visible && !s.admitted && this.target(s).admitted) return true;
+      if (!s?.visible) continue;
+      const t = this.target(s);
+      if ((!s.admitted && t.admitted) || (!s.media && t.media)) return true;
     }
     return false;
   }
@@ -539,11 +555,12 @@ export class LiveRegistry {
     for (const { id, s } of order) {
       if (n >= cap) break;
       const tg = this.target(s);
-      if (tg.live === s.live && tg.admitted === s.admitted) {
+      if (tg.live === s.live && tg.admitted === s.admitted && tg.media === s.media) {
         this.pending.delete(id);
         continue;
       }
-      const mounts = tg.admitted && !s.admitted;
+      // an eager artboard's media coming up is a mount too (its Player): paced the same, outside the budget
+      const mounts = (tg.admitted && !s.admitted) || (tg.media && !s.media);
       if (this.interacting && !(mounts && s.visible)) continue; // waits for the settle
       if (mounts && this.forceAll === 0 && this.mode === 'sleep' && !s.eager) {
         const w = this.weightOf(s);
@@ -562,6 +579,7 @@ export class LiveRegistry {
         mounted += w;
       }
       s.admitted = tg.admitted;
+      s.media = tg.media;
       if (this.interacting) {
         // a first mount mid-gesture comes up asleep; its wake waits for the settle
         s.live = false;
@@ -589,14 +607,15 @@ export class LiveRegistry {
       freed += this.weightOf(v);
       v.admitted = false;
       v.live = false;
+      v.media = false;
       this.notify('', v);
     }
     return freed;
   }
 
   private notify(_id: string, s: Slot): void {
-    if (s.view.live === s.live && s.view.seen === s.admitted) return;
-    s.view = Object.freeze({ live: s.live, seen: s.admitted });
+    if (s.view.live === s.live && s.view.seen === s.admitted && s.view.media === s.media) return;
+    s.view = Object.freeze({ live: s.live, seen: s.admitted, media: s.media });
     for (const fn of s.subs) fn(s.view);
   }
 

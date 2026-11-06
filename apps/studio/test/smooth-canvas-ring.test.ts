@@ -62,7 +62,7 @@ describe('the mount ring', () => {
     k.advance(RELEASE_AFTER_MS - 100);
     expect(k.r.get('a').seen).toBe(true);
     k.advance(200);
-    expect(k.r.get('a')).toEqual({ live: false, seen: false });
+    expect(k.r.get('a')).toEqual({ live: false, seen: false, media: false });
   });
 
   test('hysteresis: back inside the keep ring before the grace runs out, it stays mounted', () => {
@@ -122,17 +122,17 @@ describe('a remount (an edit soft-reloads the canvas) never sends a mounted artb
     k.r.setNear('a', true);
     k.r.setVisible('a', true);
     k.frames();
-    expect(k.r.get('a')).toEqual({ live: true, seen: true });
+    expect(k.r.get('a')).toEqual({ live: true, seen: true, media: true });
     const views: Array<{ live: boolean; seen: boolean }> = [];
     // the commit: the old gate's layout cleanup, then the new gate's layout subscribe
     off();
     k.r.subscribe('a', (s) => views.push(s));
-    expect(k.r.get('a')).toEqual({ live: true, seen: true });
+    expect(k.r.get('a')).toEqual({ live: true, seen: true, media: true });
     // then the old gate's passive cleanup (it unobserves its old article) — the new gate holds the id
     k.r.unobserve('a');
     k.frames();
     k.advance(RELEASE_AFTER_MS * 2);
-    expect(k.r.get('a')).toEqual({ live: true, seen: true });
+    expect(k.r.get('a')).toEqual({ live: true, seen: true, media: true });
     expect(views).toEqual([]); // never a placeholder, never a sleep, in between
   });
 
@@ -145,7 +145,7 @@ describe('a remount (an edit soft-reloads the canvas) never sends a mounted artb
     k.r.unobserve('a');
     k.advance(1000);
     expect(k.r.mountedCount()).toBe(0);
-    expect(k.r.get('a')).toEqual({ live: false, seen: false });
+    expect(k.r.get('a')).toEqual({ live: false, seen: false, media: false });
   });
 
   test('unobserve never resurrects a slot that is gone', () => {
@@ -184,7 +184,7 @@ describe('an artboard holding the selection (or the active one) is never release
     k.r.setVisible('v', false);
     k.r.setKeep('v', false); // a keep-ring report while near is ignored
     k.advance(RELEASE_AFTER_MS * 3);
-    expect(k.r.get('v')).toEqual({ live: true, seen: true });
+    expect(k.r.get('v')).toEqual({ live: true, seen: true, media: true });
   });
 });
 
@@ -386,7 +386,7 @@ describe('an eager artboard (a video) is always mounted', () => {
     k.r.setEager('video', true);
     k.r.setKeep('video', false);
     k.frames();
-    expect(k.r.get('video')).toEqual({ live: false, seen: true }); // mounted, asleep (not near)
+    expect(k.r.get('video')).toEqual({ live: false, seen: true, media: false }); // mounted, asleep, no media
     k.r.setWeight('video', 400);
     k.advance(RELEASE_AFTER_MS * 3);
     // an on-screen artboard that does not fit pushes out what is off screen — never the eager one
@@ -406,5 +406,68 @@ describe('an eager artboard (a video) is always mounted', () => {
     k.r.setEager('video', true);
     k.frames();
     expect(k.r.get('video').seen).toBe(false);
+  });
+});
+
+// 2.0.7 regression of the eager rule (packaged check on 740719d90): an eager video artboard mounted its Player far
+// away, and the Player's <video preload="auto"> fetched the whole file at open (+47 MB in WebKit for 4 far videos).
+// Eager is for the comp's REGISTRATION; its media follows the ring exactly as a lazy artboard's children did.
+describe("an eager artboard's media follows the ring", () => {
+  test('far: mounted, no media; near: media; far again for the grace: media released, still mounted', () => {
+    const k = rig();
+    k.r.subscribe('video', () => {});
+    k.r.setEager('video', true);
+    k.r.setKeep('video', false);
+    k.frames();
+    expect(k.r.get('video')).toEqual({ live: false, seen: true, media: false });
+    k.r.setKeep('video', true);
+    k.r.setNear('video', true);
+    k.frames();
+    expect(k.r.get('video')).toEqual({ live: true, seen: true, media: true });
+    k.r.setNear('video', false);
+    k.frames();
+    expect(k.r.get('video')).toEqual({ live: false, seen: true, media: true }); // kept: inside the keep ring
+    k.r.setKeep('video', false);
+    k.advance(RELEASE_AFTER_MS - 100);
+    expect(k.r.get('video').media).toBe(true); // the grace
+    k.advance(200);
+    k.frames();
+    expect(k.r.get('video')).toEqual({ live: false, seen: true, media: false });
+  });
+
+  test('on screen in the overview: media (a paused frame shows), not live', () => {
+    const k = rig();
+    k.r.subscribe('video', () => {});
+    k.r.setEager('video', true);
+    k.r.setZoom(0.05);
+    k.r.setNear('video', true);
+    k.r.setVisible('video', true);
+    k.frames();
+    expect(k.r.get('video')).toEqual({ live: false, seen: true, media: true });
+  });
+
+  test('pinned (the selection is in it): media is kept far away', () => {
+    const k = rig();
+    k.r.subscribe('video', () => {});
+    k.r.setEager('video', true);
+    k.r.setNear('video', true);
+    k.frames();
+    k.r.setPinned('video', true);
+    k.r.setNear('video', false);
+    k.r.setKeep('video', false);
+    k.advance(RELEASE_AFTER_MS * 3);
+    k.frames();
+    expect(k.r.get('video').media).toBe(true);
+  });
+
+  test('a capture (holdAllLive) loads every media', () => {
+    const k = rig();
+    k.r.subscribe('video', () => {});
+    k.r.setEager('video', true);
+    k.r.setKeep('video', false);
+    k.frames();
+    const release = k.r.holdAllLive();
+    expect(k.r.get('video').media).toBe(true);
+    release();
   });
 });
