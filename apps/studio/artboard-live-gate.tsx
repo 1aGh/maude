@@ -259,7 +259,7 @@ export function ArtboardLiveGate({
   heightFloor: number;
   /** the artboard's own `background` prop — the colour a never-rendered placeholder takes */
   background?: string;
-  /** the active artboard: never released (its selection lives in its DOM) */
+  /** the active artboard, or the one holding the selection: never released (the shell works in its DOM) */
   pinned?: boolean;
   children: ReactNode;
 }) {
@@ -310,8 +310,10 @@ export function ArtboardLiveGate({
       rt.near?.unobserve(el);
       rt.visible?.unobserve(el);
       rt.keep?.unobserve(el);
-      rt.registry.setNear(id, false);
-      rt.registry.setVisible(id, false);
+      rt.ids.delete(el);
+      // an edit's remount: the new gate already holds the id and its observers report on its own article —
+      // clearing near/visible here would put the artboard to sleep (and pause its video) for a frame
+      rt.registry.unobserve(id);
     };
   }, [articleRef, id, on, rt]);
 

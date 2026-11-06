@@ -48,6 +48,11 @@ export const WAKE_PER_FRAME = 3;
 export const KEEP_MARGIN = '150%';
 /** How long an artboard must have been outside the keep ring before its children are released (ms). */
 export const RELEASE_AFTER_MS = 2500;
+/**
+ * How long a slot nobody subscribes to any more is kept (ms): an edit's soft reload remounts every gate, and the
+ * new one must find its artboard still mounted (2.0.7 — a placeholder in between lost the shell's selection).
+ */
+export const RETIRE_AFTER_MS = 250;
 /** The DOM budget of one canvas document: mounted artboards' element count stays about this (2.0.7). */
 export const MOUNT_NODE_BUDGET = 12000;
 /**
@@ -208,12 +213,31 @@ export class LiveRegistry {
     s.subs.add(fn);
     return () => {
       s.subs.delete(fn);
-      if (s.subs.size === 0) {
+      if (s.subs.size > 0) return;
+      // Not dropped at once: an edit soft-reloads the canvas and remounts every gate in ONE commit (old cleanup,
+      // then the new subscribe). The new gate must find the slot mounted, or its artboard falls back to a
+      // placeholder just as the shell reselects — the 2.0.7 video regression. Nobody back within the grace: gone.
+      this.later(() => {
+        if (s.subs.size > 0 || this.slots.get(id) !== s) return;
         this.slots.delete(id);
         this.pending.delete(id);
         this.recompute();
-      }
+      }, RETIRE_AFTER_MS);
     };
+  }
+
+  /**
+   * The gate stopped observing its article (an unmount, or the old gate of a remount). Clears what the observers
+   * said — unless another gate holds the id now (the remount: its own observers report on its new article).
+   * Never creates a slot.
+   */
+  unobserve(id: string): void {
+    const s = this.slots.get(id);
+    if (!s || s.subs.size > 0) return;
+    if (!s.near && !s.visible) return;
+    s.near = false;
+    s.visible = false;
+    this.recompute();
   }
 
   setNear(id: string, near: boolean, dist?: number): void {
