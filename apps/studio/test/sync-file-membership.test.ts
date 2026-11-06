@@ -332,6 +332,12 @@ describe('file-membership — the DDR-115 replica tripwire (4th copy)', () => {
     'system/ds/brand.css',
     'system/ds/preview/_brand-css.ts',
     'system/ds/preview/_layout.css',
+    // fix/207 — nested `_` modules are the user's files; only the first segment is runtime
+    'system/studyfi-v3/preview/_ui-feedback.tsx',
+    'system/studyfi-v3/preview/_ui-feedback.css',
+    'ui/club-web/_frames.tsx',
+    'system/ds/preview/_state.tsx',
+    'system/ds/preview/_history.tsx',
     'assets/x.png',
     'config.json',
     '_brandish.json', // close to `_active.json`'s shape, not in the taxonomy
@@ -358,6 +364,11 @@ describe('file-membership — studio ↔ hub parity (the doc-name precedent)', (
     'system/alligators/preview/_layout.css',
     'system/alligators/preview/_components.css',
     'system/alligators/preview/_marketing.css',
+    // fix/207 — a DS's `_` module and its stylesheet (design.studyfi.com)
+    'system/studyfi-v3/preview/_ui-feedback.tsx',
+    'system/studyfi-v3/preview/_ui-feedback.css',
+    '_ui-feedback.tsx',
+    '_state/ui-feedback.tsx',
     'system/alligators/brand.css',
     'system/alligators/colors_and_type.css',
     'system/alligators/README.md',

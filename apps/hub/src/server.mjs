@@ -267,6 +267,7 @@ import { handleUploadSessions, UPLOADS_PREFIX } from './upload-sessions.mjs';
 import { countLinkedOidc } from './users.mjs';
 import { BACKUP_PREFIX, conversionGate, createV2Conversion } from './v2-convert.mjs';
 import { createWorkspaceAgent } from './workspace-agent.mjs';
+import { checkoutCanvasPathsIn } from './workspace-files.mjs';
 import { ensureWorkspaceId } from './workspace-identity.mjs';
 
 const HUB_VERSION = readOwnVersion();
@@ -2541,28 +2542,12 @@ export function createHub(config = {}) {
   /** slug → design-root-relative `.tsx` path, from the checkout (workspace mode). */
   const checkoutCanvasPaths = () => {
     const root = designRootFor();
-    const out = new Map();
-    if (!root) return out;
-    const walk = (abs, rel, depth) => {
-      if (depth > 16) return;
-      let entries;
-      try {
-        entries = readdirSync(abs, { withFileTypes: true });
-      } catch {
-        return;
-      }
-      for (const e of entries) {
-        if (e.name.startsWith('_') || e.name.startsWith('.') || e.name === 'node_modules') continue;
-        const childRel = rel ? `${rel}/${e.name}` : e.name;
-        if (e.isDirectory()) walk(join(abs, e.name), childRel, depth + 1);
-        else if (e.isFile() && e.name.endsWith('.tsx')) {
-          const slug = canvasSlugFromRel(childRel, process.env.MAUDE_DESIGN_ROOT ?? '.design');
-          if (slug && !out.has(slug)) out.set(slug, childRel);
-        }
-      }
-    };
-    walk(root, '', 1);
-    return out;
+    if (!root) return new Map();
+    // fix/207 — a `_` module in a folder is a document the studio syncs; only
+    // `_` folders (and `_` names at the design root) are runtime state.
+    return checkoutCanvasPathsIn(root, (rel) =>
+      canvasSlugFromRel(rel, process.env.MAUDE_DESIGN_ROOT ?? '.design')
+    );
   };
   /** Folders under the declared canvas groups (runtime `_*` and dot-dirs excluded). */
   const checkoutFolders = () => {
