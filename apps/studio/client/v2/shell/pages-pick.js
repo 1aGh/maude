@@ -1,4 +1,4 @@
-// client/v2/shell/pages-pick.js — 2.0.7 B2: the shell remembers the canvas's Canvas | Pages pick.
+// client/v2/shell/pages-pick.js — 2.0.7 B2: the shell remembers the canvas's Canvas | Pages and Light | Dark picks.
 //
 // The canvas owns the view (canvas-pages.ts) but writes nothing: the canvas origin may PATCH only `layout` and
 // `viewport` of `/_api/canvas-meta` (routes/canvas-origin.ts), and Pages adds no lane there. When a person switches,
@@ -7,21 +7,31 @@
 
 import { normalizeOpenPath } from '../../share-link.js';
 
-/** The `/_api/canvas-meta` body for `view` on the open canvas `activePath`, or null when there is none. */
-export function pagesPickBody(activePath, designRel, view) {
-  if (view !== 'canvas' && view !== 'pages') return null;
+/** The `/_api/canvas-meta` body `{ file, patch: { [key]: value } }` for the open canvas, or null when there is none. */
+function pickBody(activePath, designRel, key, value) {
   const root = typeof designRel === 'string' && designRel ? designRel : '.design';
   const rel = normalizeOpenPath(activePath, root);
   if (!rel || !/\.(tsx|jsx)$/.test(rel)) return null;
   return {
     file: `${root.replace(/^\.\//, '').replace(/\/$/, '')}/${rel}`,
-    patch: { canvasView: view },
+    patch: { [key]: value },
   };
 }
 
-/** Write the pick (best-effort, like the camera: a refused write leaves the view as it is for this session). */
-export function savePagesPick(activePath, designRel, view, doFetch = globalThis.fetch) {
-  const body = pagesPickBody(activePath, designRel, view);
+/** Canvas | Pages: `{ canvasView }`, or null. */
+export function pagesPickBody(activePath, designRel, view) {
+  if (view !== 'canvas' && view !== 'pages') return null;
+  return pickBody(activePath, designRel, 'canvasView', view);
+}
+
+/** Light | Dark (canvas-theme.ts): `{ canvasTheme }`, or null. */
+export function themePickBody(activePath, designRel, theme) {
+  if (theme !== 'light' && theme !== 'dark') return null;
+  return pickBody(activePath, designRel, 'canvasTheme', theme);
+}
+
+/** Write a pick (best-effort, like the camera: a refused write leaves the view as it is for this session). */
+function save(body, doFetch) {
   if (!body || typeof doFetch !== 'function') return null;
   return Promise.resolve(
     doFetch('/_api/canvas-meta', {
@@ -31,3 +41,9 @@ export function savePagesPick(activePath, designRel, view, doFetch = globalThis.
     })
   ).catch(() => null);
 }
+
+export const savePagesPick = (activePath, designRel, view, doFetch = globalThis.fetch) =>
+  save(pagesPickBody(activePath, designRel, view), doFetch);
+
+export const saveThemePick = (activePath, designRel, theme, doFetch = globalThis.fetch) =>
+  save(themePickBody(activePath, designRel, theme), doFetch);
