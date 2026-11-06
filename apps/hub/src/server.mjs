@@ -185,6 +185,7 @@ import {
   JOURNAL_PATH,
   JOURNAL_REPORT_PATH,
   OWNER_DELETE_SOURCE,
+  OWNER_PURGE_SOURCE,
   openJournal,
   quarantineFlatCanvasTwins,
   quarantineStaleInert,
@@ -770,7 +771,14 @@ export function createHub(config = {}) {
         journal.recordWrite({
           designRoot: journalDesignRoot,
           path: rel,
-          source: info?.owner === true ? OWNER_DELETE_SOURCE : 'peer-put',
+          // A confirmed purge (owner-purge.mjs) is its own source: outside both
+          // door windows, inside the replay count like every tombstone.
+          source:
+            info?.purge === true
+              ? OWNER_PURGE_SOURCE
+              : info?.owner === true
+                ? OWNER_DELETE_SOURCE
+                : 'peer-put',
           deleted: true,
         }) ?? null
       );
@@ -1478,6 +1486,18 @@ export function createHub(config = {}) {
             dsGrants: dsGrantRoutes, // S10.18a-2
             // P8 — `/_api/share/*` for a cloud tab (routes-v2/share.mjs): only where a studio is served.
             share: studioProxy ? { publicUrl } : null,
+            // 2.0.7 #8 — the owner's confirmed bulk purge (owner-purge.mjs): the
+            // same checkout doors the file door's DELETE uses.
+            purge: () =>
+              journal && journalDesignRoot
+                ? {
+                    journal,
+                    designRoot: journalDesignRoot,
+                    dataDir,
+                    materializer,
+                    onDeleted: noteCheckoutDelete,
+                  }
+                : null,
           },
         })
       ) {
