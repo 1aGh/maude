@@ -430,6 +430,8 @@ export interface FilePlaneResult {
   requestsExhausted?: true;
   /** The pass stopped because it had moved `MAX_FILES_PER_PASS` files (issue #204). */
   filesCapped?: true;
+  /** Issue #207 — uploads cancelled because the file left this Mac after the scan (not failures). */
+  gone?: number;
   /** Issue #207 — files on this disk inside a folder the project does not sync (`linkedHub.ignoreFolders`). */
   ignored?: number;
   /** Issue #207 — folders with a long run of pictures still going up (see `largeSequences`). */
@@ -1695,8 +1697,12 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         quotaExhausted?: true;
         quotaResetsAt?: number;
         permanent?: true;
+        /** Issue #207 — the file is no longer on this Mac: cancelled, not failed. */
+        gone?: true;
       }
   > {
+    // A FILE THAT LEFT THIS MAC is not uploaded, and not retried (issue #207).
+    if (!existsSync(local.abs)) return { ok: false, gone: true, reason: 'no longer on this Mac' };
     // PRE-FLIGHT AGAINST THE DOOR'S OWN CEILING, before a byte is read.
     //
     // `tooLarge` is TERMINAL: the returned reason is stored and the caller
@@ -1749,6 +1755,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         bytes = readFileSync(local.abs);
       }
     } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+        return { ok: false, gone: true, reason: 'no longer on this Mac' };
+      }
       // A LOCAL DISK READ, not a transfer. Classifying it as a transport
       // failure would tell a person the workspace is unreachable when the file
       // is simply gone or unreadable — a wrong answer is worse than a vague one.
@@ -1792,6 +1801,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       const body = (await res.json().catch(() => ({}))) as { seq?: unknown };
       return { ok: true, seq: typeof body?.seq === 'number' ? body.seq : null };
     } catch (err) {
+      if (!existsSync(local.abs)) return { ok: false, gone: true, reason: 'no longer on this Mac' };
       return { ok: false, reason: transportFailure(err, local.rel, log) };
     } finally {
       ledger.outboxDone(local.hash);
@@ -2508,11 +2518,22 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         continue;
       }
 
+      // GONE FROM HERE, AND THE HUB HOLDS EXACTLY WHAT THIS MAC LAST SAW (issue #207). No recorded
+      // ancestor — the upload landed while its answer was lost (a timeout on a slow link), or the
+      // pass ended before adopting it — so this read as "the hub offers a file this machine has
+      // never had" and the next pass downloaded the moved-out renders again. This Mac DID have
+      // those bytes: it is a local delete, decided (and breaker-held) like any other. Only for
+      // this decision — the ledger's ancestor moves only after bytes land (`adoptAfter`).
+      const ancestor =
+        ledger.ancestorOf(rel) ??
+        (!here && remoteHash !== null && !row?.deleted && kept?.lastSeenHash === remoteHash
+          ? remoteHash
+          : null);
       const state: FileState = {
         path: rel,
         local: here?.hash ?? null,
         remote: remoteHash,
-        ancestor: ledger.ancestorOf(rel),
+        ancestor,
         ...(row?.deleted ? { remoteTombstone: true } : {}),
         ...(degraded ? { epochChanged: true } : {}),
         ...(remoteHash && ledger.outboxHas(remoteHash) ? { selfInFlight: true } : {}),
@@ -3177,6 +3198,16 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           out.dropped.push({ rel, reason: res.reason });
           return true;
         }
+        if (res.gone) {
+          // ISSUE #207 — THE FILE LEFT THIS MAC between the scan and its upload (6 555 renders
+          // moved out mid-pass: 951 ENOENT retries every 5 s). Not a failure and not a backoff:
+          // the upload is cancelled and the row leaves the queue. The next pass reads the
+          // absence — nothing if the hub never had it, a delete proposal if it did.
+          ledger.noteAttemptOk(rel);
+          ledger.setState(rel, 'local-only', { reason: 'no longer on this Mac' });
+          out.gone = (out.gone ?? 0) + 1;
+          return false;
+        }
         out.failed.push({ rel, reason: res.reason });
         ledger.setState(rel, 'stuck', { reason: res.reason });
         return false;
@@ -3264,7 +3295,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         // Gone here, and the hub still holds exactly what we last reconciled —
         // the Syncthing rule. The CAS carries our ancestor, so an edit that
         // landed in between wins and this comes back as a conflict instead.
-        const res = await pushDelete(rel, ledger.ancestorOf(rel));
+        // No recorded ancestor (issue #207): the hub hash this Mac last saw here is the CAS — the
+        // decision above only got here because the two were equal.
+        const res = await pushDelete(rel, ledger.ancestorOf(rel) ?? remoteHash);
         if (res.ok) {
           ledger.forget(rel);
           out.deleted.push({ rel, parked: null });
