@@ -10,7 +10,7 @@
 // default, and a folder without its Design system canvas (`system/project`) is no system.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Subprocess } from 'bun';
@@ -179,6 +179,76 @@ describe('one merged list: the configured systems, then the folder-owned ones', 
       expect(deps('ui/pinned-c.tsx')).toContain(join(designRoot, 'system/c/design-system.tsx'));
       // a configured pin needs no such dep
       expect(deps('ui/home.tsx').some((d) => d.endsWith('design-system.tsx'))).toBe(false);
+    })
+  );
+});
+
+describe('a DS write that edits its config entry adopts a folder-owned system first', () => {
+  const op = (designRoot: string, name: 'default' | 'rename', input: Record<string, unknown>) =>
+    runDsOp(name, input, {
+      engine: createDsEngine({ designRoot, kernel: null, log: { warn() {}, error() {} } }),
+      outside: null,
+      usage: null,
+      access: OWNER,
+      by: { kind: 'person', name: 'T' },
+    });
+  const config = (designRoot: string) =>
+    JSON.parse(readFileSync(join(designRoot, 'config.json'), 'utf8')) as {
+      designSystems: Array<Record<string, unknown>>;
+      defaultDesignSystem?: string;
+    };
+  const shown = (root: string) => {
+    const {
+      folderOwned: _f,
+      label: _l,
+      ...b
+    } = (loadConfig(root).designSystems ?? []).find((d) => d.name === 'b') as unknown as Record<
+      string,
+      unknown
+    >;
+    return b;
+  };
+
+  test(
+    '"Default for new canvases" on b sets it, with b adopted into config.json',
+    withProject(async (designRoot) => {
+      const r = await op(designRoot, 'default', { ds: 'b' });
+      expect(r.status).toBe(200);
+      const cfg = config(designRoot);
+      expect(cfg.defaultDesignSystem).toBe('b');
+      expect(cfg.designSystems.map((d) => d.name)).toEqual(['a', 'b']);
+      expect(canvasSystemFor(designRoot, join(designRoot, 'ui/home.tsx'))?.name).toBe('b');
+    })
+  );
+
+  test(
+    '"Rename…" on b labels it, with b adopted into config.json',
+    withProject(async (designRoot) => {
+      const r = await op(designRoot, 'rename', { ds: 'b', label: 'Brand B' });
+      expect(r.status).toBe(200);
+      const b = config(designRoot).designSystems.find((d) => d.name === 'b');
+      expect(b?.label).toBe('Brand B');
+      expect(config(designRoot).defaultDesignSystem).toBe('a');
+      // a name with no folder is still unknown, and nothing is written
+      const c = await op(designRoot, 'rename', { ds: 'c', label: 'C' });
+      expect(c.status).toBe(404);
+      expect(config(designRoot).designSystems.map((d) => d.name)).toEqual(['a', 'b']);
+    })
+  );
+
+  test(
+    'the adopted entry is what the merged list showed: b reads and renders the same',
+    withProject(async (designRoot, root) => {
+      const before = shown(root);
+      const sysBefore = canvasSystemFor(designRoot, join(designRoot, 'ui/pinned-b.tsx'));
+      expect((await op(designRoot, 'rename', { ds: 'b', label: 'Brand B' })).status).toBe(200);
+      const entry = config(designRoot).designSystems.find((d) => d.name === 'b');
+      expect(entry?.folderOwned).toBeUndefined();
+      expect(
+        loadConfig(root).designSystems?.find((d) => d.name === 'b')?.folderOwned
+      ).toBeUndefined();
+      expect(shown(root)).toEqual(before);
+      expect(canvasSystemFor(designRoot, join(designRoot, 'ui/pinned-b.tsx'))).toEqual(sysBefore);
     })
   );
 });

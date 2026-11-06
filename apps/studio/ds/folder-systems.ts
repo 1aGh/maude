@@ -153,6 +153,41 @@ export function withFolderSystems<T extends Record<string, unknown>>(
   return { ...config, designSystems: [...list, ...folders] };
 }
 
+/**
+ * The `config.json` entry that adopts folder system `ds`: what the merged list shows for it (name,
+ * path, the themes and root class guessed from its tokens), without the `folderOwned` mark — so
+ * the system reads the same once it is configured. Null when `ds` is not a folder system here.
+ */
+export function adoptionEntry(
+  designRoot: string,
+  config: Record<string, unknown>,
+  ds: string
+): Record<string, unknown> | null {
+  const f = folderOwnedSystems(designRoot, configuredOf(config)).find((s) => s.name === ds);
+  if (!f) return null;
+  const { folderOwned: _mark, tokensCssRel, ...entry } = f;
+  // the tokens CSS is the default one (`<path>/colors_and_type.css`): no key, as a made system has
+  return tokensCssRel === `${f.path}/colors_and_type.css` ? entry : { ...entry, tokensCssRel };
+}
+
+/**
+ * A DS write that edits a system's `config.json` entry (default, rename, the schema flag) on a
+ * folder-owned system adopts it first: its entry is appended to `config.designSystems` (mutated in
+ * place, the caller writes the file as for a configured system). True when it adopted one.
+ */
+export function adoptFolderSystem(
+  designRoot: string,
+  config: Record<string, unknown>,
+  ds: string
+): boolean {
+  if (configuredOf(config).some((s) => s.name === ds)) return false;
+  const entry = adoptionEntry(designRoot, config, ds);
+  if (!entry) return false;
+  const list = Array.isArray(config.designSystems) ? (config.designSystems as unknown[]) : [];
+  config.designSystems = [...list, entry];
+  return true;
+}
+
 /** The files whose change can add, drop or retheme a folder system. */
 export function isFolderSystemFile(rel: unknown): boolean {
   return (
