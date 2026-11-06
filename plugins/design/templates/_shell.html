@@ -948,6 +948,53 @@ function scopeCss(css, value, opts = {}) {
           });
       }
       // soft-reload:end
+      // build-wait:begin
+      // 2.0.7 (#2) — A COLD BUILD IS NOT A FAILURE. On a team server a canvas whose build outlives the
+      // request is answered 503 + Retry-After ("still being built") while the build goes on and is
+      // cached (2.0.4 task P). The frame used to treat that 503 as a broken canvas: it gave up after
+      // the second 503, or — when the build finished during the second ask — after a 200 it never
+      // imported, and the studio showed "can't be drawn right now" with no details over a canvas a
+      // Reload then drew at once (design.studyfi.com, first open of the design system after a
+      // restart). Now a 503 waits its Retry-After and asks again, up to the deadline; a build that
+      // finished in between is imported at once; anything else fails as before.
+      const BUILD_WAIT_DEADLINE_MS = 10 * 60 * 1000;
+      function importWhenBuilt(url, io) {
+        const started = io.now();
+        let attempt = 0;
+        let afterBuilt = 0;
+        const next = () => {
+          const u = attempt === 0 ? url : url + (url.includes('?') ? '&' : '?') + 'v=b' + attempt;
+          return io.load(u).catch((err) =>
+            io.probe(url).then((p) => {
+              attempt++;
+              if (p && p.status === 503 && io.now() - started < BUILD_WAIT_DEADLINE_MS) {
+                if (io.onWaiting) io.onWaiting(attempt);
+                const s = Math.min(10, Math.max(1, Number(p.retryAfterS) || 5));
+                return io.sleep(s * 1000).then(next);
+              }
+              // built while we asked: the module is in the server's cache now — import it (once more)
+              if (p && p.ok && afterBuilt++ < 1) return next();
+              throw err;
+            })
+          );
+        };
+        return next();
+      }
+      const shellBuildIo = {
+        load: (u) => import(u),
+        probe: (u) =>
+          fetch(u, { headers: { 'Cache-Control': 'no-store' } }).then(
+            (r) => {
+              try { if (r.body) r.body.cancel(); } catch (e) { /* already read */ }
+              return { ok: r.ok, status: r.status, retryAfterS: Number(r.headers.get('Retry-After')) || 0 };
+            },
+            () => null
+          ),
+        sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+        now: () => Date.now(),
+        onWaiting: (n) => console.info('[canvas-shell] still being built — waiting (' + n + ')'),
+      };
+      // build-wait:end
       // Phase 6.5 — exporters pass ?hide-chrome=1 to flip the export-mode
       // stylesheet from `media="not all"` to `media="all"`, hiding the
       // dev-server overlays during capture. See `<style id="canvas-hide-chrome">`.
@@ -1559,7 +1606,7 @@ function scopeCss(css, value, opts = {}) {
           // React singleton (inlining a second React would break hooks).
           const [{ mountCanvas }, mod] = await Promise.all([
             import(withCap('/_client/comment-mount.js')),
-            import(canvasUrl),
+            importWhenBuilt(canvasUrl, shellBuildIo),
             metaFetch,
           ]);
           const Canvas = mod.default;

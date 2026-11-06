@@ -37,7 +37,13 @@ describe('canvas-origin probe (loading cap, issue #115)', () => {
   });
   test('the loading cap uses the probe (no bare cross-origin /_health fetch)', () => {
     const src = readFileSync(join(import.meta.dir, '../client/hooks/use-shell-core.jsx'), 'utf8');
-    expect(src).toContain('probeCanvasOrigin(cfg?.canvasOrigin)');
+    // 2.0.7 (#2) — through `loadCapVerdict`, which asks whether it is still building, then the probe
+    expect(src).toContain('loadCapVerdict({ path, canvasOrigin: cfg?.canvasOrigin })');
+    const probe = readFileSync(
+      join(import.meta.dir, '../client/hooks/canvas-origin-probe.js'),
+      'utf8'
+    );
+    expect(probe).toContain('return probeCanvasOrigin(canvasOrigin, fetchImpl);');
     expect(src).not.toMatch(/fetch\(`\$\{cfg\?\.canvasOrigin \|\| ''\}\/_health`/);
   });
 });
