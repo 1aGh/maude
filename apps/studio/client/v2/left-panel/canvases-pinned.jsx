@@ -18,17 +18,11 @@ const KIND_GLYPH = { web: WebIcon, digital: DigitalIcon, print: PrintIcon, video
 
 /** 2.0.7 (B3) — the artboards of a system's Design system canvas, under its row (the canvas row's 11 · pn-jump
  *  list). A click takes the camera there: the canvas opens if it is not the one on screen. */
-function DsBoardList({ dsName, label, list, activePath, activeArtboard, onJump }) {
+function DsBoardList({ dsName, list, activePath, activeArtboard, onJump }) {
   const slug = pathTestIdSlug(list.path);
   const onCanvas = activePath === list.path;
   return (
-    <div
-      className="lp-ds-boards"
-      data-testid="canvases-ds-boards"
-      data-ds={dsName}
-      role="group"
-      aria-label={`Artboards in ${label}`}
-    >
+    <div className="lp-ds-boards" data-testid="canvases-ds-boards" data-ds={dsName}>
       {list.boards.map((b) => {
         const Glyph = KIND_GLYPH[b.kind] || WebIcon;
         const word = KIND_LABEL[b.kind] || b.kind;
@@ -232,7 +226,6 @@ export function DsPinnedRows({
             {listOpen ? (
               <DsBoardList
                 dsName={r.dsName}
-                label={r.label}
                 list={list}
                 activePath={activePath}
                 activeArtboard={activeArtboard}

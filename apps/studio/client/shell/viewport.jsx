@@ -30,6 +30,7 @@ import { CanvasDropCatcher, catcherReadOnly } from '../v2/assets/canvas-drop-cat
 import { framesToMount, noteShown } from './frame-cap.js';
 import { crashGuard, subscribeCrashGuard } from '../v2/shell/canvas-crash-guard.js';
 import { TooHeavyCanvas } from '../v2/shell/too-heavy-card.jsx';
+import { OpeningSkeleton } from '../v2/shell/opening-skeleton.jsx';
 
 export function Viewport({
   tabs,
@@ -420,27 +421,32 @@ export function CanvasLoading({ path, cloud }) {
     return () => clearTimeout(t);
   }, []);
   const name = sanitizeDisplayText(basename(path || '').replace(/\.(tsx|jsx|html?)$/i, ''));
+  const hint = cloud
+    ? 'Still working — the first open of a canvas fetches its images and fonts from cloud storage. It is quicker next time.'
+    : 'Still working — large canvases take a moment to build.';
+  // 2.0.7 (B1) — every artboard at once, as a skeleton at its final place and size, while the canvas builds
+  // and renders (v2/shell/opening-skeleton.js); the card below only while that layout is not known.
+  const card = (
+    <div className="sh-skel-card">
+      <div className="sh-canvas-loading-head">
+        <span className="sh-canvas-loading-spinner" aria-hidden="true" />
+        <span className="sh-canvas-loading-title">Opening {name}…</span>
+      </div>
+      <span className="skel sh-skel-thumb" aria-hidden="true" />
+      <span className="skel sh-skel-line" style={{ width: '72%' }} aria-hidden="true" />
+      <span className="skel sh-skel-line" style={{ width: '46%' }} aria-hidden="true" />
+      <div className={'sh-canvas-loading-hint' + (slow ? ' is-shown' : '')}>{hint}</div>
+    </div>
+  );
   return (
     <div
       className="sh-canvas-loading"
       role="status"
       aria-live="polite"
+      aria-label={`Opening ${name}…`}
       data-testid="canvas-loading"
     >
-      <div className="sh-skel-card">
-        <div className="sh-canvas-loading-head">
-          <span className="sh-canvas-loading-spinner" aria-hidden="true" />
-          <span className="sh-canvas-loading-title">Opening {name}…</span>
-        </div>
-        <span className="skel sh-skel-thumb" aria-hidden="true" />
-        <span className="skel sh-skel-line" style={{ width: '72%' }} aria-hidden="true" />
-        <span className="skel sh-skel-line" style={{ width: '46%' }} aria-hidden="true" />
-        <div className={'sh-canvas-loading-hint' + (slow ? ' is-shown' : '')}>
-          {cloud
-            ? 'Still working — the first open of a canvas fetches its images and fonts from cloud storage. It is quicker next time.'
-            : 'Still working — large canvases take a moment to build.'}
-        </div>
-      </div>
+      <OpeningSkeleton path={path} fallback={card} note={slow ? hint : null} />
     </div>
   );
 }
