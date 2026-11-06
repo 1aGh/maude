@@ -48,6 +48,11 @@ export const WAKE_PER_FRAME = 3;
 export const KEEP_MARGIN = '150%';
 /** How long an artboard must have been outside the keep ring before its children are released (ms). */
 export const RELEASE_AFTER_MS = 2500;
+/**
+ * How long a slot nobody subscribes to any more is kept (ms): an edit's soft reload remounts every gate, and the
+ * new one must find its artboard still mounted (2.0.7 — a placeholder in between lost the shell's selection).
+ */
+export const RETIRE_AFTER_MS = 250;
 /** The DOM budget of one canvas document: mounted artboards' element count stays about this (2.0.7). */
 export const MOUNT_NODE_BUDGET = 12000;
 /**
@@ -127,6 +132,11 @@ interface Slot {
   weight: number;
   /** Never released (the active artboard — a selection or an edit lives in its DOM). */
   pinned: boolean;
+  /**
+   * Always mounted in `sleep`, wherever it is (a video artboard: its comp registers itself only while mounted, and
+   * the link glyph, the Timeline's shared count and Present's format switch read those registrations).
+   */
+  eager: boolean;
   admitted: boolean;
   live: boolean;
   /** The last state handed out — one object per change, so React's external store sees a stable snapshot. */
@@ -208,12 +218,31 @@ export class LiveRegistry {
     s.subs.add(fn);
     return () => {
       s.subs.delete(fn);
-      if (s.subs.size === 0) {
+      if (s.subs.size > 0) return;
+      // Not dropped at once: an edit soft-reloads the canvas and remounts every gate in ONE commit (old cleanup,
+      // then the new subscribe). The new gate must find the slot mounted, or its artboard falls back to a
+      // placeholder just as the shell reselects — the 2.0.7 video regression. Nobody back within the grace: gone.
+      this.later(() => {
+        if (s.subs.size > 0 || this.slots.get(id) !== s) return;
         this.slots.delete(id);
         this.pending.delete(id);
         this.recompute();
-      }
+      }, RETIRE_AFTER_MS);
     };
+  }
+
+  /**
+   * The gate stopped observing its article (an unmount, or the old gate of a remount). Clears what the observers
+   * said — unless another gate holds the id now (the remount: its own observers report on its new article).
+   * Never creates a slot.
+   */
+  unobserve(id: string): void {
+    const s = this.slots.get(id);
+    if (!s || s.subs.size > 0) return;
+    if (!s.near && !s.visible) return;
+    s.near = false;
+    s.visible = false;
+    this.recompute();
   }
 
   setNear(id: string, near: boolean, dist?: number): void {
@@ -240,6 +269,14 @@ export class LiveRegistry {
     const s = this.slot(id);
     if (s.pinned === pinned) return;
     s.pinned = pinned;
+    this.recompute();
+  }
+
+  /** A video artboard: mounted wherever it is, past the budget, never released nor pushed out (`sleep` only). */
+  setEager(id: string, eager: boolean): void {
+    const s = this.slot(id);
+    if (s.eager === eager) return;
+    s.eager = eager;
     this.recompute();
   }
 
@@ -367,6 +404,7 @@ export class LiveRegistry {
         dist: Number.POSITIVE_INFINITY,
         weight: 0,
         pinned: false,
+        eager: false,
         admitted: false,
         live: false,
         view: ASLEEP,
@@ -396,6 +434,7 @@ export class LiveRegistry {
         : force ||
           s.near ||
           s.visible ||
+          (this.mode === 'sleep' && s.eager) ||
           (this.mode === 'sleep' && s.admitted && !this.releasable(s));
     return { live, admitted };
   }
@@ -405,6 +444,7 @@ export class LiveRegistry {
     return (
       s.admitted &&
       !s.pinned &&
+      !s.eager &&
       !s.keep &&
       !s.visible &&
       !s.near &&
@@ -505,7 +545,7 @@ export class LiveRegistry {
       }
       const mounts = tg.admitted && !s.admitted;
       if (this.interacting && !(mounts && s.visible)) continue; // waits for the settle
-      if (mounts && this.forceAll === 0 && this.mode === 'sleep') {
+      if (mounts && this.forceAll === 0 && this.mode === 'sleep' && !s.eager) {
         const w = this.weightOf(s);
         if (mounted > 0 && mounted + w > this.budget) {
           if (s.visible) {
@@ -541,7 +581,7 @@ export class LiveRegistry {
   /** Release mounted artboards that are not on screen to free `need` elements; returns what it freed. */
   private evictFor(need: number): number {
     const victims = [...this.slots.values()]
-      .filter((v) => v.admitted && !v.visible && !v.pinned)
+      .filter((v) => v.admitted && !v.visible && !v.pinned && !v.eager)
       .sort((a, b) => Number(a.near) - Number(b.near) || b.dist - a.dist);
     let freed = 0;
     for (const v of victims) {

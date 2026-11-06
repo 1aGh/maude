@@ -73,8 +73,26 @@ interface Runtime {
   ids: WeakMap<Element, string>;
 }
 
-let runtime: Runtime | null = null;
-let runtimeSearch: string | null = null;
+/**
+ * The runtime lives on the canvas DOCUMENT, not in this module. Each canvas module bundles its own copy of
+ * canvas-lib (Bun.build inlines `@maude/canvas-lib`), so an edit's soft reload evaluates a fresh copy of this file:
+ * a module-level runtime started every artboard of the remounted canvas as a placeholder again, just as the shell
+ * reselected after `loaded` — the selected clip was gone (2.0.7 video regression). Bump `RUNTIME_SHAPE` when
+ * `Runtime` or `LiveRegistry` changes shape (a canvas-lib change hard-reloads the frame anyway).
+ */
+const RUNTIME_SHAPE = 1;
+const RUNTIME_KEY = '__maudeArtboardLive';
+interface RuntimeSlot {
+  shape: number;
+  search: string;
+  runtime: Runtime;
+}
+function runtimeSlot(): RuntimeSlot | null {
+  const slot = (window as unknown as Record<string, unknown>)[RUNTIME_KEY] as
+    | RuntimeSlot
+    | undefined;
+  return slot && slot.shape === RUNTIME_SHAPE ? slot : null;
+}
 
 function embedded(): boolean {
   try {
@@ -86,8 +104,8 @@ function embedded(): boolean {
 
 /** Test hook: forget the per-document runtime (the URL decides the mode at first use). */
 export function resetArtboardLive(): void {
-  runtime = null;
-  runtimeSearch = null;
+  if (typeof window === 'undefined') return;
+  delete (window as unknown as Record<string, unknown>)[RUNTIME_KEY];
 }
 
 /** WebKit / WKWebView — the same test as canvas-lib's `IS_WEBKIT`. */
@@ -110,9 +128,9 @@ function centreDistance(en: IntersectionObserverEntry): number {
 
 function getRuntime(): Runtime | null {
   if (typeof window === 'undefined') return null;
-  if (runtime && runtimeSearch === window.location.search) return runtime;
+  const held = runtimeSlot();
+  if (held && held.search === window.location.search) return held.runtime;
   const mode: LiveMode = resolveLiveMode({ search: window.location.search, embedded: embedded() });
-  runtimeSearch = window.location.search;
   const schedule = (fn: () => void) =>
     typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16);
   const registry = new LiveRegistry(mode, schedule);
@@ -169,7 +187,9 @@ function getRuntime(): Runtime | null {
       mountedNodes: Math.round(registry.mountedWeight()),
     });
   }
-  runtime = { registry, budget, near, visible, keep, ids };
+  const runtime: Runtime = { registry, budget, near, visible, keep, ids };
+  const slot: RuntimeSlot = { shape: RUNTIME_SHAPE, search: window.location.search, runtime };
+  (window as unknown as Record<string, unknown>)[RUNTIME_KEY] = slot;
   return runtime;
 }
 
@@ -251,6 +271,7 @@ export function ArtboardLiveGate({
   heightFloor,
   background,
   pinned = false,
+  eager = false,
   children,
 }: {
   id: string;
@@ -259,8 +280,10 @@ export function ArtboardLiveGate({
   heightFloor: number;
   /** the artboard's own `background` prop — the colour a never-rendered placeholder takes */
   background?: string;
-  /** the active artboard: never released (its selection lives in its DOM) */
+  /** the active artboard, or the one holding the selection: never released (the shell works in its DOM) */
   pinned?: boolean;
+  /** a video artboard: always mounted (its comp registers itself only while mounted) */
+  eager?: boolean;
   children: ReactNode;
 }) {
   const rt = getRuntime();
@@ -291,6 +314,9 @@ export function ArtboardLiveGate({
   useEffect(() => {
     if (on && rt) rt.registry.setPinned(id, pinned);
   }, [on, rt, id, pinned]);
+  useEffect(() => {
+    if (on && rt) rt.registry.setEager(id, eager);
+  }, [on, rt, id, eager]);
 
   // Observe the artboard (the article — its size is stable whether its children are mounted or not).
   useEffect(() => {
@@ -310,8 +336,10 @@ export function ArtboardLiveGate({
       rt.near?.unobserve(el);
       rt.visible?.unobserve(el);
       rt.keep?.unobserve(el);
-      rt.registry.setNear(id, false);
-      rt.registry.setVisible(id, false);
+      rt.ids.delete(el);
+      // an edit's remount: the new gate already holds the id and its observers report on its own article —
+      // clearing near/visible here would put the artboard to sleep (and pause its video) for a frame
+      rt.registry.unobserve(id);
     };
   }, [articleRef, id, on, rt]);
 

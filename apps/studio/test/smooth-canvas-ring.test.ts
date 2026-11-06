@@ -111,6 +111,83 @@ describe('the mount ring', () => {
   });
 });
 
+// 2.0.7 regression (video e2e): every write soft-reloads the canvas, which remounts every artboard's gate
+// (`key=attempt`). The old gate unsubscribed, the slot went with it, the new gate subscribed to a fresh slot and
+// fell back to a placeholder for a few frames — just when the shell reselects after `loaded`. The selected clip
+// was gone, so the Transcript / Re-frame panel closed and Present lost its selection.
+describe('a remount (an edit soft-reloads the canvas) never sends a mounted artboard back to a placeholder', () => {
+  test('unsubscribe then subscribe in the same commit keeps the slot mounted and live', () => {
+    const k = rig();
+    const off = k.r.subscribe('a', () => {});
+    k.r.setNear('a', true);
+    k.r.setVisible('a', true);
+    k.frames();
+    expect(k.r.get('a')).toEqual({ live: true, seen: true });
+    const views: Array<{ live: boolean; seen: boolean }> = [];
+    // the commit: the old gate's layout cleanup, then the new gate's layout subscribe
+    off();
+    k.r.subscribe('a', (s) => views.push(s));
+    expect(k.r.get('a')).toEqual({ live: true, seen: true });
+    // then the old gate's passive cleanup (it unobserves its old article) — the new gate holds the id
+    k.r.unobserve('a');
+    k.frames();
+    k.advance(RELEASE_AFTER_MS * 2);
+    expect(k.r.get('a')).toEqual({ live: true, seen: true });
+    expect(views).toEqual([]); // never a placeholder, never a sleep, in between
+  });
+
+  test('a slot nobody re-subscribes to is dropped after the grace (a real unmount)', () => {
+    const k = rig();
+    const off = k.r.subscribe('a', () => {});
+    k.r.setNear('a', true);
+    k.frames();
+    off();
+    k.r.unobserve('a');
+    k.advance(1000);
+    expect(k.r.mountedCount()).toBe(0);
+    expect(k.r.get('a')).toEqual({ live: false, seen: false });
+  });
+
+  test('unobserve never resurrects a slot that is gone', () => {
+    const k = rig();
+    k.r.unobserve('ghost');
+    expect(k.r.mountedCount()).toBe(0);
+    expect(k.r.visibleCount()).toBe(0);
+  });
+});
+
+describe('an artboard holding the selection (or the active one) is never released nor pushed out', () => {
+  test('pinned far away for long: kept; and an on-screen mount past the budget never evicts it', () => {
+    const k = rig({ budget: 1000, ceiling: 1000 });
+    for (const id of ['sel', 'b']) k.r.subscribe(id, () => {});
+    k.r.setNear('sel', true);
+    k.frames();
+    k.r.setWeight('sel', 900);
+    k.r.setPinned('sel', true);
+    k.r.setNear('sel', false);
+    k.r.setKeep('sel', false);
+    k.advance(RELEASE_AFTER_MS * 3);
+    expect(k.r.get('sel').seen).toBe(true);
+    // an on-screen artboard that does not fit: it would push out what is off screen — never the pinned one
+    k.r.setVisible('b', true);
+    k.r.setNear('b', true);
+    k.frames();
+    expect(k.r.get('sel').seen).toBe(true);
+  });
+
+  test('a live artboard (its media may be playing) is near, so it is never released', () => {
+    const k = rig();
+    k.r.subscribe('v', () => {});
+    k.r.setNear('v', true);
+    k.frames();
+    expect(k.r.get('v').live).toBe(true);
+    k.r.setVisible('v', false);
+    k.r.setKeep('v', false); // a keep-ring report while near is ignored
+    k.advance(RELEASE_AFTER_MS * 3);
+    expect(k.r.get('v')).toEqual({ live: true, seen: true });
+  });
+});
+
 describe('the DOM budget', () => {
   test('the default budget is a real bound', () => {
     expect(MOUNT_NODE_BUDGET).toBeGreaterThan(2000);
@@ -291,5 +368,43 @@ describe('loading never blocks a gesture', () => {
     k.r.setVisible('a', true);
     k.frames();
     expect(k.r.get('a').seen).toBe(false);
+  });
+});
+
+// 2.0.7 regression (video-formats "Add a format", video-present): a video artboard's comp registers itself only
+// while it is mounted (window.__maudeVideoComps), and the link glyph, the Timeline's "Shared by 2 formats" and
+// Present's format switch are all read from those registrations. A new 16:9 format placed beside the reel, outside
+// the prefetch ring, stayed a placeholder — so the canvas and the shell saw one format.
+describe('an eager artboard (a video) is always mounted', () => {
+  test('far away it mounts anyway, past the budget, and is never released nor pushed out', () => {
+    const k = rig({ budget: 500, ceiling: 500 });
+    for (const id of ['on', 'video']) k.r.subscribe(id, () => {});
+    k.r.setNear('on', true);
+    k.r.setVisible('on', true);
+    k.frames();
+    k.r.setWeight('on', 480);
+    k.r.setEager('video', true);
+    k.r.setKeep('video', false);
+    k.frames();
+    expect(k.r.get('video')).toEqual({ live: false, seen: true }); // mounted, asleep (not near)
+    k.r.setWeight('video', 400);
+    k.advance(RELEASE_AFTER_MS * 3);
+    // an on-screen artboard that does not fit pushes out what is off screen — never the eager one
+    k.r.subscribe('b', () => {});
+    k.r.setNear('b', true);
+    k.r.setVisible('b', true);
+    k.frames();
+    expect(k.r.get('video').seen).toBe(true);
+    k.r.setEager('video', false);
+    k.advance(RELEASE_AFTER_MS + 20);
+    expect(k.r.get('video').seen).toBe(false);
+  });
+
+  test('light mode (after a crash) ignores it: only live artboards mount', () => {
+    const k = rig({ mode: 'light' });
+    k.r.subscribe('video', () => {});
+    k.r.setEager('video', true);
+    k.frames();
+    expect(k.r.get('video').seen).toBe(false);
   });
 });

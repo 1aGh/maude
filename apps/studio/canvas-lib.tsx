@@ -3065,6 +3065,10 @@ function DCArtboardBody({
     [id]
   );
 
+  // 2.0.7 — the mount ring never releases the artboard the selection is in (it, or an element inside it): the
+  // shell's panels (Transcript, Re-frame, the timeline, the inspector) and Present-from-selection work in its DOM.
+  const holdsSelection = !!selSet?.selected.some((s) => s.artboardId === id);
+
   // Drag hook — always called (hook rules). Inert outside DesignCanvas
   // (allRects empty, enabled=false), so specimens / legacy uses get a plain
   // fixed-size block as before.
@@ -3282,6 +3286,8 @@ function DCArtboardBody({
             bodyRef={bodyRef}
             heightFloor={heightFloor}
             background={background}
+            pinned={holdsSelection}
+            eager={hasVideo || hasVideoContent}
           >
             {children}
           </ArtboardLiveGate>
@@ -3459,14 +3465,16 @@ function DCArtboardBody({
           }}
         >
           {/* 2.0.5 — offscreen / zoomed-out artboards sleep (artboard-live.ts); captures run everything live.
-              2.0.7 — far ones are released to a same-size placeholder in their own colours; the active one never. */}
+              2.0.7 — far ones are released to a same-size placeholder in their own colours; the active one and the
+              one holding the selection never. */}
           <ArtboardLiveGate
             id={id}
             articleRef={articleRef}
             bodyRef={bodyRef}
             heightFloor={heightFloor}
             background={background}
-            pinned={isActive}
+            pinned={isActive || holdsSelection}
+            eager={hasVideo || hasVideoContent}
           >
             {children}
           </ArtboardLiveGate>
