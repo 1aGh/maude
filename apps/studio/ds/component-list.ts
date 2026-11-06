@@ -13,6 +13,7 @@ import path from 'node:path';
 
 import { RECIPES } from '../edit-ops/insert-component.ts';
 import { canvasSystemFor } from './ds-resolver.ts';
+import { withFolderSystems } from './folder-systems.ts';
 import { readHead } from './head.ts';
 import { type SystemConfig, systemConfigsFrom } from './system.ts';
 
@@ -76,7 +77,7 @@ function readJson(abs: string): Record<string, unknown> | null {
 export function systemForPicker(designRoot: string, canvasAbs: string | null): SystemConfig | null {
   if (canvasAbs) return canvasSystemFor(designRoot, canvasAbs);
   const config = readJson(path.join(designRoot, 'config.json')) ?? {};
-  const systems = systemConfigsFrom(config);
+  const systems = systemConfigsFrom(withFolderSystems(config, designRoot));
   const def = typeof config.defaultDesignSystem === 'string' ? config.defaultDesignSystem : null;
   return systems.find((s) => s.name === def) ?? systems[0] ?? null;
 }

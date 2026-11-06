@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { declaredBy, renderFallbacks } from './fallbacks.ts';
+import { withFolderSystems } from './folder-systems.ts';
 import { pairingCssFor, systemForTokens } from './pairing-css.ts';
 import { loadRegistry } from './registry.ts';
 import { diskFs, loadSystem } from './system.ts';
@@ -40,7 +41,7 @@ export function fallbacksFor(
   config: Record<string, unknown>,
   tokensRel: string | null
 ): string {
-  const sys = systemForTokens(config, tokensRel);
+  const sys = systemForTokens(withFolderSystems(config, designRoot), tokensRel);
   if (!sys) return '';
   const rels = [sys.tokensCssRel, `${sys.path}/preview/_components.css`];
   const digest = `${digestOf(designRoot, rels)}:${JSON.stringify(sys)}`;

@@ -6,6 +6,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { folderOwnedSystems } from './ds/folder-systems.ts';
 import { linkConsent } from './sync/link-consent.ts';
 
 export type ConfigSource = '.design/config.json' | 'defaults' | 'defaults (config invalid)';
@@ -27,6 +28,8 @@ export interface DesignSystemEntry {
   newComponentDir?: string;
   /** V2-1.13 §5.4 — conforms to design-system schema v1 (written only when ds-check exits 0). */
   schema?: 1;
+  /** 2.0.7 — not in config.json: `system/<name>/` holds its own Design system canvas (ds/folder-systems.ts). */
+  folderOwned?: true;
 }
 
 export interface LinkedHub {
@@ -578,6 +581,27 @@ function withProjectConfig(cfg: DevServerConfig, repoRoot: string): DevServerCon
   };
 }
 
+/**
+ * 2.0.7 — the folder-owned systems join the list, after every configured (and adopted) one, so the
+ * default never moves while the config lists a system. A cell's config.json never syncs, so a system
+ * converted on a desktop can be on the cell as files only (ds/folder-systems.ts). The list is for
+ * reading: every config.json writer reads the file itself.
+ */
+function withFolderSystems(cfg: DevServerConfig, repoRoot: string): DevServerConfig {
+  const designRel = String(cfg.designRoot ?? '.design').replace(/^\/+|\/+$/g, '');
+  const configured = (cfg.designSystems ?? []).map((d) => ({
+    name: d.name,
+    path: String(d.path ?? '').replace(/^\/+|\/+$/g, ''),
+  }));
+  const folders = folderOwnedSystems(path.join(repoRoot, designRel), configured);
+  if (!folders.length) return cfg;
+  // DesignSystemEntry types themeDefault as the studio's two app themes (as for an adopted system)
+  const entries: DesignSystemEntry[] = folders.map(({ themeDefault, ...d }) =>
+    themeDefault === 'dark' || themeDefault === 'light' ? { ...d, themeDefault } : d
+  );
+  return { ...cfg, designSystems: [...(cfg.designSystems ?? []), ...entries] };
+}
+
 export function loadConfig(repoRoot: string): DevServerConfig {
   const configPath = path.join(repoRoot, '.design', 'config.json');
   let raw: string;
@@ -589,7 +613,13 @@ export function loadConfig(repoRoot: string): DevServerConfig {
   try {
     const parsed = JSON.parse(raw);
     return normalizeConfig(
-      withProjectConfig({ ...DEFAULT_CONFIG, ...parsed, _source: '.design/config.json' }, repoRoot)
+      withFolderSystems(
+        withProjectConfig(
+          { ...DEFAULT_CONFIG, ...parsed, _source: '.design/config.json' },
+          repoRoot
+        ),
+        repoRoot
+      )
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
