@@ -106,7 +106,12 @@ import { createRunRegistry, type RunRegistry } from './ai/runs.ts';
 import { type Api, ASSET_CHUNK_BYTES, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
 import { importBrandRequest } from './bin/_brand-site.mjs';
 import { buildCanvasModule } from './canvas-build.ts';
-import { buildCanvasSandboxed, buildStats, sandboxFailureClass } from './canvas-build-sandbox.ts';
+import {
+  buildCanvasSandboxed,
+  buildStats,
+  sandboxFailureClass,
+  withBuildSlot,
+} from './canvas-build-sandbox.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
 import { budgetFromEnv, createModuleCache, moduleBytes } from './canvas-module-cache.ts';
 import { TranspileError } from './canvas-pipeline.ts';
@@ -1010,16 +1015,20 @@ export async function serveCanvasTsx(
       return respondWithCanvasModule(req, cached);
     }
     try {
-      result = await buildCanvasModule(absPath, source, {
-        designRoot: ctx.paths.designRoot,
-        // UNCONDITIONAL, desktop included (feature-sync-file-plane, Task 9 —
-        // the binding debate's CONDITION on the `code-module` class): a
-        // canvas import resolves inside the design root on EVERY runtime, so
-        // a synced module cannot make the build read the wider filesystem.
-        // The cell worker has always armed this (canvas-build-worker.ts).
-        restrictImportsTo: ctx.paths.designRoot,
-        assetUrlBase: designRootUrlBase(ctx.paths),
-      });
+      // 2.0.7 (#3) — in one of the server's build slots, like the sandbox's workers: a design system
+      // opening asks for many builds at once, and each in-process Bun.build holds its own module graph.
+      result = await withBuildSlot(() =>
+        buildCanvasModule(absPath, source, {
+          designRoot: ctx.paths.designRoot,
+          // UNCONDITIONAL, desktop included (feature-sync-file-plane, Task 9 —
+          // the binding debate's CONDITION on the `code-module` class): a
+          // canvas import resolves inside the design root on EVERY runtime, so
+          // a synced module cannot make the build read the wider filesystem.
+          // The cell worker has always armed this (canvas-build-worker.ts).
+          restrictImportsTo: ctx.paths.designRoot,
+          assetUrlBase: designRootUrlBase(ctx.paths),
+        })
+      );
     } catch (err) {
       // S11.6 — the build's own error (an import, the allowlist) for `/_api/canvas-errors`;
       // a syntax error is re-read from the file there, so only these need remembering.
@@ -1320,14 +1329,16 @@ async function serveHistoricalCanvas(
     const css = await laneAtRef(versionReaders(ctx), repoRel, sha, 'css', from);
     const cssSig = css == null ? todayCssSig(absPath) : null;
     try {
-      const result = await buildCanvasModule(absPath, source, {
-        overrides: cssOverridesFor(absPath, css),
-        designRoot: ctx.paths.designRoot,
-        // Same unconditional allowlist as the live build above — a HISTORICAL
-        // source is still tenant/peer-authored content.
-        restrictImportsTo: ctx.paths.designRoot,
-        assetUrlBase: designRootUrlBase(ctx.paths),
-      });
+      const result = await withBuildSlot(() =>
+        buildCanvasModule(absPath, source, {
+          overrides: cssOverridesFor(absPath, css),
+          designRoot: ctx.paths.designRoot,
+          // Same unconditional allowlist as the live build above — a HISTORICAL
+          // source is still tenant/peer-authored content.
+          restrictImportsTo: ctx.paths.designRoot,
+          assetUrlBase: designRootUrlBase(ctx.paths),
+        })
+      );
       const body = moduleBytes(result.js);
       cached = {
         body,

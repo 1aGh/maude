@@ -1,7 +1,7 @@
 // hooks/use-shell-core.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { editScopeQuery } from './edit-scope-query.js';
-import { probeCanvasOrigin } from './canvas-origin-probe.js';
+import { BUILDING_RECHECK_MS, capReason, loadCapVerdict } from './canvas-origin-probe.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   layersTreeOf,
@@ -448,18 +448,28 @@ export function useShellCore({}) {
   // without anything being wrong, so the cap stretches instead of calling it a
   // failure. The shell reports a real build error itself (`canvas-failed`).
   const shellAlive = !!loadingPath && loadedPath === loadingPath;
+  // 2.0.7 (#2) — and while the server says the canvas is still BUILDING, the cap waits on (re-asking
+  // every BUILDING_RECHECK_MS): a cold design system on a team server can need more than the cap, and
+  // its frame waits for the build. When the card does show, it carries which wait ran out (`reason`).
   useEffect(() => {
     if (!loadingPath) return;
     const path = loadingPath;
-    const cap = setTimeout(
-      async () => {
-        const kind = await probeCanvasOrigin(cfg?.canvasOrigin);
-        setCanvasError({ path, kind });
+    let gone = false;
+    let cap;
+    const arm = (ms) => {
+      cap = setTimeout(async () => {
+        const kind = await loadCapVerdict({ path, canvasOrigin: cfg?.canvasOrigin });
+        if (gone) return;
+        if (kind === 'building') return arm(BUILDING_RECHECK_MS);
+        setCanvasError({ path, kind, reason: capReason(shellAlive) });
         setLoadingPath((p) => (p === path ? null : p));
-      },
-      shellAlive ? 60000 : 15000
-    );
-    return () => clearTimeout(cap);
+      }, ms);
+    };
+    arm(shellAlive ? 60000 : 15000);
+    return () => {
+      gone = true;
+      clearTimeout(cap);
+    };
   }, [loadingPath, shellAlive, cfg?.canvasOrigin]);
   // WHO IS SAVING THIS PROJECT — one expression, read by every surface that
   // would otherwise offer to save it, poll for it, or badge it (DDR-218, widened

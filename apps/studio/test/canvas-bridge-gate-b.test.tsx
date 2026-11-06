@@ -111,7 +111,7 @@ describe('canvas-failed (G6)', () => {
   test('the open canvas’s own failure raises the load-failure card, and drops the loading card', async () => {
     await mount(ACTIVE);
     post(activeWin, { dgn: 'canvas-failed', file: ACTIVE });
-    expect(errors).toEqual([{ path: ACTIVE, kind: 'compile' }]);
+    expect(errors).toEqual([{ path: ACTIVE, kind: 'compile', reason: 'frame' }]);
     expect(loading.length).toBe(1);
     expect(loading[0]?.(ACTIVE)).toBe(null);
   });
@@ -134,7 +134,7 @@ describe('canvas-failed (G6)', () => {
   test('the card is for the OPEN canvas, whatever file the frame names', async () => {
     await mount(ACTIVE);
     post(activeWin, { dgn: 'canvas-failed', file: BACKGROUND });
-    expect(errors).toEqual([{ path: ACTIVE, kind: 'compile' }]);
+    expect(errors).toEqual([{ path: ACTIVE, kind: 'compile', reason: 'frame' }]);
   });
 
   test('no canvas open: nothing to raise a card for', async () => {

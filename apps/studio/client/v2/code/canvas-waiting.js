@@ -162,3 +162,19 @@ export function buildFailureReason(b) {
       return '';
   }
 }
+
+// ── 2.0.7: the load stopped and the server recorded nothing ──────────────────────────────────────
+
+/** Which of the studio's own waits ran out (`canvasError.reason`), in words; '' when unknown. */
+export function loadReasonWords(reason) {
+  switch (reason) {
+    case 'slow':
+      return "It didn't finish opening within a minute";
+    case 'no-shell':
+      return "Its frame didn't start within 15 seconds";
+    case 'frame':
+      return 'It stopped loading before it was drawn';
+    default:
+      return '';
+  }
+}

@@ -380,6 +380,7 @@ export function Viewport({
               onAskAi={(text) => dispatchCanvasOp('ask-ai-fix', canvasError.path, text)}
               onReload={() => onRetryCanvasLoad?.(canvasError.path)}
               onNotify={(msg, ok) => shellToast(msg, ok)}
+              loadReason={canvasError.reason}
             />
           )}
         </div>
