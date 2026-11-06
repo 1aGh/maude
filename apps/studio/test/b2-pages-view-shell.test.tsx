@@ -12,6 +12,7 @@ import { ACTIONS_BY_ID } from '../actions/index.ts';
 import { PROJECT_MENU as MENU } from '../actions/menu.ts';
 import { isEnabled } from '../actions/resolve.ts';
 import { acceptFromCanvas } from '../bridge/dgn-protocol.ts';
+import { artboardInView } from '../client/v2/left-panel/left-panel-model.js';
 import { createShellMode } from '../client/v2/shell/canvas-mode.js';
 import { ModeSwitch, PAGES_REASON } from '../client/v2/shell/mode-switch.jsx';
 import { pagesPickBody, savePagesPick } from '../client/v2/shell/pages-pick.js';
@@ -157,6 +158,40 @@ describe('the bridge: `pages-view` from the active canvas only', () => {
     expect(acceptFromCanvas(ev(msg, sibling), ctx)).toBeNull();
     expect(acceptFromCanvas(ev({ ...msg, on: 'yes' }, active), ctx)).toBeNull();
     expect(acceptFromCanvas(ev({ ...msg, v: 2 }, active), ctx)).toBeNull();
+  });
+
+  test('2.0.7 polish: the report names the artboard on the page (a string, or nothing)', () => {
+    const msg = { dgn: 'pages-view', v: 1, on: true, index: 1, total: 6, id: 'p2' };
+    expect(acceptFromCanvas(ev(msg, active), ctx)).toEqual(msg as never);
+    expect(acceptFromCanvas(ev({ ...msg, id: 7 }, active), ctx)).toBeNull();
+  });
+});
+
+describe('2.0.7 polish — the left panel marks the artboard Pages shows (decision v2-207-pages-left-panel-follows)', () => {
+  test('the mode store keeps the page’s artboard while Pages is on, and drops it with Pages', () => {
+    const m = createShellMode();
+    expect(m.pages(true, 'p4')).toBe(true);
+    expect(m.get().pagesAt).toBe('p4');
+    // the next page is a change, the same report is not
+    expect(m.pages(true, 'p2')).toBe(true);
+    expect(m.get().pagesAt).toBe('p2');
+    expect(m.pages(true, 'p2')).toBe(false);
+    expect(m.pages(false)).toBe(true);
+    expect(m.get().pagesAt).toBeNull();
+    // junk is no artboard
+    m.pages(true, 7 as never);
+    expect(m.get().pagesAt).toBeNull();
+  });
+
+  test('the artboard in view: the page in Pages (it turns with ‹ ›), else the selected artboard', () => {
+    const sel = { file: '.design/ui/Six.tsx', artboardId: 'p1' };
+    expect(artboardInView({ selected: [sel], activePath: '.design/ui/Six.tsx' })).toBe('p1');
+    expect(
+      artboardInView({ selected: [sel], activePath: '.design/ui/Six.tsx', pagesAt: 'p4' })
+    ).toBe('p4');
+    // the selection of another canvas is not this canvas's
+    expect(artboardInView({ selected: sel, activePath: '.design/ui/Other.tsx' })).toBeNull();
+    expect(artboardInView({ selected: null, activePath: null })).toBeNull();
   });
 });
 

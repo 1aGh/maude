@@ -6,9 +6,13 @@
 // system's tokens and never CSS system colours: it is Maude's bar over the user's design, so a locked or
 // garish brand must not restyle it, and it follows the APP theme (a `Canvas` bar was white in the dark app).
 // 13 `DsBar`: island · 24 px `system` glyph tile · name · `.seg` Light | Dark · Review… as the primary button.
+// 2.0.7 polish (decision `v2-207-pages-on-ds-canvas`): Canvas | Pages and, in Pages, ‹ n / N › after Light | Dark —
+// the switch every ordinary canvas has on its pill (canvas-pages-view.tsx), which this canvas does not draw.
 
+import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { DsIcon } from '../../canvas-ds-icons.tsx';
+import { CanvasPagesSwitch } from '../../canvas-pages-view.tsx';
 import { setCanvasTheme } from '../../canvas-theme.ts';
 import { THEME_WORD, ThemeIcon } from '../../canvas-theme-icons.tsx';
 import { isEmbedCanvas } from '../../read-only-mode.ts';
@@ -27,11 +31,14 @@ export function DsBarView({
   mode,
   onMode,
   onReview,
+  pages = null,
 }: {
   model: BoardModel;
   mode: BoardMode;
   onMode: (m: BoardMode) => void;
   onReview?: () => void;
+  /** Canvas | Pages (the connected bar passes `CanvasPagesSwitch variant="ds"`) */
+  pages?: ReactNode;
 }) {
   const linked = !!model.library;
   // a linked library takes no edits here: nothing waits, so there is nothing to Review…
@@ -61,6 +68,7 @@ export function DsBarView({
           </button>
         ))}
       </fieldset>
+      {pages}
       {linked ? (
         <>
           <span className="ds-bar-sep" />
@@ -105,7 +113,13 @@ export function DsBar({ onReview, portal = true }: { onReview?: () => void; port
   // an embed (the reach view's Patterns frame, DDR-247) shows the design alone: the bar is Maude's chrome
   if (!model || isEmbedCanvas()) return null;
   const bar = (
-    <DsBarView model={model} mode={mode} onMode={(m) => setCanvasTheme(m)} onReview={ask} />
+    <DsBarView
+      model={model}
+      mode={mode}
+      onMode={(m) => setCanvasTheme(m)}
+      onReview={ask}
+      pages={<CanvasPagesSwitch variant="ds" />}
+    />
   );
   return portal && typeof document !== 'undefined' ? createPortal(bar, document.body) : bar;
 }

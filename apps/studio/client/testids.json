@@ -42421,7 +42421,7 @@
     "hook": "canvas-view",
     "kind": "testid",
     "pattern": false,
-    "meaning": "2.0.7 B2: the Canvas | Pages switch on the canvas pill, beside Light | Dark. Pages shows one artboard at a time in the Present order (else the layout order); the pick is remembered per canvas per Mac (`canvasView` in the view file).",
+    "meaning": "2.0.7 B2: the Canvas | Pages switch on the canvas pill, beside Light | Dark. Pages shows one artboard at a time in the Present order (else the layout order); the pick is remembered per canvas per Mac (`canvasView` in the view file). 2.0.7 polish: the Design system canvas has the same switch on its own bar (`ds-bar`), after its Light | Dark.",
     "producer": {
       "file": "apps/studio/canvas-pages-view.tsx",
       "symbol": "CanvasPagesSwitch"
@@ -42453,7 +42453,7 @@
     "hook": "canvas-pages-nav",
     "kind": "testid",
     "pattern": false,
-    "meaning": "2.0.7 B2: the pager on the pill, only in Pages: Previous page · n / N · Next page.",
+    "meaning": "2.0.7 B2: the pager on the pill, only in Pages: Previous page · n / N · Next page. On the Design system canvas it sits on the `ds-bar`.",
     "producer": {
       "file": "apps/studio/canvas-pages-view.tsx",
       "symbol": "CanvasPagesSwitch"

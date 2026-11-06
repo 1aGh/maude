@@ -4,7 +4,7 @@
 // Both are plain buttons that call what the tree already had: the design-system view (`onOpenSystem`)
 // and the Trash list (TrashView below the list's owner).
 
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { pathTestIdSlug } from '../../shell/util.js';
 import { DigitalIcon, PrintIcon, VideoIcon, WebIcon } from '../canvases/canvas-icons.jsx';
@@ -21,6 +21,12 @@ const KIND_GLYPH = { web: WebIcon, digital: DigitalIcon, print: PrintIcon, video
 function DsBoardList({ dsName, list, activePath, activeArtboard, onJump }) {
   const slug = pathTestIdSlug(list.path);
   const onCanvas = activePath === list.path;
+  // 2.0.7 polish — the artboard in view moved (Pages' ‹ › turn it): its row scrolls into view, once per artboard
+  const curRef = useRef(null);
+  const inView = onCanvas ? activeArtboard : null;
+  useEffect(() => {
+    if (inView) curRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [inView]);
   return (
     <div className="lp-ds-boards" data-testid="canvases-ds-boards" data-ds={dsName}>
       {list.boards.map((b) => {
@@ -32,6 +38,7 @@ function DsBoardList({ dsName, list, activePath, activeArtboard, onJump }) {
             <button
               type="button"
               className="cv-main"
+              ref={current ? curRef : undefined}
               data-testid={`jump-artboard-${slug}-${b.id}`}
               data-kind={b.kind}
               aria-current={current ? 'true' : undefined}

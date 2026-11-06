@@ -132,6 +132,14 @@ export function usePagesView() {
   return useSyncExternalStore(shellMode.subscribe, pagesNow, pagesNow);
 }
 
+const pagesAtNow = () =>
+  shellMode.get().pages === true ? (shellMode.get().pagesAt ?? null) : null;
+
+/** 2.0.7 polish — the artboard on the active canvas's page while it shows Pages, else null. */
+export function usePagesArtboard() {
+  return useSyncExternalStore(shellMode.subscribe, pagesAtNow, pagesAtNow);
+}
+
 // S3.2b — the shell's own controls (and the keys the shell hears) step the presenting canvas through the
 // lane the mounted hook owns; there is one lane per window, so one registered stepper.
 let presentStepper = null;
@@ -311,8 +319,9 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
       if (m.dgn === 'peers') {
         setPeers(m.peers);
       } else if (m.dgn === 'pages-view') {
-        // 2.0.7 B2 — the active canvas shows Pages (or stopped): Preview and Present follow (canvas-mode.js)
-        shellMode.pages(m.on);
+        // 2.0.7 B2 — the active canvas shows Pages (or stopped): Preview and Present follow (canvas-mode.js);
+        // 2.0.7 polish — with the artboard on the page, which the left panel marks
+        shellMode.pages(m.on, m.id);
       } else if (m.dgn === 'pages-pick') {
         // 2.0.7 B2 — the person switched Canvas | Pages: remember it for the canvas the shell has open
         void savePagesPick(L.activePath, L.cfg?.designRel, m.view);

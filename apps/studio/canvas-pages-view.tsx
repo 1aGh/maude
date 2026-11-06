@@ -6,8 +6,14 @@
 //                     a resize or when the shell's panels move), hears PageDown / PageUp (and → / ← with nothing
 //                     selected) through the registry, and tells the shell `pages-view` — again on every `set-mode`
 //                     seed, so a newly active canvas is never mistaken for the last one.
-//   CanvasPagesSwitch the pill's Canvas | Pages and, in Pages, ‹ n / N ›.
-//   runPagesAction    the shell's `run-action` lane: `view.pages`, `pages.next`, `pages.prev`.
+//   CanvasPagesSwitch the pill's Canvas | Pages and, in Pages, ‹ n / N › — also on the Design system canvas's bar
+//                     (ds/board/ds-bar.tsx, `variant="ds"`; decision `v2-207-pages-on-ds-canvas`).
+//   runPagesAction    the shell's `run-action` lane: `view.pages`, `pages.next`, `pages.prev` — and, while Pages
+//                     shows, `view.zoom-to-artboard` turns to that artboard's page (`turnToPage`).
+//
+// A pick in the left panel (or a selection made anywhere) of an artboard Pages has out of sight turns to its page
+// (decision `v2-207-pages-pick-turns-page`): the jump selects the artboard and frames it, and before 2.0.7 polish
+// the camera and the selection box went to a hidden artboard — an empty frame.
 
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { canvasInsets, canvasModeStore } from './bridge/canvas-mode-store.ts';
@@ -61,12 +67,22 @@ function useInsetsSeq(): number {
 
 const pageAtNow = () => getPagesState().at;
 
-/** `pages-view` to the studio (bridge/dgn-protocol.ts — active canvas only). Nothing outside the studio window. */
-function tellShell(r: { on: boolean; index: number; total: number }): void {
+/**
+ * `pages-view` to the studio (bridge/dgn-protocol.ts — active canvas only): on, which page of how many, and the
+ * artboard on it (`id`, only while on — the left panel marks it). Nothing outside the studio window.
+ */
+function tellShell(r: { on: boolean; index: number; total: number; id: string | null }): void {
   if (typeof window === 'undefined' || window.parent === window) return;
   try {
     window.parent.postMessage(
-      { dgn: 'pages-view', v: 1, on: r.on, index: r.index, total: r.total },
+      {
+        dgn: 'pages-view',
+        v: 1,
+        on: r.on,
+        index: r.index,
+        total: r.total,
+        ...(r.on && r.id ? { id: r.id } : {}),
+      },
       '*'
     );
   } catch {
@@ -79,6 +95,27 @@ export function usePagesShowing(here: boolean): boolean {
   const view = useCanvasView();
   const mode = useShellMode();
   return here && view === 'pages' && pagesApply(mode);
+}
+
+/** May the switch be offered here? (Edit or Viewing in the studio window — not Preview, Present, a capture.) */
+export function usePagesAvailable(): boolean {
+  return pagesApply(useShellMode());
+}
+
+/** What the mounted canvas's Pages is doing, for the shell's lanes (one canvas per frame). */
+const live: { on: boolean; fit: (() => void) | null } = { on: false, fit: null };
+
+/**
+ * Turn to artboard `id`'s page when Pages shows and has it; already on it, put the camera back on the page.
+ * True when Pages took it (the caller then leaves the camera alone).
+ */
+export function turnToPage(id: unknown): boolean {
+  if (!live.on || typeof id !== 'string' || !id) return false;
+  const { order, at } = getPagesState();
+  if (!order.includes(id)) return false;
+  if (at === id) live.fit?.();
+  else setPageAt(id);
+  return true;
 }
 
 function presentMeta(): PresentMeta | undefined {
@@ -121,6 +158,13 @@ export function usePagesView(opts: UsePagesViewOptions): boolean {
   const selArt = useRef(opts.selectedArtboard);
   selArt.current = opts.selectedArtboard;
   const on = usePagesShowing(here);
+  live.on = on;
+  useEffect(
+    () => () => {
+      live.on = false;
+    },
+    []
+  );
   const at = useSyncExternalStore(subscribeCanvasView, pageAtNow, pageAtNow);
   const insetsSeq = useInsetsSeq();
   const ctlRef = useRef(controller);
@@ -158,6 +202,15 @@ export function usePagesView(opts: UsePagesViewOptions): boolean {
     wasOn.current = on;
   }, [on]);
 
+  // a selection made on another artboard (a left-panel pick, Layers, the AI) turns to its page: Pages never leaves
+  // the selection — or the camera the jump moves — on an artboard it hides
+  const selNow = opts.selectedArtboard();
+  useEffect(() => {
+    if (!on || !selNow) return;
+    const { order, at: showing } = getPagesState();
+    if (selNow !== showing && order.includes(selNow)) setPageAt(selNow);
+  }, [on, selNow]);
+
   // the rule that leaves the one page
   useEffect(() => {
     ensureStyle(on && at ? pagesHideCss(at) : null);
@@ -179,21 +232,29 @@ export function usePagesView(opts: UsePagesViewOptions): boolean {
       );
     };
     fit();
-    if (!host || typeof ResizeObserver === 'undefined') return undefined;
+    live.fit = fit;
+    const unfit = () => {
+      if (live.fit === fit) live.fit = null;
+    };
+    if (!host || typeof ResizeObserver === 'undefined') return unfit;
     const ro = new ResizeObserver(() => fit());
     ro.observe(host);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      unfit();
+    };
   }, [on, at, rectKey, insetsSeq]);
 
   // tell the shell (Preview and Present are off while Pages is on) — and again when it seeds this canvas
   const pos = usePagePosition();
   const index = pos?.index ?? 0;
   const total = pos?.total ?? 0;
-  const report = useRef({ on, index, total });
-  report.current = { on, index, total };
+  const id = pos ? at : null;
+  const report = useRef({ on, index, total, id });
+  report.current = { on, index, total, id };
   useEffect(() => {
-    tellShell({ on, index, total });
-  }, [on, index, total]);
+    tellShell({ on, index, total, id });
+  }, [on, index, total, id]);
   useEffect(() => {
     if (typeof window === 'undefined' || window.parent === window) return undefined;
     const onMsg = (e: MessageEvent) => {
@@ -227,8 +288,13 @@ export function usePagesView(opts: UsePagesViewOptions): boolean {
   return on;
 }
 
-/** The shell's `run-action` for Pages. True when the id was one of these (handled, or ignored in Preview/Present). */
-export function runPagesAction(id: unknown): boolean {
+/**
+ * The shell's `run-action` for Pages. True when the id was one of these (handled, or ignored in Preview/Present).
+ * `view.zoom-to-artboard` is Pages' only while it shows and has the artboard (it turns the page); else false, and the
+ * caller frames the artboard as always.
+ */
+export function runPagesAction(id: unknown, params?: { id?: unknown }): boolean {
+  if (id === 'view.zoom-to-artboard') return turnToPage(params?.id);
   if (id === 'view.pages') {
     if (!pagesApply(modeStore()?.get().mode ?? null)) return true;
     setCanvasView(getCanvasView() === 'pages' ? 'canvas' : 'pages');
@@ -247,23 +313,33 @@ const SEG_TITLE = {
   pages: 'One artboard at a time',
 } as const;
 
-/** The pill's Canvas | Pages, and in Pages ‹ n / N ›. Drawn in the pill's own classes (canvas-theme-pill.tsx). */
-export function CanvasPagesSwitch() {
+/** The two homes of the switch: the canvas pill (canvas-theme-pill.tsx) and the Design system bar (ds-bar.tsx). */
+const SEG_CLASS = {
+  pill: { seg: 'dc-theme-pill-seg', b: 'dc-theme-pill-b' },
+  ds: { seg: 'ds-bar-seg', b: 'ds-bar-b' },
+} as const;
+
+/**
+ * Canvas | Pages, and in Pages ‹ n / N ›, drawn in its host's own classes: the canvas pill's, or the Design system
+ * bar's (`variant="ds"`, which also brings the pager's chrome and steps aside where Pages cannot show — the pill
+ * itself is gone there).
+ */
+export function CanvasPagesSwitch({ variant = 'pill' }: { variant?: 'pill' | 'ds' } = {}) {
   const view = useCanvasView();
   const pos = usePagePosition();
+  const available = usePagesAvailable();
   const pages = view === 'pages';
+  const cls = SEG_CLASS[variant];
+  if (variant === 'ds' && !available) return null;
   return (
     <>
-      <fieldset
-        className="dc-theme-pill-seg"
-        aria-label="Show the canvas as"
-        data-testid="canvas-view"
-      >
+      {variant === 'ds' ? <style data-dc-pages-css="">{PAGES_PILL_CSS}</style> : null}
+      <fieldset className={cls.seg} aria-label="Show the canvas as" data-testid="canvas-view">
         {(['canvas', 'pages'] as const).map((v) => (
           <button
             key={v}
             type="button"
-            className="dc-theme-pill-b"
+            className={cls.b}
             data-testid={`canvas-view-${v}`}
             aria-pressed={view === v}
             title={SEG_TITLE[v]}

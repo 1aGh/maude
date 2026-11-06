@@ -135,6 +135,45 @@ describe('the system row opens into its artboards', () => {
     }
   });
 
+  test('2.0.7 polish: the artboard in view moving (Pages’ ‹ ›) scrolls its row into view', () => {
+    const boards = dsBoardLists(ROWS, { snapshot: SNAP, designRel: D, systems: SYSTEMS });
+    const seen: string[] = [];
+    const proto = window.HTMLElement.prototype as unknown as { scrollIntoView?: unknown };
+    const real = proto.scrollIntoView;
+    proto.scrollIntoView = function (this: HTMLElement) {
+      seen.push(this.getAttribute('data-testid') ?? '');
+    };
+    try {
+      const path = '.design/system/web/design-system.tsx';
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+      const root = createRoot(host);
+      roots.push(root);
+      const render = (id: string) =>
+        act(() =>
+          root.render(
+            <Pinned
+              rows={ROWS}
+              onOpen={() => {}}
+              boards={boards}
+              activePath={path}
+              activeArtboard={id}
+            />
+          )
+        );
+      render('ds-brand');
+      act(() => q(host, `[data-testid="canvas-jump-toggle-${SLUG}"]`)?.click());
+      seen.length = 0;
+      render('ds-type');
+      expect(seen).toEqual([`jump-artboard-${SLUG}-ds-type`]);
+      // the same artboard again: no scroll
+      render('ds-type');
+      expect(seen).toHaveLength(1);
+    } finally {
+      proto.scrollIntoView = real;
+    }
+  });
+
   test('the artboard in view on the open Design system canvas is marked', () => {
     const boards = dsBoardLists(ROWS, { snapshot: SNAP, designRel: D, systems: SYSTEMS });
     const host = mount({
