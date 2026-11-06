@@ -118,6 +118,27 @@ export function turnToPage(id: unknown): boolean {
   return true;
 }
 
+/**
+ * A pick (`select-by-id`: Layers, the Canvases tab, the AI, a restore) of artboard `id` while Pages shows: turn to its
+ * page when another one is showing (decision `v2-207-pages-stale-selection` — keyed on the pick, never on a change
+ * of the selected artboard, so the artboard that was selected before a page step turns back too). True when the
+ * page turned (the page's own camera follows; the caller leaves the camera alone). On its page already → false, and
+ * the pick reveals inside the page as always.
+ */
+export function pickTurnsPage(id: unknown): boolean {
+  if (!live.on || typeof id !== 'string' || !id) return false;
+  const { order, at } = getPagesState();
+  if (at === id || !order.includes(id)) return false;
+  setPageAt(id);
+  return true;
+}
+
+/** Tests only: leave the selection behind on a page turn, so a pick can be shown to turn back on its own. */
+let dropOff = false;
+export function __pagesDropOff(off: boolean): void {
+  dropOff = off;
+}
+
 function presentMeta(): PresentMeta | undefined {
   if (typeof window === 'undefined') return undefined;
   return (window as unknown as { __canvas_meta__?: { present?: PresentMeta } }).__canvas_meta__
@@ -151,6 +172,12 @@ export interface UsePagesViewOptions {
   here: boolean;
   /** What the canvas has selected, for the → / ← aliases (a selection's arrows nudge it). */
   selectionNone: () => boolean;
+  /**
+   * The page showing is now `page`: drop whatever is selected on another artboard (decision
+   * `v2-207-pages-stale-selection`). Called synchronously on every page turn while Pages shows — keys, ‹ ›, a
+   * script, run-action, a left-panel jump, a layout change — so it must read the selection as of now, not a render.
+   */
+  dropOffPage?: (page: string) => void;
 }
 
 export function usePagesView(opts: UsePagesViewOptions): boolean {
@@ -210,6 +237,28 @@ export function usePagesView(opts: UsePagesViewOptions): boolean {
     const { order, at: showing } = getPagesState();
     if (selNow !== showing && order.includes(selNow)) setPageAt(selNow);
   }, [on, selNow]);
+
+  // …and the other way round (decision `v2-207-pages-stale-selection`): a page turn by ANY route drops what is
+  // selected on the artboard it leaves — no outline on empty canvas, no Inspector naming a hidden artboard. What a
+  // real mouse click on › already did (that click lands on the canvas and clears); keys, a script click, run-action
+  // and a left-panel jump did not. Synchronous, in the store's own listener, so a pick that turns the page (it
+  // selected first) is read as it is now and kept.
+  const dropRef = useRef(opts.dropOffPage);
+  dropRef.current = opts.dropOffPage;
+  useEffect(() => {
+    let last = getPagesState().at;
+    return subscribeCanvasView(() => {
+      const now = getPagesState().at;
+      if (now === last) return;
+      last = now;
+      if (live.on && now && !dropOff) dropRef.current?.(now);
+    });
+  }, []);
+  useEffect(() => {
+    // Pages coming on opens on the selected artboard; anything else selected (a multi-selection) is off the page
+    const showing = getPagesState().at;
+    if (on && showing && !dropOff) dropRef.current?.(showing);
+  }, [on]);
 
   // the rule that leaves the one page
   useEffect(() => {
