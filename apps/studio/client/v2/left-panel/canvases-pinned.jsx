@@ -4,9 +4,57 @@
 // Both are plain buttons that call what the tree already had: the design-system view (`onOpenSystem`)
 // and the Trash list (TrashView below the list's owner).
 
+import { Fragment, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { pathTestIdSlug } from '../../shell/util.js';
+import { DigitalIcon, PrintIcon, VideoIcon, WebIcon } from '../canvases/canvas-icons.jsx';
+import { JumpToggle } from '../canvases/jump-list.jsx';
+import { KIND_LABEL } from '../canvases/jump-model.js';
+import { dispatchArtboardJump } from './left-panel-bus.js';
 import { trashRowCount } from './left-panel-model.js';
 import { SystemRenameField } from '../ds/system-rename.jsx';
+
+const KIND_GLYPH = { web: WebIcon, digital: DigitalIcon, print: PrintIcon, video: VideoIcon };
+
+/** 2.0.7 (B3) — the artboards of a system's Design system canvas, under its row (the canvas row's 11 · pn-jump
+ *  list). A click takes the camera there: the canvas opens if it is not the one on screen. */
+function DsBoardList({ dsName, label, list, activePath, activeArtboard, onJump }) {
+  const slug = pathTestIdSlug(list.path);
+  const onCanvas = activePath === list.path;
+  return (
+    <div
+      className="lp-ds-boards"
+      data-testid="canvases-ds-boards"
+      data-ds={dsName}
+      role="group"
+      aria-label={`Artboards in ${label}`}
+    >
+      {list.boards.map((b) => {
+        const Glyph = KIND_GLYPH[b.kind] || WebIcon;
+        const word = KIND_LABEL[b.kind] || b.kind;
+        const current = onCanvas && activeArtboard === b.id;
+        return (
+          <div key={b.id} className={`cv-row cv-row--board lp-ds-board${current ? ' is-sel' : ''}`}>
+            <button
+              type="button"
+              className="cv-main"
+              data-testid={`jump-artboard-${slug}-${b.id}`}
+              data-kind={b.kind}
+              aria-current={current ? 'true' : undefined}
+              title={`${b.label} — ${word}`}
+              onClick={() => (onJump || dispatchArtboardJump)(list.path, b.id)}
+            >
+              <span className="cv-bk" role="img" aria-label={word}>
+                <Glyph size={12} />
+              </span>
+              <span className="cv-name">{b.label}</span>
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /** A trash can on the shell's 16-box icon grid (the icon set has none). */
 export function TrashIcon({ size = 14 }) {
@@ -40,7 +88,10 @@ export function TrashIcon({ size = 14 }) {
  *    empty   { label } | null            onMake()                the empty row's door
  *                                        onBringUp(ds)           S10.15b: a click on the amber dot (omit = the dot is only a mark)
  *    renaming  dsName | null             onRename(row, name)     P8 round 7: that row's name is a field (Rename…, 13 · ds-multi-menu)
- *                                        onRenameDone()          the field closed (↵ or esc) */
+ *                                        onRenameDone()          the field closed (↵ or esc)
+ *    boards  Map dsName → { path, boards } (ds-boards.js)  2.0.7 (B3): a row with artboards opens into them
+ *    activePath, activeArtboard          the canvas on screen and the artboard in view (the list marks it)
+ *                                        onJump(path, id)        a click on an artboard (omit = the left-panel bus) */
 export function DsPinnedRows({
   rows,
   activeDsName,
@@ -53,7 +104,13 @@ export function DsPinnedRows({
   renaming = null,
   onRename,
   onRenameDone,
+  boards = null,
+  activePath = null,
+  activeArtboard = null,
+  onJump,
 }) {
+  // which rows show their artboards: the person's own choice, this session (a canvas row's list is the same)
+  const [openLists, setOpenLists] = useState(() => new Set());
   if (!rows?.length && !empty) return null;
   return (
     <div className="lp-pinned" data-testid="canvases-pinned">
@@ -89,8 +146,26 @@ export function DsPinnedRows({
               </div>
             </div>
           );
-        return (
-          <div key={r.dsName} className="lp-ds-wrap">
+        const list = boards?.get?.(r.dsName) ?? null;
+        const listOpen = !!list && openLists.has(r.dsName);
+        const row = (
+          <div className={`lp-ds-wrap${list ? ' lp-ds-wrap--jump' : ''}`}>
+            {list ? (
+              <JumpToggle
+                open={listOpen}
+                slug={pathTestIdSlug(list.path)}
+                name={r.label}
+                left={0}
+                onToggle={() =>
+                  setOpenLists((s) => {
+                    const n = new Set(s);
+                    if (n.has(r.dsName)) n.delete(r.dsName);
+                    else n.add(r.dsName);
+                    return n;
+                  })
+                }
+              />
+            ) : null}
             <button
               type="button"
               className={`lp-row lp-ds${on ? ' is-sel' : ''}${r.sub ? ' lp-ds--two' : ''}`}
@@ -150,6 +225,21 @@ export function DsPinnedRows({
               </button>
             ) : null}
           </div>
+        );
+        return (
+          <Fragment key={r.dsName}>
+            {row}
+            {listOpen ? (
+              <DsBoardList
+                dsName={r.dsName}
+                label={r.label}
+                list={list}
+                activePath={activePath}
+                activeArtboard={activeArtboard}
+                onJump={onJump}
+              />
+            ) : null}
+          </Fragment>
         );
       })}
       {empty ? (

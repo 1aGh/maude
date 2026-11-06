@@ -26,6 +26,8 @@ import { CanvasesAdvanced, useAdvancedOpen } from '../v2/left-panel/canvases-adv
 import { DsPinnedRows, NewCanvasRow, TrashRow } from '../v2/left-panel/canvases-pinned.jsx';
 import { OPEN_TRASH_EVENT, takeTrashRequest } from '../v2/left-panel/left-panel-bus.js';
 import { dsPinnedModel, trashRowCount } from '../v2/left-panel/left-panel-model.js';
+import { dsBoardLists } from '../v2/left-panel/ds-boards.js';
+import { useIndexSnapshotNow } from '../v2/canvases/use-canvas-index.js';
 import { openNewCanvasDialog } from '../v2/create/new-canvas.js';
 import { systemMenuItems } from '../v2/ds/system-menu.jsx';
 import { trashedTokenItems } from '../v2/ds/door-write.js';
@@ -914,6 +916,18 @@ export function Sidebar({
     [groups, dsCfg, dsDesignRel, dsState, onDsAction, readOnly]
   );
   const pinnedDs = dsModel.rows;
+  // 2.0.7 (B3) — each system row's Design system canvas artboards, from the index the Canvases panel read
+  const indexSnap = useIndexSnapshotNow();
+  const dsBoards = useMemo(
+    () =>
+      dsBoardLists(pinnedDs, {
+        snapshot: indexSnap,
+        designRel: dsDesignRel,
+        systems: dsCfg?.designSystems ?? [],
+        groups,
+      }),
+    [pinnedDs, indexSnap, dsDesignRel, dsCfg, groups]
+  );
   // p8-v1-drop — the systems below Conformant are offered "Bring it up" in ⌘K too (client/v2/ds/upgrade-offers.js)
   useEffect(() => {
     if (!onDsAction || readOnly) return undefined;
@@ -1405,6 +1419,9 @@ export function Sidebar({
               renaming={renamingDs}
               onRename={(row, label) => onDsAction?.('ds.rename', { ds: row.dsName, label })}
               onRenameDone={() => setRenamingDs(null)}
+              boards={dsBoards}
+              activePath={activePath}
+              activeArtboard={activeArtboard}
             />
           )}
           {/* S1.1 — the canvases, virtualised: Pinned, the project row with Sort, folders with counts.

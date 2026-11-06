@@ -11513,6 +11513,19 @@
     "v2": "new"
   },
   {
+    "hook": "canvases-ds-boards",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "2.0.7: the artboards of a pinned system row's Design system canvas, in the canvas's order (`data-ds`), shown while its twisty (`canvas-jump-toggle-<slug>`) is open. Each row is `jump-artboard-<slug>-<artboardId>`; a click opens the canvas if needed and takes the camera there.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "DsBoardList"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "canvases-ds-row-renaming",
     "kind": "testid",
     "pattern": false,
@@ -16442,7 +16455,13 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "v2": "new"
+    "v2": "new",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+        "symbol": "DsPinnedRows"
+      }
+    ]
   },
   {
     "hook": "jump-artboard-<slug>-<artboardId>",
@@ -16455,7 +16474,13 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "v2": "new"
+    "v2": "new",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+        "symbol": "DsBoardList"
+      }
+    ]
   },
   {
     "hook": "jump-dynamic-<slug>",
