@@ -3508,6 +3508,118 @@
     "v2": "stable"
   },
   {
+    "hook": "sync-folders",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Issue #207 — the large-folders section of Sync details: render sequences going up, and the folders the project leaves out.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "FoldersSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-folders.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-large-seq-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One folder with a long run of pictures still going up (`files.largeSequences[i]`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "FoldersSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-folders.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-large-seq-ignore-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "“Don’t sync this folder” on that card (`sync.ignore-folder`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "FoldersSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-folders.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-large-seq-left-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The note shown once that folder is left out.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "FoldersSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-folders.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-ignored-folders",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The list of folders this project does not sync (`linkedHub.ignoreFolders`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "FoldersSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-folders.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-ignored-folder-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One left-out folder row.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "FoldersSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-folders.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-ignored-folder-resume-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "“Sync it again” on that row (`sync.sync-folder-again`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "FoldersSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-folders.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "sync-assets-stay",
     "kind": "testid",
     "pattern": false,

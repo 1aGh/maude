@@ -204,6 +204,14 @@ export interface FilePlaneStatus {
     byClass: Record<string, { files: number; bytes: number }>;
   };
   /**
+   * Issue #207 — folders with a long run of pictures still going up (a render sequence). Not a
+   * fault: they sync like everything else. Sync details names them and offers "Don't sync this
+   * folder". Absent when there are none.
+   */
+  largeSequences?: { folder: string; files: number; bytes: number }[];
+  /** Issue #207 — the folders this project does not sync (`linkedHub.ignoreFolders`). */
+  ignoreFolders?: string[];
+  /**
    * The hub asked us to slow down and the WHOLE LANE is paused until `until`.
    *
    * Distinguished from `failed` because the answer is different: nothing is

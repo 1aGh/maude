@@ -4524,8 +4524,18 @@ export function createHttp(
         syncFiles?: unknown;
         propagateDeletes?: unknown;
         resolveFirstAnchor?: unknown;
+        addIgnoreFolder?: unknown;
+        removeIgnoreFolder?: unknown;
       }>(req, 4 * 1024);
       const patch: Record<string, unknown> = {};
+      // Issue #207 — Sync details › "Don't sync this folder" / "Sync it again": one folder at a time.
+      for (const key of ['addIgnoreFolder', 'removeIgnoreFolder'] as const) {
+        if (!(key in (body ?? {}))) continue;
+        const v = body?.[key];
+        if (typeof v !== 'string' || v.length === 0 || v.length > 1024)
+          return new Response(`${key} must be a folder path`, { status: 400 });
+        patch[key] = v;
+      }
       if ('syncFiles' in (body ?? {})) {
         if (typeof body?.syncFiles !== 'boolean')
           return new Response('syncFiles must be a boolean', { status: 400 });

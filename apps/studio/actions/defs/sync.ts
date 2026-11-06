@@ -46,6 +46,10 @@ export const SYNC_ACTIONS: ActionDef[] = [
   // Mac (the window's own fetch only, Can edit).
   pick('sync.allow-code', 'Allow shared code…'),
   pick('sync.stop-code', 'Stop allowing shared code…'),
+  // Issue #207 — Sync details › a long run of pictures going up: leave its folder out, or bring a
+  // left-out folder back (`POST /_api/sync/settings { addIgnoreFolder | removeIgnoreFolder }`).
+  pick('sync.ignore-folder', 'Don’t sync this folder'),
+  pick('sync.sync-folder-again', 'Sync it again'),
   // Get latest (moved here from Version history) and Sign in again: every role keeps them
   { id: 'sync.get-latest', label: 'Get latest', kind: 'command', exec: 'shell', search: ROW },
   { id: 'sync.sign-in-again', label: 'Sign in again', kind: 'command', exec: 'shell', search: ROW },

@@ -41,8 +41,13 @@ export interface SeedProgress {
   tracked: number;
   /** Rows in a terminal-good state. */
   delivered: number;
-  /** `tracked - delivered - blocked - held`, floored at 0. */
+  /** `tracked - delivered - blocked - held - ignored`, floored at 0. */
   remaining: number;
+  /**
+   * Issue #207 — rows in a folder the project does not sync (`linkedHub.ignoreFolders`). A
+   * person's choice, not waiting and not a fault: their own count, outside `remaining`.
+   */
+  ignored?: number;
   /**
    * Issue #204 — rows this Mac REFUSES to take (a code module from a hub it has not vouched for).
    * Not waiting — nothing moves them but a person's consent — and not "blocked" on the hub's side
@@ -198,6 +203,7 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
   let held = 0;
   let heldCode = 0;
   let heldDeletedHere = 0;
+  let ignored = 0;
   let retrying = 0;
   let retryingFile: { rel: string; reason: string } | undefined;
   const blockedCounts = new Map<BlockedClass, number>();
@@ -207,6 +213,10 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
     const state = row.state;
     if (state && DELIVERED.has(state)) {
       delivered += 1;
+      continue;
+    }
+    if (state === 'ignored') {
+      ignored += 1;
       continue;
     }
     if (isHeldByConsent(row)) {
@@ -236,7 +246,7 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
     .map(([cls, count]) => ({ class: cls, count }))
     .sort((a, b) => b.count - a.count);
   const blockedTotal = blocked.reduce((n, b) => n + b.count, 0);
-  const remaining = Math.max(0, tracked - delivered - blockedTotal - held);
+  const remaining = Math.max(0, tracked - delivered - blockedTotal - held - ignored);
 
   const paused =
     typeof input.pausedUntil === 'number' && Number.isFinite(input.pausedUntil)
@@ -261,6 +271,7 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
     held,
     heldCode,
     heldDeletedHere,
+    ...(ignored > 0 ? { ignored } : {}),
     retrying,
     ...(retryingFile ? { retryingFile } : {}),
     bytesRemaining,

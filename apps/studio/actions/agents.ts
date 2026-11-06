@@ -181,6 +181,20 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/sync/cancel-assets', method: 'POST' },
     agent: cli('maude design curl-local -X POST http://127.0.0.1:<port>/_api/sync/cancel-assets'),
   },
+  // Issue #207 — which folders a project syncs is the person's choice (a versioned config write
+  // that changes what reaches the team), so the AI is never taught it.
+  'sync.ignore-folder': {
+    effect: 'none',
+    minRole: 'edit',
+    server: { route: '/_api/sync/settings', method: 'POST' },
+    agent: human('hub-link', 'which folders the project syncs is the person’s choice'),
+  },
+  'sync.sync-folder-again': {
+    effect: 'none',
+    minRole: 'edit',
+    server: { route: '/_api/sync/settings', method: 'POST' },
+    agent: human('hub-link', 'which folders the project syncs is the person’s choice'),
+  },
   // p8-held-conflict-status — the two versions of a held source conflict (read only): this Mac's file and
   // the project's, kept in `_history/<slug>/sync-recovery/`. `maude design sync status` lists the slugs.
   // No `server`: the action itself only opens a sheet; the read under it is Sync details' own GET.

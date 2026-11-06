@@ -100,6 +100,8 @@ export type DeliveryState =
   | 'referenced-but-unoffered'
   /** On this disk, and the hub has not acknowledged it. */
   | 'local-only'
+  /** Issue #207 — in a folder the project does not sync (`linkedHub.ignoreFolders`). Not waiting. */
+  | 'ignored'
   /** Upload in flight. */
   | 'pushing'
   /** The hub answered 2xx and gave it a seq. */
@@ -143,6 +145,14 @@ export interface LedgerRow {
    * the ancestor-LEADS failure the whole ordering rule exists to prevent.
    */
   localHash?: string;
+  /**
+   * Issue #207 — the last bytes this Mac SAW at this path (set with `localHash`, but never cleared
+   * by `noteChanged`). An observation, not an ancestor: it lets a file that is gone from here, and
+   * whose bytes the hub holds unchanged, read as deleted HERE rather than offered by the hub — an
+   * upload that landed while its answer was lost left no ancestor, and the next pass downloaded
+   * the moved-out renders again.
+   */
+  lastSeenHash?: string;
   /** Stat cache: the size `localHash` was computed for. */
   size?: number;
   /** Stat cache: the mtime `localHash` was computed for. */
@@ -420,6 +430,7 @@ export function createFileLedger(opts: FileLedgerOptions): FileLedger {
       out[rel] = {
         syncedHash: typeof r.syncedHash === 'string' ? r.syncedHash : null,
         ...(typeof r.localHash === 'string' ? { localHash: r.localHash } : {}),
+        ...(typeof r.lastSeenHash === 'string' ? { lastSeenHash: r.lastSeenHash } : {}),
         ...(Number.isInteger(r.remoteSeq) ? { remoteSeq: r.remoteSeq } : {}),
         ...(typeof r.remoteHash === 'string' || r.remoteHash === null
           ? { remoteHash: r.remoteHash }
@@ -618,6 +629,7 @@ export function createFileLedger(opts: FileLedgerOptions): FileLedger {
       // match is not read at all.
       const r = rowFor(rel);
       r.localHash = hash;
+      r.lastSeenHash = hash;
       r.size = size;
       r.mtimeMs = mtimeMs;
       // A file whose bytes differ from the ancestor has unsent work on it, and

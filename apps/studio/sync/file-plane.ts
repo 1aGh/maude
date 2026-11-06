@@ -112,6 +112,9 @@ export const MAX_FILE_BYTES = (() => {
  *  happens, so it is kept at a size where twice the file does not matter. */
 export const STREAM_DOWNLOAD_ABOVE_BYTES = 1024 * 1024;
 
+/** Issue #207 — above this an upload body streams from disk instead of being read into memory. */
+export const STREAM_UPLOAD_ABOVE_BYTES = 1024 * 1024;
+
 /** sha256 of a file, read in 1 MiB chunks (T18 — a video is never held whole). */
 export function sha256File(abs: string): string {
   const hash = createHash('sha256');
@@ -427,6 +430,12 @@ export interface FilePlaneResult {
   requestsExhausted?: true;
   /** The pass stopped because it had moved `MAX_FILES_PER_PASS` files (issue #204). */
   filesCapped?: true;
+  /** Issue #207 — uploads cancelled because the file left this Mac after the scan (not failures). */
+  gone?: number;
+  /** Issue #207 — files on this disk inside a folder the project does not sync (`linkedHub.ignoreFolders`). */
+  ignored?: number;
+  /** Issue #207 — folders with a long run of pictures still going up (see `largeSequences`). */
+  largeSequences?: LargeSequence[];
   /**
    * Issue #204 — files whose bytes the hub is still FETCHING FROM ITS BUCKET (a cold cell's
    * `503 fetching from storage`). Not delivered, not failed, not stuck: each is backed off for the
@@ -521,6 +530,13 @@ export interface FilePlaneOptions {
   label: string;
   /** Increment 6. Off means a local absence is HELD, never propagated. */
   propagateDeletes?: boolean;
+  /**
+   * Issue #207 — design-root-relative folders this project does not sync
+   * (`linkedHub.ignoreFolders` in the project config). Nothing under them moves either way.
+   * A getter is read at the start of every pass, so a folder left out mid-upload stops at the
+   * next pass instead of at the next restart.
+   */
+  ignoreFolders?: readonly string[] | (() => readonly string[]);
   /**
    * The outbound delete breaker is OFF: a deliberate bulk delete on this
    * machine propagates in one pass. Computed by the caller from LOCAL consent
@@ -639,18 +655,190 @@ type LocalFile = SyncableLocalFile | OversizedLocalFile;
 const sha256 = (bytes: Uint8Array | string): string =>
   createHash('sha256').update(bytes).digest('hex');
 
+interface WalkedFile {
+  rel: string;
+  abs: string;
+  size: number;
+  mtimeMs: number;
+}
+
 /**
- * Walk the design root and hash what the classifier admits.
+ * Walk the design root and hash what the classifier admits — synchronously.
  *
  * The stat cache is what makes this cheap: a converged project re-reads
  * nothing, because every file's `(size, mtimeMs)` still matches the ledger.
+ * The plane itself scans with `scanLocalFilesAsync` (issue #207); this stays
+ * for callers with no event loop to protect.
  */
 export function scanLocalFiles(
   designRoot: string,
   ledger: FileLedger,
   canvasGroups?: readonly CanvasGroupLike[]
 ): Map<string, LocalFile> {
-  const found: { rel: string; abs: string; size: number; mtimeMs: number }[] = [];
+  const out = new Map<string, LocalFile>();
+  for (const { f, cls } of walkAndClassify(designRoot, canvasGroups)) {
+    if (f.size > MAX_FILE_BYTES) {
+      out.set(f.rel, { ...f, cls, hash: null, oversized: true });
+      continue;
+    }
+    let hash = ledger.cachedHash(f.rel, f.size, f.mtimeMs);
+    if (hash === null) {
+      try {
+        hash = sha256File(f.abs);
+      } catch {
+        continue;
+      }
+      ledger.noteLocal(f.rel, hash, f.size, f.mtimeMs);
+    }
+    out.set(f.rel, { rel: f.rel, abs: f.abs, hash, size: f.size, mtimeMs: f.mtimeMs, cls });
+  }
+  return out;
+}
+
+/**
+ * The longest stretch of scan work before it yields to the event loop.
+ * Issue #207: the scan hashed every uncached file in ONE synchronous run
+ * (2 000 new 0.5–3 MB renders held the loop for 7.7 s) and the studio's
+ * `/_health` waited for all of it. Hashing now reads through a stream and
+ * yields every slice — inside a file as well as between files, because a
+ * stream whose chunks are already read ahead resolves on MICROTASKS, which
+ * never let a request in — so a request waits one slice at most.
+ */
+export const SCAN_SLICE_MS = 8;
+
+/** What the panel says about a file in a folder the project does not sync. */
+export const IGNORED_REASON = 'In a folder this project does not sync';
+
+/**
+ * The folders a project does not sync, cleaned: design-root-relative, no
+ * leading/trailing slash, contained (a `..` or absolute entry is dropped — the
+ * list comes from a committed file a teammate may have written), and never a
+ * runtime-state (`_`) top folder, which the plane never walks anyway.
+ */
+export function normalizeIgnoreFolders(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out = new Set<string>();
+  for (const v of raw) {
+    if (typeof v !== 'string') continue;
+    const p = path.posix.normalize(v.replace(/\\/g, '/').trim()).replace(/^\/+|\/+$/g, '');
+    if (!p || p === '.' || p === '..' || p.startsWith('../') || /^[A-Za-z]:/.test(v)) continue;
+    if (v.trim().startsWith('/')) continue;
+    out.add(p);
+  }
+  return [...out];
+}
+
+/** True when `rel` is one of the folders, or inside one. */
+export function isIgnoredRel(rel: string, folders: readonly string[]): boolean {
+  for (const f of folders) if (rel === f || rel.startsWith(`${f}/`)) return true;
+  return false;
+}
+
+/** Issue #207 — a folder whose pictures still going up pass either of these is named in the panel. */
+export const LARGE_SEQUENCE_FILES = 200;
+export const LARGE_SEQUENCE_BYTES = 200 * 1024 * 1024;
+const PICTURE_EXT_RE = /\.(png|jpe?g|webp|avif|gif|tiff?|exr|bmp|heic|tga|dpx|psd)$/i;
+
+export interface LargeSequence {
+  /** Design-root-relative folder. */
+  folder: string;
+  files: number;
+  bytes: number;
+}
+
+/**
+ * Folders holding a long run of pictures that this pass still has to send up —
+ * a render sequence, a frame dump. Only uploads count (what is already on the
+ * workspace is not news); at most five folders, largest first.
+ */
+export function largeSequences(
+  work: readonly { rel: string; decision: { action: string }; local?: { size: number } }[]
+): LargeSequence[] {
+  const byFolder = new Map<string, { files: number; bytes: number }>();
+  for (const w of work) {
+    if (w.decision.action !== 'push' && w.decision.action !== 'revive') continue;
+    if (!PICTURE_EXT_RE.test(w.rel)) continue;
+    const folder = path.posix.dirname(w.rel);
+    if (folder === '.') continue;
+    const s = byFolder.get(folder) ?? { files: 0, bytes: 0 };
+    s.files += 1;
+    s.bytes += w.local?.size ?? 0;
+    byFolder.set(folder, s);
+  }
+  return [...byFolder]
+    .filter(([, s]) => s.files > LARGE_SEQUENCE_FILES || s.bytes > LARGE_SEQUENCE_BYTES)
+    .map(([folder, s]) => ({ folder, ...s }))
+    .sort((a, b) => b.bytes - a.bytes)
+    .slice(0, 5);
+}
+
+/** Hand the event loop a turn (a macrotask: pending I/O and timers run first). */
+export const yieldToLoop = (): Promise<void> => new Promise((r) => setImmediate(r));
+
+/** A time-sliced yield: `await slice()` yields once `ms` of work has run since the last turn. */
+export function createSlicer(ms = SCAN_SLICE_MS): () => Promise<void> {
+  let start = performance.now();
+  return async () => {
+    if (performance.now() - start < ms) return;
+    await yieldToLoop();
+    start = performance.now();
+  };
+}
+
+/**
+ * sha256 of a file through `Bun.file().stream()` — issue #207. Memory is the
+ * stream's read-ahead (~30 MB measured on a 256 MB file, never the file), and
+ * it yields to the event loop every slice, so a large file never blocks it.
+ */
+export async function hashFileStreamed(
+  abs: string,
+  slice: () => Promise<void> = createSlicer()
+): Promise<string> {
+  const hasher = new Bun.CryptoHasher('sha256');
+  for await (const chunk of Bun.file(abs).stream()) {
+    hasher.update(chunk);
+    await slice();
+  }
+  return hasher.digest('hex');
+}
+
+/**
+ * The plane's scan: the same answer as `scanLocalFiles`, but hashed through a
+ * stream and yielding to the event loop every `SCAN_SLICE_MS` (issue #207).
+ */
+export async function scanLocalFilesAsync(
+  designRoot: string,
+  ledger: FileLedger,
+  canvasGroups?: readonly CanvasGroupLike[]
+): Promise<Map<string, LocalFile>> {
+  const slice = createSlicer();
+  const out = new Map<string, LocalFile>();
+  for (const { f, cls } of walkAndClassify(designRoot, canvasGroups)) {
+    await slice();
+    if (f.size > MAX_FILE_BYTES) {
+      out.set(f.rel, { ...f, cls, hash: null, oversized: true });
+      continue;
+    }
+    let hash = ledger.cachedHash(f.rel, f.size, f.mtimeMs);
+    if (hash === null) {
+      try {
+        hash = await hashFileStreamed(f.abs, slice);
+      } catch {
+        continue;
+      }
+      ledger.noteLocal(f.rel, hash, f.size, f.mtimeMs);
+    }
+    out.set(f.rel, { rel: f.rel, abs: f.abs, hash, size: f.size, mtimeMs: f.mtimeMs, cls });
+  }
+  return out;
+}
+
+/** Walk the design root (stat only, no reads) and keep what the classifier admits. */
+function walkAndClassify(
+  designRoot: string,
+  canvasGroups?: readonly CanvasGroupLike[]
+): { f: WalkedFile; cls: FileClass }[] {
+  const found: WalkedFile[] = [];
 
   const walk = (dir: string, rel: string, depth: number): void => {
     if (depth > MAX_WALK_DEPTH) return;
@@ -688,24 +876,10 @@ export function scanLocalFiles(
   const names = new Set(found.map((f) => f.rel));
   const opts = { canvasGroups, hasFile: (r: string) => names.has(r) };
 
-  const out = new Map<string, LocalFile>();
+  const out: { f: WalkedFile; cls: FileClass }[] = [];
   for (const f of found) {
     const cls = classifyProjectFile(f.rel, opts);
-    if (!isFilePlaneClass(cls)) continue;
-    if (f.size > MAX_FILE_BYTES) {
-      out.set(f.rel, { ...f, cls, hash: null, oversized: true });
-      continue;
-    }
-    let hash = ledger.cachedHash(f.rel, f.size, f.mtimeMs);
-    if (hash === null) {
-      try {
-        hash = sha256File(f.abs);
-      } catch {
-        continue;
-      }
-      ledger.noteLocal(f.rel, hash, f.size, f.mtimeMs);
-    }
-    out.set(f.rel, { rel: f.rel, abs: f.abs, hash, size: f.size, mtimeMs: f.mtimeMs, cls });
+    if (isFilePlaneClass(cls)) out.push({ f, cls });
   }
   return out;
 }
@@ -754,6 +928,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
   const now = opts.now ?? Date.now;
   const base = opts.hubUrl.replace(/\/+$/, '');
   const { ledger, designRoot } = opts;
+  const readIgnoreFolders = (): string[] =>
+    normalizeIgnoreFolders(
+      typeof opts.ignoreFolders === 'function' ? opts.ignoreFolders() : opts.ignoreFolders
+    );
   /**
    * The design root with its own symlinks resolved. Containment is judged
    * against THIS, not the configured string — otherwise a project reached
@@ -1529,8 +1707,12 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         quotaExhausted?: true;
         quotaResetsAt?: number;
         permanent?: true;
+        /** Issue #207 — the file is no longer on this Mac: cancelled, not failed. */
+        gone?: true;
       }
   > {
+    // A FILE THAT LEFT THIS MAC is not uploaded, and not retried (issue #207).
+    if (!existsSync(local.abs)) return { ok: false, gone: true, reason: 'no longer on this Mac' };
     // PRE-FLIGHT AGAINST THE DOOR'S OWN CEILING, before a byte is read.
     //
     // `tooLarge` is TERMINAL: the returned reason is stored and the caller
@@ -1564,10 +1746,28 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     }
     // T18 — past one request: a resumable session, in verified parts.
     if (local.size > singlePutCeiling()) return pushSession(local, expect);
-    let bytes: Uint8Array;
+    // ISSUE #207 — A LARGE BODY STREAMS FROM DISK. Handing fetch the whole file
+    // as one buffer cost TWICE the file in memory over TLS (measured: 532 MB of
+    // RSS for a 256 MB body; a `Bun.file` body is no better there), copied on
+    // the main thread — the memmove a desktop uploading thousands of renders
+    // spent its time in. A stream costs its read-ahead. The hub hashes what
+    // lands against `x-maude-content-sha256`, so a file that changes mid-flight
+    // is refused there, never stored under the wrong hash.
+    let bytes: Uint8Array | ReadableStream<Uint8Array>;
     try {
-      bytes = readFileSync(local.abs);
+      if (local.size > STREAM_UPLOAD_ABOVE_BYTES) {
+        const st = statSync(local.abs);
+        if (st.size !== local.size || st.mtimeMs !== local.mtimeMs) {
+          return { ok: false, reason: 'The file changed since it was read — it goes up next pass' };
+        }
+        bytes = Bun.file(local.abs).stream();
+      } else {
+        bytes = readFileSync(local.abs);
+      }
     } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+        return { ok: false, gone: true, reason: 'no longer on this Mac' };
+      }
       // A LOCAL DISK READ, not a transfer. Classifying it as a transport
       // failure would tell a person the workspace is unreachable when the file
       // is simply gone or unreadable — a wrong answer is worse than a vague one.
@@ -1591,6 +1791,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
             'content-type': 'application/octet-stream',
             'x-maude-content-sha256': local.hash,
             'x-maude-expect-hash': expect ?? 'none',
+            // A stream has no length of its own; the door and every proxy in
+            // front of it see the same one a buffer would have carried.
+            'content-length': String(local.size),
           },
           body: bytes as unknown as BodyInit,
           signal: AbortSignal.timeout(PUT_TIMEOUT_MS),
@@ -1608,6 +1811,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       const body = (await res.json().catch(() => ({}))) as { seq?: unknown };
       return { ok: true, seq: typeof body?.seq === 'number' ? body.seq : null };
     } catch (err) {
+      if (!existsSync(local.abs)) return { ok: false, gone: true, reason: 'no longer on this Mac' };
       return { ok: false, reason: transportFailure(err, local.rel, log) };
     } finally {
       ledger.outboxDone(local.hash);
@@ -1839,9 +2043,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
    * the hold can say how much waits. The scan only records observations (`noteLocal`) — no decision, no
    * ancestor moves.
    */
-  function holdAtCursor(out: FilePlaneResult): FilePlaneResult {
+  async function holdAtCursor(out: FilePlaneResult): Promise<FilePlaneResult> {
     if (hitRateLimit === null) return out;
-    scanLocalFiles(designRoot, ledger, opts.canvasGroups);
+    await scanLocalFilesAsync(designRoot, ledger, opts.canvasGroups);
     return holdIfRateLimited(out, waitingHere());
   }
 
@@ -2088,7 +2292,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     if (fullRead && !page.truncated) ledger.pruneRemotes(new Set(delta.keys()));
 
     // ── 2. Ours ──────────────────────────────────────────────────────────
-    const local = scanLocalFiles(designRoot, ledger, opts.canvasGroups);
+    const ignoreFolders = readIgnoreFolders();
+    const local = await scanLocalFilesAsync(designRoot, ledger, opts.canvasGroups);
 
     // ── 3. Decide ────────────────────────────────────────────────────────
     let work: {
@@ -2109,6 +2314,16 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     for (const rel of paths) {
       const row = delta.get(rel);
       const here = local.get(rel);
+      // A FOLDER THE PERSON CHOSE NOT TO SYNC (issue #207, `linkedHub.ignoreFolders`). Nothing
+      // moves in either direction — no upload, no download, no delete — and what the workspace
+      // already holds stays there. Reported as `ignored`, never as waiting.
+      if (ignoreFolders.length > 0 && isIgnoredRel(rel, ignoreFolders)) {
+        if (here && ledger.row(rel)?.state !== 'ignored') {
+          ledger.setState(rel, 'ignored', { reason: IGNORED_REASON });
+        }
+        if (here) out.ignored = (out.ignored ?? 0) + 1;
+        continue;
+      }
       // HELD, NOT ABSENT. A file this peer cannot move is still a file: no
       // decision may read it as deleted here or missing here.
       if (here?.oversized) {
@@ -2310,11 +2525,22 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         continue;
       }
 
+      // GONE FROM HERE, AND THE HUB HOLDS EXACTLY WHAT THIS MAC LAST SAW (issue #207). No recorded
+      // ancestor — the upload landed while its answer was lost (a timeout on a slow link), or the
+      // pass ended before adopting it — so this read as "the hub offers a file this machine has
+      // never had" and the next pass downloaded the moved-out renders again. This Mac DID have
+      // those bytes: it is a local delete, decided (and breaker-held) like any other. Only for
+      // this decision — the ledger's ancestor moves only after bytes land (`adoptAfter`).
+      const ancestor =
+        ledger.ancestorOf(rel) ??
+        (!here && remoteHash !== null && !row?.deleted && kept?.lastSeenHash === remoteHash
+          ? remoteHash
+          : null);
       const state: FileState = {
         path: rel,
         local: here?.hash ?? null,
         remote: remoteHash,
-        ancestor: ledger.ancestorOf(rel),
+        ancestor,
         ...(row?.deleted ? { remoteTombstone: true } : {}),
         ...(degraded ? { epochChanged: true } : {}),
         ...(remoteHash && ledger.outboxHas(remoteHash) ? { selfInFlight: true } : {}),
@@ -2465,6 +2691,11 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       // whole pass over one class would stall ordinary sync too.
       work = work.filter((w) => !firstAnchor.includes(w));
     }
+
+    // A LONG RUN OF PICTURES IN ONE FOLDER (issue #207) — a render sequence, a frame dump. They
+    // sync like everything else; the panel only says so, and offers to leave the folder out.
+    const sequences = largeSequences(work);
+    if (sequences.length > 0) out.largeSequences = sequences;
 
     // ── 4. Apply ─────────────────────────────────────────────────────────
     //
@@ -2974,6 +3205,16 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           out.dropped.push({ rel, reason: res.reason });
           return true;
         }
+        if (res.gone) {
+          // ISSUE #207 — THE FILE LEFT THIS MAC between the scan and its upload (6 555 renders
+          // moved out mid-pass: 951 ENOENT retries every 5 s). Not a failure and not a backoff:
+          // the upload is cancelled and the row leaves the queue. The next pass reads the
+          // absence — nothing if the hub never had it, a delete proposal if it did.
+          ledger.noteAttemptOk(rel);
+          ledger.setState(rel, 'local-only', { reason: 'no longer on this Mac' });
+          out.gone = (out.gone ?? 0) + 1;
+          return false;
+        }
         out.failed.push({ rel, reason: res.reason });
         ledger.setState(rel, 'stuck', { reason: res.reason });
         return false;
@@ -3022,7 +3263,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         out.conflicts.push({ rel, copy: copyRel });
         // The copy travels too, so BOTH ends see the conflict rather than only
         // the machine that happened to lose.
-        const copyLocal = statLocal(copyRel);
+        const copyLocal = await statLocal(copyRel);
         if (copyLocal) {
           const res = await push(copyLocal, null);
           if (res.ok) out.pushed.push(copyRel);
@@ -3061,7 +3302,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         // Gone here, and the hub still holds exactly what we last reconciled —
         // the Syncthing rule. The CAS carries our ancestor, so an edit that
         // landed in between wins and this comes back as a conflict instead.
-        const res = await pushDelete(rel, ledger.ancestorOf(rel));
+        // No recorded ancestor (issue #207): the hub hash this Mac last saw here is the CAS — the
+        // decision above only got here because the two were equal.
+        const res = await pushDelete(rel, ledger.ancestorOf(rel) ?? remoteHash);
         if (res.ok) {
           ledger.forget(rel);
           out.deleted.push({ rel, parked: null });
@@ -3097,11 +3340,11 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     }
   }
 
-  function statLocal(rel: string): SyncableLocalFile | null {
+  async function statLocal(rel: string): Promise<SyncableLocalFile | null> {
     const abs = path.join(designRoot, rel);
     try {
       const st = statSync(abs);
-      const hash = sha256(readFileSync(abs));
+      const hash = await hashFileStreamed(abs);
       return { rel, abs, hash, size: st.size, mtimeMs: st.mtimeMs, cls: 'inert-media' };
     } catch {
       return null;

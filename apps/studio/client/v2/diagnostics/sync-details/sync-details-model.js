@@ -213,6 +213,16 @@ export function syncDetailsModel(
       rateLimited: files?.rateLimited ? { waiting: rateLimited } : null,
       failed,
       attention: attention.slice(0, 50),
+      // Issue #207 — a long run of pictures going up (a render sequence), and the folders this
+      // project leaves out. Both from the server's status; cleaned here like every other list.
+      sequences: (Array.isArray(files?.largeSequences) ? files.largeSequences : [])
+        .filter((s) => s && typeof s.folder === 'string' && isCount(s.files) && isCount(s.bytes))
+        .slice(0, 5)
+        .map((s) => ({ folder: s.folder, files: s.files, bytes: s.bytes })),
+      ignoredFolders: (Array.isArray(files?.ignoreFolders) ? files.ignoreFolders : [])
+        .filter((f) => typeof f === 'string' && f.length > 0)
+        .slice(0, 50),
+      ignoredFiles: isCount(progress?.ignored) ? progress.ignored : 0,
     },
     signIn: refused && !cloud && native,
   };

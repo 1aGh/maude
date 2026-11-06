@@ -32,6 +32,7 @@ describe('sync settings — read', () => {
       syncFiles: true,
       propagateDeletes: true,
       resolveFirstAnchor: 'ask',
+      ignoreFolders: [],
     });
   });
 
@@ -55,6 +56,7 @@ describe('sync settings — read', () => {
       syncFiles: false,
       propagateDeletes: false,
       resolveFirstAnchor: 'keep-local',
+      ignoreFolders: [],
     });
   });
 });
@@ -147,5 +149,26 @@ describe('sync settings — vocabulary', () => {
     ]) {
       expect(props).toContain(key);
     }
+  });
+});
+
+describe('sync settings — folders the project does not sync (issue #207)', () => {
+  test('one folder in, then out again; an empty list leaves no key behind', async () => {
+    const root = makeRepo(LINKED);
+    const a = await writeSyncSettings(root, { addIgnoreFolder: 'ideas/renders/' });
+    expect(a.ignoreFolders).toEqual(['ideas/renders']);
+    await writeSyncSettings(root, { addIgnoreFolder: 'ideas/renders' });
+    const cfg = JSON.parse(readFileSync(join(root, '.design', 'config.json'), 'utf8'));
+    expect(cfg.linkedHub.ignoreFolders).toEqual(['ideas/renders']);
+    const b = await writeSyncSettings(root, { removeIgnoreFolder: 'ideas/renders' });
+    expect(b.ignoreFolders).toEqual([]);
+    const after = JSON.parse(readFileSync(join(root, '.design', 'config.json'), 'utf8'));
+    expect('ignoreFolders' in after.linkedHub).toBe(false);
+  });
+
+  test('a folder outside the design root is refused, not written', async () => {
+    const root = makeRepo(LINKED);
+    await expect(writeSyncSettings(root, { addIgnoreFolder: '../elsewhere' })).rejects.toThrow();
+    expect(readSyncSettings(root)?.ignoreFolders).toEqual([]);
   });
 });
