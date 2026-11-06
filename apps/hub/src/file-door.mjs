@@ -57,6 +57,7 @@ import {
   PER_USE_PHOTO_RE,
 } from '../../studio/access/scope.ts';
 import { fileAccessFor, NOT_IN_SCOPE_REFUSAL } from './access-files.mjs';
+import { roleForMatch } from './access-gate.mjs';
 import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
 import {
   MAX_PROJECT_FILE_BYTES,
@@ -502,7 +503,10 @@ export async function handleFileDoor(ctx) {
   // could land executable modules in a project's `system/**`, and the only
   // thing stopping them was that the OTHER peers would refuse to pull them.
   const cls = checkoutFileClass(landing, ctx.designRoot);
-  if (cls === 'code-module' && match.role !== 'owner') {
+  // The role is the one reading every door shares (`roleForMatch`) — never the
+  // raw `match.role` column, which the env secret does not carry.
+  const role = roleForMatch(match);
+  if (cls === 'code-module' && role !== 'owner') {
     // 403 rather than 400: the path is fine, the credential is not, and
     // saying so is what lets a peer report something a person can act on.
     respond(response, 403, 'code modules may only be written by an owner-scoped token');
@@ -522,7 +526,7 @@ export async function handleFileDoor(ctx) {
   const expect = String(request.headers?.['x-maude-expect-hash'] ?? '').trim();
 
   if (method === 'DELETE') {
-    return await handleDelete({ ctx, response, landing, target, expect, role: match.role });
+    return await handleDelete({ ctx, response, landing, target, expect, role });
   }
   const casHolds = () => {
     if (!expect) return { ok: true };
@@ -765,11 +769,13 @@ async function handleDelete({ ctx, response, landing, target, expect, role }) {
     // spend it, and so nothing is moved for a request that is about to be
     // refused.
     //
-    // AN OWNER IS OUTSIDE IT (journal.mjs `OWNER_DELETE_SOURCE`). The role is
-    // the one the token match vouched for, not anything the request says, and
-    // the quarantine below still parks every file before its tombstone.
+    // AN OWNER HAS ITS OWN, HIGHER WINDOW (journal.mjs
+    // `OWNER_DELETE_BUDGET_PER_WINDOW`) — never none; past it is the confirmed
+    // bulk purge (`owner-purge.mjs`). The role is the one the token match
+    // vouched for (`roleForMatch`), not anything the request says, and the
+    // quarantine below still parks every file before its tombstone.
     const ownerDelete = role === 'owner';
-    const budget = ownerDelete ? { ok: true } : (ctx.journal?.deleteBudget?.() ?? { ok: true });
+    const budget = ctx.journal?.deleteBudget?.({ owner: ownerDelete }) ?? { ok: true };
     if (!budget.ok) {
       // 429, not 403: the credential is fine and the path is fine — this is a
       // rate, and a rate is something the caller can act on by waiting or by

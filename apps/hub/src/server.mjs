@@ -71,7 +71,7 @@ import {
   stripSummon,
 } from './access-docs.mjs';
 import { createPokeVisibility, registerKnownCanvases } from './access-files.mjs';
-import { claimForMatch, planPausedFromEnv } from './access-gate.mjs';
+import { claimForMatch, isProjectOwnerMatch, planPausedFromEnv } from './access-gate.mjs';
 import { ADMIN_CSS, ADMIN_HTML, ADMIN_JS, adminAssetsLoaded } from './admin-assets.mjs';
 import {
   generateAdminSecret,
@@ -980,12 +980,9 @@ export function createHub(config = {}) {
         // owner/admin-role token over the WHOLE project, or the operator's env
         // secret. Not `admin`'s role-less case — the admin console's invites
         // are role-less (and may be scoped to one canvas), and an invitee must
-        // not be able to make every Maude 1 peer read-only. Same bar as the
-        // project-config door.
-        owner:
-          !m.readOnly &&
-          (m.source === 'env' ||
-            ((m.role === 'owner' || m.role === 'admin') && (m.scope ?? '*') === '*')),
+        // not be able to make every Maude 1 peer read-only. The one reading
+        // every owner-only door shares (`isProjectOwnerMatch`).
+        owner: isProjectOwnerMatch(m),
       };
     }
     if (presentsCellSecret(req, secret))
