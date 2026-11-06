@@ -14,6 +14,8 @@ import { useEffect, useRef, useState } from 'react';
 import { MEDIA_STAYS_LINE, MEDIA_STAYS_NEXT } from '../../../../sync/media-gate.ts';
 import { safeDetail, syncPresentation } from '../../../../sync/presentation.ts';
 import { lineDiff } from '../../../panels/SourceConflictPanel.jsx';
+import { readCodeConsent } from '../../code/code-consent.js';
+import { CodeConsentSheet } from '../../code/code-consent-sheet.jsx';
 import { DELIVERY_WORD, cleanName, resolvedWords, syncDetailsModel } from './sync-details-model.js';
 
 /** Registry id → the `choice` the conflict route takes. */
@@ -155,6 +157,56 @@ function ConflictCard({ slug, canvasName, fetchImpl, onResolved, focusSeq = 0 })
   );
 }
 
+/**
+ * fix/207 — shared code from the project's hub: the held row's "Allow shared code…" and, once it is
+ * allowed on this Mac, "Stop allowing shared code…". Both open the confirm sheet; the server writes
+ * the answer (POST /_api/sync/code-consent/set) and the next pass brings what was held.
+ */
+export function useCodeConsent(fetchImpl, seq = 0) {
+  const [consent, setConsent] = useState(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-read when the held rows change
+  useEffect(() => {
+    let live = true;
+    readCodeConsent(fetchImpl).then((c) => {
+      if (live) setConsent(c);
+    });
+    return () => {
+      live = false;
+    };
+  }, [seq]);
+  return [consent, setConsent];
+}
+
+function CodeConsentButton({ mode, host, fetchImpl, onDone }) {
+  const [open, setOpen] = useState(false);
+  const stop = mode === 'stop';
+  return (
+    <>
+      <button
+        type="button"
+        className="sd-link"
+        data-action={stop ? 'sync.stop-code' : 'sync.allow-code'}
+        data-testid={stop ? 'diag-sync-stop-code' : 'diag-sync-allow-code'}
+        onClick={() => setOpen(true)}
+      >
+        {stop ? 'Stop allowing shared code…' : 'Allow shared code…'}
+      </button>
+      {open ? (
+        <CodeConsentSheet
+          mode={mode}
+          host={host}
+          fetchImpl={fetchImpl}
+          onClose={() => setOpen(false)}
+          onDone={(c) => {
+            setOpen(false);
+            onDone?.(c);
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
 // The team server holds no media checkout (sync/media-gate.ts words): said once, with the next step.
 function AssetsStayCard() {
   return (
@@ -247,6 +299,9 @@ export default function SyncDetails({
   const p = syncPresentation(status, { project });
   const m = syncDetailsModel(status, { project, cloud, native, refused: p?.phase === 'refused' });
   const [cancelled, setCancelled] = useState(false);
+  const codeHeld = m.lists.held.find((h) => h.kind === 'code-consent');
+  const [consent, setConsent] = useCodeConsent(fetchImpl, codeHeld ? codeHeld.paths.length + 1 : 0);
+  const canChange = consent?.changeable === true;
   return (
     <div className="sd" data-testid="sync-panel">
       <div className="dg-hd">
@@ -334,15 +389,36 @@ export default function SyncDetails({
             </p>
           ) : null}
           {m.lists.held.map((h) => (
-            <details className="sd-held" key={h.kind} data-testid={`diag-sync-held-${h.kind}`}>
-              <summary>{h.detail}</summary>
-              <ul>
-                {h.paths.map((rel) => (
-                  <li key={rel}>{cleanName(rel)}</li>
-                ))}
-              </ul>
-            </details>
+            <div key={h.kind}>
+              <details className="sd-held" data-testid={`diag-sync-held-${h.kind}`}>
+                <summary>{h.detail}</summary>
+                <ul>
+                  {h.paths.map((rel) => (
+                    <li key={rel}>{cleanName(rel)}</li>
+                  ))}
+                </ul>
+              </details>
+              {h.kind === 'code-consent' && canChange && !consent.allowed ? (
+                <CodeConsentButton
+                  mode="allow"
+                  host={consent.host}
+                  fetchImpl={fetchImpl}
+                  onDone={setConsent}
+                />
+              ) : null}
+            </div>
           ))}
+          {canChange && consent.allowed && consent.how !== 'cell' ? (
+            <p className="dg-hint" data-testid="diag-sync-code-allowed">
+              Shared code from {consent.host} is allowed on this Mac.{' '}
+              <CodeConsentButton
+                mode="stop"
+                host={consent.host}
+                fetchImpl={fetchImpl}
+                onDone={setConsent}
+              />
+            </p>
+          ) : null}
           {m.lists.failed > 0 || m.lists.attention.length ? (
             <div data-testid="diag-sync-failed">
               {m.lists.attention.length ? (

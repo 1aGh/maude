@@ -167,7 +167,9 @@ export interface FilePlaneStatus {
       | 'hub-older'
       | 'hub-refused'
       /** 2.0.5: files the legacy (v1) pull could not save here; retried later, less often. */
-      | 'pull-failed';
+      | 'pull-failed'
+      /** fix/207: shared code this Mac holds until the person allows it (Allow shared code…). */
+      | 'code-consent';
     count: number;
     paths: string[];
     /** One sentence, in the user's terms, about what is waiting and why. */

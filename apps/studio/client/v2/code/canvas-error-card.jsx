@@ -460,7 +460,7 @@ export function CanvasLoadFailure({
     );
   }
   // files it imports haven't reached this Mac, or are held back: not a mistake in its code
-  if (waiting) return <CanvasWaitingCard canvas={canvas} waiting={waiting} />;
+  if (waiting) return <CanvasWaitingCard canvas={canvas} waiting={waiting} fetchImpl={fetchImpl} />;
   if (building) return <CanvasBuildingCard canvas={canvas} />;
   return (
     <>

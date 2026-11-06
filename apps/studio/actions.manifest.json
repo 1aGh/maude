@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "3b10dc94b530",
+  "manifestVersion": "d0706d70a2e9",
   "actions": [
     {
       "id": "search.open",
@@ -6250,6 +6250,40 @@
       "agent": {
         "path": "cli",
         "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/sync/cancel-assets"
+      }
+    },
+    {
+      "id": "sync.allow-code",
+      "label": "Allow shared code…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/code-consent/set",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "consent",
+        "note": "the person’s yes to shared code from this project’s hub running on their Mac"
+      }
+    },
+    {
+      "id": "sync.stop-code",
+      "label": "Stop allowing shared code…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/code-consent/set",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "consent",
+        "note": "takes back the person’s yes to shared code"
       }
     },
     {

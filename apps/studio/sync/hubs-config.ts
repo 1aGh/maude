@@ -1,11 +1,22 @@
 // Read-only mirror of cli/lib/hubs-config.mjs for the dev-server runtime.
 //
 // The CLI owns writes (`maude design link` adds + removes entries); the
-// dev-server only ever reads. This module deliberately re-implements the
+// dev-server only reads — except `recordCodeModulesAllowed` (fix/207), the
+// person's in-app answer to the shared-code question. This module deliberately re-implements the
 // reader instead of importing from cli/lib so the Bun-side ts compile chain
 // doesn't pull in the .mjs CLI surface.
 
-import { existsSync, readFileSync, type Stats, statSync, unwatchFile, watchFile } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  readFileSync,
+  renameSync,
+  type Stats,
+  statSync,
+  unwatchFile,
+  watchFile,
+  writeFileSync,
+} from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
 
@@ -249,6 +260,52 @@ export function getHubRecord(url: string, path?: string): HubRecord | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * fix/207 — record THIS Mac's answer to "may this hub deliver shared code (`.ts`/`.js`)?" on the
+ * stored record of `url`, in the profile's hubs.json (`hubsConfigPath()` — `HUBS_CONFIG_PATH` /
+ * `MAUDE_PROFILE_ID`, never a hard-coded `~/.config/maude`). The one writer besides the CLI's
+ * `maude design link` prompt: the in-app consent sheet (`POST /_api/sync/code-consent/set`).
+ *
+ * Only an existing SIGNED-IN record (one holding a token) is changed — consent for a hub this Mac
+ * holds no credential for is meaningless and would mint a record the link flow never made. Every
+ * other field is carried untouched; the write is temp-then-rename (0600), like `saveHubCredential`,
+ * because the file holds every hub credential on the machine. Returns false when there is no such
+ * record (nothing written).
+ */
+export function recordCodeModulesAllowed(
+  url: string,
+  allowed: boolean,
+  path: string = hubsConfigPath()
+): boolean {
+  let norm: string;
+  try {
+    norm = normalizeUrl(url);
+  } catch {
+    return false;
+  }
+  if (!existsSync(path)) return false;
+  let cfg: Record<string, unknown> & { hubs: Record<string, HubRecord> };
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8'));
+    if (!parsed || typeof parsed.hubs !== 'object' || parsed.hubs === null) return false;
+    cfg = parsed;
+  } catch {
+    return false; // malformed: never overwrite what we cannot read
+  }
+  const rec = cfg.hubs[norm];
+  if (!rec || typeof rec !== 'object' || typeof rec.token !== 'string') return false;
+  cfg.hubs[norm] = { ...rec, codeModulesAllowed: allowed === true };
+  const tmp = `${path}.${process.pid}.consent.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(cfg, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+  try {
+    chmodSync(tmp, 0o600);
+  } catch {
+    /* windows / read-only fs — best effort */
+  }
+  renameSync(tmp, path);
+  return true;
 }
 
 /**

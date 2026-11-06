@@ -191,6 +191,24 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     ),
   },
   'sync.get-latest': GIT('/_api/git/pull', 'git pull'),
+  // fix/207 — the person's yes / no to shared code (.ts/.js) from the project's hub: it runs on this
+  // Mac outside the canvas sandbox (DDR-054), so an agent can never say yes for them (human
+  // 'consent'). The route answers only the window's own fetch (routes/sync.ts) and bash-guard names it.
+  'sync.allow-code': {
+    effect: 'external',
+    minRole: 'edit',
+    server: { route: '/_api/sync/code-consent/set', method: 'POST' },
+    agent: human(
+      'consent',
+      'the person’s yes to shared code from this project’s hub running on their Mac'
+    ),
+  },
+  'sync.stop-code': {
+    effect: 'none',
+    minRole: 'edit',
+    server: { route: '/_api/sync/code-consent/set', method: 'POST' },
+    agent: human('consent', 'takes back the person’s yes to shared code'),
+  },
   'sync.sign-in-again': {
     effect: 'none',
     agent: human('hub-link', 'signing in to the cloud is the person’s own credential'),

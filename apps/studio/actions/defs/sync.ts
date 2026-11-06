@@ -41,6 +41,11 @@ export const SYNC_ACTIONS: ActionDef[] = [
   pick('sync.discard-ai-edit', 'Discard'),
   // Moving now's ✕: `POST /_api/sync/cancel-assets` (the sweep stops; uploads are idempotent)
   pick('sync.cancel-transfer', 'Cancel the transfer'),
+  // fix/207 — shared code from the project's hub: Sync details' held row and the canvas-waiting card
+  // open the consent sheet; `POST /_api/sync/code-consent/set { allow }` records the answer on this
+  // Mac (the window's own fetch only, Can edit).
+  pick('sync.allow-code', 'Allow shared code…'),
+  pick('sync.stop-code', 'Stop allowing shared code…'),
   // Get latest (moved here from Version history) and Sign in again: every role keeps them
   { id: 'sync.get-latest', label: 'Get latest', kind: 'command', exec: 'shell', search: ROW },
   { id: 'sync.sign-in-again', label: 'Sign in again', kind: 'command', exec: 'shell', search: ROW },

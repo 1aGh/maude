@@ -22907,7 +22907,7 @@
     "hook": "canvas-waiting-body",
     "kind": "testid",
     "pattern": false,
-    "meaning": "What is happening and that nothing is lost; for a refusal, why (the code-consent sentence points at linking the folder again, which asks).",
+    "meaning": "What is happening and that nothing is lost; for a refusal, why (the code-consent sentence names Allow shared code, the card's button).",
     "producer": {
       "file": "apps/studio/client/v2/code/canvas-waiting-card.jsx",
       "symbol": "CanvasWaitingCard"
@@ -43883,6 +43883,182 @@
     "region": "home",
     "consumers": [
       "apps/studio/test/home-page.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-consent-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The veil behind the shared-code consent sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-consent-sheet.jsx",
+      "symbol": "CodeConsentSheet"
+    },
+    "region": "overlay",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-consent.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-consent-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The confirm sheet for shared code from the project's hub; `data-mode` allow | stop.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-consent-sheet.jsx",
+      "symbol": "CodeConsentSheet"
+    },
+    "region": "overlay",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-consent.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-consent-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Allow shared code from <host>?\" / \"Stop allowing shared code from <host>?\".",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-consent-sheet.jsx",
+      "symbol": "CodeConsentSheet"
+    },
+    "region": "overlay",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-consent.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-consent-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel (focused first: a yes to running code is pressed on purpose).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-consent-sheet.jsx",
+      "symbol": "CodeConsentSheet"
+    },
+    "region": "overlay",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-consent.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-consent-go",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The primary: Allow shared code / Stop allowing (`sync.allow-code` / `sync.stop-code`).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-consent-sheet.jsx",
+      "symbol": "CodeConsentSheet"
+    },
+    "region": "overlay",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-consent.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-consent-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why the answer could not be recorded; nothing changed.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-consent-sheet.jsx",
+      "symbol": "CodeConsentSheet"
+    },
+    "region": "overlay",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-consent.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-allow-code",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Allow shared code… under the code-consent held row (`sync.allow-code`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-consent.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-code-allowed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Shared code from <host> is allowed on this Mac.\" with Stop allowing shared code….",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-consent.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-stop-code",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Stop allowing shared code… (`sync.stop-code`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-consent.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-waiting-allow-code",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Allow shared code… on a canvas held for shared code (`sync.allow-code`).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-waiting-card.jsx",
+      "symbol": "CanvasWaitingCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-consent.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-waiting-allowed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Shared code is allowed. The canvas opens once it arrives.\" after the yes.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-waiting-card.jsx",
+      "symbol": "CanvasWaitingCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-consent.test.tsx"
     ],
     "v2": "new"
   }
