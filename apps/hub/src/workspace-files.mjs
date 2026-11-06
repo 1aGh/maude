@@ -21,6 +21,8 @@
 // runtime state and gitignored — writing them here would put a per-machine
 // artifact into a tenant's permanent history.
 
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { replicaBoardText } from '../../studio/annotations/replica.ts';
 import { mergeSharedMetaIntoLocal } from './meta-merge.mjs';
 
@@ -76,6 +78,58 @@ export function canvasSlug(relPath) {
 }
 
 /**
+ * Is this design-root-relative path inside runtime state, or itself at the
+ * root of it? `_history/`, `_trash/`, `_canvas-state/` … are runtime state
+ * (DDR-115): a `_` FOLDER anywhere, or a `_` name at the design root. A `_`
+ * FILE inside a folder (`system/<ds>/preview/_ui-feedback.tsx`) is the user's
+ * module — the studio syncs it as a project document (sync/index.ts `walk`,
+ * file-membership `FILE_SEGMENT`), so the checkout's indexes must know it
+ * (fix/207: skipping it held every later version of the module out of the
+ * checkout and its history).
+ *
+ * @param {string} rel `/`-separated, relative to the design root
+ */
+export function inRuntimeDir(rel) {
+  const segs = String(rel).replace(/\\/g, '/').split('/');
+  return segs.some((seg, i) => seg.startsWith('_') && (i === 0 || i < segs.length - 1));
+}
+
+/**
+ * slug → design-root-relative `.tsx` path, walked from a checkout's design
+ * root (the accepted-mode baseline's `checkoutPath`, server.mjs). First path
+ * per slug wins; dot entries, `node_modules` and runtime state
+ * ({@link inRuntimeDir}) are skipped, a `_` module in a folder is not.
+ *
+ * @param {string} root absolute design root
+ * @param {(rel: string) => string|null} slugOf the slug transform
+ * @returns {Map<string, string>}
+ */
+export function checkoutCanvasPathsIn(root, slugOf) {
+  const out = new Map();
+  const walk = (abs, rel, depth) => {
+    if (depth > 16) return;
+    let entries;
+    try {
+      entries = readdirSync(abs, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+      if (e.name.startsWith('_') && (!rel || e.isDirectory())) continue;
+      const childRel = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(join(abs, e.name), childRel, depth + 1);
+      else if (e.isFile() && e.name.endsWith('.tsx')) {
+        const slug = slugOf(childRel);
+        if (slug && !out.has(slug)) out.set(slug, childRel);
+      }
+    }
+  };
+  walk(root, '', 1);
+  return out;
+}
+
+/**
  * Build slug → body-path index from the paths already in the checkout.
  *
  * THIS IS WHY THE CELL KEEPS A CHECKOUT. A document name carries only the
@@ -92,8 +146,7 @@ export function indexCanvasPaths(relPaths) {
   for (const raw of relPaths) {
     const rel = String(raw).replace(/\\/g, '/');
     if (!/\.(tsx|html)$/i.test(rel)) continue;
-    // `_history/`, `_trash/`, `_canvas-state/` … are runtime state (DDR-115).
-    if (rel.split('/').some((seg) => seg.startsWith('_'))) continue;
+    if (inRuntimeDir(rel)) continue;
     const slug = canvasSlug(rel);
     const existing = index.get(slug);
     // Deterministic on collision: a path IN A FOLDER beats one at the design
