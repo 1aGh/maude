@@ -79,44 +79,94 @@ export function isCanvasRelInGroups(
   return isInCanvasGroup(groups, rel) && !isComponentRel(rel, componentDir);
 }
 
-const isWs = (ch: string | undefined): boolean => ch !== undefined && /\s/.test(ch);
-const isIdent = (ch: string | undefined): boolean => ch !== undefined && /[\w$]/.test(ch);
+// 2.0.7 (#207) — the scan writes into a UTF-16 buffer and every look-back reads that buffer, so a
+// scan is linear in the source. It used to grow a string with `+=` and test the whole string at
+// every literal (a `$`-anchored regex, `out[k]` on a rope): quadratic, ~3 s for one 1 MB canvas, and
+// `/_index-data` ran it for every file every canvas reaches. Same output, character for character
+// (pinned against the old implementation in test/import-scan-linear.test.ts).
+const WS_RE = /\s/;
+/** `/\s/` on one UTF-16 code unit (`undefined` = before the start). */
+function isWs(c: number | undefined): boolean {
+  if (c === undefined) return false;
+  if (c < 128) return c === 32 || (c >= 9 && c <= 13);
+  return WS_RE.test(String.fromCharCode(c));
+}
+/** `/[\w$]/` on one UTF-16 code unit. */
+function isIdent(c: number | undefined): boolean {
+  if (c === undefined) return false;
+  return (
+    (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 95 || c === 36
+  );
+}
 
-/** `s[..k)` ends in the whole word `w`. */
-function wordEndsAt(s: string, k: number, w: string): boolean {
-  if (k < w.length || s.slice(k - w.length, k) !== w) return false;
-  return !isIdent(s[k - w.length - 1]);
+/** `buf[..k)` ends in the whole word `w`; `ci` compares ASCII letters case-insensitively. */
+function wordEndsAt(buf: Uint16Array, k: number, w: string, ci = false): boolean {
+  if (k < w.length) return false;
+  const at = k - w.length;
+  for (let t = 0; t < w.length; t++) {
+    let c = buf[at + t] as number;
+    if (ci && c >= 65 && c <= 90) c += 32;
+    if (c !== w.charCodeAt(t)) return false;
+  }
+  return !isIdent(at > 0 ? buf[at - 1] : undefined);
+}
+
+/** Skip whitespace backwards from `k` (exclusive) in `buf`. */
+function skipWsBack(buf: Uint16Array, k: number): number {
+  while (k > 0 && isWs(buf[k - 1])) k--;
+  return k;
 }
 
 /**
- * gate-b-c4l — does the text written so far end in a module-specifier lead: `from`, `import`,
- * `import(` or `require(`, with ANY whitespace between (a comment is already blanked to spaces
- * there, whatever its length)? c4e looked back a fixed 32 characters, and a longer comment between
- * `from` and the string hid the import.
+ * gate-b-c4l — does the text written so far (`buf[..len)`) end in a module-specifier lead: `from`,
+ * `import`, `import(` or `require(`, with ANY whitespace between (a comment is already blanked to
+ * spaces there, whatever its length)? c4e looked back a fixed 32 characters, and a longer comment
+ * between `from` and the string hid the import.
  */
-function endsInSpecifierLead(out: string): boolean {
-  let k = out.length;
-  while (k > 0 && isWs(out[k - 1])) k--;
-  if (out[k - 1] === '(') {
-    k--;
-    while (k > 0 && isWs(out[k - 1])) k--;
-    return wordEndsAt(out, k, 'import') || wordEndsAt(out, k, 'require');
+function endsInSpecifierLead(buf: Uint16Array, len: number): boolean {
+  let k = skipWsBack(buf, len);
+  if (k > 0 && buf[k - 1] === 40 /* ( */) {
+    k = skipWsBack(buf, k - 1);
+    return wordEndsAt(buf, k, 'import') || wordEndsAt(buf, k, 'require');
   }
-  return wordEndsAt(out, k, 'from') || wordEndsAt(out, k, 'import');
+  return wordEndsAt(buf, k, 'from') || wordEndsAt(buf, k, 'import');
 }
 
-/** Does `out` end in `import(` / `require(` (whitespace allowed)? */
-function endsInCallLead(out: string): boolean {
-  let k = out.length;
-  while (k > 0 && isWs(out[k - 1])) k--;
-  if (out[k - 1] !== '(') return false;
+/** Does `buf[..len)` end in `import(` / `require(` (whitespace allowed)? */
+function endsInCallLead(buf: Uint16Array, len: number): boolean {
+  let k = skipWsBack(buf, len);
+  if (k === 0 || buf[k - 1] !== 40 /* ( */) return false;
+  k = skipWsBack(buf, k - 1);
+  return wordEndsAt(buf, k, 'import') || wordEndsAt(buf, k, 'require');
+}
+
+/**
+ * CSS: does `buf[..len)` end in the lead of `@import url("./x.css")` — `/@import\s+url\(\s*$/i`
+ * (ASCII case-insensitive: without the `u` flag a non-ASCII letter never folds to an ASCII one)?
+ */
+function endsInCssImportUrlLead(buf: Uint16Array, len: number): boolean {
+  let k = skipWsBack(buf, len);
+  if (k === 0 || buf[k - 1] !== 40 /* ( */) return false;
   k--;
-  while (k > 0 && isWs(out[k - 1])) k--;
-  return wordEndsAt(out, k, 'import') || wordEndsAt(out, k, 'require');
+  // `url` right before `(`; the `\s+` before it keeps the word check below honest
+  if (!wordEndsAt(buf, k, 'url', true)) return false;
+  k -= 3;
+  const before = k;
+  k = skipWsBack(buf, k);
+  if (k === before) return false; // `\s+`
+  return wordEndsAt(buf, k, 'import', true) && k >= 7 && buf[k - 7] === 64; /* @ */
 }
 
-/** CSS: the text right before the string of `@import url("./x.css")`. */
-const CSS_IMPORT_URL_LEAD_RE = /@import\s+url\(\s*$/i;
+/** `buf[..len)` as a string, in chunks (`fromCharCode.apply` caps its argument count). */
+function bufText(buf: Uint16Array, len: number): string {
+  const CHUNK = 8192;
+  const parts: string[] = [];
+  for (let a = 0; a < len; a += CHUNK)
+    parts.push(
+      String.fromCharCode.apply(null, buf.subarray(a, Math.min(len, a + CHUNK)) as never)
+    );
+  return parts.join('');
+}
 
 /**
  * gate-b-c4e — `source` as the import scanner may read it: comments blanked and every string
@@ -130,54 +180,62 @@ const CSS_IMPORT_URL_LEAD_RE = /@import\s+url\(\s*$/i;
  * spaces, newlines kept), so an offset in the result is an offset in `source`.
  */
 export function importScanText(source: string, css = false): string {
-  let out = '';
-  let i = 0;
   const n = source.length;
+  const buf = new Uint16Array(n);
+  let len = 0;
+  /** blank `source[a..b)` into the buffer: every code unit but `\n` becomes a space */
+  const blank = (a: number, b: number) => {
+    for (let k = a; k < b; k++) buf[len++] = source.charCodeAt(k) === 10 ? 10 : 32;
+  };
+  let i = 0;
   while (i < n) {
-    const c = source[i] as string;
-    const next = source[i + 1];
-    if (c === '/' && next === '*') {
+    const c = source.charCodeAt(i);
+    const next = i + 1 < n ? source.charCodeAt(i + 1) : -1;
+    if (c === 47 /* / */ && next === 42 /* * */) {
       const end = source.indexOf('*/', i + 2);
       const stop = end === -1 ? n : end + 2;
-      out += source.slice(i, stop).replace(/[^\n]/g, ' ');
+      blank(i, stop);
       i = stop;
       continue;
     }
-    if (!css && c === '/' && next === '/') {
+    if (!css && c === 47 && next === 47) {
       const end = source.indexOf('\n', i);
       const stop = end === -1 ? n : end;
-      out += ' '.repeat(stop - i);
+      for (let k = i; k < stop; k++) buf[len++] = 32;
       i = stop;
       continue;
     }
-    if (c === '"' || c === "'" || (!css && c === '`')) {
+    if (c === 34 /* " */ || c === 39 /* ' */ || (!css && c === 96) /* ` */) {
       let j = i + 1;
       while (j < n) {
-        const d = source[j];
-        if (d === '\\') {
+        const d = source.charCodeAt(j);
+        if (d === 92 /* \ */) {
           j += 2;
           continue;
         }
         if (d === c) break;
-        if (d === '\n' && c !== '`') break; // an unterminated string ends with its line
+        if (d === 10 && c !== 96) break; // an unterminated string ends with its line
         j++;
       }
       const stop = Math.min(j, n);
-      const body = source.slice(i + 1, stop);
+      const closed = j < n && source.charCodeAt(j) === c;
       // gate-b-c4m (defender L-B) — a template with no substitution after `import(` / `require(`
       // is a module specifier Bun resolves at build time; in CSS, the string of `@import url("…")`.
       const keep =
-        c === '`'
-          ? !body.includes('${') && endsInCallLead(out)
-          : endsInSpecifierLead(out) || (css && CSS_IMPORT_URL_LEAD_RE.test(out));
-      out += c + (keep ? body : body.replace(/[^\n]/g, ' ')) + (source[j] === c ? c : '');
-      i = source[j] === c ? j + 1 : stop;
+        c === 96
+          ? !source.slice(i + 1, stop).includes('${') && endsInCallLead(buf, len)
+          : endsInSpecifierLead(buf, len) || (css && endsInCssImportUrlLead(buf, len));
+      buf[len++] = c;
+      if (keep) for (let k = i + 1; k < stop; k++) buf[len++] = source.charCodeAt(k);
+      else blank(i + 1, stop);
+      if (closed) buf[len++] = c;
+      i = closed ? j + 1 : stop;
       continue;
     }
-    out += c;
+    buf[len++] = c;
     i++;
   }
-  return out;
+  return bufText(buf, len);
 }
 
 /**

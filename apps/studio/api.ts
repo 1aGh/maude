@@ -325,14 +325,17 @@ export async function findFiles(
   exts: string[],
   dirsOut?: string[]
 ): Promise<string[]> {
-  const out: string[] = [];
   let entries: Dirent[];
   try {
     entries = await readdir(absRoot, { withFileTypes: true });
   } catch {
-    return out;
+    return [];
   }
   entries.sort((a, b) => a.name.localeCompare(b.name));
+  // 2.0.7 (#207) — a folder's files are `lstat`-ed together, not one await after another: on an
+  // 11k-file project the serial awaits alone held `/_index-data` seconds whenever the server was
+  // busy. Order is unchanged (each entry keeps its slot; folders are walked in the same order).
+  const slots: Array<string[] | Promise<string | null>> = [];
   for (const e of entries) {
     if (e.name.startsWith('.') && !HIDDEN_OK.has(e.name)) continue;
     if (e.name.startsWith('_')) continue;
@@ -341,7 +344,7 @@ export async function findFiles(
     const rel = path.posix.join(prefix, e.name);
     if (e.isDirectory()) {
       dirsOut?.push(rel);
-      out.push(...(await findFiles(full, rel, exts, dirsOut)));
+      slots.push(await findFiles(full, rel, exts, dirsOut));
     } else if (e.isFile() && exts.some((x) => e.name.toLowerCase().endsWith(x))) {
       // feature-studio-file-preview security review — `e.isFile()` (not just
       // "not a directory") excludes symlinks: a symlink Dirent is neither
@@ -359,14 +362,22 @@ export async function findFiles(
       // legitimately multiply-linked, so excluding them closes the same
       // one-click-disclosure path for a hardlink planted at, say, a
       // teammate's readable dotfile.
-      try {
-        const st = await lstat(full);
-        if (st.nlink > 1) continue;
-      } catch {
-        continue;
-      }
-      out.push(rel);
+      slots.push(
+        lstat(full).then(
+          (st) => (st.nlink > 1 ? null : rel),
+          () => null
+        )
+      );
     }
+  }
+  const out: string[] = [];
+  for (const slot of slots) {
+    if (Array.isArray(slot)) {
+      for (const f of slot) out.push(f);
+      continue;
+    }
+    const rel = await slot;
+    if (rel !== null) out.push(rel);
   }
   return out;
 }
