@@ -16,12 +16,12 @@ import { STILL_MAX_SCREEN_PX } from './artboard-still.ts';
 
 /** Walk at most this many nodes of one body. */
 export const RASTER_MAX_NODES = 4000;
-/** The still's width in device px: the threshold at the device pixel ratio, with a margin for a zoom-in. */
+/** The still's width in device px: 1.5 × the threshold at the device pixel ratio (≤ 2) — sharp up to that zoom-in. */
 export function stillWidthPx(dpr: number): number {
-  return Math.min(640, Math.ceil(STILL_MAX_SCREEN_PX * Math.max(1, dpr || 1) * 1.25));
+  return Math.ceil(STILL_MAX_SCREEN_PX * Math.min(2, Math.max(1, dpr || 1)) * 1.5);
 }
 /** And never taller than this (a long page artboard). */
-export const RASTER_MAX_HEIGHT_PX = 2048;
+export const RASTER_MAX_HEIGHT_PX = 1600;
 
 const clear = (c: string | null | undefined): boolean =>
   !c || c === 'transparent' || /rgba\([^)]*,\s*0\)$/.test(c) || /\/\s*0\)$/.test(c);

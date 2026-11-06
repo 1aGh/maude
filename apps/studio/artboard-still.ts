@@ -28,8 +28,12 @@
 
 /** An artboard narrower than this on screen (CSS px) shows its still during a zoom. One constant (Michal: ~120). */
 export const STILL_MAX_SCREEN_PX = 200;
-/** Mid-zoom, an artboard that grew past this many times the threshold goes live again (its still would blur). */
-export const STILL_RELEASE_FACTOR = 2;
+/**
+ * How many artboards go live again per frame after the settle (nearest the centre first). All at once was one
+ * 350 ms WebKit frame on the mascot canvas; a few per frame keep each settle frame short. The still matches, so the
+ * hand-over is not visible.
+ */
+export const STILL_RESTORE_PER_FRAME = 4;
 /** Stills are drawn for artboards up to this many times the threshold (a zoom-out reaches them next). */
 export const STILL_PREPARE_FACTOR = 2;
 /** Only while the artboards on screen hold at least this many mounted elements (the mascot canvas: ~8.5k). */
@@ -67,13 +71,17 @@ export function stillEligible(s: {
   pinned: boolean;
   eager: boolean;
   hasStill: boolean;
-  /** already showing its still this gesture (the release threshold applies, not the entry one) */
+  /**
+   * already showing its still this gesture: it stays a still until the settle, however far the zoom goes (a
+   * mid-gesture hand-back would repaint it at once — the cost this avoids; a zoomed-in still is soft, like
+   * WebKit's own scaled tiles mid-pinch, and is crisp again on the settle)
+   */
   showing?: boolean;
 }): boolean {
   if (s.pinned || s.eager || !s.hasStill) return false;
+  if (s.showing) return true;
   if (!(s.width > 0) || !(s.zoom > 0)) return false;
-  const px = s.width * s.zoom;
-  return s.showing ? px <= STILL_MAX_SCREEN_PX * STILL_RELEASE_FACTOR : px < STILL_MAX_SCREEN_PX;
+  return s.width * s.zoom < STILL_MAX_SCREEN_PX;
 }
 
 /** Is a still worth drawing for this artboard at the settled zoom? */
@@ -109,6 +117,8 @@ export interface StillControllerOptions {
   /** Draw a still of `body` (null when it cannot). Async: inline SVGs load as images. */
   take: (body: HTMLElement) => Promise<HTMLElement | null>;
   later?: (fn: () => void, ms: number) => unknown;
+  /** the next animation frame (the staggered restore) */
+  frame?: (fn: () => void) => unknown;
   cancel?: (handle: unknown) => void;
   /** observe DOM changes (null in tests that do not need it) */
   observe?: ((el: HTMLElement, onChange: () => void) => MutationObserver | null) | null;
@@ -131,6 +141,9 @@ export class StillController {
   private taking = false;
   private readonly take: StillControllerOptions['take'];
   private readonly later: (fn: () => void, ms: number) => unknown;
+  private readonly frame: (fn: () => void) => unknown;
+  private restoring: Entry[] = [];
+  private restoreScheduled = false;
   private readonly cancel: (h: unknown) => void;
   private readonly observe: StillControllerOptions['observe'];
   private readonly info: StillControllerOptions['info'];
@@ -139,6 +152,12 @@ export class StillController {
   constructor(o: StillControllerOptions) {
     this.take = o.take;
     this.later = o.later ?? ((fn, ms) => setTimeout(fn, ms));
+    this.frame =
+      o.frame ??
+      ((fn) =>
+        typeof requestAnimationFrame === 'function'
+          ? requestAnimationFrame(fn)
+          : setTimeout(fn, 16));
     this.cancel = o.cancel ?? ((h) => clearTimeout(h as ReturnType<typeof setTimeout>));
     this.observe = o.observe === undefined ? defaultObserve : o.observe;
     this.info = o.info;
@@ -229,6 +248,8 @@ export class StillController {
       // the first write of a gesture: remember where it started; nothing swaps for a pure pan
       this.gestureZoom = this.zoom;
       this.stopTaking();
+      // a new gesture before the restore finished: what is still a still stays one until this one settles
+      this.restoring = [];
     }
     this.zoom = zoom;
     if (!this.engaged) {
@@ -238,13 +259,40 @@ export class StillController {
     for (const e of this.entries.values()) this.apply(e);
   }
 
-  /** The gesture settled: every artboard is live again (the DOM never left), and stills are refreshed later. */
+  /**
+   * The gesture settled: every artboard goes live again (its DOM never left), `STILL_RESTORE_PER_FRAME` per
+   * frame, nearest the viewport centre first. Stills are redrawn later, once it is quiet.
+   */
   settle(zoom?: number): void {
     if (zoom !== undefined && zoom > 0) this.zoom = zoom;
     this.gestureZoom = null;
     this.engaged = false;
-    for (const e of this.entries.values()) this.hide(e);
+    const showing = [...this.entries.values()].filter((e) => e.showing);
+    if (showing.length) {
+      const W = typeof innerWidth === 'number' ? innerWidth : 0;
+      const H = typeof innerHeight === 'number' ? innerHeight : 0;
+      const dist = new Map<Entry, number>();
+      for (const e of showing) {
+        const r = e.target.article.getBoundingClientRect();
+        dist.set(e, Math.hypot(r.left + r.width / 2 - W / 2, r.top + r.height / 2 - H / 2) || 0);
+      }
+      showing.sort((a, b) => (dist.get(a) ?? 0) - (dist.get(b) ?? 0));
+      this.restoring = showing;
+      this.restoreStep();
+    }
     this.scheduleTake();
+  }
+
+  /** Hand back the next few artboards now, the rest on the next frames. */
+  private restoreStep(): void {
+    const batch = this.restoring.splice(0, STILL_RESTORE_PER_FRAME);
+    for (const e of batch) this.hide(e);
+    if (!this.restoring.length || this.restoreScheduled) return;
+    this.restoreScheduled = true;
+    this.frame(() => {
+      this.restoreScheduled = false;
+      if (this.gestureZoom === null) this.restoreStep();
+    });
   }
 
   /** Test / diagnostics view. */
@@ -317,7 +365,7 @@ export class StillController {
     let best: [string, Entry] | null = null;
     for (const kv of this.entries) {
       const e = kv[1];
-      if (!e.dirty || !this.visibleOf(kv[0], e)) continue;
+      if (!e.dirty) continue;
       const want = stillWanted({
         width: e.target.article.offsetWidth,
         zoom: this.zoom,
@@ -325,7 +373,10 @@ export class StillController {
         eager: e.eager,
       });
       if (!want) continue;
-      if (!best || (!e.still && best[1].still)) best = kv;
+      // on screen before the prefetch ring, a missing still before a stale one
+      const rank = (x: [string, Entry]) =>
+        (this.visibleOf(x[0], x[1]) ? 0 : 2) + (x[1].still ? 1 : 0);
+      if (!best || rank(kv) < rank(best)) best = kv;
     }
     return best;
   }
