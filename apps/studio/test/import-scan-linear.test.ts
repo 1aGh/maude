@@ -104,7 +104,8 @@ describe('importScanText — same output as before (#207)', () => {
     const cases = [
       `import a from './a.tsx';\nimport('./b.ts');\nrequire ( "./c.js" )`,
       `// import x from './no.tsx'\n/* from './no2.tsx' */ import y from /* long\ncomment */ './yes.tsx'`,
-      'const s = `./t.tsx`; import(`./u.tsx`); import(`./${v}.tsx`); require(`./w.js`)',
+      // a substitution in a template: `$` + `{` spelled apart so the linter reads no template
+      'const s = `./t.tsx`; import(`./u.tsx`); import(`./$' + '{v}.tsx`); require(`./w.js`)',
       `x = 'from'; y = "import"; reimport('./not'); fromage './cheese'`,
       `import './nbsp.tsx'; from './ls.tsx'; import　('./ideo')`,
       `'unterminated\nimport './after.tsx'; "esc \\" quote" from './q.tsx' 'a\\\nb'`,
@@ -125,9 +126,38 @@ describe('importScanText — same output as before (#207)', () => {
 
   test('fuzz: random sources over the scanner alphabet', () => {
     const atoms = [
-      'import', 'from', 'require', '(', ')', ' ', '\n', '\t', ' ', "'", '"', '`', '\\', '/',
-      '*', '//', '/*', '*/', '${', '}', './a.tsx', 'x', '$', '_', '@import', 'url', 'URL', ';',
-      '\r', '\ud83d', '\ude00', 'é',
+      'import',
+      'from',
+      'require',
+      '(',
+      ')',
+      ' ',
+      '\n',
+      '\t',
+      ' ',
+      "'",
+      '"',
+      '`',
+      '\\',
+      '/',
+      '*',
+      '//',
+      '/*',
+      '*/',
+      '${',
+      '}',
+      './a.tsx',
+      'x',
+      '$',
+      '_',
+      '@import',
+      'url',
+      'URL',
+      ';',
+      '\r',
+      '\ud83d',
+      '\ude00',
+      'é',
     ];
     let seed = 207;
     const rnd = (k: number) => {

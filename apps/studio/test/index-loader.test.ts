@@ -92,34 +92,76 @@ test('#204: a first answer is drawn even while refreshes keep arriving', async (
   await until(() => loader.applied.at(-1) === 'tree 3');
 });
 
-// #204 — a slow server (a large index on a small cell) answered after the fixed 10 s abort, so
-// the client aborted and asked again forever (ERR_ABORTED again and again), each retry adding
-// another full index build on the server. A timeout now doubles each time it fires in a row.
-test('#204: a slow index gets longer each time it times out, instead of the same abort forever', async () => {
-  const waited: number[] = [];
+// #204 → #207 — a slow server answered after the client's abort, so the client aborted and asked
+// again (each retry another full build on the server; #204 only doubled the patience). StudyFi's
+// 13 s index met a 10 s timeout on a desktop whose files are all local: "taking a while — trying
+// again…". A pending request is now never aborted or asked again; only a real error is retried.
+test('#207: a slow index is waited for — never aborted, never asked again while pending', async () => {
   let calls = 0;
+  let aborted = false;
+  const answer = deferred<string>();
   const loader = setup(
     (signal) => {
-      if (++calls > 3) return Promise.resolve('finally');
-      const t0 = Date.now();
-      return new Promise((_resolve, reject) =>
-        signal.addEventListener(
-          'abort',
-          () => {
-            waited.push(Date.now() - t0);
-            reject(new Error('Timeout'));
-          },
-          { once: true }
-        )
-      );
+      calls++;
+      signal.addEventListener('abort', () => (aborted = true), { once: true });
+      return answer.promise;
     },
+    // what the pre-#207 loader read as "abort after 20 ms" (#204's test value)
     { timeoutMs: 20 }
   );
+  const request = loader.reload();
+  await Bun.sleep(150);
+  expect(calls).toBe(1);
+  expect(aborted).toBe(false);
+  expect(loader.errors).toEqual([]);
+  answer.resolve('slow but whole');
+  await request;
+  expect(loader.applied).toEqual(['slow but whole']);
+  expect(calls).toBe(1);
+});
+
+// #207 — a previous run's copy is drawn at once, then asked for again with `fresh`.
+test("#207: a previous run's copy is drawn, then the fresh index replaces it", async () => {
+  const asked: boolean[] = [];
+  const answers = ['copy', 'copy', 'real'];
+  const applied: string[] = [];
+  const loader = createIndexLoader<string>({
+    read: async (_signal, { fresh }) => {
+      asked.push(fresh);
+      return answers.shift() ?? 'real';
+    },
+    apply: (v) => applied.push(v),
+    onError: () => {},
+    isStale: (v) => v === 'copy',
+    staleRetryMs: 5,
+    maxStaleRetryMs: 10,
+  });
+  loaders.push(loader);
   await loader.reload();
-  await until(() => loader.applied.length === 1);
-  expect(waited).toHaveLength(3);
-  expect(waited[1]).toBeGreaterThanOrEqual(38);
-  expect(waited[2]).toBeGreaterThanOrEqual(78);
+  await until(() => applied.includes('real'));
+  // the copy is drawn at once; a server that ignores `fresh` (the route before its patch) answers
+  // the copy again until its build is done; then the real one lands, and later asks are plain
+  expect(applied).toEqual(['copy', 'copy', 'real']);
+  expect(asked.slice(0, 3)).toEqual([false, true, true]);
+  await loader.reload();
+  expect(asked[asked.length - 1]).toBe(false);
+});
+
+test('#207: a copy never replaces a real index already drawn', async () => {
+  const answers = ['real', 'copy'];
+  const applied: string[] = [];
+  const loader = createIndexLoader<string>({
+    read: async () => answers.shift() ?? 'real',
+    apply: (v) => applied.push(v),
+    onError: () => {},
+    isStale: (v) => v === 'copy',
+    staleRetryMs: 5,
+  });
+  loaders.push(loader);
+  await loader.reload();
+  await loader.reload();
+  await until(() => applied.length >= 2);
+  expect(applied).toEqual(['real', 'real']);
 });
 
 test('dispose cancels a scheduled recovery', async () => {
@@ -149,17 +191,14 @@ test('dispose aborts in-flight IO and rejects a late response without publishing
   await loader.reload();
   expect(loader.applied).toEqual([]);
 });
-test('hung abort-aware fetch times out and the next request recovers', async () => {
+// #207 — a dropped connection (the server closed a request it held too long) is a real error:
+// it is retried, and the retry joins the server's one build.
+test('a dropped connection is retried and the next request recovers', async () => {
   let calls = 0;
-  const loader = setup(
-    (signal) => {
-      if (++calls > 1) return Promise.resolve('ready');
-      return new Promise((_resolve, reject) =>
-        signal.addEventListener('abort', () => reject(new Error('Timeout')), { once: true })
-      );
-    },
-    { timeoutMs: 5 }
-  );
+  const loader = setup(async () => {
+    if (++calls > 1) return 'ready';
+    throw new TypeError('Load failed');
+  });
   await loader.reload();
   await until(() => loader.applied.length === 1);
   expect(loader.applied).toEqual(['ready']);

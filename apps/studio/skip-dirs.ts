@@ -162,9 +162,7 @@ function bufText(buf: Uint16Array, len: number): string {
   const CHUNK = 8192;
   const parts: string[] = [];
   for (let a = 0; a < len; a += CHUNK)
-    parts.push(
-      String.fromCharCode.apply(null, buf.subarray(a, Math.min(len, a + CHUNK)) as never)
-    );
+    parts.push(String.fromCharCode.apply(null, buf.subarray(a, Math.min(len, a + CHUNK)) as never));
   return parts.join('');
 }
 
