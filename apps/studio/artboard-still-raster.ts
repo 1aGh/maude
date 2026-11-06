@@ -254,10 +254,15 @@ function roundRect(
  * Draw a still of a mounted artboard body. Resolves to a `<canvas>` (not yet in the document), or null when
  * the body has no size. The coordinates are the body's on-screen ones; the canvas is sized `stillWidthPx`.
  */
+/** The longest synchronous parts of a drawing so far (ms) — diagnostics (`__maudeStillStats`). */
+export const rasterTimings = { collectMax: 0, paintMax: 0 };
+
 export async function drawStill(body: HTMLElement): Promise<HTMLCanvasElement | null> {
   const br = body.getBoundingClientRect();
   if (br.width < 1 || br.height < 1) return null;
+  const c0 = performance.now();
   const { ops } = collectOps(body);
+  rasterTimings.collectMax = Math.max(rasterTimings.collectMax, performance.now() - c0);
   await Promise.all(
     ops.map(async (op) => {
       if (op.k === 'svg') op.img = await loadSvg(op.src);
@@ -279,6 +284,7 @@ export async function drawStill(body: HTMLElement): Promise<HTMLCanvasElement | 
     g.fillStyle = base;
     g.fillRect(0, 0, br.width, br.height);
   }
+  const p0 = performance.now();
   for (const op of ops) {
     g.globalAlpha = op.a;
     try {
@@ -306,5 +312,6 @@ export async function drawStill(body: HTMLElement): Promise<HTMLCanvasElement | 
     }
   }
   g.globalAlpha = 1;
+  rasterTimings.paintMax = Math.max(rasterTimings.paintMax, performance.now() - p0);
   return cv;
 }

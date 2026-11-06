@@ -139,6 +139,8 @@ export class StillController {
   private engaged = false;
   private timer: unknown = null;
   private taking = false;
+  /** drawings so far, their total and longest wall time (ms) — diagnostics */
+  private takes = { n: 0, ms: 0, max: 0 };
   private readonly take: StillControllerOptions['take'];
   private readonly later: (fn: () => void, ms: number) => unknown;
   private readonly frame: (fn: () => void) => unknown;
@@ -302,6 +304,7 @@ export class StillController {
     showing: number;
     engaged: boolean;
     onScreenNodes: number;
+    takes: { n: number; ms: number; max: number };
   } {
     let withStill = 0;
     let showing = 0;
@@ -315,6 +318,7 @@ export class StillController {
       showing,
       engaged: this.engaged,
       onScreenNodes: this.onScreenWeight(),
+      takes: { ...this.takes, ms: Math.round(this.takes.ms), max: Math.round(this.takes.max) },
     };
   }
 
@@ -388,12 +392,17 @@ export class StillController {
     const [id, e] = next;
     this.taking = true;
     let still: HTMLElement | null = null;
+    const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
     try {
       still = await this.take(e.target.body);
     } catch {
       still = null;
     } finally {
       this.taking = false;
+      const dt = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
+      this.takes.n += 1;
+      this.takes.ms += dt;
+      this.takes.max = Math.max(this.takes.max, dt);
     }
     if (this.entries.get(id) !== e) {
       still?.remove();
@@ -425,10 +434,35 @@ function place(still: HTMLElement, t: StillTarget): void {
   st.height = `${t.body.offsetHeight}px`;
 }
 
+/**
+ * A change to what the body paints. A picture's `src` changing is not one yet (the asset layer retries a missing
+ * picture every few seconds, which redrew those stills forever): its `load` is.
+ */
+export function isPaintMutation(
+  m: Pick<MutationRecord, 'type' | 'attributeName' | 'target'>
+): boolean {
+  if (m.type !== 'attributes') return true;
+  const t = m.target as Element;
+  return !(
+    (m.attributeName === 'src' || m.attributeName === 'srcset') &&
+    (t.tagName === 'IMG' || t.tagName === 'VIDEO' || t.tagName === 'SOURCE')
+  );
+}
+
 function defaultObserve(el: HTMLElement, onChange: () => void): MutationObserver | null {
   if (typeof MutationObserver !== 'function') return null;
-  const mo = new MutationObserver(onChange);
+  const mo = new MutationObserver((list) => {
+    if (list.some(isPaintMutation)) onChange();
+  });
   mo.observe(el, { subtree: true, childList: true, attributes: true, characterData: true });
+  // a picture that came in (load does not bubble: capture)
+  const onLoad = () => onChange();
+  el.addEventListener('load', onLoad, true);
+  const disconnect = mo.disconnect.bind(mo);
+  mo.disconnect = () => {
+    el.removeEventListener('load', onLoad, true);
+    disconnect();
+  };
   return mo;
 }
 

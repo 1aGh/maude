@@ -44,7 +44,7 @@ import {
   takePicture,
 } from './artboard-placeholder.ts';
 import { ARTBOARD_STILL_CSS, resolveStillMode, StillController } from './artboard-still.ts';
-import { drawStill } from './artboard-still-raster.ts';
+import { drawStill, rasterTimings } from './artboard-still-raster.ts';
 import { WebglBudget } from './artboard-webgl.ts';
 
 const ALL_LIVE: ArtboardLiveState = { live: true, seen: true, media: true };
@@ -209,8 +209,10 @@ function getRuntime(): Runtime | null {
     const st = new StillController({ take: drawStill, info: (id) => registry.slotInfo(id) });
     registry.onSettle(() => st.settle());
     stills = st;
-    (window as unknown as { __maudeStillStats?: () => unknown }).__maudeStillStats = () =>
-      st.stats();
+    (window as unknown as { __maudeStillStats?: () => unknown }).__maudeStillStats = () => ({
+      ...st.stats(),
+      raster: { ...rasterTimings },
+    });
   }
   const runtime: Runtime = { registry, budget, near, visible, keep, ids, stills };
   const slot: RuntimeSlot = { shape: RUNTIME_SHAPE, search: window.location.search, runtime };
