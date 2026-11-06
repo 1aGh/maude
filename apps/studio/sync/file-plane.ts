@@ -2586,6 +2586,19 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           });
           out.synced += 1;
         } else if (
+          decision.adoptAncestor &&
+          !here &&
+          (row?.deleted === true || ledger.remoteOf(rel) === null)
+        ) {
+          // GONE ON BOTH SIDES (issue #207). Not here, and the hub SAID so — a tombstone on this
+          // page, or a remembered one (a complete full read is the only other writer of `null`).
+          // There is nothing left to move or to agree on, so nothing to track. The row stayed
+          // behind instead, and a row with no state reads `local-only`: every file this Mac
+          // deleted came back in Sync details as "only on this Mac" the pass its own tombstone
+          // arrived (`noteRemote` re-creates a forgotten row). A remote never learned (`undefined`)
+          // is not a statement, so that row keeps its ancestor for the next full read.
+          ledger.forget(rel);
+        } else if (
           !here &&
           remoteHash !== null &&
           !propagateDeletes &&

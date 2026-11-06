@@ -155,3 +155,79 @@ test('the runtime hands the plane a getter, not the boot-time value', () => {
   expect(src.includes('propagateDeletes: linkedHub.propagateDeletes !== false,')).toBe(false);
   expect(/propagateDeletes: \(\) =>\s+livePropagateDeletes\(/.test(src)).toBe(true);
 });
+
+// ── 2. Deleted on both sides leaves Sync details ───────────────────────────
+
+/** The hub-side delete a teammate would send: CAS on the hash the hub holds now. */
+async function hubDelete(rel: string, token = 'alice') {
+  const journal = (await (
+    await fetch(`${hub.http}/api/journal?since=0`, {
+      headers: { authorization: `Bearer ${hub.tokens.owner}` },
+    })
+  ).json()) as { entries: { path: string; sha256: string | null; deleted?: boolean }[] };
+  const live = journal.entries.filter((e) => e.path === rel && !e.deleted).pop();
+  const res = await fetch(`${hub.http}/api/file/${rel}`, {
+    method: 'DELETE',
+    headers: {
+      authorization: `Bearer ${hub.tokens[token]}`,
+      'x-maude-expect-hash': String(live?.sha256),
+    },
+  });
+  expect(res.ok).toBe(true);
+}
+
+test.skipIf(!HUB_READY)(
+  'a delete this Mac sent does not come back as "only on this Mac" when its tombstone arrives',
+  async () => {
+    // Ten tracked, two deleted: under every breaker arm (a quarter of the project is the proportion one).
+    for (let i = 0; i < 10; i += 1) writeFrame(i);
+    const p = plane(counting().fetchImpl);
+    await p.reconcile();
+    rmSync(join(root, frame(0)));
+    rmSync(join(root, frame(1)));
+    const sent = await p.reconcile();
+    expect(sent.deleted.map((d) => d.rel).sort()).toEqual([frame(0), frame(1)]);
+    // The next passes read the hub's own tombstones for them.
+    await p.reconcile();
+    await p.reconcile();
+    expect(ledger.row(frame(0))).toBeNull();
+    expect(p.doruceka()[frame(0)]).toBeUndefined();
+    expect(p.doruceka()[frame(1)]).toBeUndefined();
+    expect(p.doruceka()[frame(2)]).toBe('on-hub');
+  },
+  60_000
+);
+
+test.skipIf(!HUB_READY)(
+  'a file deleted here (delete sync off) and then on the hub leaves Sync details',
+  async () => {
+    for (let i = 0; i < 4; i += 1) writeFrame(i);
+    const p = plane(counting().fetchImpl, false);
+    await p.reconcile();
+    rmSync(join(root, frame(0)));
+    await p.reconcile();
+    expect(ledger.row(frame(0))?.state).toBe('stuck');
+    await hubDelete(frame(0));
+    await p.reconcile();
+    await p.reconcile();
+    expect(ledger.row(frame(0))).toBeNull();
+    expect(p.doruceka()[frame(0)]).toBeUndefined();
+  },
+  60_000
+);
+
+test.skipIf(!HUB_READY)(
+  'the other direction: a teammate deletes a file, this Mac quarantines it, and the row leaves',
+  async () => {
+    for (let i = 0; i < 4; i += 1) writeFrame(i);
+    const p = plane(counting().fetchImpl);
+    await p.reconcile();
+    await hubDelete(frame(3));
+    const res = await p.reconcile();
+    expect(res.deleted.map((d) => d.rel)).toEqual([frame(3)]);
+    await p.reconcile();
+    expect(existsSync(join(root, frame(3)))).toBe(false);
+    expect(p.doruceka()[frame(3)]).toBeUndefined();
+  },
+  60_000
+);
