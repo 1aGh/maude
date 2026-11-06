@@ -120,6 +120,7 @@ import {
   ArtboardLiveFeed,
   ArtboardLiveGate,
   holdAllLive,
+  noteGestureZoom,
 } from './artboard-live-gate.tsx';
 import { ArtboardNewSection, useNewSection } from './artboard-new-section.tsx';
 import {
@@ -1601,6 +1602,8 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       };
       vpRef.current = clamped;
       liveViewport = clamped; // RC3 — survives the soft-reload remount
+      // 2.0.7 — a zoom step swaps small artboards to their stills before this frame paints (artboard-still.ts)
+      noteGestureZoom(clamped.zoom);
       writeTransform(clamped);
       // `defer` is what makes a gesture render-free. A wheel/pinch/drag burst
       // writes the transform imperatively every frame (above) and publishes to
