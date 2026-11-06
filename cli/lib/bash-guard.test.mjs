@@ -480,6 +480,19 @@ test('V2-8.9 M1: a write to /_api/sync/link/confirm is denied (human-only); a re
   assert.match(r.reason, /Connect to the hub/);
 });
 
+// fix/207 — the person's yes to shared code: the AI never posts it; reading the answer is fine.
+const CODE = 'http://127.0.0.1:4399/_api/sync/code-consent/set';
+test('fix/207: a write to /_api/sync/code-consent/set is denied (human-only); a read is not', () => {
+  for (const cmd of [
+    `maude design curl-local --method POST --data '{"allow":true}' ${CODE}`,
+    `curl -H 'Sec-Fetch-Site: same-origin' -d '{"allow":true}' ${CODE}`,
+  ])
+    assert.equal(code(cmd), 'human-only', cmd);
+  assert.equal(code('curl -s http://127.0.0.1:4399/_api/sync/code-consent'), null);
+  const r = classifyBash(`curl -X POST ${CODE}`, { cwd: ROOT, designRoot: DR });
+  assert.match(r.reason, /Allow shared code/);
+});
+
 // gate-b-sec2 finding 1 — defence in depth behind the dispatcher: a maude verb's --root /
 // --design-root / cwd names the session's project, and a call never steers the session env.
 test('other project: --root, --design-root, cd and the session env are denied; the project passes', () => {
