@@ -21,13 +21,8 @@ import path, { dirname, resolve, sep } from 'node:path';
 import { canvasArtifacts } from '../canvas-artifacts.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { Paths } from '../context.ts';
-import {
-  dsDepsFor,
-  folderSystemOf,
-  importsDs,
-  importsDsBoard,
-  specimenRels,
-} from '../ds/ds-resolver.ts';
+import { dsDepsFor, importsDs, importsDsBoard, specimenRels } from '../ds/ds-resolver.ts';
+import { folderSystemOf, pinnedFolderSystem } from '../ds/folder-systems.ts';
 import {
   CANVAS_LIB_SPEC,
   CARRIES_ALL,
@@ -437,8 +432,9 @@ function readJsonObject(project: ProjectReader, rel: string): Record<string, unk
 }
 
 /** The system a canvas renders under — the same chain as `ds-resolver.ts` `canvasSystemFor`
- *  (owner by path → 2.0.7 owner by its own folder → meta `designSystem` → `defaultDesignSystem` →
- *  first), read through the ProjectReader instead of the disk. */
+ *  (owner by path → 2.0.7 owner by its own folder → meta `designSystem` (configured, else a folder
+ *  system of exactly that name) → `defaultDesignSystem` → the first of the merged list), read
+ *  through the ProjectReader instead of the disk. */
 function canvasSystem(
   project: ProjectReader,
   canvas: string,
@@ -450,18 +446,35 @@ function canvasSystem(
   if (owner) return owner;
   // 2.0.7 — a system folder the config does not list (a cell's config.json never syncs) still owns
   // its own canvases: its board draws its own specimens, never the default system's.
-  const folder = folderSystemOf(canvas, systems, (r) =>
-    files ? files.has(r) : project.text(r) !== null
-  );
+  const hasFile = (r: string) => (files ? files.has(r) : project.text(r) !== null);
+  const folder = folderSystemOf(canvas, systems, hasFile);
   if (folder) return folder;
-  if (!systems.length) return null;
+  // …and a canvas that pins it by name renders with it; a name with no such folder stays at the default
+  const named = (name: unknown): DsSystem | null =>
+    typeof name === 'string' && name
+      ? (systems.find((s) => s.name === name) ?? pinnedFolderSystem(name, systems, hasFile))
+      : null;
   const declared = readJsonObject(
     project,
     canvas.replace(/\.(tsx|html)$/i, '.meta.json')
   )?.designSystem;
-  const byMeta = typeof declared === 'string' ? systems.find((s) => s.name === declared) : null;
+  const byMeta = named(declared);
   if (byMeta) return byMeta;
-  return systems.find((s) => s.name === cfg.defaultDesignSystem) ?? systems[0] ?? null;
+  const byDefault = named(cfg.defaultDesignSystem);
+  if (byDefault) return byDefault;
+  if (systems.length) return systems[0] ?? null;
+  // no configured system: the first folder system by name, as the merged list orders them
+  const listed = files ?? new Set(project.list());
+  const segs = new Set<string>();
+  for (const r of listed) {
+    const m = /^system\/([^/]+)\/design-system\.tsx$/.exec(r);
+    if (m) segs.add(m[1] as string);
+  }
+  for (const seg of [...segs].sort()) {
+    const f = folderSystemOf(`system/${seg}/design-system.tsx`, systems, (r) => listed.has(r));
+    if (f) return f;
+  }
+  return null;
 }
 
 /** A design-system file a canvas-only session reads: not a specimen, not a UI kit. */
