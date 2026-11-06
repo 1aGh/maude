@@ -61,6 +61,7 @@ import {
 import {
   CanvasPagesSwitch,
   PAGES_PILL_CSS,
+  pickTurnsPage,
   runPagesAction,
   turnToPage,
   usePagesView,
@@ -909,6 +910,8 @@ function CanvasCore({
     hostRef,
     here: !isEmbedCanvas() && !isFollowCanvas(),
     selectionNone: () => selSet.selected.length === 0,
+    // 2.0.7 (decision `v2-207-pages-stale-selection`) — a page turn drops what is selected on another artboard
+    dropOffPage: (page) => selSet.drop((s) => !s.artboardId || s.artboardId === page),
   });
 
   // T33 — programmatic-zoom easing via double-click on empty world only.
@@ -3065,6 +3068,11 @@ function CanvasRouter({
               ? selSet.addFromShell(picked)
               : selSet.replaceFromShell(picked);
           if (!applied) return;
+          // 2.0.7 (decision `v2-207-pages-stale-selection`) — in Pages every pick turns to its artboard's page, also
+          // when that artboard was already selected (the old rule waited for the selected artboard to CHANGE, so
+          // re-picking it after a page step stayed on the other page and the reveal below moved the camera to where
+          // the hidden artboard sits). The page brings its own camera, so the reveal is skipped.
+          if (pickTurnsPage(picked.artboardId ?? mm.artboardId)) return;
           // Task A1 — reveal THROUGH the camera, not host scroll. The old
           // `scrollIntoView` scrolled the overflow:hidden `.dc-canvas` /
           // `.dc-artboard-body` clip layers, desyncing the `.dc-world`

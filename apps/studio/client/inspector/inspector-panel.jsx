@@ -564,6 +564,10 @@ export function InspectorPanel({
   });
   const layersShown = treeOfBoard(layersTree, markedBoard);
   const layersPending = !!markedBoard && !layersShown;
+  // 2.0.7 (decision `v2-207-pages-stale-selection`) — the selection's own layer path (the fallback for an empty
+  // tree) may be drawn under the marked row only when the selection is on that artboard: under "NOVÝ v3 · A1" it
+  // drew a path ending in another artboard (`article[data-dc-screen="spine-home-entry"]`).
+  const selOnMarked = !markedBoard || el?.artboardId === markedBoard;
   const byArtboard = (inner) => (
     <ArtboardLayers
       boards={layersBoards}
@@ -737,7 +741,11 @@ export function InspectorPanel({
         ) : effTab === 'layers' && layersPending ? (
           // the artboard you are on is marked; its own tree is on its way (never another artboard's in its place)
           byArtboard(null)
-        ) : effTab === 'layers' && layersBoards?.length && !el && !layersShown?.nodes?.length ? (
+        ) : effTab === 'layers' &&
+          layersBoards?.length &&
+          (!el || !selOnMarked) &&
+          !layersShown?.nodes?.length ? (
+          // the marked artboard's tree is empty: nothing under its row (never another artboard's path in its place)
           byArtboard(null)
         ) : !el && !(effTab === 'layers' && layersShown?.nodes?.length) && (dsTruth || dsSystem) ? (
           // c7 · 13 truth shots: a waiting review is the whole empty place — the system block (Which way changes flow,
@@ -808,7 +816,7 @@ export function InspectorPanel({
                   {reorderMsg}
                 </div>
               </>
-            ) : el && Array.isArray(el.dom_path) && el.dom_path.length ? (
+            ) : el && selOnMarked && Array.isArray(el.dom_path) && el.dom_path.length ? (
               el.dom_path.map((node, i) => (
                 <div
                   key={i}

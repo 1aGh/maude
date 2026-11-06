@@ -137,6 +137,14 @@ interface SelectionSetValue {
    */
   replaceFromShell: (s: Selection | Selection[]) => boolean;
   addFromShell: (s: Selection | Selection[]) => boolean;
+  /** The selection as of the last change — `selected` lags a render (read it in a store listener). */
+  peek: () => Selection[];
+  /**
+   * 2.0.7 (decision `v2-207-pages-stale-selection`) — keep only what `keep` passes (Pages turned away from the
+   * artboard the rest was on). Not a pick: a pick from the shell right after still lands; only a replay of exactly
+   * what was dropped (a restore rung queued before the shell heard) yields, for RESTORE_YIELD_MS.
+   */
+  drop: (keep: (s: Selection) => boolean) => void;
 }
 
 const SelectionSetContext = createContext<SelectionSetValue | null>(null);
@@ -189,6 +197,21 @@ export function yieldsToLocalPick(
 }
 
 /**
+ * 2.0.7 — a selection the shell sends that only brings back what a page turn just dropped (every item was among the
+ * dropped, `RESTORE_YIELD_MS` ago or less) is a restore rung queued before the shell heard → it yields. Anything
+ * else — a Layers pick of another layer, of the artboard itself — lands at once.
+ */
+export function replaysDroppedSelection(
+  dropped: { at: number; sel: Selection[] },
+  incoming: Selection[],
+  now = Date.now()
+): boolean {
+  if (now - dropped.at >= RESTORE_YIELD_MS || incoming.length === 0) return false;
+  const gone = new Set(dropped.sel.map(selectionKey));
+  return incoming.every((s) => gone.has(selectionKey(s)));
+}
+
+/**
  * S2.1 (S2-edit-ops.md §7) — `editing/selection.tsx` adds `refs` / `crumbs` / `kind` to every
  * `select-set` post. A registry (not an import) so this leaf provider never imports the editing
  * layer; absent = the v1 payload.
@@ -219,6 +242,11 @@ export function SelectionSetProvider({
   // the selection as of the last change (state lags a render) and when the canvas itself last changed it
   const currentRef = useRef<Selection[]>([]);
   const localAtRef = useRef(Number.NEGATIVE_INFINITY);
+  // what `drop` took away last, and when (a replay of it inside the yield window is a stale restore)
+  const droppedRef = useRef<{ at: number; sel: Selection[] }>({
+    at: Number.NEGATIVE_INFINITY,
+    sel: [],
+  });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPostRef = useRef<(() => void) | null>(null);
 
@@ -275,22 +303,43 @@ export function SelectionSetProvider({
     [apply]
   );
 
+  const replaysDropped = useCallback(
+    (incoming: Selection[]) => replaysDroppedSelection(droppedRef.current, incoming),
+    []
+  );
+
   const replaceFromShell = useCallback(
     (s: Selection | Selection[]) => {
       const next = dedupe(Array.isArray(s) ? s : [s]);
       if (yieldsToLocalPick(localAtRef.current, currentRef.current, next)) return false;
+      if (replaysDropped(next)) return false;
       apply(next);
       return true;
     },
-    [apply]
+    [apply, replaysDropped]
   );
 
   const addFromShell = useCallback(
     (s: Selection | Selection[]) => {
-      const next = dedupe([...currentRef.current, ...(Array.isArray(s) ? s : [s])]);
+      const incoming = Array.isArray(s) ? s : [s];
+      const next = dedupe([...currentRef.current, ...incoming]);
       if (yieldsToLocalPick(localAtRef.current, currentRef.current, next)) return false;
+      if (replaysDropped(incoming)) return false;
       apply(next);
       return true;
+    },
+    [apply, replaysDropped]
+  );
+
+  const peek = useCallback(() => currentRef.current, []);
+
+  const drop = useCallback(
+    (keep: (s: Selection) => boolean) => {
+      const cur = currentRef.current;
+      const next = cur.filter(keep);
+      if (next.length === cur.length) return;
+      droppedRef.current = { at: Date.now(), sel: cur.filter((s) => !keep(s)) };
+      apply(next);
     },
     [apply]
   );
@@ -345,8 +394,19 @@ export function SelectionSetProvider({
   }, [apply]);
 
   const value = useMemo<SelectionSetValue>(
-    () => ({ selected, replace, add, remove, toggle, clear, replaceFromShell, addFromShell }),
-    [selected, replace, add, remove, toggle, clear, replaceFromShell, addFromShell]
+    () => ({
+      selected,
+      replace,
+      add,
+      remove,
+      toggle,
+      clear,
+      replaceFromShell,
+      addFromShell,
+      peek,
+      drop,
+    }),
+    [selected, replace, add, remove, toggle, clear, replaceFromShell, addFromShell, peek, drop]
   );
 
   return <SelectionSetContext.Provider value={value}>{children}</SelectionSetContext.Provider>;
