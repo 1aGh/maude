@@ -326,6 +326,29 @@ const ZOOM_STEP_OUT = 1 / 1.2;
 const WHEEL_ZOOM_K = 0.0035; // larger = more sensitive wheel — tuned to match Figma/FigJam's zoom-per-notch feel
 const SETTLE_MS = 500;
 const PUBLISH_MS = 50;
+/**
+ * Runs `fn` after the next frame and one task more (2.0.7): input that queued behind a long frame is handled
+ * before it, so a gesture's quiet timer that came due during that frame does not end the gesture. A hidden
+ * document gets no frames: there it runs after a task; `fallbackMs` bounds a frame that never comes.
+ */
+function afterQuietFrame(fn: () => void, fallbackMs = 1000): void {
+  if (
+    typeof requestAnimationFrame !== 'function' ||
+    (typeof document !== 'undefined' && document.visibilityState === 'hidden')
+  ) {
+    setTimeout(fn, 0);
+    return;
+  }
+  let done = false;
+  const run = () => {
+    if (done) return;
+    done = true;
+    clearTimeout(fallback);
+    fn();
+  };
+  const fallback = setTimeout(run, fallbackMs);
+  requestAnimationFrame(() => setTimeout(run, 0));
+}
 
 // WebKit (Safari + the Tauri WKWebView native shell, DDR-106) vs Blink (Chrome).
 // The two engines render the CSS `zoom` property incompatibly (see writeTransform),
@@ -1410,6 +1433,8 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
   const publishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const interactEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Bumped by every input of a gesture (markInteracting); the quiet check compares it (2.0.7).
+  const interactSeqRef = useRef(0);
 
   // Stable refs to options that may change between renders.
   const computeFitRef = useRef(computeFitFn);
@@ -1531,12 +1556,25 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       zoomAtInteractStartRef.current = vpRef.current.zoom;
       setIsInteracting(true);
     }
+    interactSeqRef.current += 1;
+    const seq = interactSeqRef.current;
     if (interactEndTimerRef.current != null) clearTimeout(interactEndTimerRef.current);
+    // 2.0.7 — the quiet timer alone does not end the gesture: it can come due while a long frame blocks the
+    // main thread, BEFORE the wheel that queued behind that frame is handled (a due timer runs first). On the
+    // mascot canvas at 10 % a WebKit frame took 200-450 ms, so a pan+zoom settled 4-18 times mid-gesture
+    // (each one a published viewport, a crisp re-raster and a fresh layer on the next wheel). The end waits
+    // for a frame and a task with no new input (`afterQuietFrame`); a wheel in between keeps the gesture.
     interactEndTimerRef.current = setTimeout(() => {
+      interactEndTimerRef.current = null;
+      afterQuietFrame(() => {
+        if (interactSeqRef.current !== seq) return; // input came in after the timer: still the same gesture
+        endInteracting();
+      });
+    }, 220);
+    const endInteracting = () => {
       interactingRef.current = false;
       isInteractingStateRef.current = false;
       setIsInteracting(false);
-      interactEndTimerRef.current = null;
       // Motion has stopped — re-write the world transform in crisp mode so the
       // WebKit path drops its compositor layer and re-rasterizes text sharply at
       // the settled scale. No-op on the Blink path (CSS `zoom` is already crisp).
@@ -1551,7 +1589,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       // settle-cadence by design; deferring the publish to here is what keeps
       // the whole React tree still while the user is actually moving.
       setViewportPublished({ ...vpRef.current });
-    }, 220);
+    };
   }, [writeTransform]);
 
   const applyViewport = useCallback(
@@ -2075,6 +2113,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
         if (cb) cb({ ...vpRef.current });
       }
       if (interactEndTimerRef.current != null) clearTimeout(interactEndTimerRef.current);
+      interactSeqRef.current += 1; // a quiet check still in flight ends nothing after unmount
       if (animationRef.current != null) cancelAnimationFrame(animationRef.current);
     };
   }, []);
