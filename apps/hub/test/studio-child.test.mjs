@@ -193,11 +193,13 @@ test('2.0.4 task P — the canvas build ceilings reach the studio, validated and
       MAUDE_CANVAS_BUILD_RSS_MB: '1024',
       MAUDE_CANVAS_CACHE_ENTRIES: '128',
       MAUDE_CANVAS_MODULE_CACHE_MB: '256',
+      MAUDE_CANVAS_BUILD_CONCURRENCY: '4',
     },
     { port: 4399 }
   );
   assert.equal(on.MAUDE_CANVAS_BUILD_TIMEOUT_MS, '120000');
   assert.equal(on.MAUDE_CANVAS_BUILD_WAIT_MS, '25000');
+  assert.equal(on.MAUDE_CANVAS_BUILD_CONCURRENCY, '4');
   assert.equal(on.MAUDE_CANVAS_BUILD_RSS_MB, '1024');
   assert.equal(on.MAUDE_CANVAS_CACHE_ENTRIES, '128');
   assert.equal(on.MAUDE_CANVAS_MODULE_CACHE_MB, '256');
