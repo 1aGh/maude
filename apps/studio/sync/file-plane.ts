@@ -112,6 +112,9 @@ export const MAX_FILE_BYTES = (() => {
  *  happens, so it is kept at a size where twice the file does not matter. */
 export const STREAM_DOWNLOAD_ABOVE_BYTES = 1024 * 1024;
 
+/** Issue #207 — above this an upload body streams from disk instead of being read into memory. */
+export const STREAM_UPLOAD_ABOVE_BYTES = 1024 * 1024;
+
 /** sha256 of a file, read in 1 MiB chunks (T18 — a video is never held whole). */
 export function sha256File(abs: string): string {
   const hash = createHash('sha256');
@@ -635,18 +638,124 @@ type LocalFile = SyncableLocalFile | OversizedLocalFile;
 const sha256 = (bytes: Uint8Array | string): string =>
   createHash('sha256').update(bytes).digest('hex');
 
+interface WalkedFile {
+  rel: string;
+  abs: string;
+  size: number;
+  mtimeMs: number;
+}
+
 /**
- * Walk the design root and hash what the classifier admits.
+ * Walk the design root and hash what the classifier admits — synchronously.
  *
  * The stat cache is what makes this cheap: a converged project re-reads
  * nothing, because every file's `(size, mtimeMs)` still matches the ledger.
+ * The plane itself scans with `scanLocalFilesAsync` (issue #207); this stays
+ * for callers with no event loop to protect.
  */
 export function scanLocalFiles(
   designRoot: string,
   ledger: FileLedger,
   canvasGroups?: readonly CanvasGroupLike[]
 ): Map<string, LocalFile> {
-  const found: { rel: string; abs: string; size: number; mtimeMs: number }[] = [];
+  const out = new Map<string, LocalFile>();
+  for (const { f, cls } of walkAndClassify(designRoot, canvasGroups)) {
+    if (f.size > MAX_FILE_BYTES) {
+      out.set(f.rel, { ...f, cls, hash: null, oversized: true });
+      continue;
+    }
+    let hash = ledger.cachedHash(f.rel, f.size, f.mtimeMs);
+    if (hash === null) {
+      try {
+        hash = sha256File(f.abs);
+      } catch {
+        continue;
+      }
+      ledger.noteLocal(f.rel, hash, f.size, f.mtimeMs);
+    }
+    out.set(f.rel, { rel: f.rel, abs: f.abs, hash, size: f.size, mtimeMs: f.mtimeMs, cls });
+  }
+  return out;
+}
+
+/**
+ * The longest stretch of scan work before it yields to the event loop.
+ * Issue #207: the scan hashed every uncached file in ONE synchronous run
+ * (2 000 new 0.5–3 MB renders held the loop for 7.7 s) and the studio's
+ * `/_health` waited for all of it. Hashing now reads through a stream and
+ * yields every slice — inside a file as well as between files, because a
+ * stream whose chunks are already read ahead resolves on MICROTASKS, which
+ * never let a request in — so a request waits one slice at most.
+ */
+export const SCAN_SLICE_MS = 8;
+
+/** Hand the event loop a turn (a macrotask: pending I/O and timers run first). */
+export const yieldToLoop = (): Promise<void> => new Promise((r) => setImmediate(r));
+
+/** A time-sliced yield: `await slice()` yields once `ms` of work has run since the last turn. */
+export function createSlicer(ms = SCAN_SLICE_MS): () => Promise<void> {
+  let start = performance.now();
+  return async () => {
+    if (performance.now() - start < ms) return;
+    await yieldToLoop();
+    start = performance.now();
+  };
+}
+
+/**
+ * sha256 of a file through `Bun.file().stream()` — issue #207. Memory is the
+ * stream's read-ahead (~30 MB measured on a 256 MB file, never the file), and
+ * it yields to the event loop every slice, so a large file never blocks it.
+ */
+export async function hashFileStreamed(
+  abs: string,
+  slice: () => Promise<void> = createSlicer()
+): Promise<string> {
+  const hasher = new Bun.CryptoHasher('sha256');
+  for await (const chunk of Bun.file(abs).stream()) {
+    hasher.update(chunk);
+    await slice();
+  }
+  return hasher.digest('hex');
+}
+
+/**
+ * The plane's scan: the same answer as `scanLocalFiles`, but hashed through a
+ * stream and yielding to the event loop every `SCAN_SLICE_MS` (issue #207).
+ */
+export async function scanLocalFilesAsync(
+  designRoot: string,
+  ledger: FileLedger,
+  canvasGroups?: readonly CanvasGroupLike[]
+): Promise<Map<string, LocalFile>> {
+  const slice = createSlicer();
+  const out = new Map<string, LocalFile>();
+  for (const { f, cls } of walkAndClassify(designRoot, canvasGroups)) {
+    await slice();
+    if (f.size > MAX_FILE_BYTES) {
+      out.set(f.rel, { ...f, cls, hash: null, oversized: true });
+      continue;
+    }
+    let hash = ledger.cachedHash(f.rel, f.size, f.mtimeMs);
+    if (hash === null) {
+      try {
+        hash = await hashFileStreamed(f.abs, slice);
+      } catch {
+        continue;
+      }
+      ledger.noteLocal(f.rel, hash, f.size, f.mtimeMs);
+    }
+    out.set(f.rel, { rel: f.rel, abs: f.abs, hash, size: f.size, mtimeMs: f.mtimeMs, cls });
+  }
+  return out;
+}
+
+/** Walk the design root (stat only, no reads) and keep what the classifier admits. */
+function walkAndClassify(
+  designRoot: string,
+  canvasGroups?: readonly CanvasGroupLike[]
+): { f: WalkedFile; cls: FileClass }[] {
+  const found: WalkedFile[] = [];
 
   const walk = (dir: string, rel: string, depth: number): void => {
     if (depth > MAX_WALK_DEPTH) return;
@@ -684,24 +793,10 @@ export function scanLocalFiles(
   const names = new Set(found.map((f) => f.rel));
   const opts = { canvasGroups, hasFile: (r: string) => names.has(r) };
 
-  const out = new Map<string, LocalFile>();
+  const out: { f: WalkedFile; cls: FileClass }[] = [];
   for (const f of found) {
     const cls = classifyProjectFile(f.rel, opts);
-    if (!isFilePlaneClass(cls)) continue;
-    if (f.size > MAX_FILE_BYTES) {
-      out.set(f.rel, { ...f, cls, hash: null, oversized: true });
-      continue;
-    }
-    let hash = ledger.cachedHash(f.rel, f.size, f.mtimeMs);
-    if (hash === null) {
-      try {
-        hash = sha256File(f.abs);
-      } catch {
-        continue;
-      }
-      ledger.noteLocal(f.rel, hash, f.size, f.mtimeMs);
-    }
-    out.set(f.rel, { rel: f.rel, abs: f.abs, hash, size: f.size, mtimeMs: f.mtimeMs, cls });
+    if (isFilePlaneClass(cls)) out.push({ f, cls });
   }
   return out;
 }
@@ -1554,9 +1649,24 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     }
     // T18 — past one request: a resumable session, in verified parts.
     if (local.size > singlePutCeiling()) return pushSession(local, expect);
-    let bytes: Uint8Array;
+    // ISSUE #207 — A LARGE BODY STREAMS FROM DISK. Handing fetch the whole file
+    // as one buffer cost TWICE the file in memory over TLS (measured: 532 MB of
+    // RSS for a 256 MB body; a `Bun.file` body is no better there), copied on
+    // the main thread — the memmove a desktop uploading thousands of renders
+    // spent its time in. A stream costs its read-ahead. The hub hashes what
+    // lands against `x-maude-content-sha256`, so a file that changes mid-flight
+    // is refused there, never stored under the wrong hash.
+    let bytes: Uint8Array | ReadableStream<Uint8Array>;
     try {
-      bytes = readFileSync(local.abs);
+      if (local.size > STREAM_UPLOAD_ABOVE_BYTES) {
+        const st = statSync(local.abs);
+        if (st.size !== local.size || st.mtimeMs !== local.mtimeMs) {
+          return { ok: false, reason: 'The file changed since it was read — it goes up next pass' };
+        }
+        bytes = Bun.file(local.abs).stream();
+      } else {
+        bytes = readFileSync(local.abs);
+      }
     } catch (err) {
       // A LOCAL DISK READ, not a transfer. Classifying it as a transport
       // failure would tell a person the workspace is unreachable when the file
@@ -1581,6 +1691,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
             'content-type': 'application/octet-stream',
             'x-maude-content-sha256': local.hash,
             'x-maude-expect-hash': expect ?? 'none',
+            // A stream has no length of its own; the door and every proxy in
+            // front of it see the same one a buffer would have carried.
+            'content-length': String(local.size),
           },
           body: bytes as unknown as BodyInit,
           signal: AbortSignal.timeout(PUT_TIMEOUT_MS),
@@ -1829,9 +1942,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
    * the hold can say how much waits. The scan only records observations (`noteLocal`) — no decision, no
    * ancestor moves.
    */
-  function holdAtCursor(out: FilePlaneResult): FilePlaneResult {
+  async function holdAtCursor(out: FilePlaneResult): Promise<FilePlaneResult> {
     if (hitRateLimit === null) return out;
-    scanLocalFiles(designRoot, ledger, opts.canvasGroups);
+    await scanLocalFilesAsync(designRoot, ledger, opts.canvasGroups);
     return holdIfRateLimited(out, waitingHere());
   }
 
@@ -2078,7 +2191,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     if (fullRead && !page.truncated) ledger.pruneRemotes(new Set(delta.keys()));
 
     // ── 2. Ours ──────────────────────────────────────────────────────────
-    const local = scanLocalFiles(designRoot, ledger, opts.canvasGroups);
+    const local = await scanLocalFilesAsync(designRoot, ledger, opts.canvasGroups);
 
     // ── 3. Decide ────────────────────────────────────────────────────────
     let work: {
@@ -3015,7 +3128,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         out.conflicts.push({ rel, copy: copyRel });
         // The copy travels too, so BOTH ends see the conflict rather than only
         // the machine that happened to lose.
-        const copyLocal = statLocal(copyRel);
+        const copyLocal = await statLocal(copyRel);
         if (copyLocal) {
           const res = await push(copyLocal, null);
           if (res.ok) out.pushed.push(copyRel);
@@ -3090,11 +3203,11 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     }
   }
 
-  function statLocal(rel: string): SyncableLocalFile | null {
+  async function statLocal(rel: string): Promise<SyncableLocalFile | null> {
     const abs = path.join(designRoot, rel);
     try {
       const st = statSync(abs);
-      const hash = sha256(readFileSync(abs));
+      const hash = await hashFileStreamed(abs);
       return { rel, abs, hash, size: st.size, mtimeMs: st.mtimeMs, cls: 'inert-media' };
     } catch {
       return null;
