@@ -260,6 +260,11 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/sync/link/confirm', refused: ['view', 'comment'] },
   // fix/207 — the shared-code consent: a signed-in member's answer (Can edit; `readOnly: 'refused'`)
   { method: 'POST', route: '/_api/sync/code-consent/set', refused: ['view', 'comment'] },
+  // Issue #207 — Don't sync this folder / Sync it again (`sync.ignore-folder` / `sync.sync-folder-again`):
+  // the project config's ignore list, an edit (the row those two actions shipped without)
+  { method: 'POST', route: '/_api/sync/settings', refused: ['view', 'comment'] },
+  // 2.0.7 #7b — the answer to held deletes: an edit (`readOnly: 'refused'`)
+  { method: 'POST', route: '/_api/sync/held-deletes', refused: ['view', 'comment'] },
   // S11.17 — `save.retry-held`: Retry writes the canvas files a full disk held (`readOnly: 'refused'`).
   { method: 'POST', route: '/_api/diagnostics/disk-retry', refused: ['view', 'comment'] },
   // p8-a1-save-hold — the closing page lands its held saves (canvas files): an edit

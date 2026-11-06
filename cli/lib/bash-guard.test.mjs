@@ -493,6 +493,18 @@ test('fix/207: a write to /_api/sync/code-consent/set is denied (human-only); a 
   assert.match(r.reason, /Allow shared code/);
 });
 
+// 2.0.7 #7b — the answer to held local deletes is the person's: the AI never posts it.
+const HELD = 'http://127.0.0.1:4399/_api/sync/held-deletes';
+test('2.0.7 #7b: a write to /_api/sync/held-deletes is denied (human-only)', () => {
+  for (const cmd of [
+    `maude design curl-local --method POST --data '{"answer":"delete"}' ${HELD}`,
+    `curl -H 'Sec-Fetch-Site: same-origin' -d '{"answer":"keep"}' ${HELD}`,
+  ])
+    assert.equal(code(cmd), 'human-only', cmd);
+  const r = classifyBash(`curl -X POST ${HELD}`, { cwd: ROOT, designRoot: DR });
+  assert.match(r.reason, /Delete on the hub too/);
+});
+
 // gate-b-sec2 finding 1 — defence in depth behind the dispatcher: a maude verb's --root /
 // --design-root / cwd names the session's project, and a call never steers the session env.
 test('other project: --root, --design-root, cd and the session env are denied; the project passes', () => {

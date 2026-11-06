@@ -1,7 +1,8 @@
 // client/v2/diagnostics/sync-details/sync-details.jsx — S11.12 (06 ad-syncd): Menu › Diagnostics ›
 // Sync, rebuilt. The controls carry the v1 hooks the e2e scenarios drive (S11.12b): sync-panel (root) ·
 // sync-ai-held · sync-ai-publish · sync-ai-discard · sync-assets-cancel · sync-signin-again ·
-// sync-delivery-attention. Replaces the v1 Sync panel's mount in the sheet (its routes stay; SyncPanel.jsx and
+// sync-delivery-attention · sync-deletes-held (+ -delete / -keep / -confirm / -cancel / -said /
+// -folders / -confirming) · sync-deletes-purging · sync-hub-only. Replaces the v1 Sync panel's mount in the sheet (its routes stay; SyncPanel.jsx and
 // SourceConflictPanel.jsx keep their files). What needs the person comes first, each with its own
 // choice; the transfer, the counts and the lists follow.
 //
@@ -204,6 +205,125 @@ function CodeConsentButton({ mode, host, fetchImpl, onDone }) {
         />
       ) : null}
     </>
+  );
+}
+
+const filesWord = (n) => `${n.toLocaleString('en-US')} ${n === 1 ? 'file' : 'files'}`;
+
+/** Issue #207 (7b) — the words after an answer to held deletes (CONTRACT §3–§4: plain, no "we"). */
+export function heldDeletesWords(answer) {
+  if (!answer?.ok) return safeDetail(answer?.detail, 'That didn’t work. Nothing was deleted.');
+  if (answer.how === 'keep')
+    return `Kept on the hub. ${filesWord(answer.count)} stay there and aren’t downloaded again.`;
+  if (answer.how === 'purge')
+    return `Deleting ${filesWord(answer.count)} on the hub. A batch this big takes a few minutes.`;
+  return `Deleting ${filesWord(answer.count)} on the hub.`;
+}
+
+/**
+ * Issue #207 (7b) — Deleted on this Mac, held: a batch of local deletes larger than sync sends unasked.
+ * Delete on the hub too… asks once more (the batch reaches every teammate), then sends it as one
+ * confirmed batch; Keep on the hub leaves the files there and never downloads them again. Both
+ * `POST /_api/sync/held-deletes`; the server picks the hub's door or the owner's confirmed purge.
+ */
+function HeldDeletesCard({ need, fetchImpl }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState('');
+  const [done, setDone] = useState(false);
+  async function answer(kind) {
+    setBusy(true);
+    setSaid('');
+    const r = await postJson(fetchImpl, '/_api/sync/held-deletes', { answer: kind, folder: null });
+    setBusy(false);
+    setConfirming(false);
+    setSaid(heldDeletesWords(r));
+    if (r?.ok) setDone(true);
+  }
+  const n = need.count;
+  return (
+    <div className="sd-card" data-testid="sync-deletes-held">
+      <strong className="sd-ct">Deleted on this Mac · {filesWord(n)}</strong>
+      <span className="sd-cd">{need.detail}</span>
+      {need.folders.length ? (
+        <ul className="sd-failed" data-testid="sync-deletes-held-folders">
+          {need.folders.map((f) => (
+            <li key={f.folder}>
+              <span className="dg-mono">{cleanName(f.folder, 'the project folder')}</span>{' '}
+              {filesWord(f.count)}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {done ? null : confirming ? (
+        <div className="sd-acts" data-testid="sync-deletes-held-confirming">
+          <span className="sd-cd">
+            Delete {filesWord(n)} on the hub? They move to the hub’s trash, and each teammate
+            confirms on their own Mac.
+          </span>
+          <button
+            type="button"
+            className="dg-btn dg-btn--primary"
+            data-testid="sync-deletes-held-confirm"
+            disabled={busy}
+            onClick={() => answer('delete')}
+          >
+            Delete on the hub
+          </button>
+          <button
+            type="button"
+            className="dg-btn"
+            data-testid="sync-deletes-held-cancel"
+            disabled={busy}
+            onClick={() => setConfirming(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="sd-acts">
+          <button
+            type="button"
+            className="dg-btn"
+            data-action="sync.delete-held-on-hub"
+            data-testid="sync-deletes-held-delete"
+            disabled={busy}
+            onClick={() => setConfirming(true)}
+          >
+            Delete on the hub too…
+          </button>
+          <button
+            type="button"
+            className="dg-btn"
+            data-action="sync.keep-held-on-hub"
+            data-testid="sync-deletes-held-keep"
+            disabled={busy}
+            onClick={() => answer('keep')}
+          >
+            Keep on the hub
+          </button>
+        </div>
+      )}
+      {said ? (
+        <p className="dg-hint" role="status" data-testid="sync-deletes-held-said">
+          {said}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Issue #207 (7b) — the owner's purge of held deletes: how far it is, or why it stopped. */
+function DeletesPurgingCard({ need }) {
+  return (
+    <div className="sd-card" data-testid="sync-deletes-purging">
+      <strong className="sd-ct">
+        {need.error
+          ? 'Deleting on the hub stopped.'
+          : `Deleting on the hub · ${need.done.toLocaleString('en-US')} of ${filesWord(need.total)}`}
+      </strong>
+      {need.error ? <span className="sd-cd">{need.error}</span> : null}
+    </div>
   );
 }
 
@@ -420,6 +540,10 @@ export default function SyncDetails({
               <AssetsFailedCard key="assets-failed" need={need} />
             ) : need.kind === 'assets-stay' ? (
               <AssetsStayCard key="assets-stay" />
+            ) : need.kind === 'deletes-held' ? (
+              <HeldDeletesCard key="deletes-held" need={need} fetchImpl={fetchImpl} />
+            ) : need.kind === 'deletes-purging' ? (
+              <DeletesPurgingCard key="deletes-purging" need={need} />
             ) : (
               <AiCard key="ai" need={need} fetchImpl={fetchImpl} />
             )
@@ -515,6 +639,19 @@ export default function SyncDetails({
                 onDone={setConsent}
               />
             </p>
+          ) : null}
+          {m.lists.hubOnly.count ? (
+            <details className="sd-held" data-testid="sync-hub-only">
+              <summary>
+                On the hub only · {filesWord(m.lists.hubOnly.count)} — deleted on this Mac and kept
+                on the hub. They aren’t downloaded again.
+              </summary>
+              <ul>
+                {m.lists.hubOnly.paths.map((rel) => (
+                  <li key={rel}>{cleanName(rel)}</li>
+                ))}
+              </ul>
+            </details>
           ) : null}
           {m.lists.failed > 0 || m.lists.attention.length ? (
             <div data-testid="diag-sync-failed">

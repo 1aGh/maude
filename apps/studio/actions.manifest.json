@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "95f9238f9e8a",
+  "manifestVersion": "fb02f78da791",
   "actions": [
     {
       "id": "search.open",
@@ -6351,6 +6351,40 @@
         "path": "human",
         "because": "hub-link",
         "note": "which folders the project syncs is the person’s choice"
+      }
+    },
+    {
+      "id": "sync.delete-held-on-hub",
+      "label": "Delete on the hub too…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/held-deletes",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "deleting a batch of files on the project’s hub is the person’s choice"
+      }
+    },
+    {
+      "id": "sync.keep-held-on-hub",
+      "label": "Keep on the hub",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/held-deletes",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "which deleted files stay on the hub is the person’s choice"
       }
     },
     {

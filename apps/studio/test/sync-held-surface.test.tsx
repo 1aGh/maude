@@ -219,8 +219,12 @@ describe('a file-plane pass reports it, and Sync details shows it with its reaso
       'reanchor',
     ]);
     const m = syncDetailsModel({ files: { synced: 0, pulled: 0, pushed: 0, conflicts: 0, held } });
+    // 2.0.7 #7b — held local deletes are their own Needs you card (with its answers), not a list row.
     expect(m.lists.held.map((h: { detail: string }) => h.detail)).toEqual(
-      held.map((h) => h.detail)
+      held.filter((h) => h.kind !== 'delete-out').map((h) => h.detail)
+    );
+    expect(m.needs.find((n: { kind: string }) => n.kind === 'deletes-held')?.detail).toBe(
+      held[0]?.detail
     );
   });
 
