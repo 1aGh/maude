@@ -14,7 +14,7 @@ import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { stripSpoofChars } from '../spoof-chars.ts';
-import { adoptFolderSystem } from './folder-systems.ts';
+import { adoptFolderSystem, withFolderSystems } from './folder-systems.ts';
 
 export const SYSTEM_LABEL_MAX = 64;
 
@@ -84,8 +84,11 @@ export function renameSystem(designRoot: string, ds: string, raw: string | null)
     );
   if (label !== null) {
     const fold = label.toLowerCase();
-    const clash = systems.some((s) => {
-      if (!s || typeof s !== 'object' || s === entry) return false;
+    // every system the person can see: configured ones and the folder-owned ones not adopted yet
+    const shown = (withFolderSystems(cfg, designRoot).designSystems ?? []) as unknown[];
+    const clash = shown.some((s) => {
+      if (!s || typeof s !== 'object' || s === entry || (s as { name?: unknown }).name === ds)
+        return false;
       const o = s as { name?: unknown; label?: unknown };
       return [o.label, o.name].some(
         (v) => typeof v === 'string' && v.trim().toLowerCase() === fold

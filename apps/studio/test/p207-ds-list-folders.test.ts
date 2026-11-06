@@ -237,6 +237,15 @@ describe('a DS write that edits its config entry adopts a folder-owned system fi
   );
 
   test(
+    'a rename to a folder system\'s name is refused, even before that system is adopted',
+    withProject(async (designRoot) => {
+      const r = await op(designRoot, 'rename', { ds: 'a', label: 'B' });
+      expect(r.status).toBe(409);
+      expect(config(designRoot).designSystems.find((d) => d.name === 'a')?.label).toBeUndefined();
+    })
+  );
+
+  test(
     'the adopted entry is what the merged list showed: b reads and renders the same',
     withProject(async (designRoot, root) => {
       const before = shown(root);
