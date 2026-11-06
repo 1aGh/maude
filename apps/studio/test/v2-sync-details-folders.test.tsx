@@ -55,7 +55,9 @@ const q = (id: string) => document.querySelector(`[data-testid="${id}"]`) as HTM
 test('a render sequence going up gets a card that offers to leave its folder out', async () => {
   const { f, calls } = fakeFetch();
   await mount({
-    status: status({ largeSequences: [{ folder: SEQ, files: 1240, bytes: Math.round(3.1 * 1024 ** 3) }] }),
+    status: status({
+      largeSequences: [{ folder: SEQ, files: 1240, bytes: Math.round(3.1 * 1024 ** 3) }],
+    }),
     fetchImpl: f,
   });
   const card = q('sync-large-seq-0');
