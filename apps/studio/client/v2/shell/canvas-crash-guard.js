@@ -8,12 +8,45 @@
 // within `CRASH_WINDOW_MS` and the viewport stops opening it: the tab shows "This canvas is too heavy to
 // show all at once" with the lighter way in (only the artboards near the viewport mounted,
 // `?artboard-live=light`). Pure over a Storage-like object so it is testable without a browser.
+//
+// 2.0.7: a leftover mark alone is not a crash. WKWebView fires no `pagehide` when the app quits, so every
+// normal quit left the mark behind and two quits with a canvas open made it "too heavy". The shell's crash
+// recovery (`web_process.rs` `recovery_target`) now navigates with `?maude-recovered=1`; only a boot that
+// carries it counts the mark. Any other boot (launch, relaunch, manual reload, after a quit) drops the mark.
+// The marker is read once, as the bundle loads, and stripped from the address so it is never copied,
+// shared or counted twice.
 
 export const CRASH_LIMIT = 2;
 export const CRASH_WINDOW_MS = 10 * 60 * 1000;
 /** A chosen lighter mode is kept this long for that canvas (it survives the next crash reload). */
 export const LIGHT_KEEP_MS = 24 * 60 * 60 * 1000;
 export const CRASH_KEY = 'maude.canvas-crash.v1';
+/** Query param the desktop shell adds when it re-navigates after a WebContent crash (web_process.rs). */
+export const RECOVERED_PARAM = 'maude-recovered';
+
+/**
+ * Was this page brought back by the shell's crash recovery? Strips the marker from the address.
+ * @param {{ location: { href: string }, history: { state: unknown, replaceState(s: unknown, t: string, u: string): void } } | null} win
+ */
+export function takeRecoveredMarker(win) {
+  try {
+    if (!win?.location) return false;
+    const url = new URL(win.location.href);
+    if (!url.searchParams.has(RECOVERED_PARAM)) return false;
+    url.searchParams.delete(RECOVERED_PARAM);
+    try {
+      win.history?.replaceState(win.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    } catch {
+      /* the guard still knows; the address just keeps the marker */
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Read as the bundle loads, before the address hook rewrites the URL (`withOpenParam` keeps only `open`).
+const RECOVERED_AT_BOOT = typeof window === 'undefined' ? false : takeRecoveredMarker(window);
 
 function empty() {
   return { live: null, crashes: {}, light: {} };
@@ -38,8 +71,9 @@ function read(storage) {
 /**
  * @param {{ getItem(k: string): string | null, setItem(k: string, v: string): void } | null} storage
  * @param {() => number} [now]
+ * @param {{ recovered?: boolean }} [boot] `recovered`: the shell's crash recovery brought this page back.
  */
-export function createCrashGuard(storage, now = Date.now) {
+export function createCrashGuard(storage, now = Date.now, { recovered = false } = {}) {
   const s = read(storage);
   const save = () => {
     try {
@@ -61,13 +95,14 @@ export function createCrashGuard(storage, now = Date.now) {
       if (typeof at !== 'number' || t - at >= LIGHT_KEEP_MS) delete s.light[p];
     }
   };
-  // Boot: a mark left behind is a page that died with that canvas open.
-  if (s.live) {
+  // Boot: a mark left behind is a page that died with that canvas open — a crash only when the shell's
+  // crash recovery brought the page back; otherwise (a quit, a relaunch, a reload) it is just dropped.
+  if (s.live && recovered) {
     const list = s.crashes[s.live] || [];
     list.push(now());
     s.crashes[s.live] = list;
-    s.live = null;
   }
+  s.live = null;
   prune();
   save();
 
@@ -120,7 +155,7 @@ const subs = new Set();
 export function crashGuard() {
   if (shared) return shared;
   const storage = typeof localStorage === 'undefined' ? null : localStorage;
-  const g = createCrashGuard(storage);
+  const g = createCrashGuard(storage, Date.now, { recovered: RECOVERED_AT_BOOT });
   const wrap = (fn) => (path) => {
     fn(path);
     for (const cb of subs) cb();
