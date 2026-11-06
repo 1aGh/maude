@@ -107,17 +107,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-15
             target: bun-darwin-arm64
             slug: darwin-arm64
             ext: ''
-          # darwin-x64 cross-compiled from macos-14 (arm64). bun supports
+          # darwin-x64 cross-compiled from macos-15 (arm64). bun supports
           # `--target=bun-darwin-x64` from any macOS host and produces a
           # Mach-O 64-bit x86_64 binary. macos-13 was the original choice
           # for native-host parity, but the macos-13 runner is being
           # deprecated and its queue capacity is unreliable (15+ min waits
           # with no runner assignment observed on 2026-05-17).
-          - os: macos-14
+          - os: macos-15
             target: bun-darwin-x64
             slug: darwin-x64
             ext: ''

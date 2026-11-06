@@ -328,6 +328,7 @@ gh run view <RUN_ID> --log-failed | tail -100
 
 Common failures + recovery:
 
+- **`The configuration 'macos-14-arm64-us-default' is not supported`** — GitHub retired the `macos-14` image on 2026-11-02; v2.0.5's macOS legs were cancelled at start and npm stayed on 2.0.4. Both release workflows now run on `macos-15`. When the next image retires, swap the label in `build-binaries.yml` + `build-desktop.yml` (every `matrix.os == 'macos-NN'` too) and prove it with a `workflow_dispatch` dry run on the branch before tagging.
 - **`macos-13` runner queued for 15+ min with no assignment** — capacity issue, runner is being deprecated. Already migrated to `macos-14` cross-compile (`--target=bun-darwin-x64`); shouldn't recur. If it does, swap the matrix entry and force-move the tag (see below).
 - **`win32-x64` binary not produced (`maude-windows-x64.exe` vs `maude-win32-x64.exe`)** — slug mismatch between `bun --target` naming and Node's `process.platform`. Already fixed in `build.ts` `platformSlug()`. Should not recur.
 - **Alpine container fails "JavaScript Actions in Alpine containers only supported on x64 Linux runners"** — JS actions can't run inside alpine on arm64. Already fixed by cross-compiling musl from regular ubuntu runners. Should not recur.
