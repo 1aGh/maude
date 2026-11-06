@@ -71,6 +71,8 @@ export function useProjectData({
           canvasImportsCanvases: data.canvasImportsCanvases ?? {},
           // 2.0.5 (#205) — canvases whose built module was refused for a file another canvas owns.
           canvasRefusedInputs: data.canvasRefusedInputs ?? {},
+          // 2.0.7 — canvases with an import that resolves to no file: the stage names it (viewport.jsx).
+          canvasMissingImports: data.canvasMissingImports ?? {},
         }));
       },
       onError: (error) => {

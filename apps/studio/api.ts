@@ -8198,11 +8198,17 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const imports = projectVisibility(ctx).canvasImports(canvasRels);
     const canvasImportsCanvases: Record<string, string[]> = {};
     for (const [rel, list] of imports) canvasImportsCanvases[`${prefix}${rel}`] = list;
+    // 2.0.7 — an import that resolves to no file blocks the canvas the same way (its frame answers 403
+    // before any build could name the file): the shell names the missing file on the card.
+    const missing = projectVisibility(ctx).canvasMissingImports?.(canvasRels) ?? new Map();
+    const canvasMissingImports: Record<string, string[]> = {};
+    for (const [rel, list] of missing) canvasMissingImports[`${prefix}${rel}`] = list;
     return {
       groups,
       canvasDesignSystems,
       canvasKinds,
       ...(imports.size ? { canvasImportsCanvases } : {}),
+      ...(missing.size ? { canvasMissingImports } : {}),
       ...(dsRender
         ? {
             canvasDsRevs: Object.fromEntries(

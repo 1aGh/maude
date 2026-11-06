@@ -265,6 +265,16 @@ export function canvasRefusedOf(cfg, p) {
   return names.length ? names : null;
 }
 
+/**
+ * 2.0.7 — the imports of `p` that resolve to no file in the project (its frame is refused before it builds),
+ * from the index's `canvasMissingImports`, or `null` when none is on record.
+ */
+export function canvasMissingOf(cfg, p) {
+  const list = cfg?.canvasMissingImports?.[p];
+  const names = Array.isArray(list) ? list.filter((x) => typeof x === 'string' && x) : [];
+  return names.length ? names : null;
+}
+
 export function canvasUrl(p, cfg, opts) {
   if (!p.endsWith('.tsx')) return urlOf(p);
   const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
