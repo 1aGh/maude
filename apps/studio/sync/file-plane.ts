@@ -528,8 +528,12 @@ export interface FilePlaneOptions {
   canUploadCodeModules?: boolean;
   /** Names conflict copies. Same exposure class as `syncMeta.by` (hostname). */
   label: string;
-  /** Increment 6. Off means a local absence is HELD, never propagated. */
-  propagateDeletes?: boolean;
+  /**
+   * Increment 6. Off means a local absence is HELD, never propagated. A getter is read at the
+   * start of every pass (issue #207), so turning it off or on in the project config applies at the
+   * next pass — Resync — instead of at the next restart.
+   */
+  propagateDeletes?: boolean | (() => boolean);
   /**
    * Issue #207 — design-root-relative folders this project does not sync
    * (`linkedHub.ignoreFolders` in the project config). Nothing under them moves either way.
@@ -928,6 +932,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
   const now = opts.now ?? Date.now;
   const base = opts.hubUrl.replace(/\/+$/, '');
   const { ledger, designRoot } = opts;
+  const readPropagateDeletes = (): boolean =>
+    (typeof opts.propagateDeletes === 'function'
+      ? opts.propagateDeletes()
+      : opts.propagateDeletes) === true;
   const readIgnoreFolders = (): string[] =>
     normalizeIgnoreFolders(
       typeof opts.ignoreFolders === 'function' ? opts.ignoreFolders() : opts.ignoreFolders
@@ -2293,6 +2301,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
 
     // ── 2. Ours ──────────────────────────────────────────────────────────
     const ignoreFolders = readIgnoreFolders();
+    const propagateDeletes = readPropagateDeletes();
     const local = await scanLocalFilesAsync(designRoot, ledger, opts.canvasGroups);
 
     // ── 3. Decide ────────────────────────────────────────────────────────
@@ -2544,7 +2553,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         ...(row?.deleted ? { remoteTombstone: true } : {}),
         ...(degraded ? { epochChanged: true } : {}),
         ...(remoteHash && ledger.outboxHas(remoteHash) ? { selfInFlight: true } : {}),
-        ...(opts.propagateDeletes ? { propagateDeletes: true } : {}),
+        ...(propagateDeletes ? { propagateDeletes: true } : {}),
       };
       const decision = decideFile(state);
       // REFUSED FOR GOOD, AND UNCHANGED (issue #175): the door already said no
@@ -2579,7 +2588,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         } else if (
           !here &&
           remoteHash !== null &&
-          !opts.propagateDeletes &&
+          !propagateDeletes &&
           state.ancestor === remoteHash
         ) {
           // 2.0.5 rule (a) — DELETED HERE, KEPT THERE, AND SAID SO. With delete

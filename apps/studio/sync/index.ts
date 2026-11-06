@@ -161,7 +161,7 @@ import {
   computeSeedProgress,
   heldWords,
 } from './seed-progress.ts';
-import { readSyncSettings } from './settings.ts';
+import { livePropagateDeletes, readSyncSettings } from './settings.ts';
 import { mergeSource } from './source-merge.ts';
 import { replaySourceOp, type SourceOp } from './source-ops.ts';
 import { createSyncStatusStore, type FilePlaneStatus, type SyncStatusStore } from './status.ts';
@@ -6032,7 +6032,10 @@ export function createSyncRuntime(
                 // deletes contradicts the model it is selling — you delete a
                 // file and it comes back. `linkedHub.propagateDeletes: false`
                 // is the per-project opt-out; the breakers hold either way.
-                propagateDeletes: linkedHub.propagateDeletes !== false,
+                // Issue #207 — read every pass (like the ignore list): a change in config.json
+                // applies at the next pass, not at the next restart.
+                propagateDeletes: () =>
+                  livePropagateDeletes(ctx.paths.repoRoot, linkedHub.propagateDeletes !== false),
                 // The answer to a first-anchor hold. A config key rather than a
                 // prompt because the hold outlives the pass that raised it, and
                 // DDR-177's user has no terminal to answer in.
