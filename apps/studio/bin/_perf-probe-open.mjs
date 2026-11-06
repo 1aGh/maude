@@ -8,6 +8,7 @@
 //   firstArtboard   open → the first `[data-dc-screen]` in the frame
 //   firstPaint      open → the first on-screen artboard whose content is drawn (not a placeholder)
 //   allVisible      open → every on-screen artboard drawn (no placeholder inside, every <img> decoded)
+//   viewportCorrect gesture end → every on-screen artboard drawn (the camera settled: is what you see right?)
 //   long tasks      during the open and during the gesture (Chromium; WebKit has none — long FRAMES
 //                   (rAF delta ≥ 50 ms) are reported on both engines)
 //   gesture frames  a pan + zoom that starts the moment the first artboard is there (the canvas is
@@ -113,6 +114,8 @@ const INIT = `(() => {
     if (s.drawn && !P.marks.firstPaint) P.marks.firstPaint = t;
     if (s.on && s.drawn === s.on && !P.marks.allVisible) P.marks.allVisible = t;
     if (P.marks.allVisible && s.drawn < s.on) P.marks.allVisible = 0; // a later artboard came on screen undrawn
+    // viewport correct: once the gesture is over (the probe sets settleFrom), every on-screen artboard drawn
+    if (P.settleFrom && !P.marks.viewportCorrect && s.on && s.drawn === s.on) P.marks.viewportCorrect = t;
   };
   setInterval(tick, 100);
 })();`;
@@ -211,6 +214,11 @@ async function main() {
       await sleep(16);
     }
     const g1 = Date.now();
+    await frame
+      .evaluate(() => {
+        window.__maudeOpenProbe.settleFrom = Date.now();
+      })
+      .catch(() => {});
     const m1 = await metrics();
     if (cdp && o.profile) {
       const { profile } = await cdp.send('Profiler.stop');
@@ -270,7 +278,11 @@ async function main() {
     const endState = await frame.evaluate(() => window.__maudeOpenProbe.state());
     // Settle: wait for every on-screen artboard to be drawn (or the timeout).
     while (Date.now() < deadline) {
-      const done = await frame.evaluate(() => !!window.__maudeOpenProbe.marks.allVisible);
+      const done = await frame.evaluate(
+        () =>
+          !!window.__maudeOpenProbe.marks.allVisible &&
+          !!window.__maudeOpenProbe.marks.viewportCorrect
+      );
       if (done) break;
       await sleep(100);
     }
@@ -294,6 +306,8 @@ async function main() {
     const inGesture = raw.frames.filter(([t]) => t >= g0 && t <= g1).map(([, d]) => d);
     const openEnd = raw.marks.allVisible || Date.now();
     const inOpen = raw.frames.filter(([t]) => t <= g0).map(([, d]) => d);
+    const settleEnd = raw.marks.viewportCorrect || Date.now();
+    const inSettle = raw.frames.filter(([t]) => t > g1 && t <= settleEnd).map(([, d]) => d);
     const longOpen = raw.long.filter(([t]) => t <= openEnd);
     const longGesture = raw.long.filter(([t]) => t >= g0 && t <= g1);
     const sum = (a) => Math.round(a.reduce((n, [, d]) => n + d, 0));
@@ -303,8 +317,18 @@ async function main() {
       firstArtboardMs: rel(raw.marks.firstArtboard),
       firstPaintMs: rel(raw.marks.firstPaint),
       allVisibleMs: rel(raw.marks.allVisible),
+      // gesture end → every on-screen artboard drawn (the camera settled; what the user looks at is right)
+      viewportCorrectMs: raw.marks.viewportCorrect
+        ? Math.max(0, Math.round(raw.marks.viewportCorrect - g1))
+        : null,
       openFrames: stats(inOpen),
-      gesture: { ms: g1 - g0, wheelsSent: sent, ...stats(inGesture) },
+      settleFrames: stats(inSettle),
+      gesture: {
+        ms: g1 - g0,
+        wheelsSent: sent,
+        wheelsPerS: Math.round((sent / Math.max(1, g1 - g0)) * 10000) / 10,
+        ...stats(inGesture),
+      },
       longTasks: {
         open: longOpen.length,
         openMs: sum(longOpen),

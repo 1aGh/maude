@@ -50,6 +50,11 @@ export const KEEP_MARGIN = '150%';
 export const RELEASE_AFTER_MS = 2500;
 /** The DOM budget of one canvas document: mounted artboards' element count stays about this (2.0.7). */
 export const MOUNT_NODE_BUDGET = 12000;
+/**
+ * On-screen artboards mount past `MOUNT_NODE_BUDGET` up to this many elements (2.0.7): the budget bounds what is
+ * off screen; this only stops a fit-all of a huge canvas, whose tiny artboards keep their still pictures.
+ */
+export const ON_SCREEN_NODE_CEILING = 30000;
 /** The weight (elements) of an artboard nobody has measured yet, until one of the canvas has been. */
 export const DEFAULT_WEIGHT = 400;
 /** After a frame longer than this (ms) the next frame mounts one artboard, not `WAKE_PER_FRAME`. */
@@ -154,11 +159,17 @@ export class LiveRegistry {
   private lastDrainAt = 0;
   private lastGestureMountAt = Number.NEGATIVE_INFINITY;
   readonly budget: number;
+  readonly ceiling: number;
 
   constructor(
     mode: LiveMode,
     schedule: (fn: () => void) => void,
-    opts: { now?: () => number; later?: (fn: () => void, ms: number) => void; budget?: number } = {}
+    opts: {
+      now?: () => number;
+      later?: (fn: () => void, ms: number) => void;
+      budget?: number;
+      ceiling?: number;
+    } = {}
   ) {
     this.mode = mode;
     this.schedule = schedule;
@@ -166,6 +177,7 @@ export class LiveRegistry {
       opts.now ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
     this.later = opts.later ?? ((fn, ms) => void setTimeout(fn, ms));
     this.budget = opts.budget ?? MOUNT_NODE_BUDGET;
+    this.ceiling = opts.ceiling ?? ON_SCREEN_NODE_CEILING;
   }
 
   get(id: string): ArtboardLiveState {
@@ -501,7 +513,11 @@ export class LiveRegistry {
             if (freed) changed = true;
             mounted -= freed;
           }
-          if (mounted > 0 && mounted + w > this.budget) continue; // a placeholder until there is room
+          // What is ON SCREEN mounts past the budget (up to the ceiling) once nothing off screen is left to push
+          // out: the budget bounds what you do not see. At a settled view of the mascot canvas 41 on-screen
+          // artboards weighed 17k and three of them stayed placeholders for good.
+          const limit = s.visible ? Math.max(this.budget, this.ceiling) : this.budget;
+          if (mounted > 0 && mounted + w > limit) continue; // a placeholder until there is room
         }
         mounted += w;
       }

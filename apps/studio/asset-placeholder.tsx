@@ -409,7 +409,12 @@ export function AssetPlaceholderLayer({
         const t = pending.get(el);
         if (t) clearTimeout(t);
         pending.delete(el);
-      } else if (isMedia && ev?.type === 'error') fail(el);
+      } else if (isMedia && ev?.type === 'error') {
+        // a failure is rare and its frame must show at once (r5-1): scan now; loads and mutations batch
+        fail(el);
+        scan();
+        return;
+      }
       scanSoon();
     };
     document.addEventListener('error', onMedia, true);

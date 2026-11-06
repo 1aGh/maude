@@ -141,6 +141,25 @@ describe('artboard placeholder', () => {
     await m.done();
   });
 
+  test('a skeleton drawn before anything rendered takes the canvas colour once one artboard reveals it', async () => {
+    const m = await mount('?artboard-live=sleep', [{ id: 'a0' }, { id: 'a1' }]);
+    const phs = () => [...m.host.querySelectorAll('[data-dc-placeholder]')] as HTMLElement[];
+    expect(phs()).toHaveLength(2);
+    // nothing known yet: the mid tone (never the bare frame)
+    for (const el of phs()) expect(el.style.backgroundColor).not.toBe('rgb(9, 9, 9)');
+    // another artboard of this canvas mounts and turns out dark: the waiting skeletons follow, without a mount
+    await act(async () => {
+      ph.rememberBackground('elsewhere', 'rgb(9, 9, 9)');
+    });
+    for (const el of phs()) expect(el.style.backgroundColor).toBe('rgb(9, 9, 9)');
+    // a later, different colour does not repaint every placeholder again (the first known colour stays)
+    await act(async () => {
+      ph.rememberBackground('third', 'rgb(250, 250, 250)');
+    });
+    for (const el of phs()) expect(el.style.backgroundColor).toBe('rgb(9, 9, 9)');
+    await m.done();
+  });
+
   test('one that has rendered before shows its picture (its blocks), at the height it had', async () => {
     ph.rememberPicture('a0', {
       bg: 'rgb(253, 246, 227)',

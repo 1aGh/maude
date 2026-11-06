@@ -12,7 +12,7 @@ import {
   WAKE_PER_FRAME,
 } from '../artboard-live.ts';
 
-function rig(opts: { budget?: number; mode?: 'sleep' | 'light' } = {}) {
+function rig(opts: { budget?: number; ceiling?: number; mode?: 'sleep' | 'light' } = {}) {
   const frames: Array<() => void> = [];
   const timers: Array<{ at: number; fn: () => void }> = [];
   let clock = 1000;
@@ -20,6 +20,7 @@ function rig(opts: { budget?: number; mode?: 'sleep' | 'light' } = {}) {
     now: () => clock,
     later: (fn, ms) => timers.push({ at: clock + ms, fn }),
     budget: opts.budget,
+    ceiling: opts.ceiling,
   });
   return {
     r,
@@ -116,8 +117,29 @@ describe('the DOM budget', () => {
     expect(MOUNT_NODE_BUDGET).toBeLessThan(40000);
   });
 
-  test('on-screen artboards mount nearest the centre first, and stop at the budget', () => {
-    const k = rig({ budget: 1000 });
+  test('what is on screen always mounts — past the budget, up to the ceiling; the budget bounds what is off screen', () => {
+    // the mascot canvas at a settled view: 41 artboards on screen weighed 17k against a 12k budget, and three
+    // of them stayed placeholders for good — the viewport was never right
+    const k = rig({ budget: 1000, ceiling: 2000 });
+    const ids = ['a0', 'a1', 'a2', 'a3', 'a4', 'a5'];
+    ids.forEach((id, i) => {
+      k.r.subscribe(id, () => {});
+      k.r.setWeight(id, 450);
+      k.r.setNear(id, true, (ids.length - i) * 100);
+      k.r.setVisible(id, true);
+    });
+    k.frames();
+    // 4 × 450 = 1800 ≤ the 2000 ceiling (past the 1000 budget); the fifth would cross the ceiling
+    expect(seen(k.r, ids)).toEqual(['a2', 'a3', 'a4', 'a5']);
+    // nothing off screen mounts while the canvas is past its budget
+    k.r.subscribe('p', () => {});
+    k.r.setNear('p', true, 50);
+    k.frames();
+    expect(k.r.get('p').seen).toBe(false);
+  });
+
+  test('on-screen artboards mount nearest the centre first, and stop at the ceiling', () => {
+    const k = rig({ budget: 1000, ceiling: 1000 });
     const ids = ['a0', 'a1', 'a2', 'a3', 'a4'];
     ids.forEach((id, i) => {
       k.r.subscribe(id, () => {});

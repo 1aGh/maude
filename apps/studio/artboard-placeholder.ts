@@ -43,6 +43,30 @@ export const PICTURE_MIN_AREA = 0.004;
 const pictures = new Map<string, ArtboardPicture>();
 const backgrounds = new Map<string, string>();
 let canvasBg = '';
+const canvasBgSubs = new Set<() => void>();
+
+/** The background this canvas's artboards turned out to have ('' until one has mounted). */
+export function canvasBackground(): string {
+  return canvasBg;
+}
+
+/**
+ * Told once, when the canvas colour first becomes known: the skeletons drawn before any artboard rendered took the
+ * mid tone and repaint in it. Later colours do not repaint every placeholder again (new ones take the latest).
+ */
+export function subscribeCanvasBackground(fn: () => void): () => void {
+  canvasBgSubs.add(fn);
+  return () => {
+    canvasBgSubs.delete(fn);
+  };
+}
+
+function setCanvasBg(bg: string): void {
+  if (!bg) return;
+  const first = !canvasBg;
+  canvasBg = bg;
+  if (first) for (const fn of [...canvasBgSubs]) fn();
+}
 
 /**
  * Nothing known yet (the first frames of an open): a soft mid tone over the frame's own colour — on a dark
@@ -63,7 +87,7 @@ export function pictureOf(id: string): ArtboardPicture | undefined {
 
 export function rememberPicture(id: string, pic: ArtboardPicture): void {
   pictures.set(id, pic);
-  if (pic.bg) canvasBg = pic.bg;
+  setCanvasBg(pic.bg);
 }
 
 /** Transparent, or a colour the frame would show through. */
@@ -125,7 +149,7 @@ export function backgroundOf(
 export function rememberBackground(id: string, bg: string): void {
   if (!bg) return;
   backgrounds.set(id, bg);
-  canvasBg = bg;
+  setCanvasBg(bg);
 }
 
 /**

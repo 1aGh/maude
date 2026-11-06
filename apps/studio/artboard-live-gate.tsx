@@ -24,6 +24,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import {
   type ArtboardLiveState,
@@ -35,9 +36,11 @@ import {
 } from './artboard-live.ts';
 import {
   backgroundOf,
+  canvasBackground,
   choosePlaceholder,
   rememberBackground,
   rememberPicture,
+  subscribeCanvasBackground,
   takePicture,
 } from './artboard-placeholder.ts';
 import { WebglBudget } from './artboard-webgl.ts';
@@ -277,6 +280,13 @@ export function ArtboardLiveGate({
     return off;
   }, [on, rt, id]);
   const { live, seen } = state;
+  // A skeleton drawn before any artboard of the canvas rendered took the mid tone: it repaints once the canvas
+  // colour is known (only while it is a placeholder — a mounted artboard never re-renders for it).
+  useSyncExternalStore(
+    subscribeCanvasBackground,
+    () => (on && !seen ? canvasBackground() : ''),
+    () => ''
+  );
 
   useEffect(() => {
     if (on && rt) rt.registry.setPinned(id, pinned);
