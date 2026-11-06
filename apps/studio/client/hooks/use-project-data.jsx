@@ -24,8 +24,13 @@ export function useProjectData({
   const loadTree = useCallback(() => treeLoaderRef.current?.reload() ?? Promise.resolve(), []);
   useEffect(() => {
     const loader = createIndexLoader({
-      read: async (signal) => {
-        const r = await fetch('/_index-data', { signal, cache: 'no-store' });
+      // #207 — `fresh`: the last answer was a previous run's copy (`indexStale`); this one waits
+      // for the server's own build.
+      read: async (signal, { fresh } = { fresh: false }) => {
+        const r = await fetch(fresh ? '/_index-data?fresh=1' : '/_index-data', {
+          signal,
+          cache: 'no-store',
+        });
         if (!r.ok)
           throw Object.assign(new Error(`Project index request failed: ${r.status}`), {
             status: r.status,
@@ -37,6 +42,7 @@ export function useProjectData({
         }));
         return { data, built };
       },
+      isStale: ({ data }) => data?.indexStale === true,
       apply: ({ data, built }) => {
         setProject(data.project || 'Design');
         setGroups(built);

@@ -609,6 +609,9 @@ interface WalkEnv {
   listTruncated: boolean;
   /** p8-closure-lows — canvas-shaped entries the listing saw but did not yield (`unlisted`). */
   unlisted: readonly string[];
+  /** 2.0.7 (#207) — `files`' openable canvas files (`.tsx`/`.html`, not `_`-prefixed) by NFC slug,
+   *  and `unlisted` by NFC slug: what `grantedBySlug` scanned the whole listing for, per owner. */
+  slugIndex: () => { files: ReadonlyMap<string, string[]>; unlisted: ReadonlySet<string> };
 }
 
 function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: ClosureConfig): WalkEnv {
@@ -744,7 +747,21 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
     typeof project.present === 'function';
   const listTruncated = !reports || project.listTruncated?.() === true;
   const unlisted = reports ? [...(project.unlisted?.() ?? [])] : [];
-  return { files, textOf, isCanvas, cfg, project, known, listTruncated, unlisted };
+  let slugs: { files: Map<string, string[]>; unlisted: Set<string> } | null = null;
+  const slugIndex = () => {
+    if (slugs) return slugs;
+    const bySlug = new Map<string, string[]>();
+    for (const f of files) {
+      if (!/\.(tsx|html)$/i.test(f) || f.startsWith('_')) continue;
+      const slug = slugNfc(f);
+      const list = bySlug.get(slug);
+      if (list) list.push(f);
+      else bySlug.set(slug, [f]);
+    }
+    slugs = { files: bySlug, unlisted: new Set(unlisted.map(slugNfc)) };
+    return slugs;
+  };
+  return { files, textOf, isCanvas, cfg, project, known, listTruncated, unlisted, slugIndex };
 }
 
 const SAME_NAME_RE =
@@ -780,6 +797,58 @@ function isUiKitRel(rel: string): boolean {
   if (segs.length < 4 || segs[0] !== 'system') return false;
   return segs[2] === 'ui_kits' || (segs[2] === 'preview' && /^ui_kits-/i.test(segs[3] ?? ''));
 }
+
+/**
+ * 2.0.7 (#207) — a file's import groups, remembered by its path AND its full text. Every canvas's
+ * walk reads the shared design-system and helper modules again, and every file event starts a new
+ * generation (a new walk env), so one `/_index-data` scanned the same few hundred files once per
+ * canvas that reaches them — and again after any write anywhere in the tree. The answer is a pure
+ * function of (text, path), and a hit needs the stored text to be EQUAL to the text read now (never
+ * a hash or an mtime: a planted file cannot borrow a benign twin's import list), so a cached answer
+ * is exactly the answer a fresh scan would give. Bounded by entries and by the text it holds.
+ */
+const GROUPS_MEMO_MAX_ENTRIES = 8192;
+const GROUPS_MEMO_MAX_CHARS = 64 * 1024 * 1024;
+const groupsMemo = new Map<string, { text: string; groups: string[][] }>();
+let groupsMemoChars = 0;
+function walkImportGroups(text: string, rel: string): readonly (readonly string[])[] {
+  const hit = groupsMemo.get(rel);
+  if (hit && hit.text === text) {
+    groupsMemo.delete(rel);
+    groupsMemo.set(rel, hit);
+    return hit.groups;
+  }
+  const groups = relativeImportGroups(text, `${VROOT}/${rel}`, VROOT);
+  if (hit) {
+    groupsMemo.delete(rel);
+    groupsMemoChars -= hit.text.length;
+  }
+  if (text.length <= GROUPS_MEMO_MAX_CHARS / 4) {
+    groupsMemo.set(rel, { text, groups });
+    groupsMemoChars += text.length;
+    while (
+      groupsMemo.size > GROUPS_MEMO_MAX_ENTRIES ||
+      (groupsMemoChars > GROUPS_MEMO_MAX_CHARS && groupsMemo.size > 1)
+    ) {
+      const [oldest, entry] = groupsMemo.entries().next().value as [
+        string,
+        { text: string; groups: string[][] },
+      ];
+      groupsMemo.delete(oldest);
+      groupsMemoChars -= entry.text.length;
+    }
+  }
+  return groups;
+}
+
+/** Test seam (#207): the import-groups memo's size, and a reset. */
+export const importGroupsMemo = {
+  size: () => groupsMemo.size,
+  clear: () => {
+    groupsMemo.clear();
+    groupsMemoChars = 0;
+  },
+};
 
 /** A canvas slug in Unicode NFC — how the same-name owner rule compares names (p8-closure-lows-2). */
 const slugNfc = (rel: string): string => canvasSlugFromRel(rel, '').normalize('NFC');
@@ -826,13 +895,13 @@ function walkImports(
     if (hit !== undefined) return hit;
     let any = false;
     let foreign = false;
-    for (const f of env.files) {
-      if (!/\.(tsx|html)$/i.test(f) || f.startsWith('_') || slugNfc(f) !== slug) continue;
+    const index = env.slugIndex();
+    for (const f of index.files.get(slug) ?? []) {
       if (granted.has(f)) any = true;
       else foreign = true;
     }
     // An entry the listing saw but left out is foreign, granted or not: it cannot be read.
-    for (const f of env.unlisted) if (slugNfc(f) === slug) foreign = true;
+    if (index.unlisted.has(slug)) foreign = true;
     slugOwned.set(slug, any && !foreign);
     return any && !foreign;
   };
@@ -897,7 +966,7 @@ function walkImports(
         else blocked = true;
       }
     if (!MODULE_EXT_RE.test(rel) && !/\.css$/i.test(rel)) continue;
-    for (const group of relativeImportGroups(text, `${VROOT}/${rel}`, VROOT)) {
+    for (const group of walkImportGroups(text, rel)) {
       let resolved = false;
       for (const abs of group) {
         const dep = abs

@@ -151,6 +151,16 @@ import {
   sanitizeReuseText,
 } from './generation/audio-library.ts';
 import { createHistory } from './history.ts';
+import { pidOf, projectDir } from './index/snapshot.ts';
+import {
+  CANVAS_INDEX_SEED_DEBOUNCE_MS,
+  CANVAS_INDEX_WRITE_EVENTS,
+  type CanvasIndexPart,
+  createIndexCache,
+  isRootRuntimeRel,
+  readCanvasIndexSeed,
+  writeCanvasIndexSeed,
+} from './index-cache.ts';
 import { createSingleFlight } from './index-flight.ts';
 import { clearLocatorSlug, readLocator, writeLocator } from './locator.ts';
 import { listMaterializable } from './materialize-client.ts';
@@ -326,14 +336,17 @@ export async function findFiles(
   exts: string[],
   dirsOut?: string[]
 ): Promise<string[]> {
-  const out: string[] = [];
   let entries: Dirent[];
   try {
     entries = await readdir(absRoot, { withFileTypes: true });
   } catch {
-    return out;
+    return [];
   }
   entries.sort((a, b) => a.name.localeCompare(b.name));
+  // 2.0.7 (#207) — a folder's files are `lstat`-ed together, not one await after another: on an
+  // 11k-file project the serial awaits alone held `/_index-data` seconds whenever the server was
+  // busy. Order is unchanged (each entry keeps its slot; folders are walked in the same order).
+  const slots: Array<string[] | Promise<string | null>> = [];
   for (const e of entries) {
     if (e.name.startsWith('.') && !HIDDEN_OK.has(e.name)) continue;
     if (e.name.startsWith('_')) continue;
@@ -342,7 +355,7 @@ export async function findFiles(
     const rel = path.posix.join(prefix, e.name);
     if (e.isDirectory()) {
       dirsOut?.push(rel);
-      out.push(...(await findFiles(full, rel, exts, dirsOut)));
+      slots.push(await findFiles(full, rel, exts, dirsOut));
     } else if (e.isFile() && exts.some((x) => e.name.toLowerCase().endsWith(x))) {
       // feature-studio-file-preview security review — `e.isFile()` (not just
       // "not a directory") excludes symlinks: a symlink Dirent is neither
@@ -360,14 +373,22 @@ export async function findFiles(
       // legitimately multiply-linked, so excluding them closes the same
       // one-click-disclosure path for a hardlink planted at, say, a
       // teammate's readable dotfile.
-      try {
-        const st = await lstat(full);
-        if (st.nlink > 1) continue;
-      } catch {
-        continue;
-      }
-      out.push(rel);
+      slots.push(
+        lstat(full).then(
+          (st) => (st.nlink > 1 ? null : rel),
+          () => null
+        )
+      );
     }
+  }
+  const out: string[] = [];
+  for (const slot of slots) {
+    if (Array.isArray(slot)) {
+      for (const f of slot) out.push(f);
+      continue;
+    }
+    const rel = await slot;
+    if (rel !== null) out.push(rel);
   }
   return out;
 }
@@ -1041,7 +1062,8 @@ export interface Api {
   }): Promise<ReorderRevertResult>;
   // Aggregate data
   /** `viewer.role` — the proxy-vouched role in a cell (`null` on a desktop). */
-  buildIndexData(viewer?: { role?: string | null }): Promise<unknown>;
+  /** #207 — `fresh`: wait for a real build instead of a previous run's copy (`indexStale`). */
+  buildIndexData(viewer?: { role?: string | null; fresh?: boolean }): Promise<unknown>;
   buildSystemData(dsName?: string | null): Promise<unknown>;
 }
 
@@ -7890,16 +7912,75 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // it, so a build that started before a change is never handed to a later caller.
   const indexFlight = createSingleFlight<unknown>();
   ctx.bus.on('fs:any', () => indexFlight.bump());
-  function buildIndexData(viewer?: { role?: string | null }) {
+  // #207 — on a desktop the expensive part (the canvas groups and what is derived from each
+  // canvas) is kept between requests (index-cache.ts) and rebuilt only when something it reads
+  // changes; a copy on disk answers the first request after a restart at once. A cell keeps the
+  // per-request build: its listing also follows the hub's journal, which raises no file event.
+  const canvasIndex = createIndexCache<CanvasIndexPart>({
+    build: () => buildCanvasIndexPart(),
+    seed: () => readCanvasIndexSeed(canvasIndexSeedPath(), cfgIndexKey()),
+    persist: (part) => scheduleCanvasIndexSeed(part),
+    onError: (err) => console.warn('[index-data] background build failed:', err),
+  });
+  ctx.bus.on('fs:any', (rel: string) => {
+    if (!isRootRuntimeRel(rel)) canvasIndex.invalidate();
+  });
+  // An API write announces itself before the disk event arrives, and the client reloads the tree
+  // as soon as the write answers: the cache must already know (else it answers "fresh" from before).
+  for (const e of CANVAS_INDEX_WRITE_EVENTS) ctx.bus.on(e, () => canvasIndex.invalidate());
+  let seedTimer: ReturnType<typeof setTimeout> | null = null;
+  let seedPending: CanvasIndexPart | null = null;
+  function scheduleCanvasIndexSeed(part: CanvasIndexPart) {
+    seedPending = part;
+    if (seedTimer) return;
+    seedTimer = setTimeout(() => {
+      seedTimer = null;
+      const p = seedPending;
+      seedPending = null;
+      if (p) writeCanvasIndexSeed(canvasIndexSeedPath(), p, cfgIndexKey());
+    }, CANVAS_INDEX_SEED_DEBOUNCE_MS);
+    (seedTimer as { unref?: () => void }).unref?.();
+  }
+  function canvasIndexSeedPath() {
+    return path.join(projectDir(pidOf(paths.repoRoot)), 'tree.json');
+  }
+  /** What the cached part was built under: a config reload with other groups/systems is a miss. */
+  function cfgIndexKey() {
+    return JSON.stringify([
+      paths.designRel,
+      cfg.canvasGroups,
+      cfg.designSystems ?? [],
+      cfg.defaultDesignSystem ?? null,
+    ]);
+  }
+  let cachedCfgKey = '';
+
+  function buildIndexData(viewer?: { role?: string | null; fresh?: boolean }) {
     // A canvas-only session's answer is filtered by its own grants: never shared.
     if (!projectVisibility(ctx).current().full) return buildIndexDataNow(viewer);
-    return indexFlight.run(`${viewer?.role ?? ''}|${currentSession()}`, () =>
-      buildIndexDataNow(viewer)
-    );
+    if (isWorkspaceMode())
+      return indexFlight.run(`${viewer?.role ?? ''}|${currentSession()}`, () =>
+        buildIndexDataNow(viewer)
+      );
+    const key = cfgIndexKey();
+    if (key !== cachedCfgKey) {
+      cachedCfgKey = key;
+      canvasIndex.invalidate();
+    }
+    // Only the route (which always passes a viewer) may be answered from a previous run's copy; an
+    // internal caller (S11.4 availability: "what is on this Mac") always waits for a real build.
+    return canvasIndex
+      .get({ fresh: viewer === undefined || viewer.fresh === true })
+      .then(({ value, stale }) => assembleIndexData(value, viewer, stale));
   }
 
   async function buildIndexDataNow(viewer?: { role?: string | null }) {
-    const groups = [];
+    return assembleIndexData(await buildCanvasIndexPart(), viewer, false);
+  }
+
+  /** The canvas groups and everything derived per canvas — the slow, reader-independent part. */
+  async function buildCanvasIndexPart(): Promise<CanvasIndexPart> {
+    const groups: CanvasIndexPart['groups'] = [];
 
     // DDR-093 — per-canvas design-system map (repo-relative canvas path → DS
     // name) so the client's canvasUrl() injects each UI canvas's OWN tokens
@@ -7950,33 +8031,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         null
       );
     };
-
-    // PROJECT — top-level .design/ files (README.md, INDEX.md, config.json, …).
-    // These are non-HTML so they're listed but not openable in the iframe; the
-    // sidebar can still display them as context (mirrors CV-08 mock).
-    const projectFiles: string[] = [];
-    try {
-      const entries = await readdir(paths.designRoot, { withFileTypes: true });
-      entries.sort((a, b) => a.name.localeCompare(b.name));
-      for (const e of entries) {
-        if (!e.isFile()) continue;
-        if (e.name.startsWith('_')) continue;
-        if (e.name.startsWith('.')) continue;
-        if (!/\.(md|json|txt|yml|yaml|css)$/i.test(e.name)) continue;
-        projectFiles.push(path.posix.join(paths.designRel, e.name));
-      }
-    } catch {}
-    if (projectFiles.length) {
-      groups.push({
-        label: 'Project',
-        paths: projectFiles,
-        fullPath: paths.designRel,
-        // Strip `.design/` — the section header already names the parent;
-        // the chain `▾ .design → file` was redundant.
-        stripPrefix: `${paths.designRel}/`,
-        kind: 'project' as const,
-      });
-    }
 
     // Canvas groups — strip just `.design/` so the immediate subdir
     // (`system`, `ui`, …) shows up as a dir wrapper in the tree (mirrors
@@ -8079,6 +8133,86 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       });
     }
 
+    // S10.4 — which revision each canvas renders. Present only once a system is converted: a project that
+    // has none gets the payload it always had.
+    const dsRender =
+      convertedDs.size > 0
+        ? dsRenderIndex(paths.designRoot, cfg.designSystems ?? [], canvasRevs)
+        : null;
+
+    // gate-b-c4j — a canvas importing another canvas does not render in its frame (access/closure.ts
+    // `walkImports`: the module is refused); the shell says why on it. The same for every reader;
+    // filterIndexData below holds both sides to what this reader sees.
+    const prefix = `${paths.designRel}/`;
+    const canvasRels = Object.keys(canvasDesignSystems)
+      .filter((fp) => fp.startsWith(prefix))
+      .map((fp) => fp.slice(prefix.length))
+      .sort();
+    const imports = projectVisibility(ctx).canvasImports(canvasRels);
+    const canvasImportsCanvases: Record<string, string[]> = {};
+    for (const [rel, list] of imports) canvasImportsCanvases[`${prefix}${rel}`] = list;
+    return {
+      groups,
+      canvasDesignSystems,
+      canvasKinds,
+      ...(imports.size ? { canvasImportsCanvases } : {}),
+      ...(dsRender
+        ? {
+            canvasDsRevs: Object.fromEntries(
+              Object.entries(canvasRevs).map(([fp, r]) => [fp, r.dsRev])
+            ),
+            canvasDsKept: Object.fromEntries(
+              Object.entries(canvasRevs)
+                .filter(([, r]) => r.kept)
+                .map(([fp, r]) => [fp, r.kept as string])
+            ),
+            systemHeads: dsRender.systemHeads,
+            dsConverted: dsRender.dsConverted,
+            dsRevGaps: dsRender.dsRevGaps,
+          }
+        : {}),
+    };
+  }
+
+  /**
+   * #207 — the payload for one request: the (cached) canvas part plus what is cheap and per request —
+   * the Project and Runtime rows (one root listing each; the Runtime row depends on the reader), the
+   * refused-inputs report the http layer keeps in memory, and the reader's filter.
+   */
+  async function assembleIndexData(
+    part: CanvasIndexPart,
+    viewer: { role?: string | null } | undefined,
+    stale: boolean
+  ) {
+    const head: CanvasIndexPart['groups'] = [];
+    const tail: CanvasIndexPart['groups'] = [];
+    // PROJECT — top-level .design/ files (README.md, INDEX.md, config.json, …).
+    // These are non-HTML so they're listed but not openable in the iframe; the
+    // sidebar can still display them as context (mirrors CV-08 mock).
+    const projectFiles: string[] = [];
+    try {
+      const entries = await readdir(paths.designRoot, { withFileTypes: true });
+      entries.sort((a, b) => a.name.localeCompare(b.name));
+      for (const e of entries) {
+        if (!e.isFile()) continue;
+        if (e.name.startsWith('_')) continue;
+        if (e.name.startsWith('.')) continue;
+        if (!/\.(md|json|txt|yml|yaml|css)$/i.test(e.name)) continue;
+        projectFiles.push(path.posix.join(paths.designRel, e.name));
+      }
+    } catch {}
+    if (projectFiles.length) {
+      head.push({
+        label: 'Project',
+        paths: projectFiles,
+        fullPath: paths.designRel,
+        // Strip `.design/` — the section header already names the parent;
+        // the chain `▾ .design → file` was redundant.
+        stripPrefix: `${paths.designRel}/`,
+        kind: 'project' as const,
+      });
+    }
+
     // RUNTIME — gitignored state files (_active.json, _server.json) +
     // pointers to _history/ and _comments/ dirs. Visible but inert in the
     // sidebar; matches the CV-08 mock's bottom section.
@@ -8106,7 +8240,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       }
     } catch {}
     if (runtimeFiles.length) {
-      groups.push({
+      tail.push({
         label: 'Runtime',
         paths: runtimeFiles,
         fullPath: paths.designRel,
@@ -8117,30 +8251,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       });
     }
 
-    // S10.4 — which revision each canvas renders. Present only once a system is converted: a project that
-    // has none gets the payload it always had.
-    const dsRender =
-      convertedDs.size > 0
-        ? dsRenderIndex(paths.designRoot, cfg.designSystems ?? [], canvasRevs)
-        : null;
-
-    // gate-b-c4j — a canvas importing another canvas does not render in its frame (access/closure.ts
-    // `walkImports`: the module is refused); the shell says why on it. The same for every reader;
-    // filterIndexData below holds both sides to what this reader sees.
     const prefix = `${paths.designRel}/`;
-    const canvasRels = Object.keys(canvasDesignSystems)
-      .filter((fp) => fp.startsWith(prefix))
-      .map((fp) => fp.slice(prefix.length))
-      .sort();
-    const imports = projectVisibility(ctx).canvasImports(canvasRels);
-    const canvasImportsCanvases: Record<string, string[]> = {};
-    for (const [rel, list] of imports) canvasImportsCanvases[`${prefix}${rel}`] = list;
     // 2.0.5 (#205) — a canvas whose BUILT module the inputs gate refused (it inlined a file another canvas
     // owns): the files, kept per canvas by the http layer (access/refused-inputs.ts). Main origin only — the
     // canvas origin's 403 stays the bare not-in-scope body.
     const refused = refusedInputsFor(ctx).report();
     const canvasRefusedInputs: Record<string, string[]> = {};
     for (const [rel, list] of refused) canvasRefusedInputs[`${prefix}${rel}`] = list;
+    const { groups, ...derived } = part;
 
     // S9.10 (V2-1.16 L8) — a canvas-only session's tree: what it sees, nothing else.
     return filterIndexData(
@@ -8148,26 +8266,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         project: cfg.name,
         projectLabel: ctx.projectLabel,
         designRoot: paths.designRel,
-        groups,
-        canvasDesignSystems,
-        canvasKinds,
-        ...(imports.size ? { canvasImportsCanvases } : {}),
+        groups: [...head, ...groups, ...tail],
+        ...derived,
         ...(refused.size ? { canvasRefusedInputs } : {}),
-        ...(dsRender
-          ? {
-              canvasDsRevs: Object.fromEntries(
-                Object.entries(canvasRevs).map(([fp, r]) => [fp, r.dsRev])
-              ),
-              canvasDsKept: Object.fromEntries(
-                Object.entries(canvasRevs)
-                  .filter(([, r]) => r.kept)
-                  .map(([fp, r]) => [fp, r.kept as string])
-              ),
-              systemHeads: dsRender.systemHeads,
-              dsConverted: dsRender.dsConverted,
-              dsRevGaps: dsRender.dsRevGaps,
-            }
-          : {}),
+        // #207 — a previous run's copy, answered while the first build runs; the client asks again.
+        ...(stale ? { indexStale: true } : {}),
       },
       projectVisibility(ctx).current(),
       paths.designRel,
