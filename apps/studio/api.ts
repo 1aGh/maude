@@ -2,7 +2,7 @@
 // Returns plain objects; http.ts wraps them in Response.json().
 
 import crypto from 'node:crypto';
-import { type Dirent, existsSync, renameSync } from 'node:fs';
+import { type Dirent, existsSync, lstatSync, readdirSync, renameSync } from 'node:fs';
 import {
   lstat,
   mkdir,
@@ -160,6 +160,7 @@ import {
   isRootRuntimeRel,
   readCanvasIndexSeed,
   writeCanvasIndexSeed,
+  yieldToLoop,
 } from './index-cache.ts';
 import { createSingleFlight } from './index-flight.ts';
 import { clearLocatorSlug, readLocator, writeLocator } from './locator.ts';
@@ -348,15 +349,14 @@ export async function findFiles(
   // busy. Order is unchanged (each entry keeps its slot; folders are walked in the same order).
   const slots: Array<string[] | Promise<string | null>> = [];
   for (const e of entries) {
-    if (e.name.startsWith('.') && !HIDDEN_OK.has(e.name)) continue;
-    if (e.name.startsWith('_')) continue;
-    if (SKIP_DIRS.has(e.name)) continue;
+    const kind = findFilesEntry(e, exts);
+    if (!kind) continue;
     const full = path.join(absRoot, e.name);
     const rel = path.posix.join(prefix, e.name);
-    if (e.isDirectory()) {
+    if (kind === 'dir') {
       dirsOut?.push(rel);
       slots.push(await findFiles(full, rel, exts, dirsOut));
-    } else if (e.isFile() && exts.some((x) => e.name.toLowerCase().endsWith(x))) {
+    } else {
       // feature-studio-file-preview security review — `e.isFile()` (not just
       // "not a directory") excludes symlinks: a symlink Dirent is neither
       // isDirectory() nor isFile(), so without this check a symlink dropped
@@ -375,7 +375,7 @@ export async function findFiles(
       // teammate's readable dotfile.
       slots.push(
         lstat(full).then(
-          (st) => (st.nlink > 1 ? null : rel),
+          (st) => (singlyLinked(st) ? rel : null),
           () => null
         )
       );
@@ -389,6 +389,56 @@ export async function findFiles(
     }
     const rel = await slot;
     if (rel !== null) out.push(rel);
+  }
+  return out;
+}
+
+/** What `findFiles` does with one directory entry: walk it, list it (after the link check), or skip it. */
+function findFilesEntry(e: Dirent, exts: readonly string[]): 'dir' | 'file' | null {
+  if (e.name.startsWith('.') && !HIDDEN_OK.has(e.name)) return null;
+  if (e.name.startsWith('_')) return null;
+  if (SKIP_DIRS.has(e.name)) return null;
+  if (e.isDirectory()) return 'dir';
+  // `isFile()` excludes symlinks (see findFiles)
+  if (e.isFile() && exts.some((x) => e.name.toLowerCase().endsWith(x))) return 'file';
+  return null;
+}
+/** A hardlinked file (`nlink > 1`) is never listed (see findFiles). */
+const singlyLinked = (st: { nlink: number }) => st.nlink <= 1;
+
+/**
+ * #207 (list speed) — `findFiles` in one go: the same entries, skips, link check and order, without
+ * an await per folder and per file. The tree's first answer walks this way: StudyFi's 109 folders and
+ * 1.5k files take ~20 ms, where the awaited walk gave the loop away ~1.7k times and, on a server busy
+ * right after boot, took most of a second.
+ */
+export function findFilesSync(
+  absRoot: string,
+  prefix: string,
+  exts: string[],
+  dirsOut?: string[]
+): string[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(absRoot, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+  const out: string[] = [];
+  for (const e of entries) {
+    const kind = findFilesEntry(e, exts);
+    if (!kind) continue;
+    const full = path.join(absRoot, e.name);
+    const rel = path.posix.join(prefix, e.name);
+    if (kind === 'dir') {
+      dirsOut?.push(rel);
+      for (const f of findFilesSync(full, rel, exts, dirsOut)) out.push(f);
+      continue;
+    }
+    try {
+      if (singlyLinked(lstatSync(full))) out.push(rel);
+    } catch {}
   }
   return out;
 }
@@ -1062,8 +1112,13 @@ export interface Api {
   }): Promise<ReorderRevertResult>;
   // Aggregate data
   /** `viewer.role` — the proxy-vouched role in a cell (`null` on a desktop). */
-  /** #207 — `fresh`: wait for a real build instead of a previous run's copy (`indexStale`). */
-  buildIndexData(viewer?: { role?: string | null; fresh?: boolean }): Promise<unknown>;
+  /** #207 — `fresh`: wait for a real build instead of a previous run's copy (`indexStale`).
+   *  `partial`: with no copy either, the bare listing may answer first (`indexPartial`). */
+  buildIndexData(viewer?: {
+    role?: string | null;
+    fresh?: boolean;
+    partial?: boolean;
+  }): Promise<unknown>;
   buildSystemData(dsName?: string | null): Promise<unknown>;
 }
 
@@ -7964,7 +8019,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // changes; a copy on disk answers the first request after a restart at once. A cell keeps the
   // per-request build: its listing also follows the hub's journal, which raises no file event.
   const canvasIndex = createIndexCache<CanvasIndexPart>({
-    build: () => buildCanvasIndexPart(),
+    build: (early) => buildCanvasIndexPart(early),
     seed: () => readCanvasIndexSeed(canvasIndexSeedPath(), cfgIndexKey()),
     persist: (part) => scheduleCanvasIndexSeed(part),
     onError: (err) => console.warn('[index-data] background build failed:', err),
@@ -8002,7 +8057,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   }
   let cachedCfgKey = '';
 
-  function buildIndexData(viewer?: { role?: string | null; fresh?: boolean }) {
+  function buildIndexData(viewer?: { role?: string | null; fresh?: boolean; partial?: boolean }) {
     // A canvas-only session's answer is filtered by its own grants: never shared.
     if (!projectVisibility(ctx).current().full) return buildIndexDataNow(viewer);
     if (isWorkspaceMode())
@@ -8016,17 +8071,25 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
     // Only the route (which always passes a viewer) may be answered from a previous run's copy; an
     // internal caller (S11.4 availability: "what is on this Mac") always waits for a real build.
+    // #207 (list speed) — the tree loader asks `partial`: on the first open ever (no copy) it is
+    // answered with the bare listing the build publishes before any content read.
     return canvasIndex
-      .get({ fresh: viewer === undefined || viewer.fresh === true })
-      .then(({ value, stale }) => assembleIndexData(value, viewer, stale));
+      .get({ fresh: viewer === undefined || viewer.fresh === true, partial: viewer?.partial })
+      .then(({ value, stale, partial }) => assembleIndexData(value, viewer, stale, partial));
   }
 
   async function buildIndexDataNow(viewer?: { role?: string | null }) {
     return assembleIndexData(await buildCanvasIndexPart(), viewer, false);
   }
 
-  /** The canvas groups and everything derived per canvas — the slow, reader-independent part. */
-  async function buildCanvasIndexPart(): Promise<CanvasIndexPart> {
+  /**
+   * The canvas groups and everything derived per canvas — the slow, reader-independent part.
+   * `early` gets the bare listing first: the groups as one walk of names (no file is read), with
+   * nothing derived — no design system, kind, revision or import report.
+   */
+  async function buildCanvasIndexPart(
+    early?: (listing: CanvasIndexPart) => void
+  ): Promise<CanvasIndexPart> {
     const groups: CanvasIndexPart['groups'] = [];
 
     // DDR-093 — per-canvas design-system map (repo-relative canvas path → DS
@@ -8036,11 +8099,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const canvasDesignSystems: Record<string, string> = {};
     // S10.4 (V2-1.6 §5.8) — the revision a canvas was left on (`dsRev`), for the converted systems only:
     // an unconverted project builds none of this, and its payload is what it always was.
-    const convertedDs = new Set(
-      (cfg.designSystems ?? [])
-        .filter((d) => readHead(path.join(paths.designRoot, d.path)).state === 'ok')
-        .map((d) => d.name)
-    );
+    // (read after the listing is out: a system's head is a content read)
+    const readConvertedDs = () =>
+      new Set(
+        (cfg.designSystems ?? [])
+          .filter((d) => readHead(path.join(paths.designRoot, d.path)).state === 'ok')
+          .map((d) => d.name)
+      );
     const canvasRevs: Record<string, { system: string; dsRev: string; kept?: string }> = {};
     // DDR-174 (T15) — surface a canvas's `.meta.json` `kind` in the file tree
     // when it's a value the user should notice at a glance (today: only
@@ -8089,6 +8154,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // (FileRow non-HTML branch).
     // Cell materializer — the media the hub can serve although this checkout
     // does not hold it. `null` everywhere else (desktop, self-hosted hub).
+    // #207 (list speed) — an answer already made (a previous run's copy handed out by the request that
+    // started this build) gets out before the walk below takes the loop.
+    await yieldToLoop();
     const materializable = await listMaterializable();
     for (const g of cfg.canvasGroups) {
       const groupAbs = path.join(paths.designRoot, g.path);
@@ -8109,7 +8177,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const groupExts = isDs
         ? ['.tsx', '.html', '.md', '.css', '.json', ...PREVIEW_ASSET_EXTS]
         : ['.tsx', '.html', '.css', '.json', ...PREVIEW_ASSET_EXTS];
-      const filePaths = await findFiles(groupAbs, groupRel, groupExts, dirs);
+      // #207 (list speed) — one walk of names that never gives the loop away (findFilesSync).
+      const filePaths = findFilesSync(groupAbs, groupRel, groupExts, dirs);
       // A materializing cell lists media its checkout does not hold.
       if (materializable) {
         mergeMaterializable(filePaths, dirs, materializable, {
@@ -8117,36 +8186,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           groupPath: g.path,
           exts: PREVIEW_ASSET_EXTS,
         });
-      }
-      // DDR-093 — record each `.tsx` canvas's design system. canvasUrl() only
-      // injects tokens for `.tsx`, so skip everything else. Path-owned DS wins
-      // (system/<ds>/…); otherwise the sidecar's `meta.designSystem`, defaulting
-      // to the project default when the canvas declares none.
-      for (const fp of filePaths) {
-        if (!fp.endsWith('.tsx')) continue;
-        let dsName = ownerDsName(fp);
-        let meta: Record<string, unknown> | null = null;
-        if (!dsName) {
-          meta = await loadCanvasMeta(fp);
-          const declared = meta?.designSystem;
-          dsName = typeof declared === 'string' && declared.trim() ? declared : defaultDs;
-          const kind = meta?.kind;
-          if (typeof kind === 'string' && NOTABLE_KINDS.has(kind)) canvasKinds[fp] = kind;
-        }
-        canvasDesignSystems[fp] = dsName;
-        if (convertedDs.has(dsName)) {
-          // a canvas inside the system's own folder carries no sidecar read above
-          meta ??= await loadCanvasMeta(fp);
-          const dsRev = meta?.dsRev;
-          // p8-dead-reasons — `dsKept`: the head a person declined with "Keep this version" (the card stays away)
-          const kept = meta?.dsKept;
-          if (typeof dsRev === 'string' && dsRev)
-            canvasRevs[fp] = {
-              system: dsName,
-              dsRev,
-              ...(typeof kept === 'string' && kept ? { kept } : {}),
-            };
-        }
       }
       // Strip down to `g.path` so per-DS folders (`project`, `beta`, …) show
       // up as the top-level dirs inside the DS section. Single-DS configs get
@@ -8178,6 +8217,50 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         dsFolders: dsFolders.length ? dsFolders : undefined,
         dirs,
       });
+    }
+
+    // #207 (list speed) — the bare listing goes out now (the tree loader on a first open ever draws it),
+    // and the answer it belongs to gets out before the content reads below take the loop.
+    if (early) {
+      early({ groups: [...groups], canvasDesignSystems: {}, canvasKinds: {} });
+      await yieldToLoop();
+    }
+    // tests only: hold the content reads until a file exists (the listing-first test proves the order)
+    const gate = process.env.MAUDE_TEST_INDEX_DETAILS_GATE;
+    while (gate && !existsSync(gate)) await new Promise((r) => setTimeout(r, 20));
+
+    // DDR-093 — record each `.tsx` canvas's design system. canvasUrl() only
+    // injects tokens for `.tsx`, so skip everything else. Path-owned DS wins
+    // (system/<ds>/…); otherwise the sidecar's `meta.designSystem`, defaulting
+    // to the project default when the canvas declares none.
+    const convertedDs = readConvertedDs();
+    for (const g of groups) {
+      for (const fp of g.paths) {
+        if (!fp.endsWith('.tsx')) continue;
+        let dsName = ownerDsName(fp);
+        let meta: Record<string, unknown> | null = null;
+        if (!dsName) {
+          meta = await loadCanvasMeta(fp);
+          const declared = meta?.designSystem;
+          dsName = typeof declared === 'string' && declared.trim() ? declared : defaultDs;
+          const kind = meta?.kind;
+          if (typeof kind === 'string' && NOTABLE_KINDS.has(kind)) canvasKinds[fp] = kind;
+        }
+        canvasDesignSystems[fp] = dsName;
+        if (convertedDs.has(dsName)) {
+          // a canvas inside the system's own folder carries no sidecar read above
+          meta ??= await loadCanvasMeta(fp);
+          const dsRev = meta?.dsRev;
+          // p8-dead-reasons — `dsKept`: the head a person declined with "Keep this version" (the card stays away)
+          const kept = meta?.dsKept;
+          if (typeof dsRev === 'string' && dsRev)
+            canvasRevs[fp] = {
+              system: dsName,
+              dsRev,
+              ...(typeof kept === 'string' && kept ? { kept } : {}),
+            };
+        }
+      }
     }
 
     // S10.4 — which revision each canvas renders. Present only once a system is converted: a project that
@@ -8235,25 +8318,31 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   async function assembleIndexData(
     part: CanvasIndexPart,
     viewer: { role?: string | null } | undefined,
-    stale: boolean
+    stale: boolean,
+    partial?: boolean
   ) {
     const head: CanvasIndexPart['groups'] = [];
     const tail: CanvasIndexPart['groups'] = [];
+    // #207 (list speed) — ONE listing of the design root, read in this tick: an answer from the cache
+    // (a copy, the bare listing) is then made at once, never after a build's next slice of work.
+    let rootEntries: Dirent[] = [];
+    try {
+      rootEntries = readdirSync(paths.designRoot, { withFileTypes: true });
+      rootEntries.sort((a, b) => a.name.localeCompare(b.name));
+    } catch {}
     // PROJECT — top-level .design/ files (README.md, INDEX.md, config.json, …).
     // These are non-HTML so they're listed but not openable in the iframe; the
     // sidebar can still display them as context (mirrors CV-08 mock).
     const projectFiles: string[] = [];
-    try {
-      const entries = await readdir(paths.designRoot, { withFileTypes: true });
-      entries.sort((a, b) => a.name.localeCompare(b.name));
-      for (const e of entries) {
+    {
+      for (const e of rootEntries) {
         if (!e.isFile()) continue;
         if (e.name.startsWith('_')) continue;
         if (e.name.startsWith('.')) continue;
         if (!/\.(md|json|txt|yml|yaml|css)$/i.test(e.name)) continue;
         projectFiles.push(path.posix.join(paths.designRel, e.name));
       }
-    } catch {}
+    }
     if (projectFiles.length) {
       head.push({
         label: 'Project',
@@ -8279,9 +8368,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const showRuntime = !workspace || viewer?.role === 'owner';
     const mySession = currentSession();
     const runtimeFiles: string[] = [];
-    try {
-      const entries = showRuntime ? await readdir(paths.designRoot, { withFileTypes: true }) : [];
-      entries.sort((a, b) => a.name.localeCompare(b.name));
+    {
+      const entries = showRuntime ? rootEntries : [];
       for (const e of entries) {
         if (!e.name.startsWith('_')) continue;
         if (workspace) {
@@ -8291,7 +8379,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         }
         runtimeFiles.push(path.posix.join(paths.designRel, e.name));
       }
-    } catch {}
+    }
     if (runtimeFiles.length) {
       tail.push({
         label: 'Runtime',
@@ -8324,6 +8412,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         ...(refused.size ? { canvasRefusedInputs } : {}),
         // #207 — a previous run's copy, answered while the first build runs; the client asks again.
         ...(stale ? { indexStale: true } : {}),
+        // #207 (list speed) — the bare listing: no canvas has its design system, kind or import
+        // report yet (and nothing is granted by it); the client draws the tree and asks again.
+        ...(partial ? { indexPartial: true } : {}),
       },
       projectVisibility(ctx).current(),
       paths.designRel,

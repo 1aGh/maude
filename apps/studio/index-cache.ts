@@ -21,8 +21,12 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export interface IndexCacheOptions<T> {
-  /** Compute the value from the disk (the expensive part). */
-  build: () => Promise<T>;
+  /**
+   * Compute the value from the disk (the expensive part). `early` may be called once, before the
+   * content reads, with what a `partial` request is answered with meanwhile (the bare listing). It
+   * is never kept as the value nor persisted.
+   */
+  build: (early?: (value: T) => void) => Promise<T>;
   /** The last value a previous run kept on disk, or null (read once, on the first request). */
   seed?: () => T | null;
   /** A build finished: keep a copy for the next run (called after the value is stored). */
@@ -34,14 +38,21 @@ export interface IndexCacheOptions<T> {
 export interface IndexCache<T> {
   /**
    * The current value. `stale` only for the seed of a previous run, served while the first build
-   * runs and the caller did not ask for `fresh`.
+   * runs and the caller did not ask for `fresh` — or, when there is no seed either, for the listing
+   * the first build published early (`partial`), and only to a caller that asked for `partial`.
    */
-  get(opts?: { fresh?: boolean }): Promise<{ value: T; stale: boolean }>;
+  get(opts?: {
+    fresh?: boolean;
+    partial?: boolean;
+  }): Promise<{ value: T; stale: boolean; partial?: true }>;
   /** Something the value depends on changed: the next `get` rebuilds. */
   invalidate(): void;
   /** For tests: builds started so far, and whether one is running. */
   stats(): { builds: number; running: boolean };
 }
+
+/** Let every request already waiting run (and an answer already made get out) before going on. */
+export const yieldToLoop = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 /** A build is retried at most this often in a row when the tree keeps changing under it. */
 const MAX_CHASE = 3;
@@ -51,7 +62,15 @@ export function createIndexCache<T>(o: IndexCacheOptions<T>): IndexCache<T> {
   let current: { value: T; gen: number } | null = null;
   let seeded: { value: T } | null | undefined; // undefined = not read yet
   let running: Promise<void> | null = null;
+  // #207 — what the running build published before its content reads; cleared when it ends.
+  let early: { value: T } | null = null;
+  let earlyWaiters: Array<() => void> = [];
   let builds = 0;
+  const wakeEarly = () => {
+    const waiting = earlyWaiters;
+    earlyWaiters = [];
+    for (const wake of waiting) wake();
+  };
 
   function start(): Promise<void> {
     if (running) return running;
@@ -59,7 +78,11 @@ export function createIndexCache<T>(o: IndexCacheOptions<T>): IndexCache<T> {
     builds++;
     running = (async () => {
       try {
-        const value = await o.build();
+        const value = await o.build((v) => {
+          if (early) return;
+          early = { value: v };
+          wakeEarly();
+        });
         // A slower build never replaces a newer one (only one runs at a time, but be exact).
         if (!current || current.gen <= at) current = { value, gen: at };
         try {
@@ -69,9 +92,20 @@ export function createIndexCache<T>(o: IndexCacheOptions<T>): IndexCache<T> {
         }
       } finally {
         running = null;
+        early = null;
+        wakeEarly();
       }
     })();
     return running;
+  }
+
+  /** The first build's early listing; null once a whole value exists or the build ended without one. */
+  function earlyListing(): Promise<{ value: T } | null> {
+    return new Promise((resolve) => {
+      const take = () => resolve(current ? null : early);
+      if (early || !running) take();
+      else earlyWaiters.push(take);
+    });
   }
 
   async function fresh(): Promise<T> {
@@ -99,6 +133,16 @@ export function createIndexCache<T>(o: IndexCacheOptions<T>): IndexCache<T> {
         if (seeded) {
           start().catch((err) => o.onError?.(err));
           return { value: seeded.value, stale: true };
+        }
+        // #207 — no copy either (the first open ever): the bare listing as soon as the build has it.
+        if (opts.partial) {
+          const whole = fresh();
+          const listing = await earlyListing();
+          if (listing) {
+            whole.catch((err) => o.onError?.(err)); // the caller's next request meets a failure
+            return { value: listing.value, stale: true, partial: true };
+          }
+          return { value: await whole, stale: false };
         }
       }
       return { value: await fresh(), stale: false };
