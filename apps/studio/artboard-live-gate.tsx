@@ -45,8 +45,18 @@ import {
 } from './artboard-placeholder.ts';
 import { WebglBudget } from './artboard-webgl.ts';
 
-const ALL_LIVE: ArtboardLiveState = { live: true, seen: true };
+const ALL_LIVE: ArtboardLiveState = { live: true, seen: true, media: true };
 const LiveContext = createContext<ArtboardLiveState>(ALL_LIVE);
+
+/**
+ * May this artboard's media load (a Player, a `<video>` with its src)? Follows the mount ring: near or on screen,
+ * kept inside the keep ring. A video artboard is mounted wherever it is (its comp registers itself), so a
+ * `VideoComp` mounts its Player only while this holds — far away it fetches and decodes nothing (2.0.7). Always
+ * `true` outside an artboard, in captures and exports.
+ */
+export function useArtboardMedia(): boolean {
+  return useContext(LiveContext).media;
+}
 
 /**
  * Is this artboard running live? `false` while it is offscreen or the canvas is zoomed out to its overview —
