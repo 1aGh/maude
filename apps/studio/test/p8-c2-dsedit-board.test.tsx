@@ -24,12 +24,15 @@ const rule = (sel: string): string => {
 };
 
 describe('the Design system bar', () => {
-  test('wears the system glyph tile, the seg words and the primary Review… button', () => {
+  test('wears the system glyph tile, the sun and moon seg and the primary Review… button', () => {
     const out = renderToStaticMarkup(
       <DsBarView model={model} mode="light" onMode={() => {}} onReview={() => {}} />
     );
     expect(out).toContain('class="ds-bar-ic"');
-    expect(out).toContain('class="ds-bar-b k-seg-b"');
+    // 2.0.7 — the seg is two icons (sun, moon) named by aria-label, like the canvas pill
+    expect(out).toContain('class="ds-bar-b ds-bar-b--ic k-seg-b"');
+    expect(out).toContain('aria-label="Light"');
+    expect(out).toContain('aria-label="Dark"');
     expect(out).toContain('ds-bar-review btn btn--primary btn--sm');
   });
 
