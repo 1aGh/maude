@@ -126,6 +126,95 @@ describe('createIndexCache', () => {
   });
 });
 
+// #207 (list speed) — the first open ever has no previous run's copy: the tree loader may take the
+// bare listing a build publishes before its content reads, and is told it is partial.
+describe('createIndexCache — the listing before the details', () => {
+  test('a partial request gets the early listing while the build still reads', async () => {
+    const details = deferred<void>();
+    let detailsDone = false;
+    const cache = createIndexCache<{ paths: string[]; ds: Record<string, string> }>({
+      build: async (early) => {
+        const listing = { paths: ['ui/a.tsx'], ds: {} };
+        early?.(listing);
+        await details.promise;
+        detailsDone = true;
+        return { paths: ['ui/a.tsx'], ds: { 'ui/a.tsx': 'one' } };
+      },
+    });
+    const first = await cache.get({ partial: true });
+    expect(detailsDone).toBe(false);
+    expect(first).toEqual({ value: { paths: ['ui/a.tsx'], ds: {} }, stale: true, partial: true });
+    // a request that did not ask for a partial answer waits for the whole one
+    let whole: unknown = null;
+    const waiting = cache.get().then((g) => {
+      whole = g;
+    });
+    await Bun.sleep(5);
+    expect(whole).toBeNull();
+    details.resolve();
+    await waiting;
+    expect(whole).toEqual({
+      value: { paths: ['ui/a.tsx'], ds: { 'ui/a.tsx': 'one' } },
+      stale: false,
+    });
+    // once built, a partial request is answered whole
+    expect(await cache.get({ partial: true })).toEqual({
+      value: { paths: ['ui/a.tsx'], ds: { 'ui/a.tsx': 'one' } },
+      stale: false,
+    });
+    expect(cache.stats().builds).toBe(1);
+  });
+
+  test("the previous run's copy wins over a listing; fresh never takes either", async () => {
+    const details = deferred<void>();
+    const cache = createIndexCache<string>({
+      seed: () => 'copy',
+      build: async (early) => {
+        early?.('listing');
+        await details.promise;
+        return 'whole';
+      },
+    });
+    expect(await cache.get({ partial: true })).toEqual({ value: 'copy', stale: true });
+    let fresh: unknown = null;
+    const f = cache.get({ fresh: true, partial: true }).then((g) => {
+      fresh = g;
+    });
+    await Bun.sleep(5);
+    expect(fresh).toBeNull();
+    details.resolve();
+    await f;
+    expect(fresh).toEqual({ value: 'whole', stale: false });
+  });
+
+  test('a build that publishes no listing answers a partial request whole; a failed one rejects', async () => {
+    let n = 0;
+    const cache = createIndexCache<string>({
+      build: async () => {
+        n++;
+        if (n === 1) throw new Error('disk gone');
+        return 'whole';
+      },
+    });
+    await expect(cache.get({ partial: true })).rejects.toThrow('disk gone');
+    expect(await cache.get({ partial: true })).toEqual({ value: 'whole', stale: false });
+  });
+
+  test('the listing is never kept as the disk copy', async () => {
+    const kept: string[] = [];
+    const cache = createIndexCache<string>({
+      build: async (early) => {
+        early?.('listing');
+        return 'whole';
+      },
+      persist: (v) => kept.push(v),
+    });
+    await cache.get({ partial: true });
+    await cache.get();
+    expect(kept).toEqual(['whole']);
+  });
+});
+
 describe('isRootRuntimeRel — the events that leave the tree standing', () => {
   test('anything under a root runtime name', () => {
     for (const rel of [

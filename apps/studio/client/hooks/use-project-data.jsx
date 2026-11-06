@@ -25,9 +25,10 @@ export function useProjectData({
   useEffect(() => {
     const loader = createIndexLoader({
       // #207 — `fresh`: the last answer was a previous run's copy (`indexStale`); this one waits
-      // for the server's own build.
+      // for the server's own build. `partial`: on the first open ever (no copy) the bare listing may
+      // answer first (`indexPartial`, also `indexStale`): the tree is drawn, the details follow.
       read: async (signal, { fresh } = { fresh: false }) => {
-        const r = await fetch(fresh ? '/_index-data?fresh=1' : '/_index-data', {
+        const r = await fetch(fresh ? '/_index-data?fresh=1' : '/_index-data?partial=1', {
           signal,
           cache: 'no-store',
         });
