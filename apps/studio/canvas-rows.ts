@@ -27,6 +27,18 @@ export interface RowRect {
  */
 export const ROW_GAP = 80;
 
+/**
+ * The most artboards one generated row holds (2.0.7 fix #6). A converted system put every page of a
+ * section in ONE row — StudyFi's 29 component pages made a row 43 000 px wide, and the canvas fitted
+ * at 2 %. Six 1 440 px pages (8 880 px) keep a row about as wide as a few rows are tall, so the
+ * canvas reads as a grid. The generator wraps at this count (`ds/board/template.ts`), and the open
+ * canvas wraps an older generated grid the same way at run time (`wrapRows`).
+ */
+export const MAX_ROW_COLUMNS = 6;
+
+/** The column gap of a generated row when it has only one artboard to measure it from (`OWN_ARTBOARD.gap`). */
+const DEFAULT_COLUMN_GAP = 48;
+
 /** A column gap wider than this is not a packed row — somebody placed the artboard there. */
 const MAX_COLUMN_GAP = 96;
 
@@ -91,6 +103,56 @@ export function isUntouchedRowGrid(rects: readonly RowRect[], declared?: Declare
     for (let j = i + 1; j < drawn.length; j++)
       if (overlap(drawn[i] as RowRect, drawn[j] as RowRect)) return false;
   return true;
+}
+
+/**
+ * Wrap every row of an untouched row grid that holds more than `maxCols` artboards onto rows below
+ * it, packed from the left edge at the row's own column gap, in the order they stood. Everything
+ * under a wrapped row moves down by the room the new rows take (`gap` between rows, each row as tall
+ * as its tallest artboard); rows above the first wrapped one keep their place. The row flow
+ * (`flowRows`) re-pitches the result from the measured heights as before. Run time only, like the
+ * flow: an older converted canvas reads as a grid without its versioned meta being rewritten on
+ * open. Returns the SAME array when no row is too long or the layout is not an untouched grid (a
+ * person's arrangement is never wrapped), so a caller can compare by identity.
+ */
+export function wrapRows<T extends RowRect>(
+  rects: T[],
+  opts: { gap?: number; maxCols?: number; declared?: DeclaredSizes } = {}
+): T[] {
+  const gap = opts.gap ?? ROW_GAP;
+  const maxCols = Math.max(1, opts.maxCols ?? MAX_ROW_COLUMNS);
+  if (!isUntouchedRowGrid(rects, opts.declared)) return rects;
+  const rows = rowsOf(rects);
+  if (rows.every((row) => row.length <= maxCols)) return rects;
+  const left = Math.min(...rects.map((r) => r.x));
+  const tallest = (row: readonly T[]) => Math.max(...row.map((r) => r.h));
+  const next = new Map<string, { x: number; y: number }>();
+  let shift = 0;
+  for (const row of rows) {
+    const y = (row[0] as T).y + shift;
+    if (row.length <= maxCols) {
+      for (const r of row) next.set(r.id, { x: r.x, y });
+      continue;
+    }
+    const colGap =
+      row.length > 1 ? (row[1] as T).x - ((row[0] as T).x + (row[0] as T).w) : DEFAULT_COLUMN_GAP;
+    let cy = y;
+    for (let i = 0; i < row.length; i += maxCols) {
+      const chunk = row.slice(i, i + maxCols);
+      let cx = left;
+      for (const r of chunk) {
+        next.set(r.id, { x: cx, y: cy });
+        cx += r.w + colGap;
+      }
+      if (i + maxCols < row.length) cy += tallest(chunk) + gap;
+    }
+    const last = row.slice(Math.floor((row.length - 1) / maxCols) * maxCols);
+    shift += cy - y + tallest(last) - tallest(row);
+  }
+  return rects.map((r) => {
+    const p = next.get(r.id) as { x: number; y: number };
+    return p.x === r.x && p.y === r.y ? r : { ...r, x: p.x, y: p.y };
+  });
 }
 
 /**

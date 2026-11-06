@@ -23,6 +23,7 @@ import path from 'node:path';
 
 import { closureFor, type ProjectReader } from '../access/closure.ts';
 import { resolveAccess } from '../access/scope.ts';
+import { MAX_ROW_COLUMNS } from '../canvas-rows.ts';
 import { patternSrcs } from '../ds/board/section-patterns.tsx';
 import {
   designSystemCanvasMeta,
@@ -81,7 +82,9 @@ describe('every specimen page is its own artboard', () => {
       ]);
     });
 
-  test('one row per section, below the section grid, in section order; nothing overlaps', () => {
+  // 2.0.7 fix #6 — a section starts its own row and wraps after MAX_ROW_COLUMNS pages (one row per
+  // section made StudyFi's 29 component pages a 43 000 px row).
+  test('each section starts a row (wrapped after MAX_ROW_COLUMNS), below the section grid, in section order', () => {
     const m = mapSpecimens(readdirSync(path.join(REPO_DESIGN, 'system', 'maude', 'preview')));
     const meta = designSystemCanvasMeta('maude', m.pages) as {
       layout: { artboards: { id: string; x: number; y: number; w: number; h: number }[] };
@@ -93,15 +96,17 @@ describe('every specimen page is its own artboard', () => {
       const row = m.pages.filter((p) => p.section === kind);
       if (!row.length) continue;
       const boxes = row.map((p) => at.get(p.id) as { x: number; y: number; w: number });
-      expect(new Set(boxes.map((b) => b.y)).size).toBe(1); // one row
+      expect(new Set(boxes.map((b) => b.y)).size).toBe(Math.ceil(row.length / MAX_ROW_COLUMNS));
       expect(boxes.map((b) => b.x)).toEqual(
-        row.map((_, i) => i * (OWN_ARTBOARD.w + OWN_ARTBOARD.gap))
+        row.map((_, i) => (i % MAX_ROW_COLUMNS) * (OWN_ARTBOARD.w + OWN_ARTBOARD.gap))
       );
       rowY.push(boxes[0]?.y as number);
+      rowY.push(boxes[boxes.length - 1]?.y as number);
     }
     expect(rowY[0]).toBeGreaterThan(gridBottom);
     expect([...rowY].sort((a, b) => a - b)).toEqual(rowY); // section order, top to bottom
-    for (let i = 1; i < rowY.length; i++)
+    // a section's first row sits below the previous section's last row
+    for (let i = 2; i < rowY.length; i += 2)
       expect((rowY[i] as number) - (rowY[i - 1] as number)).toBeGreaterThan(OWN_ARTBOARD.h);
     // a page no section claims sits in the Patterns row
     expect(m.pages.find((p) => p.slug === 'ui_kits-desktop-showcase')?.section).toBe('patterns');
