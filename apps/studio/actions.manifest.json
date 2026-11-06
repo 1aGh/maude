@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "3b10dc94b530",
+  "manifestVersion": "48bd0d0889c7",
   "actions": [
     {
       "id": "search.open",
@@ -6250,6 +6250,40 @@
       "agent": {
         "path": "cli",
         "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/sync/cancel-assets"
+      }
+    },
+    {
+      "id": "sync.ignore-folder",
+      "label": "Don’t sync this folder",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/settings",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "which folders the project syncs is the person’s choice"
+      }
+    },
+    {
+      "id": "sync.sync-folder-again",
+      "label": "Sync it again",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/settings",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "which folders the project syncs is the person’s choice"
       }
     },
     {

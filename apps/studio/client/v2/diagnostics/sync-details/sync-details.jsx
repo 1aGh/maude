@@ -232,6 +232,97 @@ function AiCard({ need, fetchImpl }) {
   );
 }
 
+/** 1 234 567 890 → "1.1 GB"; below a gigabyte, whole megabytes. */
+function sizeWord(bytes) {
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.max(1, Math.round(mb))} MB`;
+}
+
+/**
+ * Issue #207 — a long run of pictures going up (a render sequence), and the folders this project
+ * leaves out. Never a warning: the pictures sync like every other file; leaving the folder out is
+ * an option, and "Sync it again" undoes it. Both write `linkedHub.ignoreFolders` through
+ * `/_api/sync/settings`; the next pass applies it.
+ */
+function FoldersSection({ sequences, ignored, fetchImpl }) {
+  const [left, setLeft] = useState(() => new Set());
+  const [back, setBack] = useState(() => new Set());
+  const [said, setSaid] = useState('');
+  const change = async (body, done) => {
+    setSaid('');
+    const res = await postJson(fetchImpl, '/_api/sync/settings', body);
+    if (res?.ok) done();
+    else setSaid('That didn’t save. Nothing changed — try again.');
+  };
+  const shown = sequences.filter((s) => !ignored.includes(s.folder));
+  const still = ignored.filter((f) => !back.has(f));
+  if (!shown.length && !still.length) return null;
+  return (
+    <section aria-label="Large folders" data-testid="sync-folders">
+      {shown.map((s, i) => (
+        <div className="sd-card" key={s.folder} data-testid={`sync-large-seq-${i}`}>
+          <strong className="sd-ct">
+            {cleanName(s.folder)} · {s.files.toLocaleString()} pictures · {sizeWord(s.bytes)}
+          </strong>
+          {left.has(s.folder) ? (
+            <span className="sd-cd" role="status" data-testid={`sync-large-seq-left-${i}`}>
+              Left out from the next sync. What’s already in the project stays there.
+            </span>
+          ) : (
+            <>
+              <span className="sd-cd">
+                They go up like every other file, and a run this long takes a while. You can keep
+                this folder on this Mac only.
+              </span>
+              <div className="sd-acts">
+                <button
+                  type="button"
+                  className="dg-btn"
+                  data-action="sync.ignore-folder"
+                  data-testid={`sync-large-seq-ignore-${i}`}
+                  onClick={() =>
+                    change({ addIgnoreFolder: s.folder }, () =>
+                      setLeft((prev) => new Set(prev).add(s.folder))
+                    )
+                  }
+                >
+                  Don’t sync this folder
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+      {still.length ? (
+        <div data-testid="sync-ignored-folders">
+          <p className="sd-sub">Not synced · {still.length}</p>
+          {still.map((f, i) => (
+            <div className="dg-row" key={f} data-testid={`sync-ignored-folder-${i}`}>
+              <span className="dg-k dg-mono">{cleanName(f)}</span>
+              <button
+                type="button"
+                className="dg-btn"
+                data-action="sync.sync-folder-again"
+                data-testid={`sync-ignored-folder-resume-${i}`}
+                onClick={() =>
+                  change({ removeIgnoreFolder: f }, () => setBack((prev) => new Set(prev).add(f)))
+                }
+              >
+                Sync it again
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {said ? (
+        <p className="dg-hint" role="alert">
+          {said}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 export default function SyncDetails({
   status,
   project,
@@ -315,6 +406,12 @@ export default function SyncDetails({
           </div>
         </section>
       ) : null}
+
+      <FoldersSection
+        sequences={m.lists.sequences}
+        ignored={m.lists.ignoredFolders}
+        fetchImpl={fetchImpl}
+      />
 
       {m.counts.length ? (
         <section aria-label="Counts" data-testid="diag-sync-counts">
