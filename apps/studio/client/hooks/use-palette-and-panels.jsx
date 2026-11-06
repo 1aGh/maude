@@ -22,7 +22,8 @@ import { menuRunner } from '../v2/shell/menu-runner.js';
 import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
 import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
 import { roleRefuses } from '../v2/shell/role-gate.js';
-import { ROLE_DENIAL, usePagesView } from '../v2/shell/use-canvas-mode-lane.js';
+import { ROLE_DENIAL, usePagesArtboard, usePagesView } from '../v2/shell/use-canvas-mode-lane.js';
+import { artboardInView } from '../v2/left-panel/left-panel-model.js';
 import { bindPaletteEnv, sendToAskAI } from '../v2/search/search-env.js';
 import { desktopProjectsEnv } from '../v2/search/search-projects.js';
 import { actionSearchRows, settingsSearchRows } from '../v2/search/search-model.js';
@@ -335,6 +336,7 @@ export function usePaletteAndPanels({
   // p8-v1-drop — the systems offered "Bring it up to the schema" (the Canvases panel publishes them)
   const dsUpgradeOffers = useSyncExternalStore(onUpgradeOffers, upgradeOffersKey, upgradeOffersKey);
   const pagesOn = usePagesView(); // 2.0.7 B2 — Preview / Present greyed, Next / Previous page on
+  const pagesAt = usePagesArtboard(); // 2.0.7 polish — the artboard on the page: the left panel marks it
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => openNewCanvasDialog(),
@@ -642,11 +644,9 @@ export function usePaletteAndPanels({
           onDuplicateCanvas={duplicateCanvasReq}
           onDeleteFile={deleteFileReq}
           onCopyLink={copyCanvasLink}
-          // S1.3 — the artboard in view on the open canvas, so the jump list can highlight it
-          activeArtboard={(() => {
-            const sel = Array.isArray(selected) ? selected[0] : selected;
-            return sel && sel.file === activePath ? (sel.artboardId ?? null) : null;
-          })()}
+          // S1.3 — the artboard in view on the open canvas, so the jump list can highlight it (2.0.7 polish: in
+          // Pages, the artboard on the page)
+          activeArtboard={artboardInView({ selected, activePath, pagesAt })}
           onRefresh={refreshTree}
           onToggleShowHidden={() => menuRunner.run('view.hidden-files')}
           refreshing={treeRefreshing}

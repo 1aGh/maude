@@ -247,7 +247,14 @@ describe('the pill: Canvas | Pages beside Light | Dark, and ‹ n / N › in Pag
     expect(counter()).toBe('1 / 3');
     expect(rule()).toContain('[data-dc-screen="c"]');
     expect(document.documentElement.hasAttribute('data-maude-pages')).toBe(true);
-    expect(lastReport()).toEqual({ dgn: 'pages-view', v: 1, on: true, index: 0, total: 3 });
+    expect(lastReport()).toEqual({
+      dgn: 'pages-view',
+      v: 1,
+      on: true,
+      index: 0,
+      total: 3,
+      id: 'c',
+    });
     expect(q('canvas-pages-prev')?.disabled).toBe(true);
   });
 
@@ -263,7 +270,14 @@ describe('the pill: Canvas | Pages beside Light | Dark, and ‹ n / N › in Pag
     expect(q('canvas-pages-next')?.disabled).toBe(true);
     await press(q('canvas-pages-prev'));
     expect(counter()).toBe('2 / 3');
-    expect(lastReport()).toEqual({ dgn: 'pages-view', v: 1, on: true, index: 1, total: 3 });
+    expect(lastReport()).toEqual({
+      dgn: 'pages-view',
+      v: 1,
+      on: true,
+      index: 1,
+      total: 3,
+      id: 'a',
+    });
   });
 
   test('PageDown / PageUp page (registry keys); in Canvas they do nothing', async () => {
@@ -381,5 +395,132 @@ describe('the pick is remembered per canvas, per Mac — the view lane, never th
     await mountCanvas();
     expect(q('canvas-view-pages')?.getAttribute('aria-pressed')).toBe('true');
     expect(counter()).toBe('1 / 3');
+  });
+});
+
+// 2.0.7 polish (Michal's hands-on test) ─────────────────────────────────────────────────────────────
+
+/** A message from the shell (`e.source === window.parent` inside the frame). */
+const fromShell = async (data: Record<string, unknown>) => {
+  await act(async () => {
+    window.dispatchEvent(
+      new window.MessageEvent('message', { data, source: window.parent as unknown as Window })
+    );
+  });
+};
+/** What the left panel's jump sends the open canvas (jump-model.js `planJump`, the glide not live yet). */
+const leftPanelPick = async (id: string) => {
+  await fromShell({ dgn: 'select-by-id', artboardId: id });
+  await fromShell({ dgn: 'run-action', v: 1, id: 'view.zoom-to-artboard', params: { id } });
+};
+
+describe('a left-panel pick in Pages turns to that artboard’s page (decision v2-207-pages-pick-turns-page)', () => {
+  test('a pick of an artboard Pages has hidden shows it — never an empty frame', async () => {
+    await mountCanvas();
+    await press(q('canvas-view-pages')); // c · a · b — on c
+    await leftPanelPick('b');
+    expect(counter()).toBe('3 / 3');
+    expect(rule()).toContain('[data-dc-screen="b"]');
+  });
+
+  test('the same pick again after paging away (the selection is unchanged) still turns back', async () => {
+    await mountCanvas();
+    await press(q('canvas-view-pages'));
+    await leftPanelPick('a');
+    expect(counter()).toBe('2 / 3');
+    await press(q('canvas-pages-prev')); // back on c; `a` stays selected
+    expect(counter()).toBe('1 / 3');
+    await leftPanelPick('a');
+    expect(counter()).toBe('2 / 3');
+    expect(rule()).toContain('[data-dc-screen="a"]');
+  });
+
+  test('a selection made elsewhere (Layers, the AI) on another artboard turns the page too', async () => {
+    await mountCanvas();
+    await press(q('canvas-view-pages'));
+    await fromShell({ dgn: 'select-by-id', artboardId: 'b' });
+    expect(rule()).toContain('[data-dc-screen="b"]');
+  });
+
+  test('in Canvas the pick only frames the artboard; Pages is left alone', async () => {
+    await mountCanvas();
+    expect(view.runPagesAction('view.zoom-to-artboard', { id: 'b' })).toBe(false);
+    await leftPanelPick('b');
+    expect(rule()).toBe('');
+    expect(pages.getCanvasView()).toBe('canvas');
+  });
+
+  test('the shell is told which artboard is on screen, so the left panel can mark it', async () => {
+    await mountCanvas();
+    await press(q('canvas-view-pages'));
+    expect(lastReport()).toMatchObject({ on: true, index: 0, id: 'c' });
+    await press(q('canvas-pages-next'));
+    expect(lastReport()).toMatchObject({ on: true, index: 1, id: 'a' });
+    await press(q('canvas-view-canvas'));
+    expect(lastReport()?.on).toBe(false);
+    expect(lastReport()?.id).toBeUndefined();
+  });
+});
+
+describe('the Design system canvas has Canvas | Pages on its own bar (decision v2-207-pages-on-ds-canvas)', () => {
+  const dsModel = {
+    label: 'Studio site system',
+    library: null,
+    pendingCount: 0,
+    tokens: [],
+    themes: { all: ['light', 'dark'], default: 'light', light: 'light', dark: 'dark' },
+  };
+
+  async function mountDsCanvas() {
+    const { __registerBoardModel } = await import('../ds/board/state.ts');
+    const { DsBar } = await import('../ds/board/index.tsx');
+    __registerBoardModel(dsModel as never);
+    const { DesignCanvas, DCArtboard } = lib;
+    const mount = document.createElement('div');
+    document.body.append(mount);
+    const root = createRoot(mount);
+    roots.push(root);
+    await act(async () => {
+      root.render(
+        <DesignCanvas>
+          <DsBar />
+          {['a', 'b', 'c'].map((id) => (
+            <DCArtboard key={id} id={id} label={id} width={400} height={300}>
+              <div>{id}</div>
+            </DCArtboard>
+          ))}
+        </DesignCanvas>
+      );
+    });
+  }
+  afterEach(async () => {
+    const { __resetBoardState } = await import('../ds/board/state.ts');
+    __resetBoardState();
+  });
+
+  test('the switch and the pager sit on the Design system bar (no canvas pill there)', async () => {
+    await mountDsCanvas();
+    expect(q('canvas-theme-pill')).toBeNull();
+    expect(q('ds-bar')?.contains(q('canvas-view-pages'))).toBe(true);
+    await press(q('canvas-view-pages'));
+    expect(counter()).toBe('1 / 3');
+    expect(q('ds-bar')?.contains(q('canvas-pages-nav'))).toBe(true);
+    expect(rule()).toContain('[data-dc-screen="c"]');
+    expect(lastReport()).toMatchObject({ on: true, index: 0, total: 3, id: 'c' });
+    // the pick goes to the shell, which writes the view file (as on any canvas)
+    expect(parentPosts.filter((m) => m.dgn === 'pages-pick')).toEqual([
+      { dgn: 'pages-pick', v: 1, view: 'pages' },
+    ]);
+  });
+
+  test('the same registry actions page it, and a left-panel pick turns its page', async () => {
+    await mountDsCanvas();
+    await act(async () => {
+      view.runPagesAction('view.pages');
+    });
+    await keydown('PageDown');
+    expect(counter()).toBe('2 / 3');
+    await leftPanelPick('b');
+    expect(counter()).toBe('3 / 3');
   });
 });

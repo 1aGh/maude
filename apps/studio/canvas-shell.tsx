@@ -62,6 +62,7 @@ import {
   CanvasPagesSwitch,
   PAGES_PILL_CSS,
   runPagesAction,
+  turnToPage,
   usePagesView,
 } from './canvas-pages-view.tsx';
 import { replayActionKey, replayToolKey } from './canvas-replay-keys.ts';
@@ -896,15 +897,15 @@ function CanvasCore({
   const artboardsCtx = useArtboardsContext();
   const dragBus = useDragStateContext();
 
-  // 2.0.7 B2 — Canvas | Pages: one artboard at a time, in the Present order (canvas-pages-view.tsx). Not on the
-  // Design system canvas (its own bar, no pill), an embed or a Present follower — where the pill steps aside too.
-  const pagesBoard = useBoardModel();
+  // 2.0.7 B2 — Canvas | Pages: one artboard at a time, in the Present order (canvas-pages-view.tsx). Not on an embed
+  // or a Present follower, where the pill steps aside too. The Design system canvas has it on its own bar (2.0.7
+  // polish, ds/board/ds-bar.tsx).
   usePagesView({
     controller,
     artboards: artboardsCtx?.artboards ?? NO_ARTBOARDS,
     selectedArtboard: () => selSet.selected[0]?.artboardId ?? null,
     hostRef,
-    here: !pagesBoard && !isEmbedCanvas() && !isFollowCanvas(),
+    here: !isEmbedCanvas() && !isFollowCanvas(),
     selectionNone: () => selSet.selected.length === 0,
   });
 
@@ -2898,8 +2899,9 @@ function CanvasRouter({
         } else if (replayActionKey(id)) {
           // V2-4.2 — Select all / Copy properties / Paste properties from the project menu: the
           // canvas replays the action's own chord, so the key handler is the one implementation.
-        } else if (runPagesAction(id)) {
-          // 2.0.7 B2 — Menu › View › Pages / ⌘K: Canvas | Pages and its paging (canvas-pages-view.tsx)
+        } else if (runPagesAction(id, params)) {
+          // 2.0.7 B2 — Menu › View › Pages / ⌘K: Canvas | Pages and its paging (canvas-pages-view.tsx); in Pages a
+          // left-panel jump's `view.zoom-to-artboard` turns to that page instead of framing a hidden artboard
         } else if (zoomController) {
           // Shell View-menu zoom items — route to the live viewport controller
           // (the same methods the in-canvas zoom pill calls).
@@ -3127,7 +3129,10 @@ function CanvasRouter({
         if (!board) return;
         const rect = window.__maudeCanvasRects?.().artboards.find((a) => a.id === aid);
         const host = hostRef.current;
-        if (rect && zoomController) {
+        // 2.0.7 polish — in Pages the reveal turns to that artboard's page (its camera), never to a hidden one
+        if (turnToPage(aid)) {
+          /* the page's own camera */
+        } else if (rect && zoomController) {
           if (mm.glide === true || !host) zoomController.jumpTo(rect);
           else zoomController.animateTo(fitRectIntoHost(rect, host), 0);
         }

@@ -280,6 +280,30 @@ export function CanvasesPanel({
     }
   }, [activePath, rows, layout]);
 
+  // 2.0.7 polish — the artboard in view moved (Pages' ‹ › and keys turn it, a jump picks it): its row in the open
+  // list scrolls into view, once per artboard (a list opened later scrolls to it then)
+  const lastBoard = useRef(null);
+  useEffect(() => {
+    const key = activePath && currentBoard ? `${activePath}#${currentBoard}` : null;
+    if (!key) {
+      lastBoard.current = null;
+      return;
+    }
+    if (lastBoard.current === key) return;
+    const isCur = (r) => r.type === 'board' && r.current;
+    let i = rows.findIndex((r) => isCur(r) && !r.inPinned && !r.inRecent);
+    if (i < 0) i = rows.findIndex(isCur);
+    if (i < 0) return;
+    lastBoard.current = key;
+    const el = treeRef.current;
+    if (!el) return;
+    const next = scrollToReveal(rows, layout, i, el.scrollTop, el.clientHeight);
+    if (next !== el.scrollTop) {
+      el.scrollTop = next;
+      setScrollTop(next);
+    }
+  }, [activePath, currentBoard, rows, layout]);
+
   const setOpen = useCallback((path, v) => expansion?.setOpen(path, v), [expansion]);
   const toggleJump = useCallback((row) => {
     setJumpOpen((m) => new Map(m).set(row.path, !row.jumpOpen));
