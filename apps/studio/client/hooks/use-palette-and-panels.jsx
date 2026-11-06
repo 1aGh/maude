@@ -24,6 +24,7 @@ import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-mode
 import { roleRefuses } from '../v2/shell/role-gate.js';
 import { ROLE_DENIAL, usePagesArtboard, usePagesView } from '../v2/shell/use-canvas-mode-lane.js';
 import { artboardInView } from '../v2/left-panel/left-panel-model.js';
+import { useLayersTreeRequest } from '../v2/layers/layers-request.js';
 import { bindPaletteEnv, sendToAskAI } from '../v2/search/search-env.js';
 import { desktopProjectsEnv } from '../v2/search/search-projects.js';
 import { actionSearchRows, settingsSearchRows } from '../v2/search/search-model.js';
@@ -337,6 +338,17 @@ export function usePaletteAndPanels({
   const dsUpgradeOffers = useSyncExternalStore(onUpgradeOffers, upgradeOffersKey, upgradeOffersKey);
   const pagesOn = usePagesView(); // 2.0.7 B2 — Preview / Present greyed, Next / Previous page on
   const pagesAt = usePagesArtboard(); // 2.0.7 polish — the artboard on the page: the left panel marks it
+  // 2.0.7 fix (decision `v2-207-layers-current`) — Layers marks the artboard you are on and draws only its tree; a
+  // tree in hand for another artboard (late, or re-posted by the canvas) is answered by asking again for this one
+  const layersOnArtboard = artboardInView({ selected, activePath, pagesAt });
+  useLayersTreeRequest({
+    activePath,
+    want: layersOnArtboard,
+    have: layersTree ? (layersTree.artboardId ?? null) : null,
+    post: postToActiveCanvas,
+    delay: 400,
+    skip: activePath === SYSTEM_TAB,
+  });
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => openNewCanvasDialog(),
@@ -796,6 +808,8 @@ export function usePaletteAndPanels({
           // gate-b-polish3 — Layers by artboard: the open canvas's artboards, its name, a row selects one
           layersBoards={id === 'layers' && activeCanvasFile ? boardLabels.get(activePath) : null}
           layersCanvasName={activeCanvasFile ? displayName(basename(activeCanvasFile)) : ''}
+          // 2.0.7 fix — the artboard you are on (the page in Pages, else the selection's): Layers marks it
+          layersArtboard={layersOnArtboard}
           onSelectArtboard={(artboardId) => postToActiveCanvas({ dgn: 'select-by-id', artboardId })}
           onSelectBySelector={(selector) =>
             postToActiveCanvas({ dgn: 'select-by-selector', v: 1, selector })

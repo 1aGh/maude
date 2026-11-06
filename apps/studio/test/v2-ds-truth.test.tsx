@@ -924,7 +924,7 @@ describe('the inspector’s empty place', () => {
     );
     expect(panel).toContain("from '../v2/ds/truth-card.jsx'");
     expect(panel).toMatch(
-      /!el && !\(effTab === 'layers' && layersTree\?\.nodes\?\.length\) && \(dsTruth(?: \|\| dsSystem)?\)? \?/
+      /!el && !\(effTab === 'layers' && layersShown\?\.nodes\?\.length\) && \(dsTruth(?: \|\| dsSystem)?\)? \?/
     );
     const host = readFileSync(new URL('../client/v2/ds/review-host.jsx', import.meta.url), 'utf8');
     expect(host).toContain('<DsTruthHost');
