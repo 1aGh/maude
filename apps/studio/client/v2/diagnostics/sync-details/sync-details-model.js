@@ -206,7 +206,10 @@ export function syncDetailsModel(
       'Project files',
       progress.remaining > 0
         ? `${thousands(progress.delivered)} of ${thousands(progress.tracked)}`
-        : `${thousands(progress.tracked)} · all here`,
+        : hubOnly.length > 0
+          ? // 2.0.7 — files kept on the hub (Keep on the hub) are not here: say both numbers
+            `${thousands(Math.max(0, progress.tracked - hubOnly.length))} here · ${thousands(hubOnly.length)} on the hub only`
+          : `${thousands(progress.tracked)} · all here`,
     ]);
   } else if (files) {
     counts.push(['files', 'Project files', `${thousands(files.synced)} · all here`]);
