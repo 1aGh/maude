@@ -7,11 +7,33 @@
 // the panel foot kept "21 artboards" after one was trashed). If the server has
 // no index (an older server, a cloud tab that does not serve it) the panel is simply without badges.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { fetchIfServed } from '../shell/served-routes.js';
 
 /** The shell's relay of the socket's `index-changed { seq, rels }` (client/app.jsx). */
 export const INDEX_CHANGED_EVENT = 'maude:index-changed';
+
+// 2.0.7 — the last snapshot the panel read, for the surfaces that need the same rows without asking the
+// server again: the pinned Design system rows (their artboards) and the opening skeletons (artboard sizes).
+let lastSnapshot = null;
+const snapshotSubs = new Set();
+export const indexSnapshotNow = {
+  get: () => lastSnapshot,
+  subscribe(fn) {
+    snapshotSubs.add(fn);
+    return () => snapshotSubs.delete(fn);
+  },
+};
+/** Publish a snapshot read (tests call it to seed one). */
+export function publishIndexSnapshot(snap) {
+  if (snap === lastSnapshot) return;
+  lastSnapshot = snap;
+  for (const fn of [...snapshotSubs]) fn();
+}
+/** The last index snapshot the Canvases panel read (null until the first answer). */
+export function useIndexSnapshotNow() {
+  return useSyncExternalStore(indexSnapshotNow.subscribe, indexSnapshotNow.get, () => null);
+}
 
 export function useCanvasIndex({ stamp, fetchImpl } = {}) {
   const [snapshot, setSnapshot] = useState(null);
@@ -55,6 +77,7 @@ export function useCanvasIndex({ stamp, fetchImpl } = {}) {
         if (!data?.unchanged && Array.isArray(data?.canvases)) {
           seq.current = data.writer?.seq || 0;
           setSnapshot(data);
+          publishIndexSnapshot(data);
         }
       } while (f.again);
     } catch {
