@@ -15,8 +15,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createFileLedger, type FileLedger } from '../sync/file-ledger.ts';
-import { createFilePlane } from '../sync/file-plane.ts';
-import { DELETED_HERE_HELD_REASON } from '../sync/seed-progress.ts';
+import { createFilePlane, DELETE_HELD_REASON } from '../sync/file-plane.ts';
+import { createHeldDeletes, heldDeleteDetail } from '../sync/held-deletes.ts';
+import { computeSeedProgress, DELETED_HERE_HELD_REASON } from '../sync/seed-progress.ts';
 import { livePropagateDeletes } from '../sync/settings.ts';
 
 const HUB_DIR = join(import.meta.dir, '..', '..', 'hub');
@@ -228,6 +229,209 @@ test.skipIf(!HUB_READY)(
     await p.reconcile();
     expect(existsSync(join(root, frame(3)))).toBe(false);
     expect(p.doruceka()[frame(3)]).toBeUndefined();
+  },
+  60_000
+);
+
+// ── 3. Deleted on this Mac, held — its own row and two answers ─────────────
+
+const FOLDER = 'renders/flythrough';
+
+/** 30 synced renders, 25 then deleted on this Mac: over the outbound breaker. */
+async function heldBatch(token = 'projectOwner') {
+  for (let i = 0; i < 30; i += 1) writeFrame(i);
+  const p = plane(counting().fetchImpl, true, token);
+  await p.reconcile();
+  for (let i = 0; i < 25; i += 1) rmSync(join(root, frame(i)));
+  const res = await p.reconcile();
+  return { p, res };
+}
+
+const control = (
+  p: ReturnType<typeof plane>,
+  o: { owner: boolean; sent?: number; token?: string }
+) =>
+  createHeldDeletes({
+    plane: () => p,
+    sentInWindow: () => o.sent ?? 0,
+    isOwner: () => o.owner,
+    hubUrl: hub.http,
+    token: () => hub.tokens[o.token ?? 'projectOwner'] as string,
+    runPass: async () => {
+      await p.reconcile();
+    },
+    sleep: (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 50))),
+    log: { log() {}, warn() {} },
+  });
+
+test.skipIf(!HUB_READY)(
+  'a 25-file local delete is held as its own state, named by folder and count',
+  async () => {
+    const { p, res } = await heldBatch();
+    expect(res.deleteHeld).toMatchObject({
+      direction: 'out',
+      count: 25,
+      folders: [{ folder: FOLDER, count: 25 }],
+    });
+    expect(ledger.row(frame(0))?.state).toBe('delete-held');
+    expect(ledger.row(frame(0))?.reason).toBe(DELETE_HELD_REASON);
+    expect(p.doruceka()[frame(0)]).toBe('delete-held');
+    expect(p.heldDeletes()).toMatchObject({ count: 25, folders: [{ folder: FOLDER, count: 25 }] });
+    const progress = computeSeedProgress({ rows: ledger.rows(), now: Date.now() });
+    expect(progress.heldDeleteAsk).toBe(25);
+    expect(progress.remaining).toBe(0);
+    // Asked again on the next pass: never sent, never downloaded.
+    const c = counting();
+    const again = await plane(c.fetchImpl).reconcile();
+    expect(again.deleteHeld?.count).toBe(25);
+    expect(c.gets).toEqual([]);
+    expect(onHub(frame(0))).toBe(true);
+    // A new delete joins the question instead of slipping out under the limit beside it.
+    rmSync(join(root, frame(25)));
+    const joined = await plane(counting().fetchImpl).reconcile();
+    expect(joined.deleted).toEqual([]);
+    expect(joined.deleteHeld?.count).toBe(26);
+    expect(heldDeleteDetail(26, [{ folder: FOLDER, count: 26 }])).toBe(
+      '26 files deleted on this Mac in renders/flythrough — more than sync deletes on the hub without asking. They are still on the hub. Delete them on the hub too, or keep them there.'
+    );
+  },
+  60_000
+);
+
+test.skipIf(!HUB_READY)(
+  'Delete on the hub too, within the door budget: one confirmed batch through the door',
+  async () => {
+    const { p } = await heldBatch();
+    const answer = await control(p, { owner: true }).answer('delete', FOLDER);
+    expect(answer).toEqual({ ok: true, how: 'door', count: 25 });
+    await p.reconcile();
+    for (let i = 0; i < 25; i += 1) expect(onHub(frame(i))).toBe(false);
+    expect(onHub(frame(25))).toBe(true);
+    await p.reconcile();
+    expect(ledger.row(frame(0))).toBeNull();
+    expect(p.heldDeletes().count).toBe(0);
+  },
+  60_000
+);
+
+test.skipIf(!HUB_READY)(
+  'Delete on the hub too, past the door budget: the owner purge, dry run then confirm',
+  async () => {
+    const { p } = await heldBatch();
+    const c = control(p, { owner: true, sent: 190 });
+    const answer = await c.answer('delete', null);
+    expect(answer).toEqual({ ok: true, how: 'purge', count: 25 });
+    // While it runs the row is not asked again.
+    expect(c.view().count).toBe(0);
+    await c.idle();
+    expect(c.view().purge).toBeNull();
+    for (let i = 0; i < 25; i += 1) expect(onHub(frame(i))).toBe(false);
+    expect(onHub(frame(26))).toBe(true);
+    const audit = readFileSync(join(work, 'hub', 'purge-audit.jsonl'), 'utf8');
+    expect(audit).toContain('"event":"purge-done"');
+    await p.reconcile();
+    expect(ledger.row(frame(0))).toBeNull();
+    expect(Object.keys(p.doruceka()).filter((r) => r.startsWith(FOLDER))).toHaveLength(5);
+  },
+  60_000
+);
+
+test.skipIf(!HUB_READY)(
+  'a member past the budget gets an honest no; nothing is deleted and the row still asks',
+  async () => {
+    const { p } = await heldBatch('alice');
+    const answer = await control(p, { owner: false, sent: 5, token: 'alice' }).answer(
+      'delete',
+      FOLDER
+    );
+    expect(answer).toEqual({
+      ok: false,
+      reason: 'not-owner',
+      detail:
+        'Only the project owner can delete this many at once — ask them, or keep them on the hub.',
+    });
+    await p.reconcile();
+    for (let i = 0; i < 25; i += 1) expect(onHub(frame(i))).toBe(true);
+    expect(p.heldDeletes().count).toBe(25);
+    // The hub agrees: its confirmed purge is the owner's alone.
+    const purge = await fetch(`${hub.http}/api/file-purge`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${hub.tokens.alice}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ prefix: `${FOLDER}/`, dryRun: true }),
+    });
+    expect(purge.status).toBe(403);
+  },
+  60_000
+);
+
+test.skipIf(!HUB_READY)(
+  'Keep on the hub: no delete proposal, never downloaded again; a teammate’s delete still lands',
+  async () => {
+    const { p } = await heldBatch();
+    const answer = await control(p, { owner: true }).answer('keep', FOLDER);
+    expect(answer).toEqual({ ok: true, how: 'keep', count: 25 });
+    for (let pass = 0; pass < 2; pass += 1) {
+      const c = counting();
+      const res = await plane(c.fetchImpl).reconcile();
+      expect(c.gets).toEqual([]);
+      expect(res.pulled).toEqual([]);
+      expect(res.deleted).toEqual([]);
+      expect(res.deleteHeld).toBeUndefined();
+    }
+    for (let i = 0; i < 25; i += 1) {
+      expect(onHub(frame(i))).toBe(true);
+      expect(existsSync(join(root, frame(i)))).toBe(false);
+    }
+    expect(p.doruceka()[frame(0)]).toBe('hub-only');
+    const progress = computeSeedProgress({ rows: ledger.rows(), now: Date.now() });
+    expect(progress.remaining).toBe(0);
+    expect(progress.heldDeletedHere).toBe(25);
+    // Kept across a restart: a new plane over the same ledger file.
+    ledger.flush();
+    ledger = createFileLedger({ designRoot: root, hubUrl: hub.http });
+    const c = counting();
+    await plane(c.fetchImpl).reconcile();
+    expect(c.gets).toEqual([]);
+    expect(ledger.row(frame(0))?.state).toBe('hub-only');
+    // A teammate deletes one on the hub: deleted on both sides, so it leaves Sync details.
+    await hubDelete(frame(0));
+    await plane(counting().fetchImpl).reconcile();
+    await plane(counting().fetchImpl).reconcile();
+    expect(ledger.row(frame(0))).toBeNull();
+  },
+  60_000
+);
+
+test.skipIf(!HUB_READY)(
+  'the other direction: the owner’s purge reaches a teammate’s Mac as a held inbound batch',
+  async () => {
+    const { p } = await heldBatch();
+    // A second Mac with its own copy of the project.
+    const rootB = join(work, 'design-b');
+    mkdirSync(rootB, { recursive: true });
+    const ledgerB = createFileLedger({ designRoot: rootB, hubUrl: hub.http });
+    const planeB = createFilePlane({
+      designRoot: rootB,
+      hubUrl: hub.http,
+      token: () => hub.tokens.bob as string,
+      ledger: ledgerB,
+      allowCodeModules: false,
+      label: 'b',
+      propagateDeletes: true,
+      log: { log() {}, warn() {} },
+    });
+    await planeB.reconcile();
+    expect(existsSync(join(rootB, frame(26)))).toBe(true);
+    const c = control(p, { owner: true, sent: 190 });
+    await c.answer('delete', FOLDER);
+    await c.idle();
+    const inbound = await planeB.reconcile();
+    // The inbound breaker is unchanged: a hub-ordered mass delete is held on every peer.
+    expect(inbound.deleteHeld).toMatchObject({ direction: 'in', count: 25 });
+    expect(existsSync(join(rootB, frame(0)))).toBe(true);
   },
   60_000
 );
