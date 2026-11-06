@@ -343,8 +343,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.studio == 'true'
     runs-on: ubuntu-latest
-    # Hang guard — see the quality job.
-    timeout-minutes: 30
+    # Hang guard — see the quality job. 40, not 30: the tests take ~6 min, but
+    # a slow apt mirror can spend most of 20 min in the Chromium step.
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -387,12 +388,16 @@ jobs:
             ~/.agent-browser/browsers
           key: browsers-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/studio/bun.lock') }}
 
+      # The slow part is apt (`--with-deps`): the Azure Ubuntu mirror once took
+      # 4 min for a single font package. A timed-out attempt leaves apt-get
+      # running and holding the dpkg lock, so a retry first waits for it.
       - name: Install Chromium
-        timeout-minutes: 12
+        timeout-minutes: 20
         run: |
           for attempt in 1 2; do
-            timeout 300 npx playwright install --with-deps chromium && exit 0
+            timeout 600 npx playwright install --with-deps chromium && exit 0
             echo "::warning::playwright install attempt $attempt failed or timed out"
+            while sudo fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 5; done
           done
           exit 1
 
