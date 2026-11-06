@@ -4,10 +4,11 @@
 // so the selected clip was gone and the Transcript / Re-frame panel closed and Present lost its selection.
 // The rules pinned here, on a mounted DesignCanvas:
 //   - an edit's remount keeps a mounted artboard's children in the same commit — never a placeholder in between;
-//   - an artboard holding the selection is never released, however far it is panned away.
+//   - an artboard holding the selection is never released, however far it is panned away;
+//   - the runtime lives on the document, so a soft reload (a fresh copy of the gate module) keeps what was mounted.
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
-import { act, createElement, useEffect } from 'react';
+import { act, createElement, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 
 type IOEntry = { target: Element; isIntersecting: boolean };
@@ -148,5 +149,46 @@ describe('the mount ring never drops what the shell is working in', () => {
     await wait(2900);
     expect(m.bodies()).toEqual(['a0', 'a2']);
     await m.done();
+  });
+
+  // The real soft reload: each canvas module bundles its OWN copy of canvas-lib (Bun.build inlines
+  // `@maude/canvas-lib`), so the remounted gate is a fresh evaluation of artboard-live-gate.tsx. A module-level
+  // runtime started it with an empty registry — every artboard a placeholder — which is what the e2e hit.
+  test('a soft reload that re-evaluates the gate module keeps the mounted artboards mounted', async () => {
+    const copyA = await import('../artboard-live-gate.tsx?copy=a');
+    const copyB = await import('../artboard-live-gate.tsx?copy=b');
+    expect(copyA.ArtboardLiveGate).not.toBe(copyB.ArtboardLiveGate);
+    const board = (G: typeof gate) =>
+      function Board({ id }: { id: string }) {
+        const a = useRef<HTMLElement>(null);
+        const b = useRef<HTMLDivElement>(null);
+        return (
+          <article data-dc-screen={id} ref={a}>
+            <div ref={b}>
+              <G.ArtboardLiveGate id={id} articleRef={a} bodyRef={b} heightFloor={10}>
+                <Probe id={id} />
+              </G.ArtboardLiveGate>
+            </div>
+          </article>
+        );
+      };
+    const BoardA = board(copyA);
+    const BoardB = board(copyB);
+    window.happyDOM.setURL('http://localhost/?artboard-live=sleep');
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => root.render(<BoardA key="0" id="r" />));
+    await act(async () => report('r', true));
+    await wait(60);
+    expect(host.querySelectorAll('[data-body]')).toHaveLength(1);
+    // the write lands: the new module's gate mounts in place of the old one, before any observer reports
+    await act(async () => root.render(<BoardB key="1" id="r" />));
+    expect(host.querySelectorAll('.dc-artboard-sleeping')).toHaveLength(0);
+    expect(host.querySelectorAll('[data-body]')).toHaveLength(1);
+    await wait(60);
+    expect(host.querySelectorAll('[data-body]')).toHaveLength(1);
+    await act(async () => root.unmount());
+    host.remove();
   });
 });
