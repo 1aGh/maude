@@ -57,6 +57,7 @@ import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
 // already in the image (Dockerfile COPY, reached through access/closure.ts).
 import { isCanvasSource } from '../../studio/skip-dirs.ts';
 import { fileAccessFor, visibleJournalPage } from './access-files.mjs';
+import { isProjectOwnerMatch } from './access-gate.mjs';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import {
   heldCodeEntries,
@@ -81,7 +82,8 @@ const Database = require('better-sqlite3');
 /** Where a write came from. Recorded for forensics; never an authority. */
 export const JOURNAL_SOURCES = Object.freeze([
   'peer-put', // a desktop PUT through a hub write door
-  'owner-delete', // a DELETE through the write door by an owner-role token — outside the delete budget
+  'owner-delete', // a DELETE through the write door by the project owner — the owner's own budget
+  'owner-purge', // one file of an owner-confirmed bulk purge (owner-purge.mjs) — no window budget
   'studio-report', // the studio child nudged us about its own write
   'walk-import', // the reconciler found drift the hooks missed
   'boot-scan', // first walk of a checkout with no journal
@@ -138,23 +140,31 @@ export const DELETE_BUDGET_WINDOW_MS = 60 * 60 * 1000;
 export const DELETE_BUDGET_PER_WINDOW = 25;
 
 /**
- * OWNERS ARE OUTSIDE THE DOOR BUDGET.
+ * AN OWNER HAS ITS OWN DOOR BUDGET — HIGHER, NEVER NONE.
  *
- * The budget exists for the accident shapes — a branch switch, a `git clean`,
- * a botched restore on ONE machine — and for a leaked low-value token. An
- * owner reorganising their own project is neither, and a 25-per-hour ceiling
- * turned an 80-file cleanup into an afternoon of babysitting. So the door lets
- * an owner-role token delete without a ceiling (`file-door.mjs`) and records
- * the tombstone as `owner-delete`, which the window count below leaves out, so
- * an owner's purge does not spend the budget everyone else's accidents need.
+ * The member budget exists for the accident shapes — a branch switch, a `git
+ * clean`, a botched restore on ONE machine — and for a leaked low-value token.
+ * An owner reorganising their own project is neither, and 25 per hour turned an
+ * 80-file cleanup into an afternoon of babysitting. So an owner's door deletes
+ * are recorded as `owner-delete` and counted against their own, higher window
+ * (`OWNER_DELETE_BUDGET_PER_WINDOW`), not the member one — an owner's cleanup
+ * does not spend the budget everyone else's accidents need. A deletion past the
+ * owner window is a bulk purge: dry-run, confirm the exact set, and it runs in
+ * bounded batches (`owner-purge.mjs`, source `owner-purge`, outside both
+ * windows because the owner confirmed that exact set).
+ *
+ * Who is the owner is ONE reading of the token match (`access-gate.mjs`
+ * `roleForMatch`) — the access gate and the door cannot disagree about it.
  *
  * What stays: every deleted file is still quarantined before its tombstone is
  * written, so an owner delete is as recoverable as any other. And the R2 TAIL
- * REPLAY still counts every tombstone, `owner-delete` included — `source` in
- * the tail is data, not authority, and exempting a label is exactly how an
- * injected purge would dress itself.
+ * REPLAY still counts every tombstone, owner rows included — `source` in the
+ * tail is data, not authority, and exempting a label is exactly how an injected
+ * purge would dress itself.
  */
+export const OWNER_DELETE_BUDGET_PER_WINDOW = 200;
 export const OWNER_DELETE_SOURCE = 'owner-delete';
+export const OWNER_PURGE_SOURCE = 'owner-purge';
 
 /** One open handle per dataDir. Native init is expensive; cache it. */
 const handleCache = new Map();
@@ -268,9 +278,12 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
     ),
     since: db.prepare('SELECT * FROM file_journal WHERE seq > ? ORDER BY seq ASC LIMIT ?'),
     byId: db.prepare('SELECT * FROM file_journal WHERE seq = ?'),
-    // Owner deletes are outside the door budget (see OWNER_DELETE_SOURCE).
+    // Owner rows are outside the member budget (see OWNER_DELETE_BUDGET_PER_WINDOW).
     deletionsSince: db.prepare(
-      "SELECT COUNT(*) AS n FROM file_journal WHERE deleted = 1 AND at_ms >= ? AND source != 'owner-delete'"
+      "SELECT COUNT(*) AS n FROM file_journal WHERE deleted = 1 AND at_ms >= ? AND source NOT IN ('owner-delete', 'owner-purge')"
+    ),
+    ownerDeletionsSince: db.prepare(
+      "SELECT COUNT(*) AS n FROM file_journal WHERE deleted = 1 AND at_ms >= ? AND source = 'owner-delete'"
     ),
     allDeletionsSince: db.prepare(
       'SELECT COUNT(*) AS n FROM file_journal WHERE deleted = 1 AND at_ms >= ?'
@@ -727,19 +740,30 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
     },
 
     /**
-     * Is there budget for one more deletion right now?
+     * Owner door deletes (`owner-delete`) in the window — the owner budget's
+     * numerator. Purge rows are not in it: the owner confirmed that set.
      *
+     * @param {number} sinceMs
+     * @returns {number}
+     */
+    ownerDeletionsSince(sinceMs) {
+      const row = stmts.ownerDeletionsSince.get(Number.isFinite(sinceMs) ? sinceMs : 0);
+      return row?.n ?? 0;
+    },
+
+    /**
+     * Is there budget for one more deletion right now? `owner: true` asks the
+     * owner's window, otherwise the member one.
+     *
+     * @param {{ owner?: boolean }} [opts]
      * @returns {{ ok: true } | { ok: false, used: number, limit: number, windowMs: number }}
      */
-    deleteBudget() {
-      const used = handle.deletionsSince(now() - DELETE_BUDGET_WINDOW_MS);
-      if (used < DELETE_BUDGET_PER_WINDOW) return { ok: true };
-      return {
-        ok: false,
-        used,
-        limit: DELETE_BUDGET_PER_WINDOW,
-        windowMs: DELETE_BUDGET_WINDOW_MS,
-      };
+    deleteBudget({ owner = false } = {}) {
+      const since = now() - DELETE_BUDGET_WINDOW_MS;
+      const used = owner ? handle.ownerDeletionsSince(since) : handle.deletionsSince(since);
+      const limit = owner ? OWNER_DELETE_BUDGET_PER_WINDOW : DELETE_BUDGET_PER_WINDOW;
+      if (used < limit) return { ok: true };
+      return { ok: false, used, limit, windowMs: DELETE_BUDGET_WINDOW_MS };
     },
 
     /** Entries after `since`, capped. `truncated` says the page is partial. */
@@ -1030,8 +1054,7 @@ const MAX_HELD_LISTED = 200;
  * An owner always gets the field (an empty list clears a panel row).
  */
 function ownerHeld(match, designRoot) {
-  if (!match || match.readOnly || match.role !== 'owner') return {};
-  if (match.scope && match.scope !== '*') return {};
+  if (!isProjectOwnerMatch(match)) return {};
   if (!designRoot) return {};
   const held = heldCodeEntries(designRoot);
   return { held: held.slice(0, MAX_HELD_LISTED), heldCount: held.length };

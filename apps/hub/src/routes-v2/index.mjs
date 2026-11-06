@@ -35,6 +35,7 @@ import { hubAccessRefusal } from '../access-gate.mjs';
 import { ASSET_PRESENCE_ROWS } from '../asset-presence.mjs';
 import { DS_GRANT_ROWS } from '../ds-grants.mjs';
 import { DS_LIBRARY_ROWS } from '../ds-library.mjs';
+import { OWNER_PURGE_ROWS } from '../owner-purge.mjs';
 import { CAPABILITIES } from '../role-matrix.mjs';
 import { ACCESS_ROWS } from './access.mjs';
 import { COMMENT_ROWS } from './comments.mjs';
@@ -63,6 +64,7 @@ export const HUB_ROUTE_ROWS = Object.freeze([
   ...DS_LIBRARY_ROWS, // S10.18a
   ...DS_GRANT_ROWS, // S10.18a-2
   ...SHARE_ROWS, // P8 — a cloud tab's Share sheet / Ask to edit (the desktop's fixed map)
+  ...OWNER_PURGE_ROWS, // 2.0.7 #8 — the owner's confirmed bulk purge (owner-purge.mjs)
 ]);
 
 /** The studio's lane (and any path no row names): the pre-v2 write gate. */

@@ -57,6 +57,7 @@ import {
   PER_USE_PHOTO_RE,
 } from '../../studio/access/scope.ts';
 import { fileAccessFor, NOT_IN_SCOPE_REFUSAL } from './access-files.mjs';
+import { roleForMatch } from './access-gate.mjs';
 import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
 import {
   MAX_PROJECT_FILE_BYTES,
@@ -502,7 +503,10 @@ export async function handleFileDoor(ctx) {
   // could land executable modules in a project's `system/**`, and the only
   // thing stopping them was that the OTHER peers would refuse to pull them.
   const cls = checkoutFileClass(landing, ctx.designRoot);
-  if (cls === 'code-module' && match.role !== 'owner') {
+  // The role is the one reading every door shares (`roleForMatch`) — never the
+  // raw `match.role` column, which the env secret does not carry.
+  const role = roleForMatch(match);
+  if (cls === 'code-module' && role !== 'owner') {
     // 403 rather than 400: the path is fine, the credential is not, and
     // saying so is what lets a peer report something a person can act on.
     respond(response, 403, 'code modules may only be written by an owner-scoped token');
@@ -522,7 +526,7 @@ export async function handleFileDoor(ctx) {
   const expect = String(request.headers?.['x-maude-expect-hash'] ?? '').trim();
 
   if (method === 'DELETE') {
-    return await handleDelete({ ctx, response, landing, target, expect, role: match.role });
+    return await handleDelete({ ctx, response, landing, target, expect, role });
   }
   const casHolds = () => {
     if (!expect) return { ok: true };
@@ -698,6 +702,32 @@ export async function handleFileDoor(ctx) {
  * an edit beats a delete, and the peer re-decides against the hash it is told.
  */
 async function handleDelete({ ctx, response, landing, target, expect, role }) {
+  const r = await deleteCheckoutFile({ ctx, landing, target, expect, role });
+  if (r.text !== undefined) respond(response, r.status, r.text);
+  else respondJson(response, r.status, r.json);
+  return true;
+}
+
+/**
+ * The delete itself, under the path lock — CAS, breaker, quarantine, tombstone.
+ * Returns the answer (`{ status, json }` or `{ status, text }`) instead of
+ * writing it, so the owner's confirmed bulk purge (`owner-purge.mjs`) runs the
+ * exact same steps per file. `purge: true` is that caller only: the owner
+ * confirmed this exact file (path and hash) in a dry run, so the window budget
+ * is not asked; everything else — the CAS, the quarantine, the journaled
+ * tombstone — is.
+ *
+ * @returns {Promise<{ status: number, json?: object, text?: string }>}
+ */
+export async function deleteCheckoutFile({
+  ctx,
+  landing,
+  target,
+  expect,
+  role,
+  purge = false,
+  trashStamp = null,
+}) {
   return await withPathLock(landing, async () => {
     // B14 (post-1.0 burn-down) — the precondition is REQUIRED on DELETE.
     // Every real client has sent `x-maude-expect-hash` since Increment 6
@@ -706,11 +736,13 @@ async function handleDelete({ ctx, response, landing, target, expect, role }) {
     // stops being an expressible request. 428 Precondition Required, so a
     // scripted caller learns exactly what to add.
     if (!expect) {
-      respondJson(response, 428, {
-        error: 'DELETE requires x-maude-expect-hash (the ancestor sha256, or "none")',
-        path: landing,
-      });
-      return true;
+      return {
+        status: 428,
+        json: {
+          error: 'DELETE requires x-maude-expect-hash (the ancestor sha256, or "none")',
+          path: landing,
+        },
+      };
     }
 
     // F-14 — "no journal row" is NOT "already deleted" when the bytes are on
@@ -725,14 +757,12 @@ async function handleDelete({ ctx, response, landing, target, expect, role }) {
     if (journalHash === null && !onDisk) {
       // Genuinely absent everywhere, or already tombstoned. Idempotent by
       // construction — a retry after a dropped response must not be an error.
-      respondJson(response, 200, { ok: true, path: landing, deleted: true, noop: true });
-      return true;
+      return { status: 200, json: { ok: true, path: landing, deleted: true, noop: true } };
     }
     const current = journalHash ?? hashFileOnDisk(target.abs);
     if (current === null) {
       // The file vanished between the existsSync and the read — absent wins.
-      respondJson(response, 200, { ok: true, path: landing, deleted: true, noop: true });
-      return true;
+      return { status: 200, json: { ok: true, path: landing, deleted: true, noop: true } };
     }
 
     // F-8 — `'none'` means THE SAME THING on both verbs: "the hub must
@@ -742,12 +772,14 @@ async function handleDelete({ ctx, response, landing, target, expect, role }) {
     // leniency with no reason of its own — and "write whatever is there" and
     // "remove whatever is there" are not the same risk.)
     if (current !== expect) {
-      respondJson(response, 409, {
-        error: 'the hub moved since you decided',
-        path: landing,
-        current,
-      });
-      return true;
+      return {
+        status: 409,
+        json: {
+          error: 'the hub moved since you decided',
+          path: landing,
+          current,
+        },
+      };
     }
 
     // THE DELETE BREAKER, AT THE DOOR (F-1).
@@ -765,34 +797,39 @@ async function handleDelete({ ctx, response, landing, target, expect, role }) {
     // spend it, and so nothing is moved for a request that is about to be
     // refused.
     //
-    // AN OWNER IS OUTSIDE IT (journal.mjs `OWNER_DELETE_SOURCE`). The role is
-    // the one the token match vouched for, not anything the request says, and
-    // the quarantine below still parks every file before its tombstone.
-    const ownerDelete = role === 'owner';
-    const budget = ownerDelete ? { ok: true } : (ctx.journal?.deleteBudget?.() ?? { ok: true });
+    // AN OWNER HAS ITS OWN, HIGHER WINDOW (journal.mjs
+    // `OWNER_DELETE_BUDGET_PER_WINDOW`) — never none; past it is the confirmed
+    // bulk purge (`owner-purge.mjs`). The role is the one the token match
+    // vouched for (`roleForMatch`), not anything the request says, and the
+    // quarantine below still parks every file before its tombstone.
+    const ownerDelete = purge || role === 'owner';
+    const budget = purge
+      ? { ok: true }
+      : (ctx.journal?.deleteBudget?.({ owner: ownerDelete }) ?? { ok: true });
     if (!budget.ok) {
       // 429, not 403: the credential is fine and the path is fine — this is a
       // rate, and a rate is something the caller can act on by waiting or by
       // asking a person whether the purge was meant.
-      respondJson(response, 429, {
-        error: 'deletion breaker: too many deletions in this window — refusing to delete more',
-        path: landing,
-        used: budget.used,
-        limit: budget.limit,
-        windowMs: budget.windowMs,
-      });
-      return true;
+      return {
+        status: 429,
+        json: {
+          error: 'deletion breaker: too many deletions in this window — refusing to delete more',
+          path: landing,
+          used: budget.used,
+          limit: budget.limit,
+          windowMs: budget.windowMs,
+        },
+      };
     }
 
     // QUARANTINE BEFORE THE ROW. If the copy cannot be parked the tombstone is
     // refused, because a deletion nobody can undo is not one this lane makes.
     let parked = null;
     try {
-      parked = quarantineForDelete(ctx.designRoot, target.abs, landing);
+      parked = quarantineForDelete(ctx.designRoot, target.abs, landing, trashStamp);
     } catch (err) {
       console.error(`[hub] file door DELETE ${landing} could not quarantine: ${err.message}`);
-      respond(response, 500, 'could not quarantine the file — refusing to delete it');
-      return true;
+      return { status: 500, text: 'could not quarantine the file — refusing to delete it' };
     }
     // CELL MODE (Task 12): nothing on disk to park — the bytes are in the
     // bucket under a path-keyed object the next write would overwrite. Keep a
@@ -807,11 +844,13 @@ async function handleDelete({ ctx, response, landing, target, expect, role }) {
         keptRemote = await ctx.materializer.keepCopy(landing);
       } catch (err) {
         console.error(`[hub] file door DELETE ${landing} could not keep a copy: ${err.message}`);
-        respondJson(response, 503, {
-          error: 'could not keep a recoverable copy — refusing to delete it',
-          path: landing,
-        });
-        return true;
+        return {
+          status: 503,
+          json: {
+            error: 'could not keep a recoverable copy — refusing to delete it',
+            path: landing,
+          },
+        };
       }
     }
 
@@ -825,7 +864,7 @@ async function handleDelete({ ctx, response, landing, target, expect, role }) {
     // the journal never heard of is a delete that did not happen.
     let tombstone = null;
     if (ctx.onDeleted) {
-      tombstone = ctx.onDeleted({ path: landing, parked, owner: ownerDelete }) ?? null;
+      tombstone = ctx.onDeleted({ path: landing, parked, owner: ownerDelete, purge }) ?? null;
       if (!tombstone) {
         if (parked) {
           try {
@@ -837,21 +876,27 @@ async function handleDelete({ ctx, response, landing, target, expect, role }) {
             );
           }
         }
-        respond(response, 500, 'the deletion could not be journaled — nothing was deleted');
-        return true;
+        return { status: 500, text: 'the deletion could not be journaled — nothing was deleted' };
       }
     }
     const seq = tombstone?.seq ?? null;
-    respondJson(response, 200, {
-      ok: true,
-      path: landing,
-      deleted: true,
-      parked,
-      ...(keptRemote ? { keptRemote } : {}),
-      seq,
-    });
-    return true;
+    return {
+      status: 200,
+      json: {
+        ok: true,
+        path: landing,
+        deleted: true,
+        parked,
+        ...(keptRemote ? { keptRemote } : {}),
+        seq,
+      },
+    };
   });
+}
+
+/** The `_trash/<stamp>` folder name for a delete happening now. */
+export function trashStampNow(at = new Date()) {
+  return at.toISOString().replace(/[:.]/g, '-');
 }
 
 /**
@@ -861,9 +906,10 @@ async function handleDelete({ ctx, response, landing, target, expect, role }) {
  * That is deliberate — a quarantine that replicated would turn one person's
  * delete into everyone's copy of the deleted file.
  */
-function quarantineForDelete(designRoot, abs, rel) {
+function quarantineForDelete(designRoot, abs, rel, sharedStamp = null) {
   if (!existsSync(abs)) return null;
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  // A purge parks its whole set under ONE stamp, so it is restored as one folder.
+  const stamp = sharedStamp ?? trashStampNow();
   const destRel = `_trash/${stamp}/${rel}`;
   // The DESTINATION gets the same two-guard treatment every write destination
   // on this hub gets. It is the one that decides whether "quarantined, never

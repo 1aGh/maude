@@ -65,3 +65,20 @@ Schedule it. A backup nobody has restored is a hypothesis, and a database that r
 ## After the first successful boot, remove `MAUDE_SEED_REPO`
 
 A seed is cloned on first boot only — while the checkout is empty. Once the workspace has real history, that variable is a loaded gun pointed at exactly one scenario, and removing it costs nothing.
+
+## Deleting many files at once
+
+Every deletion on a hub is capped per hour, so a branch switch or a botched restore on one machine cannot empty everyone's copy. People who can edit get a small allowance; the project owner gets a larger one. Past it, the hub answers `429` and keeps the files.
+
+To remove more than that on purpose — a folder of unused pictures, say — the owner runs a purge in two steps:
+
+```sh
+export MAUDE_HUB_TOKEN=…   # the owner token, never on the command line
+maude hub purge https://hub.example.com --prefix assets/unused/
+# lists the files: count, size, a sample — and prints a confirmation
+maude hub purge https://hub.example.com --prefix assets/unused/ --confirm <confirmation>
+```
+
+The confirmation names that exact set. If any file in it changes, or a new one appears under the folder, before you confirm, nothing is deleted and you run the first step again. It expires after 15 minutes. `--list FILE` takes one path per line instead of a folder.
+
+Purged files are not destroyed: they move to one folder under the hub's `_trash/`, and the hub keeps a record of every purge in `purge-audit.jsonl` in its data directory. Only the project owner can purge, and only with the token — the hub does not offer it to a browser or to a canvas.

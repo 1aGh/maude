@@ -32,6 +32,7 @@ import {
   closeJournal,
   DELETE_BUDGET_PER_WINDOW,
   DELETE_BUDGET_WINDOW_MS,
+  OWNER_DELETE_BUDGET_PER_WINDOW,
   OWNER_DELETE_SOURCE,
   openJournal,
 } from '../src/journal.mjs';
@@ -41,6 +42,9 @@ let dataDir;
 let designRoot;
 let ownerToken;
 let peerToken;
+let editorToken;
+// The hub's env secret for the request (the operator credential); '' = none.
+let hubSecret = '';
 
 beforeEach(() => {
   dataDir = mkdtempSync(join(tmpdir(), 'del-breaker-data-'));
@@ -50,6 +54,8 @@ beforeEach(() => {
   writeFileSync(join(designRoot, 'config.json'), '{"canvasGroups":[{"path":"system"}]}');
   ownerToken = addToken(dataDir, { label: 'owner', scope: '*', role: 'owner' }).value;
   peerToken = addToken(dataDir, { label: 'peer', scope: '*' }).value;
+  editorToken = addToken(dataDir, { label: 'editor', scope: '*', role: 'member' }).value;
+  hubSecret = '';
 });
 
 afterEach(() => {
@@ -96,7 +102,7 @@ async function doorDelete(rel, bearer = peerToken, body = 'BYTES') {
     pathname: `/api/file/${rel}`,
     method: 'DELETE',
     dataDir,
-    secret: '',
+    secret: hubSecret,
     designRoot,
     journal,
     onWritten: ({ path }) => journal.recordWrite({ designRoot, path, source: 'peer-put' }),
@@ -171,19 +177,29 @@ describe('the delete breaker at the HTTP door', () => {
   });
 });
 
-describe('an owner-role token is outside the door budget', () => {
-  it('deletes far past the ceiling, and each tombstone is recorded as owner-delete', async () => {
+describe('an owner has its own, higher door budget — never none', () => {
+  it('deletes past the member ceiling up to the owner ceiling, then meets the breaker', async () => {
     const journal = openJournal(dataDir);
-    const total = DELETE_BUDGET_PER_WINDOW * 3;
-    for (let i = 0; i < total; i += 1) {
+    assert.ok(OWNER_DELETE_BUDGET_PER_WINDOW > DELETE_BUDGET_PER_WINDOW);
+    for (let i = 0; i < OWNER_DELETE_BUDGET_PER_WINDOW; i += 1) {
       const rel = `assets/owner-${i}.png`;
       seedFile(journal, rel);
       const res = await doorDelete(rel, ownerToken);
-      assert.equal(res.status, 200, `owner deletion ${i} must not hit the breaker`);
+      assert.equal(res.status, 200, `owner deletion ${i} is inside the owner budget`);
     }
-    // Recorded as owner-delete: outside the door count, inside the replay count.
+    // Recorded as owner-delete: outside the member count, inside the replay count.
     assert.equal(journal.deletionsSince(0), 0);
-    assert.equal(journal.allDeletionsSince(0), total);
+    assert.equal(journal.allDeletionsSince(0), OWNER_DELETE_BUDGET_PER_WINDOW);
+
+    seedFile(journal, 'assets/owner-over.png');
+    const res = await doorDelete('assets/owner-over.png', ownerToken);
+    assert.equal(res.status, 429, 'an owner is held to the owner budget at the door');
+    assert.equal(res.json.limit, OWNER_DELETE_BUDGET_PER_WINDOW);
+    assert.equal(
+      readIfPresent(join(designRoot, 'assets/owner-over.png')),
+      'BYTES',
+      'the refused owner deletion leaves the file in place'
+    );
   });
 
   it('does not spend the budget everyone else is held to', async () => {
@@ -221,6 +237,45 @@ describe('an owner-role token is outside the door budget', () => {
   });
 });
 
+describe('the env secret is the owner at the door, as it is at the access gate', () => {
+  it('deletes past the member ceiling and records owner-delete', async () => {
+    hubSecret = 'operator-secret-for-this-test-0123456789';
+    const journal = openJournal(dataDir);
+    const total = DELETE_BUDGET_PER_WINDOW + 5;
+    for (let i = 0; i < total; i += 1) {
+      const rel = `assets/env-${i}.png`;
+      seedFile(journal, rel);
+      const res = await doorDelete(rel, hubSecret);
+      assert.equal(res.status, 200, `operator deletion ${i} is an owner deletion`);
+    }
+    assert.equal(journal.deletionsSince(0), 0, 'none of it spends the member budget');
+    assert.equal(journal.allDeletionsSince(0), total);
+  });
+
+  it('may delete a code module, like any owner', async () => {
+    hubSecret = 'operator-secret-for-this-test-0123456789';
+    const journal = openJournal(dataDir);
+    seedFile(journal, 'system/ds/tokens.ts', 'export const x = 1;');
+    const res = await doorDelete('system/ds/tokens.ts', hubSecret, 'export const x = 1;');
+    assert.equal(res.status, 200);
+  });
+});
+
+describe('a member or editor bulk delete still trips the breaker', () => {
+  it('a member-role token (Can edit) is held to the member budget', async () => {
+    const journal = openJournal(dataDir);
+    for (let i = 0; i < DELETE_BUDGET_PER_WINDOW; i += 1) {
+      const rel = `assets/editor-${i}.png`;
+      seedFile(journal, rel);
+      assert.equal((await doorDelete(rel, editorToken)).status, 200);
+    }
+    seedFile(journal, 'assets/editor-over.png');
+    const res = await doorDelete('assets/editor-over.png', editorToken);
+    assert.equal(res.status, 429);
+    assert.equal(res.json.limit, DELETE_BUDGET_PER_WINDOW);
+  });
+});
+
 describe('the delete breaker on the R2 tail replay', () => {
   it('applies tombstones up to the budget and refuses the rest as malformed', () => {
     const journal = openJournal(dataDir);
@@ -254,7 +309,7 @@ describe('the delete breaker on the R2 tail replay', () => {
 
   it('counts owner deletes too — a label read back from the tail is not authority', () => {
     const journal = openJournal(dataDir);
-    // An owner purge spends nothing at the door, but the replay must not hand
+    // Owner deletes spend nothing of the member budget, but the replay must not hand
     // an injected tail a fresh budget because the window is full of owner rows.
     for (let i = 0; i < DELETE_BUDGET_PER_WINDOW; i += 1) {
       const rel = `assets/owner-pre-${i}.png`;

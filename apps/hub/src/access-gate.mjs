@@ -126,6 +126,33 @@ export function claimForMatch(match) {
 }
 
 /**
+ * The project role a verified match holds — THE one reading of it.
+ *
+ * Every door that asks "is this the owner?" asks here, so a door can never read
+ * a raw `match.role` the claim disagrees with (the env secret carries no role
+ * column and IS the owner; an `admin` account role IS the owner). `null` for a
+ * canvas-only session, whose claim names grants and no project role.
+ *
+ * @param {object | null} match `verifyToken`'s result
+ * @returns {'observer' | 'viewer' | 'member' | 'owner' | null}
+ */
+export function roleForMatch(match) {
+  return claimForMatch(match)?.role ?? null;
+}
+
+/**
+ * The project OWNER over the whole project, writable: the owner role, a `*`
+ * scope and not the read-only projection. The bar the owner-only doors share
+ * (the project-config door, the held list, the hub's accepted-revisions auth,
+ * the bulk purge).
+ */
+export function isProjectOwnerMatch(match) {
+  if (!match || match.readOnly) return false;
+  if ((match.scope ?? '*') !== '*') return false;
+  return roleForMatch(match) === 'owner';
+}
+
+/**
  * A verified peer token as the one Access object every door asks.
  *
  * @param {object | null} match `verifyToken`'s result
