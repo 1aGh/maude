@@ -133,10 +133,21 @@ describe('artboard live gate', () => {
     await m.done();
   });
 
-  test('sleep mode keeps the DOM; offscreen artboards are not live and their videos pause', async () => {
+  test('sleep mode keeps the DOM of an artboard that just left; it is not live and its videos pause', async () => {
     const m = await mount('?artboard-live=sleep', ['a0', 'a1'], (id) =>
       createElement('video', { 'data-v': id })
     );
+    // 2.0.7: nothing mounts before it comes near — a same-size placeholder stands in
+    expect(m.read()).toEqual([]);
+    expect(m.host.querySelectorAll('[data-dc-placeholder]')).toHaveLength(2);
+    await act(async () => {
+      report('a0', true);
+      report('a1', true);
+    });
+    await settle();
+    // a1 leaves: it sleeps at once, its DOM stays for the release grace (artboard-live.ts RELEASE_AFTER_MS)
+    await act(async () => report('a1', false));
+    await settle();
     const vids = [...m.host.querySelectorAll('video')] as HTMLVideoElement[];
     let paused = 0;
     let played = 0;
@@ -150,11 +161,9 @@ describe('artboard live gate', () => {
         return Promise.resolve();
       };
     }
-    await act(async () => report('a0', true));
-    await settle();
     expect(m.read()).toEqual([
       { id: 'a0', live: 'true', seen: 'true' },
-      { id: 'a1', live: 'false', seen: 'false' },
+      { id: 'a1', live: 'false', seen: 'true' },
     ]);
     const a1 = m.host.querySelector('[data-dc-screen="a1"]');
     expect(a1?.hasAttribute('data-dc-asleep')).toBe(true);
@@ -193,7 +202,8 @@ describe('artboard live gate', () => {
       createElement(Specimen, { src: 'preview/a.tsx' })
     );
     expect(m.host.querySelector('[data-spec]')).toBeNull();
-    expect(m.host.querySelector('.ds-specimen-pending')).not.toBeNull();
+    // 2.0.7: the artboard's own placeholder stands in (the gate no longer mounts what is not near)
+    expect(m.host.querySelector('[data-dc-placeholder]')).not.toBeNull();
     await act(async () => report('a0', true));
     await settle();
     expect(m.host.querySelector('[data-spec]')).not.toBeNull();

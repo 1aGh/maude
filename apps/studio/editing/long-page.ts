@@ -34,12 +34,34 @@ export function sectionName(el: Element): string {
   return el.getAttribute('data-cd-id') || el.id || el.tagName.toLowerCase();
 }
 
+// 2.0.7 — the sticky name and the minimap poll this 10× and 5× a second. Reading every artboard's
+// `offsetHeight` each time forced a synchronous layout of the whole world whenever anything was dirty (an
+// artboard mounting, a picture arriving): on an 88-artboard canvas that was the pan's main cost. A body's height
+// now comes from one ResizeObserver (delivered when layout is clean anyway); only a page that IS long is read
+// for its rectangle.
+const heights = new WeakMap<Element, number>();
+let heightObserver: ResizeObserver | null = null;
+
+function bodyHeight(body: HTMLElement): number {
+  const known = heights.get(body);
+  if (known !== undefined) return known;
+  const h = body.offsetHeight;
+  if (typeof ResizeObserver === 'function') {
+    heightObserver ??= new ResizeObserver((entries) => {
+      for (const en of entries) heights.set(en.target, (en.target as HTMLElement).offsetHeight);
+    });
+    heights.set(body, h);
+    heightObserver.observe(body);
+  }
+  return h;
+}
+
 /** Every artboard in `doc` whose design surface is a long page, with where it is on screen. */
 export function measureLongPages(doc: Document, win: Window = window): LongPage[] {
   const out: LongPage[] = [];
   for (const article of Array.from(doc.querySelectorAll<HTMLElement>('[data-dc-screen]'))) {
     const body = article.querySelector<HTMLElement>(':scope > .dc-artboard-body');
-    if (!body || !isLongPage(body.offsetHeight) || !body.offsetWidth) continue;
+    if (!body || !isLongPage(bodyHeight(body)) || !body.offsetWidth) continue;
     const br = body.getBoundingClientRect();
     const zoom = br.width / body.offsetWidth || 1;
     const labelEl = article.querySelector<HTMLElement>(':scope > .dc-artboard-label');

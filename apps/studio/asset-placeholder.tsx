@@ -389,6 +389,17 @@ export function AssetPlaceholderLayer({
       if (failed(el) && src && !/\.svg(?:[?#]|$)/i.test(src)) fail(el);
     });
     scan();
+    // 2.0.7 — one scan per burst, not one per event: a heavy canvas mounting artboard after artboard fires a
+    // mutation and an image `load` per picture, and every scan walks every <img>/<video> of the document
+    // (quadratic in pictures while it loads — the mascot canvas spent ~130 ms of a pan here).
+    let scanTimer: ReturnType<typeof setTimeout> | null = null;
+    const scanSoon = () => {
+      if (scanTimer != null) return;
+      scanTimer = setTimeout(() => {
+        scanTimer = null;
+        scan();
+      }, 120);
+    };
     const onMedia = (ev?: Event) => {
       const el = ev?.target as Media | undefined;
       const isMedia = el instanceof HTMLImageElement || el instanceof HTMLVideoElement;
@@ -398,8 +409,13 @@ export function AssetPlaceholderLayer({
         const t = pending.get(el);
         if (t) clearTimeout(t);
         pending.delete(el);
-      } else if (isMedia && ev?.type === 'error') fail(el);
-      scan();
+      } else if (isMedia && ev?.type === 'error') {
+        // a failure is rare and its frame must show at once (r5-1): scan now; loads and mutations batch
+        fail(el);
+        scan();
+        return;
+      }
+      scanSoon();
     };
     document.addEventListener('error', onMedia, true);
     document.addEventListener('load', onMedia, true);
@@ -414,6 +430,7 @@ export function AssetPlaceholderLayer({
       document.removeEventListener('error', onMedia, true);
       document.removeEventListener('load', onMedia, true);
       mo.disconnect();
+      if (scanTimer != null) clearTimeout(scanTimer);
       for (const t of lost.timers) clearTimeout(t);
       lost.timers.clear();
     };

@@ -3281,6 +3281,7 @@ function DCArtboardBody({
             articleRef={articleRef}
             bodyRef={bodyRef}
             heightFloor={heightFloor}
+            background={background}
           >
             {children}
           </ArtboardLiveGate>
@@ -3457,12 +3458,15 @@ function DCArtboardBody({
             containIntrinsicSize: `${rect.w}px ${rect.h}px`,
           }}
         >
-          {/* 2.0.5 — offscreen / zoomed-out artboards sleep (artboard-live.ts); captures run everything live */}
+          {/* 2.0.5 — offscreen / zoomed-out artboards sleep (artboard-live.ts); captures run everything live.
+              2.0.7 — far ones are released to a same-size placeholder in their own colours; the active one never. */}
           <ArtboardLiveGate
             id={id}
             articleRef={articleRef}
             bodyRef={bodyRef}
             heightFloor={heightFloor}
+            background={background}
+            pinned={isActive}
           >
             {children}
           </ArtboardLiveGate>
