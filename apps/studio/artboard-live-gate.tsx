@@ -271,6 +271,7 @@ export function ArtboardLiveGate({
   heightFloor,
   background,
   pinned = false,
+  eager = false,
   children,
 }: {
   id: string;
@@ -281,6 +282,8 @@ export function ArtboardLiveGate({
   background?: string;
   /** the active artboard, or the one holding the selection: never released (the shell works in its DOM) */
   pinned?: boolean;
+  /** a video artboard: always mounted (its comp registers itself only while mounted) */
+  eager?: boolean;
   children: ReactNode;
 }) {
   const rt = getRuntime();
@@ -311,6 +314,9 @@ export function ArtboardLiveGate({
   useEffect(() => {
     if (on && rt) rt.registry.setPinned(id, pinned);
   }, [on, rt, id, pinned]);
+  useEffect(() => {
+    if (on && rt) rt.registry.setEager(id, eager);
+  }, [on, rt, id, eager]);
 
   // Observe the artboard (the article — its size is stable whether its children are mounted or not).
   useEffect(() => {

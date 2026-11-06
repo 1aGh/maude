@@ -3287,6 +3287,7 @@ function DCArtboardBody({
             heightFloor={heightFloor}
             background={background}
             pinned={holdsSelection}
+            eager={hasVideo || hasVideoContent}
           >
             {children}
           </ArtboardLiveGate>
@@ -3473,6 +3474,7 @@ function DCArtboardBody({
             heightFloor={heightFloor}
             background={background}
             pinned={isActive || holdsSelection}
+            eager={hasVideo || hasVideoContent}
           >
             {children}
           </ArtboardLiveGate>

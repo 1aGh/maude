@@ -132,6 +132,11 @@ interface Slot {
   weight: number;
   /** Never released (the active artboard — a selection or an edit lives in its DOM). */
   pinned: boolean;
+  /**
+   * Always mounted in `sleep`, wherever it is (a video artboard: its comp registers itself only while mounted, and
+   * the link glyph, the Timeline's shared count and Present's format switch read those registrations).
+   */
+  eager: boolean;
   admitted: boolean;
   live: boolean;
   /** The last state handed out — one object per change, so React's external store sees a stable snapshot. */
@@ -267,6 +272,14 @@ export class LiveRegistry {
     this.recompute();
   }
 
+  /** A video artboard: mounted wherever it is, past the budget, never released nor pushed out (`sleep` only). */
+  setEager(id: string, eager: boolean): void {
+    const s = this.slot(id);
+    if (s.eager === eager) return;
+    s.eager = eager;
+    this.recompute();
+  }
+
   /** The element count an artboard's children came to once mounted (the DOM budget's unit). */
   setWeight(id: string, nodes: number): void {
     const s = this.slots.get(id);
@@ -391,6 +404,7 @@ export class LiveRegistry {
         dist: Number.POSITIVE_INFINITY,
         weight: 0,
         pinned: false,
+        eager: false,
         admitted: false,
         live: false,
         view: ASLEEP,
@@ -420,6 +434,7 @@ export class LiveRegistry {
         : force ||
           s.near ||
           s.visible ||
+          (this.mode === 'sleep' && s.eager) ||
           (this.mode === 'sleep' && s.admitted && !this.releasable(s));
     return { live, admitted };
   }
@@ -429,6 +444,7 @@ export class LiveRegistry {
     return (
       s.admitted &&
       !s.pinned &&
+      !s.eager &&
       !s.keep &&
       !s.visible &&
       !s.near &&
@@ -529,7 +545,7 @@ export class LiveRegistry {
       }
       const mounts = tg.admitted && !s.admitted;
       if (this.interacting && !(mounts && s.visible)) continue; // waits for the settle
-      if (mounts && this.forceAll === 0 && this.mode === 'sleep') {
+      if (mounts && this.forceAll === 0 && this.mode === 'sleep' && !s.eager) {
         const w = this.weightOf(s);
         if (mounted > 0 && mounted + w > this.budget) {
           if (s.visible) {
@@ -565,7 +581,7 @@ export class LiveRegistry {
   /** Release mounted artboards that are not on screen to free `need` elements; returns what it freed. */
   private evictFor(need: number): number {
     const victims = [...this.slots.values()]
-      .filter((v) => v.admitted && !v.visible && !v.pinned)
+      .filter((v) => v.admitted && !v.visible && !v.pinned && !v.eager)
       .sort((a, b) => Number(a.near) - Number(b.near) || b.dist - a.dist);
     let freed = 0;
     for (const v of victims) {

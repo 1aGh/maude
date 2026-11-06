@@ -191,4 +191,34 @@ describe('the mount ring never drops what the shell is working in', () => {
     await act(async () => root.unmount());
     host.remove();
   });
+
+  // A video's comp registers itself only while mounted; the link glyph, "Shared by 2 formats" and Present's
+  // format switch read those registrations. A new format placed far beside the reel must mount anyway.
+  test('a video artboard mounts even when no observer ever calls it near', async () => {
+    window.happyDOM.setURL('http://localhost/?artboard-live=sleep');
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () =>
+      root.render(
+        <lib.DesignCanvas>
+          <lib.DCSection id="s" title="S">
+            <lib.DCArtboard id="a0" label="a0" width={200} height={150}>
+              <Probe id="a0" />
+            </lib.DCArtboard>
+            <lib.DCArtboard id="v16" label="16:9" kind="video" width={320} height={180}>
+              <Probe id="v16" />
+            </lib.DCArtboard>
+          </lib.DCSection>
+        </lib.DesignCanvas>
+      )
+    );
+    await wait(80);
+    const bodies = [...host.querySelectorAll('[data-body]')].map((e) =>
+      e.getAttribute('data-body')
+    );
+    expect(bodies).toEqual(['v16']); // a0 waits for its observer; the video does not
+    await act(async () => root.unmount());
+    host.remove();
+  });
 });
