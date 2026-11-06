@@ -25,6 +25,7 @@ export function consentWords(mode, host) {
     lines: [
       'Shared code is the .ts and .js files the people in this project add to it — helpers and components its canvases import.',
       'It runs on this Mac, outside the canvas sandbox: canvases run it when they open, and AI and the Maude tools read it. Allow it only if you trust the people who share this project.',
+      'Shared code you deleted on this Mac stays deleted.',
     ],
     fine: 'You can stop allowing it any time in Sync details.',
     go: 'Allow shared code',

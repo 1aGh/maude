@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createFileLedger, type FileLedger } from '../sync/file-ledger.ts';
+import { classifyProjectFile } from '../sync/file-membership.ts';
 import {
   createFilePlane,
   MAX_BUFFERED_IN_FLIGHT_BYTES,
@@ -29,6 +30,8 @@ import {
   codeConsentHeldDetail,
   codeConsentHeldPaths,
   computeSeedProgress,
+  DELETED_HERE_HELD_REASON,
+  heldWords,
 } from '../sync/seed-progress.ts';
 
 const HUB = 'https://hub.test';
@@ -490,7 +493,68 @@ describe('held rows are not waiting', () => {
     expect(codeConsentHeldDetail(1783)).toContain('1,783 files of shared code');
     expect(codeConsentHeldDetail(1783)).toContain('Allow shared code');
     expect(codeConsentHeldDetail(1)).toContain('1 file of shared code');
-    expect(codeConsentHeldDetail(2)).not.toMatch(/not accepted|re-link/);
+    expect(codeConsentHeldDetail(2)).not.toMatch(/not accepted|re-link|bring/);
+  });
+
+  for (const propagateDeletes of [false, true]) {
+    test(`fix/207 — consent never brings back shared code deleted on this Mac (propagateDeletes ${propagateDeletes})`, async () => {
+      const files = { 'ui/shared/helper.ts': 'export const x = 1;\n' };
+      const h = hub(files, { cls: () => 'code-module' });
+      let consent = true;
+      const p = plane(h, { allowCodeModules: () => consent, propagateDeletes });
+      await p.reconcile();
+      const abs = join(root, 'ui/shared/helper.ts');
+      expect(existsSync(abs)).toBe(true);
+      const fetched = () => h.gets.filter((g) => g.includes('helper.ts')).length;
+      const before = fetched();
+
+      // the owner says no, then deletes the file here
+      consent = false;
+      rmSync(abs);
+      await p.reconcile();
+      expect(existsSync(abs)).toBe(false);
+
+      // …and later says yes: the deleted file stays deleted
+      consent = true;
+      await p.reconcile();
+      await p.reconcile();
+      expect(existsSync(abs)).toBe(false);
+      expect(fetched()).toBe(before);
+    });
+  }
+
+  test('fix/207 (Michal, 6 942 "held: shared code") — a PNG deleted here is never counted as shared code', () => {
+    // 6 555 render PNGs moved out of the project: inert media, held by the delete rule, not by code consent
+    for (const rel of ['renders/r1.png', 'ui/renders/r2.png', 'assets/x.png', 'ui/_x.png'])
+      expect([rel, classifyProjectFile(rel, { canvasGroups: [{ path: 'ui' }] })]).toEqual([
+        rel,
+        'inert-media',
+      ]);
+    const rows: Record<string, { syncedHash: string | null; state: 'stuck'; reason: string }> = {};
+    for (let i = 0; i < 5; i += 1)
+      rows[`renders/r${i}.png`] = {
+        syncedHash: 'x',
+        state: 'stuck',
+        reason: DELETED_HERE_HELD_REASON,
+      };
+    rows['ui/shared/_h.ts'] = { syncedHash: null, state: 'stuck', reason: CODE_MODULE_HELD_REASON };
+    const p = computeSeedProgress({ rows, now: T0 });
+    expect(p.held).toBe(6);
+    expect(p.heldCode).toBe(1);
+    expect(p.heldDeletedHere).toBe(5);
+    expect(codeConsentHeldPaths(rows)).toEqual(['ui/shared/_h.ts']);
+    const words = heldWords(p).join(' · ');
+    expect(words).toContain('1 file of shared code waits for your yes');
+    expect(words).toContain('5 files deleted on this Mac stay deleted here');
+    expect(words).not.toMatch(/6 .*shared code/);
+    // only deletions: no shared-code words at all
+    const onlyDeleted = computeSeedProgress({
+      rows: {
+        'renders/a.png': { syncedHash: 'x', state: 'stuck', reason: DELETED_HERE_HELD_REASON },
+      },
+      now: T0,
+    });
+    expect(heldWords(onlyDeleted).join(' ')).not.toMatch(/shared code/);
   });
 
   test('any other stuck row is still waiting', () => {

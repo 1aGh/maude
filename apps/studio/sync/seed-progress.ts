@@ -51,6 +51,14 @@ export interface SeedProgress {
    */
   held?: number;
   /**
+   * fix/207 — `held` split by WHY. The status line used to say "N held: shared code not accepted"
+   * for both, and on Michal's desktop 6 555 render PNGs moved out of the project (held by the
+   * delete rule, `DELETED_HERE_HELD_REASON`) read as 6 942 files of shared code. Always set by
+   * `computeSeedProgress`; optional only so older snapshots still type.
+   */
+  heldCode?: number;
+  heldDeletedHere?: number;
+  /**
    * Outstanding rows whose last attempt FAILED and that wait out a backoff (`stuck`, `attempts`
    * ≥ 1) — counted inside `remaining` (they are not delivered), named here so a status line can say
    * "retrying" and which file, instead of "waiting" forever (#204 follow-up). `retryingFile` is the
@@ -132,8 +140,25 @@ export function codeConsentHeldPaths(rows: Readonly<Record<string, LedgerRow>>):
 export function codeConsentHeldDetail(count: number): string {
   const n = count.toLocaleString('en-US');
   return count === 1
-    ? '1 file of shared code from this project is waiting: shared code reaches this Mac only once you allow it. Nothing is lost. Allow shared code to bring it here.'
-    : `${n} files of shared code from this project are waiting: shared code reaches this Mac only once you allow it. Nothing is lost. Allow shared code to bring them here.`;
+    ? '1 file of shared code from this project is waiting: shared code reaches this Mac only once you allow it. Nothing is lost. Allow shared code and it arrives with the next sync.'
+    : `${n} files of shared code from this project are waiting: shared code reaches this Mac only once you allow it. Nothing is lost. Allow shared code and they arrive with the next sync.`;
+}
+
+/**
+ * fix/207 — the status line's words for what this Mac holds, one phrase per reason, so a deleted
+ * PNG is never "shared code" and no phrase names a choice the app does not offer.
+ */
+export function heldWords(p: Pick<SeedProgress, 'heldCode' | 'heldDeletedHere'>): string[] {
+  const out: string[] = [];
+  const files = (n: number) => `${n.toLocaleString('en-US')} ${n === 1 ? 'file' : 'files'}`;
+  const code = p.heldCode ?? 0;
+  const deleted = p.heldDeletedHere ?? 0;
+  if (code > 0)
+    out.push(
+      `${files(code)} of shared code ${code === 1 ? 'waits' : 'wait'} for your yes (Sync details)`
+    );
+  if (deleted > 0) out.push(`${files(deleted)} deleted on this Mac stay deleted here`);
+  return out;
 }
 
 /** States that will not move again without something changing. */
@@ -171,6 +196,8 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
   let delivered = 0;
   let bytesRemaining = 0;
   let held = 0;
+  let heldCode = 0;
+  let heldDeletedHere = 0;
   let retrying = 0;
   let retryingFile: { rel: string; reason: string } | undefined;
   const blockedCounts = new Map<BlockedClass, number>();
@@ -184,6 +211,8 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
     }
     if (isHeldByConsent(row)) {
       held += 1;
+      if (row.reason === CODE_MODULE_HELD_REASON) heldCode += 1;
+      else heldDeletedHere += 1;
       continue;
     }
     if (state && BLOCKED.has(state)) {
@@ -230,6 +259,8 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
     delivered,
     remaining,
     held,
+    heldCode,
+    heldDeletedHere,
     retrying,
     ...(retryingFile ? { retryingFile } : {}),
     bytesRemaining,

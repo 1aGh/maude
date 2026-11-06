@@ -159,6 +159,7 @@ import {
   codeConsentHeldDetail,
   codeConsentHeldPaths,
   computeSeedProgress,
+  heldWords,
 } from './seed-progress.ts';
 import { mergeSource } from './source-merge.ts';
 import { replaySourceOp, type SourceOp } from './source-ops.ts';
@@ -5325,9 +5326,9 @@ export function createSyncRuntime(
       // Issue #204 — rows this Mac refuses are HELD, not waiting: they never move on their own, so
       // the line says how many and why instead of "N waiting" every 20 s forever.
       const held = p.held ?? 0;
-      // fix/207 — `held` counts both consent holds (shared code, deletions kept here); the words
-      // name no choice the person cannot make — Sync details carries the one that exists.
-      if (held > 0) bits.push(`${held} held on this Mac (see Sync details)`);
+      // fix/207 — one phrase per reason: a PNG deleted here is never "shared code" (Michal's
+      // 6 942 "held: shared code not accepted" were mostly render PNGs moved out of the project).
+      if (held > 0) bits.push(...heldWords(p));
       if (r.backedOff) bits.push(`${r.backedOff} backing off`);
       if (r.storageMisses) bits.push(`${r.storageMisses} still coming from cloud storage`);
       // NOTHING MOVING ⇒ SAY IT ONCE. A converged or only-held/blocked project prints its line when

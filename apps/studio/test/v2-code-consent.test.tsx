@@ -86,7 +86,7 @@ const held = (n: number) => ({
         kind: 'code-consent',
         count: n,
         paths: ['ui/shared/_helper.ts'],
-        detail: `${n} files of shared code from this project are waiting: shared code reaches this Mac only once you allow it. Nothing is lost. Allow shared code to bring them here.`,
+        detail: `${n} files of shared code from this project are waiting: shared code reaches this Mac only once you allow it. Nothing is lost. Allow shared code and they arrive with the next sync.`,
       },
     ],
   },
@@ -106,6 +106,9 @@ describe('Sync details — shared code', () => {
     expect(q('code-consent-sheet')?.getAttribute('data-mode')).toBe('allow');
     expect(q('code-consent-title')?.textContent).toBe(`Allow shared code from ${HOST}?`);
     expect(q('code-consent-sheet')?.textContent).toContain('outside the canvas sandbox');
+    // Michal 2026-11-06: the yes never revives what was deleted here, and the sheet must not imply it
+    expect(q('code-consent-sheet')?.textContent).toContain('you deleted on this Mac stays deleted');
+    expect(q('code-consent-sheet')?.textContent).not.toMatch(/bring (it|them)? ?back|restore/i);
     // focus starts on Cancel, never on the yes
     expect(document.activeElement?.getAttribute('data-testid')).toBe('code-consent-cancel');
 
