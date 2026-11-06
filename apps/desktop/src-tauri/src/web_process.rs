@@ -177,13 +177,41 @@ fn recovery_origin(info_file: Option<&std::path::Path>) -> Option<Url> {
     read_shell_origin(info_file?)?.parse().ok()
 }
 
+/// Query param that tells the page it was brought back by this recovery. The
+/// page's canvas crash guard (`client/v2/shell/canvas-crash-guard.js`) counts
+/// a canvas left open at its death as a crash ONLY on such a load — WKWebView
+/// fires no `pagehide` on an app quit, so without it every quit looked like a
+/// crash (2.0.7). The page strips it from the address once read.
+pub(crate) const RECOVERED_PARAM: &str = "maude-recovered";
+
 /// Keep the user's place (path + query) when the window was already on the live
-/// server's origin; otherwise go to the live server's root.
+/// server's origin; otherwise go to the live server's root. Either way the
+/// target carries `RECOVERED_PARAM` (once). The origin is untouched, so the
+/// loopback / recorded-origin checks see exactly what they did before.
 fn recovery_target(current: Option<&Url>, live: &Url) -> Url {
-    match current {
+    let mut target = match current {
         Some(cur) if cur.origin() == live.origin() => cur.clone(),
         _ => live.clone(),
-    }
+    };
+    mark_recovered(&mut target);
+    target
+}
+
+/// Append `RECOVERED_PARAM=1`, dropping any earlier copy (a crash before the
+/// page stripped it). The rest of the query is kept byte for byte — no
+/// re-encoding through `query_pairs_mut`.
+fn mark_recovered(url: &mut Url) {
+    let mut parts: Vec<&str> = url
+        .query()
+        .unwrap_or("")
+        .split('&')
+        .filter(|p| !p.is_empty())
+        .filter(|p| p.split('=').next() != Some(RECOVERED_PARAM))
+        .collect();
+    let marker = format!("{RECOVERED_PARAM}=1");
+    parts.push(&marker);
+    let query = parts.join("&");
+    url.set_query(Some(&query));
 }
 
 #[cfg(test)]
@@ -228,11 +256,47 @@ mod tests {
     fn recovery_keeps_the_place_only_on_the_live_origin() {
         let live = url("http://localhost:4403/");
         let here = url("http://localhost:4403/ui/foo?open=a.tsx");
-        assert_eq!(recovery_target(Some(&here), &live), here);
+        assert_eq!(
+            recovery_target(Some(&here), &live),
+            url("http://localhost:4403/ui/foo?open=a.tsx&maude-recovered=1")
+        );
         // Window was on a stale port (dead server, maybe squatted) → live root.
         let stale = url("http://localhost:4399/ui/foo");
-        assert_eq!(recovery_target(Some(&stale), &live), live);
-        assert_eq!(recovery_target(None, &live), live);
+        let root = url("http://localhost:4403/?maude-recovered=1");
+        assert_eq!(recovery_target(Some(&stale), &live), root);
+        assert_eq!(recovery_target(None, &live), root);
+    }
+
+    /// 2.0.7: the page counts a canvas crash only when it was brought back by
+    /// this recovery (`canvas-crash-guard.js`), so the target always carries
+    /// the marker — once, with the rest of the path, query (byte for byte) and
+    /// fragment kept, and still on the live loopback origin.
+    #[test]
+    fn recovery_marks_the_navigation_and_keeps_the_rest() {
+        let live = url("http://localhost:4403/");
+        let here = url("http://localhost:4403/p/x?open=ui%2FDeck.tsx&artboard-live=light#a b");
+        let t = recovery_target(Some(&here), &live);
+        assert_eq!(t.path(), "/p/x");
+        assert_eq!(
+            t.query(),
+            Some("open=ui%2FDeck.tsx&artboard-live=light&maude-recovered=1")
+        );
+        assert_eq!(t.fragment(), here.fragment());
+        assert_eq!(t.origin(), live.origin());
+        assert!(crate::server_json::is_loopback_url(&t));
+        // A crash before the page stripped the marker does not stack a second one.
+        let again = recovery_target(Some(&t), &live);
+        assert_eq!(again, t);
+        let only = url("http://localhost:4403/?maude-recovered=1");
+        assert_eq!(recovery_target(Some(&only), &live), only);
+        assert_eq!(
+            recovery_target(
+                Some(&url("http://localhost:4403/?maude-recovered=1&open=a")),
+                &live
+            )
+            .query(),
+            Some("open=a&maude-recovered=1")
+        );
     }
 
     #[test]
