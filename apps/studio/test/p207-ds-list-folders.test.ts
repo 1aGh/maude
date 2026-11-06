@@ -237,7 +237,7 @@ describe('a DS write that edits its config entry adopts a folder-owned system fi
   );
 
   test(
-    'a rename to a folder system\'s name is refused, even before that system is adopted',
+    "a rename to a folder system's name is refused, even before that system is adopted",
     withProject(async (designRoot) => {
       const r = await op(designRoot, 'rename', { ds: 'a', label: 'B' });
       expect(r.status).toBe(409);
