@@ -3605,6 +3605,8 @@ export function createHttp(
         await api.buildIndexData({
           role: isWorkspaceMode() ? req.headers.get('x-maude-role') : null,
           fresh: new URL(req.url).searchParams.get('fresh') === '1',
+          // #207 (list speed) — the tree loader takes the bare listing on a first open ever
+          partial: new URL(req.url).searchParams.get('partial') === '1',
         }),
         { headers: { 'Cache-Control': 'no-store' } }
       ),
