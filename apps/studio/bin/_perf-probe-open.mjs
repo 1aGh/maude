@@ -25,7 +25,7 @@
 //          [--shot <png>] [--shot-mid <png>] [--json]
 // Exit: 0 measured / 1 failed / 2 bad args.
 
-import { chromium, webkit } from 'playwright';
+import { launchChromium, launchWebkit } from './_pw-launch.mjs';
 
 function parseArgs(argv) {
   const o = {
@@ -137,7 +137,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
   const o = parseArgs(process.argv.slice(2));
-  const browser = await (o.engine === 'webkit' ? webkit : chromium).launch();
+  const browser = await (o.engine === 'webkit' ? launchWebkit() : launchChromium());
   try {
     const ctx = await browser.newContext({ viewport: o.viewport, deviceScaleFactor: o.dpr });
     await ctx.addInitScript(INIT);
