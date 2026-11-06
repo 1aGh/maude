@@ -94,6 +94,7 @@ COPY apps/studio/workspace-mode.ts /build/apps/studio/workspace-mode.ts
 COPY apps/studio/sync/file-membership.ts /build/apps/studio/sync/file-membership.ts
 COPY apps/studio/canvas-artifacts.ts /build/apps/studio/canvas-artifacts.ts
 COPY apps/studio/ds/ds-resolver.ts /build/apps/studio/ds/ds-resolver.ts
+COPY apps/studio/ds/folder-systems.ts /build/apps/studio/ds/folder-systems.ts
 COPY apps/studio/ds/system.ts /build/apps/studio/ds/system.ts
 COPY apps/studio/ds/css-scan.ts /build/apps/studio/ds/css-scan.ts
 COPY apps/studio/paths.ts /build/apps/studio/paths.ts
