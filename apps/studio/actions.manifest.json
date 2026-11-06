@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "3b10dc94b530",
+  "manifestVersion": "dc00f2f57ea0",
   "actions": [
     {
       "id": "search.open",
@@ -2538,6 +2538,39 @@
       "agent": {
         "path": "cli",
         "verb": "maude design open <canvas>#<artboard>"
+      }
+    },
+    {
+      "id": "view.pages",
+      "label": "Pages",
+      "kind": "toggle",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "pages.next",
+      "label": "Next page",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "pages.prev",
+      "label": "Previous page",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
       }
     },
     {

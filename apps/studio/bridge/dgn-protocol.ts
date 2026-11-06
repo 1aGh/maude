@@ -402,6 +402,9 @@ export interface CanvasToShell {
   'annotation-prefs-set': { prefs: AnnotationPrefsPayload };
   // fit: the camera is where the last ⌘0 / Zoom to fit put it (V2-8.5 c7: "Zoom to fit · N %").
   'viewport-zoom': { zoom: number; fit?: boolean };
+  // 2.0.7 B2 — the canvas's Canvas | Pages view (canvas-pages.ts): Pages on, and which page of how many. The shell
+  // turns Preview and Present off while it is on (canvas-mode.js `pages`).
+  'pages-view': { v: 1; on: boolean; index: number; total: number };
   // S3.7a — `sid` / `seq` (S3-present-session §3): the presenting session, and its step count.
   'present-position': { index: number; total: number; artboardId: Id; sid?: string; seq?: number };
   // S3.6b — the Present run's artboards with their world rects and labels, in canvas order: the presenter
@@ -1880,6 +1883,14 @@ const c2s: C2S = {
     owner:
       'present/present-zoom.ts (S3.2b) + v2/preview/zoom-only (S3.9) ← canvas-lib ViewportZoomReporter',
     parse: p({ zoom: num, fit: opt(bool) }),
+  },
+  // 2.0.7 B2 — the active canvas's Canvas | Pages view (canvas-pages-view.tsx) → the shell's mode store
+  // (use-canvas-mode-lane), which holds Preview and Present off while Pages is on.
+  'pages-view': {
+    gate: 'active',
+    status: 'live',
+    owner: 'canvas-pages-view.tsx (2.0.7 B2) → v2/shell/use-canvas-mode-lane',
+    parse: p({ v: lit(1), on: bool, index: intIn(0, 10000), total: intIn(0, 10000) }),
   },
   // S3.1 — live: the Present stage (S3.2a) reports through canvas-mode-store `reportPresentPosition`;
   // the shell's mode store keeps it (use-canvas-mode-lane).

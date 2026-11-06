@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "canvas-pages-view",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "See a canvas one artboard at a time",
+      "summary": "Switch the bar at the top of a canvas from Canvas to Pages: one artboard fills the window, and the arrows on the bar, PageDown and PageUp (or → and ← with nothing selected) go through them in the Present order. The canvas remembers it on this Mac. Preview and Present come back when you switch to Canvas.",
+      "surface": "design-ui"
+    },
+    {
       "id": "heavy-canvases-stay-up",
       "version": "2.0.5",
       "date": "2026-11-05",

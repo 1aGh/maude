@@ -11,7 +11,7 @@
 // ("Following …" / "Everyone here is following you … Stop", presence/canvas-presence.tsx): the pill sat on top of it and
 // took the Stop click.
 
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { DsIcon } from './canvas-ds-icons.tsx';
 import { getCanvasThemeSystemName, setCanvasTheme, useCanvasTheme } from './canvas-theme.ts';
 
@@ -65,10 +65,13 @@ function canvasFilePath(): string | null {
 export function CanvasThemePill({
   bothThemes,
   onProbeStale,
+  extra,
 }: {
   bothThemes: () => boolean;
   /** subscribe to "the answer may have changed" (a stylesheet or the first artboard wrapper arrived) */
   onProbeStale?: (f: () => void) => () => void;
+  /** 2.0.7 B2 — drawn after Light | Dark: the canvas's Canvas | Pages (canvas-pages-view.tsx) */
+  extra?: ReactNode;
 }) {
   const mode = useCanvasTheme();
   const [, tick] = useState(0);
@@ -158,6 +161,7 @@ export function CanvasThemePill({
             {`This canvas has no ${mode === 'light' ? 'Dark' : 'Light'}`}
           </span>
         ) : null}
+        {extra}
       </div>
     </>
   );

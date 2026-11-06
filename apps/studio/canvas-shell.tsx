@@ -58,6 +58,12 @@ import {
   useViewportControllerContext,
   type ViewportControllerHandle,
 } from './canvas-lib.tsx';
+import {
+  CanvasPagesSwitch,
+  PAGES_PILL_CSS,
+  runPagesAction,
+  usePagesView,
+} from './canvas-pages-view.tsx';
 import { replayActionKey, replayToolKey } from './canvas-replay-keys.ts';
 import { getCanvasTheme, subscribeCanvasTheme } from './canvas-theme.ts';
 import { CanvasThemePill } from './canvas-theme-pill.tsx';
@@ -835,10 +841,20 @@ function CanvasThemePillMount() {
     <CanvasThemePill
       bothThemes={() => detectDsThemeSupport().supported}
       onProbeStale={subscribeDsThemeProbe}
+      extra={
+        // 2.0.7 B2 — Canvas | Pages beside Light | Dark (canvas-pages-view.tsx)
+        <>
+          <style data-dc-pages-css="">{PAGES_PILL_CSS}</style>
+          <CanvasPagesSwitch />
+        </>
+      }
     />,
     document.body
   );
 }
+
+/** 2.0.7 B2 — a canvas with no artboard context yet pages through nothing (a stable empty list). */
+const NO_ARTBOARDS: ArtboardRect[] = [];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CanvasCore — sits inside SelectionSetProvider, builds the menu registry
@@ -879,6 +895,18 @@ function CanvasCore({
 
   const artboardsCtx = useArtboardsContext();
   const dragBus = useDragStateContext();
+
+  // 2.0.7 B2 — Canvas | Pages: one artboard at a time, in the Present order (canvas-pages-view.tsx). Not on the
+  // Design system canvas (its own bar, no pill), an embed or a Present follower — where the pill steps aside too.
+  const pagesBoard = useBoardModel();
+  usePagesView({
+    controller,
+    artboards: artboardsCtx?.artboards ?? NO_ARTBOARDS,
+    selectedArtboard: () => selSet.selected[0]?.artboardId ?? null,
+    hostRef,
+    here: !pagesBoard && !isEmbedCanvas() && !isFollowCanvas(),
+    selectionNone: () => selSet.selected.length === 0,
+  });
 
   // T33 — programmatic-zoom easing via double-click on empty world only.
   // Per post-Wave-3 user feedback, dblclick-on-artboard auto-zoom was
@@ -2870,6 +2898,8 @@ function CanvasRouter({
         } else if (replayActionKey(id)) {
           // V2-4.2 — Select all / Copy properties / Paste properties from the project menu: the
           // canvas replays the action's own chord, so the key handler is the one implementation.
+        } else if (runPagesAction(id)) {
+          // 2.0.7 B2 — Menu › View › Pages / ⌘K: Canvas | Pages and its paging (canvas-pages-view.tsx)
         } else if (zoomController) {
           // Shell View-menu zoom items — route to the live viewport controller
           // (the same methods the in-canvas zoom pill calls).

@@ -124,6 +124,13 @@ export function usePresentMode() {
   return [presentMode, useCallback(setPresenting, [])];
 }
 
+const pagesNow = () => shellMode.get().pages === true;
+
+/** 2.0.7 B2 — does the active canvas show Pages? (Preview and Present are off meanwhile.) */
+export function usePagesView() {
+  return useSyncExternalStore(shellMode.subscribe, pagesNow, pagesNow);
+}
+
 // S3.2b — the shell's own controls (and the keys the shell hears) step the presenting canvas through the
 // lane the mounted hook owns; there is one lane per window, so one registered stepper.
 let presentStepper = null;
@@ -268,6 +275,8 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   // biome-ignore lint/correctness/useExhaustiveDependencies: activePath is the trigger
   useEffect(() => {
     setPeers([]);
+    // 2.0.7 B2 — Pages is the canvas's own: a newly active canvas says again (it answers the seed below)
+    shellMode.pages(false);
     const win = activeWin();
     if (win) lane.seed(win, seedOf());
   }, [activePath, lane]);
@@ -300,6 +309,9 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
       if (!m) return;
       if (m.dgn === 'peers') {
         setPeers(m.peers);
+      } else if (m.dgn === 'pages-view') {
+        // 2.0.7 B2 — the active canvas shows Pages (or stopped): Preview and Present follow (canvas-mode.js)
+        shellMode.pages(m.on);
       } else if (m.dgn === 'present-position') {
         // Present · Artboards moved on (S3.2a's stage echoes every step); the canvas's own hold
         // (_shell.html) lands its held write on the same move. Active canvas only (the table's gate).
@@ -354,6 +366,8 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   return {
     mode,
     caps,
+    /** 2.0.7 B2 — the active canvas shows Pages: the switch greys Preview and Present with the reason. */
+    pages: snap.pages === true,
     /** The Present spec while presenting (Artboards · Canvas), else null. */
     presentSpec: snap.present,
     peers,

@@ -120,6 +120,9 @@ const LABEL = {
   present: 'Present',
 };
 
+/** 2.0.7 B2 — why Preview and Present are off while the canvas shows Pages (one artboard at a time). */
+export const PAGES_REASON = 'Switch to Canvas to preview or present.';
+
 /** Present ⌄'s rows (04 md-present-menu; words CONTRACT §2–§3). */
 const PRESENT_ROWS = [
   { group: 'Artboards, one by one' },
@@ -193,6 +196,7 @@ function presentRows(caps, presenterView, copyLink) {
  * @param presenterView S3.6b — `{ name, on }` when the desktop app has another display (the row is a check
  *        with that display's name); null = the row greyed, "Needs a second display" (04 md-present-menu)
  * @param onPresenterView () => void — the row toggles presenter view
+ * @param pages 2.0.7 B2 — the canvas shows Pages: Preview and Present are greyed with the reason (`PAGES_REASON`)
  * @param copyLink S3.14 — `{ enabled, note }` (copy-link.js `copyRowState`): Copy presentation link, an editor's
  *        row; greyed with the reason when not enabled. null = no row (the host decides)
  */
@@ -207,7 +211,11 @@ export function ModeSwitch({
   presenterView = null,
   onPresenterView,
   copyLink = null,
+  pages = false,
 }) {
+  // 2.0.7 B2 — Pages holds Preview and Present off (canvas-mode.js `pages`); a click would do nothing, so say why
+  const presentOff = !canPresent || pages;
+  const presentWhy = pages ? PAGES_REASON : 'noCanvas';
   const run = (kind) => {
     if (onPresent) onPresent(kind);
     else if (kind === 'canvas') onPresentCanvas?.();
@@ -283,7 +291,8 @@ export function ModeSwitch({
               aria-pressed={mode === 'present'}
               aria-keyshortcuts={ariaModeKeys('present')}
               title={modeTitle('present')}
-              disabled={!canPresent}
+              disabled={presentOff}
+              {...reasonProps(pages, PAGES_REASON)}
               onClick={() => onSelect?.('present')}
             >
               <ModeGlyph m="present" />
@@ -295,8 +304,8 @@ export function ModeSwitch({
               aria-label="Present options"
               aria-haspopup="menu"
               aria-expanded={menu}
-              disabled={!canPresent}
-              {...reasonProps(!canPresent, 'noCanvas')}
+              disabled={presentOff}
+              {...reasonProps(presentOff, presentWhy)}
               onClick={() => setMenu((v) => !v)}
             >
               <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -320,6 +329,8 @@ export function ModeSwitch({
             aria-pressed={mode === id}
             aria-keyshortcuts={ariaModeKeys(id)}
             title={modeTitle(id)}
+            disabled={id === 'preview' && pages}
+            {...reasonProps(id === 'preview' && pages, PAGES_REASON)}
             onClick={() => onSelect?.(id)}
           >
             <ModeGlyph m={id} />

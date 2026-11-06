@@ -38,6 +38,8 @@ export interface ShellKeyState {
   assetTileSelected?: boolean;
   /** S8.16 — the one selected picture has other takes (client/v2/assets/takes.js): ← → step between them. */
   selectionHasTakes?: boolean;
+  /** 2.0.7 B2 — the active canvas shows Pages (canvas-mode.js `pages`): ⌥⌘P and the Present keys are off. */
+  pagesView?: boolean;
 }
 
 /** <input> types that take no typing: they act like buttons (a checkbox switch, a radio, a colour well). */
@@ -73,6 +75,7 @@ export function shellKeyCtx(probe: FocusProbe, s: ShellKeyState): KeyCtx {
   if (range) facts.add('rangeFocused');
   if (s.assetTileSelected) facts.add('assetTileSelected');
   if (s.selectionHasTakes) facts.add('selectionHasTakes');
+  if (s.pagesView) facts.add('pagesView');
   const selection: SelKind = s.clipSelected ? 'clip' : s.artboardSelected ? 'artboard' : 'none';
   return {
     role: s.readOnly ? 'comment' : 'owner',

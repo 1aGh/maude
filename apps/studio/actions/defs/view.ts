@@ -3,6 +3,9 @@
 import type { ActionDef } from '../types.ts';
 import { IN_CANVAS, IN_CANVAS_ANY, kb } from './_v1.ts';
 
+/** 2.0.7 B2 — what ⌘K says after Preview / Present while the canvas shows Pages. */
+export const PAGES_NOTE = 'switch to Canvas first';
+
 export const VIEW_ACTIONS: ActionDef[] = [
   {
     // V2-4.5b (CONTRACT §2 [A7], V2-1.2 §9 Q1): ⌥⌘P switches to Preview; in Preview it toggles back
@@ -15,7 +18,9 @@ export const VIEW_ACTIONS: ActionDef[] = [
     icon: 'eye',
     exec: 'canvas',
     keys: [kb('⌥⌘P', 'global', { inText: true, when: { mode: ['edit', 'preview', 'viewing'] } })],
-    search: { keywords: ['mode', 'live', 'interact', 'edit'] },
+    // 2.0.7 B2 — off while the canvas shows Pages (greyed with the reason, never hidden)
+    enabled: { notFacts: ['pagesView'] },
+    search: { keywords: ['mode', 'live', 'interact', 'edit'], note: PAGES_NOTE },
   },
   {
     // S3.10a — back out of a followed link (S3-links-format §5 "Back"): the PreviewBar's "‹ Homepage". No key
@@ -400,7 +405,8 @@ export const VIEW_ACTIONS: ActionDef[] = [
     exec: 'shell',
     fromCanvas: true,
     keys: [kb('⌥⌘↵', 'global', { when: { mode: ['edit', 'viewing', 'preview'] } })],
-    search: { keywords: ['presentation', 'slideshow', 'artboards', 'selected'] },
+    enabled: { notFacts: ['pagesView'] },
+    search: { keywords: ['presentation', 'slideshow', 'artboards', 'selected'], note: PAGES_NOTE },
   },
   {
     // S3.1 — ⇧⌥⌘↵: the same, from the first artboard in canvas order.
@@ -410,7 +416,8 @@ export const VIEW_ACTIONS: ActionDef[] = [
     exec: 'shell',
     fromCanvas: true,
     keys: [kb('⇧⌥⌘↵', 'global', { when: { mode: ['edit', 'viewing', 'preview'] } })],
-    search: { keywords: ['presentation', 'slideshow', 'beginning', 'first'] },
+    enabled: { notFacts: ['pagesView'] },
+    search: { keywords: ['presentation', 'slideshow', 'beginning', 'first'], note: PAGES_NOTE },
   },
   {
     // S3.2b (md-keys, `present` scope): → and space go on, ← and ⇧space go back. With the canvas focused the
@@ -444,6 +451,8 @@ export const VIEW_ACTIONS: ActionDef[] = [
     label: 'Present the canvas',
     kind: 'toggle',
     exec: 'shell',
+    enabled: { notFacts: ['pagesView'] },
+    search: { note: PAGES_NOTE },
     legacy: { menu: 'Presentation Mode' },
   },
   {
@@ -549,6 +558,53 @@ export const VIEW_ACTIONS: ActionDef[] = [
     keys: ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((n, i) =>
       kb(`⌥⌘${n}`, 'global', { inText: true, alias: i > 0, when: IN_CANVAS_ANY })
     ),
+  },
+  // 2.0.7 B2 (decision `v2-207-pages-view`) — Canvas | Pages beside Light | Dark on the canvas's pill: Pages shows one
+  // artboard at a time, filling the view, in the Present order (else the layout order). Per canvas, per Mac (the view
+  // file, `canvasView`). The canvas owns it (canvas-pages.ts); the shell only asks over `run-action`. Edit and Viewing
+  // only — Preview and Present are off while it is on (`pagesView`), and Pages does not show in them. No key.
+  {
+    id: 'view.pages',
+    label: 'Pages',
+    kind: 'toggle',
+    exec: 'canvas',
+    enabled: { facts: ['canvasOpen'], mode: ['edit', 'viewing'] },
+    help: { group: 'canvas', order: 60 },
+    search: { keywords: ['pages', 'one at a time', 'artboards', 'page', 'canvas', 'slides'] },
+  },
+  {
+    // PageDown / PageUp, and → / ← with nothing selected (a selection's arrows nudge it). Only in the canvas, only
+    // while Pages is on: anywhere else the canvas leaves the key alone.
+    id: 'pages.next',
+    label: 'Next page',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { facts: ['canvasOpen', 'pagesView'] },
+    keys: [
+      kb('PageDown', 'global', { when: { focus: ['canvas'], mode: ['edit', 'viewing'] } }),
+      kb('→', 'global', {
+        alias: true,
+        when: { focus: ['canvas'], mode: ['edit', 'viewing'], selection: ['none'] },
+      }),
+    ],
+    help: { group: 'canvas', order: 61 },
+    search: { keywords: ['pages', 'forward', 'artboard', 'page'] },
+  },
+  {
+    id: 'pages.prev',
+    label: 'Previous page',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { facts: ['canvasOpen', 'pagesView'] },
+    keys: [
+      kb('PageUp', 'global', { when: { focus: ['canvas'], mode: ['edit', 'viewing'] } }),
+      kb('←', 'global', {
+        alias: true,
+        when: { focus: ['canvas'], mode: ['edit', 'viewing'], selection: ['none'] },
+      }),
+    ],
+    help: { group: 'canvas', order: 62 },
+    search: { keywords: ['pages', 'back', 'artboard', 'page'] },
   },
   // V2-4.10 — ⌘K: every panel's › Advanced fold at once (per Mac, client/v2/fold/fold-store.js).
   {

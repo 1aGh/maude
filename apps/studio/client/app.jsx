@@ -237,6 +237,7 @@ import { cutCopyPaste, createMenuHandlers, menuRunner } from './v2/shell/menu-ru
 import DiagnosticsHost from './v2/diagnostics/diagnostics-host.jsx';
 import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
+import { usePagesView } from './v2/shell/use-canvas-mode-lane.js';
 import { useProjectSwitcher } from './panels/RepoBranchSwitcher.jsx';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { AskSelectionHost } from './v2/ai/AskSelectionHost.jsx';
@@ -1895,6 +1896,7 @@ function ShellProjectPill() {
   const activeRel = activePath ? normalizeOpenPath(activePath, cfg?.designRel) : null;
   const activeRole = sessionRole(cfg, activeRel);
   const activeObserver = observerOn(cfg, activeRel);
+  const pagesOn = usePagesView();
   const ctx = useMemo(
     () =>
       menuCtx({
@@ -1907,6 +1909,8 @@ function ShellProjectPill() {
         // S3.8 — Copy presentation link reads both: a cloud-linked desktop, and the network up.
         linkedHub: !!cloudLinkedHub?.url,
         online,
+        // 2.0.7 B2 — the active canvas shows Pages (Preview / Present greyed, paging on)
+        pagesView: pagesOn,
       }),
     [
       native,
@@ -1917,6 +1921,7 @@ function ShellProjectPill() {
       presentMode,
       cloudLinkedHub?.url,
       online,
+      pagesOn,
     ]
   );
   // V2-4.8a: the megaphone's unseen dot, as a word on the Help row; and no "Back to Home" in a hub that
@@ -1960,6 +1965,7 @@ function ShellProjectPill() {
         'view.exports': exportCenter.panelOpen,
         'history.open': changesOpen,
         'present.canvas': presentMode,
+        'view.pages': pagesOn,
       },
     }),
     [
@@ -1984,6 +1990,7 @@ function ShellProjectPill() {
       exportCenter.panelOpen,
       changesOpen,
       presentMode,
+      pagesOn,
     ]
   );
   const previewing = usePreviewMode();

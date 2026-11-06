@@ -258,8 +258,9 @@ export function ShellShareCluster() {
         readOnly: !!viewerMode,
         observer: role === 'observer',
         canvasOpen,
+        pagesView: lane.pages,
       }),
-    [viewerMode, canvasOpen, role]
+    [viewerMode, canvasOpen, role, lane.pages]
   );
 
   // S3.2a — the first Present row names the artboard a click would start from: the labels come from the
@@ -497,6 +498,7 @@ export function ShellShareCluster() {
             presenterView={presenterView}
             onPresenterView={() => menuRunner.run('present.presenter-view')}
             canPresent={canvasOpen}
+            pages={lane.pages}
           />
         }
       />
