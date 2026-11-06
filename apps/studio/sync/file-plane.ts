@@ -726,7 +726,8 @@ export const IGNORED_REASON = 'In a folder this project does not sync';
 export const DELETE_HELD_REASON =
   'deleted on this Mac, as part of a batch too large to delete on the hub without asking';
 /** Issue #207 (7b) — the ledger reason for a `hub-only` row. */
-export const HUB_ONLY_REASON = 'deleted on this Mac and kept on the hub — it is not downloaded again';
+export const HUB_ONLY_REASON =
+  'deleted on this Mac and kept on the hub — it is not downloaded again';
 
 /** One folder of held deletes, for the Sync details row. */
 export interface HeldDeleteFolder {
