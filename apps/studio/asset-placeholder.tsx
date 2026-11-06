@@ -192,6 +192,8 @@ const CSS = `
   position: fixed; inset: 0; z-index: 6; pointer-events: none;
   font: 12px/1.35 var(--font-body, system-ui, -apple-system, sans-serif);
 }
+.dc-absent-ride { position: fixed; left: 0; top: 0; width: 0; height: 0; overflow: visible;
+  transform-origin: 0 0; will-change: transform; }
 :root[data-maude-theme="dark"] .dc-absent-layer {
   --dc-absent-bg: oklch(0.25 0.006 250);
   --dc-absent-stripe: oklch(0.3 0.008 250);
@@ -242,6 +244,34 @@ interface Frame {
   words: FrameWords;
   /** r4 img 44: no shell state explained this failure, so the frame names the path it asked for. */
   lost?: boolean;
+  /** 2.0.7 — the canvas world the picture sits in: its frame rides the camera (null: a picture outside the world). */
+  world: HTMLElement | null;
+}
+
+/** The camera the canvas last wrote (canvas-lib `getLiveViewport`): screen = canvas origin + (x, y) + zoom · world. */
+export interface FrameCamera {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+const sameCamera = (a: FrameCamera, b: FrameCamera) =>
+  a.x === b.x && a.y === b.y && a.zoom === b.zoom;
+
+/**
+ * 2.0.7 — the transform that carries frames measured under camera `at` (world origin `origin` on screen then) to
+ * where camera `now` puts them. The world moved by (now − at) and scaled by now.zoom / at.zoom about its origin, so a
+ * point p measured then is now at origin' + k·(p − origin): translate(origin' − k·origin) scale(k).
+ */
+export function rideTransform(
+  at: FrameCamera,
+  origin: { left: number; top: number },
+  now: FrameCamera
+): string {
+  const k = now.zoom / (at.zoom || 1);
+  const ox = origin.left + (now.x - at.x);
+  const oy = origin.top + (now.y - at.y);
+  return `translate(${ox - k * origin.left}px, ${oy - k * origin.top}px) scale(${k})`;
 }
 
 /** A failed picture or clip is asked for again (its first answer may have been refused before the canvas write landed). */
@@ -250,14 +280,26 @@ const retriable = (el: Media): boolean =>
 
 const baseName = (rel: string) => rel.slice(rel.lastIndexOf('/') + 1);
 
+/** The canvas world (`.dc-world`, canvas-lib) a picture sits in, if any. */
+const worldOf = (el: Element): HTMLElement | null => el.closest<HTMLElement>('.dc-world');
+
 /** The layer. Mounted once by DesignCanvas (canvas-lib's named S8.19 block). */
 export function AssetPlaceholderLayer({
   inShell,
   retryDelays = LOST_RETRY_DELAYS_MS,
+  camera,
+  interacting,
 }: {
   /** Test seam: the layer only judges pictures inside the shell's frame (an export capture carries no frames). */
   inShell?: boolean;
   retryDelays?: readonly number[];
+  /**
+   * 2.0.7 — the live camera (DesignCanvas passes canvas-lib's `getLiveViewport`). With it, a frame over a picture in
+   * the world rides a camera move on one transform instead of a layout read per frame. Omitted: every frame measures.
+   */
+  camera?: () => FrameCamera | null;
+  /** 2.0.7 — a pan / zoom gesture is running (the controller's `isInteracting`): nothing is measured until it ends. */
+  interacting?: boolean;
 } = {}) {
   const [items, setItems] = useState<ReadonlyMap<string, AssetStateItem>>(new Map());
   const [frames, setFrames] = useState<Frame[]>([]);
@@ -335,7 +377,7 @@ export function AssetPlaceholderLayer({
         const rel = known.size ? relOfSrc(raw, resolved, known) : null;
         const words = rel ? frameWords(items.get(rel)) : null;
         if (rel && words) {
-          next.push({ key: `${rel}#${i}`, rel, el, words });
+          next.push({ key: `${rel}#${i}`, rel, el, words, world: worldOf(el) });
           return;
         }
         if (!inside || !lost.errored.has(el)) return;
@@ -354,13 +396,17 @@ export function AssetPlaceholderLayer({
               relink: false,
             },
             lost: true,
+            world: worldOf(el),
           });
       });
       setFrames((prev) =>
         prev.length === next.length &&
         prev.every(
           (p, i) =>
-            p.key === next[i]?.key && p.el === next[i]?.el && p.words.line === next[i]?.words.line
+            p.key === next[i]?.key &&
+            p.el === next[i]?.el &&
+            p.words.line === next[i]?.words.line &&
+            p.world === next[i]?.world
         )
           ? prev
           : next
@@ -437,24 +483,68 @@ export function AssetPlaceholderLayer({
   }, [items, known, inShell, retryDelays]);
 
   // One animation-frame loop while any frame exists: follow each element's on-screen rectangle.
+  //
+  // 2.0.7 — not by reading layout while the camera moves. Measuring every frame was a getBoundingClientRect per
+  // missing picture (more for a collapsed one, frameBox walks up) in every frame of a pan or zoom: ~40 ms a frame
+  // in WebKit on the mascot canvas (59 missing pictures). The frames stay in this body layer — inside `.dc-world`
+  // the input router would claim their buttons (isOverlayTarget refuses anything in the world) — so a frame over a
+  // picture in the world rides the camera instead: the wrapper takes one transform computed from the camera
+  // numbers (rideTransform), and the frames are measured again on the first frame the camera is still and no
+  // gesture runs. With no camera (an older mount, a test page), every frame measures as before.
+  const interactingRef = useRef(!!interacting);
+  interactingRef.current = !!interacting;
+  const cameraRef = useRef(camera);
+  cameraRef.current = camera;
+  const rideRef = useRef<HTMLDivElement | null>(null);
+  const rideWorld = camera ? (frames.find((f) => f.world)?.world ?? null) : null;
   useEffect(() => {
     if (frames.length === 0) return;
     let raf: number | null = null;
+    let last: FrameCamera | null = null; // the camera on the previous frame
+    let at: FrameCamera | null = null; // the camera the riding frames were last measured under
+    let origin = { left: 0, top: 0 }; // the world's origin on screen then
+    const written = new Map<HTMLDivElement, string>();
+    const place = (f: Frame, div: HTMLDivElement) => {
+      const r = f.el.isConnected ? frameBox(f.el) : null;
+      const box =
+        !r || r.width < 2 || r.height < 2
+          ? 'none'
+          : `${Math.round(r.left)} ${Math.round(r.top)} ${Math.round(r.width)} ${Math.round(r.height)}`;
+      if (written.get(div) === box) return;
+      written.set(div, box);
+      if (!r || box === 'none') {
+        div.style.display = 'none';
+        return;
+      }
+      div.style.display = 'grid';
+      div.style.left = `${Math.round(r.left)}px`;
+      div.style.top = `${Math.round(r.top)}px`;
+      div.style.width = `${Math.round(r.width)}px`;
+      div.style.height = `${Math.round(r.height)}px`;
+    };
+    const setRide = (t: string) => {
+      const ride = rideRef.current;
+      if (ride && ride.style.transform !== t) ride.style.transform = t;
+    };
     const tick = () => {
       raf = null;
+      const cam = rideWorld ? (cameraRef.current?.() ?? null) : null;
+      const moved = !!cam && !!last && !sameCamera(cam, last);
+      last = cam;
+      const riding = !!cam && (moved || interactingRef.current);
+      if (riding && cam) {
+        // the camera is moving (or a gesture holds it): carry what was measured, read nothing
+        if (at) setRide(rideTransform(at, origin, cam));
+      } else if (cam && rideWorld) {
+        const o = rideWorld.getBoundingClientRect();
+        origin = { left: o.left, top: o.top };
+        at = cam;
+        setRide('');
+      }
       for (const f of frames) {
+        if (riding && f.world === rideWorld) continue;
         const div = nodes.current.get(f.key);
-        if (!div) continue;
-        const r = f.el.isConnected ? frameBox(f.el) : null;
-        if (!r || r.width < 2 || r.height < 2) {
-          div.style.display = 'none';
-          continue;
-        }
-        div.style.display = 'grid';
-        div.style.left = `${Math.round(r.left)}px`;
-        div.style.top = `${Math.round(r.top)}px`;
-        div.style.width = `${Math.round(r.width)}px`;
-        div.style.height = `${Math.round(r.height)}px`;
+        if (div) place(f, div);
       }
       raf = requestAnimationFrame(tick);
     };
@@ -462,129 +552,127 @@ export function AssetPlaceholderLayer({
     return () => {
       if (raf != null) cancelAnimationFrame(raf);
     };
-  }, [frames]);
+  }, [frames, rideWorld]);
 
   if (typeof document === 'undefined') return null;
   // S8.14 — a picture still going up wears a thin bar (asset-upload-bars.tsx); it is a sibling layer, so it needs no frame
   const bars = <UploadBars items={items} relOf={relOfSrc} />;
   if (frames.length === 0) return bars;
+  const draw = (f: Frame) => {
+    const lfs = f.words.state === 'lfs-pointer' && lfsActions && !f.lost;
+    const copyWord = copied.get(f.rel);
+    return (
+      // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is `group` or `img` (both take a name)
+      <div
+        key={f.key}
+        ref={(el) => {
+          if (el) nodes.current.set(f.key, el);
+          else nodes.current.delete(f.key);
+        }}
+        className="dc-absent"
+        data-testid="asset-frame"
+        data-rel={f.rel}
+        data-state={f.words.state}
+        data-lost={f.lost ? '1' : undefined}
+        // gate-b-a11y: `img` cannot hold the Relink… button (axe nested-interactive) — a labelled group can
+        role={f.words.relink || lfs ? 'group' : 'img'}
+        aria-label={
+          f.lost && f.words.line === LOST_VIDEO_LINE
+            ? `${f.words.line} · ${f.rel}`
+            : `${f.lost ? f.rel : baseName(f.rel)} · ${f.words.line}`
+        }
+      >
+        <span className="dc-absent-in">
+          <svg
+            className="dc-absent-ic"
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M8 2.2 14.2 13H1.8z" />
+            <path d="M8 6.4v3.2" />
+            <circle cx="8" cy="11.3" r="0.4" fill="currentColor" />
+          </svg>
+          <span className="dc-absent-n">{f.lost ? f.rel : baseName(f.rel)}</span>
+          <span className="dc-absent-d">{f.words.line}</span>
+          {f.words.relink ? (
+            <button
+              type="button"
+              className="dc-absent-btn"
+              data-testid="asset-frame-relink"
+              onClick={() => {
+                // A literal `{ dgn }` so the bridge inventory sees this send site.
+                try {
+                  window.parent.postMessage({ dgn: 'asset-relink-request', rel: f.rel }, '*');
+                } catch {
+                  /* detached */
+                }
+              }}
+            >
+              Relink…
+            </button>
+          ) : null}
+          {lfs ? (
+            <span className="dc-absent-row">
+              <button
+                type="button"
+                className="dc-absent-btn"
+                data-testid="asset-frame-lfs-fix"
+                onClick={() => {
+                  // A literal `{ dgn }` so the bridge inventory sees this send site.
+                  try {
+                    window.parent.postMessage({ dgn: 'asset-lfs-fix-request', rel: f.rel }, '*');
+                  } catch {
+                    /* detached */
+                  }
+                }}
+              >
+                Fix with AI
+              </button>
+              <button
+                type="button"
+                className="dc-absent-btn dc-absent-btn--quiet"
+                data-testid="asset-frame-lfs-copy"
+                aria-live="polite"
+                onClick={() => {
+                  // A literal `{ dgn }` so the bridge inventory sees this send site.
+                  try {
+                    window.parent.postMessage({ dgn: 'asset-lfs-copy-request', rel: f.rel }, '*');
+                  } catch {
+                    /* detached */
+                  }
+                }}
+              >
+                {copyWord === 'copied'
+                  ? 'Copied'
+                  : copyWord === 'failed'
+                    ? 'Couldn’t copy'
+                    : 'Copy prompt'}
+              </button>
+            </span>
+          ) : null}
+        </span>
+      </div>
+    );
+  };
+  // 2.0.7 — frames over pictures in the world ride the camera in one wrapper; any other frame is placed directly.
+  const riders = frames.filter((f) => rideWorld && f.world === rideWorld);
+  const fixed = frames.filter((f) => !(rideWorld && f.world === rideWorld));
   return (
     <>
       {bars}
       {createPortal(
         <div className="dc-absent-layer" data-testid="asset-frames">
-          {frames.map((f) => {
-            const lfs = f.words.state === 'lfs-pointer' && lfsActions && !f.lost;
-            const copyWord = copied.get(f.rel);
-            return (
-              // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is `group` or `img` (both take a name)
-              <div
-                key={f.key}
-                ref={(el) => {
-                  if (el) nodes.current.set(f.key, el);
-                  else nodes.current.delete(f.key);
-                }}
-                className="dc-absent"
-                data-testid="asset-frame"
-                data-rel={f.rel}
-                data-state={f.words.state}
-                data-lost={f.lost ? '1' : undefined}
-                // gate-b-a11y: `img` cannot hold the Relink… button (axe nested-interactive) — a labelled group can
-                role={f.words.relink || lfs ? 'group' : 'img'}
-                aria-label={
-                  f.lost && f.words.line === LOST_VIDEO_LINE
-                    ? `${f.words.line} · ${f.rel}`
-                    : `${f.lost ? f.rel : baseName(f.rel)} · ${f.words.line}`
-                }
-              >
-                <span className="dc-absent-in">
-                  <svg
-                    className="dc-absent-ic"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M8 2.2 14.2 13H1.8z" />
-                    <path d="M8 6.4v3.2" />
-                    <circle cx="8" cy="11.3" r="0.4" fill="currentColor" />
-                  </svg>
-                  <span className="dc-absent-n">{f.lost ? f.rel : baseName(f.rel)}</span>
-                  <span className="dc-absent-d">{f.words.line}</span>
-                  {f.words.relink ? (
-                    <button
-                      type="button"
-                      className="dc-absent-btn"
-                      data-testid="asset-frame-relink"
-                      onClick={() => {
-                        // A literal `{ dgn }` so the bridge inventory sees this send site.
-                        try {
-                          window.parent.postMessage(
-                            { dgn: 'asset-relink-request', rel: f.rel },
-                            '*'
-                          );
-                        } catch {
-                          /* detached */
-                        }
-                      }}
-                    >
-                      Relink…
-                    </button>
-                  ) : null}
-                  {lfs ? (
-                    <span className="dc-absent-row">
-                      <button
-                        type="button"
-                        className="dc-absent-btn"
-                        data-testid="asset-frame-lfs-fix"
-                        onClick={() => {
-                          // A literal `{ dgn }` so the bridge inventory sees this send site.
-                          try {
-                            window.parent.postMessage(
-                              { dgn: 'asset-lfs-fix-request', rel: f.rel },
-                              '*'
-                            );
-                          } catch {
-                            /* detached */
-                          }
-                        }}
-                      >
-                        Fix with AI
-                      </button>
-                      <button
-                        type="button"
-                        className="dc-absent-btn dc-absent-btn--quiet"
-                        data-testid="asset-frame-lfs-copy"
-                        aria-live="polite"
-                        onClick={() => {
-                          // A literal `{ dgn }` so the bridge inventory sees this send site.
-                          try {
-                            window.parent.postMessage(
-                              { dgn: 'asset-lfs-copy-request', rel: f.rel },
-                              '*'
-                            );
-                          } catch {
-                            /* detached */
-                          }
-                        }}
-                      >
-                        {copyWord === 'copied'
-                          ? 'Copied'
-                          : copyWord === 'failed'
-                            ? 'Couldn’t copy'
-                            : 'Copy prompt'}
-                      </button>
-                    </span>
-                  ) : null}
-                </span>
-              </div>
-            );
-          })}
+          <div className="dc-absent-ride" ref={rideRef}>
+            {riders.map(draw)}
+          </div>
+          {fixed.map(draw)}
         </div>,
         document.body
       )}
