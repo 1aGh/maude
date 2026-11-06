@@ -741,7 +741,7 @@ function postLayersTree(artboardId: string | null | undefined): void {
 const LAYERS_CHROME_SEL =
   '.dc-cv-halo, .dc-cv-group-bbox, .dgn-pin, .dc-cv-reorder-divider, .dc-cv-reorder-into, .dc-activity-rim, .dc-activity-scan, .dc-cv-reorder-lift';
 
-function LayersLiveSync() {
+export function LayersLiveSync() {
   useEffect(() => {
     if (typeof MutationObserver === 'undefined' || typeof document === 'undefined') return;
     const isChrome = (n: Node): boolean =>
@@ -757,10 +757,12 @@ function LayersLiveSync() {
         structural = true;
         break;
       }
-      const art = getLastLayersArtboardId();
-      if (!structural || !art) return;
+      if (!structural || !getLastLayersArtboardId()) return;
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => postLayersTree(art), 90);
+      // 2.0.7 fix (decision `v2-207-layers-current`) — read the tracked artboard when the timer FIRES: a
+      // request-layers for another artboard inside the debounce made that one current, and re-posting the one
+      // read at mutation time put the previous artboard's tree back in the shell, after the right one
+      timer = setTimeout(() => postLayersTree(getLastLayersArtboardId()), 90);
     });
     obs.observe(document.body, { childList: true, subtree: true });
     return () => {
