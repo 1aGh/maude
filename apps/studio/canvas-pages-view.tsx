@@ -335,5 +335,6 @@ export const PAGES_PILL_CSS = `
 .dc-pages-b:hover:not(:disabled){background:var(--maude-chrome-bg-3);color:var(--maude-chrome-fg-0)}
 .dc-pages-b:disabled{opacity:.4;cursor:default}
 .dc-pages-b:focus-visible{outline:2px solid var(--maude-hud-focus-ring);outline-offset:1px}
+@media (max-width:1399px){html[data-maude-pages] .dc-theme-pill-path,html[data-maude-pages] .dc-theme-pill-note{display:none}}
 .dc-pages-count{min-width:44px;text-align:center;font-variant-numeric:tabular-nums;font-size:var(--maude-hud-type-xs,11px);color:var(--maude-chrome-fg-0)}
 `;
