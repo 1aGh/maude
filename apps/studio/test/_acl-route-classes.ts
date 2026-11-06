@@ -350,6 +350,8 @@ const PROJECT = [
   // fix/207 — this Mac's shared-code consent for the project's hub: about the whole project
   '/_api/sync/code-consent',
   '/_api/sync/code-consent/set',
+  // 2.0.7 #7b — the answer to this Mac's held deletes: about the whole project
+  '/_api/sync/held-deletes',
   '/_api/diagnostics/disk-retry',
   // p8-a1-save-hold — the closing page lands its held saves (canvas files): a project write
   '/_api/diagnostics/save-hold-flush',

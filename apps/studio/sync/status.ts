@@ -172,9 +172,13 @@ export interface FilePlaneStatus {
       | 'code-consent';
     count: number;
     paths: string[];
+    /** Issue #207 (7b) — `delete-out`: the folders the held deletes sit in, largest first. */
+    folders?: { folder: string; count: number }[];
     /** One sentence, in the user's terms, about what is waiting and why. */
     detail: string;
   }[];
+  /** Issue #207 (7b) — the owner's purge of held deletes, while it runs (or the reason it stopped). */
+  deletePurge?: { total: number; done: number; running: boolean; error?: string };
   /**
    * Files this lane could NOT move on the last pass — issue #109.
    *

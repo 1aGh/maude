@@ -73,6 +73,15 @@ export function readSyncSettings(repoRoot: string): SyncSettings | null {
 }
 
 /**
+ * Issue #207 — whether deletions propagate, read NOW from the project config. The file plane calls
+ * this at the start of every pass, so a change in `config.json` (or in Sync settings) applies at the
+ * next pass. `fallback` answers when the config names no hub (a cell's pairing has no `linkedHub`).
+ */
+export function livePropagateDeletes(repoRoot: string, fallback: boolean): boolean {
+  return readSyncSettings(repoRoot)?.propagateDeletes ?? fallback;
+}
+
+/**
  * Patch ONLY the provided keys into `linkedHub`, preserving everything else.
  * Booleans are written explicitly when false and REMOVED when true (true is
  * the default — a config that says nothing gets the default, and an explicit

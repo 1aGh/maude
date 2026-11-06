@@ -102,6 +102,18 @@ export type DeliveryState =
   | 'local-only'
   /** Issue #207 — in a folder the project does not sync (`linkedHub.ignoreFolders`). Not waiting. */
   | 'ignored'
+  /**
+   * Issue #207 (7b) — DELETED ON THIS MAC, HELD: gone from here as part of a batch larger than sync
+   * removes from the project unasked (the outbound delete breaker). Waits for the person's answer in
+   * Sync details — Delete on the hub too, or Keep on the hub. Never sent, never downloaded meanwhile.
+   */
+  | 'delete-held'
+  /**
+   * Issue #207 (7b) — ON THE HUB ONLY: deleted on this Mac, and the person chose to keep it on the
+   * hub. No delete is proposed and the same bytes are never downloaded again; bound to the hash this
+   * Mac last saw (`syncedHash ?? lastSeenHash`), so a teammate's new version is a new decision.
+   */
+  | 'hub-only'
   /** Upload in flight. */
   | 'pushing'
   /** The hub answered 2xx and gave it a seq. */

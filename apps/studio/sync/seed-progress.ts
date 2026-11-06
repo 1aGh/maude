@@ -63,6 +63,8 @@ export interface SeedProgress {
    */
   heldCode?: number;
   heldDeletedHere?: number;
+  /** Issue #207 (7b) — deleted on this Mac in a large batch, waiting for the person's answer. */
+  heldDeleteAsk?: number;
   /**
    * Outstanding rows whose last attempt FAILED and that wait out a backoff (`stuck`, `attempts`
    * ≥ 1) — counted inside `remaining` (they are not delivered), named here so a status line can say
@@ -153,11 +155,18 @@ export function codeConsentHeldDetail(count: number): string {
  * fix/207 — the status line's words for what this Mac holds, one phrase per reason, so a deleted
  * PNG is never "shared code" and no phrase names a choice the app does not offer.
  */
-export function heldWords(p: Pick<SeedProgress, 'heldCode' | 'heldDeletedHere'>): string[] {
+export function heldWords(
+  p: Pick<SeedProgress, 'heldCode' | 'heldDeletedHere' | 'heldDeleteAsk'>
+): string[] {
   const out: string[] = [];
   const files = (n: number) => `${n.toLocaleString('en-US')} ${n === 1 ? 'file' : 'files'}`;
   const code = p.heldCode ?? 0;
   const deleted = p.heldDeletedHere ?? 0;
+  const ask = p.heldDeleteAsk ?? 0;
+  if (ask > 0)
+    out.push(
+      `${files(ask)} deleted on this Mac ${ask === 1 ? 'waits' : 'wait'} for your answer (Sync details)`
+    );
   if (code > 0)
     out.push(
       `${files(code)} of shared code ${code === 1 ? 'waits' : 'wait'} for your yes (Sync details)`
@@ -203,6 +212,7 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
   let held = 0;
   let heldCode = 0;
   let heldDeletedHere = 0;
+  let heldDeleteAsk = 0;
   let ignored = 0;
   let retrying = 0;
   let retryingFile: { rel: string; reason: string } | undefined;
@@ -217,6 +227,18 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
     }
     if (state === 'ignored') {
       ignored += 1;
+      continue;
+    }
+    // Issue #207 (7b) — a delete waiting for the person's answer, and a file kept on the hub: held
+    // here by a choice (asked, or made), never "waiting" to move.
+    if (state === 'delete-held') {
+      held += 1;
+      heldDeleteAsk += 1;
+      continue;
+    }
+    if (state === 'hub-only') {
+      held += 1;
+      heldDeletedHere += 1;
       continue;
     }
     if (isHeldByConsent(row)) {
@@ -271,6 +293,7 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
     held,
     heldCode,
     heldDeletedHere,
+    ...(heldDeleteAsk > 0 ? { heldDeleteAsk } : {}),
     ...(ignored > 0 ? { ignored } : {}),
     retrying,
     ...(retryingFile ? { retryingFile } : {}),

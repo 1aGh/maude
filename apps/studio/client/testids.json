@@ -3620,6 +3620,166 @@
     "v2": "new"
   },
   {
+    "hook": "sync-deletes-held",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Issue #207 (7b) — Sync details › Needs you: “Deleted on this Mac · N files”, a batch of local deletes held by the delete breaker, with the folders and two answers.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldDeletesCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-deletes-held-folders",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The folders the held deletes sit in, with a count each.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldDeletesCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-deletes-held-delete",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "“Delete on the hub too…” (`sync.delete-held-on-hub`) — opens the confirm.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldDeletesCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-deletes-held-keep",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "“Keep on the hub” (`sync.keep-held-on-hub`) — the files stay on the hub and are not downloaded again.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldDeletesCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-deletes-held-confirming",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The confirm: “Delete N files on the hub?” with Delete on the hub · Cancel.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldDeletesCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-deletes-held-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "“Delete on the hub” — sends the held deletes as one confirmed batch (`POST /_api/sync/held-deletes`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldDeletesCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-deletes-held-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel on the confirm; nothing is sent.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldDeletesCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-deletes-held-said",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sentence after an answer (deleting · kept · the owner-only refusal).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldDeletesCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-deletes-purging",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The owner’s purge of held deletes: how far it is, or why it stopped.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "DeletesPurgingCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-hub-only",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The files deleted on this Mac and kept on the hub (`hub-only`): listed, never waiting.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "sync-assets-stay",
     "kind": "testid",
     "pattern": false,

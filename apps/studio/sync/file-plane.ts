@@ -65,7 +65,7 @@ import { open as openAsync } from 'node:fs/promises';
 import path from 'node:path';
 
 import { conflictCopyName, decideFile, type FileState } from './decide-file.ts';
-import type { DeliveryState, FileLedger } from './file-ledger.ts';
+import type { DeliveryState, FileLedger, LedgerRow } from './file-ledger.ts';
 import {
   type CanvasGroupLike,
   classifyProjectFile,
@@ -370,6 +370,7 @@ function deliveryRank(state: DeliveryState): number {
     case 'refused':
       return 1;
     case 'stuck':
+    case 'delete-held':
       return 2;
     case 'referenced-but-unoffered':
       return 3;
@@ -465,8 +466,16 @@ export interface FilePlaneResult {
   backedOff?: number;
   /** Files removed this pass — `parked` names the `_trash/` copy when there is one. */
   deleted: { rel: string; parked: string | null }[];
-  /** A delete burst tripped a breaker; nothing was removed. */
-  deleteHeld?: { direction: 'out' | 'in'; count: number; paths: string[] };
+  /**
+   * A delete burst tripped a breaker; nothing was removed. Outbound, it is every row still waiting
+   * for the person's answer (`delete-held`), with the folders they sit in (issue #207, 7b).
+   */
+  deleteHeld?: {
+    direction: 'out' | 'in';
+    count: number;
+    paths: string[];
+    folders?: HeldDeleteFolder[];
+  };
   /** Consecutive `reanchor` answers tripped the storm limit; the pass held. */
   reanchorHeld?: true;
   /**
@@ -528,8 +537,12 @@ export interface FilePlaneOptions {
   canUploadCodeModules?: boolean;
   /** Names conflict copies. Same exposure class as `syncMeta.by` (hostname). */
   label: string;
-  /** Increment 6. Off means a local absence is HELD, never propagated. */
-  propagateDeletes?: boolean;
+  /**
+   * Increment 6. Off means a local absence is HELD, never propagated. A getter is read at the
+   * start of every pass (issue #207), so turning it off or on in the project config applies at the
+   * next pass — Resync — instead of at the next restart.
+   */
+  propagateDeletes?: boolean | (() => boolean);
   /**
    * Issue #207 — design-root-relative folders this project does not sync
    * (`linkedHub.ignoreFolders` in the project config). Nothing under them moves either way.
@@ -708,6 +721,54 @@ export const SCAN_SLICE_MS = 8;
 
 /** What the panel says about a file in a folder the project does not sync. */
 export const IGNORED_REASON = 'In a folder this project does not sync';
+
+/** Issue #207 (7b) — the ledger reason for a `delete-held` row. */
+export const DELETE_HELD_REASON =
+  'deleted on this Mac, as part of a batch too large to delete on the hub without asking';
+/** Issue #207 (7b) — the ledger reason for a `hub-only` row. */
+export const HUB_ONLY_REASON =
+  'deleted on this Mac and kept on the hub — it is not downloaded again';
+
+/** One folder of held deletes, for the Sync details row. */
+export interface HeldDeleteFolder {
+  /** Design-root-relative folder (`''` = the design root itself). */
+  folder: string;
+  count: number;
+}
+
+/** The folder a held row sits in. */
+export function heldDeleteFolderOf(rel: string): string {
+  const i = rel.lastIndexOf('/');
+  return i < 0 ? '' : rel.slice(0, i);
+}
+
+/** Every `delete-held` row, grouped by folder (largest first) — pure over the ledger's rows. */
+export function summarizeHeldDeletes(rows: Readonly<Record<string, LedgerRow>>): {
+  count: number;
+  paths: string[];
+  folders: HeldDeleteFolder[];
+} {
+  const paths: string[] = [];
+  const byFolder = new Map<string, number>();
+  for (const [rel, row] of Object.entries(rows)) {
+    if (row.state !== 'delete-held') continue;
+    paths.push(rel);
+    const f = heldDeleteFolderOf(rel);
+    byFolder.set(f, (byFolder.get(f) ?? 0) + 1);
+  }
+  paths.sort();
+  const folders = [...byFolder.entries()]
+    .map(([folder, count]) => ({ folder, count }))
+    .sort((a, b) => b.count - a.count || (a.folder < b.folder ? -1 : 1));
+  return { count: paths.length, paths, folders };
+}
+
+/** Does `rel` sit in `folder` (or below it)? `null` folder = every held row. */
+export function inHeldFolder(rel: string, folder: string | null): boolean {
+  if (folder === null) return true;
+  if (folder === '') return !rel.includes('/');
+  return rel.startsWith(`${folder}/`);
+}
 
 /**
  * The folders a project does not sync, cleaned: design-root-relative, no
@@ -914,6 +975,17 @@ export interface FilePlane {
     unmeasured: number;
     byClass: Record<string, { files: number; bytes: number }>;
   } | null;
+  /** Issue #207 (7b) — the held local deletes, as Sync details shows them. */
+  heldDeletes(): ReturnType<typeof summarizeHeldDeletes>;
+  /**
+   * Issue #207 (7b) — the person's answer to held deletes (`folder` null = all of them). `send`: the
+   * next passes delete them through the hub's door, past this Mac's breaker. `purging`: a confirmed
+   * owner purge is deleting them on the hub — the plane leaves them alone until `endPurge`. `keep`:
+   * kept on the hub, never proposed or downloaded again. Returns the paths the answer covered.
+   */
+  answerHeldDeletes(how: 'send' | 'purging' | 'keep', folder: string | null): string[];
+  /** The purge for these paths ended (done or not): held again unless the hub deleted them. */
+  endPurge(rels: readonly string[]): void;
 }
 
 export function createFilePlane(opts: FilePlaneOptions): FilePlane {
@@ -928,6 +1000,14 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
   const now = opts.now ?? Date.now;
   const base = opts.hubUrl.replace(/\/+$/, '');
   const { ledger, designRoot } = opts;
+  /** Issue #207 (7b) — held deletes the person said to send through the door (in memory). */
+  const confirmedDeletes = new Set<string>();
+  /** Issue #207 (7b) — held deletes an owner purge is deleting on the hub right now. */
+  const purgingDeletes = new Set<string>();
+  const readPropagateDeletes = (): boolean =>
+    (typeof opts.propagateDeletes === 'function'
+      ? opts.propagateDeletes()
+      : opts.propagateDeletes) === true;
   const readIgnoreFolders = (): string[] =>
     normalizeIgnoreFolders(
       typeof opts.ignoreFolders === 'function' ? opts.ignoreFolders() : opts.ignoreFolders
@@ -2293,6 +2373,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
 
     // ── 2. Ours ──────────────────────────────────────────────────────────
     const ignoreFolders = readIgnoreFolders();
+    const propagateDeletes = readPropagateDeletes();
     const local = await scanLocalFilesAsync(designRoot, ledger, opts.canvasGroups);
 
     // ── 3. Decide ────────────────────────────────────────────────────────
@@ -2525,6 +2606,20 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         continue;
       }
 
+      // AN ANSWER IS BEING CARRIED OUT, OR WAS GIVEN (issue #207, 7b). A held delete an owner purge
+      // is deleting on the hub is left alone until it ends. A file the person kept on the hub stays
+      // there and does not come back here — while the hub still holds the bytes this Mac last saw.
+      // A new version from a teammate, a tombstone, or the file back on this disk decides as usual.
+      if (!here && purgingDeletes.has(rel) && remoteHash !== null) continue;
+      if (
+        !here &&
+        kept?.state === 'hub-only' &&
+        remoteHash !== null &&
+        remoteHash === (kept.syncedHash ?? kept.lastSeenHash ?? null)
+      ) {
+        continue;
+      }
+
       // GONE FROM HERE, AND THE HUB HOLDS EXACTLY WHAT THIS MAC LAST SAW (issue #207). No recorded
       // ancestor — the upload landed while its answer was lost (a timeout on a slow link), or the
       // pass ended before adopting it — so this read as "the hub offers a file this machine has
@@ -2544,7 +2639,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         ...(row?.deleted ? { remoteTombstone: true } : {}),
         ...(degraded ? { epochChanged: true } : {}),
         ...(remoteHash && ledger.outboxHas(remoteHash) ? { selfInFlight: true } : {}),
-        ...(opts.propagateDeletes ? { propagateDeletes: true } : {}),
+        ...(propagateDeletes ? { propagateDeletes: true } : {}),
       };
       const decision = decideFile(state);
       // REFUSED FOR GOOD, AND UNCHANGED (issue #175): the door already said no
@@ -2577,9 +2672,24 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           });
           out.synced += 1;
         } else if (
+          decision.adoptAncestor &&
+          !here &&
+          (row?.deleted === true || ledger.remoteOf(rel) === null)
+        ) {
+          // GONE ON BOTH SIDES (issue #207). Not here, and the hub SAID so — a tombstone on this
+          // page, or a remembered one (a complete full read is the only other writer of `null`).
+          // There is nothing left to move or to agree on, so nothing to track. The row stayed
+          // behind instead, and a row with no state reads `local-only`: every file this Mac
+          // deleted came back in Sync details as "only on this Mac" the pass its own tombstone
+          // arrived (`noteRemote` re-creates a forgotten row). A remote never learned (`undefined`)
+          // is not a statement, so that row keeps its ancestor for the next full read.
+          ledger.forget(rel);
+          purgingDeletes.delete(rel);
+          confirmedDeletes.delete(rel);
+        } else if (
           !here &&
           remoteHash !== null &&
-          !opts.propagateDeletes &&
+          !propagateDeletes &&
           state.ancestor === remoteHash
         ) {
           // 2.0.5 rule (a) — DELETED HERE, KEPT THERE, AND SAID SO. With delete
@@ -2628,8 +2738,17 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
 
     for (const direction of ['out', 'in'] as const) {
       const action = direction === 'out' ? 'propagate-delete' : 'quarantine';
-      const hits = work.filter((w) => w.decision.action === action);
-      if (hits.length === 0 || !overBreaker(direction, hits.length)) continue;
+      // Issue #207 (7b) — a held delete the person confirmed goes through (the hub's door still
+      // gates it). One still waiting for an answer keeps waiting, and a new local delete joins its
+      // question rather than slipping out under the limit beside it.
+      const hits = work.filter(
+        (w) => w.decision.action === action && !(direction === 'out' && confirmedDeletes.has(w.rel))
+      );
+      const asking =
+        direction === 'out' &&
+        opts.unlimitedOutboundDeletes !== true &&
+        hits.some((w) => ledger.row(w.rel)?.state === 'delete-held');
+      if (hits.length === 0 || !(asking || overBreaker(direction, hits.length))) continue;
       const paths = hits.map((w) => w.rel).sort();
       // ONCE PER DISTINCT HOLD, not once per pass.
       //
@@ -2645,14 +2764,28 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
             ? `[sync/files] ${paths.length} of ${tracked} tracked files are gone from this machine — NOT telling the project. If that was a branch switch or a bad restore, nothing is lost; if you meant it, confirm the deletion.`
             : `[sync/files] the project wants to remove ${paths.length} of ${tracked} tracked files here — holding. Nothing was deleted.`
         );
-      out.deleteHeld = { direction, count: paths.length, paths: paths.slice(0, 200) };
       for (const w of hits) {
-        ledger.setState(w.rel, 'conflict', {
-          reason:
-            direction === 'out'
-              ? 'gone from this machine, as part of a batch too large to propagate unasked'
-              : 'the project wants this removed, as part of a batch too large to apply unasked',
-        });
+        if (direction === 'out') {
+          // Its own state (7b): `conflict` read as "stuck" and offered no answer.
+          if (ledger.row(w.rel)?.state !== 'delete-held') {
+            ledger.setState(w.rel, 'delete-held', { reason: DELETE_HELD_REASON });
+          }
+        } else {
+          ledger.setState(w.rel, 'conflict', {
+            reason: 'the project wants this removed, as part of a batch too large to apply unasked',
+          });
+        }
+      }
+      if (direction === 'out') {
+        const all = summarizeHeldDeletes(ledger.rows());
+        out.deleteHeld = {
+          direction,
+          count: all.count,
+          paths: all.paths.slice(0, 200),
+          folders: all.folders.slice(0, 20),
+        };
+      } else {
+        out.deleteHeld = { direction, count: paths.length, paths: paths.slice(0, 200) };
       }
       work = work.filter((w) => !hits.includes(w));
     }
@@ -3306,6 +3439,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         // decision above only got here because the two were equal.
         const res = await pushDelete(rel, ledger.ancestorOf(rel) ?? remoteHash);
         if (res.ok) {
+          confirmedDeletes.delete(rel);
           ledger.forget(rel);
           out.deleted.push({ rel, parked: null });
           return true;
@@ -3370,6 +3504,27 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     },
     dorucekaTotal() {
       return Object.keys(ledger.rows()).length;
+    },
+    heldDeletes() {
+      // What still waits for an answer: an answered row (being sent, or purged) is not asked again.
+      const waiting: Record<string, LedgerRow> = {};
+      for (const [rel, row] of Object.entries(ledger.rows()))
+        if (!purgingDeletes.has(rel) && !confirmedDeletes.has(rel)) waiting[rel] = row;
+      return summarizeHeldDeletes(waiting);
+    },
+    answerHeldDeletes(how, folder) {
+      const rels = summarizeHeldDeletes(ledger.rows()).paths.filter(
+        (r) => inHeldFolder(r, folder) && !purgingDeletes.has(r) && !confirmedDeletes.has(r)
+      );
+      for (const rel of rels) {
+        if (how === 'send') confirmedDeletes.add(rel);
+        else if (how === 'purging') purgingDeletes.add(rel);
+        else ledger.setState(rel, 'hub-only', { reason: HUB_ONLY_REASON });
+      }
+      return rels;
+    },
+    endPurge(rels) {
+      for (const rel of rels) purgingDeletes.delete(rel);
     },
     /**
      * HOW MUCH MEDIA IS NOT HERE — plan T29.

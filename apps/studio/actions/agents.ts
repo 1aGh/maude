@@ -195,6 +195,24 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/sync/settings', method: 'POST' },
     agent: human('hub-link', 'which folders the project syncs is the person’s choice'),
   },
+  // Issue #207 (7b) — the answer to a batch of local deletes held by the delete breaker. Deleting on the
+  // hub removes the files for every teammate (each held on their Mac for their own confirm), so it is
+  // the person's decision, never the AI's; keeping them on the hub is only about this Mac's copy.
+  'sync.delete-held-on-hub': {
+    effect: 'shared',
+    minRole: 'edit',
+    server: { route: '/_api/sync/held-deletes', method: 'POST' },
+    agent: human(
+      'hub-link',
+      'deleting a batch of files on the project’s hub is the person’s choice'
+    ),
+  },
+  'sync.keep-held-on-hub': {
+    effect: 'none',
+    minRole: 'edit',
+    server: { route: '/_api/sync/held-deletes', method: 'POST' },
+    agent: human('hub-link', 'which deleted files stay on the hub is the person’s choice'),
+  },
   // p8-held-conflict-status — the two versions of a held source conflict (read only): this Mac's file and
   // the project's, kept in `_history/<slug>/sync-recovery/`. `maude design sync status` lists the slugs.
   // No `server`: the action itself only opens a sheet; the read under it is Sync details' own GET.

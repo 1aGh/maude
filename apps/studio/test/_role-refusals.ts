@@ -263,6 +263,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // fix/207 #7 — Sync details › leave a folder out of sync / bring it back (`sync.ignore-folder`,
   // `sync.sync-folder-again`): they change the project's versioned sync settings, so an edit.
   { method: 'POST', route: '/_api/sync/settings', refused: ['view', 'comment'] },
+  // 2.0.7 #7b — the answer to held deletes: an edit (`readOnly: 'refused'`)
+  { method: 'POST', route: '/_api/sync/held-deletes', refused: ['view', 'comment'] },
   // S11.17 — `save.retry-held`: Retry writes the canvas files a full disk held (`readOnly: 'refused'`).
   { method: 'POST', route: '/_api/diagnostics/disk-retry', refused: ['view', 'comment'] },
   // p8-a1-save-hold — the closing page lands its held saves (canvas files): an edit
