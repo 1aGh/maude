@@ -10,6 +10,7 @@
 import { createPortal } from 'react-dom';
 import { DsIcon } from '../../canvas-ds-icons.tsx';
 import { setCanvasTheme } from '../../canvas-theme.ts';
+import { THEME_WORD, ThemeIcon } from '../../canvas-theme-icons.tsx';
 import { isEmbedCanvas } from '../../read-only-mode.ts';
 import { useBoardMode, useBoardModel } from './state.ts';
 import type { BoardMode, BoardModel } from './types.ts';
@@ -47,13 +48,16 @@ export function DsBarView({
           <button
             key={m}
             type="button"
-            className="ds-bar-b k-seg-b"
+            className="ds-bar-b ds-bar-b--ic k-seg-b"
             data-testid={`ds-bar-mode-${m}`}
             aria-pressed={mode === m}
+            aria-label={THEME_WORD[m]}
             disabled={m === 'dark' && !hasDark}
+            // 2.0.7 — icons only, like the canvas pill; the name (or what's missing) is the tooltip
+            title={m === 'dark' && !hasDark ? 'This design system has no Dark' : THEME_WORD[m]}
             onClick={() => onMode(m)}
           >
-            {m === 'light' ? 'Light' : 'Dark'}
+            <ThemeIcon mode={m} />
           </button>
         ))}
       </fieldset>

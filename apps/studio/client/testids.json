@@ -42405,7 +42405,7 @@
     "hook": "canvas-theme-note",
     "kind": "testid",
     "pattern": false,
-    "meaning": "r5-7: shown on the pill when the canvas cannot switch (\"This canvas has no Dark\") — the greyed button never sits there unexplained.",
+    "meaning": "r5-7 / 2.0.7: \"This canvas has no Dark\" (or Light), read by a screen reader only; the Light | Dark switch is two icons and the greyed one's tooltip says the same.",
     "producer": {
       "file": "apps/studio/canvas-theme-pill.tsx",
       "symbol": "CanvasThemePill"

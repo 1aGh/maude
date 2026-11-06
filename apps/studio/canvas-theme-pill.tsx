@@ -14,6 +14,7 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import { DsIcon } from './canvas-ds-icons.tsx';
 import { getCanvasThemeSystemName, setCanvasTheme, useCanvasTheme } from './canvas-theme.ts';
+import { THEME_WORD, ThemeIcon } from './canvas-theme-icons.tsx';
 
 /** The pill's chrome. Kept in step with the `.ds-bar` block of ds/board/board.css (same pill, other canvases). */
 const PILL_CSS = `
@@ -25,7 +26,8 @@ const PILL_CSS = `
 .dc-theme-pill-b{appearance:none;border:0;border-radius:calc(var(--maude-hud-radius-md,10px) - 2px);padding:4px 12px;background:transparent;color:var(--maude-chrome-fg-1);font:inherit;font-size:var(--maude-hud-type-xs,11px);cursor:pointer}
 .dc-theme-pill-b[aria-pressed="true"]{background:var(--maude-chrome-bg-2);color:var(--maude-chrome-fg-0);box-shadow:var(--maude-hud-shadow-md),inset 0 0 0 1px var(--maude-hud-accent)}
 .dc-theme-pill-b:disabled{opacity:.4;cursor:default}
-.dc-theme-pill-note{color:var(--maude-chrome-fg-1);font-size:var(--maude-hud-type-xs,11px)}
+.dc-theme-pill-b--ic{display:grid;place-items:center;padding:4px 7px}
+.dc-theme-pill-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .dc-theme-pill-path{appearance:none;border:0;border-radius:var(--maude-hud-radius-xs,4px);padding:4px 6px;margin:0;background:transparent;color:var(--maude-chrome-fg-1);font:inherit;font-size:var(--maude-hud-type-xs,11px);font-family:var(--maude-chrome-font-mono,ui-monospace,monospace);cursor:pointer;max-width:260px;overflow:hidden;text-overflow:ellipsis}
 .dc-theme-pill-path:hover{background:var(--maude-chrome-bg-3);color:var(--maude-chrome-fg-0)}
 .dc-theme-pill-path:focus-visible{outline:2px solid var(--maude-hud-focus-ring);outline-offset:1px}
@@ -145,19 +147,22 @@ export function CanvasThemePill({
             <button
               key={m}
               type="button"
-              className="dc-theme-pill-b"
+              className="dc-theme-pill-b dc-theme-pill-b--ic"
               data-testid={`canvas-theme-mode-${m}`}
               aria-pressed={mode === m}
+              aria-label={THEME_WORD[m]}
               disabled={!both && mode !== m}
-              title={!both && mode !== m ? 'This design system defines only one theme.' : undefined}
+              // 2.0.7 — icons only (Michal): the name is the tooltip; a theme the canvas lacks says so there
+              title={!both && mode !== m ? `This canvas has no ${THEME_WORD[m]}` : THEME_WORD[m]}
               onClick={() => setCanvasTheme(m)}
             >
-              {m === 'light' ? 'Light' : 'Dark'}
+              <ThemeIcon mode={m} />
             </button>
           ))}
         </fieldset>
         {!both ? (
-          <span className="dc-theme-pill-note" data-testid="canvas-theme-note">
+          // read by a screen reader only; the greyed button's tooltip says the same to everyone else
+          <span className="dc-theme-pill-sr" data-testid="canvas-theme-note">
             {`This canvas has no ${mode === 'light' ? 'Dark' : 'Light'}`}
           </span>
         ) : null}
