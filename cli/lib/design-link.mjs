@@ -47,7 +47,7 @@ export async function runLink({ args, cwd = process.cwd(), forceAdopt = false })
   }
   const tail = args.slice(args.indexOf(forceAdopt ? 'adopt' : 'link') + 1);
   const { flags, positional } = parseArgs(tail, {
-    booleans: ['adopt', 'force', 'yes', 'sync-tsx', 'no-sync-tsx'],
+    booleans: ['adopt', 'force', 'yes', 'sync-tsx', 'no-sync-tsx', 'allow-code'],
   });
   const url = positional[0];
   const token = flags.token;
@@ -196,7 +196,11 @@ export async function runLink({ args, cwd = process.cwd(), forceAdopt = false })
   // transport at all in hub-owned mode: an owner could push one through the
   // door and no peer would ever accept it. Closed harder than intended is
   // still closed wrong.
-  await askCodeModuleConsent(normUrl, { assumeYes: !!flags.yes, loopback });
+  await askCodeModuleConsent(normUrl, {
+    assumeYes: !!flags.yes,
+    loopback,
+    allowCode: !!flags['allow-code'],
+  });
 
   // DDR-228 — a link must land in ONE of the two ownership modes.
   //
@@ -254,36 +258,57 @@ export async function runUnlink({ args, cwd = process.cwd() }) {
 }
 
 /**
- * Ask, once per hub, whether it may deliver executable modules.
+ * Ask whether this hub may deliver executable modules.
  *
  * `.ts`/`.mjs` outside a canvas body are read by the AGENT and by every
  * `maude design *` helper — a different blast radius from a `.tsx` rendering
  * in the sandboxed canvas origin. Default NO on every non-answer (non-TTY,
  * declined, anything unparsed): the pessimistic branch, same as every other
  * default in this lane.
+ *
+ * fix/207 — a recorded NO no longer ends the question: an interactive re-link
+ * asks again (a recorded yes is kept without asking). Without a terminal, or
+ * with `--yes`, the answer stays no unless `--allow-code` says yes explicitly
+ * (and a recorded answer is kept). The same answer can be given in the app:
+ * Sync details › Allow shared code… (`POST /_api/sync/code-consent/set`).
  */
-async function askCodeModuleConsent(normUrl, { assumeYes = false, loopback = false } = {}) {
+export async function askCodeModuleConsent(
+  normUrl,
+  {
+    assumeYes = false,
+    loopback = false,
+    allowCode = false,
+    interactive = process.stdin.isTTY === true,
+    prompt = promptYesNo,
+    write = (s) => process.stdout.write(s),
+  } = {}
+) {
   // A loopback pairing is this machine talking to itself; there is no remote
   // party to consent about.
   if (loopback) return;
-  const existing = getHub(normUrl);
-  if (existing && typeof existing.codeModulesAllowed === 'boolean') return;
+  const recorded = getHub(normUrl)?.codeModulesAllowed;
 
-  let allow = false;
-  if (assumeYes) {
-    allow = false; // --yes accepts DEFAULTS, and this default is no.
-  } else if (process.stdin.isTTY) {
-    process.stdout.write(
+  let allow;
+  if (allowCode) {
+    allow = true; // the person typed --allow-code: an explicit yes
+  } else if (recorded === true) {
+    return; // a yes given before stays; Stop allowing… in the app takes it back
+  } else if (assumeYes || !interactive) {
+    // --yes accepts DEFAULTS, and this default is no. A recorded no stays no.
+    if (recorded === false) return;
+    allow = false;
+  } else {
+    write(
       '\n  Shared code (.ts / .mjs outside a canvas) is read by Claude and by the\n' +
         '  maude helpers on this machine, not just rendered in a preview.\n'
     );
-    allow = await promptYesNo(`  Let ${normUrl} deliver those to this machine? [y/N] `, false);
+    allow = await prompt(`  Let ${normUrl} deliver those to this machine? [y/N] `, false);
   }
-  setHubCodeModules(normUrl, allow);
-  process.stdout.write(
-    allow
+  setHubCodeModules(normUrl, allow === true);
+  write(
+    allow === true
       ? '[design link] this hub may deliver shared code modules to this machine.\n'
-      : `[design link] shared code modules from ${normUrl} will NOT be written here (design files still sync). Re-link and answer yes to change it.\n`
+      : `[design link] shared code modules from ${normUrl} will NOT be written here (design files still sync). To allow them, open Sync details in Maude and choose Allow shared code…, or re-link with --allow-code.\n`
   );
 }
 

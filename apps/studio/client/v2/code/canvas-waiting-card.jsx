@@ -5,14 +5,17 @@
 //             files) · the project's sync (Project sync: 5,029 of 5,041 files) · the names it waits
 //             for (five, then "and N more"). No button: the canvas opens by itself when they land
 //             (CanvasLoadFailure watches and reloads it).
-//   refused   "Uniformy-2027 can't open on this Mac yet." · why, in plain words; for the code consent,
-//             linking the folder again (the link asks — Settings has no per-hub consent row, and a
-//             Maude Cloud project opened from Home accepts by itself). No "Ask AI to fix it": AI can't change a
-//             sync consent, and nothing in the code is wrong.
+//   refused   "Uniformy-2027 can't open on this Mac yet." · why, in plain words; for the code consent
+//             (fix/207) the card's one button, Allow shared code…, opens the confirm sheet (a Maude
+//             Cloud project opened from Home accepts by itself). No "Ask AI to fix it": AI can't change
+//             a sync consent, and nothing in the code is wrong.
 //
 // Same card frame as the broken-canvas card (`.v2-err`); the words are canvas-waiting.js's.
 
+import { useEffect, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { readCodeConsent } from './code-consent.js';
+import { CodeConsentSheet } from './code-consent-sheet.jsx';
 import {
   BUILDING_BODY,
   baseName,
@@ -28,9 +31,59 @@ import {
 } from './canvas-waiting.js';
 import { canvasTitle } from './use-canvas-source.js';
 
-export function CanvasWaitingCard({ canvas, waiting }) {
+/** fix/207 — the card's one action for held shared code; drawn only where this Mac may answer. */
+function AllowCodeAction({ fetchImpl }) {
+  const [consent, setConsent] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [said, setSaid] = useState('');
+  useEffect(() => {
+    let live = true;
+    readCodeConsent(fetchImpl).then((c) => {
+      if (live) setConsent(c);
+    });
+    return () => {
+      live = false;
+    };
+  }, [fetchImpl]);
+  if (said)
+    return (
+      <p className="v2-err-lg" role="status" data-testid="canvas-waiting-allowed">
+        {said}
+      </p>
+    );
+  if (!consent?.changeable || consent.allowed) return null;
+  return (
+    <div className="v2-err-acts">
+      <button
+        type="button"
+        className="btn btn--primary"
+        data-action="sync.allow-code"
+        data-testid="canvas-waiting-allow-code"
+        onClick={() => setOpen(true)}
+      >
+        Allow shared code…
+      </button>
+      {open ? (
+        <CodeConsentSheet
+          mode="allow"
+          host={consent.host}
+          fetchImpl={fetchImpl}
+          onClose={() => setOpen(false)}
+          onDone={(c) => {
+            setOpen(false);
+            setConsent(c);
+            setSaid('Shared code is allowed. The canvas opens once it arrives.');
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+export function CanvasWaitingCard({ canvas, waiting, fetchImpl = globalThis.fetch }) {
   const name = canvasTitle(canvas);
   const held = !!refusedFile(waiting);
+  const codeHeld = refusedFile(waiting)?.reason === 'code-consent';
   const { need, progress } = waiting;
   const shown = waiting.files.slice(0, SHOWN_FILES);
   const more = moreCount(waiting);
@@ -54,6 +107,7 @@ export function CanvasWaitingCard({ canvas, waiting }) {
       <p className="v2-err-d" data-testid="canvas-waiting-body">
         {waitingBody(waiting)}
       </p>
+      {codeHeld ? <AllowCodeAction fetchImpl={fetchImpl} /> : null}
       {need && !held ? (
         <div className="v2-err-prog" data-testid="canvas-waiting-progress">
           <span

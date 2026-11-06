@@ -89,7 +89,8 @@ export function waitingBody(waiting) {
   const file = baseName(held.rel);
   switch (held.reason) {
     case 'code-consent':
-      return `This Mac hasn't accepted shared code from this project (${file}). Nothing is lost. To allow it, link this folder to the project again and accept shared code when asked.`;
+      // fix/207 — the card carries the answer itself (Allow shared code…), so the sentence names it
+      return `This Mac hasn't allowed shared code from this project yet (${file}). Nothing is lost. Allow shared code to open it.`;
     case 'too-large':
       return `${file} is too big to sync, so it can't reach this Mac. Nothing is lost.`;
     case 'quota':

@@ -3,8 +3,8 @@
 //
 //   waiting        "Uniformy-2027 is still downloading." · 3 of 5 files · Project sync · the names
 //                  (five, then "and N more") · no Ask AI · loads by itself when the files land
-//   refused        "Uniformy-2027 can't open on this Mac yet." · the code-consent sentence pointing at
-//                  linking the folder again (the link asks) · no Ask AI
+//   refused        "Uniformy-2027 can't open on this Mac yet." · the code-consent sentence naming
+//                  the card's Allow shared code… (fix/207, test/v2-code-consent.test.tsx) · no Ask AI
 //   build failure  "… can't be drawn right now." · the app's side, not the code · the reason class
 //                  under Show details · no Ask AI · never "No details were reported" (#189)
 //   code error     unchanged: "Its code has a mistake the canvas can't show." + Ask AI to fix it
@@ -135,7 +135,7 @@ describe('the load-failure slot', () => {
       "Uniformy-2027 can't open on this Mac yet."
     );
     expect(q('canvas-waiting-body')?.textContent).toBe(
-      "This Mac hasn't accepted shared code from this project (_uniform-template.ts). Nothing is lost. To allow it, link this folder to the project again and accept shared code when asked."
+      "This Mac hasn't allowed shared code from this project yet (_uniform-template.ts). Nothing is lost. Allow shared code to open it."
     );
     // Settings has no per-hub consent row: the card must not send anyone there
     expect(document.body.textContent).not.toContain('Settings');

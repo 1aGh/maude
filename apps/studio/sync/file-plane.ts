@@ -502,8 +502,12 @@ export interface FilePlaneOptions {
    * LOCAL state (hubs.json role / loopback pairing) — never from anything the
    * hub said. The hub gates the write side too now, but a gate on one side is
    * half a gate, so both ask.
+   *
+   * fix/207 — may be a function, read at every gate: the person can say yes (or no) in the app
+   * while sync runs (`POST /_api/sync/code-consent/set`), and the very next pass must admit the
+   * rows it held — no restart. A boolean keeps the old fixed reading.
    */
-  allowCodeModules: boolean;
+  allowCodeModules: boolean | (() => boolean);
   /**
    * Whether this peer may SEND a `code-module` the hub does not hold yet. The
    * hub's file door takes one only from an owner-role token (403 otherwise);
@@ -739,6 +743,12 @@ export interface FilePlane {
 }
 
 export function createFilePlane(opts: FilePlaneOptions): FilePlane {
+  // fix/207 — the receive consent, read live (see `FilePlaneOptions.allowCodeModules`).
+  const mayReceiveCode = (): boolean =>
+    typeof opts.allowCodeModules === 'function'
+      ? opts.allowCodeModules() === true
+      : opts.allowCodeModules === true;
+  const mayUploadCode = (): boolean => opts.canUploadCodeModules ?? mayReceiveCode();
   const fetchImpl = opts.fetchImpl ?? fetch;
   const log = opts.log ?? console;
   const now = opts.now ?? Date.now;
@@ -1801,7 +1811,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
    * spent on them. A conflict, a refusal and an unoffered reference are not "on their way".
    */
   function waitingHere(): number {
-    const uploadsCode = opts.canUploadCodeModules ?? opts.allowCodeModules;
+    const uploadsCode = mayUploadCode();
     let n = 0;
     for (const [rel, r] of Object.entries(ledger.rows())) {
       if (r.state === 'stuck' || r.state === 'pushing') n += 1;
@@ -2164,7 +2174,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       // recorded (by push, or by agreement) was all `tombstone-agreed` needed
       // to quarantine a code module on the word of a hub that may not move
       // one. Refuse it here, reported, with the file and its row untouched.
-      if (row?.deleted && here && !opts.allowCodeModules) {
+      if (row?.deleted && here && !mayReceiveCode()) {
         const cls = classifyProjectFile(rel, {
           canvasGroups: opts.canvasGroups,
           hasFile: (r) => local.has(r) || existsSync(path.join(designRoot, r)),
@@ -2201,7 +2211,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           drop(out, rel, `classifies '${cls}' here`, ledger);
           continue;
         }
-        if (cls === 'code-module' && !opts.allowCodeModules) {
+        if (cls === 'code-module' && !mayReceiveCode()) {
           // AGREEMENT IS NOT A TRANSFER. The gate refuses to move a code
           // module from an unvouched hub (DDR-054); identical bytes on both
           // sides move nothing, and reporting them as refused left a
@@ -2225,10 +2235,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           // hub moved, or there is no agreed ancestor — still never lands here.
           const ancestor = ledger.ancestorOf(rel);
           const uploadOnly =
-            here !== undefined &&
-            ancestor !== null &&
-            ancestor === remoteHash &&
-            (opts.canUploadCodeModules ?? opts.allowCodeModules);
+            here !== undefined && ancestor !== null && ancestor === remoteHash && mayUploadCode();
           if (!uploadOnly) {
             drop(
               out,
@@ -2249,7 +2256,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       // it (2026-10-02, alligators: five `ui/club-web/_*.ts`, 264 refusals,
       // passes stopped with 2 500+ paths still to do). Never ask: report it,
       // keep the file, and let the rest of the pass run.
-      if (remoteHash === null && here && !(opts.canUploadCodeModules ?? opts.allowCodeModules)) {
+      if (remoteHash === null && here && !mayUploadCode()) {
         const cls = classifyProjectFile(rel, {
           canvasGroups: opts.canvasGroups,
           hasFile: (r) => local.has(r) || existsSync(path.join(designRoot, r)),

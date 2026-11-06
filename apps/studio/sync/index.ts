@@ -67,7 +67,7 @@ import {
   resolveCanvasBodyRel,
 } from './canvas-path.ts';
 import { type CellPairing, resolveCellPairing, sanitizeForLog } from './cell-pairing.ts';
-import { codeModuleConsent } from './code-module-consent.ts';
+import { type CodeConsentControl, createCodeConsentControl } from './code-module-consent.ts';
 import {
   canvasPathFromDoc,
   clearMovedTo,
@@ -110,7 +110,7 @@ import { createFsReader, type FsReader } from './fs-mirror.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
 import { HUB_UNDO_READ_MAX_BYTES, hubTextUndoConflict } from './hub-text-undo.ts';
-import { accessFor, getHubRecord } from './hubs-config.ts';
+import { accessFor, getHubRecord, watchHubsConfig } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
 import {
   hasAnnotationsV2,
@@ -155,7 +155,11 @@ import {
   tombstonedSlugs,
 } from './remote-docs.ts';
 import { createRevisionBarrier } from './revision-barrier.ts';
-import { computeSeedProgress } from './seed-progress.ts';
+import {
+  codeConsentHeldDetail,
+  codeConsentHeldPaths,
+  computeSeedProgress,
+} from './seed-progress.ts';
 import { mergeSource } from './source-merge.ts';
 import { replaySourceOp, type SourceOp } from './source-ops.ts';
 import { createSyncStatusStore, type FilePlaneStatus, type SyncStatusStore } from './status.ts';
@@ -586,6 +590,8 @@ export interface SyncRuntime {
    * schedule. Test seam, and the hook behind a manual "check now".
    */
   pullRemoteNow(): Promise<void>;
+  /** fix/207 — this runtime's live shared-code consent (the in-app sheet's control). */
+  codeConsent?(): CodeConsentControl | null;
   /** Number of active per-canvas agents. */
   size(): number;
   /** Test inspection — get the agent for a slug if one was created. */
@@ -1290,13 +1296,17 @@ export function createSyncRuntime(
   // (2.0.4) the Maude Cloud cell the desktop app itself bound this copy to
   // (`MAUDE_APP_BOUND_HUB` + the compiled-in cell zone; never a committed
   // linkedHub, never a self-hosted hub). See sync/code-module-consent.ts.
-  const allowCodeModules =
-    codeModuleConsent({
-      cellPairing: cellPairing !== null,
-      hubUrl: linkedHub.url,
-      storedRecord,
-      env: process.env,
-    }) !== null;
+  //
+  // fix/207 — LIVE, not fixed at boot: the person can answer in the app (Sync details / the
+  // canvas-waiting card → `POST /_api/sync/code-consent/set`) or re-link in a terminal, and the
+  // next pass admits what was held (the file plane reads `allowCodeModules()` at every gate).
+  // The control re-reads the profile's hubs.json through `getHubRecord` — the same local record.
+  const codeConsent = createCodeConsentControl({
+    cellPairing: cellPairing !== null,
+    hubUrl: linkedHub.url,
+    env: process.env,
+  });
+  const allowCodeModules = (): boolean => codeConsent.allowed();
   // Same shape of consent for the OUTBOUND delete breaker: only what this
   // machine's owner recorded (`maude design bulk-deletes on`), never the hub.
   const unlimitedDeletes = storedRecord?.unlimitedDeletes === true;
@@ -1950,6 +1960,7 @@ export function createSyncRuntime(
   let pokesSeen = 0;
   /** Assigned by `start()`; the seam `pullRemoteNow()` and tests reach. */
   let remotePull: (() => Promise<void>) | null = null;
+  let codeConsentUnwatch: (() => void) | null = null;
   let documentDiscovery: ReturnType<typeof createDocumentDiscovery> | null = null;
   let documentDiscoveryUnsub: (() => void) | null = null;
   /**
@@ -5314,7 +5325,9 @@ export function createSyncRuntime(
       // Issue #204 — rows this Mac refuses are HELD, not waiting: they never move on their own, so
       // the line says how many and why instead of "N waiting" every 20 s forever.
       const held = p.held ?? 0;
-      if (held > 0) bits.push(`${held} held: shared code not accepted on this Mac`);
+      // fix/207 — `held` counts both consent holds (shared code, deletions kept here); the words
+      // name no choice the person cannot make — Sync details carries the one that exists.
+      if (held > 0) bits.push(`${held} held on this Mac (see Sync details)`);
       if (r.backedOff) bits.push(`${r.backedOff} backing off`);
       if (r.storageMisses) bits.push(`${r.storageMisses} still coming from cloud storage`);
       // NOTHING MOVING ⇒ SAY IT ONCE. A converged or only-held/blocked project prints its line when
@@ -5428,6 +5441,18 @@ export function createSyncRuntime(
       // target user never opens a terminal — so a control whose only output
       // is a log line is a control nobody can act on.
       const held = filePlaneHeld(result);
+      // fix/207 — what THIS Mac holds by its own answer, with the one place to change it (Sync
+      // details' "Allow shared code…"). Not while allowed: the next pass is already bringing them.
+      if (!allowCodeModules()) {
+        const codeHeld = codeConsentHeldPaths(fileLedger?.rows() ?? {});
+        if (codeHeld.length > 0)
+          held.push({
+            kind: 'code-consent',
+            count: codeHeld.length,
+            paths: codeHeld.slice(0, 200),
+            detail: codeConsentHeldDetail(codeHeld.length),
+          });
+      }
       // THE DENOMINATOR, from the LEDGER — not from this pass.
       //
       // `fileTotals` below is derived from per-pass results, and a pass that
@@ -5552,7 +5577,7 @@ export function createSyncRuntime(
           hubUrl: linkedHub.url,
           token: () => token,
           canvasGroups: ctx.cfg.canvasGroups,
-          allowCodeModules,
+          allowCodeModules: allowCodeModules(),
           failures: legacyPullFailures,
         }).then((result) => {
           if (!stopped) noteFilePull(result);
@@ -5584,6 +5609,13 @@ export function createSyncRuntime(
       await discovery.flush();
       await pullFilesOnce();
     };
+    // fix/207 — an answer written by ANOTHER writer (a terminal re-link, a second window) is taken
+    // the same way as the in-app one: re-read, and a changed answer runs a pass at once.
+    if (!cellPairing) {
+      codeConsentUnwatch = watchHubsConfig(() => {
+        if (codeConsent.refresh() && !stopped) void remotePull?.().catch(() => {});
+      });
+    }
     remotePollTimer = setInterval(pollRemote, REMOTE_POLL_MS);
     // `setInterval` keeps a Bun process alive; a poll is not a reason for the
     // dev server to refuse to exit.
@@ -6129,6 +6161,8 @@ export function createSyncRuntime(
     documentDiscoveryUnsub?.();
     documentDiscoveryUnsub = null;
     projectConfigUnsub?.();
+    codeConsentUnwatch?.();
+    codeConsentUnwatch = null;
     documentDiscovery?.stop();
     documentDiscovery = null;
     remotePull = null;
@@ -6273,6 +6307,7 @@ export function createSyncRuntime(
       }),
     rescanNow: () => discoveryRescan?.flush() ?? Promise.resolve(),
     pullRemoteNow: () => remotePull?.() ?? Promise.resolve(),
+    codeConsent: () => codeConsent,
     // Under sharedDoc the per-canvas handler is a projection, not an agent;
     // count both so size() reflects the synced-canvas count in either mode.
     size: () => agents.size + projections.size,

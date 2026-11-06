@@ -111,6 +111,31 @@ export function isHeldByConsent(row: LedgerRow): boolean {
   );
 }
 
+/**
+ * fix/207 — the paths THIS Mac holds because it has not allowed shared code from the hub: the rows
+ * behind Sync details' "Allow shared code…" (a `code-consent` held row). Sorted, so the panel's list
+ * is stable between passes.
+ */
+export function codeConsentHeldPaths(rows: Readonly<Record<string, LedgerRow>>): string[] {
+  const out: string[] = [];
+  for (const [rel, row] of Object.entries(rows))
+    if (row.state === 'stuck' && row.reason === CODE_MODULE_HELD_REASON) out.push(rel);
+  return out.sort();
+}
+
+/**
+ * fix/207 — Sync details' sentence for that row (CONTRACT §4: what happened · what is safe · one
+ * verb). The verb is the row's button, Allow shared code… — the only place the answer changes in
+ * the app (the summary used to read "shared code not accepted on this Mac", a choice nobody could
+ * make there).
+ */
+export function codeConsentHeldDetail(count: number): string {
+  const n = count.toLocaleString('en-US');
+  return count === 1
+    ? '1 file of shared code from this project is waiting: shared code reaches this Mac only once you allow it. Nothing is lost. Allow shared code to bring it here.'
+    : `${n} files of shared code from this project are waiting: shared code reaches this Mac only once you allow it. Nothing is lost. Allow shared code to bring them here.`;
+}
+
 /** States that will not move again without something changing. */
 const BLOCKED: ReadonlySet<DeliveryState> = new Set<DeliveryState>([
   'refused',

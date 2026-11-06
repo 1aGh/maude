@@ -24,7 +24,12 @@ import {
   type PullPacer,
 } from '../sync/pull-pacer.ts';
 import { activeCanvasWants } from '../sync/pull-priority.ts';
-import { CODE_MODULE_HELD_REASON, computeSeedProgress } from '../sync/seed-progress.ts';
+import {
+  CODE_MODULE_HELD_REASON,
+  codeConsentHeldDetail,
+  codeConsentHeldPaths,
+  computeSeedProgress,
+} from '../sync/seed-progress.ts';
 
 const HUB = 'https://hub.test';
 const T0 = 1_700_000_000_000;
@@ -453,6 +458,39 @@ describe('held rows are not waiting', () => {
     expect(progress.delivered).toBe(3);
     expect(progress.held).toBe(1);
     expect(progress.remaining).toBe(0);
+  });
+
+  test('fix/207 — consent given while running admits the held code module on the next pass', async () => {
+    const files = { ...media(2), 'ui/shared/helper.ts': 'export const x = 1;\n' };
+    const h = hub(files, {
+      cls: (rel) => (rel.endsWith('.ts') ? 'code-module' : 'inert-media'),
+    });
+    let consent = false;
+    const p = plane(h, { allowCodeModules: () => consent });
+    await p.reconcile();
+    expect(ledger.row('ui/shared/helper.ts')?.reason).toBe(CODE_MODULE_HELD_REASON);
+    expect(existsSync(join(root, 'ui/shared/helper.ts'))).toBe(false);
+
+    // The person says yes in the app — the SAME plane, no restart.
+    consent = true;
+    const r = await p.reconcile();
+    expect(r.pulled).toContain('ui/shared/helper.ts');
+    expect(existsSync(join(root, 'ui/shared/helper.ts'))).toBe(true);
+    expect(computeSeedProgress({ rows: ledger.rows(), now: T0 }).held).toBe(0);
+  });
+
+  test('fix/207 — the Sync details row lists exactly the consent-held code and names its one verb', () => {
+    const rows = {
+      'ui/b.ts': { syncedHash: null, state: 'stuck' as const, reason: CODE_MODULE_HELD_REASON },
+      'ui/a.ts': { syncedHash: null, state: 'stuck' as const, reason: CODE_MODULE_HELD_REASON },
+      'ui/c.ts': { syncedHash: null, state: 'stuck' as const, reason: 'HTTP 500' },
+      'ui/d.ts': { syncedHash: 'x', state: 'on-hub' as const },
+    };
+    expect(codeConsentHeldPaths(rows)).toEqual(['ui/a.ts', 'ui/b.ts']);
+    expect(codeConsentHeldDetail(1783)).toContain('1,783 files of shared code');
+    expect(codeConsentHeldDetail(1783)).toContain('Allow shared code');
+    expect(codeConsentHeldDetail(1)).toContain('1 file of shared code');
+    expect(codeConsentHeldDetail(2)).not.toMatch(/not accepted|re-link/);
   });
 
   test('any other stuck row is still waiting', () => {

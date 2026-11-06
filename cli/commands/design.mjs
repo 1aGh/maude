@@ -596,14 +596,17 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
         includeBleed=true|false. ZIP filters are lists: include=system,assets
         (system canvases assets meta) and exclude=<glob>,<glob>.
 
-  link <url> --token <hex> [--adopt] [--force]
+  link <url> --token <hex> [--adopt] [--force] [--allow-code]
         Pair this clone with a Maude hub. Writes .design/config.json's
         linkedHub field (committed) plus the per-machine token to
         ~/.config/maude/hubs.json (NEVER committed). --adopt signals to the
         sync agent (Phase 9 Task 4) to push local state up unconditionally on
         first connect — use it when bootstrapping a hub from a populated repo.
         --force skips the /health reachability probe (e.g. behind a firewall
-        + trusted URL).
+        + trusted URL). --allow-code lets the hub deliver shared code
+        (.ts/.js) to this machine; without it a terminal asks, and --yes or
+        no terminal answers no (change it in Maude: Sync details › Allow
+        shared code…).
 
   adopt <url> --token <hex>
         Alias of 'link --adopt'. Shipped as a discoverable subcommand so
