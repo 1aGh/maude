@@ -19,6 +19,17 @@
  *             Captures render EVERYTHING: the mode is `off` for every headless/export render (top-level
  *             page, `?hide-chrome=1`, `?thumb-only=`), and the in-frame export (`export-capture`) wakes
  *             every artboard for the length of the capture (`forceAll`).
+ *
+ *             2.0.7 — the mount RING (Michal: "what is in the viewport is right, what is far away is released").
+ *             In `sleep` an artboard's children mount when it comes into the prefetch ring (`NEAR_MARGIN`) and
+ *             are RELEASED again once it has been outside the larger keep ring (`KEEP_MARGIN` — the hysteresis)
+ *             for `RELEASE_AFTER_MS`, so a long canvas never holds every artboard's DOM at once (a 45k-node
+ *             canvas froze WebKit for seconds per frame even with three artboards on screen). Mounting is
+ *             bounded by a DOM budget (`MOUNT_NODE_BUDGET`, measured per artboard): on-screen artboards first,
+ *             nearest the centre first, then the prefetch ring; one that does not fit stays a same-size
+ *             placeholder. Mounting goes on DURING a gesture (on-screen artboards only, one per frame; the React
+ *             side renders it as an interruptible transition), so a pan never waits for the canvas to load.
+ *             Live wakes (WebGL, video) still wait for the settle.
  */
 
 import { LOD_ZOOM } from './annotations/ui/lod.tsx';
@@ -33,6 +44,24 @@ export const WEBGL_LIVE_CAP = 8;
 export const NEAR_MARGIN = '50%';
 /** How many artboards wake (or first mount) per animation frame. */
 export const WAKE_PER_FRAME = 3;
+/** The keep ring: a mounted artboard stays mounted while it is this near (hysteresis over `NEAR_MARGIN`). */
+export const KEEP_MARGIN = '150%';
+/** How long an artboard must have been outside the keep ring before its children are released (ms). */
+export const RELEASE_AFTER_MS = 2500;
+/** The DOM budget of one canvas document: mounted artboards' element count stays about this (2.0.7). */
+export const MOUNT_NODE_BUDGET = 12000;
+/** The weight (elements) of an artboard nobody has measured yet, until one of the canvas has been. */
+export const DEFAULT_WEIGHT = 400;
+/** After a frame longer than this (ms) the next frame mounts one artboard, not `WAKE_PER_FRAME`. */
+export const SLOW_FRAME_MS = 34;
+/** Mid-gesture, at most one first mount per this many ms (a WebKit mount lays out and paints at once). */
+export const GESTURE_MOUNT_GAP_MS = 350;
+/**
+ * More artboards than this on screen and WebKit drops their per-artboard compositing layers: it rasterizes each
+ * layer at full size whatever the world's scale (40 on screen at 8 % = seconds per frame). An 18-board
+ * moodboard keeps them (they are why its fit-all zoom is smooth — RCA issue-canvas-pan-zoom-jank-large-moodboard).
+ */
+export const LAYER_MAX_VISIBLE = 24;
 
 /**
  * `off`   — every artboard live, every child mounted (captures, exports, headless, tests): the pre-2.0.5 behaviour.
@@ -83,6 +112,16 @@ export interface ArtboardLiveState {
 interface Slot {
   near: boolean;
   visible: boolean;
+  /** Inside the keep ring (starts true: an artboard nobody has reported on is not far). */
+  keep: boolean;
+  /** When it left the keep ring (ms), or 0. */
+  farSince: number;
+  /** Distance of its centre to the viewport centre (px, the near observer's last word). */
+  dist: number;
+  /** Measured element count of its mounted children, or 0. */
+  weight: number;
+  /** Never released (the active artboard — a selection or an edit lives in its DOM). */
+  pinned: boolean;
   admitted: boolean;
   live: boolean;
   /** The last state handed out — one object per change, so React's external store sees a stable snapshot. */
@@ -109,10 +148,24 @@ export class LiveRegistry {
   private scheduled = false;
   private readonly schedule: (fn: () => void) => void;
   private listeners = new Set<() => void>();
+  private readonly now: () => number;
+  private readonly later: (fn: () => void, ms: number) => void;
+  private sweepAt = 0;
+  private lastDrainAt = 0;
+  private lastGestureMountAt = Number.NEGATIVE_INFINITY;
+  readonly budget: number;
 
-  constructor(mode: LiveMode, schedule: (fn: () => void) => void) {
+  constructor(
+    mode: LiveMode,
+    schedule: (fn: () => void) => void,
+    opts: { now?: () => number; later?: (fn: () => void, ms: number) => void; budget?: number } = {}
+  ) {
     this.mode = mode;
     this.schedule = schedule;
+    this.now =
+      opts.now ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
+    this.later = opts.later ?? ((fn, ms) => void setTimeout(fn, ms));
+    this.budget = opts.budget ?? MOUNT_NODE_BUDGET;
   }
 
   get(id: string): ArtboardLiveState {
@@ -130,6 +183,14 @@ export class LiveRegistry {
     return () => this.listeners.delete(fn);
   }
 
+  private settleListeners = new Set<() => void>();
+
+  /** A gesture settled. */
+  onSettle(fn: () => void): () => void {
+    this.settleListeners.add(fn);
+    return () => this.settleListeners.delete(fn);
+  }
+
   subscribe(id: string, fn: (s: ArtboardLiveState) => void): () => void {
     const s = this.slot(id);
     s.subs.add(fn);
@@ -143,11 +204,87 @@ export class LiveRegistry {
     };
   }
 
-  setNear(id: string, near: boolean): void {
+  setNear(id: string, near: boolean, dist?: number): void {
     const s = this.slot(id);
+    if (dist !== undefined && Number.isFinite(dist)) s.dist = dist;
     if (s.near === near) return;
     s.near = near;
+    // near is inside the keep ring by definition (the two observers can report in either order)
+    if (near) this.setKeepState(s, true);
     this.recompute();
+  }
+
+  /** The keep ring (`KEEP_MARGIN`): outside it for `RELEASE_AFTER_MS`, a mounted artboard is released. */
+  setKeep(id: string, keep: boolean): void {
+    const s = this.slot(id);
+    const k = keep || s.near;
+    if (s.keep === k) return;
+    this.setKeepState(s, k);
+    this.recompute();
+  }
+
+  /** The active artboard is never released nor pushed out of the budget (its selection lives in its DOM). */
+  setPinned(id: string, pinned: boolean): void {
+    const s = this.slot(id);
+    if (s.pinned === pinned) return;
+    s.pinned = pinned;
+    this.recompute();
+  }
+
+  /** The element count an artboard's children came to once mounted (the DOM budget's unit). */
+  setWeight(id: string, nodes: number): void {
+    const s = this.slots.get(id);
+    if (!s || !Number.isFinite(nodes) || nodes < 0) return;
+    s.weight = Math.max(1, Math.round(nodes));
+  }
+
+  /** Elements mounted now (measured, or estimated for one not measured yet). */
+  mountedWeight(): number {
+    let n = 0;
+    for (const s of this.slots.values()) if (s.admitted) n += this.weightOf(s);
+    return n;
+  }
+
+  /** How many artboards have their children mounted now. */
+  mountedCount(): number {
+    let n = 0;
+    for (const s of this.slots.values()) if (s.admitted) n += 1;
+    return n;
+  }
+
+  private weightOf(s: Slot): number {
+    if (s.weight) return s.weight;
+    let sum = 0;
+    let k = 0;
+    for (const o of this.slots.values())
+      if (o.weight) {
+        sum += o.weight;
+        k += 1;
+      }
+    return k ? sum / k : DEFAULT_WEIGHT;
+  }
+
+  private setKeepState(s: Slot, keep: boolean): void {
+    if (s.keep === keep) return;
+    s.keep = keep;
+    s.farSince = keep ? 0 : this.now();
+    if (!keep) this.sweepLater(RELEASE_AFTER_MS);
+  }
+
+  private sweepLater(ms: number): void {
+    const at = this.now() + ms;
+    if (this.sweepAt && this.sweepAt <= at) return;
+    this.sweepAt = at;
+    this.later(() => {
+      this.sweepAt = 0;
+      this.recompute();
+      // the ones whose grace has not run out yet (they left later) get their own sweep
+      let next = Number.POSITIVE_INFINITY;
+      for (const s of this.slots.values())
+        if (s.admitted && !s.keep && s.farSince)
+          next = Math.min(next, s.farSince + RELEASE_AFTER_MS);
+      if (Number.isFinite(next)) this.sweepLater(Math.max(16, next - this.now()));
+    }, ms);
   }
 
   setVisible(id: string, visible: boolean): void {
@@ -166,7 +303,11 @@ export class LiveRegistry {
   setInteracting(on: boolean): void {
     if (on === this.interacting) return;
     this.interacting = on;
-    if (!on) this.kick();
+    // the settle wakes what waited, and lets the releases that waited for it happen
+    if (!on) {
+      this.recompute();
+      for (const fn of this.settleListeners) fn();
+    } else this.kick(); // on-screen artboards keep mounting during the gesture
   }
 
   /** A capture is running: everything live, NOW (no queue). Returns the release. */
@@ -182,6 +323,21 @@ export class LiveRegistry {
     };
   }
 
+  /** The canvas is in its overview right now (zoomed out, or too many artboards on screen). */
+  overview(): boolean {
+    return this.mode !== 'off' && inOverview(this.zoom, this.visibleCount());
+  }
+
+  /** So many artboards on screen that a compositing layer each costs more than it saves (WebKit, 2.0.7). */
+  crowded(): boolean {
+    return this.mode !== 'off' && this.visibleCount() > LAYER_MAX_VISIBLE;
+  }
+
+  /** A gesture is in flight (the gate defers its picture-taking past it). */
+  isInteracting(): boolean {
+    return this.interacting;
+  }
+
   visibleCount(): number {
     let n = 0;
     for (const s of this.slots.values()) if (s.visible) n += 1;
@@ -194,6 +350,11 @@ export class LiveRegistry {
       s = {
         near: false,
         visible: false,
+        keep: true,
+        farSince: 0,
+        dist: Number.POSITIVE_INFINITY,
+        weight: 0,
+        pinned: false,
         admitted: false,
         live: false,
         view: ASLEEP,
@@ -214,9 +375,31 @@ export class LiveRegistry {
     });
     // `sleep` mounts what came near and keeps it. `light` (after a crash) mounts only what is LIVE — near and
     // not in the overview — so a zoomed-out view of 60 scenes mounts none of them, and unmounts what leaves.
+    // `sleep` (2.0.7): wanted while in the prefetch ring or on screen, KEPT while inside the keep ring, and
+    // released only after `RELEASE_AFTER_MS` outside it (the sweep). Whether a first mount fits the DOM budget
+    // is the queue's call (drain).
     const admitted =
-      this.mode === 'light' ? live : force || s.near || (this.mode === 'sleep' && s.admitted);
+      this.mode === 'light'
+        ? live
+        : force ||
+          s.near ||
+          s.visible ||
+          (this.mode === 'sleep' && s.admitted && !this.releasable(s));
     return { live, admitted };
+  }
+
+  /** Mounted, outside the keep ring for long enough, not on screen, and no gesture in flight. */
+  private releasable(s: Slot): boolean {
+    return (
+      s.admitted &&
+      !s.pinned &&
+      !s.keep &&
+      !s.visible &&
+      !s.near &&
+      s.farSince > 0 &&
+      this.now() - s.farSince >= RELEASE_AFTER_MS &&
+      !this.interacting
+    );
   }
 
   private recompute(): void {
@@ -258,7 +441,8 @@ export class LiveRegistry {
   }
 
   private kick(): void {
-    if (this.scheduled || this.pending.size === 0 || this.interacting) return;
+    if (this.scheduled || this.pending.size === 0) return;
+    if (this.interacting && !this.hasVisibleMount()) return;
     this.scheduled = true;
     this.schedule(() => {
       this.scheduled = false;
@@ -266,26 +450,92 @@ export class LiveRegistry {
     });
   }
 
-  /** One frame's worth of wakes. Exposed for tests (the browser drains on rAF). */
+  private hasVisibleMount(): boolean {
+    for (const id of this.pending) {
+      const s = this.slots.get(id);
+      if (s?.visible && !s.admitted && this.target(s).admitted) return true;
+    }
+    return false;
+  }
+
+  /**
+   * One frame's worth of wakes and first mounts. Exposed for tests (the browser drains on rAF).
+   *
+   * Order: on screen before the prefetch ring, nearest the viewport centre first. A first mount must fit the
+   * DOM budget; an on-screen one may push out mounted artboards that are not on screen (outside the prefetch
+   * ring first, the farthest first); a prefetch never pushes anything out. During a gesture only on-screen
+   * artboards mount (asleep), one per frame, and nothing wakes. After a slow frame, one per frame.
+   */
   drain(): void {
-    if (this.interacting) return;
+    const t = this.now();
+    const slow = this.lastDrainAt > 0 && t - this.lastDrainAt > SLOW_FRAME_MS;
+    this.lastDrainAt = t;
+    // mid-gesture: one first mount, after a fast frame, and not sooner than GESTURE_MOUNT_GAP_MS after the last
+    const gestureHold =
+      this.interacting && (slow || t - this.lastGestureMountAt < GESTURE_MOUNT_GAP_MS);
+    const cap = gestureHold ? 0 : this.interacting || slow ? 1 : WAKE_PER_FRAME;
+    const order: Array<{ id: string; s: Slot }> = [];
+    for (const id of this.pending) {
+      const s = this.slots.get(id);
+      if (s) order.push({ id, s });
+      else this.pending.delete(id);
+    }
+    order.sort((a, b) => Number(b.s.visible) - Number(a.s.visible) || a.s.dist - b.s.dist);
     let n = 0;
     let changed = false;
-    for (const id of [...this.pending]) {
-      if (n >= WAKE_PER_FRAME) break;
-      this.pending.delete(id);
-      const s = this.slots.get(id);
-      if (!s) continue;
-      const t = this.target(s);
-      if (t.live === s.live && t.admitted === s.admitted) continue;
-      s.live = t.live;
-      s.admitted = t.admitted;
+    let mounted = this.mountedWeight();
+    for (const { id, s } of order) {
+      if (n >= cap) break;
+      const tg = this.target(s);
+      if (tg.live === s.live && tg.admitted === s.admitted) {
+        this.pending.delete(id);
+        continue;
+      }
+      const mounts = tg.admitted && !s.admitted;
+      if (this.interacting && !(mounts && s.visible)) continue; // waits for the settle
+      if (mounts && this.forceAll === 0 && this.mode === 'sleep') {
+        const w = this.weightOf(s);
+        if (mounted > 0 && mounted + w > this.budget) {
+          if (s.visible) {
+            const freed = this.evictFor(mounted + w - this.budget);
+            if (freed) changed = true;
+            mounted -= freed;
+          }
+          if (mounted > 0 && mounted + w > this.budget) continue; // a placeholder until there is room
+        }
+        mounted += w;
+      }
+      s.admitted = tg.admitted;
+      if (this.interacting) {
+        // a first mount mid-gesture comes up asleep; its wake waits for the settle
+        s.live = false;
+        this.lastGestureMountAt = t;
+      } else {
+        s.live = tg.live;
+        this.pending.delete(id);
+      }
       this.notify(id, s);
       changed = true;
       n += 1;
     }
     if (changed) this.emit();
     this.kick();
+  }
+
+  /** Release mounted artboards that are not on screen to free `need` elements; returns what it freed. */
+  private evictFor(need: number): number {
+    const victims = [...this.slots.values()]
+      .filter((v) => v.admitted && !v.visible && !v.pinned)
+      .sort((a, b) => Number(a.near) - Number(b.near) || b.dist - a.dist);
+    let freed = 0;
+    for (const v of victims) {
+      if (freed >= need) break;
+      freed += this.weightOf(v);
+      v.admitted = false;
+      v.live = false;
+      this.notify('', v);
+    }
+    return freed;
   }
 
   private notify(_id: string, s: Slot): void {
