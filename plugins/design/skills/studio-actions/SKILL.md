@@ -440,7 +440,6 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Copy properties | `edit.copy-properties` | view-pref — the clipboard is the user’s; read the source instead |
 | Copy transcript | `chat.copy-transcript` | ai-chat |
 | Cut | `edit.cut` | view-pref — the clipboard is the user’s; remove the content from the source instead |
-| Delete on the hub too… | `sync.delete-held-on-hub` | hub-link — deleting a batch of files on the project’s hub is the person’s choice |
 | Discard changes to a file | `history.discard-file` | git — an agent runs git itself in the project folder: git restore <file> |
 | Disconnect this folder from its server… | `connections.cloud-project-disconnect` | hub-link — unlinks this folder and forgets its stored sign-in |
 | Don’t sync this folder | `sync.ignore-folder` | hub-link — which folders the project syncs is the person’s choice |
@@ -486,6 +485,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Model | `chat.advanced.model` | ai-chat |
 | Move between the panels and the canvas | `ui.cycle-region` | view-pref — where the keyboard is in the window |
 | Move to Maude Cloud… | `share.move-to-cloud` | billing — moves the project to the person’s billed Maude Cloud account |
+| Move to the hub’s trash too… | `sync.delete-held-on-hub` | hub-link — deleting a batch of files on the project’s hub is the person’s choice |
 | Move to trash | `chat.trash` | ai-chat |
 | New branch… | `history.new-branch` | git — an agent runs git itself in the project folder: git switch -c <branch> |
 | New chat | `chat.new` | ai-chat |

@@ -52,7 +52,7 @@ export const SYNC_ACTIONS: ActionDef[] = [
   pick('sync.sync-folder-again', 'Sync it again'),
   // Issue #207 (7b) — Sync details › Deleted on this Mac, held: send the held deletes to the hub as
   // one confirmed batch, or keep the files on the hub (`POST /_api/sync/held-deletes { answer }`).
-  pick('sync.delete-held-on-hub', 'Delete on the hub too…'),
+  pick('sync.delete-held-on-hub', 'Move to the hub’s trash too…'),
   pick('sync.keep-held-on-hub', 'Keep on the hub'),
   // Get latest (moved here from Version history) and Sign in again: every role keeps them
   { id: 'sync.get-latest', label: 'Get latest', kind: 'command', exec: 'shell', search: ROW },

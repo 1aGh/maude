@@ -6355,7 +6355,7 @@
     },
     {
       "id": "sync.delete-held-on-hub",
-      "label": "Delete on the hub too…",
+      "label": "Move to the hub’s trash too…",
       "kind": "command",
       "exec": "shell",
       "effect": "shared",

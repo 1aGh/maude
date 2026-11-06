@@ -3655,7 +3655,7 @@
     "hook": "sync-deletes-held-delete",
     "kind": "testid",
     "pattern": false,
-    "meaning": "“Delete on the hub too…” (`sync.delete-held-on-hub`) — opens the confirm.",
+    "meaning": "“Move to the hub’s trash too…” (`sync.delete-held-on-hub`) — opens the confirm.",
     "producer": {
       "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
       "symbol": "HeldDeletesCard"
@@ -3687,7 +3687,7 @@
     "hook": "sync-deletes-held-confirming",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The confirm: “Delete N files on the hub?” with Delete on the hub · Cancel.",
+    "meaning": "The confirm: “Move N files to the hub’s trash?” with Move to the hub’s trash · Cancel.",
     "producer": {
       "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
       "symbol": "HeldDeletesCard"
@@ -3703,7 +3703,7 @@
     "hook": "sync-deletes-held-confirm",
     "kind": "testid",
     "pattern": false,
-    "meaning": "“Delete on the hub” — sends the held deletes as one confirmed batch (`POST /_api/sync/held-deletes`).",
+    "meaning": "“Move to the hub’s trash” — sends the held deletes as one confirmed batch (`POST /_api/sync/held-deletes`).",
     "producer": {
       "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
       "symbol": "HeldDeletesCard"

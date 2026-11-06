@@ -1,5 +1,5 @@
 // Issue #207 (7b) — Sync details: "Deleted on this Mac, held" is its own card naming the folders and
-// the count, with Delete on the hub too… (asked once more) and Keep on the hub; files kept on the hub
+// the count, with Move to the hub’s trash too… (asked once more) and Keep on the hub; files kept on the hub
 // are listed as "on the hub only"; files deleted on both sides are not "only on this Mac".
 import { afterAll, afterEach, beforeAll, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
@@ -89,13 +89,13 @@ test('held local deletes are a Needs you card with the folder and the count — 
   expect(q('sync-deletes-held-keep')?.dataset.action).toBe('sync.keep-held-on-hub');
 });
 
-test('Delete on the hub too… asks once more, then sends one confirmed batch', async () => {
+test('Move to the hub’s trash too… asks once more, then sends one confirmed batch', async () => {
   const { f, calls } = fakeFetch({ ok: true, how: 'purge', count: 6555 });
   await mount({ status: status({ held: heldRow() }), fetchImpl: f });
   await click('sync-deletes-held-delete');
   expect(calls).toEqual([]);
   expect(q('sync-deletes-held-confirming')?.textContent).toContain(
-    'Delete 6,555 files on the hub? They move to the hub’s trash'
+    'Move 6,555 files to the hub’s trash?'
   );
   await click('sync-deletes-held-cancel');
   expect(calls).toEqual([]);

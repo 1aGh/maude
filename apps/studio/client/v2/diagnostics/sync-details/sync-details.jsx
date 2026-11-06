@@ -258,8 +258,7 @@ function HeldDeletesCard({ need, fetchImpl }) {
       {done ? null : confirming ? (
         <div className="sd-acts" data-testid="sync-deletes-held-confirming">
           <span className="sd-cd">
-            Delete {filesWord(n)} on the hub? They move to the hub’s trash, and each teammate
-            confirms on their own Mac.
+            Move {filesWord(n)} to the hub’s trash? Each teammate confirms on their own Mac.
           </span>
           <button
             type="button"
@@ -268,7 +267,7 @@ function HeldDeletesCard({ need, fetchImpl }) {
             disabled={busy}
             onClick={() => answer('delete')}
           >
-            Delete on the hub
+            Move to the hub’s trash
           </button>
           <button
             type="button"
@@ -290,7 +289,7 @@ function HeldDeletesCard({ need, fetchImpl }) {
             disabled={busy}
             onClick={() => setConfirming(true)}
           >
-            Delete on the hub too…
+            Move to the hub’s trash too…
           </button>
           <button
             type="button"
