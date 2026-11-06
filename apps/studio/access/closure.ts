@@ -21,7 +21,13 @@ import path, { dirname, resolve, sep } from 'node:path';
 import { canvasArtifacts } from '../canvas-artifacts.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { Paths } from '../context.ts';
-import { dsDepsFor, importsDs, importsDsBoard, specimenRels } from '../ds/ds-resolver.ts';
+import {
+  dsDepsFor,
+  folderSystemOf,
+  importsDs,
+  importsDsBoard,
+  specimenRels,
+} from '../ds/ds-resolver.ts';
 import {
   CANVAS_LIB_SPEC,
   CARRIES_ALL,
@@ -431,13 +437,24 @@ function readJsonObject(project: ProjectReader, rel: string): Record<string, unk
 }
 
 /** The system a canvas renders under — the same chain as `ds-resolver.ts` `canvasSystemFor`
- *  (owner by path → meta `designSystem` → `defaultDesignSystem` → first), read through the
- *  ProjectReader instead of the disk. */
-function canvasSystem(project: ProjectReader, canvas: string, cfg: ClosureConfig): DsSystem | null {
+ *  (owner by path → 2.0.7 owner by its own folder → meta `designSystem` → `defaultDesignSystem` →
+ *  first), read through the ProjectReader instead of the disk. */
+function canvasSystem(
+  project: ProjectReader,
+  canvas: string,
+  cfg: ClosureConfig,
+  files?: ReadonlySet<string>
+): DsSystem | null {
   const systems = cfg.designSystems;
-  if (!systems.length) return null;
   const owner = systems.find((s) => canvas.startsWith(`${s.path}/`));
   if (owner) return owner;
+  // 2.0.7 — a system folder the config does not list (a cell's config.json never syncs) still owns
+  // its own canvases: its board draws its own specimens, never the default system's.
+  const folder = folderSystemOf(canvas, systems, (r) =>
+    files ? files.has(r) : project.text(r) !== null
+  );
+  if (folder) return folder;
+  if (!systems.length) return null;
   const declared = readJsonObject(
     project,
     canvas.replace(/\.(tsx|html)$/i, '.meta.json')
@@ -836,7 +853,7 @@ function walkImports(
   };
   // The transitive relative import graph, from the canvas (and the DS override it pulls in).
   const queue: string[] = [canvas];
-  const sys = canvasSystem(env.project, canvas, env.cfg);
+  const sys = canvasSystem(env.project, canvas, env.cfg, env.files);
   const canvasText = env.textOf(canvas);
   if (sys && canvasText !== null && importsDs(canvasText))
     queue.push(`${sys.path}/preview/_ds.tsx`);
@@ -980,7 +997,7 @@ function compute(
       if (DYNAMIC_RES.some((re) => re.test(text))) dynamic.add(canvas);
       for (const a of existingAssetRefs(text)) closureAssets.add(a);
     }
-    const sys = canvasSystem(project, canvas, cfg);
+    const sys = canvasSystem(project, canvas, cfg, files);
     // Static asset references in the canvas's own sidecars (meta, board).
     for (const rel of ownedOf(canvas, twins)) {
       if (rel === canvas || !TEXT_SCAN_RE.test(rel)) continue;

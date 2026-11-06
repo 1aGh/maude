@@ -371,7 +371,19 @@ export function canvasUrl(p, cfg, opts) {
   // against. Unknown DS (single-DS / legacy / default-DS canvas) → `ds0`, which
   // keeps the historical behavior byte-for-byte. DDR-093.
   const uiDsName = !specMatch ? (opts?.ds ?? cfg?.canvasDesignSystems?.[p]) : null;
-  const uiDsEntry = uiDsName ? cfg?.designSystems?.find((d) => d.name === uiDsName) : null;
+  // 2.0.7 — a system the config does not list (a cell's config.json never syncs) still owns the
+  // canvases in its own folder: the server names it (`ds-resolver` `folderSystemOf`), and only a
+  // canvas inside `system/<that name>/` gets that folder's files — a name never invents a path.
+  const uiDsEntry = uiDsName
+    ? (cfg?.designSystems?.find((d) => d.name === uiDsName) ??
+      (rel.startsWith(`system/${uiDsName}/`) && !/^[._]/.test(uiDsName)
+        ? {
+            name: uiDsName,
+            path: `system/${uiDsName}`,
+            tokensCssRel: `system/${uiDsName}/colors_and_type.css`,
+          }
+        : null))
+    : null;
   const uiDs = uiDsEntry || ds0;
   // Resolve tokens path. For a specimen, prefer the matching DS's tokensCssRel
   // (fall back to the `system/<ds>/colors_and_type.css` convention). Otherwise

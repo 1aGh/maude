@@ -64,6 +64,7 @@ import {
   type OpResult,
 } from './comments/ops.ts';
 import { trashFolderDsCanvas } from './ds/convert.ts';
+import { folderSystemOf } from './ds/ds-resolver.ts';
 import { DS_CANVAS } from './ds/engine.ts';
 import { readHead } from './ds/head.ts';
 import { dsRenderIndex } from './ds/render-rev.ts';
@@ -7940,7 +7941,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const owner = (cfg.designSystems ?? []).find(
         (d) => d.path === `system/${folder}` || d.path.endsWith(`/${folder}`)
       );
-      return owner?.name ?? null;
+      // 2.0.7 — a system folder the config does not list owns its own files too (folderSystemOf).
+      return (
+        owner?.name ??
+        folderSystemOf(r, cfg.designSystems ?? [], (f) =>
+          existsSync(path.join(paths.designRoot, ...f.split('/')))
+        )?.name ??
+        null
+      );
     };
 
     // PROJECT — top-level .design/ files (README.md, INDEX.md, config.json, …).
