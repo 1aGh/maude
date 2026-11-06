@@ -3604,6 +3604,7 @@ export function createHttp(
       Response.json(
         await api.buildIndexData({
           role: isWorkspaceMode() ? req.headers.get('x-maude-role') : null,
+          fresh: new URL(req.url).searchParams.get('fresh') === '1',
         }),
         { headers: { 'Cache-Control': 'no-store' } }
       ),
