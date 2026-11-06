@@ -100,6 +100,8 @@ export type DeliveryState =
   | 'referenced-but-unoffered'
   /** On this disk, and the hub has not acknowledged it. */
   | 'local-only'
+  /** Issue #207 — in a folder the project does not sync (`linkedHub.ignoreFolders`). Not waiting. */
+  | 'ignored'
   /** Upload in flight. */
   | 'pushing'
   /** The hub answered 2xx and gave it a seq. */

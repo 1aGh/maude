@@ -67,6 +67,12 @@ export interface LinkedHub {
    */
   syncFiles?: boolean;
   /**
+   * Issue #207 — design-root-relative folders this project does not sync (Sync details › Don't
+   * sync this folder). Nothing under them moves in either direction; what the workspace already
+   * holds stays there. Absent = sync every folder.
+   */
+  ignoreFolders?: string[];
+  /**
    * Sync v2 Increment 6 — does a deletion here become a deletion everywhere?
    *
    * **Default ON.** A hub-owned mirror that ignores deletes is not a mirror:

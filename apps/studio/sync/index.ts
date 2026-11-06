@@ -90,7 +90,7 @@ import { createDocNameResolver } from './doc-name.ts';
 import { createDocumentDiscovery } from './document-discovery.ts';
 import { createEchoGuard, hashBytes } from './echo-guard.ts';
 import { createFileLedger } from './file-ledger.ts';
-import { createFilePlane, MAX_DORUCEKA_ROWS } from './file-plane.ts';
+import { createFilePlane, MAX_DORUCEKA_ROWS, normalizeIgnoreFolders } from './file-plane.ts';
 import {
   createLegacyPullGate,
   createPullFailureMemory,
@@ -156,6 +156,7 @@ import {
 } from './remote-docs.ts';
 import { createRevisionBarrier } from './revision-barrier.ts';
 import { computeSeedProgress } from './seed-progress.ts';
+import { readSyncSettings } from './settings.ts';
 import { mergeSource } from './source-merge.ts';
 import { replaySourceOp, type SourceOp } from './source-ops.ts';
 import { createSyncStatusStore, type FilePlaneStatus, type SyncStatusStore } from './status.ts';
@@ -1107,6 +1108,12 @@ export function createSyncRuntime(
     : ctx.cfg.linkedHub;
   if (!linked) return null;
   const linkedHub = linked;
+  /**
+   * Issue #207 — folders this project does not sync, read from the project config per pass (a
+   * choice made mid-upload applies at the next pass; cleaned, so a committed `..` entry is dropped).
+   */
+  const planeIgnoreFolders = (): string[] =>
+    normalizeIgnoreFolders(readSyncSettings(ctx.paths.repoRoot)?.ignoreFolders);
   // p8-hub-folder-boundary — a hub's own studio, while the owner has declared no
   // canvas folders, takes and scans every folder the hub's kernel takes. Read per
   // call: the owner may declare groups mid-session (the project-config door), and
@@ -5461,6 +5468,7 @@ export function createSyncRuntime(
       // Read once: calling it inside the spread evaluated it twice and made
       // its `null` case the object's type.
       const blockedMedia = filePlane?.blocked() ?? null;
+      const ignoreFoldersNow = planeIgnoreFolders();
       statusStore?.updateFiles?.({
         ...fileTotals,
         pushed: filePushed,
@@ -5490,6 +5498,9 @@ export function createSyncRuntime(
               },
             }
           : {}),
+        // Issue #207 — a render sequence going up, and the folders the project leaves out.
+        ...(result.largeSequences ? { largeSequences: result.largeSequences } : {}),
+        ...(ignoreFoldersNow.length > 0 ? { ignoreFolders: ignoreFoldersNow } : {}),
       });
       if (result.rateLimited) {
         // Once per boot (the store dedupes by id): a pause is not an error,
@@ -5996,6 +6007,8 @@ export function createSyncRuntime(
                 linkedHub.resolveFirstAnchor === 'keep-cloud'
                   ? { resolveFirstAnchor: linkedHub.resolveFirstAnchor }
                   : {}),
+                // Issue #207 — folders the project does not sync (Sync details › Don't sync this folder).
+                ignoreFolders: planeIgnoreFolders,
                 // Same exposure class as `syncMeta.by`, and the same reasoning:
                 // a conflict copy nobody can attribute is a conflict copy nobody
                 // resolves.

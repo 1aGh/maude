@@ -14,6 +14,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { normalizeIgnoreFolders } from './file-plane.ts';
+
 export const FIRST_ANCHOR_MODES = ['ask', 'keep-local', 'keep-cloud'] as const;
 export type FirstAnchorMode = (typeof FIRST_ANCHOR_MODES)[number];
 
@@ -24,6 +26,14 @@ export interface SyncSettings {
   propagateDeletes: boolean;
   /** First-anchor resolution; 'ask' = the key is absent = hold and keep asking. */
   resolveFirstAnchor: FirstAnchorMode;
+  /** Issue #207 — folders this project does not sync (`linkedHub.ignoreFolders`); [] = every folder. */
+  ignoreFolders: string[];
+}
+
+/** Issue #207 — a change to the ignore list: one folder in or out (never a wholesale rewrite). */
+export interface IgnoreFolderPatch {
+  addIgnoreFolder?: string;
+  removeIgnoreFolder?: string;
 }
 
 export function isFirstAnchorMode(v: unknown): v is FirstAnchorMode {
@@ -58,6 +68,7 @@ export function readSyncSettings(repoRoot: string): SyncSettings | null {
     syncFiles: hub.syncFiles !== false,
     propagateDeletes: hub.propagateDeletes !== false,
     resolveFirstAnchor: isFirstAnchorMode(hub.resolveFirstAnchor) ? hub.resolveFirstAnchor : 'ask',
+    ignoreFolders: normalizeIgnoreFolders(hub.ignoreFolders),
   };
 }
 
@@ -71,7 +82,7 @@ export function readSyncSettings(repoRoot: string): SyncSettings | null {
  */
 export async function writeSyncSettings(
   repoRoot: string,
-  patch: Partial<SyncSettings>
+  patch: Partial<Omit<SyncSettings, 'ignoreFolders'>> & IgnoreFolderPatch
 ): Promise<SyncSettings> {
   const p = configPath(repoRoot);
   if (existsSync(p)) {
@@ -102,6 +113,21 @@ export async function writeSyncSettings(
     else if (isFirstAnchorMode(patch.resolveFirstAnchor))
       next.resolveFirstAnchor = patch.resolveFirstAnchor;
     else throw new Error(`invalid resolveFirstAnchor: ${String(patch.resolveFirstAnchor)}`);
+  }
+  if (patch.addIgnoreFolder !== undefined || patch.removeIgnoreFolder !== undefined) {
+    const list = normalizeIgnoreFolders(hub.ignoreFolders);
+    if (patch.addIgnoreFolder !== undefined) {
+      const [add] = normalizeIgnoreFolders([patch.addIgnoreFolder]);
+      if (!add) throw new Error(`not a folder inside the design root: ${patch.addIgnoreFolder}`);
+      if (!list.includes(add)) list.push(add);
+    }
+    const [drop] =
+      patch.removeIgnoreFolder !== undefined
+        ? normalizeIgnoreFolders([patch.removeIgnoreFolder])
+        : [];
+    const kept = drop ? list.filter((f) => f !== drop) : list;
+    // undefined, not delete: JSON.stringify drops it, so an empty list leaves no key behind.
+    next.ignoreFolders = kept.length > 0 ? kept : undefined;
   }
   await Bun.write(p, `${JSON.stringify({ ...cfg, linkedHub: next }, null, 2)}\n`);
   const settings = readSyncSettings(repoRoot);

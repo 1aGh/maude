@@ -430,6 +430,10 @@ export interface FilePlaneResult {
   requestsExhausted?: true;
   /** The pass stopped because it had moved `MAX_FILES_PER_PASS` files (issue #204). */
   filesCapped?: true;
+  /** Issue #207 — files on this disk inside a folder the project does not sync (`linkedHub.ignoreFolders`). */
+  ignored?: number;
+  /** Issue #207 — folders with a long run of pictures still going up (see `largeSequences`). */
+  largeSequences?: LargeSequence[];
   /**
    * Issue #204 — files whose bytes the hub is still FETCHING FROM ITS BUCKET (a cold cell's
    * `503 fetching from storage`). Not delivered, not failed, not stuck: each is backed off for the
@@ -520,6 +524,13 @@ export interface FilePlaneOptions {
   label: string;
   /** Increment 6. Off means a local absence is HELD, never propagated. */
   propagateDeletes?: boolean;
+  /**
+   * Issue #207 — design-root-relative folders this project does not sync
+   * (`linkedHub.ignoreFolders` in the project config). Nothing under them moves either way.
+   * A getter is read at the start of every pass, so a folder left out mid-upload stops at the
+   * next pass instead of at the next restart.
+   */
+  ignoreFolders?: readonly string[] | (() => readonly string[]);
   /**
    * The outbound delete breaker is OFF: a deliberate bulk delete on this
    * machine propagates in one pass. Computed by the caller from LOCAL consent
@@ -689,6 +700,72 @@ export function scanLocalFiles(
  */
 export const SCAN_SLICE_MS = 8;
 
+/** What the panel says about a file in a folder the project does not sync. */
+export const IGNORED_REASON = 'In a folder this project does not sync';
+
+/**
+ * The folders a project does not sync, cleaned: design-root-relative, no
+ * leading/trailing slash, contained (a `..` or absolute entry is dropped — the
+ * list comes from a committed file a teammate may have written), and never a
+ * runtime-state (`_`) top folder, which the plane never walks anyway.
+ */
+export function normalizeIgnoreFolders(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out = new Set<string>();
+  for (const v of raw) {
+    if (typeof v !== 'string') continue;
+    const p = path.posix.normalize(v.replace(/\\/g, '/').trim()).replace(/^\/+|\/+$/g, '');
+    if (!p || p === '.' || p === '..' || p.startsWith('../') || /^[A-Za-z]:/.test(v)) continue;
+    if (v.trim().startsWith('/')) continue;
+    out.add(p);
+  }
+  return [...out];
+}
+
+/** True when `rel` is one of the folders, or inside one. */
+export function isIgnoredRel(rel: string, folders: readonly string[]): boolean {
+  for (const f of folders) if (rel === f || rel.startsWith(`${f}/`)) return true;
+  return false;
+}
+
+/** Issue #207 — a folder whose pictures still going up pass either of these is named in the panel. */
+export const LARGE_SEQUENCE_FILES = 200;
+export const LARGE_SEQUENCE_BYTES = 200 * 1024 * 1024;
+const PICTURE_EXT_RE = /\.(png|jpe?g|webp|avif|gif|tiff?|exr|bmp|heic|tga|dpx|psd)$/i;
+
+export interface LargeSequence {
+  /** Design-root-relative folder. */
+  folder: string;
+  files: number;
+  bytes: number;
+}
+
+/**
+ * Folders holding a long run of pictures that this pass still has to send up —
+ * a render sequence, a frame dump. Only uploads count (what is already on the
+ * workspace is not news); at most five folders, largest first.
+ */
+export function largeSequences(
+  work: readonly { rel: string; decision: { action: string }; local?: { size: number } }[]
+): LargeSequence[] {
+  const byFolder = new Map<string, { files: number; bytes: number }>();
+  for (const w of work) {
+    if (w.decision.action !== 'push' && w.decision.action !== 'revive') continue;
+    if (!PICTURE_EXT_RE.test(w.rel)) continue;
+    const folder = path.posix.dirname(w.rel);
+    if (folder === '.') continue;
+    const s = byFolder.get(folder) ?? { files: 0, bytes: 0 };
+    s.files += 1;
+    s.bytes += w.local?.size ?? 0;
+    byFolder.set(folder, s);
+  }
+  return [...byFolder]
+    .filter(([, s]) => s.files > LARGE_SEQUENCE_FILES || s.bytes > LARGE_SEQUENCE_BYTES)
+    .map(([folder, s]) => ({ folder, ...s }))
+    .sort((a, b) => b.bytes - a.bytes)
+    .slice(0, 5);
+}
+
 /** Hand the event loop a turn (a macrotask: pending I/O and timers run first). */
 export const yieldToLoop = (): Promise<void> => new Promise((r) => setImmediate(r));
 
@@ -839,6 +916,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
   const now = opts.now ?? Date.now;
   const base = opts.hubUrl.replace(/\/+$/, '');
   const { ledger, designRoot } = opts;
+  const readIgnoreFolders = (): string[] =>
+    normalizeIgnoreFolders(
+      typeof opts.ignoreFolders === 'function' ? opts.ignoreFolders() : opts.ignoreFolders
+    );
   /**
    * The design root with its own symlinks resolved. Containment is judged
    * against THIS, not the configured string — otherwise a project reached
@@ -2191,6 +2272,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     if (fullRead && !page.truncated) ledger.pruneRemotes(new Set(delta.keys()));
 
     // ── 2. Ours ──────────────────────────────────────────────────────────
+    const ignoreFolders = readIgnoreFolders();
     const local = await scanLocalFilesAsync(designRoot, ledger, opts.canvasGroups);
 
     // ── 3. Decide ────────────────────────────────────────────────────────
@@ -2212,6 +2294,16 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     for (const rel of paths) {
       const row = delta.get(rel);
       const here = local.get(rel);
+      // A FOLDER THE PERSON CHOSE NOT TO SYNC (issue #207, `linkedHub.ignoreFolders`). Nothing
+      // moves in either direction — no upload, no download, no delete — and what the workspace
+      // already holds stays there. Reported as `ignored`, never as waiting.
+      if (ignoreFolders.length > 0 && isIgnoredRel(rel, ignoreFolders)) {
+        if (here && ledger.row(rel)?.state !== 'ignored') {
+          ledger.setState(rel, 'ignored', { reason: IGNORED_REASON });
+        }
+        if (here) out.ignored = (out.ignored ?? 0) + 1;
+        continue;
+      }
       // HELD, NOT ABSENT. A file this peer cannot move is still a file: no
       // decision may read it as deleted here or missing here.
       if (here?.oversized) {
@@ -2571,6 +2663,11 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       // whole pass over one class would stall ordinary sync too.
       work = work.filter((w) => !firstAnchor.includes(w));
     }
+
+    // A LONG RUN OF PICTURES IN ONE FOLDER (issue #207) — a render sequence, a frame dump. They
+    // sync like everything else; the panel only says so, and offers to leave the folder out.
+    const sequences = largeSequences(work);
+    if (sequences.length > 0) out.largeSequences = sequences;
 
     // ── 4. Apply ─────────────────────────────────────────────────────────
     //
