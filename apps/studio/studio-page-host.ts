@@ -39,9 +39,9 @@ export interface StudioPageHostOpts {
 /**
  * A 307 to the same port on `localhost` for a browser's top-level navigation to the studio page
  * on a loopback IP literal, when the canvas frames live on `localhost`; otherwise null (serve the
- * page). The port must be one this studio serves on (`mainOrigin`), so the redirect never names a
- * listener that is not ours, and the target host is fixed — nothing from the request but the
- * path and query is carried over.
+ * page). The port must be the one this studio is bound on (`mainOrigin`), so the redirect never
+ * names a listener that is not ours, and the target host is fixed — nothing from the request but
+ * the port (checked), the path and the query is carried over.
  */
 export function studioPageHostRedirect(req: Request, opts: StudioPageHostOpts): Response | null {
   if (opts.workspace || !opts.canvasOrigin || !opts.mainOrigin) return null;
@@ -57,8 +57,12 @@ export function studioPageHostRedirect(req: Request, opts: StudioPageHostOpts): 
   if (canvasHost !== 'localhost') return null;
   if (url.protocol !== 'http:') return null;
   if (url.hostname !== '127.0.0.1' && url.hostname !== '[::1]') return null;
+  // The port this studio is bound on: `mainOrigin` lists it on BOTH loopback names (server.ts);
+  // an extra shell origin naming only `localhost:<other>` never qualifies.
   const target = `http://localhost:${url.port}`;
-  if (!url.port || !opts.mainOrigin.split(/\s+/).includes(target)) return null;
+  const ours = opts.mainOrigin.split(/\s+/);
+  if (!url.port || !ours.includes(target) || !ours.includes(`http://127.0.0.1:${url.port}`))
+    return null;
   return new Response(null, {
     status: 307,
     headers: { Location: `${target}${url.pathname}${url.search}`, 'Cache-Control': 'no-store' },

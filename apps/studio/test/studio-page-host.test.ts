@@ -22,7 +22,7 @@ describe('studioPageHostRedirect', () => {
     for (const host of ['127.0.0.1', '[::1]']) {
       const r = studioPageHostRedirect(req(`http://${host}:4399/?open=ui%2FA.tsx&x=1`), {
         canvasOrigin: CANVAS,
-        mainOrigin: `${MAIN} http://[::1]:4399`,
+        mainOrigin: MAIN,
         workspace: false,
       });
       expect(r?.status).toBe(307);
@@ -56,8 +56,18 @@ describe('studioPageHostRedirect', () => {
       )
     ).toBeNull();
     expect(studioPageHostRedirect(req('http://127.0.0.1:4399/', NAV, 'POST'), base)).toBeNull();
-    // a port this studio does not serve on
+    // a port this studio is not bound on — even one an extra shell origin names on localhost only
     expect(studioPageHostRedirect(req('http://127.0.0.1:5555/'), base)).toBeNull();
+    expect(
+      studioPageHostRedirect(req('http://127.0.0.1:5555/'), {
+        ...base,
+        mainOrigin: `${MAIN} http://localhost:5555`,
+      })
+    ).toBeNull();
+    // a DNS-rebinding name (it resolves to loopback but is not the literal), https, port 80
+    expect(studioPageHostRedirect(req('http://evil.test:4399/'), base)).toBeNull();
+    expect(studioPageHostRedirect(req('https://127.0.0.1:4399/'), base)).toBeNull();
+    expect(studioPageHostRedirect(req('http://127.0.0.1/'), base)).toBeNull();
     // the split off, a workspace, a canvas origin that is not localhost
     expect(
       studioPageHostRedirect(req('http://127.0.0.1:4399/'), { ...base, canvasOrigin: undefined })
@@ -118,6 +128,13 @@ describe('a booted studio', () => {
         expect(res.status).toBe(307);
         expect(res.headers.get('location')).toBe(`http://localhost:${port}${path}`);
       }
+      // [::1] too (Bun keeps the brackets in req.url).
+      const v6 = await fetch(`http://[::1]:${port}/?open=ui%2FA.tsx`, {
+        headers: NAV,
+        redirect: 'manual',
+      });
+      expect(v6.status).toBe(307);
+      expect(v6.headers.get('location')).toBe(`http://localhost:${port}/?open=ui%2FA.tsx`);
       // On localhost, and for anything that is not a navigation, the page is served as before.
       const local = await fetch(`http://localhost:${port}/`, { headers: NAV, redirect: 'manual' });
       expect(local.status).toBe(200);
