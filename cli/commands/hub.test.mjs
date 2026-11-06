@@ -43,6 +43,7 @@ test('hub help prints subcommand summary on stdout', () => {
     'backup',
     'restore-drill',
     'asset-check',
+    'purge',
   ]) {
     assert.ok(res.stdout.includes(verb), `usage must mention "${verb}"`);
   }
