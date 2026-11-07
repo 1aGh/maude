@@ -85,13 +85,14 @@ test('a dot-named canvas file is reported as unlisted; a non-canvas symlink is n
   assert.deepEqual([...r.unlisted()], ['ui/.hidden.tsx']);
 });
 
-test('a listing past the depth cap is truncated: the owner rule refuses', () => {
+test('a listing past the depth cap is cut per subtree, not truncated (#167 T5.3)', () => {
   lay(BASE);
   lay({ [`${'d/'.repeat(33)}deep.css`]: '' }); // past the 32-segment cap (fix/205)
   const r = reader();
-  assert.equal(r.listTruncated(), true);
+  assert.equal(r.listTruncated(), false);
+  assert.equal([...r.cutFolders()].length, 1);
   const c = closureFor(narrowToFrame(OWNER, [GRANT]), r);
-  assert.equal(c.blocked.has(GRANT), true);
+  assert.equal(c.blocked.has(GRANT), false);
 });
 
 test('present() is exact-name (NFC on both sides, never case-folded) and inside the root', () => {
@@ -185,6 +186,73 @@ test('a walk that only becomes truncated changes head()', () => {
   const first = reader();
   mkdirSync(join(root, 'd/'.repeat(33)), { recursive: true });
   const second = reader();
-  assert.equal(second.listTruncated(), true);
+  assert.equal([...second.cutFolders()].length, 1);
   assert.notEqual(second.head(), first.head());
+});
+
+// #167 T5.3 — the hub reader refused the same-name stylesheet rule more often than the studio's
+// disk reader: ONE folder past the depth cap marked the whole project truncated, and a tombstoned
+// journal row kept a vanished canvas in the listing as a slug twin. The cap is now per subtree (a
+// cut folder only hides the slugs that start with its own) and a tombstoned path absent from the
+// disk is gone for the owner rule (its row still reaches the closure for imports).
+test('a folder past the depth cap elsewhere no longer truncates the project', () => {
+  lay(BASE);
+  lay({ [`other/${'d/'.repeat(33)}deep.css`]: '' });
+  const r = reader();
+  assert.equal(r.listTruncated(), false);
+  const c = closureFor(narrowToFrame(OWNER, [GRANT]), r);
+  assert.equal(c.blocked.has(GRANT), false);
+  assert.equal(c.read.has(CSS), true);
+});
+
+test('a cut folder whose slug prefixes the owner still keeps the stylesheet refused', () => {
+  const name = `q${'-a'.repeat(34)}`;
+  const grant = `ui/Q${'-a'.repeat(34)}.tsx`;
+  lay({
+    'config.json': '{}',
+    [grant]: CANVAS.replace('./combine-admin.css', `./${name}.css`),
+    [`ui/${name}.css`]: '.x{}',
+    // the slug-keyed board makes the owner a canvas, as Combine-admin's does
+    [`ui-${name}.annotations.json`]: '{"v":1}',
+  });
+  assert.equal(
+    closureFor(narrowToFrame(OWNER, [grant]), reader()).read.has(`ui/${name}.css`),
+    true
+  );
+  // `ui/q/a/…/a.tsx` folds to the owner's slug, and the walk cannot see it.
+  lay({ [`ui/q/${'a/'.repeat(33)}a.tsx`]: CANVAS });
+  const r = reader();
+  const c = closureFor(narrowToFrame(OWNER, [grant]), r);
+  assert.equal(c.read.has(`ui/${name}.css`), false);
+});
+
+test('a tombstoned slug twin that left the disk does not refuse the stylesheet', () => {
+  lay(BASE);
+  const twin = 'ui/2026-combine/combine-admin.tsx';
+  const journal = {
+    epoch: () => 'e',
+    head: () => 2,
+    compaction: () => [
+      { seq: 1, path: GRANT, deleted: false },
+      { seq: 2, path: twin, deleted: true },
+    ],
+  };
+  const r = projectReader({ designRoot: root, journal });
+  const c = closureFor(narrowToFrame(OWNER, [GRANT]), r);
+  assert.equal(c.blocked.has(GRANT), false);
+  assert.equal(c.read.has(CSS), true);
+});
+
+test('a tombstoned twin still on disk (an undelivered delete) stays a twin', () => {
+  lay(BASE);
+  const twin = 'ui/2026-combine/combine-admin.tsx';
+  lay({ [twin]: CANVAS });
+  const journal = {
+    epoch: () => 'e',
+    head: () => 1,
+    compaction: () => [{ seq: 1, path: twin, deleted: true }],
+  };
+  const r = projectReader({ designRoot: root, journal });
+  const c = closureFor(narrowToFrame(OWNER, [GRANT]), r);
+  assert.equal(c.read.has(CSS), false);
 });

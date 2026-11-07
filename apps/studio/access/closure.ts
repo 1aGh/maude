@@ -221,6 +221,12 @@ export interface ProjectReader {
   /** p8-closure-lows — the canvas-shaped (`.tsx`/`.html`) entries the last `list()` saw but did
    *  not yield (a symlink, a dot name), by name only: each counts as another canvas's slug. */
   unlisted?(): Iterable<string>;
+  /** #167 T5.3 — folders the listing cut at its depth cap (each a designRoot-relative folder):
+   *  whatever lies below is unseen, so an owner whose slug starts with a cut folder's slug keeps
+   *  its stylesheet refused. A reader without depth cap leaves it out. */
+  cutFolders?(): Iterable<string>;
+  /** #167 T5.3 — a listed path that is only a tombstone (gone from the disk): no slug twin. */
+  gone?(rel: string): boolean;
 }
 
 export interface Closure {
@@ -622,6 +628,10 @@ interface WalkEnv {
   listTruncated: boolean;
   /** p8-closure-lows — canvas-shaped entries the listing saw but did not yield (`unlisted`). */
   unlisted: readonly string[];
+  /** #167 T5.3 — each depth-cut folder's slug plus `-`: a slug starting with one may be hidden. */
+  cutSlugs: readonly string[];
+  /** #167 T5.3 — listed and not only a tombstone (`ProjectReader.gone`). */
+  present: (rel: string) => boolean;
   /** 2.0.7 (#207) — `files`' openable canvas files (`.tsx`/`.html`, not `_`-prefixed) by NFC slug,
    *  and `unlisted` by NFC slug: what `grantedBySlug` scanned the whole listing for, per owner. */
   slugIndex: () => { files: ReadonlyMap<string, string[]>; unlisted: ReadonlySet<string> };
@@ -760,12 +770,14 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
     typeof project.present === 'function';
   const listTruncated = !reports || project.listTruncated?.() === true;
   const unlisted = reports ? [...(project.unlisted?.() ?? [])] : [];
+  const cutSlugs = [...(project.cutFolders?.() ?? [])].map((d) => `${slugNfc(d)}-`);
+  const present = (rel: string): boolean => files.has(rel) && project.gone?.(rel) !== true;
   let slugs: { files: Map<string, string[]>; unlisted: Set<string> } | null = null;
   const slugIndex = () => {
     if (slugs) return slugs;
     const bySlug = new Map<string, string[]>();
     for (const f of files) {
-      if (!/\.(tsx|html)$/i.test(f) || f.startsWith('_')) continue;
+      if (!/\.(tsx|html)$/i.test(f) || f.startsWith('_') || !present(f)) continue;
       const slug = slugNfc(f);
       const list = bySlug.get(slug);
       if (list) list.push(f);
@@ -774,7 +786,19 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
     slugs = { files: bySlug, unlisted: new Set(unlisted.map(slugNfc)) };
     return slugs;
   };
-  return { files, textOf, isCanvas, cfg, project, known, listTruncated, unlisted, slugIndex };
+  return {
+    files,
+    textOf,
+    isCanvas,
+    cfg,
+    project,
+    known,
+    listTruncated,
+    unlisted,
+    cutSlugs,
+    present,
+    slugIndex,
+  };
 }
 
 const SAME_NAME_RE =
@@ -905,11 +929,12 @@ function walkImports(
   const grantedBySlug = (owner: string): boolean => {
     if (env.listTruncated || env.known.has(owner)) return false;
     const meta = owner.replace(/\.(tsx|html)$/i, '.meta.json');
-    if (env.files.has(owner) || env.files.has(meta)) return false;
+    if (env.present(owner) || env.present(meta)) return false;
     // p8-closure-lows-2 — slugs compare NFC on both sides (APFS holds `café` in NFC and NFD as one
     // name); never case-folded beyond the slug's own lower-casing. A slug already found foreign
     // answers before any disk look-up (`present` could only make it foreign too).
     const slug = slugNfc(owner);
+    if (env.cutSlugs.some((p) => slug.startsWith(p))) return false;
     const hit = slugOwned.get(slug);
     if (hit === false) return false;
     if (env.project.present?.(owner) || env.project.present?.(meta)) return false;
