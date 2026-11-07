@@ -378,6 +378,84 @@ describe('#155 §7 (T4.1) — a multi-page design file keeps every page', () => 
   });
 });
 
+describe('#155 §10 (T4.1) — one canvas per file, in a target folder', () => {
+  const frame = (id: string, x = 0) => ({
+    id,
+    name: `Frame ${id}`,
+    type: 'FRAME',
+    absoluteBoundingBox: box(x, 0, 300, 200),
+    fills: solid,
+  });
+  const file = () =>
+    normalizeDocument(
+      {
+        id: '0:0',
+        name: 'Doc',
+        type: 'DOCUMENT',
+        children: [
+          { id: '0:1', name: 'One', type: 'CANVAS', children: [frame('1:1'), frame('1:2', 400)] },
+          { id: '0:2', name: 'Two', type: 'CANVAS', children: [frame('2:1')] },
+        ],
+      },
+      { fileKey: KEY, surface: 'design', origin: 'fig' }
+    );
+  const run = (extra: Record<string, unknown> = {}) =>
+    importFrames({
+      root: sandbox,
+      slug: 'deck',
+      oneCanvas: true,
+      folder: 'figma/deck',
+      local: localOf(file()),
+      ...extra,
+    });
+
+  test('three frames on two pages become ONE canvas with three artboards, in the folder', async () => {
+    const r = await run();
+    expect(r.written).toHaveLength(1);
+    expect(r.frameCount).toBe(3);
+    const path = join(sandbox, '.design', 'figma', 'deck', 'deck.tsx');
+    expect(r.written[0].path).toBe(path);
+    const tsx = await Bun.file(path).text();
+    expect((tsx.match(/<DCArtboard/g) ?? []).length).toBe(3);
+    const meta = await Bun.file(join(sandbox, '.design', 'figma', 'deck', 'deck.meta.json')).json();
+    expect(meta.layout.artboards).toHaveLength(3);
+    expect(meta.source.importedAt).not.toBeNull();
+    // nothing is scattered flat in ui/
+    expect(existsSync(join(sandbox, '.design', 'ui'))).toBe(false);
+  });
+
+  test('the folder defaults to ui and the name to the slug', async () => {
+    await run({ folder: '' });
+    expect(existsSync(join(sandbox, '.design', 'ui', 'deck.tsx'))).toBe(true);
+  });
+
+  test('a second import never overwrites the first', async () => {
+    await run();
+    await run();
+    expect(existsSync(join(sandbox, '.design', 'figma', 'deck', 'deck (Figma).tsx'))).toBe(true);
+    expect(existsSync(join(sandbox, '.design', 'figma', 'deck', 'deck.tsx'))).toBe(true);
+  });
+
+  test('a dry run writes nothing', async () => {
+    const r = await run({ dryRun: true });
+    expect(r.canvasCount).toBe(1);
+    expect(existsSync(join(sandbox, '.design', 'figma'))).toBe(false);
+  });
+
+  test.each([
+    '../escape',
+    'system',
+    '_state',
+    '/abs',
+  ])('the folder %p is refused', async (folder) => {
+    await expect(run({ folder })).rejects.toMatchObject({ code: 2 });
+  });
+
+  test('a canvas name with a separator is refused', async () => {
+    await expect(run({ name: '../x' })).rejects.toMatchObject({ code: 2 });
+  });
+});
+
 describe('#155 §6 (T4.1) — the import says how instances were handled', () => {
   test('counts only: drawn, left empty and why, resized', () => {
     const lines = instanceLines({

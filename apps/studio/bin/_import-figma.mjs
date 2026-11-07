@@ -89,7 +89,7 @@ import { artToSvg } from '../figma/fig-vector.ts';
 import { readFigZip } from '../figma/fig-zip.ts';
 import { strokesIntoOps } from '../figma/into-board.ts';
 import { attrValue, ImportReport } from '../figma/sanitize.ts';
-import { JsxTooLargeError, toArtboard, toCanvas } from '../figma/to-artboard.ts';
+import { JsxTooLargeError, toArtboard, toCanvas, toFramesCanvases } from '../figma/to-artboard.ts';
 import { classifyPageChildren, toRenderCanvas } from '../figma/to-render.ts';
 import { BoardTooLargeError, toBoardElements, toStrokes } from '../figma/to-strokes.ts';
 import { stylesToTokens, variablesToTokens } from '../figma/to-tokens.ts';
@@ -1816,6 +1816,11 @@ export async function importFrames({
   dryRun = false,
   kind = 'digital',
   local = null,
+  // `--one-canvas`: the file as ONE canvas (one artboard per frame) in
+  // `<folder>/<name>.tsx`, instead of one canvas per frame flat in `ui/`.
+  oneCanvas = false,
+  folder = '',
+  name = null,
 }) {
   const target = local ? { fileKey: local.fileKey, nodeId: null } : parseFigmaTarget(url, 'design');
   const doc =
@@ -1825,6 +1830,21 @@ export async function importFrames({
       surface: 'design',
       ...(target.nodeId ? { nodeId: target.nodeId } : {}),
     }));
+
+  if (oneCanvas) {
+    return importFramesAsCanvas({
+      target,
+      doc,
+      root,
+      designRootRel,
+      folder,
+      name,
+      slug,
+      dryRun,
+      kind,
+      local,
+    });
+  }
 
   const frames = selectFrames(doc, target.nodeId);
   if (frames.length === 0) {
@@ -1938,6 +1958,137 @@ export async function importFrames({
   }
 
   return { written, reports, pendingExports, resolvedAssets, frameCount: frames.length };
+}
+
+/**
+ * `--one-canvas`: a file's frames as ONE canvas with one artboard per frame (#155
+ * §10), in `<folder>/<name>.tsx`, instead of one canvas per frame flat in `ui/`.
+ * Pages sit side by side. A file too large for one canvas continues on
+ * `<name> (2)` and so on (`toFramesCanvases`), so nothing is dropped.
+ *
+ * The caller names a FOLDER (checked segment by segment — never a runtime `_*`
+ * dir, never `system/` or `assets/`) and a canvas NAME (a filename charset, no
+ * separators); it never picks a path. Staged outside the design root and
+ * promoted only on success, realpath-contained, like every other write here.
+ */
+async function importFramesAsCanvas({
+  target,
+  doc,
+  root,
+  designRootRel,
+  folder,
+  name,
+  slug,
+  dryRun,
+  kind,
+  local,
+}) {
+  const folderRel = safeCanvasFolder(folder === '' || folder == null ? 'ui' : folder);
+  if (folderRel === null) throw new ImportFigmaError(2, 'invalid --folder');
+  const canvasName = safeCanvasName(name ?? slug ?? 'Figma import');
+  if (canvasName === null) throw new ImportFigmaError(2, 'invalid --name');
+
+  const groups = selectFramePages(doc, target.nodeId);
+  const frameCount = groups.reduce((n, g) => n + g.frames.length, 0);
+  if (frameCount === 0) {
+    throw new ImportFigmaError(3, 'no FRAME or COMPONENT found — link a specific frame');
+  }
+  const tokens = readDsTokens(root, designRootRel);
+  const fontTokens = readDsFontTokens(root, designRootRel);
+  // Translated first, so a frame that is too large refuses before anything lands.
+  const canvases = toFramesCanvases(doc, groups, { kind, tokens, fontTokens });
+
+  const designRoot = join(root, designRootRel);
+  const nameOf = (i) => (i === 0 ? canvasName : `${canvasName} (${i + 1})`);
+  const reports = canvases.map((c) => c.report);
+  const pendingExports = canvases.reduce((n, c) => n + c.pendingExports.length, 0);
+
+  if (dryRun) {
+    const written = canvases.map((c, i) => ({
+      slug: nameOf(i),
+      bytes: c.metrics.bytes,
+      artboards: c.artboardCount,
+      metrics: c.metrics,
+    }));
+    return {
+      written,
+      reports,
+      pendingExports,
+      resolvedAssets: 0,
+      frameCount,
+      canvasCount: written.length,
+    };
+  }
+
+  const staging = makeStagingDir();
+  try {
+    const budget = makeAssetBudget();
+    const assetsAll = local
+      ? await resolveArchiveAssetsMany(
+          local,
+          canvases.map((c) => ({ pendingExports: c.pendingExports, report: c.report })),
+          { root, designRootRel, stagingDir: staging }
+        )
+      : null;
+    const written = [];
+    let resolvedAssets = 0;
+    for (const [i, c] of canvases.entries()) {
+      const assets =
+        assetsAll?.[i] ??
+        (await resolveAssets(
+          target.fileKey,
+          c.pendingExports.map((p) => ({
+            nodeId: p.nodeId,
+            format: p.format,
+            placeholder: p.placeholder,
+          })),
+          makeAssetDeps({ root, designRootRel, stagingDir: staging }),
+          c.report,
+          budget
+        ));
+      resolvedAssets += assets.resolved.length;
+      const tsx = applyRewrites(c.tsx, assets.rewrites);
+      const meta = {
+        ...c.meta,
+        source: { ...c.meta.source, importedAt: new Date().toISOString() },
+      };
+
+      const rel = freeCanvasRel(designRoot, folderRel, nameOf(i));
+      const base = rel.slice(rel.lastIndexOf('/') + 1).replace(/\.tsx$/, '');
+      const stagedTsx = join(staging, `canvas-${i}.tsx`);
+      const stagedMeta = join(staging, `canvas-${i}.meta.json`);
+      writeFileSync(stagedTsx, tsx, 'utf8');
+      writeFileSync(stagedMeta, `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
+
+      assertNoSlugTwin(designRoot, rel);
+      mkdirSync(join(designRoot, folderRel), { recursive: true });
+      const finalTsx = assertContained(root, designRootRel, join(designRoot, rel));
+      const finalMeta = assertContained(
+        root,
+        designRootRel,
+        join(designRoot, folderRel, `${base}.meta.json`)
+      );
+      promoteFile(stagedTsx, finalTsx);
+      promoteFile(stagedMeta, finalMeta);
+      written.push({
+        slug: base,
+        path: finalTsx,
+        bytes: c.metrics.bytes,
+        artboards: c.artboardCount,
+        metrics: c.metrics,
+      });
+    }
+    return {
+      written,
+      reports,
+      pendingExports,
+      resolvedAssets,
+      frameCount,
+      canvasCount: written.length,
+    };
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
 }
 
 // ── S8.17 — the Import from Figma sheet: list a page's frames, bring the picked ones in as pictures ──
@@ -2625,6 +2776,7 @@ export function parseArgv(argv) {
     name: null,
     comments: true,
     styles: false,
+    oneCanvas: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
@@ -2741,6 +2893,10 @@ export function parseArgv(argv) {
       case '--styles':
         out.styles = true;
         break;
+      // #155 §10 — a file as ONE canvas, one artboard per frame (target: --folder, --name).
+      case '--one-canvas':
+        out.oneCanvas = true;
+        break;
       case '--json':
         out.json = true;
         break;
@@ -2771,7 +2927,8 @@ Usage:
   maude design import-figma --editable <artboard-id> --canvas <dir>/<Canvas>.tsx --root <repo>
   maude design import-figma --tokens <figma-url>  --root <repo>
   maude design import-figma --fig    <path.fig>   --root <repo> [--slug <name>]
-                            [--file-key <key>] [--dry-run] [--json]
+                            [--file-key <key>] [--one-canvas [--folder <dir>] [--name <canvas>]]
+                            [--dry-run] [--json]
   maude design import-figma --explode <artboard-id> --canvas ui/<folder>/<Page>.tsx
                             --root <repo> [--confirm-document] [--dry-run] [--json]
 
@@ -2821,6 +2978,13 @@ or container version REFUSES rather than decoding approximately. Images travel
 inside the archive, so nothing expires and nothing is rate-limited. A local file
 carries no REST file key, so provenance is content-addressed unless you pass
 \`--file-key\`; the summary says which you got.
+
+A design file imports every page, and by default one canvas per frame, flat in \`ui/\`.
+\`--one-canvas\` brings the whole file in as ONE canvas with one artboard per frame instead
+(\`<folder>/<name>.tsx\`, folder default \`ui\`, name default \`--slug\` or "Figma import"; a name
+already taken becomes "<name> (Figma)"). Pages sit side by side, and a file too large for one
+canvas continues on "<name> (2)". SVG artwork is promoted in shared browser sessions, not one
+launch per asset.
 
 The file's REVIEW COMMENTS come across as comment pins, where they sit: a thread
 with its replies, resolved ones resolved. Whoever wrote one in Figma shows as
@@ -2957,6 +3121,9 @@ async function main() {
             slug: opts.slug,
             dryRun: opts.dryRun,
             local,
+            oneCanvas: opts.oneCanvas,
+            folder: opts.folder ?? '',
+            name: opts.name,
           });
       const merged = new ImportReport();
       if (isBoard) merged.entries.push(...r.report.entries);
@@ -2993,7 +3160,9 @@ async function main() {
           .join('\n');
         const head = isBoard
           ? `import-figma: board -> ${r.slug} (${r.strokeCount} strokes)${opts.dryRun ? ' (dry run)' : ''}`
-          : `import-figma: ${r.written.length} frame(s)${opts.dryRun ? ' (dry run)' : ''}`;
+          : opts.oneCanvas
+            ? `import-figma: ${r.frameCount} frame(s) -> ${r.canvasCount} canvas(es)${opts.dryRun ? ' (dry run)' : ''}`
+            : `import-figma: ${r.written.length} frame(s)${opts.dryRun ? ' (dry run)' : ''}`;
         process.stdout.write(
           `${head}\n` +
             `  offline: container v${provenance.containerVersion} · schema ${provenance.schemaSha256.slice(0, 8)}` +
@@ -3070,6 +3239,9 @@ async function main() {
         designRootRel: opts.designRoot,
         slug: opts.slug,
         dryRun: opts.dryRun,
+        oneCanvas: opts.oneCanvas,
+        folder: opts.folder ?? '',
+        name: opts.name,
       });
       // One report across every frame, so the summary is a single accounting.
       const merged = new ImportReport();

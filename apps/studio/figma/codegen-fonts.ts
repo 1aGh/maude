@@ -271,6 +271,13 @@ export class FontSubstitutions {
     this.counts.set(key, (this.counts.get(key) ?? 0) + 1);
   }
 
+  /** Fold another tally in, so a canvas of many frames reports each family once. */
+  absorb(other: FontSubstitutions): void {
+    for (const [family, n] of other.counts) {
+      this.counts.set(family, (this.counts.get(family) ?? 0) + n);
+    }
+  }
+
   get size(): number {
     return this.counts.size;
   }
