@@ -49,6 +49,8 @@ import {
   ARTBOARD_STILL_CSS,
   inOverviewCut,
   resolveStillMode,
+  STILL_ENCODED_MAX_BYTES,
+  type StillCache,
   StillController,
 } from './artboard-still.ts';
 import { rasterTimings, startStill } from './artboard-still-raster.ts';
@@ -257,6 +259,8 @@ function getRuntime(): Runtime | null {
     stills = st;
     const w = window as unknown as Record<string, unknown>;
     w.__maudeStillStats = () => ({ ...st.stats(), raster: { ...rasterTimings } });
+    // the two-tier cache (#212): tests and measurements read its tiers
+    w.__maudeStillCache = () => st.cache;
     // the views each artboard went through (the flicker count of the overview level)
     w.__maudeStillHistory = (id?: string) => st.history(id);
     // the last drawings: slices, the longest one, when the walk / the decode / the drawing ended
@@ -324,9 +328,10 @@ function startWarmup(
       now() - registry.lastMountAt() >= WARM_RING_QUIET_MS,
     lastActivity: () => st.lastActivity(),
     cacheRoom: () => {
+      // the encoded tier is what keeps a still (the decoded one only evicts to it): warm while it has room
       const c = st.cache.stats();
-      const each = c.n ? c.bytes / c.n : 0;
-      return c.bytes + 2 * each <= st.cache.max;
+      const each = c.encoded ? c.encodedBytes / c.encoded : 0;
+      return c.encodedBytes + 2 * each <= STILL_ENCODED_MAX_BYTES;
     },
   });
   st.onStill((id, ok) => wu.stillDone(id, ok));
@@ -587,7 +592,7 @@ export function ArtboardLiveGate({
           backgroundColor: ph.bg || undefined,
         }}
       >
-        {kept ? <StillCopy still={kept.el} /> : null}
+        {kept && stills ? <StillHold cache={stills.cache} id={id} /> : null}
         {pic?.blocks.map((b, i) => (
           <i
             // biome-ignore lint/suspicious/noArrayIndexKey: a still picture; its blocks never reorder
@@ -607,19 +612,29 @@ export function ArtboardLiveGate({
   );
 }
 
-/** A copy of a kept still (the cache's own canvas stays the cache's): drawn once, on mount. */
-function StillCopy({ still }: { still: HTMLElement }) {
+/**
+ * A released artboard's placeholder holds the cache's OWN still element (#212 — it used to draw a second canvas,
+ * which doubled the memory and was outside the budget); the controller takes it back on a remount. When the decoded
+ * tier lets go of the bitmap it shows the encoded copy instead, so a known still is never replaced by the skeleton.
+ */
+function StillHold({ cache, id }: { cache: StillCache; id: string }) {
+  const [, bump] = useState(0);
+  const anchor = useRef<HTMLSpanElement>(null);
+  const kept = cache.peek(id);
+  useEffect(() => cache.onEvict((k) => k === id && bump((n) => n + 1)), [cache, id]);
+  // every render: the element may have been taken (a remount) or may be new (a redraw)
+  useLayoutEffect(() => {
+    const el = kept?.el;
+    const a = anchor.current;
+    if (!el || !a || el.parentNode === a) return;
+    el.classList?.add('dc-artboard-still-copy');
+    a.appendChild(el);
+  });
+  const url = kept && !kept.el ? cache.blobUrl(id) : null;
   return (
-    <canvas
-      className="dc-artboard-still-copy"
-      ref={(c) => {
-        const src = still as HTMLCanvasElement;
-        if (!c || !src.width || c.width === src.width) return;
-        c.width = src.width;
-        c.height = src.height;
-        c.getContext('2d')?.drawImage(src, 0, 0);
-      }}
-    />
+    <span ref={anchor} style={{ display: 'contents' }}>
+      {url ? <img className="dc-artboard-still-copy" src={url} alt="" draggable={false} /> : null}
+    </span>
   );
 }
 
@@ -632,5 +647,5 @@ html[data-dc-crowded] .dc-canvas .dc-artboard { will-change: auto; }
 .dc-artboard-sleeping { width: 100%; position: relative; overflow: hidden; }
 .dc-artboard-sleeping > i { position: absolute; display: block; opacity: 0.45; border-radius: 2px; }
 .dc-artboard-sleeping > i[data-media] { background: color-mix(in srgb, currentColor 16%, transparent); }
-.dc-artboard-sleeping > .dc-artboard-still-copy { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.dc-artboard-sleeping .dc-artboard-still-copy { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 `;

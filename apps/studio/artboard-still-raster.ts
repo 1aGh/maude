@@ -19,9 +19,13 @@ import { STILL_MAX_SCREEN_PX } from './artboard-still.ts';
 
 /** Walk at most this many nodes of one body. */
 export const RASTER_MAX_NODES = 4000;
-/** The still's width in device px: 1.5 × the threshold at the device pixel ratio (≤ 2) — sharp up to that zoom-in. */
+/**
+ * The still's width in device px: the threshold at the device pixel ratio (≤ 2), so 400 at most (#212 — it was 1.5 ×
+ * that, 600, and a large artboard's bitmap cost 0.8–3.1 MB; 400 is 0.35–1.4 MB). An artboard under the cut is
+ * narrower than the threshold on screen, so this is sharp at its own size.
+ */
 export function stillWidthPx(dpr: number): number {
-  return Math.ceil(STILL_MAX_SCREEN_PX * Math.min(2, Math.max(1, dpr || 1)) * 1.5);
+  return Math.ceil(STILL_MAX_SCREEN_PX * Math.min(2, Math.max(1, dpr || 1)));
 }
 /** And never taller than this (a long page artboard). */
 export const RASTER_MAX_HEIGHT_PX = 1600;
