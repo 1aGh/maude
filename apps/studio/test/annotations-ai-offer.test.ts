@@ -235,4 +235,33 @@ describe('T2.6 (15 an-ai-write): "Put them in a section"', () => {
     expect(putInSection({ offer: { ...offer, wrote: undefined }, ask, send, mode })).toBe(false);
     expect(sent.length).toBe(1);
   });
+
+  test('a review asked with no selection still puts the notes in a section, on the canvas it was sent from', () => {
+    const offer = {
+      v: 1,
+      says: 'x',
+      answers: [],
+      leaves: [],
+      targets: [],
+      wrote: ['s_n1', 's_n2', 's_n3'],
+    };
+    // the ask carried no annotation ids, so there is no `ask`; the frozen send context names the canvas
+    noteAskedAnnotations({ canvas: 'ui/Pricing.tsx', runScope: { canvas: 'ui/Pricing.tsx' } });
+    expect(askedAnnotations()).toBeNull();
+    const sent: Array<{ text: string; scope: { file: string; ids: string[]; kind: string } }> = [];
+    // like the real send: a scope-less send does not go out
+    const send = (a: { scope: unknown }) => (sent.push(a as never), !!a.scope);
+    expect(putInSection({ offer, ask: askedAnnotations(), send })).toBe(true);
+    expect(sent[0].scope.kind).toBe('annotations');
+    expect(sent[0].scope.file).toBe('ui/Pricing.tsx');
+    expect(sent[0].scope.ids).toEqual(['s_n1', 's_n2', 's_n3']);
+    // the canvas the turn was sent from, not whichever the next send is about
+    noteAskedAnnotations({ canvas: 'ui/Other.tsx' });
+    expect(putInSection({ offer, ask: null, send })).toBe(true);
+    expect(sent[1].scope.file).toBe('ui/Other.tsx');
+    // nothing frozen at all: nothing to scope to, nothing sent
+    noteAskedAnnotations(null);
+    expect(putInSection({ offer, ask: null, send })).toBe(false);
+    expect((sent[2] as { scope: unknown }).scope).toBeNull();
+  });
 });
