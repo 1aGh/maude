@@ -42,8 +42,18 @@ export const LOCATION_REFUSED =
 export const LOCATION_IN_PROJECT =
   'This folder is inside another project or a git repository. Choose a folder outside it.';
 const MAX_LOCATION = 1024;
-/** What makes a folder part of somebody's tree: a repository, a Maude project, AI instructions. */
-const TREE_MARKERS = ['.git', '.design', 'CLAUDE.md'] as const;
+/**
+ * What makes a folder part of somebody's tree: a repository, a Maude project, AI instructions. Claude Code reads
+ * every instruction file below from a parent folder, not just `CLAUDE.md` (#168).
+ */
+const TREE_MARKERS = [
+  '.git',
+  '.design',
+  'CLAUDE.md',
+  'CLAUDE.local.md',
+  path.join('.claude', 'CLAUDE.md'),
+  'AGENTS.md',
+] as const;
 
 /** `dir` and each parent up to `stop` (exclusive) — or up to and including `stop` when `inclusive`. */
 function holdsTreeMarker(dir: string, stop: string, inclusive: boolean): boolean {
@@ -136,7 +146,17 @@ export type CreateLocalResult =
   | { ok: true; root: string; pid: string; name: string }
   | { ok: false; status: number; error: string };
 
-export function createLocalProject(name: unknown, baseDir = projectsBaseDir()): CreateLocalResult {
+/**
+ * `recheck` (#168): a folder the person picked was checked by `checkLocationReason` a moment ago, but a synced
+ * parent can receive a `.git` or an instruction file between that check and the create. It is called once the
+ * project folder is claimed and again after the scaffold; a `false` removes what this call made and refuses with
+ * LOCATION_IN_PROJECT, so nothing is left in a tree the check would now refuse.
+ */
+export function createLocalProject(
+  name: unknown,
+  baseDir = projectsBaseDir(),
+  opts: { recheck?: () => boolean } = {}
+): CreateLocalResult {
   const base = projectFolderName(name);
   try {
     mkdirSync(baseDir, { recursive: true });
@@ -152,11 +172,20 @@ export function createLocalProject(name: unknown, baseDir = projectsBaseDir()): 
       if ((err as NodeJS.ErrnoException).code === 'EEXIST') continue;
       return { ok: false, status: 500, error: 'Could not create the project folder.' };
     }
+    const lateTree = (): CreateLocalResult | null => {
+      if (!opts.recheck || opts.recheck()) return null;
+      rmSync(target, { recursive: true, force: true }); // ours: claimed above
+      return { ok: false, status: 400, error: LOCATION_IN_PROJECT };
+    };
+    const early = lateTree();
+    if (early) return early;
     const s = scaffoldDesign(target, folder);
     if (!s.ok) {
       rmSync(target, { recursive: true, force: true }); // ours: created three lines up
       return { ok: false, status: 500, error: s.error ?? 'Could not set up the project.' };
     }
+    const late = lateTree();
+    if (late) return late;
     const root = realpathSync(target);
     return { ok: true, root, pid: pidOf(root), name: folder };
   }

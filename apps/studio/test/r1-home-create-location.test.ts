@@ -9,6 +9,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   symlinkSync,
   writeFileSync,
@@ -19,6 +20,7 @@ import { join } from 'node:path';
 import {
   checkLocation,
   checkLocationReason,
+  createLocalProject,
   LOCATION_IN_PROJECT,
   LOCATION_REFUSED,
 } from '../home/create-local.ts';
@@ -141,5 +143,58 @@ describe('create-local refuses a folder inside another project or repository', (
     const h = realpathSync(mkdtempSync(join(tmpdir(), 'maude-r2-c2-case-')));
     mkdirSync(join(h, 'LIBRARY', 'Caches'), { recursive: true });
     expect(checkLocation(join(h, 'LIBRARY', 'Caches'), h)).toBe(null);
+  });
+});
+
+// #168 (V2-8.9 r2 C2 remainder) — Claude Code reads more than `CLAUDE.md` from a parent folder (`AGENTS.md`,
+// `CLAUDE.local.md`, `.claude/CLAUDE.md`): all of them steer the AI, so a parent holding one refuses the location
+// like a parent holding `CLAUDE.md`. And a `.git` that appears AFTER the check (a synced parent can receive one
+// between the picker and the create) is caught by the re-check after the folder is claimed: nothing is left.
+describe('create-local: every parent instruction file, and a .git that arrives late', () => {
+  const H = realpathSync(mkdtempSync(join(tmpdir(), 'maude-168-home-')));
+  mkdirSync(join(H, 'A', 'sub'), { recursive: true });
+  writeFileSync(join(H, 'A', 'AGENTS.md'), 'steer\n');
+  mkdirSync(join(H, 'B', 'sub'), { recursive: true });
+  writeFileSync(join(H, 'B', 'CLAUDE.local.md'), 'steer\n');
+  mkdirSync(join(H, 'C', '.claude'), { recursive: true });
+  mkdirSync(join(H, 'C', 'sub'), { recursive: true });
+  writeFileSync(join(H, 'C', '.claude', 'CLAUDE.md'), 'steer\n');
+
+  for (const [why, location] of [
+    ['a parent holds AGENTS.md', join(H, 'A', 'sub')],
+    ['a parent holds CLAUDE.local.md', join(H, 'B', 'sub')],
+    ['a parent holds .claude/CLAUDE.md', join(H, 'C', 'sub')],
+  ] as const) {
+    test(`refused: ${why}`, () => {
+      expect(checkLocationReason(location, H)).toEqual({ ok: false, error: LOCATION_IN_PROJECT });
+    });
+  }
+
+  test('a .git that appears after the check removes the claimed folder and makes nothing', () => {
+    const base = join(H, 'Late');
+    mkdirSync(base);
+    expect(checkLocationReason(base, H).ok).toBe(true);
+    const r = createLocalProject('Fresh', base, {
+      // the parent receives a .git after the page's check, before the project is scaffolded
+      recheck: () => {
+        mkdirSync(join(base, '.git'));
+        return checkLocationReason(base, H).ok;
+      },
+    });
+    expect(r).toEqual({ ok: false, status: 400, error: LOCATION_IN_PROJECT });
+    expect(existsSync(join(base, 'Fresh'))).toBe(false);
+  });
+
+  test('a recheck that still passes changes nothing', () => {
+    const base = join(H, 'Calm');
+    mkdirSync(base);
+    const r = createLocalProject('Fresh', base, { recheck: () => checkLocationReason(base, H).ok });
+    expect(r.ok).toBe(true);
+    expect(existsSync(join(base, 'Fresh', '.design'))).toBe(true);
+  });
+
+  test('the route re-checks the picked folder once the project folder is claimed', () => {
+    const src = readFileSync(join(import.meta.dir, '..', 'home', 'routes.ts'), 'utf8');
+    expect(src).toMatch(/recheck\s*=\s*\(\)\s*=>\s*checkLocationReason\(/);
   });
 });
