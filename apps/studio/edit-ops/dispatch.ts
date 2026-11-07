@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 
 import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
 import { type IdElement, walkIdElements } from '../element-ids.ts';
+import { moduleRefusal } from '../imported-module-ids.ts';
 import { alignOps } from './align.ts';
 import { artboardResize } from './artboard-resize.ts';
 import { artboardTrash } from './artboard-trash.ts';
@@ -200,6 +201,12 @@ export interface DispatchDeps {
   ctx?(rel: string): EditCtx;
   /** V2-8.9 L1 — this request's clipboard owner + sight (routes/edit.ts); ops read it as `req.clipScope` */
   clipScope?: ClipScope;
+  /**
+   * #151 T2.3b — the imported module (design-root-relative path) an element id lives in, asked only once
+   * the id is not in the canvas file: such an element is selectable but edit-read-only, and the refusal
+   * names the file. Absent = the plain "not on this canvas".
+   */
+  moduleOf?(rel: string, id: string): string | null;
 }
 
 /** What `land` is asked to make one action of. */
@@ -301,15 +308,22 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
   // Stamp every target in this write (V2-1.4 rule 3): an op never sees a computed id.
   let source = current;
   const refs: ElementRef[] = [];
+  let asked = '';
   try {
     for (const t of req.targets) {
+      asked = t.element;
       const st = ensureStamped(rel, source, t.element, t.occurrence);
       source = st.source;
       refs.push(t.occurrence ? { ...t, element: st.id } : { artboard: t.artboard, element: st.id });
     }
   } catch (e) {
-    if (e instanceof CanvasEditError)
-      return refuse('invalid', 'One of the objects is not on this canvas.');
+    if (e instanceof CanvasEditError) {
+      const module = deps.moduleOf?.(rel, asked) ?? null;
+      return refuse(
+        'invalid',
+        module ? moduleRefusal(module) : 'One of the objects is not on this canvas.'
+      );
+    }
     throw e;
   }
   const walk = walkIdElements(source, rel);

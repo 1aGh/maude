@@ -131,6 +131,58 @@ export function stampImportedModule(
   return s.hasChanged() ? s.toString() : null;
 }
 
+/**
+ * The scope (design-root-relative posix path) an imported module's ids and `data-cd-module` marker are
+ * made under, or null when the file is not one to stamp: outside the root, the design system folder
+ * (`system/` is selected as an instance), runtime state (`_*`), dot-folders, vendored code, or a path
+ * with a character that could not sit safely inside a JSX attribute string. `root` is the real path of
+ * the design root (as Bun reports file paths; macOS `/tmp` is `/private/tmp`).
+ */
+export function importedModuleScope(file: string, root: string): string | null {
+  const rel = path.relative(root, file);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null;
+  const parts = rel.split(path.sep);
+  const first = parts[0] as string;
+  if (first === 'system' || first.startsWith('_') || first.startsWith('.')) return null;
+  if (parts.includes('node_modules')) return null;
+  const scope = parts.join('/');
+  return SAFE_SCOPE_RE.test(scope) ? scope : null;
+}
+const SAFE_SCOPE_RE = /^[\p{L}\p{N}_@.+()[\] -]+(?:\/[\p{L}\p{N}_@.+()[\] -]+)*$/u;
+
+/**
+ * Every `data-cd-id` the elements of an imported module carry once stamped (computed and authored), under
+ * `scope`. The server's side of `stampImportedModule`: the same walk, so the same ids, without the bytes.
+ * Empty when the source does not parse.
+ */
+export function importedModuleIds(
+  moduleAbsPath: string,
+  source: string,
+  scope: string
+): Set<string> {
+  const ids = new Set<string>();
+  if (hasMacroImport(source)) return ids;
+  let parsed: ReturnType<typeof parseSync>;
+  try {
+    parsed = parseSync(moduleAbsPath, source, { sourceType: 'module' });
+  } catch {
+    return ids;
+  }
+  if (parsed.errors && parsed.errors.length > 0) return ids;
+  walkInjectIds(
+    parsed.program,
+    source,
+    moduleAbsPath,
+    new MagicString(source),
+    {},
+    {
+      idScope: scope,
+      ids,
+    }
+  );
+  return ids;
+}
+
 export class TranspileError extends Error {
   readonly canvas: string;
   readonly byte: number;
@@ -292,8 +344,9 @@ function walkInjectIds(
   canvasAbsPath: string,
   s: MagicString,
   locator: LocatorMap,
-  // Set for an IMPORTED module (stampImportedModule): ids scoped to it, no inline-edit marker.
-  imported?: { idScope: string }
+  // Set for an IMPORTED module (stampImportedModule): ids scoped to it, no inline-edit marker, and
+  // every element marked `data-cd-module`. `ids` (optional) collects every id the module's elements carry.
+  imported?: { idScope: string; ids?: Set<string> }
 ): void {
   // Stack of enclosing components. JSX outside any component (e.g. a top-level
   // `const x = <div/>;` constant) attributes to "" -- still gets an ID, just
@@ -346,6 +399,7 @@ function walkInjectIds(
         if (typeof insertAt === 'number') {
           s.appendLeft(insertAt, ` data-cd-id="${id}"`);
           if (!imported) locator[id] = locate();
+          imported?.ids?.add(id);
         }
       } else {
         // V2-2.19 (contract V2-1.4 §5.2): an AUTHORED id is the stable identity, so it
@@ -353,6 +407,17 @@ function walkInjectIds(
         // check reports the duplicate itself).
         const authored = authoredIdLiteral(opening);
         if (authored && !imported && !locator[authored]) locator[authored] = locate();
+        if (authored) imported?.ids?.add(authored);
+      }
+
+      // #151 T2.3b — an element of an imported module is edit-READ-ONLY (the edit engine reads only the
+      // canvas file). The marker is the module's design-root-relative path: the inspector and the canvas
+      // read it from the DOM and name the file; ids stay 8 hex, so the server finds the file by walking
+      // the canvas's imports (imported-module-ids.ts), never from the id.
+      if (imported && !hasJsxAttr(opening, 'data-cd-module')) {
+        const insertAt: number | undefined = opening?.name?.end;
+        if (typeof insertAt === 'number')
+          s.appendLeft(insertAt, ` data-cd-module="${imported.idScope}"`);
       }
 
       // Phase 6 (unified-text-editing) — build-time editability marker, so

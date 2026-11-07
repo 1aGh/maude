@@ -6244,7 +6244,20 @@ if (import.meta.main) {
     try {
       const { abs: canvas, rel } = resolveCliCanvas(arg);
       const before = await Bun.file(canvas).text();
-      const after = applyEdit(canvas, before, id, attr, value).source;
+      let after: string;
+      try {
+        after = applyEdit(canvas, before, id, attr, value).source;
+      } catch (e) {
+        // #151 T2.3b — an element of a module the canvas imports: selectable, edit-read-only. Name the
+        // file (the AI can edit it directly) instead of "not found in <abs path>".
+        if (e instanceof CanvasEditError) {
+          const { moduleOwningId, moduleRefusalForAi } = await import('./imported-module-ids.ts');
+          const designRoot = path.resolve(canvas, ...rel.split('/').map(() => '..'));
+          const module = moduleOwningId(canvas, designRoot, id);
+          if (module) throw new CliRefusal(moduleRefusalForAi(module), 1);
+        }
+        throw e;
+      }
       assertCliEditUnlocked(rel, before, after);
       // p8-a1-claims — inside a Maude chat these bytes are claimed for its run before they land
       // (bin/_write-claim.mjs); a person's own save meanwhile is different bytes and stays theirs

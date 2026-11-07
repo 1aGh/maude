@@ -50,6 +50,27 @@ export function isLockedSelection(selection, layersTree) {
   });
 }
 
+/**
+ * #151 T2.3b — the file an element of the selection lives in when it is NOT the canvas's: a component the
+ * canvas imports from a sibling file. The build stamps `data-cd-module="<design-root-relative path>"` on
+ * every element of such a module (canvas-pipeline.ts); it is selectable and commentable but edit-read-only,
+ * because the edit engine reads only the canvas file. null = every element is the canvas's own.
+ */
+export function moduleOfSelection(selection) {
+  const list = Array.isArray(selection) ? selection : selection ? [selection] : [];
+  for (const el of list) {
+    if (!el || isArtboardSelection(el)) continue;
+    const file = el.attrs?.['data-cd-module'];
+    if (typeof file === 'string' && file) return file;
+  }
+  return null;
+}
+
+/** The inspector's line for such an element (CONTRACT §3–§4: what happened, then the one door). */
+export function moduleLine(file) {
+  return `This part comes from ${file}, another file, so it can’t be edited here.`;
+}
+
 /** The name above the rows: the layer's name, else the element's own text, else its tag. */
 export function titleOf(selection, layersTree) {
   if (Array.isArray(selection) && selection.length > 1) {

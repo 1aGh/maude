@@ -26,7 +26,11 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
 import { canvasLibPath, canvasLibResolver } from './canvas-lib-resolver.ts';
-import { stampImportedModule, transpileCanvasSource } from './canvas-pipeline.ts';
+import {
+  importedModuleScope,
+  stampImportedModule,
+  transpileCanvasSource,
+} from './canvas-pipeline.ts';
 import { CanvasBuildError, errorAt, fromBuildLogs, scrubPaths } from './canvas-source/errors.ts';
 import { dsResolver, usesDs } from './ds/ds-resolver.ts';
 import type { LocatorMap } from './locator.ts';
@@ -882,7 +886,7 @@ export function macroPinnedLoad(
           }
           const stamped =
             stampRoot && (loader === 'tsx' || loader === 'jsx')
-              ? stampScope(args.path, stampRoot)
+              ? importedModuleScope(args.path, stampRoot)
               : null;
           const contents = stamped ? stampImportedModule(args.path, text, stamped) : null;
           return {
@@ -902,21 +906,6 @@ function realRoot(root: string): string {
   } catch {
     return path.resolve(root);
   }
-}
-
-/**
- * The scope (design-root-relative posix path) an imported module's ids are made under, or null when
- * the file is not one to stamp: outside the root, the design system folder, runtime state (`_*`),
- * or vendored code.
- */
-function stampScope(file: string, root: string): string | null {
-  const rel = path.relative(root, file);
-  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null;
-  const parts = rel.split(path.sep);
-  const first = parts[0] as string;
-  if (first === 'system' || first.startsWith('_') || first.startsWith('.')) return null;
-  if (parts.includes('node_modules')) return null;
-  return parts.join('/');
 }
 
 function loaderForExt(file: string): string | null {

@@ -17209,6 +17209,22 @@
     "v2": "new"
   },
   {
+    "hook": "inspector-module-action",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one door on the inspector's line for an element that lives in another file (\"This part comes from ui/hifi.tsx, another file, so it can’t be edited here.\"): \"Open hifi.tsx\", runs the registry's canvas.open-in-editor on that file. The line itself is inspector-hold-line.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/view-mode.jsx",
+      "symbol": "HoldLine"
+    },
+    "region": "inspector",
+    "consumers": [
+      "test:imported-module-readonly-client"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "edit-nudge-tag",
     "kind": "testid",
     "pattern": false,
