@@ -11,7 +11,15 @@
 
 import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -21,8 +29,8 @@ import { createAgentActivityTracker } from '../acp/index.ts';
 import { createAgentRuns } from '../agent-runs.ts';
 import { createLocalLeaseHome } from '../ai/lease-home.ts';
 import { createRunRegistry } from '../ai/runs.ts';
-import { createSaveHold, setSaveHoldForTest } from '../ai/save-hold.ts';
-import { hookClaims } from '../ai/write-claim.ts';
+import { asPersonSave, createSaveHold, setSaveHoldForTest } from '../ai/save-hold.ts';
+import { claimWrite, hookClaims } from '../ai/write-claim.ts';
 import { applyEdit } from '../canvas-edit.ts';
 import type { AiActivity } from '../collab/ai-activity.ts';
 import type { Context } from '../context.ts';
@@ -32,7 +40,13 @@ import { agentRouteSpecs, CLAIM_MAX_FILES } from '../routes/agent.ts';
 import { createEditRoutes } from '../routes/edit.ts';
 import { runStageHooks } from '../routes/project-undo.ts';
 import type { RouteSpec } from '../routes/table.ts';
-import { createActionStage, SETTLE_WAIT_MS, SHELL_SETTLE_MS } from '../sync/action-stage.ts';
+import {
+  createActionStage,
+  PARKED_MAX,
+  SETTLE_WAIT_MS,
+  SHELL_SETTLE_MS,
+} from '../sync/action-stage.ts';
+import { MAX_HTML_BYTES } from '../sync/limits.ts';
 import { attachLocalHome, type LocalHome, OUTSIDE_KIND } from '../sync/local-kernel.ts';
 
 const canvas = (title: string) => `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
@@ -334,12 +348,12 @@ describe('S1–S3 — parked during the call, claimed by the settle, otherwise o
     const p = { lane: 'html' as const, baseContent: 'a', stageable: true };
     const w1 = stage.capture('ui/A.tsx', 'a', { ...p, content: 'b', transactionId: 'x1' });
     expect(stage.parked()).toEqual([{ slug: 'ui/A.tsx', lane: 'html' }]);
-    stage.releaseShellCall('c1', 'stale');
+    stage.releaseShellCall('r1', 'c1', 'stale');
     expect(await w1).toMatchObject({ status: 'accepted' });
     expect(sent).toEqual([{ slug: 'ui/A.tsx', kind: 'release' }]);
     stage.begin('run:r1', 'Fix', { runId: 'r1', shell: { call: 'c2', open: true, all: true } });
     void stage.capture('ui/B.tsx', 'b', { ...p, content: 'c', transactionId: 'x2' });
-    stage.settleShellCall('c2', []);
+    stage.settleShellCall('r1', 'c2', []);
     expect(stage.parked()).toEqual([]);
     expect(sent.at(-1)).toEqual({ slug: 'ui/B.tsx', kind: 'release' });
     expect(stage.summaryOf('r1')?.canvases).toEqual([]);
@@ -501,9 +515,15 @@ describe('S8 — the settle route', () => {
 
   test('a bad path, a runtime file, a non-lane file, a bad sha or more than 32 entries is 400', async () => {
     const r = await rig();
-    await terminal(r);
-    const post = (changed: unknown) =>
-      r.hook('/_api/agent/bash/settle', { session: 't1', toolUseId: 'b1', changed });
+    const t = await terminal(r);
+    await t.window(true, { all: true });
+    const post = (changed: unknown, more = false) =>
+      r.hook('/_api/agent/bash/settle', {
+        session: 't1',
+        toolUseId: 'b1',
+        changed,
+        ...(more ? { more: true } : {}),
+      });
     for (const path of ['../x.tsx', '/abs/x.tsx', '_state/x.tsx', 'ui/.hidden.tsx', 'assets/a.png'])
       expect((await post([{ path, sha: sha('x') }])).status).toBe(400);
     expect((await post([{ path: HOME, sha: 'not-a-sha' }])).status).toBe(400);
@@ -514,7 +534,7 @@ describe('S8 — the settle route', () => {
       sha: null,
     }));
     expect((await post(many)).status).toBe(400);
-    expect((await post(many.slice(0, CLAIM_MAX_FILES))).status).toBe(200);
+    expect((await post(many.slice(0, CLAIM_MAX_FILES), true)).status).toBe(200);
     // `.jsx` is a lane now
     expect((await post([{ path: 'ui/Legacy.jsx', sha: null }])).status).toBe(200);
   });
@@ -611,15 +631,314 @@ describe('S8 — the settle route', () => {
     expect(await r.aiCanvases()).toEqual([]);
   });
 
-  test('a deleted file the disk no longer holds is bound; one still on disk is not', async () => {
+  test('a deleted file the disk no longer holds is bound only if seen leaving; one still on disk is not', async () => {
     const r = await rig();
-    await terminal(r);
-    const post = (changed: unknown) =>
-      r.hook('/_api/agent/bash/settle', { session: 't1', toolUseId: 'b1', changed });
+    const t = await terminal(r);
+    await t.window(true, { all: true });
+    const post = (changed: unknown, more = true) =>
+      r.hook('/_api/agent/bash/settle', {
+        session: 't1',
+        toolUseId: 'b1',
+        changed,
+        ...(more ? { more: true } : {}),
+      });
     const gone = await post([{ path: 'ui/Gone.tsx', sha: null, deleted: true }]);
-    expect(((await gone.json()) as { bound: string[] }).bound).toEqual(['ui/Gone.tsx']);
+    expect(((await gone.json()) as { bound: string[] }).bound).toEqual([]); // D4: never seen leaving
     expect(existsSync(r.abs(HOME))).toBe(true);
-    const still = await post([{ path: HOME, sha: null, deleted: true }]);
+    const still = await post([{ path: HOME, sha: null, deleted: true }], false);
     expect(((await still.json()) as { bound: string[] }).bound).toEqual([]);
+  });
+});
+
+// ── #164 security pair (F1, F4–F6, D1, D3, D4, D6) ────────────────────────────────────────────────────
+
+/** A bare stage whose releases and run proposals are recorded (no store). */
+function bareStage() {
+  const released: Array<{ slug: string; writes: Array<{ base: string; content: string }> }> = [];
+  const proposed: Array<{ label: string; operations: unknown[] }> = [];
+  const warned: string[] = [];
+  const stage = createActionStage({
+    designRoot: mkdtempSync(path.join(tmpdir(), 'maude-164-sec-')),
+    propose: async (a) => {
+      proposed.push({ label: a.label, operations: a.operations });
+      return { protocol: 1, status: 'accepted', transactionId: a.transactionId };
+    },
+    newTransactionId: () => `tx_${Math.random().toString(36).slice(2)}`,
+    release: async (w) => {
+      released.push({
+        slug: w.slug,
+        writes: w.writes.map((x) => ({ base: x.baseContent, content: x.content })),
+      });
+      return { status: 'accepted' };
+    },
+    log: { log() {}, warn: (m: string) => warned.push(String(m)) },
+  });
+  let n = 0;
+  const lane = (slug: string, base: string, content: string) =>
+    stage.capture(slug, slug, {
+      lane: 'html',
+      baseContent: base,
+      content,
+      stageable: true,
+      transactionId: `x${++n}`,
+    });
+  return { stage, released, proposed, warned, lane };
+}
+
+describe('#164 F1 — claimed bytes take along only their own call’s parked writes', () => {
+  test('chain: a background `all` window parks a person’s save, then a claiming verb lands — the save stays outside', async () => {
+    const r = await rig();
+    const t = await terminal(r, 'bg1');
+    await t.window(true, { all: true }); // a background call that names no canvas
+    const person = shorten(r.read(HOME));
+    await r.write(HOME, person); // the person, in another editor: parked under the window
+    expect(await r.kindsOf(HOME)).toEqual([]);
+    // `maude design canvas-edit` claims its bytes for the run, then writes them
+    const ai = person.replace('Body copy', 'Body by AI');
+    claimWrite(r.home.runtime, { runId: t.runId, chatId: '', label: 'Fix' }, repo(HOME), ai);
+    await r.write(HOME, ai);
+    expect(await r.kindsOf(HOME)).toEqual([OUTSIDE_KIND]); // released as outside FIRST
+    expect(await r.publish(t.runId)).toMatchObject({ status: 'accepted' });
+    const [row] = (await r.rows()).filter((x) => x.kind === 'ai');
+    expect((await r.home.runtime.acceptedUndo(row.actionId, false, { via: 'keys' })).status).toBe(
+      'accepted'
+    );
+    await r.home.flush();
+    // the run's undo takes back only the AI's words: the person's save stays
+    expect(r.read(HOME)).toBe(person);
+  });
+
+  test('a settle joins only what ITS call’s window parked: an earlier window’s write goes out first', async () => {
+    const { stage, released, lane } = bareStage();
+    stage.begin('run:r1', 'Fix', { runId: 'r1', shell: { call: 'c0', open: true, all: true } });
+    const w1 = lane('ui/A.tsx', 'a', 'b'); // someone else's write, under c0 only
+    stage.begin('run:r1', 'Fix', {
+      runId: 'r1',
+      shell: { call: 'c1', open: true, slugs: ['ui/A.tsx'] },
+    });
+    void lane('ui/A.tsx', 'b', 'c'); // the call's own write
+    stage.claim('r1', 'ui/A.tsx', sha('c'));
+    expect(stage.settleShellCall('r1', 'c1', ['ui/A.tsx'])).toBe(true);
+    expect(await w1).toMatchObject({ status: 'accepted' });
+    expect(released).toEqual([{ slug: 'ui/A.tsx', writes: [{ base: 'a', content: 'b' }] }]);
+    const [l] = stage.lanesOf('r1');
+    expect(l).toMatchObject({ slug: 'ui/A.tsx', base: 'b', mine: 'c' });
+  });
+
+  test('another run’s settle of the same bytes never takes a write parked under a different run', async () => {
+    const { stage, released, lane } = bareStage();
+    stage.begin('run:r1', 'One', {
+      runId: 'r1',
+      shell: { call: 'c1', open: true, slugs: ['ui/A.tsx'] },
+    });
+    stage.begin('run:r2', 'Two', {
+      runId: 'r2',
+      shell: { call: 'c2', open: true, slugs: ['ui/B.tsx'] },
+    });
+    void lane('ui/A.tsx', 'a', 'b'); // parked under r1's window only
+    stage.claim('r2', 'ui/A.tsx', sha('b'));
+    stage.settleShellCall('r2', 'c2', ['ui/A.tsx']);
+    expect(stage.lanesOf('r2')).toEqual([]);
+    stage.releaseShellCall('r1', 'c1', 'no-settle');
+    expect(released.map((x) => x.slug)).toEqual(['ui/A.tsx']);
+    expect(stage.lanesOf('r1')).toEqual([]);
+  });
+});
+
+describe('#164 F5 — a settle resolves only the caller’s own call', () => {
+  test('two runs with the same call id: one’s settle leaves the other’s window parking', () => {
+    const { stage } = bareStage();
+    stage.begin('run:r1', 'One', { runId: 'r1', shell: { call: 'c', open: true, all: true } });
+    stage.begin('run:r2', 'Two', { runId: 'r2', shell: { call: 'c', open: true, all: true } });
+    expect(stage.settleShellCall('r2', 'c', [])).toBe(true);
+    expect(stage.shellCall('r2', 'c')).toBeNull();
+    expect(stage.shellCall('r1', 'c')).not.toBeNull();
+    // no window (already settled, or never opened): refused, nothing resolved
+    expect(stage.settleShellCall('r2', 'c', [])).toBe(false);
+    expect(stage.settleShellCall('r1', 'nope', [])).toBe(false);
+  });
+
+  test('the route refuses a settle for a call with no window: nothing is claimed', async () => {
+    const r = await rig();
+    const t = await terminal(r);
+    await r.write(HOME, shorten(r.read(HOME))); // lands at once: no window parks it
+    const res = await r.hook('/_api/agent/bash/settle', {
+      session: 't1',
+      toolUseId: 'never-opened',
+      changed: [t.changedOf(HOME)],
+    });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { code: string }).code).toBe('no-window');
+    await r.publish(t.runId);
+    expect(await r.aiCanvases()).toEqual([]);
+  });
+
+  test('a close that names its owner ends only that owner’s hold', () => {
+    const hold = createSaveHold({ settleMs: 0 });
+    const f = path.join(tmpdir(), 'maude-164-hold.tsx');
+    hold.window('c', true, [f], 'run:a');
+    hold.window('c', false, [], 'run:b'); // another run's close: the hold stays
+    expect(asPersonSave(() => hold.holds(f))).toBe(true);
+    hold.window('c', false, [], 'run:a');
+    expect(asPersonSave(() => hold.holds(f))).toBe(false);
+    hold.close();
+  });
+});
+
+describe('#164 F6 — a `named` settle claims only the files the window covered', () => {
+  test('a changed file outside the named cover is not bound', async () => {
+    const r = await rig();
+    const t = await terminal(r);
+    await t.window(true, { files: [HOME] });
+    await r.write(HOME, shorten(r.read(HOME)));
+    await r.write(OTHER, shorten(r.read(OTHER))); // not covered: lands at once as outside
+    const res = await t.settle([t.changedOf(HOME), t.changedOf(OTHER)]);
+    expect(res.bound).toEqual([HOME]);
+    await r.publish(t.runId);
+    expect(await r.aiCanvases()).toEqual([[HOME]]);
+  });
+});
+
+describe('#164 F4 / D3 — pending settle batches', () => {
+  /** hookClaims over a fake runtime: every call has an `all` window until it settles. */
+  function fakeClaims() {
+    const claimed: Array<{ key: string; rel: string }> = [];
+    const settled: Array<{ key: string; call: string; claimed: readonly string[] }> = [];
+    const open = new Set<string>();
+    const warned: string[] = [];
+    const control = {
+      beginAiAction() {},
+      claimAiWrite: (key: string, rel: string) => claimed.push({ key, rel }),
+      shellCall: (key: string, call: string) =>
+        open.has(`${key}|${call}`) ? { all: true, covers: () => true, left: () => false } : null,
+      settleShellCall: (key: string, call: string, c?: readonly string[]) => {
+        settled.push({ key, call, claimed: c ?? [] });
+        return open.delete(`${key}|${call}`);
+      },
+    };
+    const hc = hookClaims(() => control, '.design', {
+      log: { warn: (m: string) => warned.push(m) },
+    });
+    return { hc, claimed, settled, open, warned };
+  }
+  const run = (id: string) => ({ run: id, label: 'x' });
+
+  test('keyed by run + call: another run’s last batch never claims this run’s pending files', () => {
+    const f = fakeClaims();
+    f.open.add('r1|b1');
+    f.open.add('r2|b1');
+    expect(f.hc.settle(run('r1'), 'b1', [{ rel: HOME, text: 'a' }], false)).toEqual({ ok: true });
+    expect(f.hc.settle(run('r2'), 'b1', [{ rel: OTHER, text: 'b' }], true)).toEqual({ ok: true });
+    expect(f.claimed).toEqual([{ key: 'r2', rel: repo(OTHER) }]);
+    f.hc.settle(run('r1'), 'b1', [], true);
+    expect(f.claimed.at(-1)).toEqual({ key: 'r1', rel: repo(HOME) });
+  });
+
+  test('paths dedupe across batches; a call past its file cap fails to outside and its last batch claims nothing', () => {
+    const f = fakeClaims();
+    f.open.add('r1|b1');
+    f.hc.settle(run('r1'), 'b1', [{ rel: HOME, text: 'a' }], false);
+    f.hc.settle(run('r1'), 'b1', [{ rel: HOME, text: 'b' }], true);
+    expect(f.claimed).toEqual([{ key: 'r1', rel: repo(HOME) }]);
+    f.open.add('r1|b2');
+    let last: { ok: boolean; code?: string } = { ok: true };
+    for (let i = 0; i < 40 && last.ok; i++)
+      last = f.hc.settle(
+        run('r1'),
+        'b2',
+        Array.from({ length: 32 }, (_, j) => ({ rel: `ui/C${i}_${j}.tsx`, text: 'x' })),
+        false
+      );
+    expect(last).toEqual({ ok: false, code: 'settle-failed' });
+    expect(f.settled.at(-1)).toEqual({ key: 'r1', call: 'b2', claimed: [] }); // released at once
+    expect(f.warned.length).toBe(1);
+    expect(f.hc.settle(run('r1'), 'b2', [{ rel: HOME, text: 'z' }], true).ok).toBe(false);
+    expect(f.claimed.length).toBe(1);
+  });
+
+  test('a call over the byte cap fails; the 65th call at once fails instead of evicting a live one', () => {
+    const f = fakeClaims();
+    f.open.add('r1|big');
+    const big = 'x'.repeat(9 * 1024 * 1024);
+    f.hc.settle(run('r1'), 'big', [{ rel: HOME, text: big }], false);
+    expect(f.hc.settle(run('r1'), 'big', [{ rel: OTHER, text: big }], false).ok).toBe(false);
+    for (let i = 0; i < 65; i++) f.open.add(`r1|c${i}`);
+    for (let i = 0; i < 64; i++)
+      expect(f.hc.settle(run('r1'), `c${i}`, [{ rel: HOME, text: 'a' }], false).ok).toBe(true);
+    expect(f.hc.settle(run('r1'), 'c64', [{ rel: HOME, text: 'a' }], false).ok).toBe(false);
+    // the first call's batches are intact: its last batch claims them
+    expect(f.hc.settle(run('r1'), 'c0', [], true)).toEqual({ ok: true });
+    expect(f.claimed.at(-1)).toEqual({ key: 'r1', rel: repo(HOME) });
+  });
+
+  test('a pending call whose last batch never comes expires after SETTLE_WAIT_MS: outside, logged', async () => {
+    const f = fakeClaims();
+    f.open.add('r1|b1');
+    f.hc.settle(run('r1'), 'b1', [{ rel: HOME, text: 'a' }], false);
+    await sleep(SETTLE_WAIT_MS + 200);
+    expect(f.settled).toEqual([{ key: 'r1', call: 'b1', claimed: [] }]);
+    expect(f.warned.length).toBe(1);
+    expect(f.hc.settle(run('r1'), 'b1', [], true).ok).toBe(false);
+    expect(f.claimed).toEqual([]);
+  });
+
+  test('a call with no window is refused before anything is claimed', () => {
+    const f = fakeClaims();
+    expect(f.hc.settle(run('r1'), 'b1', [{ rel: HOME, text: 'a' }], true)).toEqual({
+      ok: false,
+      code: 'no-window',
+    });
+    expect(f.claimed).toEqual([]);
+  });
+});
+
+describe('#164 D1 — parked writes are merged and capped', () => {
+  test('three writes to one lane under one window are ONE parked entry: first base, last bytes', async () => {
+    const { stage, released, lane } = bareStage();
+    stage.begin('run:r1', 'Fix', { runId: 'r1', shell: { call: 'c1', open: true, all: true } });
+    const outs = [
+      lane('ui/A.tsx', 'a', 'b'),
+      lane('ui/A.tsx', 'b', 'c'),
+      lane('ui/A.tsx', 'c', 'd'),
+    ];
+    expect(stage.parked()).toEqual([{ slug: 'ui/A.tsx', lane: 'html' }]);
+    stage.releaseShellCall('r1', 'c1', 'no-settle');
+    for (const o of outs) expect(await o).toMatchObject({ status: 'accepted' });
+    expect(released).toEqual([{ slug: 'ui/A.tsx', writes: [{ base: 'a', content: 'd' }] }]);
+  });
+
+  test('past PARKED_MAX the oldest canvas goes out as outside, logged', () => {
+    const { stage, released, warned, lane } = bareStage();
+    stage.begin('run:r1', 'Fix', { runId: 'r1', shell: { call: 'c1', open: true, all: true } });
+    for (let i = 0; i <= PARKED_MAX; i++) void lane(`ui/C${i}.tsx`, 'a', 'b');
+    expect(stage.parked().length).toBe(PARKED_MAX);
+    expect(released.map((x) => x.slug)).toEqual(['ui/C0.tsx']);
+    expect(warned.length).toBe(1);
+  });
+});
+
+describe('#164 D4 / D6 — what a settle may bind', () => {
+  test('a delete is bound only when the stage saw the canvas leave during the window; nothing else', async () => {
+    const r = await rig();
+    const t = await terminal(r);
+    await t.window(true, { all: true });
+    unlinkSync(r.abs(OTHER));
+    r.home.observe(OTHER); // the watcher sees it leave
+    await r.home.flush();
+    const res = await t.settle([
+      { path: OTHER, sha: null, deleted: true },
+      { path: 'ui/Gone.tsx', sha: null, deleted: true }, // never there: never seen leaving
+    ]);
+    expect(res.bound).toEqual([OTHER]);
+  });
+
+  test('a file past its lane cap is never read nor claimed', async () => {
+    const r = await rig();
+    const t = await terminal(r);
+    await t.window(true, { all: true });
+    const huge = canvas('Huge').replace('Body copy', 'x'.repeat(MAX_HTML_BYTES + 10));
+    writeFileSync(r.abs(OTHER), huge); // not delivered to the watcher: only the settle sees it
+    const res = await t.settle([{ path: OTHER, sha: sha(huge) }]);
+    expect(res.bound).toEqual([]);
   });
 });

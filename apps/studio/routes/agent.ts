@@ -11,7 +11,14 @@
 // map — test/agent-routes-origin.test.ts pins both lists.
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { parseSync } from 'oxc-parser';
 import { designWritesSince } from '../../../cli/lib/bash-guard.mjs';
@@ -34,9 +41,10 @@ import {
 import type { RunRecord } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
 import { saveHold } from '../ai/save-hold.ts';
-import { claimedSince } from '../ai/write-claim.ts';
+import { CLAIM_MAX_BYTES, claimedSince } from '../ai/write-claim.ts';
 import { artboardIdsOfSource, checkFile, checkIntroduced, type Finding } from '../check/index.ts';
 import { checkIds, walkIdElements } from '../element-ids.ts';
+import { MAX_ANNOTATIONS_BYTES, MAX_HTML_BYTES, MAX_META_BYTES } from '../sync/limits.ts';
 import type { RouteSpec } from './table.ts';
 
 /** A person's hold on an element (A10: the awareness `holding` field, foreign and local). */
@@ -86,18 +94,23 @@ export interface AgentRouteDeps {
  * for run `run`, then settle the call — its parked writes join the run or go out as outside.
  */
 export interface SettleBracket {
+  /** F5 / F6 — run `run`'s window for call `call` (design-root-relative paths), or null: no window. */
+  scope?(
+    run: { run: string },
+    call: string
+  ): { all: boolean; covers(rel: string): boolean; left(rel: string): boolean } | null;
   settle?(
     run: { run: string; label: string | null },
     call: string,
     changed: ReadonlyArray<{ rel: string; text: string | null }>,
     /** false = the hook sends more batches of this call (`more: true`): claim and settle at the last */
     final?: boolean
-  ): void;
+  ): { ok: boolean; code?: string };
 }
 
 /** POST /_api/agent/write/claim — at most this many files per call, this many bytes in all. */
 export const CLAIM_MAX_FILES = 32;
-export const CLAIM_MAX_BYTES = 16 * 1024 * 1024;
+export { CLAIM_MAX_BYTES };
 /** The canvas lanes a claim may name: a canvas source (#164: `.jsx` too), its sidecar, its board. */
 const CLAIM_LANE_RE = /\.(?:tsx|jsx|meta\.json|annotations\.json)$/i;
 const SHA256_RE = /^[0-9a-f]{64}$/;
@@ -481,12 +494,25 @@ function readDesignFile(deps: AgentRouteDeps, rel: string): string | null {
   }
 }
 
-/** A design file's bytes (inside the design root, symlinks resolved), or null. */
-function readDesignBytes(deps: AgentRouteDeps, rel: string): Buffer | null {
+/** D6 — the most a lane file may hold (sync/limits.ts): a bigger one is never read for a claim. */
+const laneCap = (rel: string) =>
+  /\.meta\.json$/i.test(rel)
+    ? MAX_META_BYTES
+    : /\.annotations\.json$/i.test(rel)
+      ? MAX_ANNOTATIONS_BYTES
+      : MAX_HTML_BYTES;
+
+/**
+ * A design file's bytes (inside the design root, symlinks resolved), or null. `max`: stat first and
+ * refuse a file bigger than that without reading it (D6).
+ */
+function readDesignBytes(deps: AgentRouteDeps, rel: string, max = Infinity): Buffer | null {
   const designRoot = path.join(deps.repoRoot, deps.designRel);
   try {
     const real = realpathSync(path.join(designRoot, rel));
     if (!real.startsWith(realpathSync(designRoot) + path.sep)) return null;
+    const st = statSync(real);
+    if (!st.isFile() || st.size > max) return null;
     return readFileSync(real);
   } catch {
     return null;
@@ -1031,11 +1057,17 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       // No live run of this session (a foreign chat, an ended run): nothing is claimed, and the call's
       // window is left to its own end (close + SETTLE_WAIT_MS, stale, the run's end) — all outside.
       if (!self) return json(200, out);
+      // F5 — only a call this run has a window for settles (its own; never another run's)
+      const scope = deps.bracket?.scope?.(self, toolUseId) ?? null;
+      if (!scope) return json(409, { error: 'this call has no open window', code: 'no-window' });
       const designRoot = path.join(deps.repoRoot, deps.designRel);
       const changed: Array<{ rel: string; text: string | null }> = [];
       for (const e of entries) {
+        // F6 — a `named` window claims only the files it covered; anything else is not the call's
+        if (!scope.all && !scope.covers(e.rel)) continue;
         if (e.deleted) {
-          if (!existsSync(path.join(designRoot, e.rel))) {
+          // D4 — only a canvas the stage saw leave the disk while this window was open
+          if (scope.left(e.rel) && !existsSync(path.join(designRoot, e.rel))) {
             changed.push({ rel: e.rel, text: null });
             out.bound.push(e.rel);
           }
@@ -1043,7 +1075,8 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
         }
         // past the hook's budget with no pre-hash: never a claim
         if (e.sha === null) continue;
-        const bytes = readDesignBytes(deps, e.rel);
+        // D6 — stat before read: a file past its lane cap is never read (nor claimed)
+        const bytes = readDesignBytes(deps, e.rel, laneCap(e.rel));
         // a later save changed the file since the call: those bytes are not the call's
         if (!bytes || createHash('sha256').update(bytes).digest('hex') !== e.sha) continue;
         const text = bytes.toString('utf8');
@@ -1055,9 +1088,19 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
         changed.push({ rel: e.rel, text });
         out.bound.push(e.rel);
       }
-      deps.bracket?.settle?.(self, toolUseId, changed, final);
-      // the call's held saves (named files) land now as the person's, never in the run
-      if (final) saveHold().window(toolUseId, false, []);
+      const settled = deps.bracket?.settle?.(self, toolUseId, changed, final) ?? {
+        ok: false,
+        code: 'no-window',
+      };
+      // refused (no window, or the call failed — what it parked went out as outside): nothing is bound
+      if (!settled.ok)
+        return json(409, {
+          error: 'this call could not be settled',
+          code: settled.code ?? 'settle-failed',
+        });
+      // the call's held saves (named files) land now as the person's, never in the run — F5: only
+      // the hold this run opened for its own call
+      if (final) saveHold().window(toolUseId, false, [], `run:${self.run}`);
       // attribution of what the call changed (the artboards, lost ids, trashed artboards)
       const mark = readDesignFile(deps, `_runs/${session}/bash/${toolUseId}.json`);
       let snaps: Record<string, unknown> = {};
