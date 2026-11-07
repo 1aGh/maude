@@ -424,11 +424,12 @@ describe('15 an-ai-write (offer) - "Put them in a section" gathers the notes the
     );
     assert.equal((await ui.tid('ai-offer-skip').first().innerText()).trim(), 'Not now');
     // the block is the card, never text in the answer
-    assert.equal(
-      await ui.page.getByText('maude-offer').count(),
-      0,
-      'the block is not shown as text'
-    );
+    const shown = await ui.page
+      .getByText('maude-offer')
+      .evaluateAll((els) =>
+        els.map((el) => `${el.tagName}.${el.className} ${el.outerHTML.slice(0, 200)}`)
+      );
+    assert.equal(shown.length, 0, `the block is not shown as text: ${shown.join(' | ')}`);
     await ui.shot('15-an-ai-write.offer');
   });
 
@@ -456,12 +457,12 @@ describe('15 an-ai-write (offer) - "Put them in a section" gathers the notes the
       15_000
     );
     await until(
-      () => diskBoard(lane).some((e) => e.type === 'section' && e.text === 'Pricing review'),
+      () => diskBoard(lane).some((e) => e.type === 'section' && e.label === 'Pricing review'),
       'the section on the board',
       40_000
     );
     const board = diskBoard(lane);
-    const section = board.find((e) => e.type === 'section' && e.text === 'Pricing review');
+    const section = board.find((e) => e.type === 'section' && e.label === 'Pricing review');
     for (const id of WROTE) {
       assert.equal(board.find((e) => e.id === id)?.parent, section.id, `${id} is in the section`);
     }
