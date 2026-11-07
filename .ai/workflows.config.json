@@ -8,7 +8,9 @@
     "designSystem": ".ai/maude-design-system.md",
     "codebaseMap": ".ai/context/codebase-map.md"
   },
-  "platforms": ["web-desktop"],
+  "platforms": [
+    "web-desktop"
+  ],
   "stack": {
     "language": "typescript",
     "framework": "next.js",
@@ -38,7 +40,9 @@
     "micro": 300,
     "page": 500,
     "complex": 1000,
-    "customPulses": { "canvasActivity": 2200 }
+    "customPulses": {
+      "canvasActivity": 2200
+    }
   },
   "responsive": {
     "approach": "mobile-first",
@@ -105,7 +109,10 @@
     "mode": "auto",
     "engineVersion": "v1.5.1",
     "store": "",
-    "scope": { "repo": "maude", "dept": "dev" }
+    "scope": {
+      "repo": "maude",
+      "dept": "dev"
+    }
   },
   "qualityScoped": {
     "lint": "git diff -z --name-only --diff-filter=d HEAD | grep -zE '\\.(ts|tsx|mjs|js|jsx|json)$' | xargs -0r pnpm exec biome check",
@@ -122,5 +129,8 @@
     "tarball": "bash scripts/check-tarball-shape.sh",
     "tokens": "pnpm --filter @maude/site sync:tokens:check && node scripts/gen-tokens.mjs --check && node cli/bin/maude.mjs design ds-check maude maude-v2",
     "site-content": "node --test scripts/test/docs-no-old-chrome.test.mjs && node site/scripts/build-pricing.mjs --check && node scripts/gen-actions.mjs --check && pnpm --filter @maude/site gen:reference && pnpm --filter @maude/site gen:stats && pnpm --filter @maude/site gen:roadmap && pnpm --filter @maude/site gen:whatsnew && { git diff --quiet -- site/content/docs/ site/lib/stats.json site/lib/roadmap.json site/lib/whats-new.json || { echo \"site generated content stale — commit the regen diff\"; exit 1; }; }"
+  },
+  "run": {
+    "hooks": true
   }
 }
