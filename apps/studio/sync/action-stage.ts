@@ -92,15 +92,17 @@ export interface RunStage {
   touched: Record<string, string[]>;
   /**
    * p8-a1-claims (Michal 2026-10-29) — EVERY run is claim-only: it takes a write only when a tool
-   * claimed exactly those bytes for it (`claim`), never because it is the one run open. The one named
-   * exception is a call that cannot claim (S7 interpreter, terminal-lane verb): while it is open
-   * (`shellCalls`, call → the canvases its command names) or within SHELL_SETTLE_MS of it closing
-   * (`shellClosed`), an unclaimed write to ONE OF THOSE canvases joins the run. p8-sec2-attrib A1 — a
-   * call that names none (a glob, `find -exec`, a computed name) covers EVERY canvas (`ALL_CANVASES`):
-   * only outside writes reach the stage at all (a person's studio save is never stageable).
+   * claimed exactly those bytes for it (`claim`), never because it is the one run open. #164 T5.1 — a
+   * call that cannot claim (S7 interpreter, terminal-lane verb) no longer lifts that: while its window
+   * is open (`shellCalls`, call → the canvases it covers; p8-sec2-attrib A1 `ALL_CANVASES` for a call
+   * that names none), and after it closes until its settle (at most SETTLE_WAIT_MS), an unclaimed
+   * outside write to a covered canvas is PARKED — neither staged nor proposed. The call's settle
+   * (`settleShellCall`, the hook's post-call bytes, claimed first) moves the parked writes whose bytes
+   * it claimed into the run as one write and releases every other one as outside. Every failure
+   * releases as outside; nothing falls to the AI. A person's studio save is never stageable, so it is
+   * never parked.
    */
-  shellCalls?: Map<string, ShellSlugs>;
-  shellClosed?: Array<{ slugs: ShellSlugs; at: number }>;
+  shellCalls?: Map<string, ShellCall>;
   /**
    * p8-a1-claims (F17) — canvases this run DELETED (a claimed `maude design trash move`): doc id → the
    * canvas path. Published as `doc.delete` in the run's one action, so its undo brings the canvas back.
@@ -192,11 +194,52 @@ export interface ActionStageOptions {
     base: string;
     content: string;
   }) => void;
+  /**
+   * #164 — parked writes to one canvas released as OUTSIDE (no run), in arrival order: send them as
+   * the writes they were. Absent: one `edit` proposal per canvas through `propose`.
+   */
+  release?: (w: { slug: string; doc: string; writes: LaneProposal[] }) => Promise<ProposalOutcome>;
+}
+
+/** #164 — one call's window: what it covers, and (once closed) the wait for its settle. */
+interface ShellCall {
+  slugs: ShellSlugs;
+  closedAt?: number;
+  settleTimer?: ReturnType<typeof setTimeout>;
+  staleTimer?: ReturnType<typeof setTimeout>;
+}
+
+/** #164 — an unclaimed outside write a window holds back until the call settles. */
+interface Parked {
+  slug: string;
+  doc: string;
+  p: LaneProposal;
+  resolve: (o: ProposalOutcome) => void;
+  /** The windows (`callKey`) that keep it parked; empty = it only waits behind an earlier one. */
+  keys: Set<string>;
 }
 
 const STOPPED = ' — stopped';
-/** A1 — the watcher delivers a verb's last write a beat after the call returns (cf. AI settle 250 ms). */
+/**
+ * A1 — the watcher delivers a verb's last write a beat after the call returns (cf. AI settle 250 ms).
+ * #164 — it no longer admits unclaimed writes into a run; a person's held save (ai/save-hold.ts) still
+ * lands this long after the window closes.
+ */
 export const SHELL_SETTLE_MS = 1_000;
+/**
+ * #164 — a closed window parks until its settle arrives, at most this long (the hook's post-call
+ * timeout is 5 s); then its parked writes are released as outside.
+ */
+export const SETTLE_WAIT_MS = 3_000;
+/** #164 — a window that never closes (a killed call, no PostToolUse) releases at this age. */
+export const SHELL_STALE_MS = 10 * 60_000;
+const unref = (t: ReturnType<typeof setTimeout>) => {
+  (t as { unref?: () => void }).unref?.();
+  return t;
+};
+const callKey = (runId: string, call: string) => `${runId}\u0000${call}`;
+/** What `runsHolding` names for a dependency on a parked write (never a run id: RUN_ID has no `#`). */
+const PARKED = '#parked';
 
 /** p8-sec2-attrib A1 — the window of a call that names no canvas: it covers every one. */
 const ALL_CANVASES = '*' as const;
@@ -223,6 +266,8 @@ export function createActionStage(opts: ActionStageOptions) {
   const dependents: Dependent[] = [];
   /** A staged transaction id → the run transaction that carried it. */
   const alias = new Map<string, string>();
+  /** #164 — parked writes, in arrival order (see `RunStage.shellCalls`). */
+  const parked: Parked[] = [];
 
   const runOf = (keyOrRun: string): RunStage | undefined =>
     runs.get(keyRun.get(keyOrRun) ?? keyOrRun);
@@ -459,38 +504,261 @@ export function createActionStage(opts: ActionStageOptions) {
     changed();
   }
 
-  /** A1 — open/close the window of one call that cannot claim (no `shell`: nothing changes). */
+  /**
+   * A1 / #164 — open/close the window of one call that cannot claim (no `shell`: nothing changes).
+   * The ACP tracker and the design hook may both open the same call (its tool call id): the window
+   * covers what either named. Closing it starts the wait for its settle.
+   */
   function shellWindow(
     r: RunStage,
     shell: { call: string; open: boolean; slugs?: string[]; all?: boolean } | undefined
   ): void {
     if (!shell) return;
     r.shellCalls ??= new Map();
+    const prev = r.shellCalls.get(shell.call);
     if (shell.open) {
-      if (shell.all) {
-        r.shellCalls.set(shell.call, ALL_CANVASES);
-        return;
-      }
-      const slugs = new Set(shell.slugs ?? []);
-      if (slugs.size) r.shellCalls.set(shell.call, slugs);
+      const named = new Set(shell.slugs ?? []);
+      if (!shell.all && !named.size && !prev) return;
+      const slugs: ShellSlugs =
+        shell.all || prev?.slugs === ALL_CANVASES
+          ? ALL_CANVASES
+          : new Set([...((prev?.slugs as Set<string> | undefined) ?? []), ...named]);
+      if (prev?.settleTimer) clearTimeout(prev.settleTimer);
+      const call = shell.call;
+      r.shellCalls.set(call, {
+        slugs,
+        staleTimer:
+          prev?.staleTimer ??
+          unref(setTimeout(() => releaseShellCall(call, 'stale'), SHELL_STALE_MS)),
+      });
       return;
     }
-    const was = r.shellCalls.get(shell.call);
-    if (!was) return;
-    r.shellCalls.delete(shell.call);
-    const t = now();
-    r.shellClosed = [
-      ...(r.shellClosed ?? []).filter((c) => t - c.at <= SHELL_SETTLE_MS),
-      { slugs: was, at: t },
-    ];
+    if (!prev || prev.closedAt !== undefined) return;
+    prev.closedAt = now();
+    const call = shell.call;
+    prev.settleTimer = unref(setTimeout(() => releaseShellCall(call, 'no-settle'), SETTLE_WAIT_MS));
   }
 
-  /** May `r` take a write to `slug` nobody claimed? Only inside a named-file window (S7 fallback). */
-  const takesUnclaimed = (r: RunStage, slug: string) =>
-    [...(r.shellCalls?.values() ?? [])].some((s) => coversShellSlug(s, slug)) ||
-    (r.shellClosed ?? []).some(
-      (c) => now() - c.at <= SHELL_SETTLE_MS && coversShellSlug(c.slugs, slug)
+  /** #164 — the windows (open, or closed and waiting for their settle) that cover `slug`. */
+  function coveringKeys(slug: string): string[] {
+    const out: string[] = [];
+    for (const r of runs.values()) {
+      if (r.state !== 'open') continue;
+      for (const [call, c] of r.shellCalls ?? [])
+        if (coversShellSlug(c.slugs, slug)) out.push(callKey(r.runId, call));
+    }
+    return out;
+  }
+
+  /** #164 — would an unclaimed write to `slug` park? (a window covers it, or one waits before it) */
+  const parks = (slug: string) =>
+    parked.some((e) => e.slug === slug) || coveringKeys(slug).length > 0;
+
+  const clearCall = (c: ShellCall) => {
+    if (c.settleTimer) clearTimeout(c.settleTimer);
+    if (c.staleTimer) clearTimeout(c.staleTimer);
+  };
+
+  /** #164 — take call `call`'s window out of every run: its keys. */
+  function detachCall(call: string): Set<string> {
+    const keys = new Set<string>();
+    for (const r of runs.values()) {
+      const c = r.shellCalls?.get(call);
+      if (!c) continue;
+      clearCall(c);
+      r.shellCalls?.delete(call);
+      keys.add(callKey(r.runId, call));
+    }
+    return keys;
+  }
+
+  /** #164 — take every window of run `r` out (the run ends): their keys. */
+  function detachRunCalls(r: RunStage): Set<string> {
+    const keys = new Set<string>();
+    for (const [call, c] of r.shellCalls ?? []) {
+      clearCall(c);
+      keys.add(callKey(r.runId, call));
+    }
+    r.shellCalls?.clear();
+    return keys;
+  }
+
+  /** The open run that claimed exactly `content` for `slug`, or null. */
+  function claimOwner(slug: string, content: string): RunStage | null {
+    const key = `${slug}|${hashBytes(content)}`;
+    for (const r of runs.values())
+      if (r.state === 'open' && claims.get(r.runId)?.hashes.has(key)) return r;
+    return null;
+  }
+
+  function park(slug: string, doc: string, p: LaneProposal): Promise<ProposalOutcome> {
+    return new Promise((resolve) => {
+      parked.push({ slug, doc, p, resolve, keys: new Set(coveringKeys(slug)) });
+    });
+  }
+
+  function unpark(list: readonly Parked[]): void {
+    for (const e of list) {
+      const i = parked.indexOf(e);
+      if (i >= 0) parked.splice(i, 1);
+    }
+  }
+
+  /**
+   * #164 — parked writes `entries` (one lane, arrival order) join run `r` as ONE write: the first
+   * one's base → the last one's bytes.
+   */
+  function joinParked(r: RunStage, entries: readonly Parked[]): void {
+    if (!entries.length) return;
+    unpark(entries);
+    const first = entries[0];
+    const last = entries[entries.length - 1];
+    const create = entries.find((e) => e.p.create)?.p.create;
+    void stageWrite(
+      r,
+      last.slug,
+      last.doc,
+      { ...last.p, baseContent: first.p.baseContent, ...(create ? { create } : {}) },
+      entries
     );
+  }
+
+  /** #164 — the parked writes of `slug` no window keeps any more go out as outside, in order. */
+  function releasePrefix(slug: string): void {
+    const out: Parked[] = [];
+    for (const e of parked) {
+      if (e.slug !== slug) continue;
+      if (e.keys.size) break;
+      out.push(e);
+    }
+    if (!out.length) return;
+    unpark(out);
+    let sent: Promise<ProposalOutcome>;
+    try {
+      sent = release({ slug, doc: out[0].doc, writes: out.map((e) => e.p) });
+    } catch (err) {
+      sent = Promise.reject(err);
+    }
+    const settled = sent.catch(
+      (err: unknown): ProposalOutcome => ({
+        status: 'rejected',
+        code: (err as { code?: string })?.code ?? 'retryable',
+      })
+    );
+    for (const e of out) void settled.then(e.resolve);
+  }
+
+  /**
+   * #164 — windows `keys` no longer hold their parked writes. A canvas whose parked bytes a run
+   * claimed joins that run; one a settle claimed whose bytes have not reached the watcher yet waits
+   * for them (at most SETTLE_WAIT_MS); everything else is released as outside.
+   */
+  function resolveKeys(
+    keys: ReadonlySet<string>,
+    settle?: { claimed: ReadonlySet<string>; awaitKey: string }
+  ): void {
+    if (!keys.size) return;
+    const slugs = new Set<string>();
+    for (const e of parked) {
+      let hit = false;
+      for (const k of keys) if (e.keys.delete(k)) hit = true;
+      if (hit) slugs.add(e.slug);
+    }
+    let waits = false;
+    for (const slug of slugs) {
+      const group = parked.filter((e) => e.slug === slug);
+      const lanes = [...new Set(group.map((e) => e.p.lane))];
+      const ofLane = (l: string) => group.filter((e) => e.p.lane === l);
+      if (group.some((e) => e.p.create)) {
+        // a new canvas follows its source: claimed html bytes take every lane of the create along
+        const html = ofLane('html').at(-1);
+        const owner = html ? claimOwner(slug, html.p.content) : null;
+        if (owner) for (const l of lanes) joinParked(owner, ofLane(l));
+      } else {
+        for (const l of lanes) {
+          const entries = ofLane(l);
+          const owner = claimOwner(slug, entries[entries.length - 1].p.content);
+          if (owner) joinParked(owner, entries);
+        }
+      }
+      if (settle?.claimed.has(slug) && parked.some((e) => e.slug === slug)) {
+        // the settle claimed this canvas, but the watcher has not delivered those bytes yet
+        for (const e of parked) if (e.slug === slug) e.keys.add(settle.awaitKey);
+        waits = true;
+        continue;
+      }
+      releasePrefix(slug);
+    }
+    if (waits && settle) {
+      const k = settle.awaitKey;
+      unref(setTimeout(() => resolveKeys(new Set([k])), SETTLE_WAIT_MS));
+    }
+    releaseDependents();
+  }
+
+  /**
+   * #164 — call `call`'s settle arrived: the hook re-read its post-call bytes and the studio CLAIMED
+   * the ones the disk still holds (`claimed`: their canvases). Its window closes; parked writes
+   * whose bytes are claimed join the claiming run as one write, the rest go out as outside.
+   */
+  function settleShellCall(call: string, claimed: readonly string[] = []): void {
+    resolveKeys(detachCall(call), {
+      claimed: new Set(claimed),
+      awaitKey: `${call}\u0000await\u0000${(++awaitSeq).toString(36)}`,
+    });
+  }
+  let awaitSeq = 0;
+
+  /**
+   * #164 — call `call` ends with no settle (the hook failed, a killed call, the studio was away):
+   * every write it parked is released as outside.
+   */
+  function releaseShellCall(call: string, _reason: 'no-settle' | 'stale' | 'run-end'): void {
+    resolveKeys(detachCall(call));
+  }
+
+  /** The release a stage gets without `opts.release`: one `edit` proposal per canvas. */
+  function defaultRelease(w: {
+    slug: string;
+    doc: string;
+    writes: LaneProposal[];
+  }): Promise<ProposalOutcome> {
+    const lanes = [...new Set(w.writes.map((x) => x.lane))];
+    const firstOf = (l: string) => w.writes.find((x) => x.lane === l) as LaneProposal;
+    const lastOf = (l: string) => w.writes.filter((x) => x.lane === l).at(-1) as LaneProposal;
+    const create = w.writes.find((x) => x.create)?.create;
+    const operations: Operation[] = create
+      ? [
+          {
+            op: 'doc.create',
+            doc: w.doc,
+            path: create,
+            lanes: Object.fromEntries(
+              lanes.map((l) => [l, lastOf(l).content]).filter(([, v]) => v !== '')
+            ),
+          },
+        ]
+      : lanes.map((l) => ({
+          op: 'lane.replace',
+          doc: w.doc,
+          lane: l,
+          content: lastOf(l).content,
+          baseContent: firstOf(l).baseContent,
+        }));
+    return opts
+      .propose({
+        label: path.posix.basename(w.slug).replace(/\.tsx$/i, ''),
+        kind: 'edit',
+        operations,
+        transactionId: w.writes[0].transactionId,
+      })
+      .then((r) => ({
+        status: r.status,
+        ...(r.code ? { code: r.code } : {}),
+        ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+      }));
+  }
+  const release = opts.release ?? defaultRelease;
 
   /** A tool reported writing `hash` (sha256 of the content) to canvas `slug`. */
   function claim(keyOrRun: string, slug: string, hash?: string | null): void {
@@ -584,14 +852,8 @@ export function createActionStage(opts: ActionStageOptions) {
       const covering = open.filter((r) => coversSlug(r, slug));
       return covering.length === 1 ? covering[0] : null;
     }
-    // p8-a1-claims — no claim for these bytes: the write is the PERSON's, unless a call that cannot
-    // claim (S7) has this canvas in its named-file window. Being the only open run is not a claim.
-    const free = open.filter((r) => takesUnclaimed(r, slug));
-    if (free.length === 1) return free[0];
-    if (free.length > 1) {
-      const covering = free.filter((r) => coversSlug(r, slug));
-      return covering.length === 1 ? covering[0] : null;
-    }
+    // p8-a1-claims — no claim for these bytes: the write is not a run's. Being the only open run is
+    // not a claim; #164 — nor is a window of a call that cannot claim (it parks the write instead).
     if (open.length) return null;
     // Nothing open: a held run that covers this canvas keeps its cold start.
     return all.find((r) => r.state === 'held' && coversSlug(r, slug)) ?? null;
@@ -599,8 +861,9 @@ export function createActionStage(opts: ActionStageOptions) {
 
   /** Should this proposal be staged instead of sent? */
   function captures(slug: string, stageable: boolean, content?: string, explicit = false): boolean {
-    if (!stageable || runs.size === 0) return false;
-    return ownerOf(slug, content, explicit) !== null;
+    if (!stageable || (runs.size === 0 && parked.length === 0)) return false;
+    // #164 — a write a call's window covers is parked (the stage holds it until the call settles)
+    return ownerOf(slug, content, explicit) !== null || parks(slug);
   }
 
   /** The accepted content of a lane: any staged run's base, else the write's own base. */
@@ -638,9 +901,55 @@ export function createActionStage(opts: ActionStageOptions) {
 
   function capture(slug: string, doc: string, p: LaneProposal): Promise<ProposalOutcome> {
     const r = ownerOf(slug, p.content, !!p.create);
-    if (!r) return Promise.resolve({ status: 'rejected', code: 'not-staged' });
+    if (!r) {
+      // #164 — unclaimed, inside a call's window (or behind a write parked there): parked
+      if (parks(slug)) return park(slug, doc, p);
+      return Promise.resolve({ status: 'rejected', code: 'not-staged' });
+    }
+    // #164 — claimed bytes landing on a lane with parked writes (watcher lag after a settle, or a
+    // claiming tool inside an interpreter call): the parked pre → these post bytes are ONE write
+    const before = parked.filter((e) => e.slug === slug && e.p.lane === p.lane);
+    unpark(before);
+    const create = p.create ?? before.find((e) => e.p.create)?.p.create;
+    const out = stageWrite(
+      r,
+      slug,
+      doc,
+      before.length
+        ? { ...p, baseContent: before[0].p.baseContent, ...(create ? { create } : {}) }
+        : p,
+      before
+    );
+    // a created canvas's other parked lanes follow it into the run
+    const rest = parked.filter((e) => e.slug === slug && e.p.create);
+    if (create && rest.length)
+      for (const l of new Set(rest.map((e) => e.p.lane)))
+        joinParked(
+          r,
+          rest.filter((e) => e.p.lane === l)
+        );
+    if (before.length) releaseDependents();
+    return out;
+  }
+
+  /**
+   * Stage write `p` in run `r`. `joined` = parked writes it absorbs (#164): their transactions ride
+   * with it and they get its outcome.
+   */
+  function stageWrite(
+    r: RunStage,
+    slug: string,
+    doc: string,
+    p: LaneProposal,
+    joined: readonly Parked[] = []
+  ): Promise<ProposalOutcome> {
     const k = `${slug}|${p.lane}`;
-    return new Promise((resolve) => {
+    const txs = [...joined.map((e) => e.p.transactionId), p.transactionId];
+    return new Promise<ProposalOutcome>((settle) => {
+      const resolve = (o: ProposalOutcome) => {
+        settle(o);
+        for (const e of joined) e.resolve(o);
+      };
       const existing = r.lanes.get(k);
       if (existing?.restored) {
         // The cold start after a restart: the disk carries the run's bytes
@@ -648,7 +957,7 @@ export function createActionStage(opts: ActionStageOptions) {
         // v2 one kept them, and the write only rides along to settle.
         if (existing.writes === 0) existing.mine = p.content;
         delete existing.restored;
-        existing.txs.push(p.transactionId);
+        existing.txs.push(...txs);
         existing.resolvers.push(resolve);
         changed();
         return;
@@ -671,7 +980,7 @@ export function createActionStage(opts: ActionStageOptions) {
       if (existing) {
         existing.mine = merged.merged;
         existing.writes += 1;
-        existing.txs.push(p.transactionId);
+        existing.txs.push(...txs);
         existing.resolvers.push(resolve);
         if (p.writeId) existing.writeId = p.writeId;
         if (p.create) existing.create = p.create;
@@ -685,7 +994,7 @@ export function createActionStage(opts: ActionStageOptions) {
           writes: 1,
           ...(p.writeId ? { writeId: p.writeId } : {}),
           ...(p.create ? { create: p.create } : {}),
-          txs: [p.transactionId],
+          txs,
           resolvers: [resolve],
         });
       }
@@ -717,6 +1026,8 @@ export function createActionStage(opts: ActionStageOptions) {
     for (const r of runs.values())
       for (const l of r.lanes.values())
         if (l.txs.some((t) => dependsOn.includes(t))) out.add(r.runId);
+    // #164 — an edit made on top of parked bytes waits for them, as it waits behind staged ones
+    if (parked.some((e) => dependsOn.includes(e.p.transactionId))) out.add(PARKED);
     for (const d of dependents) {
       const tx = d.edit?.transactionId;
       if (!tx || seen.has(tx) || !dependsOn.includes(tx)) continue;
@@ -791,9 +1102,13 @@ export function createActionStage(opts: ActionStageOptions) {
   ): Promise<ProposalResult | null> {
     const staged = [...r.lanes.values()].filter((l) => l.mine !== l.base || l.writes > 0);
     const deletes = [...(r.deletes ?? new Map<string, { slug: string; generation?: number }>())];
+    // #164 — the run's end ends its calls' windows: what they still park goes out as outside,
+    // right behind the run's own action (released below, once the run is proposed)
+    const calls = detachRunCalls(r);
     if (staged.length === 0 && deletes.length === 0) {
       forget(r);
       changed();
+      resolveKeys(calls);
       releaseDependents();
       return null;
     }
@@ -853,6 +1168,7 @@ export function createActionStage(opts: ActionStageOptions) {
       origin,
       ...(o.fence ? { fence: o.fence } : {}),
     });
+    resolveKeys(calls);
     releaseDependents();
     const res = await sent.catch((err: unknown) => {
       const code = (err as { code?: string })?.code ?? 'retryable';
@@ -903,6 +1219,8 @@ export function createActionStage(opts: ActionStageOptions) {
     r.endedAt = now();
     if (outcome === 'failed') {
       r.state = 'held';
+      // #164 — a held run takes nothing more: its calls' parked writes go out as outside
+      resolveKeys(detachRunCalls(r));
       changed();
       log.warn(
         `[sync/ai] ${r.label}: the run did not finish — ${r.lanes.size} change(s) kept on this device, not published.`
@@ -956,6 +1274,11 @@ export function createActionStage(opts: ActionStageOptions) {
     discard,
     captures,
     capture,
+    settleShellCall,
+    releaseShellCall,
+    /** #164 — the writes parked right now (no bytes), in arrival order. */
+    parked: (): Array<{ slug: string; lane: LaneProposal['lane'] }> =>
+      parked.map((e) => ({ slug: e.slug, lane: e.p.lane })),
     overlapWith,
     holdsDependency,
     wait,

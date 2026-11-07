@@ -19,6 +19,9 @@ import { join } from 'node:path';
 import { classifyBash } from '../../../cli/lib/bash-guard.mjs';
 import { handMadeCanvasReason } from '../../../cli/lib/design-hook.mjs';
 
+// #164 — the design hook keeps its state outside the project: never under the real ~/.claude/maude-hook
+process.env.MAUDE_HOOK_STATE_HOME = mkdtempSync(join(tmpdir(), 'maude-hook-state-'));
+
 const ROOT = join(import.meta.dir, '..', '..', '..');
 const manifest = JSON.parse(readFileSync(join(ROOT, 'apps/studio/actions.manifest.json'), 'utf8'));
 

@@ -565,6 +565,11 @@ export interface LocalRuntime {
     }
   ): void;
   claimAiWrite(key: string, repoRel: string, hash?: string | null): void;
+  /**
+   * #164 — call `call`'s settle: its window closes; the writes it parked join the run that claimed
+   * their bytes (`claimed`: the repo-relative files the settle claimed), the rest land as outside.
+   */
+  settleShellCall(call: string, claimed?: readonly string[]): void;
   /** p8-a1-claims (F17) — run `key` is about to delete canvas `repoRel`: the delete joins the run. */
   claimAiDelete(key: string, repoRel: string): void;
   /** p8-sec2-lows I1 — the delete claimed by `claimAiDelete` failed; drop the claim. */
@@ -814,7 +819,52 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       const lane = w.lane as LocalLane;
       if (diskLane(w.slug, lane) === w.content) writeLane(w.slug, lane, w.base);
     },
+    // #164 — writes a call's window parked and nobody claimed: recorded as outside, as the watcher
+    // would have recorded them (one action per canvas; the disk already holds the bytes)
+    release: (w) => serial(() => releaseOutside(w.slug, w.writes)),
   });
+
+  async function releaseOutside(
+    rel: string,
+    writes: ReadonlyArray<{ lane: string; content: string; baseContent: string }>
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string }> {
+    if (!opened || !kernel) return { status: 'rejected', code: 'store-locked' };
+    const store = opened.store;
+    const lanes = [...new Set(writes.map((x) => x.lane))];
+    const last = (l: string) => writes.filter((x) => x.lane === l).at(-1)?.content ?? '';
+    const first = (l: string) => writes.find((x) => x.lane === l)?.baseContent ?? '';
+    const live: string | null = await store.docByPath(rel);
+    const action = { kind: OUTSIDE_KIND, label: NAME(rel) };
+    if (!live) {
+      const created = Object.fromEntries(
+        lanes.map((l) => [l, last(l)]).filter(([, v]) => v !== '')
+      );
+      if (!created.html) return { status: 'rejected', code: 'not-a-canvas' };
+      return submit(
+        [{ op: 'doc.create', doc: canvasSlugFromRel(rel, designRel), path: rel, lanes: created }],
+        action,
+        actor,
+        {},
+        true
+      );
+    }
+    const head = (await store.heads([live]))[live] as {
+      lanes: Record<string, { hash: string | null }>;
+    };
+    const ops = lanes
+      .map((l) => {
+        const base = first(l);
+        const content = last(l);
+        const headHash = hashOr(head?.lanes?.[l]?.hash);
+        if (laneHash(content) === headHash) return null;
+        return laneHash(base) === headHash
+          ? { op: 'lane.replace', doc: live, lane: l, content, base: headHash }
+          : { op: 'lane.replace', doc: live, lane: l, content, baseContent: base };
+      })
+      .filter((o) => o !== null);
+    if (!ops.length) return { status: 'accepted' };
+    return submit(ops, action, actor, {}, true);
+  }
 
   function noteWritten(
     rel: string,
@@ -2392,6 +2442,15 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
       const canvas = rel ? canvasOfRel(rel) : null;
       if (canvas) stage.claim(key, canvas, hash ?? null);
+    },
+    settleShellCall(call, claimed) {
+      const canvases = (claimed ?? [])
+        .map((repoRel) => {
+          const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
+          return rel ? canvasOfRel(rel) : null;
+        })
+        .filter((c): c is string => !!c);
+      stage.settleShellCall(call, canvases);
     },
     claimAiDelete(key, repoRel) {
       const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');

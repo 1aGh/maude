@@ -446,33 +446,42 @@ describe('per-run stages', () => {
 });
 
 // p8-a1-claims — every run is claim-only. A call that cannot claim (S7 interpreter, a terminal-lane verb) opens
-// a window for the canvases its command NAMES: an unclaimed write to one of THOSE joins the run while it is open
-// (plus a short settle); a person's save to any other canvas, or after the settle, stays theirs.
-describe('a call that cannot claim: a named-file window (A1)', () => {
-  test('takes unclaimed writes to its named canvases only while open, then only claimed ones', () => {
-    const { stage } = rig();
+// a window for the canvases its command NAMES. #164 T5.1 — the window no longer takes those writes into the run:
+// it PARKS them until the call settles, and only bytes the settle claimed join the run; the rest go out as
+// outside. A person's save to any other canvas, or after the settle, stays theirs.
+describe('a call that cannot claim: a named-file window (A1, #164 parking)', () => {
+  test('parks unclaimed writes to its named canvases while open and until it settles, then only claimed ones', async () => {
+    const { stage, sent } = rig();
     clock = 50_000;
     const shell = (open: boolean) => ({ call: 'b1', open, slugs: ['ui-a'] });
     stage.begin('acp:c9', 'cut', { runId: 'r_sh', shell: shell(true) });
-    expect(stage.captures('ui-a', true, 'call bytes')).toBe(true); // the call's own write
+    expect(stage.captures('ui-a', true, 'call bytes')).toBe(true); // parked, not the run's
     expect(stage.captures('ui-b', true, 'person bytes')).toBe(false); // another canvas: the person's
+    const parked = stage.capture('ui-a', 'doc-a', prop('html', 'call bytes', 'base', 'tx_call'));
+    expect(stage.parked()).toEqual([{ slug: 'ui-a', lane: 'html' }]);
     stage.begin('acp:c9', 'cut', { runId: 'r_sh', shell: shell(false) });
-    expect(stage.captures('ui-a', true, 'late call bytes')).toBe(true); // within the settle
-    clock += 5_000;
+    expect(stage.captures('ui-a', true, 'late call bytes')).toBe(true); // closed, waiting for its settle
+    stage.settleShellCall('b1'); // the settle claimed nothing: released as outside, never the run's
+    expect(await parked).toMatchObject({ status: 'accepted' });
+    expect(sent.map((s) => s.kind)).toEqual(['edit']);
+    expect(stage.summaryOf('r_sh')?.canvases).toEqual([]);
     expect(stage.captures('ui-a', true, 'person bytes')).toBe(false); // the person's VS Code save
     expect(stage.captures('ui-new', true, 'x')).toBe(false);
     stage.claim('r_sh', 'ui-a', hashBytes('claimed bytes'));
     expect(stage.captures('ui-a', true, 'claimed bytes')).toBe(true); // a tool claimed it
   });
 
-  test('a call that waits on a permission card is suspended; a denied one never opens', () => {
+  test('a call that waits on a permission card parks, never takes; a denied one releases as outside', () => {
     const { stage } = rig();
     clock = 90_000;
     const shell = (open: boolean) => ({ call: 'b2', open, slugs: ['ui-b'] });
     stage.begin('acp:c8', 'export', { runId: 'r_card', shell: shell(true) });
     stage.begin('acp:c8', 'export', { runId: 'r_card', shell: shell(false) });
-    clock += 5_000;
-    expect(stage.captures('ui-b', true, 'person while the card waits')).toBe(false);
+    void stage.capture('ui-b', 'doc-b', prop('html', 'person while the card waits', 'b0', 'tx_p'));
+    expect(stage.summaryOf('r_card')?.canvases).toEqual([]);
+    stage.releaseShellCall('b2', 'no-settle'); // close + SETTLE_WAIT_MS with no settle
+    expect(stage.parked()).toEqual([]);
+    expect(stage.captures('ui-b', true, 'person after')).toBe(false);
   });
 
   test('a later begin with no window (an edit tool) never brings a fallback back', () => {
@@ -481,10 +490,32 @@ describe('a call that cannot claim: a named-file window (A1)', () => {
     const shell = (open: boolean) => ({ call: 'b3', open, slugs: ['ui-c'] });
     stage.begin('acp:c7', 'mixed', { runId: 'r_mix', shell: shell(true) });
     stage.begin('acp:c7', 'mixed', { runId: 'r_mix', shell: shell(false) });
-    clock += 5_000;
+    stage.settleShellCall('b3');
     stage.begin('acp:c7', 'mixed', { runId: 'r_mix' });
     expect(stage.captures('ui-c', true, 'a person after the edit tool')).toBe(false);
     stage.claim('r_mix', 'ui-c', hashBytes('edit tool bytes'));
     expect(stage.captures('ui-c', true, 'edit tool bytes')).toBe(true);
+  });
+
+  test('#164 a claimed write landing on parked bytes absorbs them: one write, pre → post', async () => {
+    const { stage, sent } = rig();
+    stage.begin('acp:c6', 'sed', {
+      runId: 'r_two',
+      shell: { call: 'b4', open: true, slugs: ['ui-d'] },
+    });
+    const first = stage.capture('ui-d', 'doc-d', prop('html', 'one', 'zero', 'tx_1'));
+    // the settle claims the final bytes before the watcher delivers them (watcher lag)
+    stage.claim('r_two', 'ui-d', hashBytes('two'));
+    stage.settleShellCall('b4', ['ui-d']);
+    expect(stage.parked()).toEqual([{ slug: 'ui-d', lane: 'html' }]); // waits for the claimed bytes
+    const second = stage.capture('ui-d', 'doc-d', prop('html', 'two', 'one', 'tx_2'));
+    expect(stage.parked()).toEqual([]);
+    await stage.end('acp:c6', 'done');
+    expect(await first).toMatchObject({ status: 'accepted' });
+    expect(await second).toMatchObject({ status: 'accepted' });
+    expect(sent.map((s) => s.kind)).toEqual(['ai']);
+    expect(sent[0].operations).toEqual([
+      { op: 'lane.replace', doc: 'doc-d', lane: 'html', content: 'two', baseContent: 'zero' },
+    ]);
   });
 });
