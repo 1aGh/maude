@@ -9,6 +9,7 @@
 // <result>." (the AI describes the result, never itself), Undo first and then the way on.
 
 import { groupLabel } from '../history/use-versions.js';
+import { stripOffer } from './ai-offer.js';
 import { humanize } from './runs-model.js';
 import { shortArtboardName } from './scope.js';
 import { askTopic } from './suggest-why.js';
@@ -225,7 +226,8 @@ export function lastAssistantDigest(messages) {
   const parts = Array.isArray(last?.content) ? last.content : [];
   const text = parts
     .filter((p) => p?.type === 'text')
-    .map((p) => String(p.text ?? ''))
+    // the offer block is the card's, never words: the polite live region reads this out
+    .map((p) => stripOffer(String(p.text ?? '')))
     .join('\n')
     .trim();
   const steps = parts.filter((p) => p?.type === 'tool-call').map(stepTitle);
