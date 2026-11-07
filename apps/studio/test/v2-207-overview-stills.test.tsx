@@ -16,6 +16,8 @@ import {
   isPaintMutation,
   resolveStillMode,
   STILL_ATTR,
+  STILL_HANDBACK_MAX_WAIT_FRAMES,
+  STILL_HANDBACK_QUIET_FRAMES,
   STILL_MAX_SCREEN_PX,
   STILL_RESTORE_PER_FRAME,
   StillController,
@@ -49,7 +51,9 @@ function rig(opts: { heavy?: boolean } = {}) {
   const timers: Array<() => void> = [];
   const frames: Array<() => void> = [];
   const info = new Map<string, { visible: boolean; weight: number }>();
+  let clock = 0;
   const c = new StillController({
+    now: () => clock,
     take: async () => fakeStill(),
     later: (fn) => timers.push(fn),
     cancel: () => {
@@ -74,11 +78,17 @@ function rig(opts: { heavy?: boolean } = {}) {
       await new Promise((res) => setTimeout(res, 0));
     }
   };
-  const nextFrame = () => {
+  /** one animation frame that took `dt` ms */
+  const nextFrame = (dt = 16) => {
+    clock += dt;
     const fs = frames.splice(0);
     for (const f of fs) f();
   };
-  return { c, t, add, drawAll, nextFrame, info };
+  /** frames until nothing is showing (bounded) */
+  const handBackAll = (dt = 16) => {
+    for (let i = 0; i < 60 && c.stats().showing > 0; i++) nextFrame(dt);
+  };
+  return { c, t, add, drawAll, nextFrame, handBackAll, info };
 }
 
 describe('which artboard may stand in as its still', () => {
@@ -139,6 +149,7 @@ describe('the swap during a zoom and the restore on the settle', () => {
     r.c.noteZoom(0.6);
     expect(r.t.a?.swapped()).toBe(true);
     r.c.settle();
+    r.handBackAll();
     expect(r.t.a?.swapped()).toBe(false);
     expect(r.t.b?.swapped()).toBe(false);
   });
@@ -190,10 +201,9 @@ describe('the swap during a zoom and the restore on the settle', () => {
     expect(fresh.t.a?.swapped()).toBe(false);
   });
 
-  test('the settle hands back a few per frame, nearest the centre first', async () => {
+  test('the hand-back waits for quiet frames, then one, then more while frames stay fast', async () => {
     const r = rig();
-    const n = STILL_RESTORE_PER_FRAME + 2;
-    // spread across the screen: x = 0, 100, 200, … (the rig's viewport centre is innerWidth / 2)
+    const n = STILL_RESTORE_PER_FRAME + 4;
     for (let i = 0; i < n; i++) r.add(`a${i}`, 1600, i * 100);
     r.c.setZoom(0.1);
     await r.drawAll();
@@ -201,12 +211,41 @@ describe('the swap during a zoom and the restore on the settle', () => {
     r.c.noteZoom(0.11);
     expect(r.c.stats().showing).toBe(n);
     r.c.settle();
-    expect(r.c.stats().showing).toBe(n - STILL_RESTORE_PER_FRAME);
-    r.nextFrame();
+    // the settle frame itself hands nothing back (the old code painted 4 artboards in it: 288–358 ms)
+    expect(r.c.stats().showing).toBe(n);
+    for (let i = 0; i < STILL_HANDBACK_QUIET_FRAMES; i++) r.nextFrame();
+    expect(r.c.stats().showing).toBe(n);
+    r.nextFrame(); // the first hand-back: one artboard
+    expect(r.c.stats().showing).toBe(n - 1);
+    r.nextFrame(); // that frame was fast: two
+    expect(r.c.stats().showing).toBe(n - 3);
+    r.handBackAll();
     expect(r.c.stats().showing).toBe(0);
   });
 
-  test('a new gesture before the restore finished keeps the rest as stills until it settles', async () => {
+  test('after a slow frame the hand-back lets a frame pass and goes on one at a time; a busy machine still finishes', async () => {
+    const r = rig();
+    const n = 6;
+    for (let i = 0; i < n; i++) r.add(`a${i}`, 1600, i * 100);
+    r.c.setZoom(0.1);
+    await r.drawAll();
+    r.c.noteZoom(0.1);
+    r.c.noteZoom(0.11);
+    r.c.settle();
+    while (r.c.stats().showing === n) r.nextFrame(); // quiet frames, then the first one goes back
+    expect(r.c.stats().showing).toBe(n - 1);
+    r.nextFrame(120); // the paint of that one was slow: nothing this frame
+    expect(r.c.stats().showing).toBe(n - 1);
+    r.nextFrame(); // a fast frame: one again (not two)
+    expect(r.c.stats().showing).toBe(n - 2);
+    // every frame slow from here (a loaded machine): it still goes on, one at a time
+    for (let i = 0; i < STILL_HANDBACK_MAX_WAIT_FRAMES * 2 + 2; i++) r.nextFrame(120);
+    expect(r.c.stats().showing).toBeLessThan(n - 2);
+    r.handBackAll(120);
+    expect(r.c.stats().showing).toBe(0);
+  });
+
+  test('a pan right after a zoom pauses the hand-back: the rest stay stills until it settles', async () => {
     const r = rig();
     const n = STILL_RESTORE_PER_FRAME + 2;
     for (let i = 0; i < n; i++) r.add(`a${i}`, 1600, i * 100);
@@ -215,10 +254,14 @@ describe('the swap during a zoom and the restore on the settle', () => {
     r.c.noteZoom(0.1);
     r.c.noteZoom(0.11);
     r.c.settle();
-    r.c.noteZoom(0.11); // a pan starts at once
-    r.nextFrame();
-    expect(r.c.stats().showing).toBe(2);
+    while (r.c.stats().showing === n) r.nextFrame();
+    const left = r.c.stats().showing;
+    expect(left).toBe(n - 1);
+    r.c.noteZoom(0.11); // a pan starts
+    for (let i = 0; i < 10; i++) r.nextFrame();
+    expect(r.c.stats().showing).toBe(left);
     r.c.settle();
+    r.handBackAll();
     expect(r.c.stats().showing).toBe(0);
   });
 });

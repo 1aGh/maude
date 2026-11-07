@@ -29,11 +29,19 @@
 /** An artboard narrower than this on screen (CSS px) shows its still during a zoom. One constant (Michal: ~120). */
 export const STILL_MAX_SCREEN_PX = 200;
 /**
- * How many artboards go live again per frame after the settle (nearest the centre first). All at once was one
- * 350 ms WebKit frame on the mascot canvas; a few per frame keep each settle frame short. The still matches, so the
- * hand-over is not visible.
+ * The hand-back after the settle (nearest the centre first). All at once was one 350 ms WebKit frame on the mascot
+ * canvas, and a fixed 4 per frame still 288–358 ms: each artboard handed back is painted for the first time at the
+ * new zoom in the NEXT frame. So it starts after `STILL_HANDBACK_QUIET_FRAMES` quiet frames, hands back one artboard
+ * a frame, doubles that (up to `STILL_RESTORE_PER_FRAME`) while frames stay under `STILL_HANDBACK_SLOW_MS`, and drops
+ * back to one — and lets a frame pass — after a slow one. Any gesture input pauses it: what is not handed back yet
+ * stays a still through that gesture (a pan right after a zoom pans bitmaps), and its settle starts a new hand-back.
+ * The still matches, so the hand-over is not visible.
  */
 export const STILL_RESTORE_PER_FRAME = 4;
+export const STILL_HANDBACK_QUIET_FRAMES = 2;
+export const STILL_HANDBACK_SLOW_MS = 20;
+/** After this many frames in a row waited, the hand-back goes on (one a frame) however slow the frames are. */
+export const STILL_HANDBACK_MAX_WAIT_FRAMES = 3;
 /** Stills are drawn for artboards up to this many times the threshold (a zoom-out reaches them next). */
 export const STILL_PREPARE_FACTOR = 2;
 /** Only while the artboards on screen hold at least this many mounted elements (the mascot canvas: ~8.5k). */
@@ -119,6 +127,8 @@ export interface StillControllerOptions {
   later?: (fn: () => void, ms: number) => unknown;
   /** the next animation frame (the staggered restore) */
   frame?: (fn: () => void) => unknown;
+  /** a clock (ms) — the hand-back paces itself on frame times */
+  now?: () => number;
   cancel?: (handle: unknown) => void;
   /** observe DOM changes (null in tests that do not need it) */
   observe?: ((el: HTMLElement, onChange: () => void) => MutationObserver | null) | null;
@@ -146,6 +156,12 @@ export class StillController {
   private readonly frame: (fn: () => void) => unknown;
   private restoring: Entry[] = [];
   private restoreScheduled = false;
+  private readonly now: () => number;
+  private handbackQuiet = 0;
+  private handbackStep = 1;
+  private lastFrameAt = 0;
+  /** frames the hand-back has waited in a row (a busy machine never has a fast frame: it goes on anyway) */
+  private handbackWaited = 0;
   private readonly cancel: (h: unknown) => void;
   private readonly observe: StillControllerOptions['observe'];
   private readonly info: StillControllerOptions['info'];
@@ -154,6 +170,8 @@ export class StillController {
   constructor(o: StillControllerOptions) {
     this.take = o.take;
     this.later = o.later ?? ((fn, ms) => setTimeout(fn, ms));
+    this.now =
+      o.now ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
     this.frame =
       o.frame ??
       ((fn) =>
@@ -280,21 +298,48 @@ export class StillController {
       }
       showing.sort((a, b) => (dist.get(a) ?? 0) - (dist.get(b) ?? 0));
       this.restoring = showing;
-      this.restoreStep();
+      this.handbackQuiet = STILL_HANDBACK_QUIET_FRAMES;
+      this.handbackStep = 1;
+      this.lastFrameAt = 0;
+      this.handbackWaited = 0;
+      this.scheduleHandback();
     }
     this.scheduleTake();
   }
 
-  /** Hand back the next few artboards now, the rest on the next frames. */
-  private restoreStep(): void {
-    const batch = this.restoring.splice(0, STILL_RESTORE_PER_FRAME);
-    for (const e of batch) this.hide(e);
+  private scheduleHandback(): void {
     if (!this.restoring.length || this.restoreScheduled) return;
     this.restoreScheduled = true;
     this.frame(() => {
       this.restoreScheduled = false;
-      if (this.gestureZoom === null) this.restoreStep();
+      this.handbackTick();
     });
+  }
+
+  /** One frame of the hand-back: wait for quiet frames, then a few artboards, fewer after a slow frame. */
+  private handbackTick(): void {
+    if (this.gestureZoom !== null) return; // paused: the gesture's settle starts a new hand-back
+    const t = this.now();
+    const dt = this.lastFrameAt ? t - this.lastFrameAt : 0;
+    this.lastFrameAt = t;
+    const slow = dt > STILL_HANDBACK_SLOW_MS;
+    const stalled = this.handbackWaited >= STILL_HANDBACK_MAX_WAIT_FRAMES;
+    if (this.handbackQuiet > 0 && !stalled) {
+      if (!slow) this.handbackQuiet -= 1;
+      else this.handbackWaited += 1;
+    } else if (slow && !stalled) {
+      // the last hand-back's first paint was expensive: one at a time, and let this frame pass
+      this.handbackStep = 1;
+      this.handbackWaited += 1;
+    } else {
+      this.handbackQuiet = 0;
+      this.handbackWaited = 0;
+      if (slow) this.handbackStep = 1;
+      const batch = this.restoring.splice(0, this.handbackStep);
+      for (const e of batch) this.hide(e);
+      this.handbackStep = Math.min(STILL_RESTORE_PER_FRAME, this.handbackStep * 2);
+    }
+    this.scheduleHandback();
   }
 
   /** Test / diagnostics view. */
@@ -387,6 +432,11 @@ export class StillController {
 
   private async takeNext(): Promise<void> {
     if (this.gestureZoom !== null || !this.heavy()) return;
+    // never draw while the hand-back is painting: try again once it is done
+    if (this.restoring.length) {
+      this.scheduleTake();
+      return;
+    }
     const next = this.nextToTake();
     if (!next) return;
     const [id, e] = next;
