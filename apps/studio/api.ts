@@ -109,6 +109,7 @@ import {
   type EditScope,
   editArrayElementString,
   editAttribute,
+  ensureStamped,
   enumerateClips,
   type InsertKind,
   insertArtboard,
@@ -151,6 +152,7 @@ import {
   sanitizeReuseText,
 } from './generation/audio-library.ts';
 import { createHistory } from './history.ts';
+import { moduleOwningId, moduleRefusal } from './imported-module-ids.ts';
 import { pidOf, projectDir } from './index/snapshot.ts';
 import {
   CANVAS_INDEX_SEED_DEBOUNCE_MS,
@@ -6052,7 +6054,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   async function lockedTarget(
     abs: string,
     targets: ReadonlyArray<string | { id: string; occurrence?: number }>
-  ): Promise<{ ok: false; status: 409; error: string; code: 'locked' } | null> {
+  ): Promise<
+    | { ok: false; status: 409; error: string; code: 'locked' }
+    | { ok: false; status: 422; error: string }
+    | null
+  > {
     let source: string;
     try {
       source = await Bun.file(abs).text();
@@ -6064,6 +6070,15 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const ids: string[] = [];
     for (const t of targets) {
       const { id, occurrence } = typeof t === 'string' ? { id: t, occurrence: undefined } : t;
+      // #151 T2.3b — an id the canvas file does not hold may be an element of a module it imports:
+      // selectable and commentable, edit-read-only. Say which file instead of "not found in <path>".
+      try {
+        ensureStamped(abs, source, id);
+      } catch (e) {
+        const module =
+          e instanceof CanvasEditError ? moduleOwningId(abs, paths.designRoot, id) : null;
+        if (module) return { ok: false, status: 422, error: moduleRefusal(module) };
+      }
       ids.push(id);
       if (typeof occurrence === 'number') {
         const usage = usageIdOf(abs, source, id, occurrence);

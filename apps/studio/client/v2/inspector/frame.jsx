@@ -34,9 +34,13 @@ import {
   cssTextOf,
   hasUsableId,
   isLockedSelection,
+  moduleLine,
+  moduleOfSelection,
   placementOf,
   titleOf,
 } from './model.js';
+import { menuRunner } from '../shell/menu-runner.js';
+import { projectRel } from '../shell/native-doors.js';
 import { effectiveCss } from './sections/row.jsx';
 import { sectionsFor } from './sections.js';
 import { useFormatsVersion } from './formats-ui.js';
@@ -206,17 +210,36 @@ export function InspectorFrame({
   // is the view-mode switch for it — every value readable, no field opens — with the lock line on screen
   const locked = isLockedSelection(selected, layersTree);
   const lockOff = locked && !readOnly && !hold.view;
+  // #151 T2.3b — an element of a component imported from another file is selectable and commentable but
+  // edit-read-only (the edit engine reads only the canvas file): the same switch as a lock, with its own line
+  // and the one door that helps — the file itself, opened through the registry's open-in-editor
+  const moduleFile = moduleOfSelection(selected);
+  const moduleOff = !!moduleFile && !locked && !readOnly && !hold.view;
+  const moduleWhy = moduleFile ? moduleLine(moduleFile) : '';
   const line = lockOff
     ? { tone: 'lock', text: disabledReason('locked'), comment: false }
-    : hold.line;
+    : moduleOff
+      ? {
+          tone: 'module',
+          text: moduleWhy,
+          comment: false,
+          act: {
+            label: `Open ${moduleFile.split('/').pop()}`,
+            run: () =>
+              menuRunner.run('canvas.open-in-editor', {
+                path: projectRel(cfg?.designRel, moduleFile),
+              }),
+          },
+        }
+      : hold.line;
   const ctx = {
     canvasFile,
     cfg,
-    editable: !!el.id && !readOnly && !locked,
+    editable: !!el.id && !readOnly && !locked && !moduleFile,
     // the access alone, for a kind whose writes are not element edits (a ds direction's pick, direction-bar.jsx)
     readOnly: !!readOnly,
     // p8-sweep-errors — a locked object refuses every edit-op but the lock (409): an ask is off and says why
-    locked,
+    locked: locked || !!moduleFile,
     // V2-8.5 c6 (14 ed-obj-enter): "In Services · Set by Services · 2 of 3"
     placement: placementOf(layersTree, Array.isArray(selected) ? null : el),
     // 14 ed-lay-free: the object's own name, for the sentence "Post places things freely … keep Datum 64 from …"
@@ -271,8 +294,9 @@ export function InspectorFrame({
           object's fieldset says why on itself too, so each control under it does (p8-lock-reasons) */}
       <fieldset
         className="ed-insp-fields"
-        disabled={hold.view || readOnly || locked}
+        disabled={hold.view || readOnly || locked || !!moduleFile}
         {...reasonProps(lockOff, 'locked')}
+        {...reasonProps(moduleOff, moduleWhy)}
       >
         {/* S2.17 — what only this kind has (an instance: Component · Content), above the ten sections */}
         {blocksFor(kind.id, 'top').map(({ id, Body }) => (

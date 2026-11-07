@@ -109,9 +109,11 @@ export const MENU_ACTION_EVENT = 'maude:menu-action';
 const noop = () => {};
 
 /** S11.9 — run a native path door on the open canvas; its refusal (Rust's words, or "browser") becomes a toast. */
-async function runDoor(d, id) {
-  if (!d.activePath) return;
-  const res = await nativeDoors().run(id, d.activePath);
+async function runDoor(d, id, path) {
+  // #151 T2.3b — `path` (project-relative) names another file of the project: the file an imported component lives in
+  const rel = typeof path === 'string' && path ? path : d.activePath;
+  if (!rel) return;
+  const res = await nativeDoors().run(id, rel);
   if (res?.ok) return;
   d.toast(
     res?.reason === 'browser'
@@ -218,7 +220,7 @@ export function createMenuHandlers(d) {
     // S11.9 — the row menu's Advanced group on the OPEN canvas. The two native doors take the project-relative
     // path of the open canvas (the tab's path; Rust refuses anything else); a browser tab has no door and says so.
     'canvas.reveal-in-finder': () => runDoor(d, 'canvas.reveal-in-finder'),
-    'canvas.open-in-editor': () => runDoor(d, 'canvas.open-in-editor'),
+    'canvas.open-in-editor': (p) => runDoor(d, 'canvas.open-in-editor', p?.path),
     'canvas.copy-file-path': async () => {
       if (!d.activePath) return;
       d.toast(

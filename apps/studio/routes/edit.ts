@@ -37,6 +37,7 @@ import { type Op as AnnotationOp, applyOps } from '../annotations/ops.ts';
 import { parseBoard, serializeBoard } from '../annotations/schema.ts';
 import type { LaneChange, LanesOutcome } from '../api.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
+import { moduleOwningId } from '../imported-module-ids.ts';
 import { listPickerComponents, systemForPicker } from '../ds/component-list.ts';
 import { instanceInfoFor, pickerItems } from '../ds/instance-info.ts';
 import { CLIP_EDIT_VERBS } from '../edit-ops/clip/index.ts';
@@ -461,6 +462,8 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     return serialized(key, () =>
       dispatchEditOp(body, {
         resolve: (f) => resolveCanvasRel(deps.designRoot, deps.designRel, f),
+        // #151 T2.3b — an element of an imported module is selectable but edit-read-only: say which file
+        moduleOf: (rel, id) => moduleOwningId(abs(rel), deps.designRoot, id),
         // S11.17 — through the hold: an edit made while the disk is full builds on the held bytes
         read: readSource,
         // S2.23 (G4): say what the source became, like api.ts does for the studio's other writes — the

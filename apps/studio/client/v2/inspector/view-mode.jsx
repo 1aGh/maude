@@ -168,7 +168,7 @@ export function useHoldView({ canvasOrigin, rootRef }) {
   return hold;
 }
 
-/** The view-mode line (`tone` people / ai) + Comment for a person's hold. */
+/** The view-mode line (`tone` people / ai / module) + Comment for a person's hold, or the one `act` a line offers. */
 export function HoldLine({ line }) {
   if (!line) return null;
   return (
@@ -186,6 +186,16 @@ export function HoldLine({ line }) {
           onClick={() => menuRunner.run('tool.comment')}
         >
           Comment
+        </button>
+      ) : null}
+      {line.act ? (
+        <button
+          type="button"
+          className="ed-insp-line-act"
+          data-testid="inspector-module-action"
+          onClick={line.act.run}
+        >
+          {line.act.label}
         </button>
       ) : null}
     </p>
