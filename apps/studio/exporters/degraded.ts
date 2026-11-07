@@ -109,6 +109,17 @@ export function remedyFor(reason: string): string | undefined {
       'carry audio through the export.'
     );
   }
+  // Issue #150 §1 — @remotion/web-renderer rejects with exactly this message when
+  // the image it makes of an inline <svg> fails to load. It used to look like a
+  // renderer bug; it is almost always the svg's own markup, and the file that
+  // comes out of the frame-by-frame fallback has no audio.
+  if (/Failed to convert SVG to image/i.test(reason)) {
+    return (
+      'An inline <svg> in this comp could not be turned into an image, so the audio ' +
+      'renderer stopped. Check that svg for invalid markup, or save it as a .svg file ' +
+      'with a fixed width and height and draw it with <Img>.'
+    );
+  }
   return undefined;
 }
 
