@@ -429,7 +429,7 @@ describe('drawings during a pan (the first-pass blocks)', () => {
     expect(r.seq('a')).toEqual(['cover', 'still']); // one change
   });
 
-  test('nothing is drawn while the zoom moves; after it settles, nothing for the hold; a pan in the hold draws at once', async () => {
+  test('nothing is drawn while the zoom moves; after it settles, nothing for the hold — a pan in the hold waits too', async () => {
     expect(S.STILL_SETTLE_HOLD_MS).toBeGreaterThanOrEqual(1000);
     const r = rig();
     settleAt(r.c, 0.1);
@@ -446,7 +446,8 @@ describe('drawings during a pan (the first-pass blocks)', () => {
     await r.tick(S.STILL_SETTLE_HOLD_MS);
     await r.run(5);
     expect(r.takes()).toBe(2);
-    // a pan that starts inside the hold draws at once
+    // a pan that starts inside the hold waits for the hold too (2.0.7: the pan right after a zoom is WebKit's
+    // repaint at the new scale — a drawing there kept the sweep-after-zoom lane over its bar), then draws mid-pan
     const p = rig();
     settleAt(p.c, 0.1);
     p.add('a');
@@ -455,8 +456,17 @@ describe('drawings during a pan (the first-pass blocks)', () => {
     p.c.settle(0.1);
     await p.run(2);
     expect(p.takes()).toBe(0);
-    p.c.noteZoom(0.1); // a pan
-    await p.run(4);
+    for (let i = 0; i < 40; i++) {
+      p.c.noteZoom(0.1); // a pan, 640 ms of it, all inside the hold
+      await p.tick(16);
+    }
+    expect(p.takes()).toBe(0);
+    expect(p.c.viewOf('a')).toBe('cover');
+    for (let i = 0; i < 50; i++) {
+      p.c.noteZoom(0.1); // the same pan goes on past the hold: it draws without a settle
+      await p.tick(16);
+    }
+    expect(p.c.engaged()).toBe(true);
     expect(p.takes()).toBe(1);
     expect(p.c.viewOf('a')).toBe('still');
   });

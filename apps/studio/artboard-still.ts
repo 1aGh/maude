@@ -68,7 +68,8 @@ export const STILL_PAN_BUDGET_MS = 4;
 export const STILL_IDLE_BUDGET_MS = 8;
 /**
  * After a zoom settles nothing is drawn for this long (ms): WebKit repaints its tiles at the new scale in those
- * frames, and a drawing among them pushed the fit-all zoom cycle's settle max over base. A pan in it draws at once.
+ * frames, and a drawing among them pushed the fit-all zoom cycle's settle max over base. A pan in it waits too: a pan
+ * right after a zoom is still those frames (2.0.7 — drawing there kept the sweep-after-zoom lane over the bar).
  */
 export const STILL_SETTLE_HOLD_MS = 1200;
 /** At most this many drawings wait for their pictures to decode at once; the next one walks meanwhile. */
@@ -203,7 +204,7 @@ export class StillCache {
   private map = new Map<string, CachedStill>();
   private bytes = 0;
   private tick = 0;
-  constructor(private readonly max = STILL_CACHE_MAX_BYTES) {}
+  constructor(readonly max = STILL_CACHE_MAX_BYTES) {}
   get(id: string): CachedStill | undefined {
     const c = this.map.get(id);
     if (c) c.used = ++this.tick;
@@ -398,7 +399,7 @@ function wholeJob(take: (body: HTMLElement) => Promise<HTMLElement | null>) {
  * One per canvas document. Artboards register while their children are mounted (in a layout effect, so the body is
  * hidden before its first paint when it is under the cut); the viewport reports every zoom it writes (`noteZoom`)
  * and the settle (`settle`). Stills are drawn one at a time in slices, within a per-frame budget — during a pan too,
- * never while the zoom is moving, and not in the `STILL_SETTLE_HOLD_MS` after a zoom settles.
+ * never while the zoom is moving, and not in the `STILL_SETTLE_HOLD_MS` after a zoom settles (a pan in it waits too).
  */
 export class StillController {
   private entries = new Map<string, Entry>();
@@ -440,6 +441,9 @@ export class StillController {
   private changes = new Map<string, StillView[]>();
   /** the last drawings (≤ 64) — diagnostics */
   private traces: StillJobTrace[] = [];
+  /** the last camera write or settle (ms, `now()`) — the warm-up waits for quiet after it */
+  private activityAt = Number.NEGATIVE_INFINITY;
+  private stillListeners = new Set<(id: string, ok: boolean) => void>();
 
   constructor(o: StillControllerOptions) {
     this.job = o.job ?? (o.take ? wholeJob(o.take) : null);
@@ -470,6 +474,7 @@ export class StillController {
   setZoom(zoom: number): void {
     if (!(zoom > 0) || this.gestureZoom !== null) return;
     if (zoom === this.zoom) return;
+    this.activityAt = this.now();
     this.zoom = zoom;
     // a programmatic zoom (fit, a jump) repaints like a gesture's settle — not the first one (the canvas opening)
     if (this.zoomKnown) this.holdUntil = this.now() + STILL_SETTLE_HOLD_MS;
@@ -572,6 +577,7 @@ export class StillController {
   /** The viewport wrote this zoom (every frame of a gesture, and every programmatic move). */
   noteZoom(zoom: number): void {
     if (!(zoom > 0)) return;
+    this.activityAt = this.now();
     if (this.gestureZoom === null) {
       // the first write of a gesture: remember where it started; nothing changes for a pure pan
       this.gestureZoom = this.zoom;
@@ -592,6 +598,7 @@ export class StillController {
 
   /** The gesture settled: what is now over the cut is handed back (paced), what is under it shows its still. */
   settle(zoom?: number): void {
+    this.activityAt = this.now();
     if (zoom !== undefined && zoom > 0) this.zoom = zoom;
     if (this.zooming) this.holdUntil = this.now() + STILL_SETTLE_HOLD_MS;
     this.gestureZoom = null;
@@ -603,6 +610,37 @@ export class StillController {
   /** Is the zoom in flight (diagnostics)? */
   engaged(): boolean {
     return this.gestureZoom !== null;
+  }
+
+  /** The settled zoom (the warm-up asks which artboards would be under the cut). */
+  zoomNow(): number {
+    return this.zoom;
+  }
+
+  /** The last camera write or settle (ms on this controller's clock). */
+  lastActivity(): number {
+    return this.activityAt;
+  }
+
+  /**
+   * Nothing moves and nothing is held: no gesture, past the settle hold, no hand-back. `drawing` also asks that no
+   * drawing is in flight or waiting to start for an artboard on screen.
+   */
+  quiet(drawing = false): boolean {
+    if (this.gestureZoom !== null || this.zooming || this.restoring.length > 0) return false;
+    if (this.now() < this.holdUntil) return false;
+    return !drawing || (this.queue.length === 0 && this.decoding.size === 0);
+  }
+
+  /** Has this artboard a kept still (current or stale)? */
+  hasStill(id: string): boolean {
+    return !!this.cache.peek(id);
+  }
+
+  /** A drawing of `id` ended (`ok`: a still came of it, or its kept still was reused). */
+  onStill(fn: (id: string, ok: boolean) => void): () => void {
+    this.stillListeners.add(fn);
+    return () => this.stillListeners.delete(fn);
   }
 
   private small(e: Entry, zoom: number): boolean {
@@ -852,7 +890,7 @@ export class StillController {
   private schedulePump(): void {
     if (this.pumpQueued || this.blocked()) return;
     const t = this.now();
-    if (this.gestureZoom === null && t < this.holdUntil) {
+    if (t < this.holdUntil) {
       if (this.holdTimer === null)
         this.holdTimer = this.later(() => {
           this.holdTimer = null;
@@ -871,7 +909,7 @@ export class StillController {
   private pump(): void {
     if (this.blocked()) return;
     const t0 = this.now();
-    if (this.gestureZoom === null && t0 < this.holdUntil) {
+    if (t0 < this.holdUntil) {
       this.schedulePump();
       return;
     }
@@ -944,6 +982,7 @@ export class StillController {
       this.takes.reused += 1;
       if (e.shown !== kept.el) this.putStill(e, kept.el);
       this.afterTake(e);
+      for (const fn of this.stillListeners) fn(e.id, true);
       return true;
     }
     const a = e.target.article;
@@ -991,6 +1030,7 @@ export class StillController {
     if (this.traces.length > 64) this.traces.shift();
     if (this.entries.get(e.id) !== e) {
       still?.remove();
+      for (const fn of this.stillListeners) fn(e.id, false);
       return;
     }
     // changed while it was drawn: shown (better than a cover), drawn again once the change settles
@@ -1003,6 +1043,7 @@ export class StillController {
       this.putStill(e, still);
     }
     this.afterTake(e);
+    for (const fn of this.stillListeners) fn(e.id, !!still);
   }
 
   private nextToTake(): Entry | null {
