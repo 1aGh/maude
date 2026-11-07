@@ -19,6 +19,7 @@ import {
   captureTeamServerSignIn,
   signInOnHubPage,
 } from '../helpers/hub-signin-page';
+import { hubProcess } from '../helpers/hub-process';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
 import { openSwitcher } from '../helpers/switcher';
@@ -115,17 +116,6 @@ function hubBack(t: NonNullable<typeof TEAM>, mode = t.hubAway) {
   if (!t.hubContainer) return void process.kill(hubProcess(t), 'SIGCONT');
   execFileSync('docker', [mode === 'pause' ? 'unpause' : 'start', t.hubContainer]);
 }
-/**
- * The in-process hub's pid — never 0. Against a container hub the conf sets `hubPid: 0`, and
- * `process.kill(0, 'SIGSTOP')` stops this whole process GROUP (wdio, the Docker gate, the test lane),
- * so the SIGCONT after it never runs and the lane hangs. Every signal to the hub goes through here.
- */
-function hubProcess(t: NonNullable<typeof TEAM>): number {
-  if (!Number.isInteger(t.hubPid) || t.hubPid <= 0)
-    throw new Error(`no in-process hub to signal (hubPid ${t.hubPid}) — use hubAway/hubBack`);
-  return t.hubPid;
-}
-
 const canvas = (
   title: string
 ) => `import { DCArtboard, DCSection, DesignCanvas } from "@maude/canvas-lib";
