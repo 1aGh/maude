@@ -45,7 +45,7 @@ import {
   takePicture,
 } from './artboard-placeholder.ts';
 import { ARTBOARD_STILL_CSS, resolveStillMode, StillController } from './artboard-still.ts';
-import { drawStill, rasterTimings } from './artboard-still-raster.ts';
+import { rasterTimings, startStill } from './artboard-still-raster.ts';
 import { WebglBudget } from './artboard-webgl.ts';
 
 const ALL_LIVE: ArtboardLiveState = { live: true, seen: true, media: true };
@@ -207,13 +207,15 @@ function getRuntime(): Runtime | null {
     resolveStillMode({ search: window.location.search, webkit: isWebkit(), liveMode: mode }) ===
     'on'
   ) {
-    const st = new StillController({ take: drawStill, info: (id) => registry.slotInfo(id) });
+    const st = new StillController({ job: startStill, info: (id) => registry.slotInfo(id) });
     registry.onSettle(() => st.settle());
     stills = st;
     const w = window as unknown as Record<string, unknown>;
     w.__maudeStillStats = () => ({ ...st.stats(), raster: { ...rasterTimings } });
     // the views each artboard went through (the flicker count of the overview level)
     w.__maudeStillHistory = (id?: string) => st.history(id);
+    // the last drawings: slices, the longest one, when the walk / the decode / the drawing ended
+    w.__maudeStillJobs = () => st.jobs();
   }
   const runtime: Runtime = { registry, budget, near, visible, keep, ids, stills };
   const slot: RuntimeSlot = { shape: RUNTIME_SHAPE, search: window.location.search, runtime };

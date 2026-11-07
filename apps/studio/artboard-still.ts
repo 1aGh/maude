@@ -23,10 +23,17 @@
  *             their DOM, and a click on an overview artboard selects it, which brings it live), video artboards
  *             (`eager`, `v2-207-eager-video-media-follows-ring`).
  *
- *             The stills are drawn in this canvas document (`drawStill`, artboard-still-raster.ts) and kept in its
+ *             Drawn in slices within a per-frame budget (`startStill`, artboard-still-raster.ts) — during a pan too, so
+ *             an artboard that mounts mid-pan becomes its still within a few frames, never while the zoom moves, and
+ *             not in the hold after a zoom settles. The children of a hidden body come back into the render tree for
+ *             the walk only (`STILL_WALK_ATTR`, the body transparent); its pictures decode off the main thread.
+ *
+ *             The stills are drawn in this canvas document (artboard-still-raster.ts) and kept in its
  *             memory (`StillCache`, keyed by artboard id + a content signature, bounded in bytes) — never on disk and
  *             never in the canvas origin's storage, which every canvas on that origin can read (C4's named gap).
  */
+
+import type { StillJob, WalkHooks } from './artboard-still-raster.ts';
 
 /**
  * The overview cut: an artboard narrower than this on screen (CSS px) shows its still. One constant (Michal first
@@ -47,9 +54,26 @@ export const STILL_HANDBACK_MAX_WAIT_FRAMES = 3;
 export const STILL_REVEAL_MS = 140;
 /** Stills are drawn for artboards up to this many times the cut (a zoom-out reaches them next). */
 export const STILL_PREPARE_FACTOR = 2;
-/** How long the canvas must be still before a still is drawn (ms) — never during or right after a gesture. */
+/**
+ * How long a still whose content changed waits before it is redrawn (ms): an edit's burst of DOM changes draws once.
+ * A cover (an artboard with no still yet) is drawn at once — during a pan too (the 2.0.7 first-pass blocks).
+ */
 export const STILL_TAKE_DELAY_MS = 600;
-/** Gap between two drawings (ms): one artboard at a time, so drawing never blocks a frame for long. */
+/**
+ * The main-thread time drawings may take per frame (ms), during a gesture and while settled. A drawing is sliced
+ * (artboard-still-raster.ts `startStill`: the walk, then the pictures decode off the main thread, then the paint),
+ * so an artboard that mounts mid-pan becomes its still within a few frames.
+ */
+export const STILL_PAN_BUDGET_MS = 4;
+export const STILL_IDLE_BUDGET_MS = 8;
+/**
+ * After a zoom settles nothing is drawn for this long (ms): WebKit repaints its tiles at the new scale in those
+ * frames, and a drawing among them pushed the fit-all zoom cycle's settle max over base. A pan in it draws at once.
+ */
+export const STILL_SETTLE_HOLD_MS = 1200;
+/** At most this many drawings wait for their pictures to decode at once; the next one walks meanwhile. */
+export const STILL_MAX_DECODING = 4;
+/** Kept for callers: drawings are paced by the frame budget now, not by a gap. */
 export const STILL_TAKE_GAP_MS = 50;
 /**
  * The stills kept in memory, in bytes of bitmap (w × h × 4). Past it the least recently used still that is not
@@ -58,6 +82,11 @@ export const STILL_TAKE_GAP_MS = 50;
 export const STILL_CACHE_MAX_BYTES = 96 * 1024 * 1024;
 /** The attribute the article carries while its stand-in shows (`cover` | `still` | `paint` | `reveal`). */
 export const STILL_ATTR = 'data-dc-still';
+/**
+ * The attribute the article carries while its hidden body is walked for a drawing: the children are back in the
+ * render tree (laid out, so the walk can read them) and the body is transparent (not painted). Never shown.
+ */
+export const STILL_WALK_ATTR = 'data-dc-still-walk';
 /** The class of the stand-in element (a `<div>` appended to the article; the still `<canvas>` is its child). */
 export const STILL_CLASS = 'dc-artboard-still';
 /** The frame parameter that forces the feature on or off (`?artboard-still=on|off`, tests and A/B runs). */
@@ -99,7 +128,8 @@ export function targetView(s: {
   const standing = s.view === 'cover' || s.view === 'still';
   if (s.exempt) return 'live';
   if (s.gesture) {
-    if (s.small && s.hasStill && !standing) return 'still';
+    // mid-gesture: shrinking under the cut swaps to the still; a cover takes its still the moment it exists
+    if (s.hasStill && (s.view === 'cover' || (s.small && !standing))) return 'still';
     return s.view === 'paint' || s.view === 'reveal' ? 'live' : standing ? s.view : 'live';
   }
   if (!s.small) return 'live';
@@ -240,25 +270,61 @@ interface Entry {
   /** the still currently inside the slot */
   shown: HTMLElement | null;
   dirty: boolean;
+  /** bumps on every content change: a drawing that saw an older one is shown but drawn again */
+  gen: number;
+  /** not drawn before this `now()` (a changed still waits `STILL_TAKE_DELAY_MS`; a cover is drawn at once) */
+  readyAt: number;
   view: StillView;
   /** bumps on every view change: a hand-over in flight checks it before its next step */
   seq: number;
   observer: MutationObserver | null;
   /** has this entry's body been shown live since it registered (the cover is never shown after that) */
   wasLive: boolean;
+  /** its drawing in flight */
+  job: Current | null;
+}
+
+/** The drawing in flight (one at a time). */
+interface Current {
+  e: Entry;
+  job: StillJob;
+  sig: string;
+  gen: number;
+  t0: number;
+  waiting: boolean;
+  /** diagnostics: slices, the longest one, when each phase ended (ms after t0) */
+  slices: number;
+  sliceMax: number;
+  phaseMax: Record<string, number>;
+  marks: Record<string, number>;
+}
+
+/** One finished drawing (diagnostics, `__maudeStillJobs`). */
+export interface StillJobTrace {
+  id: string;
+  /** what the artboard showed when the drawing ended (before its new still) */
+  view: StillView;
+  /** the longest slice per phase it started in (ms) */
+  phaseMax: Record<string, number>;
+  slices: number;
+  sliceMax: number;
+  /** ms after the start: the walk done, the pictures decoded, the end */
+  marks: Record<string, number>;
 }
 
 export interface StillControllerOptions {
-  /** Draw a still of `body` (null when it cannot). Async: inline SVGs load as images. */
-  take: (body: HTMLElement) => Promise<HTMLElement | null>;
+  /** Start a sliced drawing of `body` (artboard-still-raster.ts `startStill`). Wins over `take`. */
+  job?: (body: HTMLElement, walk: WalkHooks) => StillJob;
+  /** Draw a still of `body` whole (null when it cannot) — tests and callers without slicing. */
+  take?: (body: HTMLElement) => Promise<HTMLElement | null>;
   later?: (fn: () => void, ms: number) => unknown;
-  /** the next animation frame (the staggered hand-back, the hand-over's two frames) */
+  /** the next animation frame (drawings, the staggered hand-back, the hand-over's two frames) */
   frame?: (fn: () => void) => unknown;
-  /** a clock (ms) — the hand-back paces itself on frame times */
+  /** a clock (ms) — the hand-back paces itself on frame times, drawings on the frame budget */
   now?: () => number;
   cancel?: (handle: unknown) => void;
-  /** observe DOM changes (null in tests that do not need it) */
-  observe?: ((el: HTMLElement, onChange: () => void) => MutationObserver | null) | null;
+  /** observe DOM changes (null in tests that do not need it); `why` is 'load' for a picture that came in */
+  observe?: ((el: HTMLElement, onChange: (why?: string) => void) => MutationObserver | null) | null;
   /** on screen + mounted weight, from the mount ring (default: what `update` was told) */
   info?: (id: string) => { visible: boolean; weight: number } | null;
   /** the body has painted what it shows: its pictures decoded, the fonts ready (default: those two promises) */
@@ -274,20 +340,85 @@ export interface StillControllerOptions {
   onView?: (id: string, view: StillView) => void;
 }
 
+/** A whole (unsliced) drawing as a job: one walk, then the wait for its promise. */
+function wholeJob(take: (body: HTMLElement) => Promise<HTMLElement | null>) {
+  return (body: HTMLElement, walk: WalkHooks): StillJob => {
+    let phase: StillJob['phase'] = 'collect';
+    let ready: Promise<unknown> | null = null;
+    let result: HTMLElement | null = null;
+    let settled = false;
+    return {
+      get ready() {
+        return ready;
+      },
+      get result() {
+        return result;
+      },
+      get phase() {
+        return phase;
+      },
+      abort() {
+        phase = 'done';
+      },
+      step() {
+        if (phase === 'collect') {
+          let p: Promise<HTMLElement | null>;
+          walk.enter();
+          try {
+            p = take(body);
+          } catch {
+            p = Promise.resolve(null);
+          } finally {
+            walk.leave();
+          }
+          phase = 'decode';
+          ready = p
+            .then(
+              (r) => {
+                result = r;
+              },
+              () => {
+                result = null;
+              }
+            )
+            .then(() => {
+              settled = true;
+            });
+          return 'wait';
+        }
+        if (phase === 'decode' && !settled) return 'wait';
+        phase = 'done';
+        return 'done';
+      },
+    };
+  };
+}
+
 /**
  * One per canvas document. Artboards register while their children are mounted (in a layout effect, so the body is
  * hidden before its first paint when it is under the cut); the viewport reports every zoom it writes (`noteZoom`)
- * and the settle (`settle`). Stills are drawn when the canvas has been quiet for `STILL_TAKE_DELAY_MS`, one at a time.
+ * and the settle (`settle`). Stills are drawn one at a time in slices, within a per-frame budget — during a pan too,
+ * never while the zoom is moving, and not in the `STILL_SETTLE_HOLD_MS` after a zoom settles.
  */
 export class StillController {
   private entries = new Map<string, Entry>();
   private zoom = 1;
   private gestureZoom: number | null = null;
-  private timer: unknown = null;
-  private taking = false;
-  /** drawings so far, their total and longest wall time (ms), and draws skipped by an equal signature */
-  private takes = { n: 0, ms: 0, max: 0, reused: 0 };
-  private readonly take: StillControllerOptions['take'];
+  /** the gesture in flight changed the zoom (drawings wait; a pure pan draws) */
+  private zooming = false;
+  private holdUntil = 0;
+  /** a zoom was published before (the first one is the canvas opening, never held) */
+  private zoomKnown = false;
+  private holdTimer: unknown = null;
+  private readyTimer: unknown = null;
+  private pumpQueued = false;
+  /** drawings that can take a slice now (decoded ones first) — one walks at a time, the queue's head */
+  private queue: Current[] = [];
+  /** drawings whose pictures are decoding (off the main thread): the next one walks meanwhile */
+  private decoding = new Set<Current>();
+  /** drawings so far, their total and longest wall time (ms), the longest slice (ms), draws skipped by an equal signature */
+  private takes = { n: 0, ms: 0, max: 0, slice: 0, reused: 0 };
+  private readonly job: ((body: HTMLElement, walk: WalkHooks) => StillJob) | null;
   private readonly later: (fn: () => void, ms: number) => unknown;
   private readonly frame: (fn: () => void) => unknown;
   private restoring: Entry[] = [];
@@ -297,7 +428,6 @@ export class StillController {
   private handbackStep = 1;
   private lastFrameAt = 0;
   private handbackWaited = 0;
-  private readonly cancel: (h: unknown) => void;
   private readonly observe: StillControllerOptions['observe'];
   private readonly info: StillControllerOptions['info'];
   private readonly painted: (body: HTMLElement) => Promise<void>;
@@ -308,9 +438,11 @@ export class StillController {
   readonly cache: StillCache;
   /** view changes per artboard since it first registered — the flicker count (diagnostics) */
   private changes = new Map<string, StillView[]>();
+  /** the last drawings (≤ 64) — diagnostics */
+  private traces: StillJobTrace[] = [];
 
   constructor(o: StillControllerOptions) {
-    this.take = o.take;
+    this.job = o.job ?? (o.take ? wholeJob(o.take) : null);
     this.later = o.later ?? ((fn, ms) => setTimeout(fn, ms));
     this.now =
       o.now ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
@@ -320,7 +452,6 @@ export class StillController {
         typeof requestAnimationFrame === 'function'
           ? requestAnimationFrame(fn)
           : setTimeout(fn, 16));
-    this.cancel = o.cancel ?? ((h) => clearTimeout(h as ReturnType<typeof setTimeout>));
     this.observe = o.observe === undefined ? defaultObserve : o.observe;
     this.info = o.info;
     this.painted = o.painted ?? defaultPainted;
@@ -340,8 +471,11 @@ export class StillController {
     if (!(zoom > 0) || this.gestureZoom !== null) return;
     if (zoom === this.zoom) return;
     this.zoom = zoom;
+    // a programmatic zoom (fit, a jump) repaints like a gesture's settle — not the first one (the canvas opening)
+    if (this.zoomKnown) this.holdUntil = this.now() + STILL_SETTLE_HOLD_MS;
+    this.zoomKnown = true;
     this.reconcileAll();
-    this.scheduleTake();
+    this.schedulePump();
   }
 
   register(
@@ -360,12 +494,15 @@ export class StillController {
       slot: null,
       shown: null,
       dirty: true,
+      gen: 0,
+      readyAt: 0,
       view: 'live',
       seq: 0,
       observer: null,
       wasLive: false,
+      job: null,
     };
-    e.observer = this.observe ? this.observe(target.body, () => this.markDirty(id)) : null;
+    e.observer = this.observe ? this.observe(target.body, (why) => this.markDirty(id, why)) : null;
     this.entries.set(id, e);
     // A fresh mount: it has painted nothing yet. Under the cut it starts as its kept still (or the cover) with the
     // body hidden before its first paint; over the cut it starts as a hand-over from that stand-in.
@@ -375,7 +512,7 @@ export class StillController {
     if (small && !e.pinned && !e.eager) this.setView(e, kept ? 'still' : 'cover');
     else if (kept) this.handOver(e, true);
     else e.wasLive = true;
-    this.scheduleTake();
+    this.schedulePump();
     return () => {
       if (this.entries.get(id) === e) this.unregister(id);
     };
@@ -386,6 +523,8 @@ export class StillController {
     if (!e) return;
     e.seq += 1;
     e.observer?.disconnect();
+    if (e.job) this.dropJob(e.job);
+    e.target.article.removeAttribute(STILL_WALK_ATTR);
     if (e.shown) e.shown.remove(); // stays in the cache
     e.slot?.remove();
     e.target.article.removeAttribute(STILL_ATTR);
@@ -409,16 +548,25 @@ export class StillController {
     }
     // the selection lands (mid-gesture too): its artboard goes live at once — the shell works in its DOM
     this.reconcile(e, this.gestureZoom !== null);
-    this.scheduleTake();
+    this.schedulePump();
   }
 
-  /** The content changed (a DOM mutation, a wake or a sleep): the still is redrawn before it is trusted again. */
-  markDirty(id: string, _why?: string): void {
+  /**
+   * The content changed (a DOM mutation, a picture that came in, a wake or a sleep): the still is redrawn before it
+   * is trusted again — after `STILL_TAKE_DELAY_MS` when a still stands in, at once for a cover. A picture that came
+   * in while a drawing of this artboard waits for its pictures is part of that drawing, not a change.
+   */
+  markDirty(id: string, why?: string): void {
     const e = this.entries.get(id);
-    if (!e || e.dirty) return;
-    e.dirty = true;
-    this.cache.stale(id);
-    this.scheduleTake();
+    if (!e) return;
+    if (why === 'load' && e.job && e.job.job.phase !== 'paint') return;
+    e.gen += 1;
+    if (e.shown || !hiddenView(e.view)) e.readyAt = this.now() + STILL_TAKE_DELAY_MS;
+    if (!e.dirty) {
+      e.dirty = true;
+      this.cache.stale(id);
+    }
+    this.schedulePump();
   }
 
   /** The viewport wrote this zoom (every frame of a gesture, and every programmatic move). */
@@ -427,19 +575,29 @@ export class StillController {
     if (this.gestureZoom === null) {
       // the first write of a gesture: remember where it started; nothing changes for a pure pan
       this.gestureZoom = this.zoom;
-      this.stopTaking();
+      this.zooming = false;
     }
-    if (zoom === this.zoom) return;
+    if (zoom === this.zoom) {
+      this.schedulePump(); // a pan: drawings go on, within the frame budget
+      return;
+    }
     this.zoom = zoom;
+    if (!this.zooming) {
+      this.zooming = true;
+      // a walk in progress puts its children back out of the render tree; it starts again after the settle
+      for (const c of [...this.queue]) if (c.job.phase === 'collect') this.dropJob(c);
+    }
     for (const e of this.entries.values()) this.reconcile(e, true);
   }
 
   /** The gesture settled: what is now over the cut is handed back (paced), what is under it shows its still. */
   settle(zoom?: number): void {
     if (zoom !== undefined && zoom > 0) this.zoom = zoom;
+    if (this.zooming) this.holdUntil = this.now() + STILL_SETTLE_HOLD_MS;
     this.gestureZoom = null;
+    this.zooming = false;
     this.reconcileAll();
-    this.scheduleTake();
+    this.schedulePump();
   }
 
   /** Is the zoom in flight (diagnostics)? */
@@ -510,7 +668,10 @@ export class StillController {
   }
 
   private scheduleHandback(): void {
-    if (!this.restoring.length || this.restoreScheduled) return;
+    if (!this.restoring.length || this.restoreScheduled) {
+      if (!this.restoring.length) this.schedulePump(); // the hand-back is done: drawings go on
+      return;
+    }
     this.restoreScheduled = true;
     this.frame(() => {
       this.restoreScheduled = false;
@@ -632,7 +793,7 @@ export class StillController {
     showing: number;
     covers: number;
     engaged: boolean;
-    takes: { n: number; ms: number; max: number; reused: number };
+    takes: { n: number; ms: number; max: number; slice: number; reused: number };
     cache: { n: number; bytes: number };
     views: Record<string, number>;
   } {
@@ -652,7 +813,12 @@ export class StillController {
       showing,
       covers,
       engaged: this.gestureZoom !== null,
-      takes: { ...this.takes, ms: Math.round(this.takes.ms), max: Math.round(this.takes.max) },
+      takes: {
+        ...this.takes,
+        ms: Math.round(this.takes.ms),
+        max: Math.round(this.takes.max),
+        slice: Math.round(this.takes.slice * 10) / 10,
+      },
       cache: this.cache.stats(),
       views,
     };
@@ -664,6 +830,11 @@ export class StillController {
     return Object.fromEntries([...this.changes].map(([k, v]) => [k, [...v]]));
   }
 
+  /** The last drawings, oldest first (diagnostics). */
+  jobs(): StillJobTrace[] {
+    return this.traces.map((t) => ({ ...t, phaseMax: { ...t.phaseMax }, marks: { ...t.marks } }));
+  }
+
   isShowing(id: string): boolean {
     return this.entries.get(id)?.view === 'still';
   }
@@ -672,25 +843,175 @@ export class StillController {
     return this.entries.get(id)?.view ?? null;
   }
 
-  private stopTaking(): void {
-    if (this.timer !== null) this.cancel(this.timer);
-    this.timer = null;
+  /** Drawings wait while the zoom moves and while the hand-back paints. */
+  private blocked(): boolean {
+    return this.zooming || this.restoring.length > 0 || !this.job;
   }
 
-  private scheduleTake(delay = STILL_TAKE_DELAY_MS): void {
-    if (this.gestureZoom !== null || this.taking) return;
-    this.stopTaking();
-    this.timer = this.later(() => {
-      this.timer = null;
-      void this.takeNext();
-    }, delay);
+  /** Draw on the next frame, if there is anything to draw and drawing is allowed now. */
+  private schedulePump(): void {
+    if (this.pumpQueued || this.blocked()) return;
+    const t = this.now();
+    if (this.gestureZoom === null && t < this.holdUntil) {
+      if (this.holdTimer === null)
+        this.holdTimer = this.later(() => {
+          this.holdTimer = null;
+          this.schedulePump();
+        }, this.holdUntil - t);
+      return;
+    }
+    this.pumpQueued = true;
+    this.frame(() => {
+      this.pumpQueued = false;
+      this.pump();
+    });
+  }
+
+  /** One frame's drawing: slices of the drawing in flight (and the next ones) until the frame budget is spent. */
+  private pump(): void {
+    if (this.blocked()) return;
+    const t0 = this.now();
+    if (this.gestureZoom === null && t0 < this.holdUntil) {
+      this.schedulePump();
+      return;
+    }
+    const deadline = t0 + (this.gestureZoom !== null ? STILL_PAN_BUDGET_MS : STILL_IDLE_BUDGET_MS);
+    for (let guard = 0; guard < 64; guard++) {
+      const c = this.queue[0];
+      if (!c) {
+        // nothing to step: start the next drawing (a kept still reused counts as one), unless enough are decoding
+        if (this.decoding.size >= STILL_MAX_DECODING || !this.startNext()) return;
+        continue;
+      }
+      const s0 = this.now();
+      const p0 = c.job.phase;
+      let r: 'more' | 'wait' | 'done';
+      try {
+        r = c.job.step(deadline);
+      } catch {
+        c.job.abort();
+        r = 'done';
+      }
+      const sd = this.now() - s0;
+      this.takes.slice = Math.max(this.takes.slice, sd);
+      c.slices += 1;
+      c.sliceMax = Math.max(c.sliceMax, sd);
+      c.phaseMax[p0] = Math.round(Math.max(c.phaseMax[p0] ?? 0, sd) * 10) / 10;
+      const ph = c.job.phase;
+      if (ph !== 'collect' && c.marks.walk === undefined)
+        c.marks.walk = Math.round(this.now() - c.t0);
+      if ((ph === 'paint' || ph === 'done') && c.marks.decode === undefined)
+        c.marks.decode = Math.round(this.now() - c.t0);
+      if (r === 'wait') {
+        this.queue.shift();
+        this.decoding.add(c);
+        void Promise.resolve(c.job.ready).then(() => {
+          if (!this.decoding.delete(c)) return; // dropped meanwhile
+          this.queue.unshift(c); // decoded: it paints before the next walk goes on
+          this.schedulePump();
+        });
+      } else if (r === 'done') {
+        this.queue.shift();
+        this.finishJob(c);
+      }
+      if (this.now() >= deadline) break;
+    }
+    this.schedulePump();
+  }
+
+  /** Forget a drawing in flight (its artboard left, or a zoom started mid-walk): its walk state goes. */
+  private dropJob(c: Current): void {
+    c.job.abort();
+    this.queue = this.queue.filter((x) => x !== c);
+    this.decoding.delete(c);
+    if (c.e.job === c) c.e.job = null;
+  }
+
+  /** Pick the next artboard to draw and start it (or reuse its kept still). False when there is none now. */
+  private startNext(): boolean {
+    const e = this.nextToTake();
+    if (!e || !this.job) return false;
+    // the same content as the kept still: nothing to draw
+    let sig = '';
+    try {
+      sig = this.signature(e.target.body);
+    } catch {
+      sig = '';
+    }
+    const kept = this.cache.peek(e.id);
+    if (sig && kept && kept.sig === sig) {
+      e.dirty = false;
+      this.takes.reused += 1;
+      if (e.shown !== kept.el) this.putStill(e, kept.el);
+      this.afterTake(e);
+      return true;
+    }
+    const a = e.target.article;
+    const walk: WalkHooks = {
+      // a body under its stand-in is out of the render tree: back in (transparent) for the walk only
+      enter: () => {
+        if (hiddenView(e.view)) a.setAttribute(STILL_WALK_ATTR, '');
+      },
+      leave: () => a.removeAttribute(STILL_WALK_ATTR),
+    };
+    const c: Current = {
+      e,
+      job: this.job(e.target.body, walk),
+      sig,
+      gen: e.gen,
+      t0: this.now(),
+      waiting: false,
+      slices: 0,
+      sliceMax: 0,
+      phaseMax: {},
+      marks: {},
+    };
+    e.job = c;
+    this.queue.push(c);
+    return true;
+  }
+
+  private finishJob(c: Current): void {
+    const e = c.e;
+    if (e.job === c) e.job = null;
+    const still = c.job.result;
+    const dt = this.now() - c.t0;
+    this.takes.n += 1;
+    this.takes.ms += dt;
+    this.takes.max = Math.max(this.takes.max, dt);
+    c.marks.end = Math.round(dt);
+    this.traces.push({
+      id: e.id,
+      view: e.view,
+      slices: c.slices,
+      sliceMax: Math.round(c.sliceMax * 10) / 10,
+      phaseMax: c.phaseMax,
+      marks: c.marks,
+    });
+    if (this.traces.length > 64) this.traces.shift();
+    if (this.entries.get(e.id) !== e) {
+      still?.remove();
+      return;
+    }
+    // changed while it was drawn: shown (better than a cover), drawn again once the change settles
+    const current = e.gen === c.gen;
+    if (current) e.dirty = false;
+    if (still) {
+      this.cache.set(e.id, still, current ? c.sig : '', this.sizeOf(still), (k) =>
+        this.entries.has(k)
+      );
+      this.putStill(e, still);
+    }
+    this.afterTake(e);
   }
 
   private nextToTake(): Entry | null {
-    let best: Entry | null = null;
+    const t = this.now();
+    let soonest = Number.POSITIVE_INFINITY;
     let bestRank = 99;
+    let best: Entry[] = [];
     for (const e of this.entries.values()) {
-      if (!e.dirty) continue;
+      if (!e.dirty || e.job) continue;
       const covered = e.view === 'cover';
       if (
         !covered &&
@@ -702,80 +1023,46 @@ export class StillController {
         })
       )
         continue;
+      if (e.readyAt > t) {
+        soonest = Math.min(soonest, e.readyAt);
+        continue;
+      }
       // a cover on screen first, then a missing still on screen, a stale one, then the prefetch ring
       const rank = (this.visibleOf(e) ? 0 : 3) + (covered ? 0 : e.shown ? 2 : 1);
-      if (!best || rank < bestRank) {
-        best = e;
+      if (rank < bestRank) {
         bestRank = rank;
+        best = [e];
+      } else if (rank === bestRank) best.push(e);
+    }
+    if (!best.length) {
+      if (soonest < Number.POSITIVE_INFINITY && this.readyTimer === null)
+        this.readyTimer = this.later(() => {
+          this.readyTimer = null;
+          this.schedulePump();
+        }, soonest - t);
+      return null;
+    }
+    if (best.length === 1) return best[0] as Entry;
+    // nearest the centre of the view first
+    const W = typeof innerWidth === 'number' ? innerWidth : 0;
+    const H = typeof innerHeight === 'number' ? innerHeight : 0;
+    let pick = best[0] as Entry;
+    let d0 = Number.POSITIVE_INFINITY;
+    for (const e of best) {
+      const r = e.target.article.getBoundingClientRect();
+      const d = Math.hypot(r.left + r.width / 2 - W / 2, r.top + r.height / 2 - H / 2) || 0;
+      if (d < d0) {
+        d0 = d;
+        pick = e;
       }
     }
-    return best;
+    return pick;
   }
 
-  private async takeNext(): Promise<void> {
-    if (this.gestureZoom !== null) return;
-    // never draw while the hand-back is painting: try again once it is done
-    if (this.restoring.length) {
-      this.scheduleTake();
-      return;
-    }
-    const e = this.nextToTake();
-    if (!e) return;
-    const id = e.id;
-    // the same content as the kept still: nothing to draw
-    let sig = '';
-    try {
-      sig = this.signature(e.target.body);
-    } catch {
-      sig = '';
-    }
-    const kept = this.cache.peek(id);
-    if (sig && kept && kept.sig === sig) {
-      e.dirty = false;
-      this.takes.reused += 1;
-      if (e.shown !== kept.el) this.putStill(e, kept.el);
-      this.afterTake(e);
-      this.scheduleTake(STILL_TAKE_GAP_MS);
-      return;
-    }
-    this.taking = true;
-    let still: HTMLElement | null = null;
-    const t0 = this.now();
-    try {
-      // a body under its stand-in is hidden: show it for the synchronous walk (no frame paints in between)
-      const hidden = e.view === 'still' || e.view === 'cover';
-      if (hidden) e.target.article.setAttribute(STILL_ATTR, 'paint');
-      const p = this.take(e.target.body);
-      if (hidden && this.entries.get(id) === e) e.target.article.setAttribute(STILL_ATTR, e.view);
-      still = await p;
-    } catch {
-      still = null;
-    } finally {
-      this.taking = false;
-      const dt = this.now() - t0;
-      this.takes.n += 1;
-      this.takes.ms += dt;
-      this.takes.max = Math.max(this.takes.max, dt);
-    }
-    if (this.entries.get(id) !== e || this.gestureZoom !== null) {
-      // released, or a gesture started while we drew: keep what stood in for this one, try again after the settle
-      still?.remove();
-      if (this.entries.get(id) === e) this.scheduleTake();
-      return;
-    }
-    e.dirty = false;
-    if (still) {
-      this.cache.set(id, still, sig, this.sizeOf(still), (k) => this.entries.has(k));
-      this.putStill(e, still);
-    }
-    this.afterTake(e);
-    this.scheduleTake(STILL_TAKE_GAP_MS);
-  }
-
-  /** A still came in: a cover becomes it, a live artboard under the cut swaps to it (the one change). */
+  /** A still came in: a cover becomes it (mid-pan too), a live artboard under the cut swaps to it (the one change). */
   private afterTake(e: Entry): void {
-    if (this.gestureZoom !== null) return;
-    this.reconcile(e, false);
+    if (this.zooming) return;
+    this.reconcile(e, this.gestureZoom !== null);
   }
 }
 
@@ -822,14 +1109,17 @@ export function isPaintMutation(
   );
 }
 
-function defaultObserve(el: HTMLElement, onChange: () => void): MutationObserver | null {
+function defaultObserve(
+  el: HTMLElement,
+  onChange: (why?: string) => void
+): MutationObserver | null {
   if (typeof MutationObserver !== 'function') return null;
   const mo = new MutationObserver((list) => {
     if (list.some(isPaintMutation)) onChange();
   });
   mo.observe(el, { subtree: true, childList: true, attributes: true, characterData: true });
   // a picture that came in (load does not bubble: capture)
-  const onLoad = () => onChange();
+  const onLoad = () => onChange('load');
   el.addEventListener('load', onLoad, true);
   const disconnect = mo.disconnect.bind(mo);
   mo.disconnect = () => {
@@ -852,7 +1142,8 @@ export const ARTBOARD_STILL_CSS = `
 .dc-artboard > .${STILL_CLASS} > canvas { display: block; width: 100%; height: 100%; }
 .dc-artboard[${STILL_ATTR}='still'] > .dc-artboard-body,
 .dc-artboard[${STILL_ATTR}='cover'] > .dc-artboard-body { min-height: var(--dc-still-h, 0px); }
-.dc-artboard[${STILL_ATTR}='still'] > .dc-artboard-body > *,
-.dc-artboard[${STILL_ATTR}='cover'] > .dc-artboard-body > * { display: none !important; }
+.dc-artboard[${STILL_ATTR}='still']:not([${STILL_WALK_ATTR}]) > .dc-artboard-body > *,
+.dc-artboard[${STILL_ATTR}='cover']:not([${STILL_WALK_ATTR}]) > .dc-artboard-body > * { display: none !important; }
+.dc-artboard[${STILL_WALK_ATTR}] > .dc-artboard-body { opacity: 0; }
 .dc-artboard[${STILL_ATTR}='reveal'] > .${STILL_CLASS} { opacity: 0; transition: opacity ${STILL_REVEAL_MS}ms linear; }
 `;

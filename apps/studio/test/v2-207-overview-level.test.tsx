@@ -14,6 +14,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:tes
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import * as S from '../artboard-still.ts';
 import {
   ARTBOARD_STILL_CSS,
   contentSignature,
@@ -26,6 +27,10 @@ import {
   type StillView,
   targetView,
 } from '../artboard-still.ts';
+import * as R from '../artboard-still-raster.ts';
+
+/** the walk state's attribute (2.0.7 follow-up) — spelled here so the file loads against a module without it */
+const WALK = 'data-dc-still-walk';
 
 /** A fake article/body pair: what the controller reads (width, rect, offsets) and writes (one attribute, children). */
 function fakeTarget(width: number, at = 0) {
@@ -48,7 +53,13 @@ function fakeTarget(width: number, at = 0) {
     innerHTML: '<div>a</div>',
     style: { setProperty: (k: string, v: string) => props.set(k, v) },
   } as unknown as HTMLElement & { innerHTML: string };
-  return { article, body, attr: () => attrs.get(STILL_ATTR) ?? null, props };
+  return {
+    article,
+    body,
+    attr: () => attrs.get(STILL_ATTR) ?? null,
+    walk: () => attrs.get(WALK) ?? null,
+    props,
+  };
 }
 function fakeEl(): HTMLElement {
   const el: Record<string, unknown> = {
@@ -67,10 +78,11 @@ function fakeEl(): HTMLElement {
 }
 
 function rig() {
-  const timers: Array<{ fn: () => void; ms: number }> = [];
+  const timers: Array<{ fn: () => void; due: number }> = [];
   const frames: Array<() => void> = [];
   const info = new Map<string, { visible: boolean; weight: number }>();
   const attrAtTake: Array<string | null> = [];
+  const walkAtTake: Array<string | null> = [];
   let takes = 0;
   let clock = 0;
   const views: Array<[string, StillView]> = [];
@@ -82,13 +94,10 @@ function rig() {
       takes += 1;
       const id = Object.keys(t).find((k) => t[k]?.body === body) ?? '';
       attrAtTake.push(t[id]?.attr() ?? null);
+      walkAtTake.push(t[id]?.walk() ?? null);
       return fakeEl();
     },
-    later: (fn, ms) => timers.push({ fn, ms }),
-    cancel: () => {
-      for (let i = timers.length - 1; i >= 0; i--)
-        if ((timers[i]?.ms ?? 0) >= 50) timers.splice(i, 1);
-    },
+    later: (fn, ms) => timers.push({ fn, due: clock + ms }),
     frame: (fn) => frames.push(fn),
     observe: null,
     info: (id) => info.get(id) ?? null,
@@ -104,28 +113,40 @@ function rig() {
     info.set(id, { visible: true, weight: 500 });
     return c.register(id, t[id], flags);
   };
-  /** run the pending take timers (draws) */
-  const drawAll = async () => {
-    for (let i = 0; i < 80; i++) {
-      const k = timers.findIndex((x) => x.ms >= 50);
-      if (k < 0) break;
-      const [x] = timers.splice(k, 1);
-      x?.fn();
-      await new Promise((res) => setTimeout(res, 0));
+  /** one frame `ms` after the last: its callbacks, then the timers that are due */
+  const tick = async (ms = 16) => {
+    clock += ms;
+    for (const f of frames.splice(0)) f();
+    await new Promise((res) => setTimeout(res, 0));
+    for (let k = 0; k < timers.length; ) {
+      if ((timers[k]?.due ?? 0) <= clock) timers.splice(k, 1)[0]?.fn();
+      else k += 1;
     }
+    await new Promise((res) => setTimeout(res, 0));
   };
-  /** frames, then the short (reveal) timers */
+  /** everything pending: frames and timers over 10 s */
+  const drawAll = async () => {
+    for (let i = 0; i < 200; i++) await tick(50);
+  };
+  /** `n` frames */
   const run = async (n = 40) => {
-    for (let i = 0; i < n; i++) {
-      clock += 16;
-      for (const f of frames.splice(0)) f();
-      await new Promise((res) => setTimeout(res, 0));
-      for (let k = timers.length - 1; k >= 0; k--)
-        if ((timers[k]?.ms ?? 0) === STILL_REVEAL_MS + 20) timers.splice(k, 1)[0]?.fn();
-    }
+    for (let i = 0; i < n; i++) await tick(16);
   };
   const seq = (id: string) => views.filter(([k]) => k === id).map(([, v]) => v);
-  return { c, t, add, drawAll, run, seq, info, cache, takes: () => takes, attrAtTake };
+  return {
+    c,
+    t,
+    add,
+    drawAll,
+    run,
+    tick,
+    seq,
+    info,
+    cache,
+    takes: () => takes,
+    attrAtTake,
+    walkAtTake,
+  };
 }
 
 /** settle the canvas at `zoom` (the published zoom + the settle). */
@@ -325,21 +346,221 @@ describe('the cache', () => {
     expect(contentSignature({ ...b, offsetHeight: 21 })).not.toBe(s);
   });
 
-  test('drawing a body hidden under its stand-in shows it for the walk only', async () => {
+  test('drawing a body hidden under its stand-in puts it in the render tree for the walk only — the view never changes', async () => {
     const r = rig();
     settleAt(r.c, 0.1);
     r.add('a');
     await r.drawAll();
-    expect(r.attrAtTake).toEqual(['paint']);
+    expect(r.attrAtTake).toEqual(['cover']); // what shows stays the cover while it is walked
+    expect(r.walkAtTake).toEqual(['']); // the walk state is on for the walk
+    expect(r.t.a?.walk()).toBeNull(); // and off after it
     expect(r.t.a?.attr()).toBe('still');
   });
 });
 
 describe('the CSS', () => {
   test('under its still the body keeps its box and its children leave the render tree', () => {
-    expect(ARTBOARD_STILL_CSS).toContain("[data-dc-still='still'] > .dc-artboard-body > *");
+    expect(ARTBOARD_STILL_CSS).toContain(
+      "[data-dc-still='still']:not([data-dc-still-walk]) > .dc-artboard-body > *"
+    );
     expect(ARTBOARD_STILL_CSS).toContain('display: none !important');
     expect(ARTBOARD_STILL_CSS).toContain('--dc-still-h');
+  });
+});
+
+// ── 2.0.7 follow-up: drawings during a pan, the settle hold, the frame budget ─────────────────────────────
+
+/** A controllable whole drawing (`take`): each call waits for `finish()`. */
+function deferredRig() {
+  const timers: Array<{ fn: () => void; due: number }> = [];
+  const frames: Array<() => void> = [];
+  let clock = 0;
+  const pending: Array<() => void> = [];
+  let takes = 0;
+  const tg = fakeTarget(1600);
+  const c = new StillController({
+    now: () => clock,
+    take: () =>
+      new Promise((res) => {
+        takes += 1;
+        pending.push(() => res(fakeEl()));
+      }),
+    later: (fn, ms) => timers.push({ fn, due: clock + ms }),
+    frame: (fn) => frames.push(fn),
+    observe: null,
+    info: () => ({ visible: true, weight: 500 }),
+    painted: async () => {},
+    makeSlot: fakeEl,
+    signature: (b) => (b as unknown as { innerHTML: string }).innerHTML,
+    sizeOf: () => 1000,
+    cache: new StillCache(10_000),
+  });
+  const tick = async (ms = 16) => {
+    clock += ms;
+    for (const f of frames.splice(0)) f();
+    await new Promise((res) => setTimeout(res, 0));
+    for (let k = 0; k < timers.length; ) {
+      if ((timers[k]?.due ?? 0) <= clock) timers.splice(k, 1)[0]?.fn();
+      else k += 1;
+    }
+    await new Promise((res) => setTimeout(res, 0));
+  };
+  const finish = async () => {
+    for (const f of pending.splice(0)) f();
+    await new Promise((res) => setTimeout(res, 0));
+  };
+  return { c, tg, tick, finish, takes: () => takes };
+}
+
+describe('drawings during a pan (the first-pass blocks)', () => {
+  test('an artboard that mounts mid-pan becomes its still during the pan — no settle needed', async () => {
+    const r = rig();
+    settleAt(r.c, 0.1);
+    await r.drawAll();
+    r.c.noteZoom(0.1); // a pan starts
+    r.add('a');
+    expect(r.c.viewOf('a')).toBe('cover');
+    for (let i = 0; i < 10; i++) {
+      r.c.noteZoom(0.1); // still panning: no settle
+      await r.tick(16);
+    }
+    expect(r.c.engaged()).toBe(true);
+    expect(r.c.viewOf('a')).toBe('still');
+    expect(r.seq('a')).toEqual(['cover', 'still']); // one change
+  });
+
+  test('nothing is drawn while the zoom moves; after it settles, nothing for the hold; a pan in the hold draws at once', async () => {
+    expect(S.STILL_SETTLE_HOLD_MS).toBeGreaterThanOrEqual(1000);
+    const r = rig();
+    settleAt(r.c, 0.1);
+    r.add('a');
+    r.add('b');
+    r.c.noteZoom(0.105); // a zoom before either was drawn
+    await r.run(3);
+    expect(r.takes()).toBe(0);
+    r.c.noteZoom(0.1);
+    r.c.settle(0.1);
+    await r.run(40); // 640 ms after the settle
+    expect(r.takes()).toBe(0);
+    expect(r.c.viewOf('a')).toBe('cover');
+    await r.tick(S.STILL_SETTLE_HOLD_MS);
+    await r.run(5);
+    expect(r.takes()).toBe(2);
+    // a pan that starts inside the hold draws at once
+    const p = rig();
+    settleAt(p.c, 0.1);
+    p.add('a');
+    p.c.noteZoom(0.105);
+    p.c.noteZoom(0.1);
+    p.c.settle(0.1);
+    await p.run(2);
+    expect(p.takes()).toBe(0);
+    p.c.noteZoom(0.1); // a pan
+    await p.run(4);
+    expect(p.takes()).toBe(1);
+    expect(p.c.viewOf('a')).toBe('still');
+  });
+
+  test('a drawing gets the frame budget per slice: the pan budget mid-gesture, the idle budget settled', async () => {
+    const frames: Array<() => void> = [];
+    let clock = 0;
+    const budgets: number[] = [];
+    let steps = 0;
+    const tg = fakeTarget(1600);
+    const c = new StillController({
+      now: () => clock,
+      job: () =>
+        ({
+          ready: null,
+          result: fakeEl(),
+          phase: 'collect',
+          abort() {},
+          step(deadline: number) {
+            budgets.push(deadline - clock);
+            clock = deadline; // this slice spent the whole budget
+            steps += 1;
+            return steps % 3 === 0 ? 'done' : 'more';
+          },
+        }) as R.StillJob,
+      later: () => 0,
+      frame: (fn) => frames.push(fn),
+      observe: null,
+      info: () => ({ visible: true, weight: 1 }),
+      painted: async () => {},
+      makeSlot: fakeEl,
+      signature: () => '',
+      sizeOf: () => 1,
+    } as S.StillControllerOptions);
+    settleAt(c, 0.1);
+    clock += S.STILL_SETTLE_HOLD_MS + 1; // past the settle's hold
+    c.register('a', tg);
+    for (let i = 0; i < 3; i++) for (const f of frames.splice(0)) f();
+    expect(budgets).toEqual([
+      S.STILL_IDLE_BUDGET_MS,
+      S.STILL_IDLE_BUDGET_MS,
+      S.STILL_IDLE_BUDGET_MS,
+    ]);
+    expect(c.viewOf('a')).toBe('still');
+    c.markDirty('a');
+    clock += S.STILL_TAKE_DELAY_MS + 1;
+    c.noteZoom(0.1); // a pan
+    for (let i = 0; i < 3; i++) for (const f of frames.splice(0)) f();
+    expect(budgets.slice(3)).toEqual([
+      S.STILL_PAN_BUDGET_MS,
+      S.STILL_PAN_BUDGET_MS,
+      S.STILL_PAN_BUDGET_MS,
+    ]);
+  });
+
+  test('a change while it is drawn: the still is shown and drawn again; a picture that came in meanwhile is not a change', async () => {
+    const r = deferredRig();
+    settleAt(r.c, 0.1);
+    await r.tick(S.STILL_SETTLE_HOLD_MS);
+    r.c.register('a', r.tg);
+    await r.tick();
+    expect(r.takes()).toBe(1);
+    r.c.markDirty('a'); // the DOM changed under the drawing
+    await r.finish();
+    await r.tick();
+    expect(r.c.viewOf('a')).toBe('still'); // better than the cover
+    for (let i = 0; i < 60; i++) await r.tick(16);
+    expect(r.takes()).toBe(2); // and drawn again
+    await r.finish();
+    const q = deferredRig();
+    settleAt(q.c, 0.1);
+    await q.tick(S.STILL_SETTLE_HOLD_MS);
+    q.c.register('a', q.tg);
+    await q.tick();
+    q.c.markDirty('a', 'load'); // a picture the drawing waits for
+    await q.finish();
+    for (let i = 0; i < 60; i++) await q.tick(16);
+    expect(q.takes()).toBe(1);
+    expect(q.c.viewOf('a')).toBe('still');
+  });
+});
+
+describe('drawings in a pipeline', () => {
+  test('while one drawing waits for its pictures to decode, the next one walks', async () => {
+    const r = deferredRig();
+    settleAt(r.c, 0.1);
+    await r.tick(S.STILL_SETTLE_HOLD_MS);
+    r.c.register('a', r.tg);
+    r.c.register('b', fakeTarget(1600));
+    await r.tick();
+    expect(r.takes()).toBe(2); // both walked in one frame; their decodes overlap
+    await r.finish();
+    await r.tick();
+    expect(r.c.viewOf('a')).toBe('still');
+    expect(r.c.viewOf('b')).toBe('still');
+  });
+});
+
+describe('the CSS of the walk', () => {
+  test('walked: the children back in the render tree (not display:none), the body transparent', () => {
+    expect(ARTBOARD_STILL_CSS).toContain(`:not([${WALK}]) > .dc-artboard-body > *`);
+    expect(ARTBOARD_STILL_CSS).toContain(
+      `.dc-artboard[${WALK}] > .dc-artboard-body { opacity: 0; }`
+    );
   });
 });
 
@@ -418,5 +639,60 @@ describe('mounted in a DesignCanvas', () => {
     expect(host.querySelector('[data-body="a0"]')).not.toBeNull();
     await act(async () => root.unmount());
     host.remove();
+  });
+  test('a drawing walks in slices, waits for its pictures to decode off the main thread, then paints', async () => {
+    const body = document.createElement('div');
+    const rect = (x: number, y: number, w: number, h: number) => () =>
+      ({ left: x, top: y, width: w, height: h, right: x + w, bottom: y + h, x, y }) as DOMRect;
+    Object.defineProperty(body, 'offsetWidth', { value: 1600 });
+    body.getBoundingClientRect = rect(100, 50, 160, 90); // 10 % on screen
+    for (let i = 0; i < 40; i++) {
+      const d = document.createElement('div');
+      d.style.backgroundColor = 'rgb(200, 10, 10)';
+      d.getBoundingClientRect = rect(100 + i, 50, 10, 10);
+      body.append(d);
+    }
+    const img = document.createElement('img');
+    img.getBoundingClientRect = rect(120, 60, 50, 50);
+    Object.defineProperty(img, 'complete', { value: false }); // still loading: the drawing waits for it
+    let decoded: () => void = () => {};
+    img.decode = () => new Promise<void>((res) => (decoded = res));
+    body.append(img);
+    document.body.append(body); // computed styles need it in the document
+    // sliced: the same paint as at once, in body px (10 → 100)
+    let clock = 0;
+    const col = new R.Collector(
+      body,
+      () => 1,
+      () => (clock += 1)
+    );
+    let slices = 0;
+    while (!col.done && slices < 100) {
+      col.run(clock + 1); // a check every 8 nodes: 8 nodes a slice
+      slices += 1;
+    }
+    expect(slices).toBeGreaterThan(3);
+    const once = R.collectOps(body);
+    expect(col.ops.length).toBe(once.ops.length);
+    expect(col.ops.length).toBe(41); // 40 boxes + the picture
+    expect((col.ops[1] as { x: number; w: number }).x).toBe(10); // (101 − 100) / 0.1
+    expect((col.ops[1] as { x: number; w: number }).w).toBe(100);
+    // the job: walk state on for the walk only, then a wait for the decode, then the paint
+    const calls: string[] = [];
+    const job = R.startStill(body, {
+      enter: () => calls.push('enter'),
+      leave: () => calls.push('leave'),
+    });
+    let r = job.step(Number.POSITIVE_INFINITY);
+    expect(r).toBe('wait');
+    expect(job.phase).toBe('decode');
+    expect(calls).toEqual(['enter', 'leave']);
+    expect(job.step(Number.POSITIVE_INFINITY)).toBe('wait'); // still decoding
+    decoded();
+    await job.ready;
+    r = job.step(Number.POSITIVE_INFINITY);
+    expect(r).toBe('done');
+    expect(calls).toEqual(['enter', 'leave']);
+    body.remove();
   });
 });
