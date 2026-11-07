@@ -178,6 +178,8 @@ export function buildChatContext({ canvas, selected, scope } = {}) {
     count: els.length,
     stale,
     runScope: runScopeOf({ canvas, scope }),
+    // the canvas this send froze on (the offer card's "Put them in a section" scopes to it when the ask had no stickies)
+    canvas,
     // S4.15 — the stickies this ask is about, for the offer card's validation (client/v2/ai/ai-offer.js)
     ...(scope?.kind === 'annotations' && Array.isArray(scope.ids) && scope.ids.length
       ? {

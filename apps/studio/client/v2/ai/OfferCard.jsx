@@ -14,6 +14,7 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { Spark } from './icons.jsx';
 import {
   askedAnnotations,
+  askedCanvas,
   OFFER_WORDS,
   parseOffer,
   seenTargetsFor,
@@ -88,13 +89,14 @@ export function acceptOffer({ offer, ask, send = sendAskSelection, mode = shellM
  * path as "Make these changes", with those notes as the scope; the design is not touched, so the shell stays in
  * Preview. Fewer than two notes have nothing to gather.
  */
-export function putInSection({ offer, ask, send = sendAskSelection }) {
+export function putInSection({ offer, ask, send = sendAskSelection, sentFrom = askedCanvas() }) {
   const wrote = Array.isArray(offer?.wrote) ? offer.wrote : [];
   if (wrote.length < 2) return false;
   return !!send({
     text: OFFER_WORDS.section,
     scope: annotationsScope({
-      file: ask?.file,
+      // a review asked with no selection has no `ask`: the canvas the turn was sent from (frozen) stands in
+      file: ask?.file ?? sentFrom ?? undefined,
       ids: wrote,
       artboards: ask?.artboards,
       kinds: { sticky: wrote.length },
