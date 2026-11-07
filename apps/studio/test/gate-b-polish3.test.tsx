@@ -181,9 +181,11 @@ describe('08 · Layers by artboard', () => {
     expect(h.querySelector('.ly2-tree--loose [data-testid="the-tree"]')).not.toBeNull();
   });
 
-  test("currentBoard: the tree's artboard, else the selection's, only when it is on this canvas", () => {
-    expect(currentBoard({ boards: BOARDS, treeArtboard: 'a3', selectedArtboard: 'a1' })).toBe('a3');
-    expect(currentBoard({ boards: BOARDS, treeArtboard: 'zz', selectedArtboard: 'a1' })).toBe('a1');
+  // 2.0.7 fix (decision `v2-207-layers-current`, test/f207-layers-current.test.tsx): the selection's artboard wins
+  // over the tree's — a tree for another artboard marked the wrong row
+  test("currentBoard: the selection's artboard, else the tree's, only when it is on this canvas", () => {
+    expect(currentBoard({ boards: BOARDS, treeArtboard: 'a3', selectedArtboard: 'a1' })).toBe('a1');
+    expect(currentBoard({ boards: BOARDS, treeArtboard: 'a3', selectedArtboard: 'zz' })).toBe('a3');
     expect(currentBoard({ boards: BOARDS })).toBeNull();
   });
 

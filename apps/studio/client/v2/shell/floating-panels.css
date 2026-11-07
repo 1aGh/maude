@@ -1928,9 +1928,45 @@
 
   /* 180ms appearance delay on the CARD — warm canvases mount in <150ms and never
  * flash it; the backdrop above is immediate so nothing white shows through. */
-  .sh-canvas-loading > .sh-skel-card {
+  .sh-canvas-loading .sh-skel-card {
     opacity: 0;
     animation: sh-loading-in var(--dur-soft) var(--ease-out) 180ms forwards;
+  }
+
+  /* 2.0.7 (B1) — the opening canvas's artboards as skeletons at their final place and size (05 es-skab), on the
+     same 180 ms beat as the card so a warm canvas never flashes them; the card centres while they are not known */
+  .sh-opening-skel {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  .sh-opening-skel[data-ready="true"] {
+    display: block;
+    opacity: 0;
+    animation: sh-loading-in var(--dur-soft) var(--ease-out) 180ms forwards;
+  }
+  .sh-opening-note {
+    position: absolute;
+    left: 50%;
+    bottom: var(--space-5);
+    translate: -50% 0;
+    z-index: 3;
+    margin: 0;
+    max-width: min(420px, calc(100% - 2 * var(--space-4)));
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--island-bg, var(--bg-1));
+    box-shadow: var(--island-shadow, var(--shadow-md));
+    font-size: var(--type-xs);
+    line-height: 1.45;
+    color: var(--fg-1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sh-opening-skel[data-ready="true"] {
+      animation-duration: 1ms;
+    }
   }
 
   @keyframes sh-loading-in {

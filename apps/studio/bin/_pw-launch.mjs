@@ -18,7 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
+import { chromium, webkit } from 'playwright';
 
 /** Exit code the shims surface for "Chromium browser binary not installed". */
 export const NO_BROWSER_EXIT = 3;
@@ -130,6 +130,31 @@ export async function launchChromium(opts) {
       }
       // Single clean line — the export endpoint pipes shim stderr into the 500
       // body, so this is what the user reads. No stack trace.
+      console.error(INSTALL_HINT);
+      process.exit(NO_BROWSER_EXIT);
+    }
+    throw err;
+  }
+}
+
+/**
+ * 2.0.7 — the WebKit twin of `launchChromium`, for the measurement helpers that compare both
+ * engines (WKWebView is what the desktop app runs). WebKit takes no Chromium flags, so the
+ * no-egress rule is a dead proxy for everything but loopback when `MAUDE_NO_EGRESS === '1'`.
+ * A missing WebKit build exits cleanly with the install hint, like Chromium.
+ */
+export function noEgressWebkitOptions(opts, env = process.env) {
+  const base = opts ?? {};
+  if (env?.MAUDE_NO_EGRESS !== '1') return base;
+  return { ...base, proxy: { server: 'http://127.0.0.1:9', bypass: 'localhost,127.0.0.1' } };
+}
+
+export async function launchWebkit(opts) {
+  try {
+    return await webkit.launch(noEgressWebkitOptions(opts));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (isMissingBrowserError(msg)) {
       console.error(INSTALL_HINT);
       process.exit(NO_BROWSER_EXIT);
     }

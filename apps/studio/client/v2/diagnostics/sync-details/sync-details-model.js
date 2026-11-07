@@ -103,6 +103,9 @@ export const DELIVERY_WORD = Object.freeze({
   stuck: 'stuck',
   'referenced-but-unoffered': 'used, never received',
   'local-only': 'only on this Mac',
+  // Issue #207 (7b) — a delete waiting for the person's answer, and a file they kept on the hub.
+  'delete-held': 'deleted on this Mac — waiting for your answer',
+  'hub-only': 'on the hub only',
 });
 
 const thousands = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
@@ -153,6 +156,31 @@ export function syncDetailsModel(
   const held = Array.isArray(files?.held)
     ? files.held.filter((h) => h && typeof h.kind === 'string')
     : [];
+  // Issue #207 (7b) — Deleted on this Mac, held: a card with its own answer (Delete on the hub too ·
+  // Keep on the hub), naming the folders and the count. While the owner's purge of them runs, the
+  // card says how far it is (or why it stopped).
+  const deletesOut = held.find((h) => h.kind === 'delete-out' && isCount(h.count) && h.count > 0);
+  if (deletesOut) {
+    needs.push({
+      kind: 'deletes-held',
+      count: deletesOut.count,
+      detail: cleanName(deletesOut.detail, 'Files deleted on this Mac are held.', HELD_DETAIL_MAX),
+      folders: (Array.isArray(deletesOut.folders) ? deletesOut.folders : [])
+        .filter((f) => f && typeof f.folder === 'string' && isCount(f.count))
+        .slice(0, 10)
+        .map((f) => ({ folder: f.folder, count: f.count })),
+    });
+  }
+  const purge = files?.deletePurge;
+  if (purge && isCount(purge.total) && isCount(purge.done)) {
+    needs.push({
+      kind: 'deletes-purging',
+      total: purge.total,
+      done: Math.min(purge.done, purge.total),
+      running: purge.running === true,
+      error: typeof purge.error === 'string' ? cleanName(purge.error, '', HELD_DETAIL_MAX) : '',
+    });
+  }
   const rateLimited = files?.rateLimited
     ? isCount(files.rateLimited.waiting)
       ? files.rateLimited.waiting
@@ -160,11 +188,15 @@ export function syncDetailsModel(
     : 0;
   const failed = files && isCount(files.failed) ? files.failed : 0;
   const attention = [];
+  const hubOnly = [];
   const delivery = status?.files?.delivery;
   if (delivery && typeof delivery === 'object' && !Array.isArray(delivery)) {
-    for (const [rel, state] of Object.entries(delivery))
+    for (const [rel, state] of Object.entries(delivery)) {
       if (typeof state === 'string' && ATTENTION.has(state)) attention.push([rel, state]);
+      if (state === 'hub-only') hubOnly.push(rel);
+    }
     attention.sort((a, b) => a[0].localeCompare(b[0]));
+    hubOnly.sort((a, b) => a.localeCompare(b));
   }
 
   const counts = [];
@@ -174,7 +206,10 @@ export function syncDetailsModel(
       'Project files',
       progress.remaining > 0
         ? `${thousands(progress.delivered)} of ${thousands(progress.tracked)}`
-        : `${thousands(progress.tracked)} · all here`,
+        : hubOnly.length > 0
+          ? // 2.0.7 — files kept on the hub (Keep on the hub) are not here: say both numbers
+            `${thousands(Math.max(0, progress.tracked - hubOnly.length))} here · ${thousands(hubOnly.length)} on the hub only`
+          : `${thousands(progress.tracked)} · all here`,
     ]);
   } else if (files) {
     counts.push(['files', 'Project files', `${thousands(files.synced)} · all here`]);
@@ -196,23 +231,40 @@ export function syncDetailsModel(
     ]);
   }
 
+  // A purge still running is news, not a question: it needs the person only once it stopped short.
+  const asking = needs.filter((n) => !(n.kind === 'deletes-purging' && !n.error)).length;
   return {
     title: `Sync · ${cleanName(project, 'this project')}`,
-    needWord: needs.length ? `${needs.length} need you` : null,
+    needWord: asking ? `${asking} need you` : null,
     needs,
     moving,
     counts,
     lists: {
-      held: held.map((h) => ({
-        kind: h.kind,
-        detail: cleanName(h.detail, 'Sync paused — nothing was removed.', HELD_DETAIL_MAX),
-        paths: Array.isArray(h.paths)
-          ? h.paths.filter((p) => typeof p === 'string').slice(0, 50)
-          : [],
-      })),
+      // `delete-out` is the Needs you card above (its own answer), not a second row here.
+      held: held
+        .filter((h) => !(deletesOut && h === deletesOut))
+        .map((h) => ({
+          kind: h.kind,
+          detail: cleanName(h.detail, 'Sync paused — nothing was removed.', HELD_DETAIL_MAX),
+          paths: Array.isArray(h.paths)
+            ? h.paths.filter((p) => typeof p === 'string').slice(0, 50)
+            : [],
+        })),
       rateLimited: files?.rateLimited ? { waiting: rateLimited } : null,
       failed,
       attention: attention.slice(0, 50),
+      // Issue #207 (7b) — deleted on this Mac and kept on the hub: listed, never "waiting".
+      hubOnly: { count: hubOnly.length, paths: hubOnly.slice(0, 50) },
+      // Issue #207 — a long run of pictures going up (a render sequence), and the folders this
+      // project leaves out. Both from the server's status; cleaned here like every other list.
+      sequences: (Array.isArray(files?.largeSequences) ? files.largeSequences : [])
+        .filter((s) => s && typeof s.folder === 'string' && isCount(s.files) && isCount(s.bytes))
+        .slice(0, 5)
+        .map((s) => ({ folder: s.folder, files: s.files, bytes: s.bytes })),
+      ignoredFolders: (Array.isArray(files?.ignoreFolders) ? files.ignoreFolders : [])
+        .filter((f) => typeof f === 'string' && f.length > 0)
+        .slice(0, 50),
+      ignoredFiles: isCount(progress?.ignored) ? progress.ignored : 0,
     },
     signIn: refused && !cloud && native,
   };

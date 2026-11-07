@@ -208,6 +208,12 @@ export const SWEEP_REQUESTS = {
     ['POST', '/api/trash/clear', '{}'],
   ],
 
+  // ---- the owner's confirmed bulk purge (2.0.7 #8) — owner-only, project scope
+  '/api/file-purge': (tg) => [
+    ['POST', '/api/file-purge', json({ paths: [tg.path], dryRun: true })],
+    ['POST', '/api/file-purge', json({ prefix: 'assets/', confirm: 'x'.repeat(43) })],
+  ],
+
   // ---- a presentation link (S3.7b / S9.13) — a canvas door on the canvas path
   '/present/*': (tg) => [
     ['GET', `/present/${tg.path}`],

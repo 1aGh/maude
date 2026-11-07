@@ -36,6 +36,10 @@
 #              sticky-only field. Serialized via strokesToSvg (needs bun). Warns
 #              when the v2 board exceeds the 4 MB cap (DDR-242; the v1 1 MB cap bit at ~3750 mixed elements).
 #   --json     Raw JSON (current + previous run) instead of the human report.
+#   --open-load  (2.0.7) Time the OPEN instead: the studio opens the canvas and a pan + zoom starts the
+#              moment the first artboard is there, while it still loads (`_perf-probe-open.mjs`): open →
+#              first artboard / first drawn / all on-screen drawn, long tasks and long frames, placeholders
+#              left at the gesture's end, DOM size, JS heap. `--engine safari` runs it in Playwright WebKit.
 #   --studio   (chromium: Playwright, dpr-2 page at --window, V2-8.8) (safari) Measure inside the real studio shell, not the bare canvas
 #              page. Makes one real WebDriver click into the canvas frame first and
 #              proves it lifted WebKit's ~30 fps throttle on an untouched
@@ -81,6 +85,7 @@ REPEAT=3
 PROBE_ENGINE="chromium"
 FIT_ALL=0
 STUDIO=0
+OPEN_LOAD=0
 TIMEOUT=30
 HISTORY=""
 JSON=0
@@ -105,6 +110,7 @@ while [ $# -gt 0 ]; do
     --engine)   PROBE_ENGINE="$2"; shift 2 ;;
     --fit-all)  FIT_ALL=1; shift ;;
     --studio)   STUDIO=1; shift ;;
+    --open-load) OPEN_LOAD=1; shift ;;
     --history)  HISTORY="$2"; shift 2 ;;
     --json)     JSON=1; shift ;;
     --window)   WINDOW="$2"; shift 2 ;;
@@ -264,6 +270,19 @@ mkdir -p "$(dirname "$HISTORY")"
 ENGINE_TAG="${MAUDE_PERF_ENGINE_TAG:-}"
 if [ -z "$ENGINE_TAG" ]; then
   if [ -n "$MAUDE_DESKTOP" ]; then ENGINE_TAG="webkit-desktop"; else ENGINE_TAG="blink-headless"; fi
+fi
+
+if [ "$OPEN_LOAD" = "1" ]; then
+  # 2.0.7 — the OPEN lane: open the canvas in the studio and pan/zoom while it loads (first paint, all visible,
+  # long tasks/frames, placeholders left, DOM size). Playwright Chromium or Playwright WebKit (`--engine safari`).
+  OPEN_ENGINE="chromium"
+  [ "$PROBE_ENGINE" = "safari" ] && OPEN_ENGINE="webkit"
+  echo "→ perf --open-load: $REL_FULL | port: $PORT | engine: $OPEN_ENGINE" >&2
+  ARGS=(--url "http://localhost:${PORT}/" --open "${REL_FULL#"$DESIGN_REL"/}" --engine "$OPEN_ENGINE" --timeout "$TIMEOUT")
+  [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
+  [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
+  [ "$JSON" = "1" ] && ARGS+=(--json)
+  exec node "$SCRIPT_DIR/_perf-probe-open.mjs" "${ARGS[@]}"
 fi
 
 if [ "$PROBE_ENGINE" = "safari" ]; then

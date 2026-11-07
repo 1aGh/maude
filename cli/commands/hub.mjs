@@ -17,6 +17,7 @@ import {
 import { resolve } from 'node:path';
 
 import { parseArgs } from '../lib/argv.mjs';
+import { PURGE_USAGE } from '../lib/hub-purge.mjs';
 
 const SUBCOMMANDS = new Set([
   'serve',
@@ -28,6 +29,7 @@ const SUBCOMMANDS = new Set([
   'asset-check',
   'backup-owners',
   'workspace-up',
+  'purge',
   'help',
 ]);
 
@@ -52,6 +54,12 @@ export async function run({ args, pkgRoot }) {
   if (sub === 'restore-drill') return runRestoreDrill({ args, pkgRoot });
   if (sub === 'asset-check') return runAssetCheck({ args, pkgRoot });
   if (sub === 'backup-owners') return runBackupOwners({ args, pkgRoot });
+  if (sub === 'purge') {
+    const { runPurge } = await import('../lib/hub-purge.mjs');
+    const code = await runPurge({ args: args.slice(args.indexOf('purge') + 1) });
+    if (code !== 0) process.exit(code);
+    return;
+  }
   if (sub === 'workspace-up') {
     const mod = await import('./hub-workspace.mjs');
     return mod.run({ args, pkgRoot });
@@ -59,7 +67,7 @@ export async function run({ args, pkgRoot }) {
 }
 
 function usage() {
-  return `maude hub <serve|token|status|deploy|backup|restore-drill|asset-check|backup-owners|workspace-up> [options]
+  return `maude hub <serve|token|status|deploy|backup|restore-drill|asset-check|backup-owners|workspace-up|purge> [options]
 
   serve [--port N] [--data PATH] [--secret HEX] [--insecure-http] [--dev]
         Start the self-hostable Yjs sync hub in the current process tree.
@@ -130,6 +138,7 @@ function usage() {
         must be OFF for it, because a canvas in git history can reference an
         asset no current canvas does. Exits non-zero when anything dangles.
 
+${PURGE_USAGE}
   workspace-up [--domain HOST] [--admin-email EMAIL] [--s3-* ...] [--dry-run]
         Stand up a self-hosted WORKSPACE — a hub that owns the project, commits
         autosaves, and stores media in object storage — and verify it works

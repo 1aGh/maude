@@ -1,7 +1,8 @@
 // client/v2/diagnostics/sync-details/sync-details.jsx — S11.12 (06 ad-syncd): Menu › Diagnostics ›
 // Sync, rebuilt. The controls carry the v1 hooks the e2e scenarios drive (S11.12b): sync-panel (root) ·
 // sync-ai-held · sync-ai-publish · sync-ai-discard · sync-assets-cancel · sync-signin-again ·
-// sync-delivery-attention. Replaces the v1 Sync panel's mount in the sheet (its routes stay; SyncPanel.jsx and
+// sync-delivery-attention · sync-deletes-held (+ -delete / -keep / -confirm / -cancel / -said /
+// -folders / -confirming) · sync-deletes-purging · sync-hub-only. Replaces the v1 Sync panel's mount in the sheet (its routes stay; SyncPanel.jsx and
 // SourceConflictPanel.jsx keep their files). What needs the person comes first, each with its own
 // choice; the transfer, the counts and the lists follow.
 //
@@ -14,6 +15,8 @@ import { useEffect, useRef, useState } from 'react';
 import { MEDIA_STAYS_LINE, MEDIA_STAYS_NEXT } from '../../../../sync/media-gate.ts';
 import { safeDetail, syncPresentation } from '../../../../sync/presentation.ts';
 import { lineDiff } from '../../../panels/SourceConflictPanel.jsx';
+import { readCodeConsent } from '../../code/code-consent.js';
+import { CodeConsentSheet } from '../../code/code-consent-sheet.jsx';
 import { DELIVERY_WORD, cleanName, resolvedWords, syncDetailsModel } from './sync-details-model.js';
 
 /** Registry id → the `choice` the conflict route takes. */
@@ -155,6 +158,174 @@ function ConflictCard({ slug, canvasName, fetchImpl, onResolved, focusSeq = 0 })
   );
 }
 
+/**
+ * fix/207 — shared code from the project's hub: the held row's "Allow shared code…" and, once it is
+ * allowed on this Mac, "Stop allowing shared code…". Both open the confirm sheet; the server writes
+ * the answer (POST /_api/sync/code-consent/set) and the next pass brings what was held.
+ */
+export function useCodeConsent(fetchImpl, seq = 0) {
+  const [consent, setConsent] = useState(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-read when the held rows change
+  useEffect(() => {
+    let live = true;
+    readCodeConsent(fetchImpl).then((c) => {
+      if (live) setConsent(c);
+    });
+    return () => {
+      live = false;
+    };
+  }, [seq]);
+  return [consent, setConsent];
+}
+
+function CodeConsentButton({ mode, host, fetchImpl, onDone }) {
+  const [open, setOpen] = useState(false);
+  const stop = mode === 'stop';
+  return (
+    <>
+      <button
+        type="button"
+        className="sd-link"
+        data-action={stop ? 'sync.stop-code' : 'sync.allow-code'}
+        data-testid={stop ? 'diag-sync-stop-code' : 'diag-sync-allow-code'}
+        onClick={() => setOpen(true)}
+      >
+        {stop ? 'Stop allowing shared code…' : 'Allow shared code…'}
+      </button>
+      {open ? (
+        <CodeConsentSheet
+          mode={mode}
+          host={host}
+          fetchImpl={fetchImpl}
+          onClose={() => setOpen(false)}
+          onDone={(c) => {
+            setOpen(false);
+            onDone?.(c);
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
+const filesWord = (n) => `${n.toLocaleString('en-US')} ${n === 1 ? 'file' : 'files'}`;
+
+/** Issue #207 (7b) — the words after an answer to held deletes (CONTRACT §3–§4: plain, no "we"). */
+export function heldDeletesWords(answer) {
+  if (!answer?.ok) return safeDetail(answer?.detail, 'That didn’t work. Nothing was deleted.');
+  if (answer.how === 'keep')
+    return `Kept on the hub. ${filesWord(answer.count)} stay there and aren’t downloaded again.`;
+  if (answer.how === 'purge')
+    return `Deleting ${filesWord(answer.count)} on the hub. A batch this big takes a few minutes.`;
+  return `Deleting ${filesWord(answer.count)} on the hub.`;
+}
+
+/**
+ * Issue #207 (7b) — Deleted on this Mac, held: a batch of local deletes larger than sync sends unasked.
+ * Delete on the hub too… asks once more (the batch reaches every teammate), then sends it as one
+ * confirmed batch; Keep on the hub leaves the files there and never downloads them again. Both
+ * `POST /_api/sync/held-deletes`; the server picks the hub's door or the owner's confirmed purge.
+ */
+function HeldDeletesCard({ need, fetchImpl }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState('');
+  const [done, setDone] = useState(false);
+  async function answer(kind) {
+    setBusy(true);
+    setSaid('');
+    const r = await postJson(fetchImpl, '/_api/sync/held-deletes', { answer: kind, folder: null });
+    setBusy(false);
+    setConfirming(false);
+    setSaid(heldDeletesWords(r));
+    if (r?.ok) setDone(true);
+  }
+  const n = need.count;
+  return (
+    <div className="sd-card" data-testid="sync-deletes-held">
+      <strong className="sd-ct">Deleted on this Mac · {filesWord(n)}</strong>
+      <span className="sd-cd">{need.detail}</span>
+      {need.folders.length ? (
+        <ul className="sd-failed" data-testid="sync-deletes-held-folders">
+          {need.folders.map((f) => (
+            <li key={f.folder}>
+              <span className="dg-mono">{cleanName(f.folder, 'the project folder')}</span>{' '}
+              {filesWord(f.count)}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {done ? null : confirming ? (
+        <div className="sd-acts" data-testid="sync-deletes-held-confirming">
+          <span className="sd-cd">
+            Move {filesWord(n)} to the hub’s trash? Each teammate confirms on their own Mac.
+          </span>
+          <button
+            type="button"
+            className="dg-btn dg-btn--primary"
+            data-testid="sync-deletes-held-confirm"
+            disabled={busy}
+            onClick={() => answer('delete')}
+          >
+            Move to the hub’s trash
+          </button>
+          <button
+            type="button"
+            className="dg-btn"
+            data-testid="sync-deletes-held-cancel"
+            disabled={busy}
+            onClick={() => setConfirming(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="sd-acts">
+          <button
+            type="button"
+            className="dg-btn"
+            data-action="sync.delete-held-on-hub"
+            data-testid="sync-deletes-held-delete"
+            disabled={busy}
+            onClick={() => setConfirming(true)}
+          >
+            Move to the hub’s trash too…
+          </button>
+          <button
+            type="button"
+            className="dg-btn"
+            data-action="sync.keep-held-on-hub"
+            data-testid="sync-deletes-held-keep"
+            disabled={busy}
+            onClick={() => answer('keep')}
+          >
+            Keep on the hub
+          </button>
+        </div>
+      )}
+      {said ? (
+        <p className="dg-hint" role="status" data-testid="sync-deletes-held-said">
+          {said}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Issue #207 (7b) — the owner's purge of held deletes: how far it is, or why it stopped. */
+function DeletesPurgingCard({ need }) {
+  return (
+    <div className="sd-card" data-testid="sync-deletes-purging">
+      <strong className="sd-ct">
+        {need.error
+          ? 'Deleting on the hub stopped.'
+          : `Deleting on the hub · ${need.done.toLocaleString('en-US')} of ${filesWord(need.total)}`}
+      </strong>
+      {need.error ? <span className="sd-cd">{need.error}</span> : null}
+    </div>
+  );
+}
+
 // The team server holds no media checkout (sync/media-gate.ts words): said once, with the next step.
 function AssetsStayCard() {
   return (
@@ -232,6 +403,97 @@ function AiCard({ need, fetchImpl }) {
   );
 }
 
+/** 1 234 567 890 → "1.1 GB"; below a gigabyte, whole megabytes. */
+function sizeWord(bytes) {
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.max(1, Math.round(mb))} MB`;
+}
+
+/**
+ * Issue #207 — a long run of pictures going up (a render sequence), and the folders this project
+ * leaves out. Never a warning: the pictures sync like every other file; leaving the folder out is
+ * an option, and "Sync it again" undoes it. Both write `linkedHub.ignoreFolders` through
+ * `/_api/sync/settings`; the next pass applies it.
+ */
+function FoldersSection({ sequences, ignored, fetchImpl }) {
+  const [left, setLeft] = useState(() => new Set());
+  const [back, setBack] = useState(() => new Set());
+  const [said, setSaid] = useState('');
+  const change = async (body, done) => {
+    setSaid('');
+    const res = await postJson(fetchImpl, '/_api/sync/settings', body);
+    if (res?.ok) done();
+    else setSaid('That didn’t save. Nothing changed — try again.');
+  };
+  const shown = sequences.filter((s) => !ignored.includes(s.folder));
+  const still = ignored.filter((f) => !back.has(f));
+  if (!shown.length && !still.length) return null;
+  return (
+    <section aria-label="Large folders" data-testid="sync-folders">
+      {shown.map((s, i) => (
+        <div className="sd-card" key={s.folder} data-testid={`sync-large-seq-${i}`}>
+          <strong className="sd-ct">
+            {cleanName(s.folder)} · {s.files.toLocaleString()} pictures · {sizeWord(s.bytes)}
+          </strong>
+          {left.has(s.folder) ? (
+            <span className="sd-cd" role="status" data-testid={`sync-large-seq-left-${i}`}>
+              Left out from the next sync. What’s already in the project stays there.
+            </span>
+          ) : (
+            <>
+              <span className="sd-cd">
+                They go up like every other file, and a run this long takes a while. You can keep
+                this folder on this Mac only.
+              </span>
+              <div className="sd-acts">
+                <button
+                  type="button"
+                  className="dg-btn"
+                  data-action="sync.ignore-folder"
+                  data-testid={`sync-large-seq-ignore-${i}`}
+                  onClick={() =>
+                    change({ addIgnoreFolder: s.folder }, () =>
+                      setLeft((prev) => new Set(prev).add(s.folder))
+                    )
+                  }
+                >
+                  Don’t sync this folder
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+      {still.length ? (
+        <div data-testid="sync-ignored-folders">
+          <p className="sd-sub">Not synced · {still.length}</p>
+          {still.map((f, i) => (
+            <div className="dg-row" key={f} data-testid={`sync-ignored-folder-${i}`}>
+              <span className="dg-k dg-mono">{cleanName(f)}</span>
+              <button
+                type="button"
+                className="dg-btn"
+                data-action="sync.sync-folder-again"
+                data-testid={`sync-ignored-folder-resume-${i}`}
+                onClick={() =>
+                  change({ removeIgnoreFolder: f }, () => setBack((prev) => new Set(prev).add(f)))
+                }
+              >
+                Sync it again
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {said ? (
+        <p className="dg-hint" role="alert">
+          {said}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 export default function SyncDetails({
   status,
   project,
@@ -247,6 +509,9 @@ export default function SyncDetails({
   const p = syncPresentation(status, { project });
   const m = syncDetailsModel(status, { project, cloud, native, refused: p?.phase === 'refused' });
   const [cancelled, setCancelled] = useState(false);
+  const codeHeld = m.lists.held.find((h) => h.kind === 'code-consent');
+  const [consent, setConsent] = useCodeConsent(fetchImpl, codeHeld ? codeHeld.paths.length + 1 : 0);
+  const canChange = consent?.changeable === true;
   return (
     <div className="sd" data-testid="sync-panel">
       <div className="dg-hd">
@@ -274,6 +539,10 @@ export default function SyncDetails({
               <AssetsFailedCard key="assets-failed" need={need} />
             ) : need.kind === 'assets-stay' ? (
               <AssetsStayCard key="assets-stay" />
+            ) : need.kind === 'deletes-held' ? (
+              <HeldDeletesCard key="deletes-held" need={need} fetchImpl={fetchImpl} />
+            ) : need.kind === 'deletes-purging' ? (
+              <DeletesPurgingCard key="deletes-purging" need={need} />
             ) : (
               <AiCard key="ai" need={need} fetchImpl={fetchImpl} />
             )
@@ -316,6 +585,12 @@ export default function SyncDetails({
         </section>
       ) : null}
 
+      <FoldersSection
+        sequences={m.lists.sequences}
+        ignored={m.lists.ignoredFolders}
+        fetchImpl={fetchImpl}
+      />
+
       {m.counts.length ? (
         <section aria-label="Counts" data-testid="diag-sync-counts">
           <p className="sd-sub">Counts</p>
@@ -334,15 +609,49 @@ export default function SyncDetails({
             </p>
           ) : null}
           {m.lists.held.map((h) => (
-            <details className="sd-held" key={h.kind} data-testid={`diag-sync-held-${h.kind}`}>
-              <summary>{h.detail}</summary>
+            <div key={h.kind}>
+              <details className="sd-held" data-testid={`diag-sync-held-${h.kind}`}>
+                <summary>{h.detail}</summary>
+                <ul>
+                  {h.paths.map((rel) => (
+                    <li key={rel}>{cleanName(rel)}</li>
+                  ))}
+                </ul>
+              </details>
+              {h.kind === 'code-consent' && canChange && !consent.allowed ? (
+                <CodeConsentButton
+                  mode="allow"
+                  host={consent.host}
+                  fetchImpl={fetchImpl}
+                  onDone={setConsent}
+                />
+              ) : null}
+            </div>
+          ))}
+          {canChange && consent.allowed && consent.how !== 'cell' ? (
+            <p className="dg-hint" data-testid="diag-sync-code-allowed">
+              Shared code from {consent.host} is allowed on this Mac.{' '}
+              <CodeConsentButton
+                mode="stop"
+                host={consent.host}
+                fetchImpl={fetchImpl}
+                onDone={setConsent}
+              />
+            </p>
+          ) : null}
+          {m.lists.hubOnly.count ? (
+            <details className="sd-held" data-testid="sync-hub-only">
+              <summary>
+                On the hub only · {filesWord(m.lists.hubOnly.count)} — deleted on this Mac and kept
+                on the hub. They aren’t downloaded again.
+              </summary>
               <ul>
-                {h.paths.map((rel) => (
+                {m.lists.hubOnly.paths.map((rel) => (
                   <li key={rel}>{cleanName(rel)}</li>
                 ))}
               </ul>
             </details>
-          ))}
+          ) : null}
           {m.lists.failed > 0 || m.lists.attention.length ? (
             <div data-testid="diag-sync-failed">
               {m.lists.attention.length ? (

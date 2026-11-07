@@ -9,6 +9,8 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { adoptFolderSystem } from './folder-systems.ts';
+
 /** Same shape as the engine's refusals (`code` + `status`), so the route answers it the same way. */
 class DefaultError extends Error {
   constructor(
@@ -39,6 +41,9 @@ export function setDefaultSystem(designRoot: string, ds: string): DefaultResult 
   } catch {
     throw new DefaultError('ds-config-unreadable', 'The project’s config could not be read.', 500);
   }
+  // 2.0.7 — a folder-owned system (not in config.json yet, ds/folder-systems.ts) is adopted first: its entry is
+  // appended, then the default is set as for a configured system
+  const adopted = adoptFolderSystem(designRoot, cfg, ds);
   const systems = Array.isArray(cfg.designSystems) ? (cfg.designSystems as unknown[]) : [];
   const names = systems.map((s) =>
     s && typeof s === 'object' ? (s as { name?: unknown }).name : null
@@ -46,7 +51,7 @@ export function setDefaultSystem(designRoot: string, ds: string): DefaultResult 
   if (!names.includes(ds))
     throw new DefaultError('ds-unknown-system', `no design system named ${ds.slice(0, 64)}`, 404);
   const previous = typeof cfg.defaultDesignSystem === 'string' ? cfg.defaultDesignSystem : null;
-  if (previous === ds) return { changed: false, previous, default: ds };
+  if (previous === ds && !adopted) return { changed: false, previous, default: ds };
   cfg.defaultDesignSystem = ds;
   // keep the file's own indentation and final newline
   const indent = /^\{\n( +|\t)"/.exec(text)?.[1] ?? '  ';

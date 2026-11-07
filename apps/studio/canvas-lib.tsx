@@ -131,8 +131,9 @@ import {
 } from './artboard-warn-mark.tsx';
 import { AssetPlaceholderLayer } from './asset-placeholder.tsx';
 import { modeShows } from './bridge/mode-shows.ts';
+import { cameraShowsContent, defaultCamera, STORED_CAMERA_CHECK_MS } from './canvas-camera.ts';
 import { DsIcon } from './canvas-ds-icons.tsx';
-import { flowRows, isDsCanvasIds } from './canvas-rows.ts';
+import { flowRows, isDsCanvasIds, wrapRows } from './canvas-rows.ts';
 import { CanvasShell } from './canvas-shell.tsx';
 import { registerCanvasThemeSystem } from './canvas-theme.ts';
 import { pressStartsPan } from './input-router.tsx';
@@ -325,6 +326,29 @@ const ZOOM_STEP_OUT = 1 / 1.2;
 const WHEEL_ZOOM_K = 0.0035; // larger = more sensitive wheel — tuned to match Figma/FigJam's zoom-per-notch feel
 const SETTLE_MS = 500;
 const PUBLISH_MS = 50;
+/**
+ * Runs `fn` after the next frame and one task more (2.0.7): input that queued behind a long frame is handled
+ * before it, so a gesture's quiet timer that came due during that frame does not end the gesture. A hidden
+ * document gets no frames: there it runs after a task; `fallbackMs` bounds a frame that never comes.
+ */
+function afterQuietFrame(fn: () => void, fallbackMs = 1000): void {
+  if (
+    typeof requestAnimationFrame !== 'function' ||
+    (typeof document !== 'undefined' && document.visibilityState === 'hidden')
+  ) {
+    setTimeout(fn, 0);
+    return;
+  }
+  let done = false;
+  const run = () => {
+    if (done) return;
+    done = true;
+    clearTimeout(fallback);
+    fn();
+  };
+  const fallback = setTimeout(run, fallbackMs);
+  requestAnimationFrame(() => setTimeout(run, 0));
+}
 
 // WebKit (Safari + the Tauri WKWebView native shell, DDR-106) vs Blink (Chrome).
 // The two engines render the CSS `zoom` property incompatibly (see writeTransform),
@@ -1117,6 +1141,11 @@ export interface ViewportControllerOptions {
   /** Computes a fit-to-screen viewport for the current artboard set. */
   computeFit: () => ViewportState;
   /**
+   * 2.0.7 fix #6 — the camera the runtime places by itself (the zero-size re-fit, `refitBoot`). Omit
+   * for `computeFit`. ⌘0 (`fit`) always uses `computeFit`: a person asking for Fit gets everything.
+   */
+  computeBoot?: () => ViewportState;
+  /**
    * Initial viewport. Read once at mount. Return `null` to defer until the
    * host has a measured size (the hook will re-init on the first ResizeObserver
    * tick that produces a non-zero host).
@@ -1368,6 +1397,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     hostRef,
     worldRef,
     computeFit: computeFitFn,
+    computeBoot: computeBootFn,
     getInitial,
     onSettle,
     jumpTargets,
@@ -1403,10 +1433,14 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
   const publishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const interactEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Bumped by every input of a gesture (markInteracting); the quiet check compares it (2.0.7).
+  const interactSeqRef = useRef(0);
 
   // Stable refs to options that may change between renders.
   const computeFitRef = useRef(computeFitFn);
   computeFitRef.current = computeFitFn;
+  const computeBootRef = useRef(computeBootFn ?? computeFitFn);
+  computeBootRef.current = computeBootFn ?? computeFitFn;
   const onSettleRef = useRef(onSettle);
   onSettleRef.current = onSettle;
   const jumpTargetsRef = useRef(jumpTargets);
@@ -1522,12 +1556,25 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       zoomAtInteractStartRef.current = vpRef.current.zoom;
       setIsInteracting(true);
     }
+    interactSeqRef.current += 1;
+    const seq = interactSeqRef.current;
     if (interactEndTimerRef.current != null) clearTimeout(interactEndTimerRef.current);
+    // 2.0.7 — the quiet timer alone does not end the gesture: it can come due while a long frame blocks the
+    // main thread, BEFORE the wheel that queued behind that frame is handled (a due timer runs first). On the
+    // mascot canvas at 10 % a WebKit frame took 200-450 ms, so a pan+zoom settled 4-18 times mid-gesture
+    // (each one a published viewport, a crisp re-raster and a fresh layer on the next wheel). The end waits
+    // for a frame and a task with no new input (`afterQuietFrame`); a wheel in between keeps the gesture.
     interactEndTimerRef.current = setTimeout(() => {
+      interactEndTimerRef.current = null;
+      afterQuietFrame(() => {
+        if (interactSeqRef.current !== seq) return; // input came in after the timer: still the same gesture
+        endInteracting();
+      });
+    }, 220);
+    const endInteracting = () => {
       interactingRef.current = false;
       isInteractingStateRef.current = false;
       setIsInteracting(false);
-      interactEndTimerRef.current = null;
       // Motion has stopped — re-write the world transform in crisp mode so the
       // WebKit path drops its compositor layer and re-rasterizes text sharply at
       // the settled scale. No-op on the Blink path (CSS `zoom` is already crisp).
@@ -1542,7 +1589,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       // settle-cadence by design; deferring the publish to here is what keeps
       // the whole React tree still while the user is actually moving.
       setViewportPublished({ ...vpRef.current });
-    }, 220);
+    };
   }, [writeTransform]);
 
   const applyViewport = useCallback(
@@ -1628,7 +1675,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     if (interactingRef.current) return;
     // r2-export-size-race — a camera someone else wrote into the DOM (a capture at zoom 1) is theirs.
     if (!worldPlacedByRuntime(worldRef.current)) return;
-    const next = computeFitRef.current();
+    const next = computeBootRef.current();
     vpRef.current = { ...next };
     liveViewport = { ...next };
     writeTransform(vpRef.current, { crisp: true });
@@ -1737,7 +1784,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       if (interactingRef.current) return; // never re-fit during a gesture
       if (!hadSize && host.clientWidth > 0 && host.clientHeight > 0) {
         hadSize = true;
-        const refit = computeFitRef.current();
+        const refit = computeBootRef.current();
         vpRef.current = { ...refit };
         liveViewport = { ...refit };
         writeTransform(vpRef.current, { crisp: true });
@@ -2066,6 +2113,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
         if (cb) cb({ ...vpRef.current });
       }
       if (interactEndTimerRef.current != null) clearTimeout(interactEndTimerRef.current);
+      interactSeqRef.current += 1; // a quiet check still in flight ends nothing after unmount
       if (animationRef.current != null) cancelAnimationFrame(animationRef.current);
     };
   }, []);
@@ -2458,21 +2506,38 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     });
   }, [seeds]);
 
+  // r3-ds-rows / 2.0.7 fix #6 — the Design system canvas is a generated grid (see the row flow below).
+  const rowFlowOn = useMemo(() => isDsCanvasIds(seeds.map((s) => s.id)), [seeds]);
+  const declaredSizes = useMemo(
+    () => new Map(seeds.map((s) => [s.id, { w: s.w, h: s.h }] as const)),
+    [seeds]
+  );
+  // true once a layout was committed or undone in this session (applyArtboardLayout) — see the row flow below
+  const arrangedRef = useRef(false);
+  // 2.0.7 fix #6 — an older converted system put each section's pages in ONE row (StudyFi: 29 pages,
+  // 43 000 px; fit-all 2 %). Its untouched grid wraps at MAX_ROW_COLUMNS as it is seeded — before the
+  // boot camera is computed, so the camera frames the grid the person sees. Run time only, like the row
+  // flow: nothing is written to the versioned meta on open, and an arranged layout is never wrapped.
+  const seededArtboards = useCallback((): ArtboardRect[] => {
+    const seeded = initialArtboards();
+    return rowFlowOn && !arrangedRef.current
+      ? wrapRows(seeded, { declared: declaredSizes })
+      : seeded;
+  }, [initialArtboards, rowFlowOn, declaredSizes]);
+
   // Artboards live in state (not a useMemo) so a drag commit can update
   // positions in-place without waiting for an iframe reload to re-read meta.
   // Phase 4.2 originally used useMemo([seeds]) — dragging would PATCH the
   // server but the local React state stayed frozen at mount-time. Users had
   // to switch canvases (forcing a reload) to see the new position.
-  const [artboards, setArtboards] = useState<ArtboardRect[]>(initialArtboards);
-  // true once a layout was committed or undone in this session (applyArtboardLayout) — see the row flow below
-  const arrangedRef = useRef(false);
+  const [artboards, setArtboards] = useState<ArtboardRect[]>(seededArtboards);
 
   // Re-seed when JSX children change (HMR after canvas TSX edit). The seed
   // signature is identity-stable across renders that don't change the JSX,
   // so this won't clobber drag-commit state during normal interaction.
   useEffect(() => {
-    setArtboards(initialArtboards());
-  }, [initialArtboards]);
+    setArtboards(seededArtboards());
+  }, [seededArtboards]);
 
   // rc3 r4-12 — every press here tells the shell, so its open menus close (WebKit gives the shell no blur for it)
   useEffect(
@@ -2490,11 +2555,11 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const onRefresh = () => {
-      setArtboards(initialArtboards());
+      setArtboards(seededArtboards());
     };
     document.addEventListener('maude:meta-refreshed', onRefresh);
     return () => document.removeEventListener('maude:meta-refreshed', onRefresh);
-  }, [initialArtboards]);
+  }, [seededArtboards]);
 
   // Stable refs so the controller's callbacks always see the latest values.
   const artboardsRef = useRef(artboards);
@@ -2505,14 +2570,26 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   // p8-edit-multi-flake — the camera the runtime placed by itself and the host size it fits (null: persisted /
   // resumed, or the camera has moved since). A host that grows from a placeholder size re-fits (below).
   const autoFitRef = useRef<AutoFit | null>(null);
+  // 2.0.7 fix #6 — a camera restored from view state, until the layout settles and it is judged (below).
+  const restoredRef = useRef<ViewportState | null>(null);
   const dropAutoFit = useCallback(() => {
     autoFitRef.current = null;
+    restoredRef.current = null; // a camera someone moved is theirs, wherever it points
   }, []);
 
   const computeFitForArtboards = useCallback((): ViewportState => {
     const host = hostRef.current;
     if (!host) return { x: 0, y: 0, zoom: 1 };
     return computeFit(artboardsRef.current, host, 24, canvasInsets());
+  }, []);
+
+  // 2.0.7 fix #6 — the camera the runtime places by itself: fit-all while it is readable, else the top
+  // row, else the first artboard (canvas-camera.ts). ⌘0 still fits everything (computeFitForArtboards).
+  const computeBootForArtboards = useCallback((): ViewportState => {
+    const host = hostRef.current;
+    if (!host) return { x: 0, y: 0, zoom: 1 };
+    const insets = canvasInsets();
+    return defaultCamera(artboardsRef.current, (rects) => computeFit(rects, host, 24, insets));
   }, []);
 
   const getInitial = useCallback((): ViewportState | null => {
@@ -2523,17 +2600,18 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     const meta = readCanvasMeta();
     const v = meta?.viewport;
     if (v && Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.zoom)) {
+      restoredRef.current = { x: v.x, y: v.y, zoom: v.zoom };
       return { x: v.x, y: v.y, zoom: v.zoom };
     }
     const host = hostRef.current;
     if (!host) return null;
-    const fit = computeFit(artboardsRef.current, host, 24, canvasInsets());
+    const fit = computeBootForArtboards();
     // §5.6 I2 — remember the boot fit only if no insets had arrived yet (else it already honours them).
     bootFitRef.current =
       typeof window !== 'undefined' && canvasModeStore(window).get().insetsSeq < 0 ? fit : null;
     autoFitRef.current = { camera: { ...fit }, w: host.clientWidth, h: host.clientHeight };
     return fit;
-  }, []);
+  }, [computeBootForArtboards]);
 
   const onSettle = useCallback((v: ViewportState) => {
     patchCanvasMeta({ viewport: v });
@@ -2561,6 +2639,7 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     hostRef,
     worldRef,
     computeFit: computeFitForArtboards,
+    computeBoot: computeBootForArtboards,
     getInitial,
     onSettle,
     jumpTargets: artboards,
@@ -2641,6 +2720,33 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     return () => ro.disconnect();
   }, []);
 
+  // 2.0.7 fix #6 — a restored camera that shows nothing. The view state is per machine and outlives the
+  // layout it was taken on (Michal's StudyFi Design system canvas opened on an empty spot: the camera
+  // pointed below rows that had since moved up). Once the layout has been still for a moment (hugging
+  // artboards have reported their heights, the row flow has run), a restored camera that is still where
+  // it was put and frames no artboard is replaced by the default camera — placed like the boot fit
+  // (crisp, nothing persisted). A camera anyone moved is never touched (`dropAutoFit` clears the record).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `artboards` is the trigger (the layout changed); the check reads refs.
+  useEffect(() => {
+    if (!restoredRef.current) return;
+    const t = setTimeout(() => {
+      const restored = restoredRef.current;
+      const host = hostRef.current;
+      if (!restored || !host || !(host.clientWidth > 0 && host.clientHeight > 0)) return;
+      restoredRef.current = null;
+      const c = controllerRef.current;
+      const now = getLiveViewport();
+      if (!now || c.isInteracting) return;
+      if (now.x !== restored.x || now.y !== restored.y || now.zoom !== restored.zoom) return;
+      if (cameraShowsContent(now, host.clientWidth, host.clientHeight, artboardsRef.current))
+        return;
+      c.refitBoot();
+      const after = getLiveViewport();
+      if (after) autoFitRef.current = { camera: after, w: host.clientWidth, h: host.clientHeight };
+    }, STORED_CAMERA_CHECK_MS);
+    return () => clearTimeout(t);
+  }, [artboards]);
+
   // S3.2a — Present · Artboards: inert until the shell's `set-mode` says so (present/present-stage.tsx).
   const presentSelection = useSelectionSetOptional();
   usePresentStage({ hostRef, worldRef, artboards, controller, selection: presentSelection });
@@ -2719,11 +2825,6 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   // only (never written to the meta: heights change with content, and a flow saved there would churn it on every
   // open); a person's arrangement is left alone — `flowRows` refuses any layout that is no longer the generated
   // grid, and `arrangedRef` stops it for the rest of the session once a layout was committed or undone.
-  const rowFlowOn = useMemo(() => isDsCanvasIds(seeds.map((s) => s.id)), [seeds]);
-  const declaredSizes = useMemo(
-    () => new Map(seeds.map((s) => [s.id, { w: s.w, h: s.h }] as const)),
-    [seeds]
-  );
   // biome-ignore lint/correctness/useExhaustiveDependencies: `artboards` is the trigger (a measured height arrived); the setter reads the latest through `prev`.
   useEffect(() => {
     if (!rowFlowOn || arrangedRef.current) return;
@@ -2834,7 +2935,8 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
       <ArtboardLiveFeed zoom={controller.viewport.zoom} interacting={!!controller.isInteracting} />
       {/* ── S8.19 (L1) placeholder frames ── "Waiting for Jonas's Mac" / Missing over a picture
           that failed to load; driven only by the shell's dgn `asset-state` (asset-placeholder.tsx). */}
-      <AssetPlaceholderLayer />
+      {/* 2.0.7 — the frames ride the live camera through a pan / zoom instead of a layout read per frame. */}
+      <AssetPlaceholderLayer camera={getLiveViewport} interacting={!!controller.isInteracting} />
       {/* r5-2 — a play / pause button over a placed or annotation clip (hover / selected), in Edit and Preview. */}
       <VideoPlayLayer />
     </div>
@@ -3002,6 +3104,10 @@ function DCArtboardBody({
     },
     [id]
   );
+
+  // 2.0.7 — the mount ring never releases the artboard the selection is in (it, or an element inside it): the
+  // shell's panels (Transcript, Re-frame, the timeline, the inspector) and Present-from-selection work in its DOM.
+  const holdsSelection = !!selSet?.selected.some((s) => s.artboardId === id);
 
   // Drag hook — always called (hook rules). Inert outside DesignCanvas
   // (allRects empty, enabled=false), so specimens / legacy uses get a plain
@@ -3219,6 +3325,9 @@ function DCArtboardBody({
             articleRef={articleRef}
             bodyRef={bodyRef}
             heightFloor={heightFloor}
+            background={background}
+            pinned={holdsSelection}
+            eager={hasVideo || hasVideoContent}
           >
             {children}
           </ArtboardLiveGate>
@@ -3395,12 +3504,17 @@ function DCArtboardBody({
             containIntrinsicSize: `${rect.w}px ${rect.h}px`,
           }}
         >
-          {/* 2.0.5 — offscreen / zoomed-out artboards sleep (artboard-live.ts); captures run everything live */}
+          {/* 2.0.5 — offscreen / zoomed-out artboards sleep (artboard-live.ts); captures run everything live.
+              2.0.7 — far ones are released to a same-size placeholder in their own colours; the active one and the
+              one holding the selection never. */}
           <ArtboardLiveGate
             id={id}
             articleRef={articleRef}
             bodyRef={bodyRef}
             heightFloor={heightFloor}
+            background={background}
+            pinned={isActive || holdsSelection}
+            eager={hasVideo || hasVideoContent}
           >
             {children}
           </ArtboardLiveGate>

@@ -14,6 +14,7 @@ import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { stripSpoofChars } from '../spoof-chars.ts';
+import { adoptFolderSystem, withFolderSystems } from './folder-systems.ts';
 
 export const SYSTEM_LABEL_MAX = 64;
 
@@ -64,6 +65,9 @@ export function renameSystem(designRoot: string, ds: string, raw: string | null)
   } catch {
     throw new RenameError('ds-config-unreadable', 'The project’s config could not be read.', 500);
   }
+  // 2.0.7 — a folder-owned system (not in config.json yet, ds/folder-systems.ts) is adopted first: its entry is
+  // appended, then labelled as a configured system is
+  const adopted = adoptFolderSystem(designRoot, cfg, ds);
   const systems = (Array.isArray(cfg.designSystems) ? cfg.designSystems : []) as unknown[];
   const entry = systems.find(
     (s): s is Record<string, unknown> =>
@@ -80,8 +84,11 @@ export function renameSystem(designRoot: string, ds: string, raw: string | null)
     );
   if (label !== null) {
     const fold = label.toLowerCase();
-    const clash = systems.some((s) => {
-      if (!s || typeof s !== 'object' || s === entry) return false;
+    // every system the person can see: configured ones and the folder-owned ones not adopted yet
+    const shown = (withFolderSystems(cfg, designRoot).designSystems ?? []) as unknown[];
+    const clash = shown.some((s) => {
+      if (!s || typeof s !== 'object' || s === entry || (s as { name?: unknown }).name === ds)
+        return false;
       const o = s as { name?: unknown; label?: unknown };
       return [o.label, o.name].some(
         (v) => typeof v === 'string' && v.trim().toLowerCase() === fold
@@ -91,7 +98,7 @@ export function renameSystem(designRoot: string, ds: string, raw: string | null)
       throw new RenameError('ds-name-taken', 'Another design system already has that name.', 409);
   }
   const previous = typeof entry.label === 'string' ? entry.label : null;
-  if (previous === label) return { changed: false, previous, label };
+  if (previous === label && !adopted) return { changed: false, previous, label };
   if (label === null) delete entry.label;
   else entry.label = label;
   // keep the file's own indentation and final newline

@@ -143,6 +143,12 @@ describe('r5-7 · a canvas that cannot switch says so', () => {
     expect(mode('dark')?.disabled).toBe(true);
     const note = document.querySelector('[data-testid="canvas-theme-note"]');
     expect(note?.textContent).toBe('This canvas has no Dark');
+    // 2.0.7 — icons only: the words live in the greyed button's tooltip; the note is for screen readers
+    expect(note?.className).toBe('dc-theme-pill-sr');
+    expect(mode('dark')?.title).toBe('This canvas has no Dark');
+    expect(mode('dark')?.textContent).toBe('');
+    expect(mode('dark')?.getAttribute('aria-label')).toBe('Dark');
+    expect(mode('light')?.querySelector('svg')).not.toBeNull();
   });
 
   test('a canvas that can switch shows no such note', async () => {

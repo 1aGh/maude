@@ -58,6 +58,14 @@ import {
   useViewportControllerContext,
   type ViewportControllerHandle,
 } from './canvas-lib.tsx';
+import {
+  CanvasPagesSwitch,
+  PAGES_PILL_CSS,
+  pickTurnsPage,
+  runPagesAction,
+  turnToPage,
+  usePagesView,
+} from './canvas-pages-view.tsx';
 import { replayActionKey, replayToolKey } from './canvas-replay-keys.ts';
 import { getCanvasTheme, subscribeCanvasTheme } from './canvas-theme.ts';
 import { CanvasThemePill } from './canvas-theme-pill.tsx';
@@ -734,7 +742,7 @@ function postLayersTree(artboardId: string | null | undefined): void {
 const LAYERS_CHROME_SEL =
   '.dc-cv-halo, .dc-cv-group-bbox, .dgn-pin, .dc-cv-reorder-divider, .dc-cv-reorder-into, .dc-activity-rim, .dc-activity-scan, .dc-cv-reorder-lift';
 
-function LayersLiveSync() {
+export function LayersLiveSync() {
   useEffect(() => {
     if (typeof MutationObserver === 'undefined' || typeof document === 'undefined') return;
     const isChrome = (n: Node): boolean =>
@@ -750,10 +758,12 @@ function LayersLiveSync() {
         structural = true;
         break;
       }
-      const art = getLastLayersArtboardId();
-      if (!structural || !art) return;
+      if (!structural || !getLastLayersArtboardId()) return;
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => postLayersTree(art), 90);
+      // 2.0.7 fix (decision `v2-207-layers-current`) — read the tracked artboard when the timer FIRES: a
+      // request-layers for another artboard inside the debounce made that one current, and re-posting the one
+      // read at mutation time put the previous artboard's tree back in the shell, after the right one
+      timer = setTimeout(() => postLayersTree(getLastLayersArtboardId()), 90);
     });
     obs.observe(document.body, { childList: true, subtree: true });
     return () => {
@@ -835,10 +845,20 @@ function CanvasThemePillMount() {
     <CanvasThemePill
       bothThemes={() => detectDsThemeSupport().supported}
       onProbeStale={subscribeDsThemeProbe}
+      extra={
+        // 2.0.7 B2 — Canvas | Pages beside Light | Dark (canvas-pages-view.tsx)
+        <>
+          <style data-dc-pages-css="">{PAGES_PILL_CSS}</style>
+          <CanvasPagesSwitch />
+        </>
+      }
     />,
     document.body
   );
 }
+
+/** 2.0.7 B2 — a canvas with no artboard context yet pages through nothing (a stable empty list). */
+const NO_ARTBOARDS: ArtboardRect[] = [];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CanvasCore — sits inside SelectionSetProvider, builds the menu registry
@@ -879,6 +899,20 @@ function CanvasCore({
 
   const artboardsCtx = useArtboardsContext();
   const dragBus = useDragStateContext();
+
+  // 2.0.7 B2 — Canvas | Pages: one artboard at a time, in the Present order (canvas-pages-view.tsx). Not on an embed
+  // or a Present follower, where the pill steps aside too. The Design system canvas has it on its own bar (2.0.7
+  // polish, ds/board/ds-bar.tsx).
+  usePagesView({
+    controller,
+    artboards: artboardsCtx?.artboards ?? NO_ARTBOARDS,
+    selectedArtboard: () => selSet.selected[0]?.artboardId ?? null,
+    hostRef,
+    here: !isEmbedCanvas() && !isFollowCanvas(),
+    selectionNone: () => selSet.selected.length === 0,
+    // 2.0.7 (decision `v2-207-pages-stale-selection`) — a page turn drops what is selected on another artboard
+    dropOffPage: (page) => selSet.drop((s) => !s.artboardId || s.artboardId === page),
+  });
 
   // T33 — programmatic-zoom easing via double-click on empty world only.
   // Per post-Wave-3 user feedback, dblclick-on-artboard auto-zoom was
@@ -2870,6 +2904,9 @@ function CanvasRouter({
         } else if (replayActionKey(id)) {
           // V2-4.2 — Select all / Copy properties / Paste properties from the project menu: the
           // canvas replays the action's own chord, so the key handler is the one implementation.
+        } else if (runPagesAction(id, params)) {
+          // 2.0.7 B2 — Menu › View › Pages / ⌘K: Canvas | Pages and its paging (canvas-pages-view.tsx); in Pages a
+          // left-panel jump's `view.zoom-to-artboard` turns to that page instead of framing a hidden artboard
         } else if (zoomController) {
           // Shell View-menu zoom items — route to the live viewport controller
           // (the same methods the in-canvas zoom pill calls).
@@ -3031,6 +3068,11 @@ function CanvasRouter({
               ? selSet.addFromShell(picked)
               : selSet.replaceFromShell(picked);
           if (!applied) return;
+          // 2.0.7 (decision `v2-207-pages-stale-selection`) — in Pages every pick turns to its artboard's page, also
+          // when that artboard was already selected (the old rule waited for the selected artboard to CHANGE, so
+          // re-picking it after a page step stayed on the other page and the reveal below moved the camera to where
+          // the hidden artboard sits). The page brings its own camera, so the reveal is skipped.
+          if (pickTurnsPage(picked.artboardId ?? mm.artboardId)) return;
           // Task A1 — reveal THROUGH the camera, not host scroll. The old
           // `scrollIntoView` scrolled the overflow:hidden `.dc-canvas` /
           // `.dc-artboard-body` clip layers, desyncing the `.dc-world`
@@ -3097,7 +3139,10 @@ function CanvasRouter({
         if (!board) return;
         const rect = window.__maudeCanvasRects?.().artboards.find((a) => a.id === aid);
         const host = hostRef.current;
-        if (rect && zoomController) {
+        // 2.0.7 polish — in Pages the reveal turns to that artboard's page (its camera), never to a hidden one
+        if (turnToPage(aid)) {
+          /* the page's own camera */
+        } else if (rect && zoomController) {
           if (mm.glide === true || !host) zoomController.jumpTo(rect);
           else zoomController.animateTo(fitRectIntoHost(rect, host), 0);
         }

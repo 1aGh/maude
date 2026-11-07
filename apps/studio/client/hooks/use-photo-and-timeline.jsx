@@ -5,7 +5,12 @@ import { syncAnnotationsHiddenToast } from './annotations-hidden-toast.js';
 import { acceptFromCanvas } from '../../bridge/dgn-protocol.ts';
 import { persistUiPrefs, shellToast } from '../shell/util.js';
 import { installDropGuard } from '../shell/drop-guard.js';
-import { togglePresentCanvas, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
+import {
+  togglePresentCanvas,
+  usePagesArtboard,
+  usePresentMode,
+} from '../v2/shell/use-canvas-mode-lane.js';
+import { layersArtboardOf, useLayersTreeRequest } from '../v2/layers/layers-request.js';
 import {
   ANNOT_STORE,
   LAYERS_MODE_STORE,
@@ -662,13 +667,16 @@ export function usePhotoAndTimeline({
   // the tree for the viewport-active artboard whenever it (or the canvas)
   // changes, so Layers work in browse mode with no selection at all. Small
   // debounce — the active-artboard signal can flicker during a fast pan.
-  useEffect(() => {
-    if (!activePath || activePath === SYSTEM_TAB || !canvasActiveArtboard) return;
-    const t = setTimeout(() => {
-      postToActiveCanvas({ dgn: 'request-layers', artboardId: canvasActiveArtboard });
-    }, 250);
-    return () => clearTimeout(t);
-  }, [activePath, canvasActiveArtboard, postToActiveCanvas]);
+  // 2.0.7 fix (decision `v2-207-layers-current`) — asked for the artboard the person is ON (the page in Pages, else
+  // the selection's artboard, else the one in view), the same one Layers marks: a Layers pick or a page turn used to
+  // leave the tree — and the mark — on the artboard nearest the viewport centre.
+  const pagesAt = usePagesArtboard();
+  useLayersTreeRequest({
+    activePath,
+    want: layersArtboardOf({ selected, activePath, pagesAt, inView: canvasActiveArtboard }),
+    post: postToActiveCanvas,
+    skip: activePath === SYSTEM_TAB,
+  });
 
   // feature-4 T7b — locked layer keys (`"<cdId>:<index>"`, per-user, per-canvas
   // via view.json). Toggling PATCHes the FULL set (replace semantics) + pushes

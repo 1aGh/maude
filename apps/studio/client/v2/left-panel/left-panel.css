@@ -352,6 +352,30 @@
     display: flex;
     align-items: center;
   }
+  /* 2.0.7 (B3) — a system row with a Design system canvas opens into its artboards (the canvas row's 11 · pn-jump
+     twisty in the row's left gutter, and its 22 px artboard rows underneath) */
+  .lp-ds-wrap--jump > .lp-ds {
+    padding-left: calc(var(--space-3) + 6px);
+  }
+  .lp-ds-wrap--jump > .cv-jt[aria-expanded="false"] {
+    opacity: 0;
+  }
+  .lp-ds-wrap--jump:hover > .cv-jt,
+  .lp-ds-wrap--jump:focus-within > .cv-jt,
+  .lp-ds-wrap--jump > .cv-jt:focus-visible {
+    opacity: 1;
+  }
+  .lp-ds-boards {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: var(--space-1);
+  }
+  .lp-ds-board {
+    height: 22px;
+  }
+  .lp-ds-board > .cv-main {
+    padding-left: calc(var(--space-3) + 18px);
+  }
   .lp-ds--two {
     align-items: center;
     padding-block: var(--space-1);

@@ -209,7 +209,10 @@ describe('Compare opens the comparison', () => {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 0));
     });
-    expect(urls).toEqual(['/_api/project/conflict?file=ui-flag']);
+    // Only one comparison is fetched (Sync details' other reads, e.g. the shared-code answer, aside).
+    expect(urls.filter((u) => u.startsWith('/_api/project/conflict'))).toEqual([
+      '/_api/project/conflict?file=ui-flag',
+    ]);
     expect(q('diag-sync-compare-ui-flag')?.getAttribute('aria-expanded')).toBe('true');
     expect(q('diag-sync-compare-lines-ui-flag')?.textContent).toContain('mine');
     expect(q('diag-sync-compare-lines-ui-other')).toBeNull();

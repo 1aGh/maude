@@ -510,6 +510,12 @@
     var(--maude-hud-shadow-md),
     inset 0 0 0 1px var(--maude-hud-accent);
 }
+.ds-bar-b--ic {
+  display: grid;
+  place-items: center;
+  padding-inline: 7px;
+}
+
 .ds-bar-b:disabled {
   opacity: 0.4;
   cursor: default;

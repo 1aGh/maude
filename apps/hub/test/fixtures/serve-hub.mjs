@@ -50,6 +50,8 @@ if (existsSync(tokensFile)) {
 } else {
   tokens = {
     owner: addToken(dataDir, { label: 'owner-machine', scope: '*' }).value,
+    // 2.0.7 #7b — a token whose role IS owner (the confirmed purge asks for it; `owner` above is roleless)
+    projectOwner: addToken(dataDir, { label: 'project-owner', scope: '*', role: 'owner' }).value,
     alice: addToken(dataDir, {
       label: 'alice-laptop',
       scope: '*',

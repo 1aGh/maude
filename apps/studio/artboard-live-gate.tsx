@@ -1,36 +1,62 @@
 /**
  * @file       artboard-live-gate.tsx — 2.0.5: the React half of artboard-live.ts
  * @scope      apps/studio/artboard-live-gate.tsx (used by canvas-lib.tsx's DCArtboardBody + DesignCanvas)
- * @purpose    One `LiveRegistry` + one `WebglBudget` per canvas document, fed by two shared
- *             IntersectionObservers. `ArtboardLiveGate` wraps an artboard's children: it hands them
- *             `useArtboardActive()` / `useArtboardSeen()`, pauses the artboard's `<video>`s and CSS
- *             animations while it sleeps, and in `light` mode mounts the children only while it is near
- *             (a placeholder of the last measured height stands in, so nothing reflows).
- *             `holdAllLive()` is the in-frame export's guarantee: every artboard live for the capture.
+ * @purpose    One `LiveRegistry` + one `WebglBudget` per canvas document, fed by three shared
+ *             IntersectionObservers (prefetch ring, on screen, keep ring). `ArtboardLiveGate` wraps an
+ *             artboard's children: it hands them `useArtboardActive()` / `useArtboardSeen()`, pauses the
+ *             artboard's `<video>`s and CSS animations while it sleeps, and mounts the children only while the
+ *             registry admits them. `holdAllLive()` is the in-frame export's guarantee: every artboard live
+ *             for the capture.
+ *
+ *             2.0.7: in `sleep` too the children mount only while admitted (the mount ring: on screen + a
+ *             prefetch ring, released when far, within a DOM budget). First mounts go through the registry's
+ *             queue paced per frame, so it never blocks a pan or a zoom. What stands in is a same-size
+ *             placeholder in the artboard's own colours (artboard-placeholder.ts) — never the bare frame,
+ *             which on a dark design system is a black box.
  */
 
 import {
   createContext,
   type ReactNode,
   type RefObject,
-  useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
   useRef,
+  useState,
   useSyncExternalStore,
 } from 'react';
 import {
   type ArtboardLiveState,
+  KEEP_MARGIN,
   type LiveMode,
   LiveRegistry,
   NEAR_MARGIN,
   resolveLiveMode,
 } from './artboard-live.ts';
+import {
+  backgroundOf,
+  canvasBackground,
+  choosePlaceholder,
+  rememberBackground,
+  rememberPicture,
+  subscribeCanvasBackground,
+  takePicture,
+} from './artboard-placeholder.ts';
 import { WebglBudget } from './artboard-webgl.ts';
 
-const ALL_LIVE: ArtboardLiveState = { live: true, seen: true };
+const ALL_LIVE: ArtboardLiveState = { live: true, seen: true, media: true };
 const LiveContext = createContext<ArtboardLiveState>(ALL_LIVE);
+
+/**
+ * May this artboard's media load (a Player, a `<video>` with its src)? Follows the mount ring: near or on screen,
+ * kept inside the keep ring. A video artboard is mounted wherever it is (its comp registers itself), so a
+ * `VideoComp` mounts its Player only while this holds — far away it fetches and decodes nothing (2.0.7). Always
+ * `true` outside an artboard, in captures and exports.
+ */
+export function useArtboardMedia(): boolean {
+  return useContext(LiveContext).media;
+}
 
 /**
  * Is this artboard running live? `false` while it is offscreen or the canvas is zoomed out to its overview —
@@ -41,8 +67,8 @@ export function useArtboardActive(): boolean {
 }
 
 /**
- * Has this artboard been near the viewport yet? Gate an expensive first mount on it (the design-system
- * board's specimens do). Always `true` in captures and exports.
+ * Are this artboard's children mounted now (it is on screen or near it)? Gate an expensive first mount on it
+ * (the design-system board's specimens do). Always `true` in captures and exports.
  */
 export function useArtboardSeen(): boolean {
   return useContext(LiveContext).seen;
@@ -53,11 +79,30 @@ interface Runtime {
   budget: WebglBudget | null;
   near: IntersectionObserver | null;
   visible: IntersectionObserver | null;
+  keep: IntersectionObserver | null;
   ids: WeakMap<Element, string>;
 }
 
-let runtime: Runtime | null = null;
-let runtimeSearch: string | null = null;
+/**
+ * The runtime lives on the canvas DOCUMENT, not in this module. Each canvas module bundles its own copy of
+ * canvas-lib (Bun.build inlines `@maude/canvas-lib`), so an edit's soft reload evaluates a fresh copy of this file:
+ * a module-level runtime started every artboard of the remounted canvas as a placeholder again, just as the shell
+ * reselected after `loaded` — the selected clip was gone (2.0.7 video regression). Bump `RUNTIME_SHAPE` when
+ * `Runtime` or `LiveRegistry` changes shape (a canvas-lib change hard-reloads the frame anyway).
+ */
+const RUNTIME_SHAPE = 1;
+const RUNTIME_KEY = '__maudeArtboardLive';
+interface RuntimeSlot {
+  shape: number;
+  search: string;
+  runtime: Runtime;
+}
+function runtimeSlot(): RuntimeSlot | null {
+  const slot = (window as unknown as Record<string, unknown>)[RUNTIME_KEY] as
+    | RuntimeSlot
+    | undefined;
+  return slot && slot.shape === RUNTIME_SHAPE ? slot : null;
+}
 
 function embedded(): boolean {
   try {
@@ -69,31 +114,59 @@ function embedded(): boolean {
 
 /** Test hook: forget the per-document runtime (the URL decides the mode at first use). */
 export function resetArtboardLive(): void {
-  runtime = null;
-  runtimeSearch = null;
+  if (typeof window === 'undefined') return;
+  delete (window as unknown as Record<string, unknown>)[RUNTIME_KEY];
+}
+
+/** WebKit / WKWebView — the same test as canvas-lib's `IS_WEBKIT`. */
+function isWebkit(): boolean {
+  return (
+    typeof navigator !== 'undefined' &&
+    (/apple/i.test(navigator.vendor || '') ||
+      (typeof window !== 'undefined' && 'GestureEvent' in window))
+  );
+}
+
+/** Distance (px) of an observed artboard's centre to the viewport centre — the mount queue's order. */
+function centreDistance(en: IntersectionObserverEntry): number {
+  const b = en.boundingClientRect;
+  if (!b) return Number.POSITIVE_INFINITY;
+  const W = typeof innerWidth === 'number' ? innerWidth : 0;
+  const H = typeof innerHeight === 'number' ? innerHeight : 0;
+  return Math.hypot(b.left + b.width / 2 - W / 2, b.top + b.height / 2 - H / 2);
 }
 
 function getRuntime(): Runtime | null {
   if (typeof window === 'undefined') return null;
-  if (runtime && runtimeSearch === window.location.search) return runtime;
+  const held = runtimeSlot();
+  if (held && held.search === window.location.search) return held.runtime;
   const mode: LiveMode = resolveLiveMode({ search: window.location.search, embedded: embedded() });
-  runtimeSearch = window.location.search;
   const schedule = (fn: () => void) =>
     typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16);
   const registry = new LiveRegistry(mode, schedule);
   const ids = new WeakMap<Element, string>();
   let near: IntersectionObserver | null = null;
   let visible: IntersectionObserver | null = null;
+  let keep: IntersectionObserver | null = null;
   let budget: WebglBudget | null = null;
   if (mode !== 'off' && typeof IntersectionObserver === 'function') {
     near = new IntersectionObserver(
       (entries) => {
         for (const en of entries) {
           const id = ids.get(en.target);
-          if (id) registry.setNear(id, en.isIntersecting);
+          if (id) registry.setNear(id, en.isIntersecting, centreDistance(en));
         }
       },
       { rootMargin: NEAR_MARGIN }
+    );
+    keep = new IntersectionObserver(
+      (entries) => {
+        for (const en of entries) {
+          const id = ids.get(en.target);
+          if (id) registry.setKeep(id, en.isIntersecting);
+        }
+      },
+      { rootMargin: KEEP_MARGIN }
     );
     visible = new IntersectionObserver((entries) => {
       for (const en of entries) {
@@ -104,13 +177,29 @@ function getRuntime(): Runtime | null {
     budget = new WebglBudget((id) => (id ? registry.isLive(id) : true));
     budget.install(window as Window & typeof globalThis);
     registry.onChange(() => budget?.update());
+    // 2.0.7 — WebKit: with many artboards on screen (`crowded`, LAYER_MAX_VISIBLE) they stop being a compositing
+    // layer each. WebKit rasterizes every such layer at full size whatever the world's scale, so 40 artboards on
+    // screen at 8 % were 40 full-size rasters per frame (seconds per pan frame on the mascot canvas, ~40 ms
+    // without). Switched only outside a gesture, so a pinch never re-rasters mid-flight. Blink keeps its layers.
+    if (isWebkit()) {
+      const sync = () => {
+        if (registry.isInteracting()) return;
+        document.documentElement.toggleAttribute('data-dc-crowded', registry.crowded());
+      };
+      registry.onChange(sync);
+      registry.onSettle(sync);
+    }
     (window as unknown as { __maudeWebglStats?: () => unknown }).__maudeWebglStats = () => ({
       ...budget?.stats(),
       mode,
       visible: registry.visibleCount(),
+      mounted: registry.mountedCount(),
+      mountedNodes: Math.round(registry.mountedWeight()),
     });
   }
-  runtime = { registry, budget, near, visible, ids };
+  const runtime: Runtime = { registry, budget, near, visible, keep, ids };
+  const slot: RuntimeSlot = { shape: RUNTIME_SHAPE, search: window.location.search, runtime };
+  (window as unknown as Record<string, unknown>)[RUNTIME_KEY] = slot;
   return runtime;
 }
 
@@ -182,32 +271,62 @@ function useMediaSleep(articleRef: RefObject<HTMLElement | null>, live: boolean,
   }, [articleRef, live, on]);
 }
 
+/** How long after a first mount the placeholder's picture is taken (images and fonts have come in). */
+const PICTURE_DELAY_MS = 900;
+
 export function ArtboardLiveGate({
   id,
   articleRef,
   bodyRef,
   heightFloor,
+  background,
+  pinned = false,
+  eager = false,
   children,
 }: {
   id: string;
   articleRef: RefObject<HTMLElement | null>;
   bodyRef: RefObject<HTMLElement | null>;
   heightFloor: number;
+  /** the artboard's own `background` prop — the colour a never-rendered placeholder takes */
+  background?: string;
+  /** the active artboard, or the one holding the selection: never released (the shell works in its DOM) */
+  pinned?: boolean;
+  /** a video artboard: always mounted (its comp registers itself only while mounted) */
+  eager?: boolean;
   children: ReactNode;
 }) {
   const rt = getRuntime();
   const on = !!rt && rt.registry.mode !== 'off';
-  // Stable per (runtime, id): a new subscribe each render would drop the slot (and its near state) in between.
-  const subscribe = useCallback(
-    (fn: () => void) => (on && rt ? rt.registry.subscribe(id, fn) : () => {}),
-    [on, rt, id]
+  const [state, setState] = useState<ArtboardLiveState>(() =>
+    on && rt ? rt.registry.get(id) : ALL_LIVE
   );
-  const state = useSyncExternalStore(
-    subscribe,
-    () => (on && rt ? rt.registry.get(id) : ALL_LIVE),
-    () => ALL_LIVE
-  );
+  // Subscribe before the observers report (layout effects run before effects). Every change applies at once:
+  // a first mount as a React transition was measured and dropped — the canvas's own sync updates kept
+  // restarting it, so an on-screen artboard waited for the transition lane's ~5 s expiry (first paint 1.3 s →
+  // 15 s on math-learning-spaces). The queue's pacing (one per frame, one per GESTURE_MOUNT_GAP_MS mid-gesture)
+  // is what keeps a mount from blocking a pan.
+  useLayoutEffect(() => {
+    if (!on || !rt) return;
+    const off = rt.registry.subscribe(id, setState);
+    setState(rt.registry.get(id));
+    return off;
+  }, [on, rt, id]);
   const { live, seen } = state;
+  // A skeleton drawn before any artboard of the canvas rendered took the mid tone: it repaints once the canvas
+  // colour is known (only while it is a placeholder — a mounted artboard never re-renders for it).
+  useSyncExternalStore(
+    subscribeCanvasBackground,
+    () => (on && !seen ? canvasBackground() : ''),
+    () => ''
+  );
+
+  useEffect(() => {
+    if (on && rt) rt.registry.setPinned(id, pinned);
+  }, [on, rt, id, pinned]);
+  useEffect(() => {
+    if (on && rt) rt.registry.setEager(id, eager);
+  }, [on, rt, id, eager]);
 
   // Observe the artboard (the article — its size is stable whether its children are mounted or not).
   useEffect(() => {
@@ -216,22 +335,27 @@ export function ArtboardLiveGate({
     if (!rt.near || !rt.visible) {
       // No IntersectionObserver: fail open, everything near and on screen.
       rt.registry.setNear(id, true);
+      rt.registry.setVisible(id, true);
       return;
     }
     rt.ids.set(el, id);
     rt.near.observe(el);
     rt.visible.observe(el);
+    rt.keep?.observe(el);
     return () => {
       rt.near?.unobserve(el);
       rt.visible?.unobserve(el);
-      rt.registry.setNear(id, false);
-      rt.registry.setVisible(id, false);
+      rt.keep?.unobserve(el);
+      rt.ids.delete(el);
+      // an edit's remount: the new gate already holds the id and its observers report on its own article —
+      // clearing near/visible here would put the artboard to sleep (and pause its video) for a frame
+      rt.registry.unobserve(id);
     };
   }, [articleRef, id, on, rt]);
 
   useMediaSleep(articleRef, live, on);
 
-  // light mode: remember the height the children had, so the placeholder holds it.
+  // Remember the height the children had, so the placeholder holds it.
   const lastHeight = useRef(0);
   useLayoutEffect(() => {
     if (!seen) return;
@@ -241,27 +365,78 @@ export function ArtboardLiveGate({
     };
   }, [seen, bodyRef]);
 
+  // Mounted: weigh it (the DOM budget's unit) and, once it settled, take its picture for the placeholder.
+  useEffect(() => {
+    if (!on || !rt || !seen) return;
+    const b = bodyRef.current;
+    if (!b) return;
+    rt.registry.setWeight(id, b.getElementsByTagName('*').length);
+    // its colour at once (four elements at most): the next placeholders of this canvas take it
+    rememberBackground(id, backgroundOf(b));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const shoot = () => {
+      if (!b.isConnected) return;
+      if (rt.registry.isInteracting()) {
+        timer = setTimeout(shoot, PICTURE_DELAY_MS);
+        return;
+      }
+      rt.registry.setWeight(id, b.getElementsByTagName('*').length);
+      const pic = takePicture(b);
+      if (pic) rememberPicture(id, pic);
+    };
+    timer = setTimeout(shoot, PICTURE_DELAY_MS);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [on, rt, id, seen, bodyRef]);
+
   const value = on ? state : ALL_LIVE;
-  const mountChildren = !on || rt?.registry.mode !== 'light' || seen;
+  if (!on || seen) return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
+  const ph = choosePlaceholder(id, background);
+  const pic = ph.picture;
   return (
     <LiveContext.Provider value={value}>
-      {mountChildren ? (
-        children
-      ) : (
-        <div
-          className="dc-artboard-sleeping"
-          aria-hidden="true"
-          style={{ minHeight: Math.max(lastHeight.current, heightFloor) }}
-        />
-      )}
+      <div
+        className="dc-artboard-sleeping"
+        data-dc-placeholder={ph.kind}
+        aria-hidden="true"
+        style={{
+          minHeight: Math.max(lastHeight.current, pic?.h ?? 0, heightFloor),
+          backgroundColor: ph.bg || undefined,
+        }}
+      >
+        {pic?.blocks.map((b, i) => (
+          <i
+            // biome-ignore lint/suspicious/noArrayIndexKey: a still picture; its blocks never reorder
+            key={i}
+            data-media={b.c ? undefined : ''}
+            style={{
+              left: `${b.x * 100}%`,
+              top: `${b.y * 100}%`,
+              width: `${b.w * 100}%`,
+              height: `${b.h * 100}%`,
+              background: b.c || undefined,
+            }}
+          />
+        ))}
+      </div>
     </LiveContext.Provider>
   );
 }
 
-/** Paused CSS animations while asleep. (A released WebGL canvas's picture is an overlay: artboard-webgl.ts.) */
+/** Paused CSS animations while asleep, and the placeholder. (A released WebGL canvas's picture is artboard-webgl.ts's.) */
 export const ARTBOARD_LIVE_CSS = `
 .dc-artboard[data-dc-asleep] .dc-artboard-body *,
 .dc-artboard[data-dc-asleep] .dc-artboard-body *::before,
 .dc-artboard[data-dc-asleep] .dc-artboard-body *::after { animation-play-state: paused !important; }
-.dc-artboard-sleeping { width: 100%; }
+html[data-dc-crowded] .dc-canvas .dc-artboard { will-change: auto; }
+.dc-artboard-sleeping { width: 100%; position: relative; overflow: hidden; }
+.dc-artboard-sleeping > i { position: absolute; display: block; opacity: 0.45; border-radius: 2px; }
+.dc-artboard-sleeping > i[data-media] { background: color-mix(in srgb, currentColor 16%, transparent); }
+.dc-artboard-sleeping[data-dc-placeholder='skeleton'] {
+  background-image: linear-gradient(color-mix(in srgb, currentColor 8%, transparent), color-mix(in srgb, currentColor 8%, transparent));
+  background-size: 56% 12px;
+  background-position: 8% 32px;
+  background-repeat: no-repeat;
+}
 `;

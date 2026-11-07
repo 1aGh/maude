@@ -233,6 +233,19 @@ const VERSIONED: Array<Row & { cls: FileClass }> = [
   // §5.3): versioned, Plane A — no runtime path of their own.
   { rel: 'ui/home.annotations.json', cls: 'canvas-owned', source: 'votes + fold (V2-1.12)' },
   { rel: 'ui/home.meta.json', cls: 'canvas-owned', source: 'R6 top-level keys' },
+  // fix/207 — a `_` FILE below a folder is the user's module, never runtime
+  // state: only a `_` first segment / `_<runtime>/` folder is (design.studyfi.com).
+  {
+    rel: 'system/studyfi-v3/preview/_ui-feedback.tsx',
+    cls: 'canvas-owned',
+    source: 'fix/207 DS module',
+  },
+  {
+    rel: 'system/studyfi-v3/preview/_ui-feedback.css',
+    cls: 'companion-text',
+    source: 'fix/207 (canvas-owned when its .tsx twin is on disk)',
+  },
+  { rel: 'ui/club-web/_frames.tsx', cls: 'canvas-owned', source: 'v2-p8 underscore module' },
 ];
 
 /** Default-closed neighbours of the new entries: not runtime, not on the plane. */

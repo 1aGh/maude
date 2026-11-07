@@ -53,6 +53,7 @@ import {
 import { dirname, join } from 'node:path';
 import { contentAddressedAsset, isAssetCreate } from '../../studio/access/scope.ts';
 import { fileAccessFor, NOT_IN_SCOPE_REFUSAL } from './access-files.mjs';
+import { roleForMatch } from './access-gate.mjs';
 import { assetPrefixFromEnv } from './asset-key.mjs';
 import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
 import {
@@ -327,7 +328,7 @@ function admit(ctx, match, rel, access, sha256 = null) {
     return { status: 403, error: 'this token is not scoped to that path' };
   }
   const cls = checkoutFileClass(landing, ctx.designRoot);
-  if (cls === 'code-module' && match.role !== 'owner') {
+  if (cls === 'code-module' && roleForMatch(match) !== 'owner') {
     return { status: 403, error: 'code modules may only be written by an owner-scoped token' };
   }
   return { target, landing, cls };

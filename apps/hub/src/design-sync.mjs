@@ -34,7 +34,7 @@
 import { existsSync } from 'node:fs';
 import { cp, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 
 import {
   designSyncMessage,
@@ -44,6 +44,27 @@ import {
 } from '../../cloud/design-sync.mjs';
 import { validateTarget } from '../../cloud/mirror.mjs';
 import { requestPushToken } from './mirror-push.mjs';
+import { inRuntimeDir } from './workspace-files.mjs';
+
+/**
+ * The export's `cp` filter: does this source path reach the repository?
+ *
+ * Runtime state (DDR-115) is per-machine and does not belong in someone else's
+ * repository — `_history` alone would multiply its size. It is a `_` FOLDER, or
+ * a `_` name at the design root (`_server.json`, `_active.json`), matched on the
+ * path RELATIVE to the design root (fix/207: matching any `_` segment of the
+ * absolute path dropped a design system's own modules, `preview/_ui-feedback.tsx`,
+ * and a `_` folder above the design root would have dropped everything). A `_`
+ * folder's own entry is kept (git records no empty folder); its contents are not.
+ *
+ * @param {string} designRoot absolute design root
+ * @param {string} src        absolute path `cp` is about to copy
+ */
+export function designSyncKeeps(designRoot, src) {
+  const rel = relative(designRoot, src).split(sep).join('/');
+  if (rel === '') return true;
+  return !inRuntimeDir(rel);
+}
 
 /** Count what will be described in the commit message. */
 function countCanvases(dir, depth = 0) {
@@ -121,7 +142,7 @@ export async function runDesignSync(
       recursive: true,
       // Runtime state (DDR-115) is per-machine and does not belong in someone
       // else's repository. `_history` alone would multiply its size.
-      filter: (src) => !src.split('/').some((seg) => seg.startsWith('_')),
+      filter: (src) => designSyncKeeps(designRoot, src),
     });
 
     const canvases = countCanvases(dest);

@@ -89,7 +89,8 @@ export function waitingBody(waiting) {
   const file = baseName(held.rel);
   switch (held.reason) {
     case 'code-consent':
-      return `This Mac hasn't accepted shared code from this project (${file}). Nothing is lost. To allow it, link this folder to the project again and accept shared code when asked.`;
+      // fix/207 — the card carries the answer itself (Allow shared code…), so the sentence names it
+      return `This Mac hasn't allowed shared code from this project yet (${file}). Nothing is lost. Allow shared code to open it.`;
     case 'too-large':
       return `${file} is too big to sync, so it can't reach this Mac. Nothing is lost.`;
     case 'quota':
@@ -158,6 +159,22 @@ export function buildFailureReason(b) {
       return 'The build ran out of memory';
     case 'imports-refused':
       return `${num(b.count)} ${b.count === 1 ? 'import' : 'imports'} refused`;
+    default:
+      return '';
+  }
+}
+
+// ── 2.0.7: the load stopped and the server recorded nothing ──────────────────────────────────────
+
+/** Which of the studio's own waits ran out (`canvasError.reason`), in words; '' when unknown. */
+export function loadReasonWords(reason) {
+  switch (reason) {
+    case 'slow':
+      return "It didn't finish opening within a minute";
+    case 'no-shell':
+      return "Its frame didn't start within 15 seconds";
+    case 'frame':
+      return 'It stopped loading before it was drawn';
     default:
       return '';
   }

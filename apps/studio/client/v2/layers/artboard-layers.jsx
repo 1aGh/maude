@@ -26,24 +26,42 @@ const ICON = { digital: DigitalIcon, web: WebIcon, print: PrintIcon, video: Vide
 export const artboardCountWords = (n) => (n === 1 ? '1 artboard' : `${n} artboards`);
 
 /**
- * Which row the tree goes under: the artboard the tree is of, else the selection's, else none.
- * @param {{ boards?: Array<{ id: string }>, treeArtboard?: string|null, selectedArtboard?: string|null }} p
+ * Which row is marked (aria-current) and holds the tree: the artboard the person is on (`onBoard` — the page in
+ * Pages, else the selection's artboard on this canvas: `artboardInView`), else the selection's, else the artboard the
+ * tree is of (browse mode: the tree follows the artboard in view), else none. 2.0.7 fix (decision
+ * `v2-207-layers-current`): the tree's artboard used to come FIRST, so a tree that was late or for another artboard
+ * marked the wrong row about half the time.
+ * @param {{ boards?: Array<{ id: string }>, onBoard?: string|null, treeArtboard?: string|null,
+ *   selectedArtboard?: string|null }} p
  */
-export function currentBoard({ boards = [], treeArtboard = null, selectedArtboard = null }) {
-  for (const id of [treeArtboard, selectedArtboard])
+export function currentBoard({
+  boards = [],
+  onBoard = null,
+  treeArtboard = null,
+  selectedArtboard = null,
+}) {
+  for (const id of [onBoard, selectedArtboard, treeArtboard])
     if (id && boards.some((b) => b.id === id)) return id;
   return null;
 }
 
+/** The tree to draw under row `current`: only its own artboard's (no row marked: the tree as it is). */
+export function treeOfBoard(tree, current) {
+  if (!current) return tree ?? null;
+  return tree && tree.artboardId === current ? tree : null;
+}
+
 /**
  * @param {{ boards?: Array<{ id: string, label?: string, kind?: string }>, canvasName?: string,
- *   count?: number, current?: string|null, onPick?: (artboardId: string) => void, children?: any }} props
+ *   count?: number, current?: string|null, pending?: boolean, onPick?: (artboardId: string) => void,
+ *   children?: any }} props — `pending`: the current row's own tree has not landed yet (the row says it is busy)
  */
 export function ArtboardLayers({
   boards,
   canvasName = '',
   count,
   current = null,
+  pending = false,
   onPick,
   children,
 }) {
@@ -80,6 +98,7 @@ export function ArtboardLayers({
                   data-testid={`layers-artboard-${b.id}`}
                   data-kind={b.kind || 'digital'}
                   aria-current={on ? 'true' : undefined}
+                  aria-busy={on && pending ? 'true' : undefined}
                   title={b.label || b.id}
                   onClick={() => onPick?.(b.id)}
                 >

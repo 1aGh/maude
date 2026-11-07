@@ -22,7 +22,9 @@ import { menuRunner } from '../v2/shell/menu-runner.js';
 import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
 import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
 import { roleRefuses } from '../v2/shell/role-gate.js';
-import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
+import { ROLE_DENIAL, usePagesArtboard, usePagesView } from '../v2/shell/use-canvas-mode-lane.js';
+import { artboardInView } from '../v2/left-panel/left-panel-model.js';
+import { useLayersTreeRequest } from '../v2/layers/layers-request.js';
 import { bindPaletteEnv, sendToAskAI } from '../v2/search/search-env.js';
 import { desktopProjectsEnv } from '../v2/search/search-projects.js';
 import { actionSearchRows, settingsSearchRows } from '../v2/search/search-model.js';
@@ -334,6 +336,19 @@ export function usePaletteAndPanels({
   const clipRowsVersion = useClipRowsVersion(); // S7.16 — the clips of the video on the timeline, by name
   // p8-v1-drop — the systems offered "Bring it up to the schema" (the Canvases panel publishes them)
   const dsUpgradeOffers = useSyncExternalStore(onUpgradeOffers, upgradeOffersKey, upgradeOffersKey);
+  const pagesOn = usePagesView(); // 2.0.7 B2 — Preview / Present greyed, Next / Previous page on
+  const pagesAt = usePagesArtboard(); // 2.0.7 polish — the artboard on the page: the left panel marks it
+  // 2.0.7 fix (decision `v2-207-layers-current`) — Layers marks the artboard you are on and draws only its tree; a
+  // tree in hand for another artboard (late, or re-posted by the canvas) is answered by asking again for this one
+  const layersOnArtboard = artboardInView({ selected, activePath, pagesAt });
+  useLayersTreeRequest({
+    activePath,
+    want: layersOnArtboard,
+    have: layersTree ? (layersTree.artboardId ?? null) : null,
+    post: postToActiveCanvas,
+    delay: 400,
+    skip: activePath === SYSTEM_TAB,
+  });
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => openNewCanvasDialog(),
@@ -389,6 +404,7 @@ export function usePaletteAndPanels({
       linkedHub: !!cloudLinkedHub?.url,
       // p8-v1-drop — "Bring it up to the schema" is a ⌘K row while a system is below Conformant
       dsUpgradeOffered: dsUpgradeOffers !== '',
+      pagesView: pagesOn,
     });
     // V2-4 gate (design blocker 6): a row's key is the registry's live chord in this shell, written by
     // `formatChord` (⌥⇧⌘), or none — never v1's display string (New canvas "N" was Sticky's key, the
@@ -466,6 +482,7 @@ export function usePaletteAndPanels({
     return [...v1, ...menuRows, ...leftRows, ...searchRows];
   }, [
     dsUpgradeOffers,
+    pagesOn,
     cfg.cloud,
     viewerMode,
     activePath,
@@ -639,11 +656,9 @@ export function usePaletteAndPanels({
           onDuplicateCanvas={duplicateCanvasReq}
           onDeleteFile={deleteFileReq}
           onCopyLink={copyCanvasLink}
-          // S1.3 — the artboard in view on the open canvas, so the jump list can highlight it
-          activeArtboard={(() => {
-            const sel = Array.isArray(selected) ? selected[0] : selected;
-            return sel && sel.file === activePath ? (sel.artboardId ?? null) : null;
-          })()}
+          // S1.3 — the artboard in view on the open canvas, so the jump list can highlight it (2.0.7 polish: in
+          // Pages, the artboard on the page)
+          activeArtboard={artboardInView({ selected, activePath, pagesAt })}
           onRefresh={refreshTree}
           onToggleShowHidden={() => menuRunner.run('view.hidden-files')}
           refreshing={treeRefreshing}
@@ -793,6 +808,8 @@ export function usePaletteAndPanels({
           // gate-b-polish3 — Layers by artboard: the open canvas's artboards, its name, a row selects one
           layersBoards={id === 'layers' && activeCanvasFile ? boardLabels.get(activePath) : null}
           layersCanvasName={activeCanvasFile ? displayName(basename(activeCanvasFile)) : ''}
+          // 2.0.7 fix — the artboard you are on (the page in Pages, else the selection's): Layers marks it
+          layersArtboard={layersOnArtboard}
           onSelectArtboard={(artboardId) => postToActiveCanvas({ dgn: 'select-by-id', artboardId })}
           onSelectBySelector={(selector) =>
             postToActiveCanvas({ dgn: 'select-by-selector', v: 1, selector })

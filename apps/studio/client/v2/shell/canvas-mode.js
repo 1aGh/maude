@@ -61,6 +61,10 @@ export function createShellMode(caps = ALL_CAPS) {
     position: null,
     media: null,
     viewing: null,
+    // 2.0.7 B2 — the active canvas shows Pages (canvas-pages.ts, told over `pages-view`): Preview and Present are
+    // off meanwhile, like the Viewing hold refuses them. The canvas owns the view; this is only its echo.
+    pages: false,
+    pagesAt: null,
   });
   const subs = new Set();
   const emit = (next) => {
@@ -78,6 +82,7 @@ export function createShellMode(caps = ALL_CAPS) {
      *  presenting leaves Present for it. Present itself goes through `present(spec)`. */
     select(mode, { tool = null } = {}) {
       if (mode === 'present' || snap.viewing) return; // S1.14: a past version holds the mode
+      if (mode === 'preview' && snap.pages) return; // 2.0.7 B2: Pages holds Preview off
       emit({ mode, tool, nonce: snap.nonce + 1, ...notPresenting });
     },
     /**
@@ -102,6 +107,17 @@ export function createShellMode(caps = ALL_CAPS) {
       });
       return true;
     },
+    /**
+     * 2.0.7 B2 — the active canvas says whether it shows Pages (a new active canvas starts at false); 2.0.7 polish —
+     * and which artboard is on the page (`at`, the left panel marks it; null when off or not said).
+     */
+    pages(on, at = null) {
+      const next = on === true;
+      const nextAt = next && typeof at === 'string' && at ? at : null;
+      if (snap.pages === next && (snap.pagesAt ?? null) === nextAt) return false;
+      emit({ pages: next, pagesAt: nextAt });
+      return true;
+    },
     /** esc / "back to now" / a restore: leave the hold. */
     leaveViewing() {
       if (!snap.viewing) return false;
@@ -110,7 +126,7 @@ export function createShellMode(caps = ALL_CAPS) {
     },
     /** Enter Present (Artboards or the Canvas). Already presenting: nothing (esc leaves first). */
     present(spec) {
-      if (snap.mode === 'present' || snap.viewing) return false;
+      if (snap.mode === 'present' || snap.viewing || snap.pages) return false;
       emit({
         mode: 'present',
         tool: null,

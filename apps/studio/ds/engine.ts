@@ -38,6 +38,7 @@ import { atomicWrite } from '../sync/atomic-write.ts';
 import { modesOf } from './board/types.ts';
 import { followedDark } from './contrast.ts';
 import { canvasSystemFor } from './ds-resolver.ts';
+import { withFolderSystems } from './folder-systems.ts';
 import {
   type ComponentEdit,
   emitTokensJson,
@@ -419,8 +420,9 @@ export function createDsEngine(opts: EngineOptions) {
     return readJsonObj(path.join(designRoot, 'config.json')) ?? {};
   }
 
+  // 2.0.7 — the configured systems, then the folder-owned ones (ds/folder-systems.ts)
   function systems(): SystemConfig[] {
-    return systemConfigsFrom(config());
+    return systemConfigsFrom(withFolderSystems(config(), designRoot));
   }
 
   function system(ds: string): SystemConfig {

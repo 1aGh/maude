@@ -173,12 +173,22 @@ describe('a sign-in response cannot turn it on', () => {
 describe('the sync runtime reads the gate from here', () => {
   test('allowCodeModules comes from codeModuleConsent, not a hub-written field', async () => {
     const src = await Bun.file(join(import.meta.dir, '..', 'sync', 'index.ts')).text();
-    const at = src.search(/const allowCodeModules\s*=/);
+    // fix/207 — live: the runtime's control, read at every gate
+    const at = src.search(/const codeConsent\s*=/);
     expect(at).toBeGreaterThan(-1);
     const stmt = src.slice(at, src.indexOf(';', at));
-    expect(stmt).toMatch(/^const allowCodeModules\s*=\s*codeModuleConsent\(\{/);
+    expect(stmt).toMatch(/^const codeConsent\s*=\s*createCodeConsentControl\(\{/);
     expect(stmt).toContain('hubUrl: linkedHub.url');
     expect(stmt).toContain('env: process.env');
     expect(stmt).not.toContain('role');
+    expect(src).toMatch(/const allowCodeModules = \(\): boolean => codeConsent\.allowed\(\);/);
+    // …and the control decides through codeModuleConsent over the LOCAL record only
+    const ctl = await Bun.file(
+      join(import.meta.dir, '..', 'sync', 'code-module-consent.ts')
+    ).text();
+    const body = ctl.slice(ctl.indexOf('export function createCodeConsentControl'));
+    expect(body).toContain('codeModuleConsent({');
+    expect(body).toContain('getHubRecord(o.hubUrl, o.hubsPath)');
+    expect(body).not.toMatch(/\.role\b/);
   });
 });

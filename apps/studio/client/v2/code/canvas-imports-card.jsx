@@ -12,12 +12,16 @@
 // canvas and the index reports them (`canvasRefusedInputs`, canvas-url.js `canvasRefusedOf`): the card names
 // them too — "This canvas uses <file>, which belongs to another canvas."
 
-import { canvasImportsText } from './canvas-imports-words.js';
+import { canvasImportsText, canvasMissingText } from './canvas-imports-words.js';
 
 export { canvasImportsText };
 
-export function CanvasImportsCard({ imports, refused, componentDir }) {
-  const { title, also, body } = canvasImportsText(imports, componentDir, refused);
+export function CanvasImportsCard({ imports, refused, missing, componentDir }) {
+  // 2.0.7 — a canvas whose only trouble is a missing import names that file (canvasMissingText)
+  const onlyMissing = !imports?.length && !refused?.length && missing?.length;
+  const { title, also, body } = onlyMissing
+    ? canvasMissingText(missing)
+    : canvasImportsText(imports, componentDir, refused);
   return (
     <div className="sh-canvas-error-card" data-testid="canvas-imports-card">
       <div className="sh-canvas-error-title">{title}</div>

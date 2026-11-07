@@ -33,6 +33,7 @@ import { isRuntimeStateRel } from '../sync/file-membership.ts';
 import { canvasContext } from './canvas-cli.ts';
 import { checkSystem } from './check.ts';
 import { emitTokensJson } from './emit.ts';
+import { adoptFolderSystem } from './folder-systems.ts';
 import { indexRegistry, loadRegistry } from './registry.ts';
 import { diskFs, loadSystem, type SystemConfig, systemConfigsFrom } from './system.ts';
 import {
@@ -286,14 +287,17 @@ export function stageUpgrade(inp: StageInput): StageResult {
     const conformantAfter = report.reasons.length === 0;
     if (conformantAfter) {
       const liveConfig = readJson(join(inp.designRoot, 'config.json'));
-      const list = liveConfig.designSystems as Record<string, unknown>[];
+      // 2.0.7 — a folder-owned system gets its schema flag on its adopted entry (ds/folder-systems.ts)
+      adoptFolderSystem(inp.designRoot, liveConfig, cfg.name);
+      const list = (liveConfig.designSystems ?? []) as Record<string, unknown>[];
       const entry = list.find((s) => s && s.name === cfg.name);
       if (entry && entry.schema !== 1) {
         entry.schema = 1;
         const text = jsonText(liveConfig);
         // the staged copy keeps its own linkedHub-free config, with the same schema flag
         const staged = readJson(join(after, 'config.json'));
-        const se = (staged.designSystems as Record<string, unknown>[]).find(
+        adoptFolderSystem(after, staged, cfg.name);
+        const se = ((staged.designSystems ?? []) as Record<string, unknown>[]).find(
           (s) => s && s.name === cfg.name
         );
         if (se) se.schema = 1;

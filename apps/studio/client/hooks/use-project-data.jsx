@@ -24,8 +24,14 @@ export function useProjectData({
   const loadTree = useCallback(() => treeLoaderRef.current?.reload() ?? Promise.resolve(), []);
   useEffect(() => {
     const loader = createIndexLoader({
-      read: async (signal) => {
-        const r = await fetch('/_index-data', { signal, cache: 'no-store' });
+      // #207 — `fresh`: the last answer was a previous run's copy (`indexStale`); this one waits
+      // for the server's own build. `partial`: on the first open ever (no copy) the bare listing may
+      // answer first (`indexPartial`, also `indexStale`): the tree is drawn, the details follow.
+      read: async (signal, { fresh } = { fresh: false }) => {
+        const r = await fetch(fresh ? '/_index-data?fresh=1' : '/_index-data?partial=1', {
+          signal,
+          cache: 'no-store',
+        });
         if (!r.ok)
           throw Object.assign(new Error(`Project index request failed: ${r.status}`), {
             status: r.status,
@@ -37,6 +43,7 @@ export function useProjectData({
         }));
         return { data, built };
       },
+      isStale: ({ data }) => data?.indexStale === true,
       apply: ({ data, built }) => {
         setProject(data.project || 'Design');
         setGroups(built);
@@ -65,6 +72,8 @@ export function useProjectData({
           canvasImportsCanvases: data.canvasImportsCanvases ?? {},
           // 2.0.5 (#205) — canvases whose built module was refused for a file another canvas owns.
           canvasRefusedInputs: data.canvasRefusedInputs ?? {},
+          // 2.0.7 — canvases with an import that resolves to no file: the stage names it (viewport.jsx).
+          canvasMissingImports: data.canvasMissingImports ?? {},
         }));
       },
       onError: (error) => {

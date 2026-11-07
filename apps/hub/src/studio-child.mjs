@@ -207,6 +207,9 @@ export const BUILD_KNOBS = Object.freeze({
   MAUDE_CANVAS_MODULE_CACHE_MB: [4, 4_096],
   MAUDE_CANVAS_VERSION_CACHE_MB: [4, 4_096],
   MAUDE_CANVAS_SANDBOX_CACHE_MB: [4, 4_096],
+  /** 2.0.7 (#3) — canvas builds that run at once across all canvases (canvas-build-sandbox.ts
+   *  `BUILD_CONCURRENCY`, default 2); a bigger host can raise it. */
+  MAUDE_CANVAS_BUILD_CONCURRENCY: [1, 16],
 });
 
 const warnedKnobs = new Set();

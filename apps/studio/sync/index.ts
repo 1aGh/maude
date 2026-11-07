@@ -67,7 +67,7 @@ import {
   resolveCanvasBodyRel,
 } from './canvas-path.ts';
 import { type CellPairing, resolveCellPairing, sanitizeForLog } from './cell-pairing.ts';
-import { codeModuleConsent } from './code-module-consent.ts';
+import { type CodeConsentControl, createCodeConsentControl } from './code-module-consent.ts';
 import {
   canvasPathFromDoc,
   clearMovedTo,
@@ -90,7 +90,12 @@ import { createDocNameResolver } from './doc-name.ts';
 import { createDocumentDiscovery } from './document-discovery.ts';
 import { createEchoGuard, hashBytes } from './echo-guard.ts';
 import { createFileLedger } from './file-ledger.ts';
-import { createFilePlane, MAX_DORUCEKA_ROWS } from './file-plane.ts';
+import {
+  createFilePlane,
+  DELETE_BUDGET_WINDOW_MS,
+  MAX_DORUCEKA_ROWS,
+  normalizeIgnoreFolders,
+} from './file-plane.ts';
 import {
   createLegacyPullGate,
   createPullFailureMemory,
@@ -107,10 +112,11 @@ import {
   withFormatParam,
 } from './format-sync.ts';
 import { createFsReader, type FsReader } from './fs-mirror.ts';
+import { createHeldDeletes, type HeldDeletesControl, heldDeleteDetail } from './held-deletes.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
 import { HUB_UNDO_READ_MAX_BYTES, hubTextUndoConflict } from './hub-text-undo.ts';
-import { accessFor, getHubRecord } from './hubs-config.ts';
+import { accessFor, getHubRecord, watchHubsConfig } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
 import {
   hasAnnotationsV2,
@@ -155,7 +161,13 @@ import {
   tombstonedSlugs,
 } from './remote-docs.ts';
 import { createRevisionBarrier } from './revision-barrier.ts';
-import { computeSeedProgress } from './seed-progress.ts';
+import {
+  codeConsentHeldDetail,
+  codeConsentHeldPaths,
+  computeSeedProgress,
+  heldWords,
+} from './seed-progress.ts';
+import { livePropagateDeletes, readSyncSettings } from './settings.ts';
 import { mergeSource } from './source-merge.ts';
 import { replaySourceOp, type SourceOp } from './source-ops.ts';
 import { createSyncStatusStore, type FilePlaneStatus, type SyncStatusStore } from './status.ts';
@@ -586,6 +598,10 @@ export interface SyncRuntime {
    * schedule. Test seam, and the hook behind a manual "check now".
    */
   pullRemoteNow(): Promise<void>;
+  /** fix/207 — this runtime's live shared-code consent (the in-app sheet's control). */
+  codeConsent?(): CodeConsentControl | null;
+  /** Issue #207 (7b) — the held local deletes and the person's answer (Sync details). */
+  heldDeletes?(): HeldDeletesControl | null;
   /** Number of active per-canvas agents. */
   size(): number;
   /** Test inspection — get the agent for a slug if one was created. */
@@ -1107,6 +1123,12 @@ export function createSyncRuntime(
     : ctx.cfg.linkedHub;
   if (!linked) return null;
   const linkedHub = linked;
+  /**
+   * Issue #207 — folders this project does not sync, read from the project config per pass (a
+   * choice made mid-upload applies at the next pass; cleaned, so a committed `..` entry is dropped).
+   */
+  const planeIgnoreFolders = (): string[] =>
+    normalizeIgnoreFolders(readSyncSettings(ctx.paths.repoRoot)?.ignoreFolders);
   // p8-hub-folder-boundary — a hub's own studio, while the owner has declared no
   // canvas folders, takes and scans every folder the hub's kernel takes. Read per
   // call: the owner may declare groups mid-session (the project-config door), and
@@ -1290,13 +1312,17 @@ export function createSyncRuntime(
   // (2.0.4) the Maude Cloud cell the desktop app itself bound this copy to
   // (`MAUDE_APP_BOUND_HUB` + the compiled-in cell zone; never a committed
   // linkedHub, never a self-hosted hub). See sync/code-module-consent.ts.
-  const allowCodeModules =
-    codeModuleConsent({
-      cellPairing: cellPairing !== null,
-      hubUrl: linkedHub.url,
-      storedRecord,
-      env: process.env,
-    }) !== null;
+  //
+  // fix/207 — LIVE, not fixed at boot: the person can answer in the app (Sync details / the
+  // canvas-waiting card → `POST /_api/sync/code-consent/set`) or re-link in a terminal, and the
+  // next pass admits what was held (the file plane reads `allowCodeModules()` at every gate).
+  // The control re-reads the profile's hubs.json through `getHubRecord` — the same local record.
+  const codeConsent = createCodeConsentControl({
+    cellPairing: cellPairing !== null,
+    hubUrl: linkedHub.url,
+    env: process.env,
+  });
+  const allowCodeModules = (): boolean => codeConsent.allowed();
   // Same shape of consent for the OUTBOUND delete breaker: only what this
   // machine's owner recorded (`maude design bulk-deletes on`), never the hub.
   const unlimitedDeletes = storedRecord?.unlimitedDeletes === true;
@@ -1937,6 +1963,8 @@ export function createSyncRuntime(
    * Built with the plane; never in a cell (a cell IS the hub).
    */
   let heldReporter: ReturnType<typeof createHeldReporter> | null = null;
+  /** Issue #207 (7b) — Delete on the hub too / Keep on the hub, for the held local deletes. */
+  let heldDeletesControl: HeldDeletesControl | null = null;
   /** Cumulative files sent up this boot — the doručenka's push half. */
   let filePushed = 0;
   /** Debounce for a plane pass triggered by a local write. */
@@ -1950,6 +1978,7 @@ export function createSyncRuntime(
   let pokesSeen = 0;
   /** Assigned by `start()`; the seam `pullRemoteNow()` and tests reach. */
   let remotePull: (() => Promise<void>) | null = null;
+  let codeConsentUnwatch: (() => void) | null = null;
   let documentDiscovery: ReturnType<typeof createDocumentDiscovery> | null = null;
   let documentDiscoveryUnsub: (() => void) | null = null;
   /**
@@ -5314,7 +5343,9 @@ export function createSyncRuntime(
       // Issue #204 — rows this Mac refuses are HELD, not waiting: they never move on their own, so
       // the line says how many and why instead of "N waiting" every 20 s forever.
       const held = p.held ?? 0;
-      if (held > 0) bits.push(`${held} held: shared code not accepted on this Mac`);
+      // fix/207 — one phrase per reason: a PNG deleted here is never "shared code" (Michal's
+      // 6 942 "held: shared code not accepted" were mostly render PNGs moved out of the project).
+      if (held > 0) bits.push(...heldWords(p));
       if (r.backedOff) bits.push(`${r.backedOff} backing off`);
       if (r.storageMisses) bits.push(`${r.storageMisses} still coming from cloud storage`);
       // NOTHING MOVING ⇒ SAY IT ONCE. A converged or only-held/blocked project prints its line when
@@ -5428,6 +5459,18 @@ export function createSyncRuntime(
       // target user never opens a terminal — so a control whose only output
       // is a log line is a control nobody can act on.
       const held = filePlaneHeld(result);
+      // fix/207 — what THIS Mac holds by its own answer, with the one place to change it (Sync
+      // details' "Allow shared code…"). Not while allowed: the next pass is already bringing them.
+      if (!allowCodeModules()) {
+        const codeHeld = codeConsentHeldPaths(fileLedger?.rows() ?? {});
+        if (codeHeld.length > 0)
+          held.push({
+            kind: 'code-consent',
+            count: codeHeld.length,
+            paths: codeHeld.slice(0, 200),
+            detail: codeConsentHeldDetail(codeHeld.length),
+          });
+      }
       // THE DENOMINATOR, from the LEDGER — not from this pass.
       //
       // `fileTotals` below is derived from per-pass results, and a pass that
@@ -5461,6 +5504,8 @@ export function createSyncRuntime(
       // Read once: calling it inside the spread evaluated it twice and made
       // its `null` case the object's type.
       const blockedMedia = filePlane?.blocked() ?? null;
+      const ignoreFoldersNow = planeIgnoreFolders();
+      const purgeNow = heldDeletesControl?.view().purge ?? null;
       statusStore?.updateFiles?.({
         ...fileTotals,
         pushed: filePushed,
@@ -5490,6 +5535,11 @@ export function createSyncRuntime(
               },
             }
           : {}),
+        // Issue #207 — a render sequence going up, and the folders the project leaves out.
+        ...(result.largeSequences ? { largeSequences: result.largeSequences } : {}),
+        ...(ignoreFoldersNow.length > 0 ? { ignoreFolders: ignoreFoldersNow } : {}),
+        // Issue #207 (7b) — an owner purge of held deletes in progress (or why it stopped).
+        ...(purgeNow ? { deletePurge: purgeNow } : {}),
       });
       if (result.rateLimited) {
         // Once per boot (the store dedupes by id): a pause is not an error,
@@ -5552,7 +5602,7 @@ export function createSyncRuntime(
           hubUrl: linkedHub.url,
           token: () => token,
           canvasGroups: ctx.cfg.canvasGroups,
-          allowCodeModules,
+          allowCodeModules: allowCodeModules(),
           failures: legacyPullFailures,
         }).then((result) => {
           if (!stopped) noteFilePull(result);
@@ -5584,6 +5634,13 @@ export function createSyncRuntime(
       await discovery.flush();
       await pullFilesOnce();
     };
+    // fix/207 — an answer written by ANOTHER writer (a terminal re-link, a second window) is taken
+    // the same way as the in-app one: re-read, and a changed answer runs a pass at once.
+    if (!cellPairing) {
+      codeConsentUnwatch = watchHubsConfig(() => {
+        if (codeConsent.refresh() && !stopped) void remotePull?.().catch(() => {});
+      });
+    }
     remotePollTimer = setInterval(pollRemote, REMOTE_POLL_MS);
     // `setInterval` keeps a Bun process alive; a poll is not a reason for the
     // dev server to refuse to exit.
@@ -5988,7 +6045,10 @@ export function createSyncRuntime(
                 // deletes contradicts the model it is selling — you delete a
                 // file and it comes back. `linkedHub.propagateDeletes: false`
                 // is the per-project opt-out; the breakers hold either way.
-                propagateDeletes: linkedHub.propagateDeletes !== false,
+                // Issue #207 — read every pass (like the ignore list): a change in config.json
+                // applies at the next pass, not at the next restart.
+                propagateDeletes: () =>
+                  livePropagateDeletes(ctx.paths.repoRoot, linkedHub.propagateDeletes !== false),
                 // The answer to a first-anchor hold. A config key rather than a
                 // prompt because the hold outlives the pass that raised it, and
                 // DDR-177's user has no terminal to answer in.
@@ -5996,6 +6056,8 @@ export function createSyncRuntime(
                 linkedHub.resolveFirstAnchor === 'keep-cloud'
                   ? { resolveFirstAnchor: linkedHub.resolveFirstAnchor }
                   : {}),
+                // Issue #207 — folders the project does not sync (Sync details › Don't sync this folder).
+                ignoreFolders: planeIgnoreFolders,
                 // Same exposure class as `syncMeta.by`, and the same reasoning:
                 // a conflict copy nobody can attribute is a conflict copy nobody
                 // resolves.
@@ -6009,6 +6071,21 @@ export function createSyncRuntime(
                 send: (rels) =>
                   reportHeld({ fetchImpl: hubFetch, base: linkedHub.url, token, rels }),
               });
+              // Issue #207 (7b) — the answer to "Deleted on this Mac, held". The role only decides
+              // which door to TRY (the hub's own check decides the rest); the count of deletes this
+              // Mac sent is its ledger's outbound window.
+              {
+                const ledgerNow = fileLedger;
+                heldDeletesControl = createHeldDeletes({
+                  plane: () => filePlane,
+                  sentInWindow: () => ledgerNow.deletesInWindow('out', DELETE_BUDGET_WINDOW_MS),
+                  isOwner: () => isProjectOwner,
+                  hubUrl: linkedHub.url,
+                  token: () => token,
+                  fetchImpl: hubFetch,
+                  runPass: () => schedulePlanePass(),
+                });
+              }
               console.log(
                 '[sync/files] journal file plane active — one lane, both directions, per-file delivery state in the Sync panel.'
               );
@@ -6087,6 +6164,7 @@ export function createSyncRuntime(
     fileLedger = null;
     filePlane = null;
     heldReporter = null;
+    heldDeletesControl = null;
     // The control channel is a doorbell into this runtime; it goes with it.
     // Reported on the way out so the poke-miss question is answerable from a
     // session's log rather than from a hunch (DDR-226 §10).
@@ -6129,6 +6207,8 @@ export function createSyncRuntime(
     documentDiscoveryUnsub?.();
     documentDiscoveryUnsub = null;
     projectConfigUnsub?.();
+    codeConsentUnwatch?.();
+    codeConsentUnwatch = null;
     documentDiscovery?.stop();
     documentDiscovery = null;
     remotePull = null;
@@ -6273,6 +6353,8 @@ export function createSyncRuntime(
       }),
     rescanNow: () => discoveryRescan?.flush() ?? Promise.resolve(),
     pullRemoteNow: () => remotePull?.() ?? Promise.resolve(),
+    codeConsent: () => codeConsent,
+    heldDeletes: () => heldDeletesControl,
     // Under sharedDoc the per-canvas handler is a projection, not an agent;
     // count both so size() reflects the synced-canvas count in either mode.
     size: () => agents.size + projections.size,
@@ -6938,9 +7020,11 @@ export function filePlaneHeld(
       kind: result.deleteHeld.direction === 'out' ? 'delete-out' : 'delete-in',
       count: result.deleteHeld.count,
       paths: result.deleteHeld.paths,
+      ...(result.deleteHeld.folders ? { folders: result.deleteHeld.folders } : {}),
       detail:
         result.deleteHeld.direction === 'out'
-          ? `${result.deleteHeld.count} files are gone from this machine — more than sync will remove from the project without you saying so. Nothing was deleted anywhere else. Set linkedHub.propagateDeletes: false to stop asking, or delete them again once you have confirmed this was deliberate.`
+          ? // Issue #207 (7b) — the row's two buttons are the answer (Delete on the hub too · Keep on the hub).
+            heldDeleteDetail(result.deleteHeld.count, result.deleteHeld.folders ?? [])
           : `The project wants to remove ${result.deleteHeld.count} files here — more than sync will delete without you saying so. Nothing was removed. They stay until you accept or the project puts them back.`,
     });
   }

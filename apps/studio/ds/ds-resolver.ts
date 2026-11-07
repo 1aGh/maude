@@ -14,6 +14,12 @@ import path from 'node:path';
 import type { BunPlugin } from 'bun';
 import { DEV_SERVER_ROOT } from '../paths.ts';
 import { boardDeps, buildBoardModel } from './board/build-model.ts';
+import {
+  folderOwnedSystems,
+  folderSystemEntry,
+  folderSystemOf,
+  pinnedFolderSystem,
+} from './folder-systems.ts';
 import { type SystemConfig, systemConfigsFrom } from './system.ts';
 
 export const DS_SPECIFIER = '@maude/ds';
@@ -84,19 +90,52 @@ function readJson(abs: string): Record<string, unknown> | null {
 
 const metaPathFor = (canvasAbs: string) => canvasAbs.replace(/\.tsx$/, '.meta.json');
 
-/** The design system a canvas renders under, or null when the project declares none. */
+// the one rule, re-exported for the callers that import it from here
+export { folderSystemOf };
+
+/** The `SystemConfig` of a folder-owned system: its themes and root class read from its tokens. */
+function folderSystemConfig(
+  designRoot: string,
+  config: Record<string, unknown>,
+  folder: { name: string; path: string }
+): SystemConfig {
+  const [sys] = systemConfigsFrom({
+    ...config,
+    designSystems: [folderSystemEntry(designRoot, folder)],
+  });
+  return sys as SystemConfig;
+}
+
+/**
+ * The design system a canvas renders under, or null when the project has none. Owner by path →
+ * 2.0.7 owner by its own folder → `meta.designSystem` (a configured system, else a folder system
+ * of exactly that name) → `defaultDesignSystem` → the first system of the merged list (the first
+ * configured one whenever the config lists any). A pin to a name with no system stays at the
+ * default: a name never invents a path.
+ */
 export function canvasSystemFor(designRoot: string, canvasAbs: string): SystemConfig | null {
-  const systems = systemConfigsFrom(readJson(path.join(designRoot, 'config.json')) ?? {});
-  if (!systems.length) return null;
+  const config = readJson(path.join(designRoot, 'config.json')) ?? {};
+  const systems = systemConfigsFrom(config);
   const rel = path.relative(designRoot, canvasAbs).split(path.sep).join('/');
   const owner = systems.find((s) => rel.startsWith(`${s.path}/`));
   if (owner) return owner;
-  const declared = readJson(metaPathFor(canvasAbs))?.designSystem;
-  const byMeta = typeof declared === 'string' ? systems.find((s) => s.name === declared) : null;
+  const hasFile = (r: string) => existsSync(path.join(designRoot, ...r.split('/')));
+  const folder = folderSystemOf(rel, systems, hasFile);
+  if (folder) return folderSystemConfig(designRoot, config, folder);
+  const named = (name: unknown): SystemConfig | null => {
+    if (typeof name !== 'string' || !name) return null;
+    const configured = systems.find((s) => s.name === name);
+    if (configured) return configured;
+    const pinned = pinnedFolderSystem(name, systems, hasFile);
+    return pinned ? folderSystemConfig(designRoot, config, pinned) : null;
+  };
+  const byMeta = named(readJson(metaPathFor(canvasAbs))?.designSystem);
   if (byMeta) return byMeta;
-  const config = readJson(path.join(designRoot, 'config.json')) ?? {};
-  const def = typeof config.defaultDesignSystem === 'string' ? config.defaultDesignSystem : null;
-  return systems.find((s) => s.name === def) ?? systems[0];
+  const byDefault = named(config.defaultDesignSystem);
+  if (byDefault) return byDefault;
+  if (systems.length) return systems[0] as SystemConfig;
+  const [first] = folderOwnedSystems(designRoot, systems);
+  return first ? folderSystemConfig(designRoot, config, first) : null;
 }
 
 const overridePath = (designRoot: string, sys: SystemConfig) =>
@@ -194,6 +233,17 @@ export function dsResolver(designRoot: string, canvasAbs: string): BunPlugin {
 export function dsDepsFor(source: string, canvasAbs: string, designRoot: string): string[] {
   if (!usesDs(source)) return [];
   const deps = [metaPathFor(canvasAbs), path.join(designRoot, 'config.json')];
+  // 2.0.7 — a pin to a system the config does not list resolves once its folder's Design system
+  // canvas arrives (a cell gets it as files), so that file appearing is a change too
+  const declared = readJson(metaPathFor(canvasAbs))?.designSystem;
+  if (
+    typeof declared === 'string' &&
+    /^[^/\\._][^/\\]*$/.test(declared) &&
+    !systemConfigsFrom(readJson(path.join(designRoot, 'config.json')) ?? {}).some(
+      (s) => s.name === declared
+    )
+  )
+    deps.push(path.join(designRoot, 'system', declared, 'design-system.tsx'));
   const sys = canvasSystemFor(designRoot, canvasAbs);
   if (sys && importsDs(source)) deps.push(overridePath(designRoot, sys));
   if (sys && importsDsBoard(source)) {

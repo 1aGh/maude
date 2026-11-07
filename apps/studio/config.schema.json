@@ -276,6 +276,12 @@
           "default": true,
           "description": "Sync v2 — the journal-driven file plane (Plane B): the downward project-file pull AND the widened upward sweep. Default ON; set false to fall back to the pre-Sync-v2 reach (binary media under assets/ only). Settable from the Sync panel's Settings section."
         },
+        "ignoreFolders": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "uniqueItems": true,
+          "description": "Issue #207 — design-root-relative folders this project does not sync (Sync details › Don't sync this folder). Nothing under them moves in either direction and what the workspace already holds stays there; the file plane reports their files as ignored, never as waiting. Absolute and '..' entries are dropped. Read at the start of every file-plane pass."
+        },
         "propagateDeletes": {
           "type": "boolean",
           "default": true,

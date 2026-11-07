@@ -21,6 +21,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { withFolderSystems } from './folder-systems.ts';
 import { type SystemConfig, systemConfigsFrom } from './system.ts';
 
 const NAME_RE = /^--[A-Za-z0-9_-]{1,64}$/;
@@ -113,7 +114,7 @@ export function pairingCssFor(
 ): string {
   if (!query) return '';
   const tokensRel = query.get('tokens');
-  const sys = systemForTokens(config, tokensRel);
+  const sys = systemForTokens(withFolderSystems(config, designRoot), tokensRel);
   if (!sys || !tokensRel) return '';
   const rel = canvasRelOf(designRoot, query);
   if (!rel) return '';

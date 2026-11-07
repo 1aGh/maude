@@ -183,15 +183,21 @@ describe("a canvas starts in its design system's own default theme", () => {
 });
 
 describe('the pick is remembered per canvas, per Mac — through the view lane, never the meta', () => {
-  test('a press sends ONE patch holding only `canvasTheme` for this canvas', async () => {
+  test('a press tells the studio ONE theme-pick (the shell writes the view file — b2-theme-pick)', async () => {
+    const posts: Array<Record<string, unknown>> = [];
+    Object.defineProperty(window, 'parent', {
+      configurable: true,
+      get: () => ({ postMessage: (m: Record<string, unknown>) => posts.push(m) }),
+    });
     await mountCanvas();
     nameCanvas();
     await press(mode('dark'));
-    expect(metaWrites()).toHaveLength(1);
-    expect(metaWrites()[0].body).toEqual({
-      file: '.design/ui/themed.tsx',
-      patch: { canvasTheme: 'dark' },
-    });
+    Object.defineProperty(window, 'parent', { configurable: true, get: () => window });
+    // the canvas origin may PATCH only layout + viewport: the canvas never writes the pick itself
+    expect(metaWrites()).toEqual([]);
+    expect(posts.filter((m) => m.dgn === 'theme-pick')).toEqual([
+      { dgn: 'theme-pick', v: 1, theme: 'dark' },
+    ]);
     // the page-load snapshot follows, so a soft remount reads the pick back
     expect(
       (window as unknown as { __canvas_meta__: { canvasTheme: string } }).__canvas_meta__
