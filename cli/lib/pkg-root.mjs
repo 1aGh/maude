@@ -12,7 +12,7 @@
 // — not by importing paths.ts directly, to keep the CLI's compiled binary
 // decoupled from the dev-server's module graph.
 
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -92,6 +92,44 @@ export function resolveTauriResourcePkgRoot(execDir) {
     if (isPkgRoot(cand)) return cand;
   }
   return null;
+}
+
+function realOrNull(p) {
+  try {
+    return realpathSync(p);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The packaged app's compiled studio server, when THIS CLI runs from the app bundle (T1.10, #206).
+ *
+ * From the `.app`, `maude design server-up` / `serve` used to run `bun server.ts` against the staged
+ * studio source in `Contents/Resources/apps/studio`, which has no node_modules ("dev-server runtime
+ * deps not installed: yjs y-protocols lib0"), while the compiled `maude-server` the desktop runs sat
+ * right next to the CLI in `Contents/MacOS`. The desktop hands its children MAUDE_DEV_SERVER_BIN;
+ * a terminal has no desktop parent, so the CLI finds the server itself, the same way it finds its
+ * package root: from the running executable's REAL directory (a PATH symlink into the app is
+ * dereferenced), and only when the package root in use IS that bundle's resource tree.
+ *
+ * Returns `{ bin, devServerRoot, pkgRoot }` — the env the desktop gives the same server is
+ * MAUDE_DEV_SERVER_ROOT = devServerRoot and MAUDE_PKG_ROOT = pkgRoot (sidecar.rs) — or null for a
+ * repo checkout or an npm install (nothing beside node / the platform binary).
+ */
+export function resolveAppSidecar({ pkgRoot, execPath }) {
+  const real = realOrNull(execPath);
+  if (!real || !pkgRoot) return null;
+  const execDir = dirname(real);
+  const bin = join(execDir, process.platform === 'win32' ? 'maude-server.exe' : 'maude-server');
+  try {
+    if (!statSync(bin).isFile()) return null;
+  } catch {
+    return null;
+  }
+  const sibling = resolveTauriResourcePkgRoot(execDir);
+  if (!sibling || realOrNull(sibling) !== realOrNull(pkgRoot)) return null;
+  return { bin, devServerRoot: join(sibling, 'apps', 'studio'), pkgRoot: sibling };
 }
 
 export function resolvePkgRoot() {

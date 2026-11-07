@@ -35,6 +35,7 @@ import {
   renderShimGaps,
   serverRenderShims,
 } from './helper-deps.mjs';
+import { serverUpSmoke } from './server-up-smoke.mjs';
 
 const RED = '\x1b[31m';
 const GRN = '\x1b[32m';
@@ -277,6 +278,11 @@ if (doSmoke) {
       }
     }
     reelPlaceSmoke(target.binary, strippedPath);
+    // T1.10 (#206) — with no desktop tab, `maude design server-up` must boot the compiled server
+    // beside the CLI, never `bun server.ts` against the dependency-free staged source.
+    const su = await serverUpSmoke({ binary: target.binary, strippedPath });
+    if (su.ok) ok('smoke server-up (boots the bundled studio, no node/bun)', su.detail);
+    else fail('smoke server-up (boots the bundled studio, no node/bun)', su.detail);
   }
   const serverBin = target.macosDir ? join(target.macosDir, 'maude-server') : null;
   if (serverBin && existsSync(serverBin)) await renderExportSmoke(serverBin);
