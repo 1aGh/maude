@@ -378,6 +378,94 @@ describe('#155 §7 (T4.1) — a multi-page design file keeps every page', () => 
   });
 });
 
+describe('#155 §9 (T4.1) — Figma Slides: slides under Presentation > Row', () => {
+  // The slide node type names are NOT confirmed (no real Slides file in the repo):
+  // the rule is geometric and type-agnostic, so any unrecognised type name works.
+  const slide = (id: string, x: number, extra: Record<string, unknown> = {}) => ({
+    id,
+    name: `Slide ${id}`,
+    type: 'SLIDE',
+    absoluteBoundingBox: box(x, 0, 1920, 1080),
+    children: [
+      {
+        id: `${id}9`,
+        name: 't',
+        type: 'TEXT',
+        characters: 'Title',
+        absoluteBoundingBox: box(x + 80, 80, 600, 80),
+      },
+    ],
+    ...extra,
+  });
+  const deck = (rows: unknown[], extra: unknown[] = []) =>
+    doc('design', [
+      {
+        id: '9:1',
+        name: 'Presentation',
+        type: 'PRESENTATION',
+        absoluteBoundingBox: box(0, 0, 6000, 3000),
+        children: rows,
+      },
+      ...extra,
+    ]);
+  const row = (id: string, slides: unknown[]) => ({
+    id,
+    name: 'Row',
+    type: 'SLIDE_ROW',
+    absoluteBoundingBox: box(0, 0, 6000, 1080),
+    children: slides,
+  });
+  const ids = (nodes: Array<{ id: string }>) => nodes.map((n) => n.id);
+
+  test('unknown-typed slides with frame-like geometry are selected as frames, in order', () => {
+    const d = deck([row('9:2', [slide('9:3', 0), slide('9:4', 2000), slide('9:5', 4000)])]);
+    expect(ids(selectFrames(d, null))).toEqual(['9:3', '9:4', '9:5']);
+  });
+
+  test('two rows keep their slides in row order', () => {
+    const d = deck([row('9:2', [slide('9:3', 0)]), row('9:6', [slide('9:7', 0)])]);
+    expect(ids(selectFrames(d, null))).toEqual(['9:3', '9:7']);
+  });
+
+  test('a hidden slide is skipped', () => {
+    const d = deck([row('9:2', [slide('9:3', 0, { visible: false }), slide('9:4', 2000)])]);
+    expect(ids(selectFrames(d, null))).toEqual(['9:4']);
+  });
+
+  test('a real FRAME anywhere wins: unknown nodes are never promoted past real frames', () => {
+    const real = {
+      id: '8:1',
+      name: 'F',
+      type: 'FRAME',
+      absoluteBoundingBox: box(0, 0, 100, 100),
+      fills: solid,
+    };
+    const d = deck([row('9:2', [slide('9:3', 0)])], [real]);
+    expect(ids(selectFrames(d, null))).toEqual(['8:1']);
+  });
+
+  test('an unknown node with no size is not a frame', () => {
+    const d = doc('design', [{ id: '9:1', name: 'x', type: 'PRESENTATION', children: [] }]);
+    expect(selectFrames(d, null)).toEqual([]);
+  });
+
+  test('a slide imports as an artboard, and the report says its type was guessed', async () => {
+    const d = deck([row('9:2', [slide('9:3', 0)])]);
+    const r = await importFrames({
+      root: sandbox,
+      slug: 'slides',
+      dryRun: true,
+      local: localOf(d),
+    });
+    expect(r.frameCount).toBe(1);
+    expect(
+      r.reports[0].entries.some(
+        (e: { detail?: string }) => e.detail === 'unknown type mapped as frame'
+      )
+    ).toBe(true);
+  });
+});
+
 describe('#155 §10 (T4.1) — one canvas per file, in a target folder', () => {
   const frame = (id: string, x = 0) => ({
     id,

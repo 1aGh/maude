@@ -626,6 +626,11 @@ export function toArtboard(
   const fonts = new FontSubstitutions();
   const kind = opts.kind ?? 'digital';
 
+  // A Figma Slides slide arrives as a type this normalizer does not know and is
+  // translated as a frame on its geometry alone (#155 §9) — say so.
+  if (frame.type === 'UNKNOWN') {
+    report.add(frame.id, frame.type, 'imported', 'unknown type mapped as frame');
+  }
   const bb = frame.absoluteBoundingBox ?? { x: 0, y: 0, width: 1440, height: 900 };
   const frameOrigin = { x: bb.x, y: bb.y };
   const bounds = { minX: 0, minY: 0, maxX: bb.width, maxY: bb.height };
@@ -903,6 +908,9 @@ function emitArtboardUnit(
   shared: UnitShared
 ): { jsx: string; id: string; bb: FigmaRect } {
   const { report, pendingExports, styleOpts, fonts, metrics, kind } = shared;
+  if (node.type === 'UNKNOWN') {
+    report.add(node.id, node.type, 'imported', 'unknown type mapped as frame');
+  }
   const bb = node.absoluteBoundingBox ?? { x: 0, y: 0, width: 1440, height: 900 };
   const ctx: EmitCtx = {
     report,

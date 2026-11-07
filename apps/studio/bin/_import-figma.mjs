@@ -1792,6 +1792,34 @@ export function selectFramePages(doc, nodeId) {
     .filter((p) => p.frames.length > 0);
   if (withFrames.length > 0) return withFrames;
 
+  // No real frame: a Figma Slides deck (#155 §9). Its slides live under
+  // Presentation > Row as nodes whose type this normalizer does not know, and
+  // the type NAMES are unconfirmed (no real Slides file to read them from) — so
+  // the rule is geometric, not nominal. An UNKNOWN node that holds other UNKNOWN
+  // nodes is a wrapper (Presentation, Row) and is descended; an UNKNOWN node
+  // with a real size and no UNKNOWN children is a slide and is a frame. Only
+  // reached when there are no FRAME/COMPONENTs at all, so no existing file's
+  // selection changes.
+  const sized = (n) =>
+    n.visible &&
+    n.type === 'UNKNOWN' &&
+    n.absoluteBoundingBox &&
+    n.absoluteBoundingBox.width > 0 &&
+    n.absoluteBoundingBox.height > 0;
+  const collectUnknown = (nodes, depth, found) => {
+    for (const n of nodes) {
+      if (!n.visible || n.type !== 'UNKNOWN') continue;
+      const wrapper = (n.children ?? []).some((c) => sized(c) || c.type === 'UNKNOWN');
+      if (wrapper && depth < MAX_SELECT_DEPTH) collectUnknown(n.children ?? [], depth + 1, found);
+      else if (sized(n)) found.push(n);
+    }
+    return found;
+  };
+  const withUnknown = pages
+    .map((page) => ({ page, frames: collectUnknown(page.children ?? [], 0, []) }))
+    .filter((p) => p.frames.length > 0);
+  if (withUnknown.length > 0) return withUnknown;
+
   // No frame anywhere: a groups-only file. Each top-level group is a design.
   return pages
     .map((page) => ({
