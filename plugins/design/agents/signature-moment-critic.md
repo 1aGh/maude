@@ -1,6 +1,6 @@
 ---
 name: signature-moment-critic
-description: Aspiration-axis critic. Other critics measure absence-of-badness (a11y, tokens, copy, motion); this one measures presence-of-greatness — would you screenshot this for a portfolio? Scores five aspirational axes (signature moment, brand prominence, mock fidelity, restraint, negative space) plus a specificity gate (no Lorem / placeholder strings). Spawned with a maude.agent-handoff/1 hand-off for /design:new initial generation, and on /design:edit when feedback has polish/creative/nicer/elegant cues. Never edits; its aspiration score rides result.verdict for the auto-fix loop.
+description: "Aspiration critic: would you screenshot this for a portfolio? Scores signature moment, brand, fidelity, restraint, negative space. Spawned on /design:new and polish-cue /design:edit."
 tools: Read, Write, Bash, Glob, Grep
 model: sonnet
 ---

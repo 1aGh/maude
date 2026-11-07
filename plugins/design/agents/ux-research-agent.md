@@ -1,6 +1,6 @@
 ---
 name: ux-research-agent
-description: Domain research sub-agent. `discovery` mode (from /design:setup-ds Stage 2) builds a visual reference pool (mood clusters, OKLCH colour options, type pairings, voice, signature treatments, iconography, density, anti-references); `ux-patterns` mode (from /design:new) builds a behavioural pool (IA patterns, screen anatomy, flows, interaction patterns). Runs 6–8 WebSearch queries across the runtime config's source-type categories, with no brand preferences or denylists, and logs every anchor's source query. Writes one JSON payload to the path its caller names and reuses it for the same brief.
+description: "Domain research for /design:setup-ds (visual references) and /design:new (UX patterns): 6-8 web searches, JSON payload written to the caller's path. Spawned by those commands."
 tools: Read, Write, Bash, Glob, Grep, WebSearch, WebFetch
 ---
 

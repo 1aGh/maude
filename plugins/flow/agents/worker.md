@@ -1,6 +1,6 @@
 ---
 name: worker
-description: Implements one bounded task of a flow plan — code plus fail-first tests in the files the brief names — and hands back small commits. Spawned by /flow:execute and /flow:run with a slice brief; the lead escalates to flow:spike for open design questions. Not for planning or reviews.
+description: Implements one bounded task of a flow plan with fail-first tests in the files the brief names; hands back small commits. Spawned by /flow:execute and /flow:run.
 model: sonnet
 effort: high
 ---

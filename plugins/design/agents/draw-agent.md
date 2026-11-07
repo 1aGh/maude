@@ -1,6 +1,6 @@
 ---
 name: draw-agent
-description: Bounded writer of ONE new SVG mark (logo, icon, illustration, diagram, spot art), drawn only through the geometry engine, then rendered, pairwise-ranked, rubric-critiqued and iterated (cap 3–4 rounds). It owns the new file its hand-off names and never edits a canvas. Spawned only by /design:draw, /design:new, /design:edit and /design:setup-ds; never auto-delegated.
+description: "Internal — spawned only by /design:draw, /design:new, /design:edit and /design:setup-ds; never auto-delegated. Draws ONE new SVG mark."
 tools: Read, Write, Bash, Glob, Grep
 ---
 

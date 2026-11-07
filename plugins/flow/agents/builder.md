@@ -1,6 +1,6 @@
 ---
 name: builder
-description: Divergent debate seat. Invoked ONLY by the flow:debate-protocol skill / a bookend orchestrator (plan, setup-prd, setup-ds) to argue the most ambitious viable approach for a decision. Not for general use; never auto-delegated.
+description: "Internal — spawned only by flow:debate-protocol; never auto-delegated. Divergent seat: argues the most ambitious viable approach."
 tools: Read, Grep, Glob, Bash
 ---
 

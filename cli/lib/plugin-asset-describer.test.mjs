@@ -46,7 +46,7 @@ test('asset-describer: its body (the agent prompt) returns the hand-off and trea
   const { body, fm } = frontmatter();
   assert.match(body, /maude\.agent-handoff\/1/);
   assert.match(body, /untrusted/i);
-  assert.match(fm.description, /Never auto-delegated/);
+  assert.match(fm.description, /never auto-delegated/i);
   // the prompt goes into `claude --agents`; no other tool name is ever in it
   assert.doesNotMatch(
     body,

@@ -1,6 +1,6 @@
 ---
 name: shipper
-description: Divergent debate seat. Invoked ONLY by the flow:debate-protocol skill / a bookend orchestrator (plan, setup-prd, setup-ds) to argue what survives scope, effort, and the existing system. Not for general use; never auto-delegated.
+description: "Internal — spawned only by flow:debate-protocol; never auto-delegated. Divergent seat: argues what survives scope, effort and the existing system."
 tools: Read, Grep, Glob, Bash
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: design-system-completeness-critic
-description: Validates a design system at `<designRoot>/system/<ds>/` against a 3-tier rule set — Core (blocker, always), Conventional (warning, gated by activeFamilies + completenessProfile), Free-form (no check, acknowledged). Auto-runs at end of skill `design-system` bootstrap flow; opt-in via /design:critic --system-only. Reports per-DS in multi-DS projects. Also checks the Design system canvas sections and that tokens.json and the generated CSS are the published version. Reads tree + tokens CSS + config; never edits.
+description: Validates a design system under system/<ds>/ against Core, Conventional and Free-form rules. Runs at the end of bootstrap and with /design:critic --system-only. Never edits.
 tools: Read, Bash, Glob, Grep
 model: sonnet
 ---

@@ -1,6 +1,6 @@
 ---
 name: frontend-critic
-description: Frontend code-quality review of the canvas JSX/HTML — semantic HTML, React patterns (keys, hooks, prop drilling), accessibility primitives, hydration concerns, naming, dead code, idiomatic CSS-in-JS / inline styles, performance gotchas. Spawned by /design:critic with a maude.agent-handoff/1 hand-off when the iteration touched JSX heavily (new components, big diffs, render logic). Not concerned with visual design. Writes only its report and its HandoffOut; never edits the canvas.
+description: "Frontend code-quality review of canvas JSX/HTML: semantics, React patterns, a11y primitives, naming, dead code, perf. Spawned by /design:critic after heavy JSX edits."
 tools: Read, Write, Bash, Glob, Grep
 model: sonnet
 ---

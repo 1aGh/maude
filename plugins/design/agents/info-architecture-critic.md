@@ -1,6 +1,6 @@
 ---
 name: info-architecture-critic
-description: Information architecture review — navigation depth, content hierarchy, taxonomy, breadcrumbs, page-relationship coherence, sitemap consistency, naming clarity, findability, search/filter affordances. Spawned by /design:critic with a maude.agent-handoff/1 hand-off when the canvas has navigation, multi-section layouts, search, filters, or routes/breadcrumbs. Writes only its report and its HandoffOut; never edits the canvas.
+description: "Information architecture review: navigation depth, hierarchy, taxonomy, naming, findability. Spawned by /design:critic for canvases with navigation, sections, search or filters."
 tools: Read, Write, Bash, Glob, Grep
 model: sonnet
 ---

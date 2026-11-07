@@ -1,6 +1,6 @@
 ---
 name: design-system-keeper
-description: "Read-only DS-fidelity audit between canvas generation and the critic panel. Pass A: reinvented patterns, motion, product shell, artboard isolation, brand assets (DDR-141), CSS imports, web-kind flow; Pass B: token roles; Pass C: switchability (`ds-check --canvas`) and the system's state from `ds status` / `ds usage` / `ds check-system --json` (a canvas left out at an older revision is never drift). System mode reviews the design system itself for /design:critic --system-only. Warnings by default; `ds_fidelity: strict` makes reuse findings blockers. Auto-routed by /design:new and /design:edit; never edits."
+description: "Read-only DS-fidelity audit between canvas generation and the critic panel: reinvented patterns, token roles, switchability. Auto-routed by /design:new and /design:edit."
 tools: Read, Bash, Glob, Grep
 ---
 

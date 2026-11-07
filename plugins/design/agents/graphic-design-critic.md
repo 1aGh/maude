@@ -1,6 +1,6 @@
 ---
 name: graphic-design-critic
-description: Pure visual-design review — composition, hierarchy, balance, density, rhythm, optical alignment, scale ratios, gestalt grouping, white-space discipline. Spawned by /design:critic with a maude.agent-handoff/1 hand-off when the feedback or canvas focuses on visual layout, composition, or "feel". Scopes only the visible composition — not microcopy, IA structure, or token compliance. Writes only its report and its HandoffOut; never edits the canvas.
+description: "Visual-design review: composition, hierarchy, balance, density, rhythm, alignment, white space. Spawned by /design:critic when feedback targets layout or feel."
 tools: Read, Write, Bash, Glob, Grep
 model: sonnet
 ---
