@@ -154,6 +154,24 @@ describe('the frame gate in the canvas shell', () => {
     expect(seen).toEqual([true, false]); // one transition each way, not one per renewal
   });
 
+  test('a gesture that starts again during the flush keeps the rest waiting', () => {
+    const k = fakeWindow();
+    const ran: string[] = [];
+    k.api.set(true);
+    k.raf(() => {
+      ran.push('a');
+      k.api.set(true); // input arrived: the camera moves again
+    });
+    k.raf(() => ran.push('b'));
+    k.frame();
+    k.api.set(false);
+    k.frame();
+    expect(ran).toEqual(['a']);
+    k.api.set(false);
+    k.frame();
+    expect(ran).toEqual(['a', 'b']);
+  });
+
   test('a callback that throws does not keep the others from running', () => {
     const k = fakeWindow();
     const ran: string[] = [];
