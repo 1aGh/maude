@@ -16,9 +16,11 @@ import {
   importFrames,
   instanceLines,
   nodeErrorLines,
+  resolveArchiveAssetsMany,
   selectFramePages,
   selectFrames,
 } from '../bin/_import-figma.mjs';
+import { ImportReport } from '../figma/sanitize.ts';
 import { normalizeDocument } from '../figma/types.ts';
 
 const KEY = 'figTESTKEY0123456789';
@@ -214,6 +216,111 @@ describe('#155 §5 — the import report names the nodes that could not be read'
 
   test('a clean decode prints nothing', () => {
     expect(nodeErrorLines({ nodeErrors: [], nodeErrorCount: 0 })).toBe('');
+  });
+});
+
+describe('#155 §10 (T4.1) — one browser session for all SVG promotions', () => {
+  const fixture = new URL('../../../.ai/fixtures/figma/2026-08-03/design.fig', import.meta.url)
+    .pathname;
+
+  function fakeDeps(stagingDir: string, opts: { failFirstChunk?: boolean } = {}) {
+    let n = 0;
+    const calls = { batch: [] as number[], single: 0 };
+    let batchCalls = 0;
+    return {
+      calls,
+      deps: {
+        stagingPath: (_id: string, ext: string) => join(stagingDir, `s${n++}.${ext}`),
+        async promote() {
+          calls.single++;
+          return { ref: '/assets/single.svg' };
+        },
+        async promoteSvgBatch(paths: string[]) {
+          calls.batch.push(paths.length);
+          batchCalls++;
+          // the first chunk fails on both attempts
+          if (opts.failFirstChunk && batchCalls <= 2) throw new Error('canary timed out');
+          return paths.map((_p, i) => `/assets/b${batchCalls}-${i}.svg`);
+        },
+        discard: () => {},
+      },
+    };
+  }
+  const pending = (n: number, tag: string) =>
+    Array.from({ length: n }, (_, i) => ({
+      nodeId: '2:18',
+      format: 'svg',
+      placeholder: `/assets/pending-${tag}-${i}.svg`,
+      collapsed: false,
+    }));
+
+  test('vector clusters from every frame go through the batch lane in chunks of 24', async () => {
+    const local = decodeLocalFig(fixture);
+    const staging = join(sandbox, 'staging');
+    mkdirSync(staging, { recursive: true });
+    const { deps, calls } = fakeDeps(staging);
+    const entries = [pending(30, 'a'), pending(20, 'b'), pending(10, 'c')].map((p) => ({
+      pendingExports: p,
+      report: new ImportReport(),
+    }));
+    const out = await resolveArchiveAssetsMany(local, entries, {
+      root: sandbox,
+      designRootRel: '.design',
+      stagingDir: staging,
+      deps,
+    });
+    // 60 SVGs across three frames: three browser sessions, not sixty
+    expect(calls.single).toBe(0);
+    expect(calls.batch).toEqual([24, 24, 12]);
+    expect(out.map((o: { resolved: unknown[] }) => o.resolved.length)).toEqual([30, 20, 10]);
+    expect(out[1].rewrites.get('/assets/pending-b-0.svg')).toMatch(/^\/assets\/b/);
+  });
+
+  test('a failed chunk costs only itself and is named in its frame’s report', async () => {
+    const local = decodeLocalFig(fixture);
+    const staging = join(sandbox, 'staging');
+    mkdirSync(staging, { recursive: true });
+    const { deps } = fakeDeps(staging, { failFirstChunk: true });
+    const a = { pendingExports: pending(30, 'a'), report: new ImportReport() };
+    const b = { pendingExports: pending(5, 'b'), report: new ImportReport() };
+    const out = await resolveArchiveAssetsMany(local, [a, b], {
+      root: sandbox,
+      designRootRel: '.design',
+      stagingDir: staging,
+      deps,
+    });
+    expect(a.report.entries.filter((e) => e.disposition === 'asset-skipped')).toHaveLength(24);
+    expect(out[0].resolved).toHaveLength(6);
+    expect(out[1].resolved).toHaveLength(5);
+  });
+
+  test('a raster still goes straight through, with no browser', async () => {
+    const local = localOf(doc('design', []), { [`images/${REF}`]: PNG });
+    const staging = join(sandbox, 'staging');
+    mkdirSync(staging, { recursive: true });
+    const { deps, calls } = fakeDeps(staging);
+    const report = new ImportReport();
+    const out = await resolveArchiveAssetsMany(
+      local,
+      [
+        {
+          pendingExports: [
+            {
+              nodeId: '3:1',
+              format: 'png',
+              placeholder: '/assets/p.png',
+              collapsed: false,
+              imageRef: REF,
+            },
+          ],
+          report,
+        },
+      ],
+      { root: sandbox, designRootRel: '.design', stagingDir: staging, deps }
+    );
+    expect(calls.single).toBe(1);
+    expect(calls.batch).toEqual([]);
+    expect(out[0].resolved).toHaveLength(1);
   });
 });
 

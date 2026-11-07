@@ -68,6 +68,7 @@ import {
   FIGMA_ASSET_HOSTS,
   FIGMA_RENDER_MAX_BYTES,
   makeAssetBudget,
+  promoteSvgInChunks,
   resolveAssets,
 } from '../figma/assets.ts';
 import {
@@ -522,69 +523,127 @@ export function buildClusterSvg(local, nodeId) {
   return artToSvg({ width: origin.width, height: origin.height, paths });
 }
 
+/**
+ * Resolve pending assets from the archive for ONE frame. The many-frame import
+ * uses `resolveArchiveAssetsMany` directly so every frame's SVGs share browser
+ * sessions; this is the single-entry spelling of the same thing.
+ */
 async function resolveArchiveAssets(
   local,
   pendingExports,
   report,
   { root, designRootRel, stagingDir }
 ) {
-  const deps = makeAssetDeps({ root, designRootRel, stagingDir });
-  const rewrites = new Map();
-  const resolved = [];
-  let totalBytes = 0;
+  const [out] = await resolveArchiveAssetsMany(local, [{ pendingExports, report }], {
+    root,
+    designRootRel,
+    stagingDir,
+  });
+  return out;
+}
 
-  for (const p of pendingExports) {
-    if (!p.imageRef) {
-      // NOT unavailable after all: a `.fig` carries the path geometry itself
-      // (fillGeometry -> commandsBlob -> blobs[]), so the icon is rebuilt here
-      // rather than requested from Figma. Corrects the claim DDR-221 A9/A10
-      // shipped. It still goes through the DDR-167 SVG lane on promote — this
-      // is a third party's file, and we authored the string from their bytes.
-      const svg = buildClusterSvg(local, p.nodeId);
-      if (!svg) {
-        report.add(
-          p.nodeId,
-          'VECTOR',
-          'asset-unavailable-offline',
-          'no path geometry in the archive for this node'
-        );
+/**
+ * Resolve the pending assets of MANY frames from the archive, with ONE browser
+ * session per `MAX_SVG_PROMOTE_CHUNK` SVGs across the whole import (#155 §10).
+ *
+ * Promoting an SVG runs the DDR-167 execution canary, which launches a browser.
+ * Doing it per asset made a 648-vector file an ~80-minute import (~8 assets a
+ * minute); the vector clusters of every frame are therefore collected first and
+ * promoted together, chunked and retried by `promoteSvgInChunks` (a timeout costs
+ * its own chunk, never the import — fail-closed stays). Rasters are written
+ * straight through and need no browser.
+ *
+ * `entries` is `[{ pendingExports, report }]` — one per frame, each reporting
+ * into its own `report`. Returns one `{ resolved, rewrites, totalBytes }` per
+ * entry, in order. `deps` is injectable for tests.
+ */
+export async function resolveArchiveAssetsMany(
+  local,
+  entries,
+  { root, designRootRel, stagingDir, deps = makeAssetDeps({ root, designRootRel, stagingDir }) }
+) {
+  const outs = entries.map(() => ({ resolved: [], rewrites: new Map(), totalBytes: 0 }));
+  /** SVG jobs awaiting the shared browser session. */
+  const svgJobs = [];
+
+  for (const [index, { pendingExports, report }] of entries.entries()) {
+    const out = outs[index];
+    for (const p of pendingExports) {
+      if (!p.imageRef) {
+        // NOT unavailable after all: a `.fig` carries the path geometry itself
+        // (fillGeometry -> commandsBlob -> blobs[]), so the icon is rebuilt here
+        // rather than requested from Figma. Corrects the claim DDR-221 A9/A10
+        // shipped. It still goes through the DDR-167 SVG lane on promote — this
+        // is a third party's file, and we authored the string from their bytes.
+        const svg = buildClusterSvg(local, p.nodeId);
+        if (!svg) {
+          report.add(
+            p.nodeId,
+            'VECTOR',
+            'asset-unavailable-offline',
+            'no path geometry in the archive for this node'
+          );
+          continue;
+        }
+        const stagedSvgPath = deps.stagingPath(p.nodeId, 'svg');
+        writeFileSync(stagedSvgPath, svg, 'utf8');
+        svgJobs.push({ index, p, staged: stagedSvgPath, bytes: Buffer.byteLength(svg) });
         continue;
       }
-      const stagedSvgPath = deps.stagingPath(p.nodeId, 'svg');
-      writeFileSync(stagedSvgPath, svg, 'utf8');
-      try {
-        const { ref } = await deps.promote(stagedSvgPath, 'svg');
-        rewrites.set(p.placeholder, ref);
-        resolved.push({ nodeId: p.nodeId, ref });
-        totalBytes += Buffer.byteLength(svg);
-      } catch (err) {
-        report.add(p.nodeId, 'VECTOR', 'asset-skipped', `promote failed: ${err.code ?? 'error'}`);
+      // Charset-checked before it is used as a lookup key, so a crafted ref can
+      // never be read as a path even though we only ever compare it to entries.
+      if (!/^[0-9a-f]{8,128}$/.test(p.imageRef)) {
+        report.add(p.nodeId, 'IMAGE', 'asset-skipped', 'malformed image reference');
+        continue;
       }
-      continue;
-    }
-    // Charset-checked before it is used as a lookup key, so a crafted ref can
-    // never be read as a path even though we only ever compare it to entries.
-    if (!/^[0-9a-f]{8,128}$/.test(p.imageRef)) {
-      report.add(p.nodeId, 'IMAGE', 'asset-skipped', 'malformed image reference');
-      continue;
-    }
-    const bytes = local.zip.get(`images/${p.imageRef}`);
-    if (!bytes) {
-      report.add(p.nodeId, 'IMAGE', 'asset-skipped', 'not present in the archive');
-      continue;
-    }
-    const staged = deps.stagingPath(p.nodeId, 'png');
-    writeFileSync(staged, bytes);
-    try {
-      const { ref } = await deps.promote(staged, 'png');
-      rewrites.set(p.placeholder, ref);
-      resolved.push({ nodeId: p.nodeId, ref });
-      totalBytes += bytes.length;
-    } catch (err) {
-      report.add(p.nodeId, 'IMAGE', 'asset-skipped', `promote failed: ${err.code ?? 'error'}`);
+      const bytes = local.zip.get(`images/${p.imageRef}`);
+      if (!bytes) {
+        report.add(p.nodeId, 'IMAGE', 'asset-skipped', 'not present in the archive');
+        continue;
+      }
+      const staged = deps.stagingPath(p.nodeId, 'png');
+      writeFileSync(staged, bytes);
+      try {
+        const { ref } = await deps.promote(staged, 'png');
+        out.rewrites.set(p.placeholder, ref);
+        out.resolved.push({ nodeId: p.nodeId, ref });
+        out.totalBytes += bytes.length;
+      } catch (err) {
+        report.add(p.nodeId, 'IMAGE', 'asset-skipped', `promote failed: ${err.code ?? 'error'}`);
+      }
     }
   }
-  return { resolved, rewrites, totalBytes };
+
+  if (svgJobs.length > 0) {
+    const refs = deps.promoteSvgBatch
+      ? await promoteSvgInChunks(
+          (paths) => deps.promoteSvgBatch(paths),
+          svgJobs.map((j) => j.staged)
+        )
+      : // A caller whose deps have no batch lane keeps the per-file promote.
+        await Promise.all(
+          svgJobs.map((j) =>
+            deps.promote(j.staged, 'svg').then(
+              (r) => r.ref,
+              () => null
+            )
+          )
+        );
+    for (const [i, job] of svgJobs.entries()) {
+      const ref = refs[i];
+      const { report } = entries[job.index];
+      if (!ref) {
+        deps.discard(job.staged);
+        report.add(job.p.nodeId, 'VECTOR', 'asset-skipped', 'promote failed: sanitize refused');
+        continue;
+      }
+      const out = outs[job.index];
+      out.rewrites.set(job.p.placeholder, ref);
+      out.resolved.push({ nodeId: job.p.nodeId, ref });
+      out.totalBytes += job.bytes;
+    }
+  }
+  return outs;
 }
 
 export function decodeLocalFig(path, fileKeyOverride = null) {
@@ -1782,17 +1841,39 @@ export async function importFrames({
 
   const staging = dryRun ? null : makeStagingDir();
   try {
-    for (const [i, frame] of frames.entries()) {
+    // Translate every frame BEFORE any asset work or write: a frame that is too
+    // large refuses the import cleanly instead of after earlier frames landed,
+    // and the offline door can promote all frames' SVGs through shared browser
+    // sessions (#155 §10) rather than one session per frame.
+    const built = frames.map((frame, i) => {
       const result = toArtboard(doc, frame, { kind, tokens, fontTokens });
-      reports.push(result.report);
-      pendingExports += result.pendingExports.length;
-
       const base = slug
         ? frames.length > 1
           ? `${slug}-${i + 1}`
           : slug
         : `figma-${frame.id.replace(/[^0-9]+/g, '-')}`;
       if (!SLUG_RE.test(base)) throw new ImportFigmaError(2, 'invalid --slug');
+      return { frame, result, base };
+    });
+    // OFFLINE DOOR: `/v1/images` renders are produced by Figma's servers and
+    // simply do not exist in a local export, so there is nothing to fetch and no
+    // network call to make. Vector clusters are rebuilt from the archive's own
+    // path geometry; image fills come out of `images/<imageRef>` (DDR-221 D6).
+    const archiveAssets =
+      local && !dryRun
+        ? await resolveArchiveAssetsMany(
+            local,
+            built.map((b) => ({
+              pendingExports: b.result.pendingExports,
+              report: b.result.report,
+            })),
+            { root, designRootRel, stagingDir: staging }
+          )
+        : null;
+
+    for (const [i, { result, base }] of built.entries()) {
+      reports.push(result.report);
+      pendingExports += result.pendingExports.length;
 
       if (dryRun) {
         written.push({ slug: base, bytes: result.metrics.bytes, metrics: result.metrics });
@@ -1807,14 +1888,9 @@ export async function importFrames({
       // simply do not exist in a local export, so there is nothing to resolve
       // and no network call to make. The placeholders stay in place — a
       // visibly broken image beats a silently missing element — and every one
-      // is named in the summary rather than quietly dropped (DDR-221 D6: the
-      // archive covers image FILLS, never server-side vector renders).
-      const assets = local
-        ? await resolveArchiveAssets(local, result.pendingExports, result.report, {
-            root,
-            designRootRel,
-            stagingDir: staging,
-          })
+      // is named in the summary rather than quietly dropped.
+      const assets = archiveAssets
+        ? archiveAssets[i]
         : await resolveAssets(
             target.fileKey,
             result.pendingExports.map((p) => ({
