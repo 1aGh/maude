@@ -77,6 +77,7 @@ the code: several checklist boxes are already done (W0 closes them). The earlier
 | D11 | #164 A1 residual (interpreter windows) | A spike on pre/post hash diff, then build. |
 | D12 | #208 Linux | A supported target. Add a Linux shell lane (ubuntu CI with xvfb plus a screenshot) to reproduce and pin the fix. |
 | D13 | #172 board states | Build what a spec line can be written for; the rest of the "not driven" scenarios get driven by e2e. Any state that still has no product meaning is closed as not planned, with Michal's OK in the final report. |
+| D15 | #170 R25 View menu rows | Lead default (2026-11-07): Layers and Inspector move out of Advanced into View, and View gets an AI chat row — through the action registry and the menu board, never a new key handler. |
 | D14 | Release | The #156 §4 split is user-facing, so the line ships as **2.1.0**. The tag is Michal's call. Earlier patch releases are Michal's call too. |
 
 **Michal must answer before these steps start:**
@@ -177,6 +178,7 @@ W5 and W6 use Opus.
   - the Edit-video controls feel;
   - `lockedRefusal` on the legacy artboard and clip routes;
   - the docs save-mode line.
+- [ ] T2.4b **#170 leftovers:** R25 per D15; the toolbar popover under a shell toast (a new canvas→shell bridge message so the shell moves its toast stack — frame bridge, Opus); F35 panel padding reproduced on the Share and Version history panels (local cell + a project with history); R29 rest (islands growing out of their icon, Advanced folds snapping open); the Edit-video controls feel goes to Michal in the final report.
 - [ ] T2.5 **#163** (D1): implement each default, each with a test, plus the help, docs and What's New wording where it applies.
 - [ ] T2.6 **#172** (D13):
   - write one spec line per state into the board's CONTRACT and build it: the Mobile-next ghost and step line; the hold tag with verb and element (`holdsFor`); "Put them in a section"; the ai-other-tab toast, tooltip and cf-busy; the ia-edges remainder, including `asset-origins.json` sync, which is a contract change and goes through the sync risk class; ds-make-filling;
@@ -348,3 +350,4 @@ W5 and W6 use Opus.
 - 2026-11-07 merged T1.8 (28fe65ffd e0ee2e7ac 9ec0002e7 d7e626353). TS e2e switches are now ignored by every `--release` build: local desktop e2e lanes must build the sidecar with `build.ts --release --e2e` (desktop-e2e skill updated) — W8/T9.1 lanes must do so. Item 4 moved to T5.4 (idle sweep of the local kernel's `seen` map).
 - 2026-11-07 merged T3.1 f8656c9c6: #150 §1 cause was not the CSP — web-renderer serializes an inline <svg> with its own position/offsets into a standalone image, pushing the art out of its viewport; fixed by a one-render XMLSerializer guard (svg-inline.ts), live before/after export proves it.
 - 2026-11-07 T5.1 spike merged e757b4f4c: contract 164-hash-diff-attribution.md (park-then-settle, fail outside; hook state outside the project). Build slices B1 hook side (Sonnet), B2 studio side (Opus), B3 history/verbs (Sonnet).
+- 2026-11-07 merged T2.4 (11 commits e69328905…db5411f8a: Home SHELL_NAVS guard, comment card hidden until placed, Inspector + grey/picker, Board 14, D3 camera-ease engine removed, D4, legacy-route lockedRefusal, F34 menu aim, R29 tokens, migration save-mode lines); client rebuilt, boot check OK. Leftovers → T2.4b (D15 added).
