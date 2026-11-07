@@ -126,6 +126,12 @@ const DEDICATED: Record<string, string> = {
   'remember-folds.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:remember',
   // P8 test round missing-a: 05 es-all-trashed (alice and bob race), 12 ia-missing, 12 ia-edges D — the cell lane's world.
   'team-cell-missing.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:team-cell-missing',
+  // T2.6c (#172) — the cell lane's world, one person more: 15 an-vote (bob starts, alice casts, secret until the end).
+  'an-vote.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:an-vote',
+  // T2.6c — 10 co-mention-notify: alice mentions bob; the toast and the unread count (banner and e-mail are soak).
+  'co-mention-notify.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:co-mention-notify',
+  // T2.6c — 07 ve-footage: a clip alice's device holds, on a cell, with the canvas-origin split OFF for the app.
+  've-footage.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ve-footage',
   // 2.0.3: a generated git project with Git LFS pointer media, the canvas-origin split ON, the real clipboard.
   'lfs-placeholder.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:lfs',
 };

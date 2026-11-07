@@ -53,6 +53,9 @@
     "e2e:ai-runs": "wdio run ./wdio.ai-runs.conf.ts",
     "e2e:team-cell": "wdio run ./wdio.team-cell.conf.ts",
     "e2e:team-cell-missing": "wdio run ./wdio.team-cell-missing.conf.ts",
+    "e2e:an-vote": "wdio run ./wdio.an-vote.conf.ts",
+    "e2e:co-mention-notify": "wdio run ./wdio.co-mention-notify.conf.ts",
+    "e2e:ve-footage": "wdio run ./wdio.ve-footage.conf.ts",
     "e2e:s20": "wdio run ./wdio.s20-deployment.conf.ts",
     "e2e:lfs": "wdio run ./wdio.lfs.conf.ts",
     "e2e:parity:cloud": "MAUDE_E2E_PARITY_CLOUD=1 wdio run ./wdio.parity.conf.ts"

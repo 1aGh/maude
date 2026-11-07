@@ -28,6 +28,9 @@
     "wdio.cell-tab.conf.ts",
     "wdio.team-project.conf.ts",
     "wdio.sidecar-respawn.conf.ts",
-    "wdio.share-roles.conf.ts"
+    "wdio.share-roles.conf.ts",
+    "wdio.an-vote.conf.ts",
+    "wdio.co-mention-notify.conf.ts",
+    "wdio.ve-footage.conf.ts"
   ]
 }
