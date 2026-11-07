@@ -32694,6 +32694,54 @@
     "v2": "new"
   },
   {
+    "hook": "diag-sync-held-adopt-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "“Adopt as code” (`sync.adopt-as-code`) on one file of the hub’s held list (the owner’s read): `POST /_api/sync/adopt-held`.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AdoptButton"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/sync-held-t53.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-held-adopt-said-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "What Adopt as code did for that file (“Kept as code. …”, or the refusal’s words).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AdoptButton"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/sync-held-t53.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-held-open-folders-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "“Open canvas folders” (`sync.open-canvas-folders`) on a held row whose way out is the canvas folders (`code-held`, `canvas-outside-folders`); the Mac app only.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/sync-held-t53.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "diag-sync-failed",
     "kind": "testid",
     "pattern": false,

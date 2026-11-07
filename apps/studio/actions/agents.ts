@@ -216,6 +216,23 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/sync/held-deletes', method: 'POST' },
     agent: human('hub-link', 'which deleted files stay on the hub is the person’s choice'),
   },
+  // #167 T5.3 — a file the hub holds back from the code lane: adopting teammate bytes as the owner's code
+  // is the owner's own call (implicit adoption was rejected on purpose), never the AI's.
+  'sync.adopt-as-code': {
+    effect: 'shared',
+    minRole: 'edit',
+    server: { route: '/_api/sync/adopt-held', method: 'POST' },
+    agent: human('hub-link', 'adopting a held file as the owner’s code is the owner’s choice'),
+  },
+  // The canvas folders are `canvasGroups` in <designRoot>/config.json: the button opens the person's
+  // editor on it, like Open in editor.
+  'sync.open-canvas-folders': {
+    effect: 'none',
+    agent: human(
+      'native-window',
+      'opens the person’s editor on config.json; an agent edits canvasGroups itself'
+    ),
+  },
   // p8-held-conflict-status — the two versions of a held source conflict (read only): this Mac's file and
   // the project's, kept in `_history/<slug>/sync-recovery/`. `maude design sync status` lists the slugs.
   // No `server`: the action itself only opens a sheet; the read under it is Sync details' own GET.

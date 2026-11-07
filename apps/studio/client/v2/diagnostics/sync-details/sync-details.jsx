@@ -17,6 +17,7 @@ import { safeDetail, syncPresentation } from '../../../../sync/presentation.ts';
 import { lineDiff } from '../../../panels/SourceConflictPanel.jsx';
 import { readCodeConsent } from '../../code/code-consent.js';
 import { CodeConsentSheet } from '../../code/code-consent-sheet.jsx';
+import { menuRunner } from '../../shell/menu-runner.js';
 import { DELIVERY_WORD, cleanName, resolvedWords, syncDetailsModel } from './sync-details-model.js';
 
 /** Registry id → the `choice` the conflict route takes. */
@@ -205,6 +206,48 @@ function CodeConsentButton({ mode, host, fetchImpl, onDone }) {
         />
       ) : null}
     </>
+  );
+}
+
+/**
+ * #167 T5.3 — held rows whose way out is the canvas folders: the hub's code-held list (the owner's
+ * read) and this Mac's own canvases outside the canvas folders (item 6). "Open canvas folders"
+ * (`sync.open-canvas-folders`) opens config.json, where they are set — a native door, so only in
+ * the Mac app; the row's sentence names the verb everywhere.
+ */
+export const FOLDERS_HELD_KINDS = new Set(['code-held', 'canvas-outside-folders']);
+
+/** "Adopt as code" (`sync.adopt-as-code`) on one file of the hub's code-held list — owner only:
+ *  that list reaches the owner alone, and the hub's door refuses anyone else. */
+function AdoptButton({ rel, index, fetchImpl }) {
+  const [said, setSaid] = useState(null);
+  const [busy, setBusy] = useState(false);
+  if (said)
+    return (
+      <span className="dg-hint" data-testid={`diag-sync-held-adopt-said-${index}`}>
+        {said}
+      </span>
+    );
+  return (
+    <button
+      type="button"
+      className="sd-link"
+      data-action="sync.adopt-as-code"
+      data-testid={`diag-sync-held-adopt-${index}`}
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        const r = await postJson(fetchImpl, '/_api/sync/adopt-held', { path: rel });
+        setBusy(false);
+        setSaid(
+          r?.ok
+            ? 'Kept as code. It syncs on the next pass.'
+            : cleanName(r?.detail || r?.message, 'That didn’t work. Nothing changed.', 200)
+        );
+      }}
+    >
+      Adopt as code
+    </button>
   );
 }
 
@@ -505,6 +548,8 @@ export default function SyncDetails({
   // p8-held-conflict-status — open this held conflict's Compare (a slug), once per new `focusSeq`
   focusConflict = null,
   focusSeq = 0,
+  // #167 T5.3 — a held row's registry actions (sync.open-canvas-folders) run through the one runner
+  runAction = (id, params) => menuRunner.run(id, params),
 }) {
   const p = syncPresentation(status, { project });
   const m = syncDetailsModel(status, { project, cloud, native, refused: p?.phase === 'refused' });
@@ -613,11 +658,30 @@ export default function SyncDetails({
               <details className="sd-held" data-testid={`diag-sync-held-${h.kind}`}>
                 <summary>{h.detail}</summary>
                 <ul>
-                  {h.paths.map((rel) => (
-                    <li key={rel}>{cleanName(rel)}</li>
+                  {h.paths.map((rel, i) => (
+                    <li key={rel}>
+                      {cleanName(rel)}
+                      {h.kind === 'code-held' ? (
+                        <>
+                          {' '}
+                          <AdoptButton rel={rel} index={i} fetchImpl={fetchImpl} />
+                        </>
+                      ) : null}
+                    </li>
                   ))}
                 </ul>
               </details>
+              {FOLDERS_HELD_KINDS.has(h.kind) && native ? (
+                <button
+                  type="button"
+                  className="sd-link"
+                  data-action="sync.open-canvas-folders"
+                  data-testid={`diag-sync-held-open-folders-${h.kind}`}
+                  onClick={() => runAction('sync.open-canvas-folders')}
+                >
+                  Open canvas folders
+                </button>
+              ) : null}
               {h.kind === 'code-consent' && canChange && !consent.allowed ? (
                 <CodeConsentButton
                   mode="allow"

@@ -198,11 +198,13 @@ describe('a file-plane pass reports it, and Sync details shows it with its reaso
     });
     const el = document.querySelector('[data-testid="diag-sync-held-code-held"]');
     expect(el?.querySelector('summary')?.textContent).toBe(codeHeldDetail(2));
-    expect([...(el?.querySelectorAll('li') ?? [])].map((li) => li.textContent)).toEqual([
-      'brand/x.tsx',
-      'components/Button.tsx',
-    ]);
-    expect(el?.querySelectorAll('button').length).toBe(0);
+    expect([...(el?.querySelectorAll('li') ?? [])].map((li) => li.firstChild?.textContent)).toEqual(
+      ['brand/x.tsx', 'components/Button.tsx']
+    );
+    // #167 T5.3 — each file has its owner-only "Adopt as code"; every control is a registry action.
+    expect(
+      [...(el?.querySelectorAll('button') ?? [])].map((b) => b.getAttribute('data-action'))
+    ).toEqual(['sync.adopt-as-code', 'sync.adopt-as-code']);
   });
 
   test('every held sentence reaches the panel whole — a cut one loses its verb', () => {

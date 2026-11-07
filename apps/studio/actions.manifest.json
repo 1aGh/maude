@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "ff541adcd7f7",
+  "manifestVersion": "1982b1fd1642",
   "actions": [
     {
       "id": "search.open",
@@ -6385,6 +6385,35 @@
         "path": "human",
         "because": "hub-link",
         "note": "which deleted files stay on the hub is the person’s choice"
+      }
+    },
+    {
+      "id": "sync.adopt-as-code",
+      "label": "Adopt as code",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/adopt-held",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "adopting a held file as the owner’s code is the owner’s choice"
+      }
+    },
+    {
+      "id": "sync.open-canvas-folders",
+      "label": "Open canvas folders",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "opens the person’s editor on config.json; an agent edits canvasGroups itself"
       }
     },
     {
