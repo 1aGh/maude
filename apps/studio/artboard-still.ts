@@ -78,10 +78,16 @@ export const STILL_MAX_DECODING = 4;
 /** Kept for callers: drawings are paced by the frame budget now, not by a gap. */
 export const STILL_TAKE_GAP_MS = 50;
 /**
- * The stills kept in memory, in bytes of bitmap (w × h × 4). Past it the least recently used still that is not
- * standing in right now is dropped (an artboard released far away shows its own-colour placeholder again).
+ * The DECODED tier (#212): the stills kept as bitmaps, in bytes (w × h × 4). Past it the least recently used still
+ * that is not standing in right now leaves THIS tier only — its encoded copy stays, so it comes back as a still.
+ * Stills are 400 px wide at most now (0.35–1.4 MB each), so 48 MB holds ~35–140 of them.
  */
-export const STILL_CACHE_MAX_BYTES = 96 * 1024 * 1024;
+export const STILL_CACHE_MAX_BYTES = 48 * 1024 * 1024;
+/**
+ * The ENCODED tier (#212): every still as a WebP blob (~20–60 kB), never evicted by the decoded LRU. Only this cap
+ * drops one (oldest first) — 88 artboards are under 5 MB, so it is a safety net, not a working limit.
+ */
+export const STILL_ENCODED_MAX_BYTES = 64 * 1024 * 1024;
 /** The attribute the article carries while its stand-in shows (`cover` | `still` | `paint` | `reveal`). */
 export const STILL_ATTR = 'data-dc-still';
 /**
@@ -188,24 +194,111 @@ export function contentSignature(body: {
   return `${(h >>> 0).toString(36)}:${s.length}:${body.offsetWidth}x${body.offsetHeight}`;
 }
 
-/** One kept still: its bitmap, the signature it was drawn from, its size in bytes, and when it was last used. */
+/**
+ * One kept still. `el` is the decoded bitmap (null once the decoded tier let go of it); `blob` the encoded copy
+ * (null until it is encoded, or when no encoder exists); `bytes` the decoded size, remembered across a restore.
+ */
 export interface CachedStill {
-  el: HTMLElement;
+  el: HTMLElement | null;
+  blob: Blob | null;
   sig: string;
   bytes: number;
   used: number;
+  /** the order its blob was stored in (the encoded tier drops the smallest first) */
+  order: number;
+  /** its encode is queued or running: the decoded tier does not drop it before it has a copy to restore from */
+  encoding: boolean;
+  url: string | null;
 }
 
+export interface StillCacheOptions {
+  /** the encoded tier's byte cap */
+  encodedMax?: number;
+  /** a decoded still → its encoded copy (null: none) */
+  encode?: (el: HTMLElement) => Promise<Blob | null>;
+  /** an encoded copy → a decoded still, not yet in the document (null: it cannot) */
+  decode?: (blob: Blob) => Promise<HTMLElement | null>;
+  objectUrl?: { make(blob: Blob): string; revoke(url: string): void };
+}
+
+/** The default encoder: WebP at 0.8 off a canvas (a missing `toBlob`, or one that never answers, is "no copy"). */
+function defaultEncode(el: HTMLElement): Promise<Blob | null> {
+  const c = el as HTMLCanvasElement;
+  if (typeof c.toBlob !== 'function') return Promise.resolve(null);
+  return new Promise((res) => {
+    const t = setTimeout(() => res(null), 4000);
+    try {
+      c.toBlob(
+        (b) => {
+          clearTimeout(t);
+          res(b);
+        },
+        'image/webp',
+        0.8
+      );
+    } catch {
+      clearTimeout(t);
+      res(null);
+    }
+  });
+}
+
+/** The default decoder: the blob into a canvas the size of the picture. */
+async function defaultDecode(blob: Blob): Promise<HTMLElement | null> {
+  if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return null;
+  try {
+    const bmp = await createImageBitmap(blob);
+    const c = document.createElement('canvas');
+    c.width = bmp.width;
+    c.height = bmp.height;
+    c.getContext('2d')?.drawImage(bmp, 0, 0);
+    bmp.close?.();
+    return c;
+  } catch {
+    return null;
+  }
+}
+
+const defaultObjectUrl = {
+  make: (b: Blob) => URL.createObjectURL(b),
+  revoke: (u: string) => URL.revokeObjectURL(u),
+};
+
 /**
- * The stills of this canvas document, by artboard id — kept when an artboard's children are released, so it comes
- * back as its still rather than a placeholder, and across an edit's soft reload (the runtime lives on the document).
- * Bounded by `STILL_CACHE_MAX_BYTES`; what stands in right now (`inUse`) is never dropped.
+ * The stills of this canvas document, by artboard id, in two tiers (#212) — kept when an artboard's children are
+ * released, so it comes back as its still rather than a placeholder, and across an edit's soft reload (the runtime
+ * lives on the document).
+ *   - decoded: the bitmaps, an LRU bounded by `max` bytes; what stands in right now (`inUse`) is never dropped;
+ *   - encoded: a WebP copy of each, made once the still exists, never touched by the decoded LRU (its own cap,
+ *     oldest first). A still that leaves the decoded tier stays known (`peek` has it, `el` null) and `restore`
+ *     decodes it again — so a still that was drawn never falls back to a blank.
+ * Without an encoder (a document that cannot make one) a still dropped from the decoded tier is gone, as before.
  */
 export class StillCache {
   private map = new Map<string, CachedStill>();
   private bytes = 0;
+  private encBytes = 0;
   private tick = 0;
-  constructor(readonly max = STILL_CACHE_MAX_BYTES) {}
+  private order = 0;
+  private readonly encodedMax: number;
+  private readonly encode: (el: HTMLElement) => Promise<Blob | null>;
+  private readonly decode: (blob: Blob) => Promise<HTMLElement | null>;
+  private readonly objectUrl: NonNullable<StillCacheOptions['objectUrl']>;
+  private readonly customEncode: boolean;
+  private encQueue: string[] = [];
+  private encRunning = false;
+  private restoring = new Map<string, Promise<HTMLElement | null>>();
+  private evictListeners = new Set<(id: string) => void>();
+  constructor(
+    readonly max = STILL_CACHE_MAX_BYTES,
+    o: StillCacheOptions = {}
+  ) {
+    this.encodedMax = o.encodedMax ?? STILL_ENCODED_MAX_BYTES;
+    this.customEncode = !!o.encode;
+    this.encode = o.encode ?? defaultEncode;
+    this.decode = o.decode ?? defaultDecode;
+    this.objectUrl = o.objectUrl ?? defaultObjectUrl;
+  }
   get(id: string): CachedStill | undefined {
     const c = this.map.get(id);
     if (c) c.used = ++this.tick;
@@ -223,29 +316,159 @@ export class StillCache {
   ): void {
     const old = this.map.get(id);
     if (old) {
-      this.bytes -= old.bytes;
-      if (old.el !== el) old.el.remove();
+      if (old.el) this.bytes -= old.bytes;
+      if (old.el && old.el !== el) old.el.remove();
+      this.dropBlob(old);
     }
-    this.map.set(id, { el, sig, bytes, used: ++this.tick });
+    // an element that cannot be encoded (no `toBlob`, no custom encoder) has nothing to wait for
+    const encoding = this.customEncode || typeof (el as HTMLCanvasElement).toBlob === 'function';
+    this.map.set(id, {
+      el,
+      blob: null,
+      sig,
+      bytes,
+      used: ++this.tick,
+      order: 0,
+      encoding,
+      url: null,
+    });
     this.bytes += bytes;
+    this.trim(id, inUse);
+    if (encoding) {
+      if (!this.encQueue.includes(id)) this.encQueue.push(id);
+      this.pumpEncode();
+    }
+  }
+  /** The decoded tier over its cap: the least recently used still that does not stand in leaves it. */
+  private trim(keep: string, inUse: (id: string) => boolean): void {
     if (this.bytes <= this.max) return;
     const victims = [...this.map.entries()]
-      .filter(([k]) => k !== id && !inUse(k))
+      .filter(([k, v]) => k !== keep && v.el && !v.encoding && !inUse(k))
       .sort((a, b) => a[1].used - b[1].used);
     for (const [k, v] of victims) {
       if (this.bytes <= this.max) break;
-      this.map.delete(k);
       this.bytes -= v.bytes;
-      v.el.remove();
+      v.el?.remove();
+      v.el = null;
+      if (!v.blob) this.map.delete(k);
+      for (const fn of this.evictListeners) fn(k);
     }
+  }
+  private pumpEncode(): void {
+    if (this.encRunning) return;
+    const id = this.encQueue.shift();
+    if (id === undefined) return;
+    const e = this.map.get(id);
+    const el = e?.el;
+    if (!e || !el) {
+      if (e) e.encoding = false;
+      this.pumpEncode();
+      return;
+    }
+    this.encRunning = true;
+    this.encode(el)
+      .catch(() => null)
+      .then((blob) => {
+        if (this.map.get(id) !== e) return;
+        e.encoding = false;
+        if (blob && blob.size > 0) {
+          this.dropBlob(e);
+          e.blob = blob;
+          e.order = ++this.order;
+          this.encBytes += blob.size;
+          this.trimEncoded(id);
+        }
+      })
+      .finally(() => {
+        this.encRunning = false;
+        // a gap between encodes: they must not stack up inside one frame
+        setTimeout(() => this.pumpEncode(), 0);
+      });
+  }
+  /** The encoded tier over its cap: the oldest copy goes (a still with no bitmap either is forgotten). */
+  private trimEncoded(keep: string): void {
+    if (this.encBytes <= this.encodedMax) return;
+    const victims = [...this.map.entries()]
+      .filter(([k, v]) => k !== keep && v.blob)
+      .sort((a, b) => a[1].order - b[1].order);
+    for (const [k, v] of victims) {
+      if (this.encBytes <= this.encodedMax) break;
+      this.dropBlob(v);
+      if (!v.el) this.map.delete(k);
+    }
+  }
+  private dropBlob(v: CachedStill): void {
+    if (v.blob) this.encBytes -= v.blob.size;
+    if (v.url) {
+      try {
+        this.objectUrl.revoke(v.url);
+      } catch {}
+    }
+    v.blob = null;
+    v.url = null;
+  }
+  /**
+   * The decoded still of `id`, decoding it from the encoded tier if the decoded tier let go of it (a second ask
+   * while it decodes shares the decode). Null when nothing can be restored (then the entry is forgotten).
+   */
+  restore(id: string, inUse: (id: string) => boolean = () => false): Promise<HTMLElement | null> {
+    const e = this.map.get(id);
+    if (!e) return Promise.resolve(null);
+    if (e.el) {
+      e.used = ++this.tick;
+      return Promise.resolve(e.el);
+    }
+    const going = this.restoring.get(id);
+    if (going) return going;
+    const blob = e.blob;
+    if (!blob) return Promise.resolve(null);
+    const p = this.decode(blob)
+      .catch(() => null)
+      .then((el) => {
+        this.restoring.delete(id);
+        if (this.map.get(id) !== e) return null;
+        if (e.el) return e.el;
+        if (!el) {
+          this.dropBlob(e);
+          this.map.delete(id);
+          return null;
+        }
+        e.el = el;
+        e.used = ++this.tick;
+        this.bytes += e.bytes;
+        this.trim(id, inUse);
+        return el;
+      });
+    this.restoring.set(id, p);
+    return p;
+  }
+  /** An object URL of the encoded copy (what a placeholder shows when the bitmap left the decoded tier). */
+  blobUrl(id: string): string | null {
+    const e = this.map.get(id);
+    if (!e?.blob) return null;
+    if (!e.url) {
+      try {
+        e.url = this.objectUrl.make(e.blob);
+      } catch {
+        return null;
+      }
+    }
+    return e.url;
+  }
+  /** A bitmap left the decoded tier (the placeholder holding it shows the encoded copy instead). */
+  onEvict(fn: (id: string) => void): () => void {
+    this.evictListeners.add(fn);
+    return () => this.evictListeners.delete(fn);
   }
   /** The content changed under a kept still: it may still stand in (better than nothing), but is redrawn. */
   stale(id: string): void {
     const c = this.map.get(id);
     if (c) c.sig = '';
   }
-  stats(): { n: number; bytes: number } {
-    return { n: this.map.size, bytes: this.bytes };
+  stats(): { n: number; bytes: number; encoded: number; encodedBytes: number } {
+    let encoded = 0;
+    for (const v of this.map.values()) if (v.blob) encoded += 1;
+    return { n: this.map.size, bytes: this.bytes, encoded, encodedBytes: this.encBytes };
   }
   ids(): string[] {
     return [...this.map.keys()];
@@ -284,6 +507,8 @@ interface Entry {
   wasLive: boolean;
   /** its drawing in flight */
   job: Current | null;
+  /** its kept still is being decoded from the encoded tier */
+  restoring: boolean;
 }
 
 /** The drawing in flight (one at a time). */
@@ -504,16 +729,20 @@ export class StillController {
       observer: null,
       wasLive: false,
       job: null,
+      restoring: false,
     };
     e.observer = this.observe ? this.observe(target.body, (why) => this.markDirty(id, why)) : null;
     this.entries.set(id, e);
     // A fresh mount: it has painted nothing yet. Under the cut it starts as its kept still (or the cover) with the
     // body hidden before its first paint; over the cut it starts as a hand-over from that stand-in.
     const kept = this.cache.get(id);
-    if (kept) this.putStill(e, kept.el);
+    if (kept?.el) this.putStill(e, kept.el);
     const small = this.small(e, this.zoom);
-    if (small && !e.pinned && !e.eager) this.setView(e, kept ? 'still' : 'cover');
-    else if (kept) this.handOver(e, true);
+    if (small && !e.pinned && !e.eager) {
+      this.setView(e, kept?.el ? 'still' : 'cover');
+      // a still the decoded tier let go of: decoded again from the encoded copy, never drawn again (#212)
+      if (kept && !kept.el) this.restoreFor(e);
+    } else if (kept?.el) this.handOver(e, true);
     else e.wasLive = true;
     this.schedulePump();
     return () => {
@@ -978,6 +1207,10 @@ export class StillController {
     if (sig && kept && kept.sig === sig) {
       e.dirty = false;
       this.takes.reused += 1;
+      if (!kept.el) {
+        this.restoreFor(e);
+        return true;
+      }
       if (e.shown !== kept.el) this.putStill(e, kept.el);
       this.afterTake(e);
       for (const fn of this.stillListeners) fn(e.id, true);
@@ -1006,6 +1239,27 @@ export class StillController {
     e.job = c;
     this.queue.push(c);
     return true;
+  }
+
+  /** Decode the entry's kept still from the encoded tier and stand it in (a failed decode: drawn again). */
+  private restoreFor(e: Entry): void {
+    if (e.restoring) return;
+    e.restoring = true;
+    void this.cache
+      .restore(e.id, (k) => this.entries.has(k))
+      .then((el) => {
+        e.restoring = false;
+        if (this.entries.get(e.id) !== e) return;
+        if (!el) {
+          e.dirty = true;
+          e.readyAt = this.now();
+          this.schedulePump();
+          return;
+        }
+        if (!e.shown) this.putStill(e, el);
+        this.afterTake(e);
+        for (const fn of this.stillListeners) fn(e.id, true);
+      });
   }
 
   private finishJob(c: Current): void {
