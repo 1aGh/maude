@@ -3474,7 +3474,14 @@
     "testid:studio/video-play-chrome.tsx#canvas/video-scrub-time": "testid:video-scrub-time",
     "button:studio/comments-overlay.tsx#DeleteCommentButton/comment-delete-id": "testid:.cm-layer / .cm-pin / [data-comment-pin]",
     "keydown:studio/comments-overlay.tsx#DeleteCommentButton/comment-delete-id": "testid:.cm-layer / .cm-pin / [data-comment-pin]",
-    "keydown:studio/client/inspector-controls.jsx#makeScrubHandler/listener": "action:view.inspector"
+    "keydown:studio/client/inspector-controls.jsx#makeScrubHandler/listener": "action:view.inspector",
+    "button:studio/client/panels/CreateProject.jsx#NewView/cp-github-signin": "A-sign-in-with-github",
+    "testid:studio/client/panels/CreateProject.jsx#other/cp-github-signin": "A-sign-in-with-github",
+    "button:studio/client/panels/DiffView.jsx#DiffView/onclick-async-setbusy-true-seterror-try-const-re": "D10",
+    "testid:studio/client/panels/DiffView.jsx#git/history/diff-error": "D10",
+    "button:studio/client/panels/TeamProjects.jsx#TeamProjects/team-hub-cancel": "A-your-team-s-own-server-email-password",
+    "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-hub-cancel": "A-your-team-s-own-server-email-password",
+    "testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-hub-waiting": "A-your-team-s-own-server-email-password"
   },
   "excluded": {
     "button:studio/client/home/home-app.jsx#HomeApp/dismiss": "v2 code (added after the freeze)",
@@ -3719,6 +3726,16 @@
     "testid:studio/safe-zones-overlay.tsx#canvas iframe chrome/safe-zones": "v2 code (added after the freeze)",
     "testid:studio/video-links-overlay.tsx#canvas/video-link-from-to": "v2 code (added after the freeze)",
     "testid:studio/video-links-overlay.tsx#canvas/video-links": "v2 code (added after the freeze)",
-    "testid:studio/video-links-overlay.tsx#canvas/video-unlinked-id": "v2 code (added after the freeze)"
+    "testid:studio/video-links-overlay.tsx#canvas/video-unlinked-id": "v2 code (added after the freeze)",
+    "testid:client/system/system-view.jsx#stage/system-view/sv-no-system-heading": "v2 code (added after the freeze)",
+    "testid:studio/asset-placeholder.tsx#other/asset-frame-lfs-copy": "v2 code (added after the freeze)",
+    "testid:studio/asset-placeholder.tsx#other/asset-frame-lfs-fix": "v2 code (added after the freeze)",
+    "testid:studio/canvas-pages-view.tsx#canvas/canvas-pages-count": "v2 code (added after the freeze)",
+    "testid:studio/canvas-pages-view.tsx#canvas/canvas-pages-nav": "v2 code (added after the freeze)",
+    "testid:studio/canvas-pages-view.tsx#canvas/canvas-pages-next": "v2 code (added after the freeze)",
+    "testid:studio/canvas-pages-view.tsx#canvas/canvas-pages-prev": "v2 code (added after the freeze)",
+    "testid:studio/canvas-pages-view.tsx#canvas/canvas-view": "v2 code (added after the freeze)",
+    "testid:studio/canvas-pages-view.tsx#canvas/canvas-view-view": "v2 code (added after the freeze)",
+    "testid:studio/video-play-overlay.tsx#other/video-play-centre": "v2 code (added after the freeze)"
   }
 }

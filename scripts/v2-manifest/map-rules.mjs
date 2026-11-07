@@ -60,6 +60,16 @@ export const V2_CODE_IDS = new Set([
   'testid:client/v2/ds/upgrade-sheet.jsx#stage/dialog/ds-upgrade-hide', // r4 #11 Bring it up says why and works in a corner card
   'testid:studio/video-play-overlay.tsx#other/video-play-button', // r5-2 the play button on a placed video
   'testid:studio/video-play-overlay.tsx#other/video-play-layer', // r5-2 the play button on a placed video
+  'testid:studio/video-play-overlay.tsx#other/video-play-centre', // rc3 r4-1 the big centre play button on a clip not yet started
+  'testid:client/system/system-view.jsx#stage/system-view/sv-no-system-heading', // rc3 r4-7 the empty design system view's heading
+  'testid:studio/asset-placeholder.tsx#other/asset-frame-lfs-copy', // Git LFS placeholder frame (v1 had no placeholder frames)
+  'testid:studio/asset-placeholder.tsx#other/asset-frame-lfs-fix', // Git LFS placeholder frame (v1 had no placeholder frames)
+  'testid:studio/canvas-pages-view.tsx#canvas/canvas-view', // 2.0.7 B2 the Canvas | Pages switch (v1 had no Pages view)
+  'testid:studio/canvas-pages-view.tsx#canvas/canvas-view-view', // 2.0.7 B2 the Canvas | Pages switch
+  'testid:studio/canvas-pages-view.tsx#canvas/canvas-pages-nav', // 2.0.7 B2 the pager in Pages
+  'testid:studio/canvas-pages-view.tsx#canvas/canvas-pages-prev', // 2.0.7 B2 the pager in Pages
+  'testid:studio/canvas-pages-view.tsx#canvas/canvas-pages-next', // 2.0.7 B2 the pager in Pages
+  'testid:studio/canvas-pages-view.tsx#canvas/canvas-pages-count', // 2.0.7 B2 the pager in Pages
 ]);
 
 /** Entries that are infrastructure, not features (lead decision, V2-4.gate-b): id → reason. Excluded
@@ -134,6 +144,20 @@ export const HAND = {
   // S1.2 — the row's Delete is now the row menu's Move to trash (registry canvas.trash, its 8
   // reachability rows); the v1 aria-label is gone from the tree.
   'testid:studio/client/app.jsx#sidebar/tree/aria-label-delete-canvas-name': 'action:canvas.trash',
+  // 2.0.5 W4: "Sign in with GitHub… to publish" in New project… — the row's "every Sign in with GitHub to publish line"
+  'button:studio/client/panels/CreateProject.jsx#NewView/cp-github-signin': 'A-sign-in-with-github',
+  'testid:studio/client/panels/CreateProject.jsx#other/cp-github-signin': 'A-sign-in-with-github',
+  // the version diff's Restore / merge now shows its failure inside the sheet (replaces window.alert): D10 DiffView
+  'button:studio/client/panels/DiffView.jsx#DiffView/onclick-async-setbusy-true-seterror-try-const-re':
+    'D10',
+  'testid:studio/client/panels/DiffView.jsx#git/history/diff-error': 'D10',
+  // #204: the wait while the team server's own sign-in page is open in the browser, and its Cancel
+  'button:studio/client/panels/TeamProjects.jsx#TeamProjects/team-hub-cancel':
+    'A-your-team-s-own-server-email-password',
+  'testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-hub-cancel':
+    'A-your-team-s-own-server-email-password',
+  'testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-hub-waiting':
+    'A-your-team-s-own-server-email-password',
 };
 
 const r = (file, m, to) => ({ file, ...m, to });
