@@ -128,6 +128,10 @@ pub struct WindowEntry {
     /// The strip's AI dot (V2-3.7 §6): set on a background tab, cleared when
     /// it becomes the active tab. Live only.
     pub dot: Option<crate::tabs::Dot>,
+    /// #172 T2.6b (03 `ai-other-tab`): the canvas a WORKING background tab's run is on — its file
+    /// stem (`notify::canvas_display`), for the strip's tooltip "<project> · AI is working on
+    /// <canvas>". Only beside `dot == Working`; cleared with the dot. Live only.
+    pub working_canvas: Option<String>,
     /// V2-8.9 M1: this tab's "AI may › Search the web" switch, as its studio
     /// page last told the shell (`set_tab_web`). `true` until told — the
     /// switch's default (client ai-may.js `MAY_DEFAULT`). While `false`,
@@ -198,6 +202,7 @@ impl WindowBook {
                 resting: false,
                 closing: false,
                 dot: None,
+                working_canvas: None,
                 web: true,
                 instance,
             },
@@ -251,10 +256,25 @@ impl WindowBook {
         match self.entries.get_mut(label) {
             Some(e) => {
                 e.dot = dot;
+                if dot != Some(crate::tabs::Dot::Working) {
+                    e.working_canvas = None;
+                }
                 true
             }
             None => false,
         }
+    }
+
+    /// `set_dot`, with the canvas a working tab names (#172 T2.6b). The name rides only beside
+    /// `Working`; any other mark drops it. The active tab takes neither: false.
+    pub fn set_mark(&mut self, label: &str, dot: Option<crate::tabs::Dot>, canvas: Option<String>) -> bool {
+        if !self.set_dot(label, dot) {
+            return false;
+        }
+        if let Some(e) = self.entries.get_mut(label) {
+            e.working_canvas = canvas.filter(|_| dot == Some(crate::tabs::Dot::Working));
+        }
+        true
     }
 
     /// Record the origin the shell just navigated `label` to.
@@ -386,6 +406,7 @@ impl WindowBook {
             Some(e) => {
                 e.last_focused = tick;
                 e.dot = None;
+                e.working_canvas = None;
                 if self.front_claim.as_deref() != Some(label) {
                     self.front_claim = None;
                 }
@@ -465,6 +486,7 @@ impl WindowBook {
                     e.origin = None;
                     // A resting tab runs no AI: its dot goes (V2-3.7 §6).
                     e.dot = None;
+                    e.working_canvas = None;
                 }
                 true
             }

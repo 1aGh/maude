@@ -77,11 +77,18 @@ pub fn mark_for(level: Option<Dot>, current: Option<Dot>, finished: bool) -> Opt
 
 /// S5.14 — put `mark` on `root`'s tab exactly (the level path; `set_dot` keeps the old
 /// transition rule for its e2e helper). The active tab takes none (`WindowBook::set_dot`).
-/// True when the strip state changed.
-pub fn set_mark(app: &AppHandle, root: &str, level: Option<Dot>, finished: bool) -> bool {
+/// #172 T2.6b: `canvas` is the working run's canvas stem, kept only beside `Working` for the
+/// strip's tooltip. True when the strip state changed.
+pub fn set_mark(
+    app: &AppHandle,
+    root: &str,
+    level: Option<Dot>,
+    finished: bool,
+    canvas: Option<&str>,
+) -> bool {
     let changed_now = app.try_state::<SidecarState>().is_some_and(|s| {
         let mut book = s.windows.lock().unwrap_or_else(|e| e.into_inner());
-        set_mark_in(&mut book, root, level, finished)
+        set_mark_in(&mut book, root, level, finished, canvas)
     });
     if changed_now {
         changed(app);
@@ -90,16 +97,29 @@ pub fn set_mark(app: &AppHandle, root: &str, level: Option<Dot>, finished: bool)
 }
 
 /// Pure half of `set_mark`.
-pub fn set_mark_in(book: &mut WindowBook, root: &str, level: Option<Dot>, finished: bool) -> bool {
+pub fn set_mark_in(
+    book: &mut WindowBook,
+    root: &str,
+    level: Option<Dot>,
+    finished: bool,
+    canvas: Option<&str>,
+) -> bool {
     let Some(label) = book.label_for_root(root) else {
         return false;
     };
-    let current = book.entry(&label).and_then(|e| e.dot);
+    let Some(entry) = book.entry(&label) else {
+        return false;
+    };
+    let current = entry.dot;
     let next = mark_for(level, current, finished);
-    if next == current {
+    let next_canvas = canvas
+        .filter(|_| next == Some(Dot::Working))
+        .map(crate::notify::sanitize_title)
+        .filter(|c| !c.is_empty());
+    if next == current && next_canvas == entry.working_canvas {
         return false;
     }
-    book.set_dot(&label, next)
+    book.set_mark(&label, next, next_canvas)
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -110,6 +130,10 @@ pub struct StripTab {
     /// `sanitize_title`'d — the only project text that reaches the strip.
     pub name: String,
     pub dot: Option<Dot>,
+    /// #172 T2.6b (03 `ai-other-tab`): beside `dot == working`, the canvas its run is on (a
+    /// file stem, `sanitize_title`'d) — the strip's tooltip "<name> · AI is working on <canvas>".
+    /// Never a word of the run itself (Decision D).
+    pub working_on: Option<String>,
     pub resting: bool,
     pub closing: bool,
     /// S1.22b (11 `pn-tab-b` ①): the project square — the name's first letter and
@@ -273,6 +297,11 @@ pub fn strip_state_full(
                 label: label.clone(),
                 kind,
                 dot: e.dot,
+                working_on: e
+                    .working_canvas
+                    .as_deref()
+                    .filter(|_| e.dot == Some(Dot::Working))
+                    .map(crate::notify::sanitize_title),
                 resting: e.resting,
                 closing: e.closing,
                 initial,
@@ -1699,15 +1728,57 @@ mod tests {
 
         let mut b = book_abc();
         b.focus("p-a", 5);
-        assert!(set_mark_in(&mut b, B, Some(Working), false));
-        assert!(!set_mark_in(&mut b, B, Some(Working), false), "no change, no push");
+        assert!(set_mark_in(&mut b, B, Some(Working), false, None));
+        assert!(!set_mark_in(&mut b, B, Some(Working), false, None), "no change, no push");
         assert_eq!(b.entry("p-b").unwrap().dot, Some(Working));
-        assert!(set_mark_in(&mut b, B, Some(NeedsYou), false));
-        assert!(set_mark_in(&mut b, B, None, true));
+        assert!(set_mark_in(&mut b, B, Some(NeedsYou), false, None));
+        assert!(set_mark_in(&mut b, B, None, true, None));
         assert_eq!(b.entry("p-b").unwrap().dot, Some(Done));
-        assert!(!set_mark_in(&mut b, A, Some(Working), false), "the active tab takes no mark");
+        assert!(!set_mark_in(&mut b, A, Some(Working), false, None), "the active tab takes no mark");
         // The strip reads the value as a kebab-case string.
         assert_eq!(serde_json::to_value(Working).unwrap(), "working");
+    }
+
+    // #172 T2.6b — 03 `ai-other-tab`'s tooltip: "<project> · AI is working on <canvas>". The canvas
+    // rides only on a working tab, and goes when the run stops working there.
+    #[test]
+    fn a_working_tab_names_its_canvas_and_the_name_goes_when_the_run_ends() {
+        use Dot::*;
+        let on = |b: &WindowBook, l: &str| b.entry(l).unwrap().working_canvas.clone();
+        let mut b = book_abc();
+        b.focus("p-a", 5);
+        assert!(set_mark_in(&mut b, B, Some(Working), false, Some("Poster")));
+        assert_eq!(on(&b, "p-b").as_deref(), Some("Poster"));
+        assert!(!set_mark_in(&mut b, B, Some(Working), false, Some("Poster")), "no change, no push");
+        assert!(set_mark_in(&mut b, B, Some(Working), false, Some("Flyer")), "another canvas: a push");
+        let s = strip_state(&b, |r| r.rsplit('/').next().unwrap().to_string());
+        let tab = s.tabs.iter().find(|t| t.label == "p-b").unwrap();
+        assert_eq!(tab.working_on.as_deref(), Some("Flyer"));
+        assert_eq!(serde_json::to_value(tab).unwrap()["working_on"], "Flyer");
+        assert!(s.tabs.iter().find(|t| t.label == "p-c").unwrap().working_on.is_none());
+
+        // Needs you and done carry no canvas: the tooltip is the working line's only.
+        assert!(set_mark_in(&mut b, B, Some(NeedsYou), false, Some("Flyer")));
+        assert_eq!(on(&b, "p-b"), None);
+        assert!(set_mark_in(&mut b, B, Some(Working), false, Some("Flyer")));
+        assert!(set_mark_in(&mut b, B, None, true, None));
+        assert_eq!(b.entry("p-b").unwrap().dot, Some(Done));
+        assert_eq!(on(&b, "p-b"), None, "the run ended");
+
+        // A working run with no canvas (a terminal agent) is a spark with no name.
+        assert!(set_mark_in(&mut b, C, Some(Working), false, None));
+        assert_eq!(on(&b, "p-c"), None);
+
+        // The active tab takes none; activating a tab or resting it clears the name.
+        assert!(!set_mark_in(&mut b, A, Some(Working), false, Some("Poster")));
+        assert_eq!(on(&b, "p-a"), None);
+        assert!(set_mark_in(&mut b, B, Some(Working), false, Some("Poster")));
+        b.focus("p-b", 6);
+        assert_eq!(on(&b, "p-b"), None, "activated");
+        b.focus("p-a", 7);
+        assert!(set_mark_in(&mut b, B, Some(Working), false, Some("Poster")));
+        b.set_resting("p-b", true);
+        assert_eq!(on(&b, "p-b"), None, "resting");
     }
 
     #[test]
@@ -2027,7 +2098,11 @@ mod tests {
             .collect();
         assert_eq!(
             keys,
-            ["account", "closing", "dot", "initial", "kind", "label", "name", "place", "resting", "tone"]
+            // #172 T2.6b: `working_on`, a canvas file stem beside the working mark only.
+            [
+                "account", "closing", "dot", "initial", "kind", "label", "name", "place", "resting", "tone",
+                "working_on"
+            ]
         );
     }
 

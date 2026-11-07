@@ -118,6 +118,18 @@
     return null;
   }
 
+  /** A tab's tooltip. #172 T2.6b (03 `ai-other-tab`): a working tab names the canvas its AI is on in fixed
+   *  words — "<project> · AI is working on <canvas>"; the canvas is a file stem Rust read from the run's scope
+   *  (`working_on`), never a word of the run. No canvas (a terminal agent): "<project> · AI is working". */
+  function tabTip(t) {
+    if (t.resting) return `${t.name} — resting, opens in a second`;
+    if (t.dot === 'working')
+      return t.working_on
+        ? `${t.name} · AI is working on ${t.working_on}`
+        : `${t.name} · AI is working`;
+    return t.name;
+  }
+
   function stateWords(t) {
     if (t.dot === 'working') return 'AI working';
     if (t.dot === 'needs-you') return 'Needs you';
@@ -200,7 +212,7 @@
     el.setAttribute('data-label', t.label);
     el.setAttribute('aria-selected', t.label === active ? 'true' : 'false');
     el.tabIndex = t.label === active ? 0 : -1;
-    el.title = t.resting ? t.name + ' — resting, opens in a second' : t.name;
+    el.title = tabTip(t);
 
     el.appendChild(square(t));
     if (t.label === editing && editInput) {
