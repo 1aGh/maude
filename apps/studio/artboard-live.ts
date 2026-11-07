@@ -182,6 +182,8 @@ export class LiveRegistry {
   private lastDrainAt = 0;
   private lastGestureMountAt = Number.NEGATIVE_INFINITY;
   private lastAnyMountAt = Number.NEGATIVE_INFINITY;
+  /** First mounts made during the current gesture (2.0.7: the settle frees what they took past the budget). */
+  private gestureMounts = 0;
   readonly budget: number;
   readonly ceiling: number;
 
@@ -202,6 +204,22 @@ export class LiveRegistry {
     this.later = opts.later ?? ((fn, ms) => void setTimeout(fn, ms));
     this.budget = opts.budget ?? MOUNT_NODE_BUDGET;
     this.ceiling = opts.ceiling ?? ON_SCREEN_NODE_CEILING;
+  }
+
+  private mayWait: (id: string) => boolean = () => false;
+
+  /**
+   * 2.0.7 — which on-screen artboards may wait for the settle to mount (the gate: under the overview cut, where
+   * the placeholder shows its colour or its kept still and a mount would show nothing more mid-gesture). The
+   * rest mount mid-gesture as before: a placeholder over the cut is a block the user sees.
+   */
+  setMayWait(fn: (id: string) => boolean): void {
+    this.mayWait = fn;
+  }
+
+  /** The active artboard and a video one never wait (neither is ever a still). */
+  private waits(id: string, s: Slot): boolean {
+    return !s.pinned && !s.eager && this.mayWait(id);
   }
 
   get(id: string): ArtboardLiveState {
@@ -419,6 +437,13 @@ export class LiveRegistry {
     // the settle wakes what waited, and lets the releases that waited for it happen
     if (!on) {
       this.recompute();
+      // 2.0.7 — a mount mid-gesture pushed nothing out (no unmount while the camera moves): what it took past
+      // the budget is freed now, from what is off screen, the farthest first
+      if (this.gestureMounts > 0 && this.mode === 'sleep' && this.forceAll === 0) {
+        const over = this.mountedWeight() - this.budget;
+        if (over > 0 && this.evictFor(over) > 0) this.emit();
+      }
+      this.gestureMounts = 0;
       for (const fn of this.settleListeners) fn();
     } else this.kick(); // on-screen artboards keep mounting during the gesture
   }
@@ -533,12 +558,17 @@ export class LiveRegistry {
   private recompute(): void {
     if (this.mode === 'off') return;
     const force = this.forceAll > 0;
+    // 2.0.7 — nothing goes down mid-gesture (no sleep, no media release, no unmount): the frame freeze already
+    // stops the artboards' own work while the camera moves, and each change is a render. The settle applies them.
+    const hold = this.interacting && !force;
     let changed = false;
     for (const [id, s] of this.slots) {
       const t = this.target(s);
       const goesDown = (s.live && !t.live) || (s.admitted && !t.admitted) || (s.media && !t.media);
       const goesUp = (!s.live && t.live) || (!s.admitted && t.admitted) || (!s.media && t.media);
-      if (goesDown && !goesUp) {
+      if (hold && goesDown) {
+        if (goesUp) this.pending.add(id);
+      } else if (goesDown && !goesUp) {
         s.live = t.live;
         s.admitted = t.admitted;
         s.media = t.media;
@@ -584,7 +614,7 @@ export class LiveRegistry {
   private hasVisibleMount(): boolean {
     for (const id of this.pending) {
       const s = this.slots.get(id);
-      if (!s?.visible) continue;
+      if (!s?.visible || this.waits(id, s)) continue;
       const t = this.target(s);
       if ((!s.admitted && t.admitted) || (!s.media && t.media)) return true;
     }
@@ -626,11 +656,12 @@ export class LiveRegistry {
       }
       // an eager artboard's media coming up is a mount too (its Player): paced the same, outside the budget
       const mounts = (tg.admitted && !s.admitted) || (tg.media && !s.media);
-      if (this.interacting && !(mounts && s.visible)) continue; // waits for the settle
+      // mid-gesture only what is on screen and would show a block mounts (2.0.7: under the cut it waits)
+      if (this.interacting && !(mounts && s.visible && !this.waits(id, s))) continue; // waits for the settle
       if (mounts && this.forceAll === 0 && this.mode === 'sleep' && !s.eager) {
         const w = this.weightOf(s);
         if (mounted > 0 && mounted + w > this.budget) {
-          if (s.visible) {
+          if (s.visible && !this.interacting) {
             const freed = this.evictFor(mounted + w - this.budget);
             if (freed) changed = true;
             mounted -= freed;
@@ -643,12 +674,13 @@ export class LiveRegistry {
         }
         mounted += w;
       }
-      s.admitted = tg.admitted;
-      s.media = tg.media;
+      // mid-gesture a mount only raises (nothing goes down until the settle)
+      s.admitted = this.interacting ? s.admitted || tg.admitted : tg.admitted;
+      s.media = this.interacting ? s.media || tg.media : tg.media;
       if (this.interacting) {
-        // a first mount mid-gesture comes up asleep; its wake waits for the settle
-        s.live = false;
+        // a first mount mid-gesture comes up asleep (`live` stays what it was); its wake waits for the settle
         this.lastGestureMountAt = t;
+        this.gestureMounts += 1;
       } else {
         s.live = tg.live;
         this.pending.delete(id);
@@ -681,8 +713,25 @@ export class LiveRegistry {
 
   private notify(_id: string, s: Slot): void {
     if (s.view.live === s.live && s.view.seen === s.admitted && s.view.media === s.media) return;
+    const c = this.churn;
+    if (s.admitted !== s.view.seen) {
+      if (s.admitted) c.mounts += 1;
+      else c.releases += 1;
+    }
+    if (this.interacting) {
+      if (s.admitted && !s.view.seen) c.gestureMounts += 1;
+      if ((!s.live && s.view.live) || (!s.admitted && s.view.seen) || (!s.media && s.view.media))
+        c.gestureDowns += 1;
+    }
     s.view = Object.freeze({ live: s.live, seen: s.admitted, media: s.media });
     for (const fn of s.subs) fn(s.view);
+  }
+
+  private churn = { mounts: 0, releases: 0, gestureMounts: 0, gestureDowns: 0 };
+
+  /** Ring churn since the open: mounts, releases, and what changed mid-gesture (2.0.7 — the measurement). */
+  churnStats(): { mounts: number; releases: number; gestureMounts: number; gestureDowns: number } {
+    return { ...this.churn };
   }
 
   private emit(): void {

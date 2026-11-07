@@ -224,6 +224,7 @@ function getRuntime(): Runtime | null {
       visible: registry.visibleCount(),
       mounted: registry.mountedCount(),
       mountedNodes: Math.round(registry.mountedWeight()),
+      churn: registry.churnStats(),
     });
   }
   const articles = new Map<string, HTMLElement>();
@@ -247,6 +248,12 @@ function getRuntime(): Runtime | null {
   ) {
     const st = new StillController({ job: startStill, info: (id) => registry.slotInfo(id) });
     registry.onSettle(() => st.settle());
+    // 2.0.7 — mid-gesture an artboard under the cut waits for the settle to mount: its placeholder shows its colour
+    // or its kept still, and a mount would show no more than that until it is drawn
+    registry.setMayWait((id) => {
+      const a = articles.get(id);
+      return !!a && inOverviewCut(a.offsetWidth, st.zoomNow());
+    });
     stills = st;
     const w = window as unknown as Record<string, unknown>;
     w.__maudeStillStats = () => ({ ...st.stats(), raster: { ...rasterTimings } });
