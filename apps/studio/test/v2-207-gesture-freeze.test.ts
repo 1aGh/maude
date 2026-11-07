@@ -226,6 +226,15 @@ describe("Maude's own frame code never waits", () => {
     expect(offenders).toEqual([]);
   });
 
+  test("`maude design perf`'s frame samplers and pacers take the exempt clock (they measure the gesture)", () => {
+    for (const f of ['bin/_perf-shared.mjs', 'bin/_perf-probe-open.mjs']) {
+      const src = readFileSync(join(STUDIO, f), 'utf8');
+      expect(src).toContain('__maudeFrameFreeze.raf');
+      expect(src).not.toMatch(/(?:\bwin|\bwindow)\.requestAnimationFrame\(/);
+      expect(src).not.toMatch(/[;{(\s]requestAnimationFrame\((?:loop|tick)\)/);
+    }
+  });
+
   test("the inspector's injected pins (they follow the camera) take the exempt clock", () => {
     const src = readFileSync(join(STUDIO, 'inspect.ts'), 'utf8');
     expect(src).toContain('window.__maudeFrameFreeze');

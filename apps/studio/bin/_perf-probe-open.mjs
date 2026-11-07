@@ -82,8 +82,8 @@ const INIT = `(() => {
   const P = (window.__maudeOpenProbe = { frames: [], long: [], marks: {}, black: 0 });
   const now = () => performance.timeOrigin + performance.now();
   let last = 0;
-  const loop = (t) => { const at = performance.timeOrigin + t; if (last) P.frames.push([at, at - last]); last = at; requestAnimationFrame(loop); };
-  requestAnimationFrame(loop);
+  const loop = (t) => { const at = performance.timeOrigin + t; if (last) P.frames.push([at, at - last]); last = at; (window.__maudeFrameFreeze ? window.__maudeFrameFreeze.raf : requestAnimationFrame)(loop); };
+  (window.__maudeFrameFreeze ? window.__maudeFrameFreeze.raf : requestAnimationFrame)(loop);
   try { new PerformanceObserver((l) => { for (const e of l.getEntries()) P.long.push([performance.timeOrigin + e.startTime, e.duration]); }).observe({ type: 'longtask', buffered: true }); } catch {}
   const PH = '.dc-artboard-sleeping, .ds-specimen-pending, [data-dc-placeholder]';
   // On-screen = an IntersectionObserver's answer, never getBoundingClientRect: a poll that forces a
