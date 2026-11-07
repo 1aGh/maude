@@ -32,7 +32,10 @@ const NAV = (note: string): ActionDefAI => ({
   agent: cli(`maude design open ${note}`),
 });
 const PREF = (note?: string): ActionDefAI => ({ effect: 'none', agent: human('view-pref', note) });
-const TSX = (how: string, skill: `design:${string}` = 'design:design'): ActionDefAI => ({
+const TSX = (
+  how: string,
+  skill: `design:${string}` | `design-video:${string}` = 'design:design'
+): ActionDefAI => ({
   effect: 'project',
   agent: file('canvas-tsx', skill, how),
 });
