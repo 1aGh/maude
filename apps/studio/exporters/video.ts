@@ -93,6 +93,14 @@ const MAX_FRAMES_CEILING = 18000;
  *  captures have died from memory pressure — warn loudly, recommend ≤720p. */
 const HEAVY_FRAMES_WARNING = 900; // 30 s @ 30 fps
 
+/** `--scale` for the capture shim: the user's 1–3× choice, or `auto` (the shim picks by artboard size). */
+export function resolveScaleArg(options: Pick<ExportOptions, 'scale'>): string {
+  const raw: unknown = options.scale;
+  if (raw === undefined || raw === null || raw === '') return 'auto';
+  const scale = clampInt(raw, 1, 3);
+  return scale ? String(scale) : 'auto';
+}
+
 async function runVideo(
   format: VideoFormat,
   targets: Target[],
@@ -205,11 +213,11 @@ async function runVideo(
     args.push('--license-key', process.env.MAUDE_REMOTION_LICENSE);
   }
 
-  // Resolution multiplier (1–3×) — the artboard's native size × scale. Default 2×
-  // so a 960×540 comp exports at 1920×1080 instead of a tiny native capture. The
-  // shim applies it as deviceScaleFactor AND sizes the encoder to match.
-  const scale = clampInt(options.scale, 1, 3) ?? 2;
-  args.push('--scale', String(scale));
+  // Resolution multiplier (1–3×) — the artboard's native size × scale. The shim applies it as
+  // deviceScaleFactor AND sizes the encoder to match. When the user passed none, `auto` makes the
+  // shim measure the artboard and pick the default (1× from a 1080 px short side up, else 2× —
+  // decision maude/burndown-d6-default-export-scale); the exporter cannot, it never sees the size.
+  args.push('--scale', resolveScaleArg(options));
 
   const fps = clampInt(options.fps, 1, 60);
   if (fps) args.push('--fps', String(fps));

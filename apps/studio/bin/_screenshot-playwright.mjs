@@ -5,7 +5,7 @@
 //
 // Invocation (called by screenshot.sh — not directly by users):
 //   npm exec --package=playwright -- node _screenshot-playwright.mjs \
-//     --url <url> [--selector <css>] --out <path> [--timeout 8] [--theme <name>]
+//     --url <url> [--selector <css>] --out <path> [--timeout 8] [--theme <name>] [--frame <N>]
 //
 // First invocation may install chromium (~150 MB). Subsequent runs reuse cache.
 
@@ -20,7 +20,7 @@ const args = Object.fromEntries(
   }, [])
 );
 
-const { url, selector, out, timeout = '8', theme } = args;
+const { url, selector, out, timeout = '8', theme, frame } = args;
 if (!url || !out) {
   console.error(
     'usage: _screenshot-playwright.mjs --url <url> [--selector <css>] --out <path> [--timeout 8]'
@@ -53,6 +53,49 @@ try {
       return els.length;
     }, theme);
     console.error(`→ theme override: forced data-theme="${theme}" on ${n} element(s)`);
+  }
+
+  if (frame !== undefined) {
+    // --frame <N> (issue #128 §6): size the viewport to the target, seek strictly, wait for paint,
+    // shoot. A canvas with no seek bridge fails loud — a frame-0 shot looks like a valid one.
+    const n = Number(frame);
+    if (!Number.isInteger(n) || n < 0) {
+      console.error(`✗ --frame ${frame}: needs a whole frame number`);
+      process.exit(2);
+    }
+    try {
+      await page.waitForFunction(() => typeof window.__maude_seek__ === 'function', null, {
+        timeout: timeoutMs,
+      });
+    } catch {
+      console.error(
+        `✗ --frame ${n}: this canvas has no window.__maude_seek__ bridge (is the artboard a video-comp?)`
+      );
+      process.exit(3);
+    }
+    if (selector) {
+      const box = await page.locator(selector).first().boundingBox();
+      if (box && box.width > 0 && box.height > 0) {
+        const w = Math.min(8192, Math.ceil(box.width));
+        const h = Math.min(8192, Math.ceil(box.height));
+        await page.setViewportSize({ width: w, height: h });
+        console.error(`→ viewport sized to the artboard: ${w}x${h}`);
+      }
+    }
+    try {
+      await page.evaluate((f) => window.__maude_seek__(f, { strict: true }), n);
+    } catch (e) {
+      console.error(
+        `✗ --frame ${n}: the seek did not land (${e instanceof Error ? e.message : e})`
+      );
+      process.exit(3);
+    }
+    await page.evaluate(
+      () =>
+        new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(undefined))))
+    );
+    await page.waitForTimeout(300);
+    console.error(`→ seeked to frame ${n}`);
   }
 
   if (selector) {
