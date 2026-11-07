@@ -41,9 +41,9 @@ describe('04 md-edge-ai: the AI wears the spark token and its tag sits above-rig
 });
 
 describe('04 md-preview-combine: Preview keeps the overview of a canvas with no links', () => {
-  test('the camera engine holds when several boards carry no data-cd-link', () => {
+  test('Preview never moves the camera (#170 D3 removed the ease), so the overview of a canvas with no links stays', () => {
     const s = src('preview/preview-camera.tsx');
-    expect(s).toContain('holdOverview');
-    expect(s).toContain("querySelector('[data-cd-link]')");
+    expect(s).not.toContain('setViewport');
+    expect(s).not.toContain('setCamera');
   });
 });

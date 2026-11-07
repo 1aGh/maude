@@ -140,7 +140,7 @@ import { frameCaf, frameRaf, setFrameFreeze } from './frame-clock.ts';
 import { pressStartsPan } from './input-router.tsx';
 import { summaryWords } from './kinds/warnings.ts';
 import { presentHidesCss, usePresentStage } from './present/present-stage.tsx';
-import { usePreviewCamera, usePreviewing } from './preview/preview-camera.tsx';
+import { usePreviewing, usePreviewMark } from './preview/preview-camera.tsx';
 import { previewWheelPassthrough } from './preview/wheel-scroll.ts';
 import type { ArtboardPrintProp } from './print/units.ts';
 import { useGovernedMode } from './use-governed-mode.ts';
@@ -2663,17 +2663,8 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     onSpaceTap: () => playSelectedVideos(document, tapSelRef.current?.selected),
   });
 
-  // S3.9 — Edit ⇄ Preview: the camera eases onto the artboard in view, once (preview/preview-camera.tsx).
-  usePreviewCamera({
-    hostRef,
-    artboards,
-    controller,
-    getCamera: getLiveViewport,
-    fit: (rect) => {
-      const host = hostRef.current;
-      return host ? computeFit([rect], host, 24, canvasInsets()) : { x: 0, y: 0, zoom: 1 };
-    },
-  });
+  // Edit ⇄ Preview marks the document (`html[data-maude-preview]`); the camera never moves (TD1d, preview/preview-camera.tsx).
+  usePreviewMark();
 
   // V2-1.2 §5.6 I2 — boot re-fit, once only. The shell's first `occluded-insets` usually lands after
   // the boot fit (the runtime listener installs after `loaded`), which would leave a fresh canvas fitted
