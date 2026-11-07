@@ -81,6 +81,30 @@ export function textRevertCollides(
 }
 
 /**
+ * T5.2 (#165) — the kernel's half: would the annotations lane merge `base → ours` onto `theirs` drop
+ * somebody's text? Per text slot `base` and `theirs` both hold: ours ('' when ours removes the element —
+ * the text goes with it) against theirs, 3-way, the merge the board runs. Overlapping hunks → true. The
+ * hub kernel runs it while it rebases an undo through later work (project-transactions/kernel.mjs
+ * `revertLane`), so an undo from a desktop that does not ask first is refused the same way.
+ */
+export function textSlotsCollide(
+  base: string | null | undefined,
+  ours: string | null | undefined,
+  theirs: string | null | undefined
+): boolean {
+  const b = boardTextSlots(base);
+  if (!b.size) return false;
+  const o = boardTextSlots(ours);
+  const t = boardTextSlots(theirs);
+  for (const [id, was] of b) {
+    const now = t.get(id);
+    if (now === undefined) continue;
+    if (textMergeCollides(was, o.get(id) ?? '', now) === true) return true;
+  }
+  return false;
+}
+
+/**
  * p8-fix-d F12 — the same question for several steps undone as ONE action (Undo history, Undo this
  * chat, an action with several effects on one board). `steps` newest first; each is reverted onto
  * what the newer reverts left, slot by slot, with the merge the board runs — so a collaborator's
@@ -204,18 +228,35 @@ export function createTextStepLedger(max = MAX_TEXT_STEPS, maxBytes = MAX_TEXT_S
     total -= had.bytes;
     steps.delete(actionId);
   };
+  const keep = (actionId: string, step: TextStep): boolean => {
+    if (!step.slots.size && !step.contested.length) return false;
+    drop(actionId);
+    const bytes = stepBytes(step);
+    steps.set(actionId, { step, bytes });
+    total += bytes;
+    while (steps.size > 1 && (steps.size > max || total > maxBytes)) {
+      const oldest = steps.keys().next().value;
+      if (oldest === undefined) break;
+      drop(oldest);
+    }
+    return true;
+  };
+  let onNote: ((actionId: string, step: TextStep) => void) | null = null;
   return {
     note(actionId: string, step: TextStep): void {
-      if (!step.slots.size && !step.contested.length) return;
-      drop(actionId);
-      const bytes = stepBytes(step);
-      steps.set(actionId, { step, bytes });
-      total += bytes;
-      while (steps.size > 1 && (steps.size > max || total > maxBytes)) {
-        const oldest = steps.keys().next().value;
-        if (oldest === undefined) break;
-        drop(oldest);
-      }
+      if (keep(actionId, step)) onNote?.(actionId, step);
+    },
+    /** T5.2 — a step read back from the log: kept under the same caps, not written again. */
+    restore(actionId: string, step: TextStep): void {
+      keep(actionId, step);
+    },
+    /** T5.2 — called with every step `note` keeps (the home appends it to its log). */
+    onNote(fn: ((actionId: string, step: TextStep) => void) | null): void {
+      onNote = fn;
+    },
+    /** The kept steps, oldest first (what a compacted log holds). */
+    entries(): Array<[string, TextStep]> {
+      return [...steps].map(([id, v]) => [id, v.step]);
     },
     get(actionId: string): TextStep | undefined {
       return steps.get(actionId)?.step;
@@ -250,4 +291,67 @@ export function createTextStepLedger(max = MAX_TEXT_STEPS, maxBytes = MAX_TEXT_S
       return false;
     },
   };
+}
+
+/* ------------------------------------------------------- T5.2 — the ledger's log */
+
+/**
+ * T5.2 (#165) — the ledger outlives a restart, as the op log it guards does. The home appends one line per
+ * kept step to `_state/text-steps.ndjson` (runtime state — `_state/` is ignored, DDR-115) after a header
+ * naming the store's project id, and on open reads it back (`restore`, same caps) and rewrites it compacted.
+ * A log for another store (moved aside, another machine's copy) is not read. Bounded: a file past
+ * `MAX_TEXT_STEP_LOG_BYTES` is dropped whole; a line that is not a step is skipped.
+ */
+export const TEXT_STEP_LOG = 'text-steps.ndjson';
+export const MAX_TEXT_STEP_LOG_BYTES = 2 * MAX_TEXT_STEP_BYTES;
+
+const ACTION_ID = /^[A-Za-z0-9:_.-]{1,128}$/;
+
+export function textStepLogHeader(project: string): string {
+  return JSON.stringify({ v: 1, project });
+}
+
+export function encodeTextStepLine(actionId: string, step: TextStep): string {
+  return JSON.stringify({ a: actionId, s: step.slug, t: [...step.slots], c: step.contested });
+}
+
+function decodeLine(line: string): [string, TextStep] | null {
+  let o: unknown;
+  try {
+    o = JSON.parse(line);
+  } catch {
+    return null;
+  }
+  if (!o || typeof o !== 'object') return null;
+  const { a, s, t, c } = o as { a?: unknown; s?: unknown; t?: unknown; c?: unknown };
+  if (typeof a !== 'string' || !ACTION_ID.test(a) || typeof s !== 'string' || !s) return null;
+  if (!Array.isArray(t) || !Array.isArray(c)) return null;
+  const slots = new Map<string, string | null>();
+  for (const pair of t) {
+    if (!Array.isArray(pair) || pair.length !== 2 || typeof pair[0] !== 'string') return null;
+    if (pair[1] !== null && typeof pair[1] !== 'string') return null;
+    slots.set(pair[0], pair[1]);
+  }
+  if (!c.every((x) => typeof x === 'string')) return null;
+  return [a, { slug: s, slots, contested: c as string[] }];
+}
+
+/** The steps a log holds for `project`, oldest first ([] for another store's log). */
+export function decodeTextStepLog(text: string, project: string): Array<[string, TextStep]> {
+  if (!project || text.length > MAX_TEXT_STEP_LOG_BYTES) return [];
+  const lines = text.split('\n');
+  let head: { v?: unknown; project?: unknown } | null = null;
+  try {
+    head = JSON.parse(lines[0] ?? '');
+  } catch {
+    return [];
+  }
+  if (head?.v !== 1 || head.project !== project) return [];
+  const out: Array<[string, TextStep]> = [];
+  for (const line of lines.slice(1)) {
+    if (!line) continue;
+    const step = decodeLine(line);
+    if (step) out.push(step);
+  }
+  return out;
 }

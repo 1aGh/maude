@@ -386,3 +386,15 @@ export const FILE_DEPTH_V2_CAPABILITY = 'file-depth-v2';
 export function hasFileDepthV2(capabilities: string[] | null): boolean {
   return Array.isArray(capabilities) && capabilities.includes(FILE_DEPTH_V2_CAPABILITY);
 }
+
+/** The capability a hub advertises when it stamps every presence role itself (T5.2, #165). */
+export const PRESENCE_ROLE_CAPABILITY = 'presence-role-v1';
+
+/**
+ * Does this hub stamp presence roles (`roleBy: 'hub'`, apps/hub access-docs.mjs `stampHubRole`)? An
+ * older hub relays the mark as a peer sent it, so a hub-relayed role is kept only where this is true
+ * (collab/awareness-bridge.ts `rolesVouched`).
+ */
+export function hasPresenceRoleV1(capabilities: unknown): boolean {
+  return Array.isArray(capabilities) && capabilities.includes(PRESENCE_ROLE_CAPABILITY);
+}

@@ -123,6 +123,7 @@ import {
   hasFileClassesV2,
   hasFileDepthV2,
   hasLedger,
+  hasPresenceRoleV1,
   probeFileLane,
 } from './journal-client.ts';
 import type { RestoreOptions } from './local-kernel.ts';
@@ -519,7 +520,12 @@ const AUTH_CLASS_HINT: Record<AuthFailureClass, string> = {
  * module cycle — the real `Registry` satisfies it.
  */
 export interface AwarenessRegistry {
-  attachHubAwareness(slug: string, awareness: Awareness): () => void;
+  /** T5.2 — `rolesVouched`: does the hub stamp presence roles (collab/awareness-bridge.ts). */
+  attachHubAwareness(
+    slug: string,
+    awareness: Awareness,
+    opts?: { rolesVouched?: () => boolean }
+  ): () => void;
   /** Phase 9.1 — relay a hub-pushed comment/annotation snapshot into a live
    *  room (wholesale, in-process) so the peer's canvas reflects it immediately
    *  and the room's own debounced persist can't clobber the synced state back.
@@ -654,8 +660,17 @@ export interface SyncRuntime {
     slug: string,
     lane: 'comments' | 'annotations' | 'meta',
     text: string,
-    /** T-S4.5b — `stageable`: a run-tagged annotation batch joins its run's stage (claimed by hash). */
-    opts?: { baseText?: string; writeId?: string; stageable?: boolean }
+    /**
+     * T-S4.5b — `stageable`: a run-tagged annotation batch joins its run's stage (claimed by hash).
+     * `contested` (T5.2): texts a collaborator changed during this stroke — read by the local home
+     * only; a hub-linked runtime judges a ⌘Z from the hub's history instead.
+     */
+    opts?: {
+      baseText?: string;
+      writeId?: string;
+      stageable?: boolean;
+      contested?: readonly string[];
+    }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
   /**
    * S4.7 — several lanes of one synced canvas as ONE proposal (a sticky ↔
@@ -1128,6 +1143,11 @@ export function createSyncRuntime(
     : ctx.cfg.linkedHub;
   if (!linked) return null;
   const linkedHub = linked;
+  /**
+   * T5.2 (#165) — the hub's /health `capabilities` from the file-lane probe (null until it answers).
+   * The awareness bridge keeps a hub-relayed presence role only while it says `presence-role-v1`.
+   */
+  let hubHealthCaps: string[] | null = null;
   /**
    * Issue #207 — folders this project does not sync, read from the project config per pass (a
    * choice made mid-upload applies at the next pass; cleaned, so a committed `..` entry is dropped).
@@ -4539,7 +4559,11 @@ export function createSyncRuntime(
         noteDetach(
           awarenessDetaches,
           canvas.slug,
-          opts.registry.attachHubAwareness(canvas.slug, provider.awareness)
+          // T5.2 (#165) — a hub-relayed presence role is kept only from a hub that stamps roles: a
+          // cell pairing dials its own hub (the same image), anything else must say so in /health.
+          opts.registry.attachHubAwareness(canvas.slug, provider.awareness, {
+            rolesVouched: () => cellPairing !== null || hasPresenceRoleV1(hubHealthCaps),
+          })
         );
       }
       // Cold-start reconcile fires once the provider has hub state.
@@ -5967,6 +5991,7 @@ export function createSyncRuntime(
         void probeFileLane({ hubUrl: linkedHub.url, signal: fileEventsProbe.signal })
           .then(({ lane, capabilities: caps, formatVersion: hubFormat }) => {
             if (stopped) return;
+            if (caps) hubHealthCaps = caps;
             if (lane === 'unknown') {
               if (!laneUnansweredSaid) {
                 laneUnansweredSaid = true;

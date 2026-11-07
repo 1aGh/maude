@@ -19,7 +19,7 @@ import { isDraftWriteId } from '../annotations/ui/text-session.ts';
 import type { BoardGuard } from '../annotations/vote-guard.ts';
 import { applyCommentsToDoc, stampAnnotationsEdit } from '../sync/codec.ts';
 import { MAX_ANNOTATIONS_BYTES } from '../sync/limits.ts';
-import { bridgeAwareness } from './awareness-bridge.ts';
+import { type BridgeOptions, bridgeAwareness } from './awareness-bridge.ts';
 import type { Room, RoomCallbacks } from './room.ts';
 import { createRoom } from './room.ts';
 
@@ -110,9 +110,10 @@ export interface Registry {
    * cross-machine through Hocuspocus. Idempotent per slug; returns a detach
    * fn. If a room is already live the bridge wires immediately, otherwise it
    * wires when the room is next created. Awareness is ephemeral — this writes
-   * no files (see awareness-bridge.ts on why F14 is untouched).
+   * no files (see awareness-bridge.ts on why F14 is untouched). `opts.rolesVouched` (T5.2): does
+   * the hub stamp presence roles — a hub-relayed role is kept only then.
    */
-  attachHubAwareness(slug: string, awareness: Awareness): () => void;
+  attachHubAwareness(slug: string, awareness: Awareness, opts?: BridgeOptions): () => void;
   /**
    * Phase 9.2 (DDR-064) — pin a room so `drop` won't destroy it when the last
    * browser leaves. The shared-doc path pins a slug while a hub
@@ -187,6 +188,7 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
   // churn as browser tabs come and go; the bridge is re-wired each time a room
   // is (re)created for a slug that has an attached hub Awareness.
   const hubAwareness = new Map<string, Awareness>();
+  const hubBridgeOpts = new Map<string, BridgeOptions>();
   const bridges = new Map<string, () => void>();
   // Phase 9.2 (DDR-064) — slugs whose room must survive the last-browser-leaves
   // drop because a shared-doc hub provider is attached to its doc. Only the
@@ -207,7 +209,7 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     if (bridges.has(slug)) return;
     const hub = hubAwareness.get(slug);
     if (!hub) return;
-    bridges.set(slug, bridgeAwareness(room.awareness, hub));
+    bridges.set(slug, bridgeAwareness(room.awareness, hub, hubBridgeOpts.get(slug)));
   }
 
   function teardownBridge(slug: string): void {
@@ -228,13 +230,22 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     return room;
   }
 
-  function attachHubAwareness(slug: string, awareness: Awareness): () => void {
+  function attachHubAwareness(
+    slug: string,
+    awareness: Awareness,
+    opts?: BridgeOptions
+  ): () => void {
     hubAwareness.set(slug, awareness);
+    if (opts) hubBridgeOpts.set(slug, opts);
+    else hubBridgeOpts.delete(slug);
     const room = rooms.get(slug);
     if (room) wireBridge(slug, room);
     return () => {
       teardownBridge(slug);
-      if (hubAwareness.get(slug) === awareness) hubAwareness.delete(slug);
+      if (hubAwareness.get(slug) === awareness) {
+        hubAwareness.delete(slug);
+        hubBridgeOpts.delete(slug);
+      }
     };
   }
 

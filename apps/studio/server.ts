@@ -163,7 +163,7 @@ const api = createApi(ctx, {
   },
   // Phase 8 Task 5 — same bridge for annotations. PUT /_api/annotations writes
   // the SVG blob to disk; we mirror it into the live Y.Map for collab peers.
-  onAnnotationsChanged: (file, svg, writeId, base, recordedWithLanes) => {
+  onAnnotationsChanged: (file, svg, writeId, base, recordedWithLanes, contested) => {
     const runtime = ctx.syncControl?.current?.();
     // T-S4.5b — a `run:<id>` batch (gated in http.ts annotationOps) joins its run's stage.
     const runId = runTagOf(writeId);
@@ -189,6 +189,8 @@ const api = createApi(ctx, {
       : runtime?.proposeLane?.(api.fileSlug(file), 'annotations', svg, {
           ...(writeId ? { writeId } : {}),
           ...(base !== undefined ? { baseText: base } : {}),
+          // T5.2 (#165) — a disk-path batch's contest, as a room's projection carries it.
+          ...(contested?.length ? { contested } : {}),
         });
     if (proposed) {
       void proposed.catch(() => {});

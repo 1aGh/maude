@@ -93,31 +93,55 @@ function scrubHolding(state: unknown): unknown {
   return { ...rest, holding: size <= HOLDING_WIRE_MAX ? hold : null };
 }
 
+/** T5.2 — the hub's mark is the hub's to set: a studio never forwards it as its own. */
+function withoutMark(state: unknown): unknown {
+  if (!state || typeof state !== 'object' || !('roleBy' in state)) return state;
+  const { roleBy: _mark, ...rest } = state as Record<string, unknown>;
+  return rest;
+}
+
 /** `a`'s states for `clients`, as they may leave this studio. */
 function outbound(a: Awareness, clients: readonly number[]): Map<number, unknown> {
   const states = a.getStates();
   const out = new Map<number, unknown>();
-  for (const id of clients) if (states.has(id)) out.set(id, scrubHolding(states.get(id)));
+  for (const id of clients)
+    if (states.has(id)) out.set(id, withoutMark(scrubHolding(states.get(id))));
   return out;
 }
 
 /**
  * V2-8.9 round B L1 (belt and braces) — `b`'s states for `clients` as they may enter the room: a `role`
  * word the hub did not vouch for (no `roleBy: 'hub'`, apps/hub access-docs.mjs `stampHubRole`) is dropped,
- * so a peer on an older hub cannot show itself as "· Owner".
+ * so a peer on an older hub cannot show itself as "· Owner". T5.2 (#165): an older hub relays the mark
+ * itself as a peer sent it, so `vouched` (the hub says `presence-role-v1`) must hold too; otherwise the
+ * role and its mark are both dropped.
  */
-function inbound(b: Awareness, clients: readonly number[]): Map<number, unknown> {
+function inbound(b: Awareness, clients: readonly number[], vouched: boolean): Map<number, unknown> {
   const states = b.getStates();
   const out = new Map<number, unknown>();
   for (const id of clients) {
     if (!states.has(id)) continue;
     const s = states.get(id);
-    if (s && typeof s === 'object' && 'role' in s && (s as { roleBy?: unknown }).roleBy !== 'hub') {
-      const { role: _role, ...rest } = s as Record<string, unknown>;
+    if (!s || typeof s !== 'object' || !('role' in s || 'roleBy' in s)) {
+      out.set(id, s);
+      continue;
+    }
+    const kept = vouched && (s as { roleBy?: unknown }).roleBy === 'hub';
+    if (kept && 'role' in s) out.set(id, s);
+    else {
+      const { role: _role, roleBy: _mark, ...rest } = s as Record<string, unknown>;
       out.set(id, rest);
-    } else out.set(id, s);
+    }
   }
   return out;
+}
+
+export interface BridgeOptions {
+  /**
+   * T5.2 (#165) — does the hub stamp presence roles (its /health says `presence-role-v1`)? Read on every
+   * relay; absent = the V2-8.9 rule alone (the mark is enough).
+   */
+  rolesVouched?: () => boolean;
 }
 
 interface AwarenessChange {
@@ -133,7 +157,8 @@ interface AwarenessChange {
  * Awareness is destroyed, otherwise a late relay would apply to a dead
  * instance.
  */
-export function bridgeAwareness(a: Awareness, b: Awareness): () => void {
+export function bridgeAwareness(a: Awareness, b: Awareness, opts: BridgeOptions = {}): () => void {
+  const vouched = () => (opts.rolesVouched ? opts.rolesVouched() === true : true);
   // A single shared origin for both directions. A genuine local change carries
   // some other origin (a browser conn, the provider's internal token, or null),
   // so it relays; a change this bridge applied carries BRIDGE, so it stops.
@@ -165,7 +190,7 @@ export function bridgeAwareness(a: Awareness, b: Awareness): () => void {
     if (changed.length > 0)
       applyAwarenessUpdate(
         a,
-        encodeAwarenessUpdate(b, changed, inbound(b, changed) as Map<number, never>),
+        encodeAwarenessUpdate(b, changed, inbound(b, changed, vouched()) as Map<number, never>),
         BRIDGE
       );
     const leaving = departed.filter((id) => a.getStates().has(id));
@@ -187,7 +212,7 @@ export function bridgeAwareness(a: Awareness, b: Awareness): () => void {
   if (bClients.length > 0)
     applyAwarenessUpdate(
       a,
-      encodeAwarenessUpdate(b, bClients, inbound(b, bClients) as Map<number, never>),
+      encodeAwarenessUpdate(b, bClients, inbound(b, bClients, vouched()) as Map<number, never>),
       BRIDGE
     );
 
