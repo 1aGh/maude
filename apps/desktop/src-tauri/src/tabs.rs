@@ -449,6 +449,38 @@ pub fn clear_background<R: Runtime>(wv: &tauri::Webview<R>) {
     let _ = wv;
 }
 
+/// Perf lane (debug builds only, never compiled into a release): `MAUDE_PERF_KNOBS` is a comma list of
+/// `opaque` (tabs keep drawing their background), `no-inspect` (tab webviews not inspectable), `no-strip` (the
+/// strip webview hidden), `default-store` (tabs on the default website data store) — one WKWebView variable at a
+/// time for the Tauri-vs-Safari canvas measurement.
+#[cfg(debug_assertions)]
+pub fn perf_knob(name: &str) -> bool {
+    std::env::var("MAUDE_PERF_KNOBS")
+        .map(|v| v.split(',').any(|k| k.trim() == name))
+        .unwrap_or(false)
+}
+#[cfg(not(debug_assertions))]
+pub fn perf_knob(_name: &str) -> bool {
+    false
+}
+
+fn not_inspectable<R: Runtime>(wv: &tauri::Webview<R>) {
+    #[cfg(target_os = "macos")]
+    let _ = wv.with_webview(|platform| {
+        // SAFETY: `inner()` is the live WKWebView on the main thread (Tauri's `with_webview` contract);
+        // `setInspectable:` exists from macOS 13.3.
+        unsafe {
+            use objc2::msg_send;
+            let view = platform.inner().cast::<objc2::runtime::AnyObject>();
+            if let Some(view) = view.as_ref() {
+                let _: () = msg_send![view, setInspectable: false];
+            }
+        }
+    });
+    #[cfg(not(target_os = "macos"))]
+    let _ = wv;
+}
+
 #[cfg(target_os = "macos")]
 unsafe fn draws_no_background(view: *mut objc2::runtime::AnyObject) {
     use objc2::runtime::AnyObject;
@@ -556,6 +588,9 @@ pub fn ensure_shell(app: &AppHandle) -> Result<tauri::Window, String> {
         .add_child(strip, strip_rect.position, strip_rect.size)
         .map_err(|e| format!("Couldn't open the tab bar: {e}"))?;
     clear_background(&strip);
+    if perf_knob("no-strip") {
+        set_tab_shown(&strip, false);
+    }
     Ok(shell)
 }
 
@@ -575,7 +610,12 @@ pub fn add_tab(
     let wv = shell
         .add_child(builder, rect.position, rect.size)
         .map_err(|e| format!("Couldn't open a tab for this project: {e}"))?;
-    clear_background(&wv);
+    if !perf_knob("opaque") {
+        clear_background(&wv);
+    }
+    if perf_knob("no-inspect") {
+        not_inspectable(&wv);
+    }
     // Built visible: hide it until `activate` picks it, so a tab opened in the
     // background (a restore) never flashes over the active one.
     set_tab_shown(&wv, false);

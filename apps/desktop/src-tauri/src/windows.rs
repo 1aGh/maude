@@ -1356,7 +1356,7 @@ impl WindowHost for TauriHost<'_> {
                 })
                 .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny);
             #[cfg(target_os = "macos")]
-            if supports_data_store() {
+            if supports_data_store() && !crate::tabs::perf_knob("default-store") {
                 builder = builder.data_store_identifier(match &cell_profile {
                     Some(profile) => data_store_id_for_cell_profile(profile),
                     None => data_store_id_for_label(&label),
