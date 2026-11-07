@@ -23,9 +23,11 @@
 //   • no network, no shell interpolation, no container parsing (magic bytes only).
 //
 // Reached via `maude design ingest-footage <dir> --root <repo>`, never a raw path.
-// stdout (default) = a JSON manifest { clips:[{asset,src,bytes,category}],
-// skipped:[{src,why}], assetsDir }. Exit: 0 ok (even with skips) · 2 usage ·
-// 6 write/containment error · 1 other.
+// stdout (default) = a JSON manifest { clips:[{asset,src,bytes,category,warning?}],
+// skipped:[{src,why}], warnings:[string], assetsDir }. A video that is HEVC, variable frame
+// rate or has a second audio track carries a `warning` naming the asset and the codec (#128 §1;
+// needs ffprobe, silently absent without it) and is echoed on stderr. Exit: 0 ok (even with
+// skips) · 2 usage · 6 write/containment error · 1 other.
 
 import { createHash } from 'node:crypto';
 import {
@@ -41,6 +43,8 @@ import {
 } from 'node:fs';
 import { extname, join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+import { describeMedia, findTool, probeMedia } from './_media-probe.mjs';
 
 // The DDR-148 video ceiling (100 MB). Images/audio also ride this generous cap
 // here — the reel pipeline's inputs are dominated by video. Override per-file
@@ -210,6 +214,7 @@ export async function ingestFootage({
   designRootRel = '.design',
   maxBytes = DEFAULT_MAX_BYTES,
   recursive = false,
+  probe, // ffprobe path, or null for "none" (a test seam); default = look it up
 }) {
   const srcDir = resolve(dir);
   if (!existsSync(srcDir) || !statSync(srcDir).isDirectory())
@@ -221,6 +226,8 @@ export async function ingestFootage({
   const clips = [];
   const skipped = [];
   const seen = new Set(); // sha8 dedupe within this run
+  const warnings = [];
+  const ffprobe = probe === undefined ? findTool('ffprobe') : probe;
 
   for (const file of listFiles(srcDir, recursive)) {
     let size;
@@ -281,11 +288,21 @@ export async function ingestFootage({
     }
     if (!seen.has(sha8)) {
       seen.add(sha8);
-      clips.push({ asset: `assets/${name}`, src: file, bytes: size, category: info.category });
+      const clip = { asset: `assets/${name}`, src: file, bytes: size, category: info.category };
+      // #128 §1 — a clip that plays but cannot be exported with sound (HEVC, variable frame rate, a
+      // second audio track) is named now, not after a muted export. No ffprobe = nothing to say.
+      if (info.category === 'video' && ffprobe) {
+        const warning = describeMedia(clip.asset, probeMedia(fileAbs, { ffprobe }));
+        if (warning) {
+          clip.warning = warning;
+          warnings.push(warning);
+        }
+      }
+      clips.push(clip);
     }
   }
 
-  return { clips, skipped, assetsDir };
+  return { clips, skipped, warnings, assetsDir };
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
@@ -374,6 +391,7 @@ async function main() {
       maxBytes: opts.maxBytes,
       recursive: opts.recursive,
     });
+    for (const w of r.warnings) process.stderr.write(`ingest-footage: ⚠ ${w}\n`);
     process.stdout.write(`${JSON.stringify(r, null, 2)}\n`);
   } catch (err) {
     process.stderr.write(`ingest-footage: ${err.message}\n`);

@@ -33,8 +33,9 @@ import { readAllArtboardPrintProps } from '../canvas-edit.ts';
 import type { Bus } from '../context.ts';
 import { currentSession, normalizeSessionKey } from '../session-scope.ts';
 import { missingTranscriptsFor } from '../video/inject.ts';
+import { type RiskyMedia, riskyMediaIn } from '../video/media-risk.ts';
 import { resolveRenderLane } from '../workspace-mode.ts';
-import { captionGap, mergeDegraded } from './degraded.ts';
+import { captionGap, mergeDegraded, undecodableMediaGap } from './degraded.ts';
 import {
   type ExportContext,
   type ExportDegradation,
@@ -412,6 +413,26 @@ function readMissingTranscriptsFor(
 }
 
 /**
+ * The clips of the first element target's canvas that are HEVC, variable-rate or carry a second audio
+ * track (#128 §1) — the ones the audio renderer may not decode. Empty without ffprobe; never throws.
+ */
+function readRiskyMediaFor(
+  targets: Target[],
+  repoRoot: string | undefined,
+  designRoot: string | undefined
+): RiskyMedia[] {
+  try {
+    const t = targets.find((x) => x.kind === 'element');
+    if (!t || t.kind !== 'element' || !designRoot) return [];
+    const abs = safeCanvasAbs(repoRoot, designRoot, t.file);
+    if (!abs || !abs.endsWith('.tsx')) return [];
+    return riskyMediaIn(readFileSync(abs, 'utf8'), designRoot);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * `{ [repoRelativeCanvasFile]: { [artboardId]: print } }` for every canvas an
  * element target names — what exporters/pdf.ts reads as `options.printProps`
  * when it renders on the worker. Read from the cell's own checkout; a canvas
@@ -645,6 +666,29 @@ export function createExportJobQueue(
             args.resolve.designRoot
           )
         : [];
+      // #128 §1 — say it BEFORE the render starts: a clip the audio renderer cannot decode makes the
+      // exporter fall back to frame-by-frame capture, which has no sound. Named here (the log) and, if
+      // that fallback does happen, in the job's notice below.
+      let risky: RiskyMedia[] = [];
+      if ((u.format === 'mp4' || u.format === 'webm') && u.options.audio !== false) {
+        try {
+          risky = readRiskyMediaFor(
+            dispatchRemote
+              ? remoteTargets
+              : await resolveScope({ scope: args.scope, ...args.resolve, options: args.options }),
+            args.resolve.repoRoot,
+            args.resolve.designRoot
+          );
+        } catch {
+          risky = [];
+        }
+        for (const r of risky) {
+          console.error(
+            `⚠ ${r.asset} is ${r.what}: the audio renderer may not be able to decode it, and the ` +
+              `export would then have no sound (fix: maude design video-proxy ${r.asset})`
+          );
+        }
+      }
       const res = dispatchRemote
         ? await renderRemotely({
             format: args.format,
@@ -718,9 +762,15 @@ export function createExportJobQueue(
           args.resolve.repoRoot,
           args.resolve.designRoot
         );
-        return missing.length
+        let out: ExportResult = missing.length
           ? { ...res, degraded: mergeDegraded(res.degraded, captionGap(missing)) }
           : res;
+        // #128 §1 — the render fell back to frame-by-frame capture (no sound) and a clip in the comp is
+        // one the audio renderer is known to choke on: name it and its codec.
+        if (risky.length && out.degraded?.audioDropped) {
+          out = { ...out, degraded: mergeDegraded(out.degraded, undecodableMediaGap(risky)) };
+        }
+        return out;
       } catch {
         return res;
       }

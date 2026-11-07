@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fb02f78da791",
+  "manifestVersion": "ff541adcd7f7",
   "actions": [
     {
       "id": "search.open",
@@ -7411,6 +7411,13 @@
       "verb": "design reel-place",
       "effect": "project",
       "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design video-proxy",
+      "effect": "project",
+      "tier": "prompt",
+      "hold": "writes a new H.264 copy of one clip into assets/ (minutes of CPU, a new file in the project) — an explicit action the user confirms, never automatic transcoding of their file"
     },
     {
       "scope": "design",

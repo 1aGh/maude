@@ -194,6 +194,11 @@ export function AssetDetails({
           {edits}
         </Row>
       ) : null}
+      {d.mediaWarnings?.length ? (
+        <Row k="Heads-up" testid="assets-details-media-warning">
+          {d.mediaWarnings.join(' ')}
+        </Row>
+      ) : null}
       {d.footage ? (
         <>
           {d.footage.summary ? (

@@ -128,6 +128,10 @@ const BIN_VERBS = new Set([
   // reads the clip as a file:// resource).
   'ingest-footage',
   'probe-footage',
+  // #128 §1. `video-proxy` writes an H.264 / constant-frame-rate / single-AAC copy of ONE
+  // asset next to it, for a clip that is HEVC, variable frame rate or has a second audio
+  // track (the ones the export's audio renderer cannot decode). Explicit, never automatic.
+  'video-proxy',
   // feature-scene-aware-keyframes. `smart-frames` is the scene-AWARE sibling of
   // `probe-footage`: it selects keyframes at scene cuts + semantic action beats +
   // endpoints (three tiers, auto-detected — gemma scout / ffmpeg scene-detect /
@@ -537,7 +541,7 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
   screenshot · server-up · prep · slug · bootstrap-check · runtime-health
   smoke · canvas-edit · handoff · asset-sweep · visual-sanity · fetch-asset
   draw-build · draw-proof · svg-optimize · to-lottie · read-annotations · annotate
-  canvas-rects · canvas-errors · canvas-source · ingest-footage · probe-footage · smart-frames
+  canvas-rects · canvas-errors · canvas-source · ingest-footage · probe-footage · video-proxy · smart-frames
   generate · transcribe · transcribe-local · audio-search
         Invoke the bundled helper of the same name. maude resolves it from its
         own package root and sets CLAUDE_PLUGIN_ROOT for the child; stdout,
