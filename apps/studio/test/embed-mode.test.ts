@@ -50,8 +50,16 @@ describe('parseEmbedOrigins — a framing list fails closed', () => {
 
 describe('studioPageCsp — embedders only for the embed, and the embed frames only its canvas', () => {
   const MAIN = 'http://localhost:4399 http://127.0.0.1:4399';
-  test('the full studio: no embedders, no frame-src', () => {
-    expect(studioPageCsp(MAIN, [])).toBe(`frame-ancestors 'self' ${MAIN}`);
+  test('the full studio: no embedders; child frames only self + the canvas origin', () => {
+    // A hostile canvas must not navigate its own frame to a foreign origin from the full studio
+    // either: that is a look-alike sign-in page inside Maude, and a way to carry out anything the
+    // canvas could read (decision v2-207-studio-frame-src-always).
+    expect(studioPageCsp(MAIN, [], { canvasOrigin: 'http://localhost:4401' })).toBe(
+      `frame-ancestors 'self' ${MAIN}; frame-src 'self' http://localhost:4401`
+    );
+  });
+  test('the full studio with no canvas origin (split off) ⇒ frame-src self only', () => {
+    expect(studioPageCsp(MAIN, [])).toBe(`frame-ancestors 'self' ${MAIN}; frame-src 'self'`);
   });
   test('the embed: embedders may frame it; child frames only self + the canvas origin', () => {
     const csp = studioPageCsp(MAIN, [ORBIT], {
@@ -239,13 +247,14 @@ describe('a booted studio frames with the allowlist', () => {
     });
     try {
       const canvas = await readCanvasOrigin(designRoot);
-      // The full studio: shells only — an embedder may frame the embed, never this.
+      // The full studio: shells only — an embedder may frame the embed, never this — and it frames
+      // only its canvas, like the embed (v2-207-studio-frame-src-always).
       for (const path of ['/', '/index.html', '/?open=ui/A.tsx']) {
         const res = await fetch(`http://localhost:${port}${path}`);
         expect(res.status).toBe(200);
         const csp = res.headers.get('content-security-policy') ?? '';
         expect(csp).toBe(
-          `frame-ancestors 'self' http://localhost:${port} http://127.0.0.1:${port}`
+          `frame-ancestors 'self' http://localhost:${port} http://127.0.0.1:${port}; frame-src 'self' ${new URL(canvas).origin}`
         );
       }
       // The embed: the embedder may frame it, and it frames only its canvas.
@@ -278,7 +287,11 @@ describe('a booted studio frames with the allowlist', () => {
     try {
       const res = await fetch(`http://localhost:${port}/`);
       const csp = res.headers.get('content-security-policy') ?? '';
-      expect(csp).toBe(`frame-ancestors 'self' http://localhost:${port} http://127.0.0.1:${port}`);
+      expect(csp).toMatch(
+        new RegExp(
+          `^frame-ancestors 'self' http://localhost:${port} http://127\\.0\\.0\\.1:${port}; frame-src 'self'( http://localhost:\\d+)?$`
+        )
+      );
       const cfg = await (await fetch(`http://localhost:${port}/_config`)).json();
       expect(cfg.embedOrigins).toBeUndefined();
     } finally {
