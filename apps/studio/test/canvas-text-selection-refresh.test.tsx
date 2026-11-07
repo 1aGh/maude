@@ -138,9 +138,16 @@ test('a same-element selection refresh preserves an open text editor and its com
     await act(async () => {
       heading.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
-    expect(heading.textContent).toBe('Uncommitted local typing');
+    // #163 D1 (T2.5): Esc keeps the typed words — it ends the edit and commits, like Enter.
+    expect(heading.textContent).toBe('Cancelled typing');
     expect(heading.hasAttribute('contenteditable')).toBe(false);
-    expect(asks).toHaveLength(1);
+    expect(asks).toHaveLength(2);
+    expect(asks[1]).toEqual(
+      expect.objectContaining({
+        op: 'text.set',
+        params: expect.objectContaining({ text: 'Cancelled typing', before: 'Uncommitted local typing' }),
+      })
+    );
   } finally {
     textOpDeps.current = prevDeps;
     await act(async () => root.unmount());
