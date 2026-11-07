@@ -2,6 +2,16 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "video-clip-export-warnings",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Clips that would export without sound are flagged",
+      "summary": "An iPhone HEVC clip, a clip with a variable frame rate or one with extra sound tracks is now flagged when you bring it in, in its details and in the export notice. Ask the AI for a video proxy to get an H.264 copy that exports with sound; your original stays as it is.",
+      "learnMore": "https://maude.sh/docs/design/video",
+      "surface": "design-ui"
+    },
+    {
       "id": "retire-v1-ai-bracket",
       "version": null,
       "date": null,
