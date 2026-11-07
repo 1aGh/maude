@@ -56,10 +56,16 @@ server; a serpentine pan over the world plus three fit-all zoom cycles, then the
 - **Frame times: inconclusive.** Headless WebKit and Chromium at dpr 2 on this canvas stall for 6–15 s on the zoom
   cycle's remount storm (both arms, both engines; the same cliff 207-overview-level.md names for Chromium's fit-all), so
   p95 is that stall, not the pan. Not a ship gate, not a comparison to the 2.0.7 p95 table.
-- **Not measured: real Safari and the Tauri app** (safaridriver is not enabled on this Mac — `safaridriver --enable`
-  needs admin — and a debug `.app` build was out of this task's budget). The "no artboard that had a still shows
-  blank" acceptance needs those two runs; the per-frame blank counter in the harness read 0 in BOTH arms, so it did not
-  reproduce the flicker either (too few frames to catch it). The fail-first test is what pins §4.
+- **Real Safari, 2026-11-07** (safaridriver, 2560×1340, dpr 1, machine load ≤ 6, display unlocked and visible; merged
+  tip `35244436f` vs base `0d8572e50`; whole-world serpentine ×3 at 10 % zoom; p95 median over runs):
+  mascot copy (88 artboards) **52 ms** tip vs 71 base, p50 14 both — the 2.0.7 table's Safari fix sweep is 48–52, so no
+  regression; a 300-artboard fixture 16 vs 24. **No artboard that already had a still showed blank, in either arm, in
+  41 runs.** Decoded tier: 8.2 MB / 58 stills (tip) vs 19 MB (base) on the mascot; 30 vs 68 MB on 300 boards. At dpr 1
+  neither tier reached its cap, so the eviction-then-no-blank case still needs a Retina (dpr 2) run in the Tauri app.
+  700 boards: inconclusive (noisy). Chromium frame times not measurable headless (stills are WebKit-default).
+- **§5 on WebKit (found by that run):** `toBlob('image/webp')` returns PNG on WebKit, which the WebP-only check refused,
+  so nothing was persisted and a reload redrew every still (open 2 = open 1). Fixed by accepting single-image PNG
+  (follow-up to T2.2); the reload measurement is re-run after that fix.
 
 ## §5 — the stills persist across sessions (T2.2, decision D2)
 
