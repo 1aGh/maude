@@ -27,6 +27,8 @@
 import { renderMediaOnWeb } from '@remotion/web-renderer';
 import type { ComponentType } from 'react';
 
+import { installSvgSerializeGuard } from './svg-inline.ts';
+
 interface RenderVideoOpts {
   component: ComponentType<Record<string, unknown>>;
   inputProps?: Record<string, unknown>;
@@ -73,32 +75,40 @@ async function renderVideo(opts: RenderVideoOpts): Promise<RenderVideoResult> {
         typeof renderMediaOnWeb
       >[0]['audioCodec']);
 
-  const result = await renderMediaOnWeb({
-    composition: {
-      component: opts.component,
-      id: 'maude-export',
-      width: opts.width,
-      height: opts.height,
-      fps: opts.fps,
-      durationInFrames: opts.durationInFrames,
-    },
-    inputProps: opts.inputProps ?? {},
-    container: opts.container,
-    videoCodec,
-    audioCodec,
-    muted,
-    scale: opts.scale ?? 1,
-    frameRange: opts.frameRange ?? null,
-    isProduction: true,
-    licenseKey: opts.licenseKey ?? 'free-license',
-    logLevel: 'error',
-    // Remotion defaults this to 'medium', which yields the event loop every
-    // ~33 ms to keep a page interactive while it renders. Nobody is looking at
-    // this page — it is a headless capture Chromium with no UI — so the courtesy
-    // is pure overhead. 'disabled' is Remotion's documented setting for exactly
-    // this case (client-side rendering / page-responsiveness).
-    pageResponsiveness: 'disabled',
-  });
+  // Issue #150 §1 — an inline <svg> with its own `position`/`left`/`top` rendered
+  // as an empty bitmap. The guard is scoped to this one render (see svg-inline.ts).
+  const restoreSerializer = installSvgSerializeGuard();
+  let result: Awaited<ReturnType<typeof renderMediaOnWeb>>;
+  try {
+    result = await renderMediaOnWeb({
+      composition: {
+        component: opts.component,
+        id: 'maude-export',
+        width: opts.width,
+        height: opts.height,
+        fps: opts.fps,
+        durationInFrames: opts.durationInFrames,
+      },
+      inputProps: opts.inputProps ?? {},
+      container: opts.container,
+      videoCodec,
+      audioCodec,
+      muted,
+      scale: opts.scale ?? 1,
+      frameRange: opts.frameRange ?? null,
+      isProduction: true,
+      licenseKey: opts.licenseKey ?? 'free-license',
+      logLevel: 'error',
+      // Remotion defaults this to 'medium', which yields the event loop every
+      // ~33 ms to keep a page interactive while it renders. Nobody is looking at
+      // this page — it is a headless capture Chromium with no UI — so the courtesy
+      // is pure overhead. 'disabled' is Remotion's documented setting for exactly
+      // this case (client-side rendering / page-responsiveness).
+      pageResponsiveness: 'disabled',
+    });
+  } finally {
+    restoreSerializer();
+  }
   const blob = await result.getBlob();
   const buf = new Uint8Array(await blob.arrayBuffer());
   return {
