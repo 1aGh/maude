@@ -47,8 +47,11 @@ function canvasOriginMeta(handler: Handler): Handler {
 }
 
 export function canvasOriginRoutes(
-  http: Pick<Http, 'routes' | 'canvasRoutes' | 'tableCanvasPaths'>
+  http: Pick<Http, 'routes' | 'canvasRoutes' | 'tableCanvasPaths' | 'unclaimed'>
 ): Record<string, Handler> {
+  // F2 — the legacy canvas-safe handlers come from `unclaimed`: the main origin's `routes` copy answers
+  // inside an AI run's write claim, which a canvas-origin request must never reach
+  const own = http.unclaimed;
   // Hard allowlist of route-table endpoints (Bun matches `routes` before
   // `fetch`). Only the collab/display-data endpoints the canvas runtime needs
   // — see http.isCanvasSafeRoute for the trust rationale. The dynamic
@@ -57,8 +60,8 @@ export function canvasOriginRoutes(
     '/_health': http.routes['/_health'],
     // V2-8.9 r2 L1 — NOT the main-origin handler: no OS-account fallback for the canvas (canvasUserName).
     '/_api/git-user': http.canvasRoutes['/_api/git-user'],
-    '/_api/canvas-meta': canvasOriginMeta(http.routes['/_api/canvas-meta'] as Handler),
-    '/_api/annotations': http.routes['/_api/annotations'],
+    '/_api/canvas-meta': canvasOriginMeta(own['/_api/canvas-meta'] as Handler),
+    '/_api/annotations': own['/_api/annotations'],
     // T-S4.5b — NOT the main-origin handler: the canvas variant refuses a `run:<id>` tag (400
     // run-tag-main-origin-only), so a planted canvas cannot slip its writes into an AI run.
     '/_api/annotations/ops': http.canvasRoutes['/_api/annotations/ops'],
@@ -67,19 +70,19 @@ export function canvasOriginRoutes(
     // Bun matches `routes` BEFORE `fetch`, so the route must be listed here
     // explicitly — the CANVAS_SAFE_API entry alone only opens the fetch
     // fall-through (which serves files, not route handlers). See DDR (Task 9).
-    '/_api/asset': http.routes['/_api/asset'],
+    '/_api/asset': own['/_api/asset'],
     // Issue #126 — chunked upload; MIRROR of the CANVAS_SAFE_API entries (http.ts).
-    '/_api/asset/chunk-start': http.routes['/_api/asset/chunk-start'],
-    '/_api/asset/chunk': http.routes['/_api/asset/chunk'],
-    '/_api/asset/chunk-finish': http.routes['/_api/asset/chunk-finish'],
+    '/_api/asset/chunk-start': own['/_api/asset/chunk-start'],
+    '/_api/asset/chunk': own['/_api/asset/chunk'],
+    '/_api/asset/chunk-finish': own['/_api/asset/chunk-finish'],
     // feature-photo-editor — PhotoEdit sidecar GET/PUT. MUST be here AND in
     // CANVAS_SAFE_API (http.ts): Bun matches `routes` before `fetch`, so a
     // one-list entry 404s from the canvas iframe (the DDR-088 rollout bug).
-    '/_api/photo-edit': http.routes['/_api/photo-edit'],
+    '/_api/photo-edit': own['/_api/photo-edit'],
     // V2-2.8 S6 — NOT the main-origin handler: the canvas origin gets the
     // no-e-mail projection (names + commit counts) for @mention suggestions.
     '/_api/git-committers': http.canvasRoutes['/_api/git-committers'],
-    '/_comments': http.routes['/_comments'],
+    '/_comments': own['/_comments'],
   } as Record<string, Handler>;
   // V2-2.5 — the table's `origin: 'canvas'` specs: the SAME guarded handler the
   // main origin mounts (`http.routes` is behind readOnlyRefusal + guardTableRoute).

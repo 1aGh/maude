@@ -2,6 +2,7 @@ import { claimCreatedCanvas, runForCreate } from './ai/create-claim.ts';
 import {
   claimWritesForChat,
   hookClaims,
+  noWriteClaim,
   routeWriteClaim,
   withWriteClaim,
 } from './ai/write-claim.ts';
@@ -671,11 +672,22 @@ export function claimingTableRoute(
 }
 
 /**
+ * D5 — legacy routes that START long-lived work (an ACP chat, export / generate jobs, sync and its
+ * settings, a hub or cloud link, git, an install): nothing they write — now or from what they schedule —
+ * is a run's. AsyncLocalStorage carries a claim into every continuation, so they answer under
+ * `noWriteClaim` instead of the request's claim.
+ */
+const NO_CLAIM_LEGACY =
+  /^\/(?:_sync-status$|_api\/(?:acp|sync|hub|cloud|git|github|claude|figma|generate|export)(?:[/-]|$))/;
+
+/**
  * #164 B4 — the legacy `routes` literal's writes answer inside the run's claim the same way
  * (`claimingTableRoute`): an AI `curl-local` POST naming its chat to `/_api/insert-artboard`,
- * `/_api/set-artboard-label`, `/_api/edit-array-src`, … then claims its bytes into the run instead of
- * landing as the person's edit. Never wrapped: a canvas-safe path (the canvas origins mount the SAME
- * handler, and the untrusted frame can set any header on its own origin), `/_api/canvas` (create and
+ * `/_api/set-artboard-label`, `/_api/edit-array-src`, `/_api/canvas-meta`, `/_api/annotations`, … then
+ * claims its bytes into the run instead of landing as the person's edit. F2 — this is the MAIN origin's
+ * map: a canvas-safe path is wrapped here too, and the canvas listeners mount the unwrapped handler
+ * (`Http.unclaimed`, routes/canvas-origin.ts) — the gate is the listener, never the path, because the
+ * untrusted frame can set any header on its own origin. Never wrapped: `/_api/canvas` (create and
  * delete claim inside their own handler), and the hook / flush paths `claimingTableRoute` leaves alone.
  * A read is passed straight through.
  */
@@ -683,7 +695,6 @@ export function claimingLegacyRoutes<
   T extends Record<string, (req: Request) => Response | Promise<Response>>,
 >(routes: T, runs: Parameters<typeof routeWriteClaim>[1]): T {
   const exempt = (p: string) =>
-    CANVAS_SAFE_API.has(p) ||
     p === '/_api/canvas' ||
     p.startsWith('/_api/agent/') ||
     p === '/_api/diagnostics/save-hold-flush';
@@ -692,15 +703,17 @@ export function claimingLegacyRoutes<
     out[p] =
       exempt(p) || typeof handler !== 'function'
         ? handler
-        : (req: Request) =>
-            req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS'
-              ? handler(req)
-              : withWriteClaim(
-                  sameOriginWrite(req) && isTrustedRequestHost(req)
-                    ? routeWriteClaim(req, runs)
-                    : null,
-                  () => handler(req)
-                );
+        : NO_CLAIM_LEGACY.test(p)
+          ? (req: Request) => noWriteClaim(() => handler(req))
+          : (req: Request) =>
+              req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS'
+                ? handler(req)
+                : withWriteClaim(
+                    sameOriginWrite(req) && isTrustedRequestHost(req)
+                      ? routeWriteClaim(req, runs)
+                      : null,
+                    () => handler(req)
+                  );
   }
   return out as T;
 }
@@ -1560,6 +1573,11 @@ export interface Http {
    * allowlists derive them: `CANVAS_SAFE_API` here and routes/canvas-origin.ts.
    */
   tableCanvasPaths: readonly string[];
+  /**
+   * F2 — the canvas-safe legacy paths (CANVAS_SAFE_API) as the canvas listeners mount them: guarded,
+   * but never inside a run's write claim. `routes` carries the main origin's claim-wrapped copy.
+   */
+  unclaimed: Record<string, (req: Request) => Response | Promise<Response>>;
   /** S9.9 — THIS request's access (V2-1.7 §5.4); server.ts `withSession` puts it in ALS. */
   accessOf(req?: Request): Access;
   /** S9.11 — the closure of a session's grants on this child's disk (null without grants). */
@@ -8240,6 +8258,14 @@ export function createHttp(
       async (req: Request) => (await readOnlyRefusal(req)) ?? handler(req),
     ])
   ) as unknown as typeof routes;
+  // F2 — the canvas listeners' copy of the hand-listed canvas-safe paths: the same guarded handler,
+  // WITHOUT the claim wrapper (a canvas-origin request can never claim into a run)
+  const own = legacyRoutes as Record<string, (req: Request) => Response | Promise<Response>>;
+  const unclaimed = Object.fromEntries(
+    [...CANVAS_SAFE_API]
+      .filter((p) => typeof own[p] === 'function')
+      .map((p) => [p, async (req: Request) => (await readOnlyRefusal(req)) ?? own[p](req)])
+  ) as Http['unclaimed'];
 
   async function guardedFetch(req: Request): Promise<Response> {
     return (await readOnlyRefusal(req)) ?? handleFallthrough(req);
@@ -8327,6 +8353,7 @@ export function createHttp(
   return {
     routes: guardedRoutes,
     canvasRoutes,
+    unclaimed,
     tableCanvasPaths: laneRoutes.canvasPaths,
     accessOf,
     frameScopeOf,

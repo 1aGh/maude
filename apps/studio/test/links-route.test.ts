@@ -84,8 +84,9 @@ describe('the spec', () => {
     const map = canvasOriginRoutes({
       routes: {},
       canvasRoutes: {},
+      unclaimed: {},
       tableCanvasPaths: table.canvasPaths,
-    } as unknown as Pick<Http, 'routes' | 'canvasRoutes' | 'tableCanvasPaths'>);
+    } as unknown as Pick<Http, 'routes' | 'canvasRoutes' | 'tableCanvasPaths' | 'unclaimed'>);
     expect(Object.keys(map)).not.toContain('/_api/links');
   });
 });

@@ -11,6 +11,11 @@ export interface WriteClaimRun {
   runId: string;
   chatId: string;
   label: string;
+  /**
+   * D5 — is the run still live? A claim rides every continuation of the request that set it (a timer,
+   * a job it started), so it is re-checked whenever it is read: an ended run claims nothing more.
+   */
+  live?: () => boolean;
 }
 
 /**
@@ -35,5 +40,6 @@ export function noWriteClaim<T>(fn: () => T): T {
 /** The run the current request writes for, or null (a person's request, or none at all). */
 export function currentWriteClaim(): WriteClaimRun | null {
   const s = scope.getStore();
-  return s === undefined || s === NONE ? null : s;
+  if (s === undefined || s === NONE) return null;
+  return s.live && !s.live() ? null : s;
 }

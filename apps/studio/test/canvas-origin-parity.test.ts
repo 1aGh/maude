@@ -36,8 +36,9 @@ function canvasMap(tableCanvasPaths: readonly string[] = TABLE.canvasPaths) {
   const http = {
     routes: tagged('routes'),
     canvasRoutes: tagged('canvasRoutes'),
+    unclaimed: tagged('unclaimed'),
     tableCanvasPaths,
-  } as unknown as Pick<Http, 'routes' | 'canvasRoutes' | 'tableCanvasPaths'>;
+  } as unknown as Pick<Http, 'routes' | 'canvasRoutes' | 'tableCanvasPaths' | 'unclaimed'>;
   return canvasOriginRoutes(http) as Record<string, { from?: string }>;
 }
 
@@ -96,8 +97,15 @@ describe('CANVAS_SAFE_API ↔ the canvas server routes map (V2-2.5)', () => {
       '/_api/annotations/ops',
       '/_api/git-user',
     ]);
+    // F2 — every other legacy canvas-safe path is the UNCLAIMED handler (the main origin's `routes`
+    // copy answers inside an AI run's write claim); the table's canvas specs and /_health are `routes`
+    const tablePaths = new Set(TABLE.canvasPaths);
     for (const [path, handler] of Object.entries(canvasMap())) {
-      const source = CANVAS_VARIANTS.has(path) ? 'canvasRoutes' : 'routes';
+      const source = CANVAS_VARIANTS.has(path)
+        ? 'canvasRoutes'
+        : path === '/_health' || tablePaths.has(path)
+          ? 'routes'
+          : 'unclaimed';
       expect(`${path} ← ${handler.from}`).toBe(`${path} ← ${source} ${path}`);
     }
   });
