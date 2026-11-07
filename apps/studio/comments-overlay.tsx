@@ -62,6 +62,13 @@ import {
   worldToClient,
 } from './comment-anchor.ts';
 import { authorFace } from './comments/author-face.ts';
+import {
+  cancelReattach,
+  listenForReattachPick,
+  type ReattachPick,
+  reattachOpFor,
+  requestReattach,
+} from './comment-reattach.ts';
 import { fromHeadline, fromWho } from './comments/from-line.ts';
 import {
   type ImportedFrom,
@@ -168,6 +175,7 @@ export interface OverlayComment {
   tag?: string;
   classes?: string;
   dom_path?: string[];
+  html_excerpt?: string;
   /** Anchor on an annotation (sticky, shape, stroke…) — see comment-anchor.ts. */
   annotationId?: string;
   /** World point of the comment — the anchor of a floating comment, and the
@@ -454,6 +462,64 @@ export interface TargetRef {
   classes?: string;
   dom_path?: string[];
   annotationId?: string;
+  /** The element's markup at capture time: what a shared-id anchor is checked against (#151 §6). */
+  html_excerpt?: string;
+}
+
+/** The words inside a stored `html_excerpt`, whitespace collapsed ('' = it holds none). */
+function wordsOfMarkup(html: string | undefined): string {
+  if (!html) return '';
+  return html
+    .replace(/<[^>]*>?/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Cut-off length of a stored excerpt (comments/ops.ts): a stored text this long may be a prefix. */
+const EXCERPT_CUT = 1500;
+
+function holdsWords(el: Element, stored: string): boolean {
+  const live = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+  return live === stored || (stored.length >= EXCERPT_CUT && live.startsWith(stored));
+}
+
+/** Only so many matches are read per look — a pin is re-resolved every frame while it floats. */
+const SHARED_MATCH_CAP = 400;
+
+/**
+ * Which of the elements a SHARED `data-cd-id` selector matches is the one the thread was made on?
+ * The stored occurrence index is the first guess (cheap, right while nothing changed). An edit that
+ * inserts or removes a row before it shifts the index onto a different element, or past the end
+ * (which used to mean "the first match"), so the guess is checked against the words the thread
+ * stored: kept when they are still there, else the match that holds them (the one nearest the
+ * stored index when several do). A record without stored words keeps the old behaviour exactly.
+ */
+function pickSharedMatch(all: ArrayLike<Element>, target: TargetRef): Element | null {
+  if (all.length === 0) return null;
+  const want = target.index && target.index > 0 && target.index < all.length ? target.index : 0;
+  const guess = all[want] ?? all[0] ?? null;
+  if (all.length === 1 || all.length > SHARED_MATCH_CAP) return guess;
+  const stored = wordsOfMarkup(target.html_excerpt);
+  if (!stored || (guess && holdsWords(guess, stored))) return guess;
+  const from = target.index ?? 0;
+  let best: Element | null = null;
+  let bestGap = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < all.length; i++) {
+    const cand = all[i] as Element;
+    if (!holdsWords(cand, stored)) continue;
+    const gap = Math.abs(i - from);
+    if (gap < bestGap) {
+      best = cand;
+      bestGap = gap;
+    }
+  }
+  return best ?? guess;
 }
 
 /**
@@ -473,9 +539,7 @@ export function resolveCommentTarget(target: TargetRef): HTMLElement | null {
   try {
     // index disambiguates a component repeated within one artboard (querySelector
     // alone would always grab the first match). Absent/0 → first.
-    const all = document.querySelectorAll(target.selector);
-    const i = target.index && target.index > 0 && target.index < all.length ? target.index : 0;
-    el = (all[i] ?? all[0] ?? null) as HTMLElement | null;
+    el = pickSharedMatch(document.querySelectorAll(target.selector), target) as HTMLElement | null;
   } catch {
     el = null;
   }
@@ -569,6 +633,8 @@ export function CommentsOverlay(): React.ReactNode {
   const [submitting, setSubmitting] = useState(false);
   // A sentence when the door refuses (what happened · what is safe · one verb) — the text stays put.
   const [notice, setNotice] = useState<string | null>(null);
+  // #151 D5 — the thread waiting for the click that names its new element (comment-reattach.ts).
+  const [reattaching, setReattaching] = useState<string | null>(null);
   // The door's answer is the thread after the op; merge it now, the broadcast confirms it later.
   const mergeComment = useCallback((c: OverlayComment) => {
     setComments((prev) =>
@@ -925,6 +991,35 @@ export function CommentsOverlay(): React.ReactNode {
     });
   }, []);
 
+  // #151 D5 — the mount took the click that names the new element: send the `reattach` op. The thread
+  // stays open on its new place; a refusal is a sentence (the thread stays where it was).
+  const handleReattachPick = useCallback(
+    (pick: ReattachPick) => {
+      setReattaching(null);
+      const anchors = anchorsAt(pick.selection.artboardId, pick.clientX, pick.clientY);
+      void shellCommentOp(reattachOpFor(pick.id, pick.selection, anchors)).then((r) => {
+        if (r === null) return setNotice('Re-attaching needs the Maude window.');
+        if (!r.ok) return setNotice(r.error ?? 'That did not go through.');
+        setNotice(null);
+        if (r.comment) mergeComment(r.comment);
+        setFocusedId(pick.id);
+      });
+    },
+    [mergeComment]
+  );
+  useEffect(
+    () => listenForReattachPick(handleReattachPick, () => setReattaching(null)),
+    [handleReattachPick]
+  );
+  const startReattach = useCallback((id: string) => {
+    setReattaching(id);
+    requestReattach(id);
+  }, []);
+  const stopReattach = useCallback(() => {
+    setReattaching(null);
+    cancelReattach();
+  }, []);
+
   const handleReply = useCallback(
     async (id: string, body: string): Promise<boolean> => {
       if (typeof fetch === 'undefined') return false;
@@ -996,14 +1091,28 @@ export function CommentsOverlay(): React.ReactNode {
           </button>
         </div>
       ) : null}
+      {reattaching ? (
+        <div className="cm-notice" role="status" data-testid="comment-reattach-hint">
+          <span>Click the element this comment belongs on. Esc to cancel.</span>
+          <button
+            type="button"
+            className="cm-notice__x"
+            aria-label="Cancel re-attach"
+            onClick={stopReattach}
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
       {(() => {
-        if (!focusedId) return null;
+        if (!focusedId || reattaching) return null;
         const focused = visible.find((c) => c.id === focusedId);
         if (!focused) return null;
         return (
           <CommentThread
             comment={focused}
             sequence={indexById.get(focused.id) ?? 0}
+            onReattach={() => startReattach(focused.id)}
             onClose={() => {
               setFocusedId(null);
               // Drop the canvas halo when the thread closes — symmetric with
@@ -1678,6 +1787,11 @@ function useViewerName(): string | null {
   return name;
 }
 
+/** A comment that sits on an element (or nothing yet): not a board object, a video moment or a point on paper. */
+function isElementAnchored(c: OverlayComment): boolean {
+  return !c.annotationId && typeof c.t !== 'number' && !c.mm;
+}
+
 export function CommentThread({
   comment,
   sequence,
@@ -1685,6 +1799,7 @@ export function CommentThread({
   onPatch,
   onDelete,
   onReply,
+  onReattach,
   focusReply = 0,
   mine = false,
   me,
@@ -1695,6 +1810,8 @@ export function CommentThread({
   onPatch: (patch: Record<string, unknown>) => void;
   onDelete: () => void;
   onReply: (body: string) => Promise<boolean>;
+  /** #151 D5 — "Re-attach to element": the next element click becomes this thread's anchor. */
+  onReattach?: () => void;
   /** S6.11b — non-zero (bumped per request): put the focus in the reply field, not on the dialog. */
   focusReply?: number;
   /** The person looking wrote this comment — they may edit its text. */
@@ -1883,6 +2000,18 @@ export function CommentThread({
             <span className="cm-thread__head-end">
               {canAct ? (
                 <span className="cm-thread__actions">
+                  {onReattach && isElementAnchored(comment) ? (
+                    <button
+                      type="button"
+                      className="cm-btn"
+                      data-testid={`comment-reattach-${comment.id}`}
+                      aria-label="Re-attach to element"
+                      title="Re-attach to element"
+                      onClick={onReattach}
+                    >
+                      Re-attach
+                    </button>
+                  ) : null}
                   {mine && draft === null && !imported ? (
                     <button
                       type="button"

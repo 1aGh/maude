@@ -209,6 +209,48 @@ describe('POST /_api/comments/op', () => {
     expect([stillB?.status, stillB?.thread.length]).toEqual(['open', 0]);
   }, 30000);
 
+  test('reattach (#151 D5): a commenter moves a thread onto another element; the same gates as resolve', async () => {
+    const root = commentOf(
+      await op(asRole('member', 'Michal'), {
+        op: 'add',
+        file: CANVAS_A,
+        text: 'Off by two',
+        selector: '[data-dc-screen="hero"]',
+        tag: 'span',
+      })
+    );
+    const anchor = {
+      selector: '[data-dc-screen="hero"] > div:nth-child(1) > span:nth-child(2)',
+      tag: 'span',
+      world: { x: 40, y: 50 },
+      artboard: 'hero',
+    };
+    // Can view (observer) may not — exactly the refusal every other op gets.
+    expect((await op(asRole('observer'), { op: 'reattach', id: root.id, ...anchor })).line).toBe(
+      '403 read-only'
+    );
+    // A commenter may, whoever wrote the thread; the words and the author stay.
+    const moved = await op(asRole('viewer'), { op: 'reattach', id: root.id, ...anchor });
+    expect(moved.status).toBe(200);
+    const c = commentOf(moved);
+    expect([c.selector, c.world, c.author, c.text]).toEqual([
+      anchor.selector,
+      anchor.world,
+      'Michal',
+      'Off by two',
+    ]);
+    // A canvas-only session on A cannot reach B's thread: exactly a missing one.
+    const onB = commentOf(
+      await op(asRole('member', 'Michal'), { op: 'add', file: CANVAS_B, text: 'B' })
+    );
+    const missing = await op(COMMENT_ON_A, { op: 'reattach', id: 'c_000000000000', ...anchor });
+    expect((await op(COMMENT_ON_A, { op: 'reattach', id: onB.id, ...anchor })).text).toBe(
+      missing.text
+    );
+    // No selector is no element: not an op.
+    expect((await op(asRole('member'), { op: 'reattach', id: root.id })).status).toBe(400);
+  }, 30000);
+
   test('a body that is not an op is 400; an unknown id is 404 for a project member', async () => {
     expect((await op(asRole('member'), { op: 'shout', id: 'c_1' })).status).toBe(400);
     expect((await op(asRole('member'), { op: 'add', file: CANVAS_A })).status).toBe(400);

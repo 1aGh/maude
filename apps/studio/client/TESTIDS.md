@@ -721,6 +721,8 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `comment-composer-paused` | testid | The line on the new-comment card while the project's format gate refuses comment writes (`cg=1`): "Comments are paused while this project is view only." The field and the send are off with the same words as their title. | `comments-overlay.tsx` · `CommentComposer` | test:p8-cell-copy-comments-gate | new in v2 (p8-cell-copy) |
 | `comment-paused-<id>` | testid | The same line on an open thread, where the reply would be (reply / resolve / delete are absent then). | `comments-overlay.tsx` · `CommentThread` | test:p8-cell-copy-comments-gate | new in v2 (p8-cell-copy) |
 | `comment-notice` | testid | A refused comment write said in one sentence ("That did not go through."); the typed text stays in the composer. | `comments-overlay.tsx` · `CommentsOverlay` | test:v2-comments-panel-render | new in v2 (S9.22) |
+| `comment-reattach-<id>` | testid (pattern) | "Re-attach" in an element comment's thread header (aria-label "Re-attach to element"): the next element click becomes the thread's new anchor (#151 D5). Absent on a board-object, video-moment or print-point comment. | `comments-overlay.tsx` · `CommentThread` | test:comment-reattach | new in v2 (#151) |
+| `comment-reattach-hint` | testid | The line shown while a re-attach waits for its click ("Click the element this comment belongs on. Esc to cancel."), with a × that cancels. | `comments-overlay.tsx` · `CommentsOverlay` | test:comment-reattach | new in v2 (#151) |
 
 ### banners
 

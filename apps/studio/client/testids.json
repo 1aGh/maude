@@ -1248,6 +1248,36 @@
     "v2": "new"
   },
   {
+    "hook": "comment-reattach-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Re-attach\" in an element comment's thread header (aria-label \"Re-attach to element\"): the next element click becomes the thread's new anchor (#151 D5). Absent on a board-object, video-moment or print-point comment.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/comment-reattach.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-reattach-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line shown while a re-attach waits for its click (\"Click the element this comment belongs on. Esc to cancel.\"), with a x that cancels.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentsOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/comment-reattach.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "notice-<id>",
     "kind": "testid",
     "pattern": true,

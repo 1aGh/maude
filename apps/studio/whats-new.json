@@ -2,6 +2,16 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "comment-reattach-element",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "Move a comment to another element",
+      "summary": "A comment that lost its element, or was placed on the wrong one, can be re-attached. Open the comment, press Re-attach, then click the element it belongs on. Comments on repeated elements also stay on the right one when rows are added or removed above them.",
+      "learnMore": "https://maude.sh/docs/desktop/window",
+      "surface": "design-ui"
+    },
+    {
       "id": "design-video-plugin",
       "version": null,
       "date": null,
