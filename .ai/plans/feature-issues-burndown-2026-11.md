@@ -240,7 +240,7 @@ W5 and W6 use Opus.
   - audit every disk-writing auto-tier verb so it claims through `_write-claim.mjs`;
   - synced history rows name the actual agent, and "the version before" is picked by run, not by position;
   - write the `READERS` rule as a pinned test.
-- [ ] T5.2 **#165:**
+- [x] T5.2 **#165:**
   - D9 for the legacy session inverse, and `rejected/stale` reaching the undo stack;
   - the same refusal in `commitStrokes`;
   - kernel-side refusal for multi-target undo;
@@ -367,3 +367,4 @@ W5 and W6 use Opus.
 - 2026-11-07 merged T2.2-sec b6b0a5d21 (sibling guard + per-session latch: no still writes in a session where two canvas frames were ever mounted; answer-once; 2 MB/min + 8 MB per canvas; own-scope-first eviction; hashed scope; release builds drop __maudeStill* globals). Trade-off for Michal: with kept-alive tabs most sessions write no new stills (earlier ones still show). Re-review running.
 - 2026-11-07 T2.2 re-review: F1/F2 closed; open case was two unsandboxed canvas frames (compare, diff) → sandboxed + pin test (red without). T2.1/T2.2 ticked; Safari/Chromium sweep verifier still running for the measured section.
 - 2026-11-07 merged T2.6c (9c69fa73d 3af143b97 be2e6dc93: CONTRACT ai-other-tab line; e2e an-vote, co-mention-notify, ve-footage (split off), ia-more-ways, ai-annotations wrote scenario — written, run each alone). Bug found: putInSection has no file when the ask had no selection → fix builder running. Merged 164-sec hook side (d41228cc6 fe7fc5183 2322f1a99).
+- 2026-11-07 merged T5.2 (8f9ec88be af765e580 c1c822d4b 4dacd3484): no-room contest recorded, ledger persisted in _state/text-steps.ndjson, kernel refuses an overlapping text revert as undo-conflict (whole undo), hub advertises presence-role-v1. Drafts-into-commit already shipped (p8-fix-d F13, p8-hub-drafts). D9 + commitStrokes refusal: lead chose (a) — removed by p8-v1-drop (legacy save mode is view-only in v2; canvas undo stack gone; refusal lives in the project-undo route + kernel); supersedes the 2026-10-29 decision. Sync lane still owed before the push.
