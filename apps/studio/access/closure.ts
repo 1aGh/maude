@@ -64,7 +64,7 @@ const MODULE_EXT_RE = /\.(tsx|ts|jsx|js|mjs|cjs)$/i;
  * (a canvas), `.md`, `.txt`, unknown — taken with `with { type: 'text' }` is just bytes into the
  * frame, so it blocks the grant like an imported canvas.
  */
-const IMPORTABLE_EXT_RE = /\.(tsx|ts|jsx|js|mjs|cjs|css|json)$/i;
+export const IMPORTABLE_EXT_RE = /\.(tsx|ts|jsx|js|mjs|cjs|css|json)$/i;
 /** A design system's own folder — exactly one segment under `system/` (V2-8.9 defender L3). */
 const DS_SYSTEM_PATH_RE = /^system\/[^/]+$/;
 /** A specifier with an extension of its own (`./data.json`, `./logo.svg`): the exact file. */
@@ -129,20 +129,27 @@ export function relativeImportGroups(
   canvasAbsPath: string,
   designRoot: string
 ): string[][] {
-  const css = /\.css$/i.test(canvasAbsPath);
+  return relativeImportSpecs(rawSource, /\.css$/i.test(canvasAbsPath)).map((spec) =>
+    specCandidates(spec, canvasAbsPath, designRoot)
+  );
+}
+
+/**
+ * #158 — the distinct relative specifiers `relativeImportGroups` resolves, decoded, in source order
+ * (`css`: the file is a stylesheet, so `@import url(…)` counts). Exported so a diagnostic names the
+ * specifier an import was written with — one scan, never a second copy of the import grammar.
+ */
+export function relativeImportSpecs(rawSource: string, css: boolean): string[] {
   const source = importScanText(rawSource, css);
-  const groups: string[][] = [];
   const specs = new Set<string>();
   for (const re of css ? [...SPEC_RES, CSS_URL_IMPORT_RE] : SPEC_RES) {
     re.lastIndex = 0;
     for (let m = re.exec(source); m !== null; m = re.exec(source)) {
       const spec = decodeJsString(m[1] ?? '');
-      if (!spec.startsWith('.') || specs.has(spec)) continue;
-      specs.add(spec);
-      groups.push(specCandidates(spec, canvasAbsPath, designRoot));
+      if (spec.startsWith('.')) specs.add(spec);
     }
   }
-  return groups;
+  return [...specs];
 }
 
 /**

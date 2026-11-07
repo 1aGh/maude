@@ -19,6 +19,7 @@ import { readCodeConsent } from '../../code/code-consent.js';
 import { CodeConsentSheet } from '../../code/code-consent-sheet.jsx';
 import { menuRunner } from '../../shell/menu-runner.js';
 import { DELIVERY_WORD, cleanName, resolvedWords, syncDetailsModel } from './sync-details-model.js';
+import { UNSYNCED_SHOWN, groupByCanvas, readUnsyncedRefs } from './unsynced-refs.js';
 
 /** Registry id → the `choice` the conflict route takes. */
 export const CONFLICT_PICK = Object.freeze({
@@ -537,6 +538,60 @@ function FoldersSection({ sequences, ignored, fetchImpl }) {
   );
 }
 
+/**
+ * #158 — files a canvas uses that will not reach the workspace. One issue row per canvas, each file
+ * with why and the way out, in the server's words (the terminal and the smoke report say the same).
+ * Read-only on purpose: the fix is a move or a rename in the project, not a button here. Calm — the
+ * canvas works on this Mac; the row says what a teammate would miss.
+ */
+function useUnsyncedRefs(fetchImpl) {
+  const [refs, setRefs] = useState([]);
+  useEffect(() => {
+    let live = true;
+    readUnsyncedRefs(fetchImpl).then((r) => {
+      if (live) setRefs(r);
+    });
+    return () => {
+      live = false;
+    };
+  }, [fetchImpl]);
+  return refs;
+}
+
+function UnsyncedSection({ refs }) {
+  if (!refs.length) return null;
+  const groups = groupByCanvas(refs);
+  const shown = groups.slice(0, UNSYNCED_SHOWN);
+  const more = groups.length - shown.length;
+  return (
+    <section aria-label="Files that stay on this Mac" data-testid="sync-unsynced">
+      <p className="sd-sub">
+        Files that stay on this Mac · {groups.length} {groups.length === 1 ? 'canvas' : 'canvases'}
+      </p>
+      {shown.map((g, i) => (
+        <div className="sd-card" key={g.canvas} data-testid={`sync-unsynced-${i}`}>
+          <strong className="sd-ct">{g.title}</strong>
+          <span className="sd-cd">
+            It opens here. The people you share with won’t get{' '}
+            {g.files.length === 1 ? 'this file' : 'these files'}:
+          </span>
+          {g.files.map((f) => (
+            <span className="sd-cd" key={f.file}>
+              <span className="dg-mono">{f.file}</span> — {f.detail} {f.fix}
+            </span>
+          ))}
+        </div>
+      ))}
+      {more > 0 ? (
+        <p className="dg-hint">
+          And {more} more {more === 1 ? 'canvas' : 'canvases'}. `maude design status` lists them
+          all.
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 export default function SyncDetails({
   status,
   project,
@@ -557,6 +612,7 @@ export default function SyncDetails({
   const codeHeld = m.lists.held.find((h) => h.kind === 'code-consent');
   const [consent, setConsent] = useCodeConsent(fetchImpl, codeHeld ? codeHeld.paths.length + 1 : 0);
   const canChange = consent?.changeable === true;
+  const unsynced = useUnsyncedRefs(fetchImpl);
   return (
     <div className="sd" data-testid="sync-panel">
       <div className="dg-hd">
@@ -635,6 +691,8 @@ export default function SyncDetails({
         ignored={m.lists.ignoredFolders}
         fetchImpl={fetchImpl}
       />
+
+      <UnsyncedSection refs={unsynced} />
 
       {m.counts.length ? (
         <section aria-label="Counts" data-testid="diag-sync-counts">

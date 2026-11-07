@@ -293,7 +293,11 @@ export async function run({ args, pkgRoot }) {
   if (sub === 'link') return runLink({ args });
   if (sub === 'unlink') return runUnlink({ args });
   if (sub === 'detach') return runDetach({ args });
-  if (sub === 'status') return runStatus({ args });
+  if (sub === 'status')
+    return runStatus({
+      args,
+      unsynced: (designRoot) => unsyncedViaHelper({ pkgRoot, designRoot }),
+    });
   if (sub === 'adopt') return runAdopt({ args });
   if (sub === 'bulk-deletes') return runBulkDeletes({ args });
   if (sub === 'open') {
@@ -403,6 +407,37 @@ function ensureBunOnPath(childEnv, pkgRoot) {
 /** A path inside a `bun --compile` binary's embedded filesystem (mirrors apps/studio isVirtualPath). */
 export function isVirtualNapiPath(p) {
   return typeof p === 'string' && /^(\/\$bunfs\/|[A-Za-z]:[\\/]~BUN[\\/])/.test(p);
+}
+
+/**
+ * #158 — the files a linked canvas uses that will not reach the workspace, for `maude design status`.
+ * The diagnostic is TypeScript over the sync classifier, so it runs in the bundled helper under bun
+ * (the same `bun` resolution every bin helper gets — RCA G3). Read-only; returns the report (with its
+ * terminal `lines`), or null when the helper cannot run — status then simply says nothing about it.
+ */
+export function unsyncedViaHelper({ pkgRoot, designRoot }) {
+  const script = join(pkgRoot, 'apps', 'studio', 'bin', '_unsynced-refs.mjs');
+  if (!existsSync(script)) return null;
+  const { env, shimDir } = ensureBunOnPath({ ...process.env }, pkgRoot);
+  try {
+    const r = spawnSync('bun', [script, '--design-root', designRoot, '--json'], {
+      env,
+      encoding: 'utf8',
+      timeout: 30_000,
+    });
+    if (r.error || r.status !== 0) return null;
+    return JSON.parse(r.stdout.trim().split('\n').pop() ?? 'null');
+  } catch {
+    return null;
+  } finally {
+    if (shimDir) {
+      try {
+        rmSync(shimDir, { recursive: true, force: true });
+      } catch {
+        /* best-effort cleanup */
+      }
+    }
+  }
 }
 
 function runBinDispatch(verb, { args, pkgRoot }) {
