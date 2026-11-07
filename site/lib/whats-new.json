@@ -3,6 +3,16 @@
   "version": "2.0.8",
   "entries": [
     {
+      "id": "only-drag-adopts",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Only a drag puts an object into a section",
+      "summary": "Fan out, align, distribute and the arrow keys no longer drop an object into a section it ends up over. Drag it in when you want it there.",
+      "learnMore": "https://maude.sh/docs/desktop/window",
+      "surface": "design-ui"
+    },
+    {
       "id": "object-menu-add-comment",
       "version": null,
       "date": null,

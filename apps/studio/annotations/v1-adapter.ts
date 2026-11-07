@@ -358,10 +358,23 @@ function sameBox(a: Box | null, b: Box | null): boolean {
  * board so that what the v1 UI can't express survives: parents of unmoved
  * elements, sibling keys, unknown element types.
  */
+export interface StrokesToElementsOpts {
+  /**
+   * #163 (Michal) — only a DRAG adopts: true when this change is the person dragging (r4 #18: a dragged object
+   * lands in the section under it). False for every other move (Fan out, align, distribute, the arrow keys): an
+   * existing object never JOINS a section by it — it keeps the one it is in while it still sits there, and
+   * leaves one it is moved out of. A new element (create, paste) is not a move and keeps today's rule.
+   * Absent = true (previews and hit tests read the board as a drag would land it).
+   */
+  adoptOnMove?: boolean;
+}
+
 export function strokesToElements(
   strokes: readonly Stroke[],
-  current: ReadonlyMap<string, AnnotationElement>
+  current: ReadonlyMap<string, AnnotationElement>,
+  opts: StrokesToElementsOpts = {}
 ): AnnotationElement[] {
+  const adoptOnMove = opts.adoptOnMove !== false;
   const flat = v1ToV2(strokes, { flat: true }).elements; // world coords, top level
   const world = new Map(flat.map((e) => [e.id, e]));
   const curScene = new Scene(current.values());
@@ -409,6 +422,11 @@ export function strokesToElements(
     const keptBox = kept && world.has(kept) ? boxOf(kept) : null;
     if (!moved && kept && keptBox && inside(keptBox, cx, cy)) {
       parentOf.set(el.id, best && best.a < area(keptBox) ? best.id : kept);
+      continue;
+    }
+    // #163 — a move that is not a drag adopts nothing: it keeps its section while it still sits in it
+    if (moved && prev && !adoptOnMove) {
+      if (kept && keptBox && inside(keptBox, cx, cy)) parentOf.set(el.id, kept);
       continue;
     }
     if (best) parentOf.set(el.id, best.id);
@@ -506,7 +524,8 @@ export function strokesToElements(
 /** Map form of `strokesToElements` for `diffToOps`. */
 export function strokesToElementMap(
   strokes: readonly Stroke[],
-  current: ReadonlyMap<string, AnnotationElement>
+  current: ReadonlyMap<string, AnnotationElement>,
+  opts: StrokesToElementsOpts = {}
 ): Map<string, AnnotationElement> {
-  return new Map(strokesToElements(strokes, current).map((e) => [e.id, e]));
+  return new Map(strokesToElements(strokes, current, opts).map((e) => [e.id, e]));
 }

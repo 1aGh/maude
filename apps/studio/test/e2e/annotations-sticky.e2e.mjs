@@ -63,8 +63,8 @@ const BOARD = [
     id: 'sec',
     type: 'section',
     index: 'a3',
-    // Clear of T1's fanned-out row (120 → 632): a sticky Fan out moves onto a section is adopted by it
-    // (r4 #18, decision v2-r4-moved-element-adopted-by-section), which is not what T1 or T3 are about.
+    // Clear of T1's fanned-out row (120 → 632), so T1 and T3 stay apart. Since #163 only a drag adopts, so
+    // Fan out would no longer put a sticky into this section anyway (test/t25-only-drag-adopts.test.ts).
     x: 700,
     y: 100,
     w: 360,
