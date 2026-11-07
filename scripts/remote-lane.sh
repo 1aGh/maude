@@ -135,13 +135,18 @@ git clean -qfd -e node_modules -e .scr -e .runner-deps </dev/null >/dev/null 2>&
 H="$R/home/slot$got"
 T="$R/tmp/slot$got"
 rm -rf "$H" "$T" "$D/.runner-home" && mkdir -p "$H/bin" "$T" "$H/cfg/maude" "$R/cache/bun" "$R/cache/npm" "$R/cache/node-gyp"
+# agent-browser looks for Chrome under $HOME, which is wiped on every run (above). It lives in a
+# shared cache instead (install once: HOME=$R/cache/agent-browser-home agent-browser install, then move
+# the chrome-<ver> folder to $R/cache/agent-browser/); the newest one found is passed explicitly.
+AB_CHROME=$(ls -d "$R"/cache/agent-browser/chrome-*/"Google Chrome for Testing.app"/Contents/MacOS/"Google Chrome for Testing" 2>/dev/null | sort -V | tail -1)
 SANDBOX=(env -i
   "PATH=$H/bin:$R/tools/bin:$R/tools/node24/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
   "HOME=$H" "XDG_CONFIG_HOME=$H/cfg" "TMPDIR=$T" "LANG=${LANG:-C.UTF-8}"
   "MAUDE_CLAUDE_BIN=" NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 "GIT_CONFIG_GLOBAL=$R/tools/gitconfig"
   "BUN_INSTALL_CACHE_DIR=$R/cache/bun" "npm_config_store_dir=/Volumes/D/.pnpm-store"
   "npm_config_cache=$R/cache/npm" "npm_config_devdir=$R/cache/node-gyp"
-  "PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright")
+  "PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright"
+  "AGENT_BROWSER_EXECUTABLE_PATH=$AB_CHROME")
 "${SANDBOX[@]}" node --input-type=module -e 'const m = await import(process.argv[1]); m.writeStubClaude(process.argv[2]);' \
   "$D/scripts/lib/stub-claude.mjs" "$H/bin" </dev/null 2>/dev/null \
   || { printf '#!/bin/sh\necho '"'"'{"loggedIn":false}'"'"'\n' >"$H/bin/claude"; chmod 755 "$H/bin/claude"; }
