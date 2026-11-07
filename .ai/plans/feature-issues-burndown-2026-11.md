@@ -144,6 +144,13 @@ W5 and W6 use Opus.
   - prune the `local-kernel.ts` source copies;
   - the new-project location check (parent instruction files, late `.git`).
 - [ ] T1.9 **#206 quick part:** `server-up.sh` spawns with `NO_OPEN=1`, and `/design:browse` opens the window explicitly.
+- [ ] T1.10 **Packaged `maude design server-up` cannot start the studio** (bug 13 of the 2.0.4 report; still open on 2.0.8; overlaps #206; added 2026-11-07 via the keeper):
+  - from the `.app`, `server-up`/`serve` runs `bun server.ts` against the staged source, which has no deps (`yjs y-protocols lib0`), so without a desktop tab the CLI has no `sync status/resync`, `history`, `trash`, `ds-upgrade --apply`;
+  - fix: when the compiled `maude-server` sidecar sits next to the CLI, spawn it (with `MAUDE_PKG_ROOT`/`MAUDE_DEV_SERVER_ROOT`, `NO_OPEN=1`);
+  - pin with a stripped-PATH `server-up` in `check-bundle-completeness --smoke`;
+  - check whether bug 1 (`ds-upgrade --prove` against the staged studio) has the same cause;
+  - read-only side check: `maude design status` "5012 of 5012 delivered" vs 7665 on 2.0.4 — confirm in code whether only the counting changed (no resync on Michal's real project).
+  - Never run `/Applications/Maude.app` binaries for this; reproduce from a locally built or staged layout.
 
 ### W2 — Canvas and shell (client; Opus where it touches the frame bridge)
 
