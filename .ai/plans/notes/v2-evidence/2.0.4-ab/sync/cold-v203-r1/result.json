@@ -1,0 +1,1640 @@
+{
+  "files": 800,
+  "fileMB": 295.9,
+  "latencyMs": 250,
+  "fillSlots": 4,
+  "done": true,
+  "firstFileS": 53.4,
+  "wallS": 212.5,
+  "peakRssMB": 315,
+  "cell": {
+    "gets": 800,
+    "misses503": 0,
+    "fills": 800,
+    "peakInFlight": 1,
+    "rate429": 0
+  },
+  "final": {
+    "phase": "seeding",
+    "tracked": 812,
+    "delivered": 800,
+    "remaining": 12,
+    "bytesRemaining": 0,
+    "blocked": [],
+    "etaMs": null,
+    "startedAt": 1793849002307
+  },
+  "tailLines": [
+    "[sync/files] 400 more path(s) to reconcile; taking them next pass.",
+    "[sync/files] 200 down, 0 up, 0 conflict(s), 200 already in step.",
+    "[sync/files] 400 / 812 delivered · 412 waiting · more next pass (requests ceiling)",
+    "[sync/files] 200 more path(s) to reconcile; taking them next pass.",
+    "[sync/files] 200 down, 0 up, 0 conflict(s), 400 already in step.",
+    "[sync/files] 600 / 812 delivered · 212 waiting · more next pass (requests ceiling)",
+    "[sync/files] 200 down, 0 up, 0 conflict(s), 600 already in step.",
+    "[sync/files] 800 / 812 delivered · 12 waiting"
+  ],
+  "log": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/ab/sync/cold-v203-r1/studio.log",
+  "samples": [
+    {
+      "t": 1003,
+      "rss": 195,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 2007,
+      "rss": 196,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 3017,
+      "rss": 197,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 4025,
+      "rss": 198,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 5034,
+      "rss": 198,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 6043,
+      "rss": 199,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 7051,
+      "rss": 199,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 8060,
+      "rss": 200,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 9068,
+      "rss": 200,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 10075,
+      "rss": 201,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 11080,
+      "rss": 222,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 12084,
+      "rss": 308,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 13090,
+      "rss": 308,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 14094,
+      "rss": 309,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 15103,
+      "rss": 309,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 16108,
+      "rss": 309,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 17115,
+      "rss": 310,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 18123,
+      "rss": 310,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 19130,
+      "rss": 311,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 20137,
+      "rss": 311,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 21145,
+      "rss": 311,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 22150,
+      "rss": 311,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 23156,
+      "rss": 312,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 24163,
+      "rss": 312,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 25173,
+      "rss": 312,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 26178,
+      "rss": 312,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 27184,
+      "rss": 312,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 28193,
+      "rss": 312,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 29201,
+      "rss": 312,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 30210,
+      "rss": 313,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 31213,
+      "rss": 313,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 32221,
+      "rss": 313,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 33228,
+      "rss": 313,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 34238,
+      "rss": 314,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 35246,
+      "rss": 314,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 36252,
+      "rss": 313,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 37259,
+      "rss": 313,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 38267,
+      "rss": 314,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 39276,
+      "rss": 314,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 40285,
+      "rss": 314,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 41290,
+      "rss": 315,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 42297,
+      "rss": 289,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 43322,
+      "rss": 200,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 44329,
+      "rss": 186,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 45335,
+      "rss": 183,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 46341,
+      "rss": 180,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 47347,
+      "rss": 181,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 48352,
+      "rss": 181,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 49358,
+      "rss": 165,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 50360,
+      "rss": 162,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 51365,
+      "rss": 162,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 52371,
+      "rss": 162,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 53377,
+      "rss": 177,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 54383,
+      "rss": 182,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 55390,
+      "rss": 184,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 56396,
+      "rss": 184,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 57402,
+      "rss": 184,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 58407,
+      "rss": 185,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 59413,
+      "rss": 185,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 60420,
+      "rss": 185,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 61425,
+      "rss": 186,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 62433,
+      "rss": 186,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 63440,
+      "rss": 187,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 64449,
+      "rss": 187,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 65458,
+      "rss": 190,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 66463,
+      "rss": 190,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 67471,
+      "rss": 190,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 68478,
+      "rss": 191,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 69487,
+      "rss": 191,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 70496,
+      "rss": 193,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 71504,
+      "rss": 194,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 72506,
+      "rss": 194,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 73515,
+      "rss": 195,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 74523,
+      "rss": 197,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 75528,
+      "rss": 197,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 76538,
+      "rss": 197,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 77543,
+      "rss": 197,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 78551,
+      "rss": 197,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 79554,
+      "rss": 197,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 80560,
+      "rss": 198,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 81568,
+      "rss": 198,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 82578,
+      "rss": 198,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 83586,
+      "rss": 199,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 84595,
+      "rss": 199,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 85603,
+      "rss": 199,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 86612,
+      "rss": 199,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 87621,
+      "rss": 199,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 88627,
+      "rss": 201,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 89630,
+      "rss": 155,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 90634,
+      "rss": 158,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 91637,
+      "rss": 159,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 92643,
+      "rss": 160,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 93645,
+      "rss": 164,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 94650,
+      "rss": 165,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 95659,
+      "rss": 169,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 96665,
+      "rss": 170,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 97674,
+      "rss": 171,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 98681,
+      "rss": 169,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 99687,
+      "rss": 160,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 100690,
+      "rss": 161,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 101697,
+      "rss": 162,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 102706,
+      "rss": 164,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 103715,
+      "rss": 162,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 104723,
+      "rss": 101,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 105729,
+      "rss": 170,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 106733,
+      "rss": 176,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 107742,
+      "rss": 178,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 108748,
+      "rss": 181,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 109753,
+      "rss": 185,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 110757,
+      "rss": 187,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 111762,
+      "rss": 188,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 112771,
+      "rss": 189,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 113780,
+      "rss": 189,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 114789,
+      "rss": 190,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 115794,
+      "rss": 191,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 116798,
+      "rss": 191,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 117807,
+      "rss": 192,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 118815,
+      "rss": 193,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 119823,
+      "rss": 194,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 120828,
+      "rss": 194,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 121834,
+      "rss": 194,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 122844,
+      "rss": 196,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 123852,
+      "rss": 196,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 124858,
+      "rss": 196,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 125862,
+      "rss": 196,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 126866,
+      "rss": 197,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 127869,
+      "rss": 198,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 128875,
+      "rss": 199,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 129883,
+      "rss": 199,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 130890,
+      "rss": 199,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 131899,
+      "rss": 199,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 132907,
+      "rss": 201,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 133916,
+      "rss": 201,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 134921,
+      "rss": 202,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 135928,
+      "rss": 202,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 136937,
+      "rss": 202,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 137946,
+      "rss": 203,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 138955,
+      "rss": 203,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 139964,
+      "rss": 204,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 140972,
+      "rss": 204,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 141978,
+      "rss": 204,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 142980,
+      "rss": 204,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 143990,
+      "rss": 204,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 144998,
+      "rss": 205,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 146006,
+      "rss": 205,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 147013,
+      "rss": 205,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 148016,
+      "rss": 206,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 149024,
+      "rss": 206,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 150033,
+      "rss": 206,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 151043,
+      "rss": 207,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 152052,
+      "rss": 207,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 153062,
+      "rss": 208,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 154065,
+      "rss": 208,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 155072,
+      "rss": 208,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 156080,
+      "rss": 208,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 157089,
+      "rss": 208,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 158097,
+      "rss": 208,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 159103,
+      "rss": 199,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 160109,
+      "rss": 200,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 161113,
+      "rss": 202,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 162118,
+      "rss": 202,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 163123,
+      "rss": 202,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 164128,
+      "rss": 203,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 165135,
+      "rss": 203,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 166143,
+      "rss": 203,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 167148,
+      "rss": 204,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 168156,
+      "rss": 205,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 169163,
+      "rss": 205,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 170171,
+      "rss": 207,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 171176,
+      "rss": 207,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 172182,
+      "rss": 207,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 173191,
+      "rss": 207,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 174201,
+      "rss": 208,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 175209,
+      "rss": 208,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 176217,
+      "rss": 208,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 177226,
+      "rss": 209,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 178234,
+      "rss": 209,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 179243,
+      "rss": 209,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 180252,
+      "rss": 209,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 181261,
+      "rss": 209,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 182269,
+      "rss": 209,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 183278,
+      "rss": 209,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 184285,
+      "rss": 209,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 185293,
+      "rss": 209,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 186296,
+      "rss": 210,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 187304,
+      "rss": 211,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 188313,
+      "rss": 211,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 189323,
+      "rss": 212,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 190331,
+      "rss": 212,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 191335,
+      "rss": 213,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 192340,
+      "rss": 213,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 193345,
+      "rss": 213,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 194350,
+      "rss": 214,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 195359,
+      "rss": 214,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 196364,
+      "rss": 175,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 197373,
+      "rss": 161,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 198378,
+      "rss": 163,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 199386,
+      "rss": 164,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 200391,
+      "rss": 164,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 201397,
+      "rss": 165,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 202402,
+      "rss": 166,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 203410,
+      "rss": 167,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 204414,
+      "rss": 169,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 205420,
+      "rss": 169,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 206424,
+      "rss": 170,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 207433,
+      "rss": 171,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 208438,
+      "rss": 172,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 209445,
+      "rss": 174,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 210454,
+      "rss": 174,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 211463,
+      "rss": 175,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 212472,
+      "rss": 207,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 213481,
+      "rss": 207,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 214491,
+      "rss": 207,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 215499,
+      "rss": 207,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 216501,
+      "rss": 207,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 217508,
+      "rss": 205,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 218517,
+      "rss": 205,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 219520,
+      "rss": 200,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 220524,
+      "rss": 197,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 221530,
+      "rss": 195,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 222533,
+      "rss": 151,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 223537,
+      "rss": 151,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 224551,
+      "rss": 151,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 225555,
+      "rss": 151,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 226557,
+      "rss": 151,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 227562,
+      "rss": 151,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 228567,
+      "rss": 150,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 229571,
+      "rss": 150,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 230575,
+      "rss": 150,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 231579,
+      "rss": 150,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 232587,
+      "rss": 150,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 233594,
+      "rss": 150,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 234603,
+      "rss": 151,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 235608,
+      "rss": 148,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 236614,
+      "rss": 148,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 237621,
+      "rss": 148,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "seeding"
+    }
+  ]
+}

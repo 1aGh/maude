@@ -1,0 +1,60 @@
+{
+  "tree": "/Users/iagh/git/personal/maude/.claude/worktrees/ab-w204",
+  "canvases": 6,
+  "opened": 6,
+  "failed": 0,
+  "openS": 2.3,
+  "bootMB": 193.8,
+  "peakDuringOpenMB": 443.8,
+  "afterOpenMB": 443.8,
+  "settleS": 40.1,
+  "afterSettleMB": 188.7,
+  "procsAfterSettle": 11,
+  "sawCoverJob": true,
+  "idleMedianMB": 187.4,
+  "idleEndMB": 187.8,
+  "idleTreeMedianMB": 1457.6,
+  "idleCpuMedian": 0.4,
+  "idleCpuMax": 0.6,
+  "idleCpuMean": 0.3,
+  "idleTreeCpuMean": 0.3,
+  "procs": 1,
+  "samples": [
+    {
+      "t": 5,
+      "at": 1793849437825,
+      "serverMB": 187.40625,
+      "serverPsCpu": 0,
+      "serverCpuS": 2.39,
+      "treeMB": 1460.828125,
+      "treeCpuS": 7.720000000000001,
+      "procs": 11,
+      "serverCpu": 0.39714058776807026,
+      "treeCpu": 0.39714058776806144
+    },
+    {
+      "t": 10,
+      "at": 1793849442856,
+      "serverMB": 187.421875,
+      "serverPsCpu": 0,
+      "serverCpuS": 2.39,
+      "treeMB": 1457.609375,
+      "treeCpuS": 7.720000000000001,
+      "procs": 11,
+      "serverCpu": 0,
+      "treeCpu": 0
+    },
+    {
+      "t": 15,
+      "at": 1793849447883,
+      "serverMB": 187.78125,
+      "serverPsCpu": 0,
+      "serverCpuS": 2.42,
+      "treeMB": 1456.15625,
+      "treeCpuS": 7.75,
+      "procs": 11,
+      "serverCpu": 0.5967774020290393,
+      "treeCpu": 0.5967774020290304
+    }
+  ]
+}

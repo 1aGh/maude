@@ -1,0 +1,41 @@
+hub journal holds 812 files (2 s to import)
+{
+  "files": 800,
+  "fileMB": 295.9,
+  "latencyMs": 250,
+  "fillSlots": 4,
+  "done": true,
+  "firstFileS": 15.1,
+  "wallS": 55.3,
+  "peakRssMB": 287,
+  "cell": {
+    "gets": 800,
+    "misses503": 0,
+    "fills": 800,
+    "peakInFlight": 6,
+    "rate429": 0
+  },
+  "final": {
+    "phase": "converged",
+    "tracked": 812,
+    "delivered": 800,
+    "remaining": 0,
+    "held": 12,
+    "retrying": 0,
+    "bytesRemaining": 0,
+    "blocked": [],
+    "etaMs": null,
+    "startedAt": null
+  },
+  "tailLines": [
+    "[sync/files] 200 / 812 delivered · 600 waiting · 12 held: shared code not accepted on this Mac · more next pass (requests ceiling)",
+    "[sync/files] 400 more path(s) to reconcile; taking them next pass.",
+    "[sync/files] 200 down, 0 up, 0 conflict(s), 200 already in step.",
+    "[sync/files] 200 more path(s) to reconcile; taking them next pass.",
+    "[sync/files] 200 down, 0 up, 0 conflict(s), 400 already in step.",
+    "[sync/files] 600 / 812 delivered · 200 waiting · 12 held: shared code not accepted on this Mac · more next pass (requests ceiling)",
+    "[sync/files] 200 down, 0 up, 0 conflict(s), 600 already in step.",
+    "[sync/files] 800 / 812 delivered · 12 held: shared code not accepted on this Mac"
+  ],
+  "log": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/ab/sync/cold-v204-r3/studio.log"
+}

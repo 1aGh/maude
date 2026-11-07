@@ -1,0 +1,491 @@
+{
+  "result": {
+    "gesture": {
+      "frames": 40,
+      "p50": 33.3,
+      "p95": 33.4,
+      "max": 33.4
+    },
+    "pan": {
+      "frames": 0,
+      "p50": null,
+      "p95": null,
+      "max": null
+    },
+    "zoom": {
+      "frames": 40,
+      "p50": 33.3,
+      "p95": 33.4,
+      "max": 33.4
+    },
+    "longFrames": 0,
+    "renders": 2
+  },
+  "raw": {
+    "longFrames": 0,
+    "jankFrames": 26,
+    "settleLongFrames": 0,
+    "pan": {
+      "frames": 0,
+      "p50": null,
+      "p95": null,
+      "max": null
+    },
+    "zoom": {
+      "frames": 40,
+      "p50": 33.3,
+      "p95": 33.4,
+      "max": 33.4
+    },
+    "gesture": {
+      "frames": 40,
+      "p50": 33.3,
+      "p95": 33.4,
+      "max": 33.4
+    },
+    "settle": {
+      "frames": 54,
+      "p50": 16.7,
+      "p95": 16.8,
+      "max": 16.8
+    },
+    "longtasks": 0,
+    "artboardRenders": 2,
+    "annotationRenders": 2,
+    "instrumented": true,
+    "panApplied": true,
+    "boardsOnScreen": 1,
+    "visibility": "visible",
+    "idleHz": 62,
+    "zoomApplied": true
+  },
+  "nodesBefore": {
+    "documentNodes": 3822,
+    "worldNodes": 3675,
+    "sceneTopLevel": 714,
+    "sceneNodes": 3657,
+    "sceneSvgNodes": 1928,
+    "worldSvgNodes": 1935,
+    "annotSvgOverlay": 3,
+    "mosaicNodes": 0,
+    "byClass": {
+      "shape": 163,
+      "section": 52,
+      "text": 119,
+      "sticky": 221,
+      "arrow": 159
+    },
+    "scale": 0.367,
+    "dcZoomUsers": 3
+  },
+  "nodesAfter": {
+    "documentNodes": 3822,
+    "worldNodes": 3675,
+    "sceneTopLevel": 714,
+    "sceneNodes": 3657,
+    "sceneSvgNodes": 1928,
+    "worldSvgNodes": 1935,
+    "annotSvgOverlay": 3,
+    "mosaicNodes": 0,
+    "byClass": {
+      "shape": 163,
+      "section": 52,
+      "text": 119,
+      "sticky": 221,
+      "arrow": 159
+    },
+    "scale": 0.367,
+    "dcZoomUsers": 3
+  },
+  "timeline": [
+    [
+      "CrRendererMain Paint",
+      447,
+      35391
+    ],
+    [
+      "CrRendererMain Layout",
+      399,
+      69
+    ],
+    [
+      "CrRendererMain UpdateLayoutTree",
+      200,
+      59
+    ],
+    [
+      "CrRendererMain Document::updateStyle",
+      200,
+      59
+    ],
+    [
+      "CrRendererMain PrePaint",
+      108,
+      159
+    ],
+    [
+      "CrRendererMain v8.callFunction",
+      96,
+      1372
+    ],
+    [
+      "CrRendererMain Layerize",
+      76,
+      87
+    ],
+    [
+      "CrRendererMain FunctionCall",
+      65,
+      1372
+    ],
+    [
+      "CrRendererMain WebFrameWidgetImpl::BeginMainFrame",
+      36,
+      127
+    ],
+    [
+      "CrRendererMain PageAnimator::serviceScriptedAnimations",
+      35,
+      127
+    ],
+    [
+      "CrRendererMain FireAnimationFrame",
+      32,
+      250
+    ],
+    [
+      "CrRendererMain EventDispatch",
+      26,
+      40
+    ],
+    [
+      "CrRendererMain Commit",
+      13,
+      127
+    ],
+    [
+      "CrRendererMain UpdateLayer",
+      9,
+      1510
+    ],
+    [
+      "CrRendererMain TimerFire",
+      8,
+      54
+    ],
+    [
+      "CrRendererMain MajorGC",
+      8,
+      1
+    ],
+    [
+      "CrRendererMain IntersectionObserverController::computeIntersections",
+      0,
+      204
+    ],
+    [
+      "CrRendererMain HitTest",
+      0,
+      3
+    ],
+    [
+      "CrRendererMain ProxyMain::BeginMainFrame::commit",
+      0,
+      41
+    ]
+  ],
+  "layout": {
+    "events": 69,
+    "dirtyObjectsTotal": 167304,
+    "avgDirty": 2425
+  },
+  "style": {
+    "events": 59,
+    "elementsTotal": 149638,
+    "avgElements": 2536
+  },
+  "topSelf": [
+    [
+      "(idle) :0",
+      1368
+    ],
+    [
+      "(program) :0",
+      1203
+    ],
+    [
+      "getBoundingClientRect :0",
+      18
+    ],
+    [
+      "dispatchEvent :0",
+      10
+    ],
+    [
+      "(garbage collector) :0",
+      8
+    ],
+    [
+      "nZ /_canvas-runtime/react-dom_client.js:8",
+      3
+    ],
+    [
+      "requestAnimationFrame :0",
+      2
+    ],
+    [
+      "measureLongPages /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:45854",
+      1
+    ],
+    [
+      "(anon) /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:62540",
+      1
+    ],
+    [
+      "wX /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "FU /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "a /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "O /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "postMessage :0",
+      1
+    ],
+    [
+      "vz /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "(anon) /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:64829",
+      1
+    ],
+    [
+      "(anon) /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:19419",
+      0
+    ],
+    [
+      "XG /_client/client.bundle.js:5607",
+      0
+    ],
+    [
+      "clearTimeout :0",
+      0
+    ],
+    [
+      "URL :0",
+      0
+    ],
+    [
+      "N7 /_canvas-runtime/react-dom_client.js:8",
+      0
+    ],
+    [
+      "onWheel /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:62766",
+      0
+    ],
+    [
+      "fetch :0",
+      0
+    ],
+    [
+      "useState /_canvas-runtime/react-dom_client.js:9",
+      0
+    ],
+    [
+      "q8 /_canvas-runtime/react-dom_client.js:8",
+      0
+    ],
+    [
+      "yB /_canvas-runtime/react-dom_client.js:8",
+      0
+    ],
+    [
+      "wheel :37",
+      0
+    ],
+    [
+      "SectionChip /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:17862",
+      0
+    ],
+    [
+      "g /_client/client.bundle.js:50",
+      0
+    ],
+    [
+      "P7 /_canvas-runtime/react-dom_client.js:8",
+      0
+    ]
+  ],
+  "topIncl": [
+    [
+      "wheel :37",
+      30
+    ],
+    [
+      "(anon) :50",
+      30
+    ],
+    [
+      "dispatchEvent :0",
+      30
+    ],
+    [
+      "captureWheel /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:62898",
+      20
+    ],
+    [
+      "onWheel /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:62766",
+      19
+    ],
+    [
+      "getBoundingClientRect :0",
+      18
+    ],
+    [
+      "U8 /_canvas-runtime/react-dom_client.js:8",
+      9
+    ],
+    [
+      "V8 /_canvas-runtime/react-dom_client.js:8",
+      9
+    ],
+    [
+      "P0 /_canvas-runtime/react-dom_client.js:1",
+      9
+    ],
+    [
+      "_6 /_canvas-runtime/react-dom_client.js:8",
+      9
+    ],
+    [
+      "q8 /_canvas-runtime/react-dom_client.js:8",
+      9
+    ],
+    [
+      "yW /_canvas-runtime/react-dom_client.js:8",
+      9
+    ],
+    [
+      "yB /_canvas-runtime/react-dom_client.js:8",
+      8
+    ],
+    [
+      "(garbage collector) :0",
+      8
+    ],
+    [
+      "wX /_canvas-runtime/react-dom_client.js:8",
+      3
+    ],
+    [
+      "az /_canvas-runtime/react-dom_client.js:8",
+      3
+    ],
+    [
+      "Uz /_canvas-runtime/react-dom_client.js:8",
+      3
+    ],
+    [
+      "FU /_canvas-runtime/react-dom_client.js:8",
+      3
+    ],
+    [
+      "nZ /_canvas-runtime/react-dom_client.js:8",
+      3
+    ],
+    [
+      "run /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:49603",
+      2
+    ],
+    [
+      "requestAnimationFrame :0",
+      2
+    ],
+    [
+      "measureLongPages /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:45854",
+      1
+    ],
+    [
+      "(anon) /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:62596",
+      1
+    ],
+    [
+      "(anon) /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:62616",
+      1
+    ],
+    [
+      "(anon) :1",
+      1
+    ],
+    [
+      "evaluate :297",
+      1
+    ],
+    [
+      "SectionChip /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:17862",
+      1
+    ],
+    [
+      "CW /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "(anon) /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:62540",
+      1
+    ],
+    [
+      "useState /_canvas-runtime/react-dom_client.js:9",
+      1
+    ],
+    [
+      "useLiveViewport /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:62490",
+      1
+    ],
+    [
+      "N7 /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "IB /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "(anon) /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "O /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "E /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "zG /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "tick :26",
+      1
+    ],
+    [
+      "rB /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "HG /_canvas-runtime/react-dom_client.js:8",
+      1
+    ]
+  ]
+}

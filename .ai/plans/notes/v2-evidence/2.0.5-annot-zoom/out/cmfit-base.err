@@ -1,0 +1,5 @@
+→ perf: .design/ui/AI-StudyMate/ux/retention-ladder.tsx | port: 4517 | engine: blink-studio
+→ pass 1/4: 1 boards on screen, gesture p95 50.1ms zoom p95 66.6ms long 13 (warm-up, discarded)
+→ pass 2/4: 1 boards on screen, gesture p95 33.4ms zoom p95 33.4ms long 0
+→ pass 3/4: 1 boards on screen, gesture p95 33.4ms zoom p95 33.4ms long 1
+→ pass 4/4: 1 boards on screen, gesture p95 33.4ms zoom p95 33.4ms long 0

@@ -1,0 +1,26 @@
+{
+  "artboards": [
+    "header"
+  ],
+  "brief": "Whiteboard 7denního onboardingu pro retention: sloupce Day 0–7 s denními dávkami, notifikacemi a závěrečnými zprávami, plus průřezová pravidla (notifikace, upload, monetizace, velikost dávek, wiki/fallback, speciální případy, metriky). Přepis brainstormingu z tabule 22. 9. 2026 + souhrn studyfi-7denni-onboarding.md. Rozšířeno 24. 9. 2026: krok 2 onboardingu = motivační otázka „S čím ti mám pomoct?“ (návrh) a pod ní 4 retention plány podle odpovědi – A Potřebuji se naučit (stávající DAY 1–7), B Potřebuji pomoct s úkolem (2 řízené dny + rytmus úkolů), C Potřebuji vysvětlit látku (4 zastávky za 7 dní), D Jen se koukám (2 dny ochutnávky); průřezová pravidla pod plány.",
+  "created": "2026-09-22T14:00:00.000Z",
+  "designSystem": "studyfi-v3",
+  "iteration_count": 2,
+  "kind": "canvas",
+  "layout": {
+    "artboards": [
+      {
+        "id": "header",
+        "x": -29.728693171139696,
+        "y": -58.48676793897391
+      }
+    ]
+  },
+  "opt_out_scope": "full",
+  "platform": "desktop",
+  "sections": [
+    "retention-7-dni"
+  ],
+  "subtitle": "whiteboard: 7denní onboarding pro retention (Day 0–7, notifikace, upload, monetizace) + plány A–D podle motivace z kroku 2",
+  "title": "Retention ladder"
+}

@@ -1,0 +1,6 @@
+→ perf: .design/ui/AI-StudyMate/ux/retention-ladder.tsx | port: 4517 | engine: webkit-safari | studio
+→ canvas frame: today 1600×948 @2x in a 1600×948 window
+→ interact: clicked empty canvas world; idle rAF p50 frame 17ms / studio 17ms
+→ pass 1/3: 1 boards on screen, gesture p95 268ms zoom p95 297ms long 35 (warm-up, discarded)
+→ pass 2/3: 1 boards on screen, gesture p95 227ms zoom p95 230ms long 35
+→ pass 3/3: 1 boards on screen, gesture p95 226ms zoom p95 235ms long 35

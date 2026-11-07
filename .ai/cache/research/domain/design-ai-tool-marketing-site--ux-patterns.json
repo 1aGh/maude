@@ -1,0 +1,460 @@
+{
+  "v": 1,
+  "layer": "research/domain",
+  "key": "design-ai-tool-marketing-site--ux-patterns",
+  "writtenAt": 1793742395713,
+  "meta": {
+    "mode": "ux-patterns"
+  },
+  "value": {
+    "mode": "ux-patterns",
+    "domain": "design-ai-tool-marketing-site",
+    "reference_products": [
+      {
+        "name": "Paper (paper.design)",
+        "url": "https://paper.design",
+        "patterns_demonstrated": [
+          "announcement-chip-above-hero",
+          "changelog-teaser-in-body",
+          "vs-page-in-footer",
+          "download-plus-open-in-browser-dual-cta"
+        ]
+      },
+      {
+        "name": "pen.dev (formerly pencil.dev)",
+        "url": "https://www.pen.dev/",
+        "patterns_demonstrated": [
+          "three-link-nav",
+          "ownership-headline",
+          "byo-model-list"
+        ]
+      },
+      {
+        "name": "Linear",
+        "url": "https://linear.app",
+        "patterns_demonstrated": [
+          "hero-screenshot-immediately",
+          "chaptered-feature-sections",
+          "changelog-teaser-in-body",
+          "two-cta-get-started-contact"
+        ]
+      },
+      {
+        "name": "Penpot",
+        "url": "https://penpot.app/pricing",
+        "patterns_demonstrated": [
+          "self-host-as-first-class-cta",
+          "team-size-price-cap",
+          "trust-faq-on-continuity",
+          "mega-menu-anti-pattern (18 links)"
+        ]
+      },
+      {
+        "name": "Figma pricing",
+        "url": "https://www.figma.com/pricing/",
+        "patterns_demonstrated": [
+          "seat-type-matrix",
+          "ai-credit-metering",
+          "faq-led-by-unit-definition"
+        ]
+      },
+      {
+        "name": "Zed pricing",
+        "url": "https://zed.dev/pricing",
+        "patterns_demonstrated": [
+          "free-forever-local-tier",
+          "byo-key-explained-on-pricing",
+          "faq-can-I-use-without-AI"
+        ]
+      },
+      {
+        "name": "Obsidian pricing",
+        "url": "https://obsidian.md/pricing",
+        "patterns_demonstrated": [
+          "free-core-paid-addon",
+          "yearly-monthly-toggle",
+          "ownership-copy",
+          "user-supported-tier"
+        ]
+      },
+      {
+        "name": "Plausible Analytics",
+        "url": "https://plausible.io/self-hosted-web-analytics",
+        "patterns_demonstrated": [
+          "self-host-vs-cloud-table",
+          "why-we-charge-copy",
+          "funded-by-subscribers-trust"
+        ]
+      },
+      {
+        "name": "Raycast",
+        "url": "https://www.raycast.com",
+        "patterns_demonstrated": [
+          "manual-vs-developers-split",
+          "changelog-in-footer"
+        ]
+      },
+      {
+        "name": "Supabase Docs",
+        "url": "https://supabase.com/docs",
+        "patterns_demonstrated": [
+          "docs-tabs-by-intent",
+          "search-plus-ask-ai",
+          "self-host-section-in-docs"
+        ]
+      },
+      {
+        "name": "Stripe Docs",
+        "url": "https://docs.stripe.com",
+        "patterns_demonstrated": [
+          "use-case-first-landing",
+          "no-code-path",
+          "markdown-twin-for-agents"
+        ]
+      },
+      {
+        "name": "Tailwind CSS",
+        "url": "https://tailwindcss.com",
+        "patterns_demonstrated": [
+          "search-in-nav",
+          "motion-only-inside-demos"
+        ]
+      },
+      {
+        "name": "tldraw",
+        "url": "https://tldraw.dev",
+        "patterns_demonstrated": [
+          "github-stars-as-proof",
+          "community-stats-section"
+        ]
+      },
+      {
+        "name": "Framer",
+        "url": "https://www.framer.com",
+        "patterns_demonstrated": [
+          "scripted-agent-demo-hero",
+          "control-reassurance-copy"
+        ]
+      },
+      {
+        "name": "STUDIO (studio.design, Tokyo)",
+        "url": "https://studio.design/ja",
+        "patterns_demonstrated": [
+          "three-step-how-it-works",
+          "ai-as-companion-framing",
+          "numbers-proof"
+        ]
+      },
+      {
+        "name": "Craft",
+        "url": "https://www.craft.do",
+        "patterns_demonstrated": [
+          "single-hero-cta",
+          "awards-as-proof",
+          "pricing-teaser-last"
+        ]
+      },
+      {
+        "name": "Ableton Live",
+        "url": "https://www.ableton.com/en/live/",
+        "patterns_demonstrated": [
+          "try-free-persistent-header-cta",
+          "release-banner",
+          "learning-separated-from-reference"
+        ]
+      },
+      {
+        "name": "Kinopio",
+        "url": "https://kinopio.club",
+        "patterns_demonstrated": [
+          "single-paid-tier",
+          "maker-voice"
+        ]
+      },
+      {
+        "name": "Boxed Mac software: MacWrite/MacPaint 'Guided Tour' + manuals (1984)",
+        "url": "https://collections.museumsvictoria.com.au/items/1223802",
+        "patterns_demonstrated": [
+          "two-books-in-one-box"
+        ]
+      }
+    ],
+    "information_architecture_patterns": [
+      {
+        "id": "three-intent-nav",
+        "label": "Nav = Product · Docs · Pricing (+ GitHub, Download, primary buy)",
+        "one_line": "Every peer that sells something exposes a literal 'Pricing' link (Paper, pen.dev, tldraw, Raycast, Penpot); pen.dev runs on just Downloads/Pricing/Docs. Changelog/roadmap/blog sit in the body teaser or footer.",
+        "seen_in": [
+          "pen.dev",
+          "Paper",
+          "Raycast",
+          "tldraw"
+        ],
+        "recommended_for_brief": true
+      },
+      {
+        "id": "chaptered-home",
+        "label": "Hero → product shot → proof → 3–4 chapters → pricing band → changelog teaser → closing CTA",
+        "one_line": "Linear's order; Paper, Framer and Craft vary only the chapter count. Proof sits right under the shot, never at the bottom.",
+        "seen_in": [
+          "Linear",
+          "Paper",
+          "Framer",
+          "Craft"
+        ],
+        "recommended_for_brief": true
+      },
+      {
+        "id": "pricing-free-core-paid-hosted",
+        "label": "Free local app + one paid hosted plan + contact-us tier",
+        "one_line": "The free thing is a real product ('Free without limits', '$0 forever'), the paid thing is hosting/sync, and the unit is explained in one sentence.",
+        "seen_in": [
+          "Obsidian",
+          "Zed",
+          "Plausible",
+          "Penpot"
+        ],
+        "recommended_for_brief": true
+      },
+      {
+        "id": "docs-two-doors",
+        "label": "Docs landing with two doors: Using (tutorials/how-to) and Advanced (reference/explanation)",
+        "one_line": "Raycast splits Manual from Developers; Stripe leads with no-code use cases before product reference; Diátaxis gives each door its modes. Heritage: Guided Tour + reference manual in one box.",
+        "seen_in": [
+          "Raycast",
+          "Stripe Docs",
+          "Supabase Docs",
+          "MacWrite/MacPaint box"
+        ],
+        "recommended_for_brief": true
+      },
+      {
+        "id": "vs-pages-in-footer",
+        "label": "'Maude vs Figma' comparison as a footer-linked page, not a hero argument",
+        "one_line": "Paper and pen.dev keep the Figma comparison out of the hero (Paper: footer 'Paper vs Figma'); third-party comparisons that admit 'where Figma still wins' read as more credible.",
+        "seen_in": [
+          "Paper",
+          "pen.dev"
+        ],
+        "recommended_for_brief": false
+      }
+    ],
+    "typical_screen_anatomy": {
+      "primary_surface": "marketing-home (1440 desktop)",
+      "regions": [
+        {
+          "id": "announcement-chip",
+          "purpose": "One release line ('Maude 2 is here — see what's new →') that replaces a top-level What's new link.",
+          "size": "1 line, centered above H1 or as a pill inside the nav row"
+        },
+        {
+          "id": "nav-island",
+          "purpose": "Brand + 3 links + GitHub + Download (ghost) + Get Maude Cloud (primary); condenses on scroll.",
+          "size": "~56px floating island, max 1200px"
+        },
+        {
+          "id": "hero",
+          "purpose": "Three-line headline ('You like Figma. / You like Claude. / Meet Maude.'), one-sentence lede, two CTAs, one fine-print price line.",
+          "size": "~420px tall, centered"
+        },
+        {
+          "id": "product-shot",
+          "purpose": "The app window with AI drawing on an artboard — the proof that it is a real canvas; plays the intro demo once.",
+          "size": "full content width, ~560–640px tall, overlapping the hero bottom"
+        },
+        {
+          "id": "proof-strip",
+          "purpose": "Honest proof for a new indie product: GitHub stars, MIT, no telemetry, releases count, made in Brno — not fake logos.",
+          "size": "1 row, ~64px"
+        },
+        {
+          "id": "formula-section",
+          "purpose": "Canvas + AI = Maude three-card argument.",
+          "size": "~360px"
+        },
+        {
+          "id": "feature-chapters",
+          "purpose": "3 tiles: draw or ask, design system checks, share and talk.",
+          "size": "3-up grid"
+        },
+        {
+          "id": "ownership-section",
+          "purpose": "'Feels like Figma. Lives in your files.' — files, GitHub copy, export, self-host.",
+          "size": "2-col"
+        },
+        {
+          "id": "cloud-band",
+          "purpose": "Buy Maude Cloud: per-project price, what's included, primary CTA + see pricing.",
+          "size": "dark band ~320px"
+        },
+        {
+          "id": "advanced-door",
+          "purpose": "'Live in a terminal? It's all still here.' plugins/CLI/hub with install lines.",
+          "size": "~260px"
+        },
+        {
+          "id": "whats-new-teaser",
+          "purpose": "3 latest releases, 'View all' — the changelog's new home.",
+          "size": "3 small cards"
+        },
+        {
+          "id": "footer",
+          "purpose": "Product · Docs · Project · Legal columns incl. Changelog, Roadmap, vs Figma, coffee.",
+          "size": "~280px"
+        }
+      ]
+    },
+    "interaction_patterns": [
+      {
+        "id": "scripted-demo-hero-shot",
+        "label": "Product shot plays a short scripted AI run once",
+        "rationale": "Framer's typed prompt → 'Thinking…' → result and Paper's live-canvas visual show the product instead of describing it; for Maude it proves 'AI draws on the artboard while you watch'."
+      },
+      {
+        "id": "cost-bar-comparison",
+        "label": "Per-seat vs per-project cost bars for a 5-person team",
+        "rationale": "Figma needs a seat-type matrix and a 'what is a seat' FAQ; one bar chart beats that explanation. Animate the bars growing once in view (motion carries data)."
+      },
+      {
+        "id": "byo-claude-explainer",
+        "label": "One-line 'Your Claude account is separate' callout on pricing",
+        "rationale": "Zed explains own-key AI right on the pricing page; prevents the 'is AI included?' bounce."
+      },
+      {
+        "id": "docs-cmdk-ask",
+        "label": "⌘K search + Ask AI + Copy page as Markdown on docs",
+        "rationale": "Supabase puts search + Ask AI in the docs top bar; Stripe ships .md twins. For an AI-native tool, docs readable by Claude are a feature."
+      },
+      {
+        "id": "island-nav-condense",
+        "label": "Nav island shrinks and frosts after the hero",
+        "rationale": "maude-v2's own signature (floating islands); keeps the buy CTA reachable without a heavy sticky bar."
+      }
+    ],
+    "anti_patterns": [
+      {
+        "pattern": "Mega-menus with 15+ links (Penpot: 18 under three menus; STUDIO: 7 menus; Framer: 94 nav links)",
+        "why": "The brief asks for simpler navigation; Maude has one product and one paid plan — nothing to mega-menu."
+      },
+      {
+        "pattern": "Logo wall of companies that don't use the product",
+        "why": "A new indie tool's credibility comes from honest proof (GitHub, MIT, no telemetry, changelog cadence), as tldraw and Plausible do; borrowed logos read as fake."
+      },
+      {
+        "pattern": "Seat-type matrices and AI-credit meters on the pricing page",
+        "why": "Figma needs 4 plans × 3 seat types × credits; Maude's whole pricing argument is that it doesn't."
+      },
+      {
+        "pattern": "Scroll-jacking / smooth-scroll libraries / parallax hero",
+        "why": "Award-site staples (Lusion, Active Theory) that hurt a pro tool's clarity and trigger vestibular issues; reduced-motion guidance says scroll-driven motion should disappear, not just shorten."
+      },
+      {
+        "pattern": "Figma comparison in the H1 as a claim ('Figma killer')",
+        "why": "Peers avoid it (Paper, pen.dev keep 'vs Figma' in the footer); the brief's 'You like Figma. You like Claude.' is an invitation, not an attack — keep it that way."
+      }
+    ],
+    "current_trends": [
+      {
+        "trend": "Agent-readable sites: docs .md twins, llms.txt, 'Read in your terminal', a note to agents at the top of the homepage",
+        "seen_in": [
+          "Stripe Docs",
+          "Linear",
+          "Supabase Docs"
+        ],
+        "still_alive": true
+      },
+      {
+        "trend": "MCP / 'works with Claude, Codex, Cursor' sections on design-tool homepages",
+        "seen_in": [
+          "Paper",
+          "pen.dev",
+          "Penpot",
+          "Framer"
+        ],
+        "still_alive": true
+      },
+      {
+        "trend": "'Anti-slop' / human-in-control messaging around AI design",
+        "seen_in": [
+          "Paper",
+          "Framer"
+        ],
+        "still_alive": true
+      },
+      {
+        "trend": "Full-viewport WebGL / 3D intros",
+        "seen_in": [
+          "Lusion",
+          "Active Theory"
+        ],
+        "still_alive": false
+      }
+    ],
+    "motion_patterns": [
+      {
+        "id": "hero-line-stagger",
+        "label": "Headline lines arrive one by one, the last lands with the spark",
+        "where": "Hero H1 ('You like Figma.' / 'You like Claude.' / 'Meet Maude.')",
+        "why_it_works": "The headline is literally a three-beat joke; staging the beats makes the punchline land. Plays once on load, done before the eye reaches the CTAs.",
+        "duration_easing": "each line opacity 0→1 + translateY 8px→0 over var(--dur-route) 280ms, var(--ease-out); stagger 90ms; 'Meet Maude.' starts at ~360ms and the spark glyph scales 0.6→1 on var(--ease-spring) 420ms. Total < 900ms. Lede + CTAs fade in at 500ms, 160ms.",
+        "reduced_motion": "Everything rendered in its final state at first paint; no transform, no fade.",
+        "evidence": "School of Motion 2026 roundup: 'motion should support the content rather than compete'; Apple gives single messages their own moment."
+      },
+      {
+        "id": "product-shot-ai-run",
+        "label": "The product shot plays one scripted AI run",
+        "where": "Hero product shot (HeroShot window)",
+        "why_it_works": "Shows the core promise — select, ask, watch the AI draw — in 4–5 s. Framer's hero uses the same prompt → Thinking → result beat.",
+        "duration_easing": "Sequence starts when 40% visible: prompt types in the AI panel (≈35 ms/char, ~1.2 s) → spark cursor glides to the Pricing artboard (600 ms var(--ease-in-out)) → 3 pricing cards draw skeleton→filled with 120 ms stagger (var(--dur-panel) each) → 'AI is drawing' chip swaps to 'Done' + Tereza's sticky lands with var(--ease-spring). Plays once; a small Replay button (≥44px hit) appears after.",
+        "reduced_motion": "Show the final frame (cards drawn, sticky placed, chat complete) with no cursor travel; Replay hidden.",
+        "evidence": "Framer hero typed prompt demo; Paper's canvas visual with collaborator cursors."
+      },
+      {
+        "id": "section-reveal-on-enter",
+        "label": "Quiet reveal of sections on scroll",
+        "where": "Section heads and card groups below the fold",
+        "why_it_works": "Gives rhythm without performing; marks progress through the page.",
+        "duration_easing": "CSS animation-timeline: view(); animation-range: entry 0% entry 30%; opacity 0→1 + translateY 12px; card stagger via --i * 60ms delay. Wrap in @media (prefers-reduced-motion: no-preference) and @supports (animation-timeline: view()).",
+        "reduced_motion": "Static; content visible by default (motion is opt-in, never hide-then-reveal under reduce or no-support).",
+        "evidence": "Reduced-motion guidance: scroll-driven motion must disappear, default static, opt in via no-preference; keep to transform/opacity."
+      },
+      {
+        "id": "formula-assemble",
+        "label": "Canvas + AI = Maude cards assemble",
+        "where": "'Why Maude' trio",
+        "why_it_works": "The '+' and '=' are the argument; letting the third card arrive after the two inputs reads as an equation solving.",
+        "duration_easing": "Cards 1 and 2 reveal together (280ms ease-out), '+' then '=' fade (160ms), Maude card rises last with var(--ease-spring) 420ms — triggered once at entry 25%.",
+        "reduced_motion": "Static trio.",
+        "evidence": "Uncommon Studio staggered entrances 'avoid chaos'."
+      },
+      {
+        "id": "cost-bars-grow",
+        "label": "Pricing comparison bars grow to their value",
+        "where": "Cloud page 'Per project, never per seat' cost chart",
+        "why_it_works": "Motion that carries data: the per-seat bar visibly keeps growing past Maude's — the whole pricing argument in one second.",
+        "duration_easing": "scaleX 0→1 from left over 600ms var(--ease-out), 80ms stagger; numbers count-up optional (no, keep static numbers for AT).",
+        "reduced_motion": "Bars at full width, no transition.",
+        "evidence": "Figma pricing needs a seat matrix; one animated comparison replaces it."
+      },
+      {
+        "id": "nav-island-condense",
+        "label": "Nav island condenses after the hero",
+        "where": "Top nav",
+        "why_it_works": "maude-v2's signature shape — chrome floats and folds; keeps 'Get Maude Cloud' in reach.",
+        "duration_easing": "padding/height + backdrop to --island-bg over var(--dur-panel) 220ms var(--ease-out), triggered by scroll() past 120px (or IntersectionObserver on the hero sentinel).",
+        "reduced_motion": "Instant state switch (1ms via tokens).",
+        "evidence": "maude-v2 README: islands fold into an icon; Ableton keeps 'Try free' persistently in the header."
+      },
+      {
+        "id": "hover-press-micro",
+        "label": "Hover/press on cards, doors, buttons",
+        "where": "Docs doors, pricing cards, CTAs",
+        "why_it_works": "Feedback within one frame; signals clickability on large card targets.",
+        "duration_easing": "var(--dur-flip) 120ms, translateY -2px + shadow step; press scale .98.",
+        "reduced_motion": "Colour/shadow change only, no translate.",
+        "evidence": "Kowalski-derived guidance: UI transitions ~200ms ease-out; never animate keyboard-initiated actions."
+      }
+    ],
+    "_motion_rules": "Total intro budget under ~1 s for text, ~5 s for the one product demo; animate only transform/opacity; one spring moment per viewport (spark, sticky landing, Maude card) per DS rule 'spring only for playful moments'; never loop forever; no smooth-scroll library, no scroll-jacking, no parallax; content is visible without JS and without animation-timeline support."
+  }
+}

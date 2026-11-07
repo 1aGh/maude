@@ -1,0 +1,54 @@
+{
+  "current": {
+    "date": "2026-11-05T09:56:11.994Z",
+    "canvas": ".design/ui/AI-StudyMate/ux/retention-ladder.tsx (studio)",
+    "engine": "webkit-safari",
+    "url": "http://localhost:4517/",
+    "panFrames": 60,
+    "zoomFrames": 40,
+    "p50FrameMs": 17,
+    "p95FrameMs": 278,
+    "maxFrameMs": 316,
+    "panP95Ms": 18,
+    "zoomP95Ms": 312,
+    "settleMaxMs": 254,
+    "longtasks": 0,
+    "longFrames": 39,
+    "jankFrames": 40,
+    "settleLongFrames": 1,
+    "boardsOnScreen": 1,
+    "artboardRenders": 9,
+    "annotationRenders": 18,
+    "instrumented": true,
+    "passes": 1,
+    "p95SpreadMs": null,
+    "zoomP95SpreadMs": null,
+    "longFramesRange": null,
+    "kept": [
+      {
+        "p50": 17,
+        "p95": 278,
+        "panP95": 18,
+        "zoomP95": 312,
+        "longFrames": 39,
+        "jankFrames": 40,
+        "settleLongFrames": 1,
+        "boardsOnScreen": 1
+      }
+    ],
+    "window": "1600x1000",
+    "frame": {
+      "mode": "today",
+      "w": 1600,
+      "h": 948,
+      "dpr": 2,
+      "innerW": 1600,
+      "innerH": 948
+    },
+    "idle": {
+      "frameP50": 17,
+      "parentP50": 17
+    }
+  },
+  "previous": null
+}

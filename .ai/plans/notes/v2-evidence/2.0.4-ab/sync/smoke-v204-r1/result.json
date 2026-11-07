@@ -1,0 +1,219 @@
+{
+  "files": 60,
+  "fileMB": 23.8,
+  "latencyMs": 0,
+  "fillSlots": 4,
+  "done": true,
+  "firstFileS": 1,
+  "wallS": 1,
+  "peakRssMB": 270,
+  "cell": {
+    "gets": 0,
+    "misses503": 0,
+    "fills": 0,
+    "peakInFlight": 0,
+    "rate429": 0
+  },
+  "final": {
+    "phase": "converged",
+    "tracked": 72,
+    "delivered": 60,
+    "remaining": 0,
+    "held": 12,
+    "retrying": 0,
+    "bytesRemaining": 0,
+    "blocked": [],
+    "etaMs": null,
+    "startedAt": null
+  },
+  "tailLines": [
+    "[sync/files] journal file plane active — one lane, both directions, per-file delivery state in the Sync panel.",
+    "[sync/files] 60 down, 0 up, 0 conflict(s), 0 already in step.",
+    "[sync/files] 60 / 72 delivered · 12 held: shared code not accepted on this Mac"
+  ],
+  "log": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/ab/sync/smoke-v204-r1/studio.log",
+  "samples": [
+    {
+      "t": 1003,
+      "rss": 259,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 2008,
+      "rss": 259,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 3015,
+      "rss": 270,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 4026,
+      "rss": 270,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 5031,
+      "rss": 270,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 6039,
+      "rss": 270,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 7044,
+      "rss": 270,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 8051,
+      "rss": 270,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 9057,
+      "rss": 270,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 10065,
+      "rss": 270,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 11074,
+      "rss": 270,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 12078,
+      "rss": 239,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 13087,
+      "rss": 240,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 14094,
+      "rss": 240,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 15107,
+      "rss": 240,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 16115,
+      "rss": 240,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 17120,
+      "rss": 240,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 18128,
+      "rss": 240,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 19133,
+      "rss": 240,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 20142,
+      "rss": 240,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 21150,
+      "rss": 241,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 22158,
+      "rss": 241,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 23167,
+      "rss": 257,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 24174,
+      "rss": 257,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 25183,
+      "rss": 257,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    },
+    {
+      "t": 26188,
+      "rss": 257,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "converged"
+    }
+  ]
+}

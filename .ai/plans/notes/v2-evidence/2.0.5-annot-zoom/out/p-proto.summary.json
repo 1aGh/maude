@@ -1,0 +1,486 @@
+{
+  "result": {
+    "gesture": {
+      "frames": 40,
+      "p50": 16.7,
+      "p95": 33.3,
+      "max": 33.3
+    },
+    "pan": {
+      "frames": 0,
+      "p50": null,
+      "p95": null,
+      "max": null
+    },
+    "zoom": {
+      "frames": 40,
+      "p50": 16.7,
+      "p95": 33.3,
+      "max": 33.3
+    },
+    "longFrames": 0,
+    "renders": 2
+  },
+  "raw": {
+    "longFrames": 0,
+    "jankFrames": 2,
+    "settleLongFrames": 0,
+    "pan": {
+      "frames": 0,
+      "p50": null,
+      "p95": null,
+      "max": null
+    },
+    "zoom": {
+      "frames": 40,
+      "p50": 16.7,
+      "p95": 33.3,
+      "max": 33.3
+    },
+    "gesture": {
+      "frames": 40,
+      "p50": 16.7,
+      "p95": 33.3,
+      "max": 33.3
+    },
+    "settle": {
+      "frames": 53,
+      "p50": 16.7,
+      "p95": 16.8,
+      "max": 16.8
+    },
+    "longtasks": 0,
+    "artboardRenders": 2,
+    "annotationRenders": 2,
+    "instrumented": true,
+    "panApplied": true,
+    "boardsOnScreen": 1,
+    "visibility": "visible",
+    "idleHz": 62,
+    "zoomApplied": true
+  },
+  "nodesBefore": {
+    "documentNodes": 3822,
+    "worldNodes": 3675,
+    "sceneTopLevel": 714,
+    "sceneNodes": 3657,
+    "sceneSvgNodes": 1928,
+    "worldSvgNodes": 1935,
+    "annotSvgOverlay": 3,
+    "mosaicNodes": 0,
+    "byClass": {
+      "shape": 163,
+      "section": 52,
+      "text": 119,
+      "sticky": 221,
+      "arrow": 159
+    },
+    "scale": 0.367,
+    "dcZoomUsers": 5
+  },
+  "nodesAfter": {
+    "documentNodes": 3822,
+    "worldNodes": 3675,
+    "sceneTopLevel": 714,
+    "sceneNodes": 3657,
+    "sceneSvgNodes": 1928,
+    "worldSvgNodes": 1935,
+    "annotSvgOverlay": 3,
+    "mosaicNodes": 0,
+    "byClass": {
+      "shape": 163,
+      "section": 52,
+      "text": 119,
+      "sticky": 221,
+      "arrow": 159
+    },
+    "scale": 0.367,
+    "dcZoomUsers": 5
+  },
+  "timeline": [
+    [
+      "CrRendererMain v8.callFunction",
+      226,
+      1203
+    ],
+    [
+      "CrRendererMain FunctionCall",
+      143,
+      1203
+    ],
+    [
+      "CrRendererMain Layout",
+      122,
+      67
+    ],
+    [
+      "CrRendererMain WebFrameWidgetImpl::BeginMainFrame",
+      91,
+      126
+    ],
+    [
+      "CrRendererMain PageAnimator::serviceScriptedAnimations",
+      90,
+      126
+    ],
+    [
+      "CrRendererMain FireAnimationFrame",
+      86,
+      251
+    ],
+    [
+      "CrRendererMain EventDispatch",
+      79,
+      40
+    ],
+    [
+      "CrRendererMain Layerize",
+      76,
+      100
+    ],
+    [
+      "CrRendererMain Paint",
+      59,
+      4199
+    ],
+    [
+      "CrRendererMain UpdateLayoutTree",
+      33,
+      55
+    ],
+    [
+      "CrRendererMain Document::updateStyle",
+      33,
+      55
+    ],
+    [
+      "CrRendererMain TimerFire",
+      24,
+      54
+    ],
+    [
+      "CrRendererMain PrePaint",
+      16,
+      129
+    ],
+    [
+      "CrRendererMain Commit",
+      7,
+      126
+    ],
+    [
+      "CrRendererMain UpdateLayer",
+      2,
+      1006
+    ],
+    [
+      "CrRendererMain IntersectionObserverController::computeIntersections",
+      0,
+      177
+    ],
+    [
+      "CrRendererMain HitTest",
+      0,
+      2
+    ],
+    [
+      "CrRendererMain ProxyMain::BeginMainFrame::commit",
+      0,
+      42
+    ]
+  ],
+  "layout": {
+    "events": 67,
+    "dirtyObjectsTotal": 16614,
+    "avgDirty": 248
+  },
+  "style": {
+    "events": 55,
+    "elementsTotal": 13616,
+    "avgElements": 248
+  },
+  "topSelf": [
+    [
+      "(idle) :0",
+      2100
+    ],
+    [
+      "(program) :0",
+      388
+    ],
+    [
+      "getBoundingClientRect :0",
+      70
+    ],
+    [
+      "(anon) /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:63320",
+      19
+    ],
+    [
+      "measureLongPages /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:45856",
+      11
+    ],
+    [
+      "dispatchEvent :0",
+      9
+    ],
+    [
+      "querySelectorAll :0",
+      6
+    ],
+    [
+      "nZ /_canvas-runtime/react-dom_client.js:8",
+      2
+    ],
+    [
+      "UX /_canvas-runtime/react-dom_client.js:8",
+      2
+    ],
+    [
+      "requestAnimationFrame :0",
+      2
+    ],
+    [
+      "yJ /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "tick :26",
+      1
+    ],
+    [
+      "AnnotationScene /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:19400",
+      1
+    ],
+    [
+      "VA /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "rB /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "postMessage :0",
+      0
+    ],
+    [
+      "(anon) /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:62542",
+      0
+    ],
+    [
+      "RotateHandle /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:48847",
+      0
+    ],
+    [
+      "q8 /_canvas-runtime/react-dom_client.js:8",
+      0
+    ],
+    [
+      "madeFromLabel /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:6879",
+      0
+    ],
+    [
+      "(anon) :1",
+      0
+    ],
+    [
+      "HG /_canvas-runtime/react-dom_client.js:8",
+      0
+    ],
+    [
+      "W7 /_canvas-runtime/react-dom_client.js:8",
+      0
+    ],
+    [
+      "SectionChip /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:17864",
+      0
+    ],
+    [
+      "j /_canvas-runtime/react-dom_client.js:8",
+      0
+    ],
+    [
+      "AnnotationsLayer /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:33245",
+      0
+    ],
+    [
+      "fetch :0",
+      0
+    ],
+    [
+      "captureWheel /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:62905",
+      0
+    ],
+    [
+      "vz /_canvas-runtime/react-dom_client.js:8",
+      0
+    ],
+    [
+      "b6 /_canvas-runtime/react-dom_client.js:8",
+      0
+    ]
+  ],
+  "topIncl": [
+    [
+      "(anon) :50",
+      81
+    ],
+    [
+      "dispatchEvent :0",
+      81
+    ],
+    [
+      "wheel :37",
+      81
+    ],
+    [
+      "captureWheel /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:62905",
+      71
+    ],
+    [
+      "onWheel /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:62773",
+      70
+    ],
+    [
+      "getBoundingClientRect :0",
+      70
+    ],
+    [
+      "P0 /_canvas-runtime/react-dom_client.js:1",
+      31
+    ],
+    [
+      "U8 /_canvas-runtime/react-dom_client.js:8",
+      31
+    ],
+    [
+      "V8 /_canvas-runtime/react-dom_client.js:8",
+      31
+    ],
+    [
+      "_6 /_canvas-runtime/react-dom_client.js:8",
+      28
+    ],
+    [
+      "q8 /_canvas-runtime/react-dom_client.js:8",
+      27
+    ],
+    [
+      "yW /_canvas-runtime/react-dom_client.js:8",
+      27
+    ],
+    [
+      "yB /_canvas-runtime/react-dom_client.js:8",
+      27
+    ],
+    [
+      "Uz /_canvas-runtime/react-dom_client.js:8",
+      23
+    ],
+    [
+      "az /_canvas-runtime/react-dom_client.js:8",
+      22
+    ],
+    [
+      "FB /_canvas-runtime/react-dom_client.js:8",
+      20
+    ],
+    [
+      "lt /_canvas-runtime/react.js:1",
+      20
+    ],
+    [
+      "(anon) /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:63320",
+      19
+    ],
+    [
+      "DesignCanvasInner /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:63157",
+      19
+    ],
+    [
+      "measureLongPages /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:45856",
+      17
+    ],
+    [
+      "run /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:49605",
+      16
+    ],
+    [
+      "querySelectorAll :0",
+      6
+    ],
+    [
+      "wX /_canvas-runtime/react-dom_client.js:8",
+      3
+    ],
+    [
+      "TU /_canvas-runtime/react-dom_client.js:8",
+      3
+    ],
+    [
+      "bU /_canvas-runtime/react-dom_client.js:8",
+      3
+    ],
+    [
+      "FU /_canvas-runtime/react-dom_client.js:8",
+      3
+    ],
+    [
+      "nZ /_canvas-runtime/react-dom_client.js:8",
+      2
+    ],
+    [
+      "rB /_canvas-runtime/react-dom_client.js:8",
+      2
+    ],
+    [
+      "HG /_canvas-runtime/react-dom_client.js:8",
+      2
+    ],
+    [
+      "j8 /_canvas-runtime/react-dom_client.js:8",
+      2
+    ],
+    [
+      "tick :26",
+      2
+    ],
+    [
+      "(anon) /_canvas-runtime/react-dom_client.js:8",
+      2
+    ],
+    [
+      "VA /_canvas-runtime/react-dom_client.js:8",
+      2
+    ],
+    [
+      "UX /_canvas-runtime/react-dom_client.js:8",
+      2
+    ],
+    [
+      "requestAnimationFrame :0",
+      2
+    ],
+    [
+      "y /_canvas-runtime/react-dom_client.js:9",
+      1
+    ],
+    [
+      "tW /_canvas-runtime/react-dom_client.js:9",
+      1
+    ],
+    [
+      "run /.design/ui/AI-StudyMate/ux/retention-ladder.tsx:46137",
+      1
+    ],
+    [
+      "CW /_canvas-runtime/react-dom_client.js:8",
+      1
+    ],
+    [
+      "yJ /_canvas-runtime/react-dom_client.js:8",
+      1
+    ]
+  ]
+}

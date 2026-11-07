@@ -1,0 +1,47 @@
+{
+  "tree": "/Users/iagh/git/personal/maude/.claude/worktrees/ab-w203",
+  "canvases": 4,
+  "opened": 4,
+  "failed": 0,
+  "openS": 1.5,
+  "bootMB": 190.1,
+  "peakDuringOpenMB": 431.2,
+  "afterOpenMB": 431.2,
+  "settleS": 0,
+  "afterSettleMB": 431.2,
+  "procsAfterSettle": 1,
+  "idleMedianMB": 356.9,
+  "idleEndMB": 344.2,
+  "idleTreeMedianMB": 1885,
+  "idleCpuMedian": 2,
+  "idleCpuMax": 3.8,
+  "idleCpuMean": 2,
+  "idleTreeCpuMean": 45.2,
+  "procs": 1,
+  "samples": [
+    {
+      "t": 5,
+      "at": 1793849109407,
+      "serverMB": 369.65625,
+      "serverPsCpu": 2,
+      "serverCpuS": 1.75,
+      "treeMB": 1905.15625,
+      "treeCpuS": 4.82,
+      "procs": 10,
+      "serverCpu": 3.7780870948498695,
+      "treeCpu": 64.82402068005568
+    },
+    {
+      "t": 10,
+      "at": 1793849114441,
+      "serverMB": 344.234375,
+      "serverPsCpu": 0.1,
+      "serverCpuS": 1.76,
+      "treeMB": 1864.90625,
+      "treeCpuS": 6.11,
+      "procs": 10,
+      "serverCpu": 0.1986491855383395,
+      "treeCpu": 25.62574493444577
+    }
+  ]
+}

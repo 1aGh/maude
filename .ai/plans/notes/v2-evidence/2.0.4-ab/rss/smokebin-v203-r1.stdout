@@ -1,0 +1,23 @@
+{
+  "tree": "/Users/iagh/git/personal/maude/.claude/worktrees/ab-w203",
+  "bin": "/Users/iagh/git/personal/maude/.claude/worktrees/ab-w203/apps/studio/dist/maude-darwin-arm64",
+  "canvases": 4,
+  "opened": 4,
+  "failed": 0,
+  "openS": 1.5,
+  "bootMB": 139.2,
+  "peakDuringOpenMB": 407.6,
+  "afterOpenMB": 407.6,
+  "settleS": 40.1,
+  "afterSettleMB": 420.6,
+  "procsAfterSettle": 11,
+  "sawCoverJob": true,
+  "idleMedianMB": 420.6,
+  "idleEndMB": 420.6,
+  "idleTreeMedianMB": 1918.3,
+  "idleCpuMedian": 0.3,
+  "idleCpuMax": 0.6,
+  "idleCpuMean": 0.3,
+  "idleTreeCpuMean": 0.3,
+  "procs": 1
+}

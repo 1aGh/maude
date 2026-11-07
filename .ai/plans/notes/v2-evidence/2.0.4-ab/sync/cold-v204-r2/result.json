@@ -1,0 +1,582 @@
+{
+  "files": 800,
+  "fileMB": 295.9,
+  "latencyMs": 250,
+  "fillSlots": 4,
+  "done": true,
+  "firstFileS": 14.1,
+  "wallS": 54.4,
+  "peakRssMB": 328,
+  "cell": {
+    "gets": 800,
+    "misses503": 0,
+    "fills": 800,
+    "peakInFlight": 6,
+    "rate429": 0
+  },
+  "final": {
+    "phase": "converged",
+    "tracked": 812,
+    "delivered": 800,
+    "remaining": 0,
+    "held": 12,
+    "retrying": 0,
+    "bytesRemaining": 0,
+    "blocked": [],
+    "etaMs": null,
+    "startedAt": null
+  },
+  "tailLines": [
+    "[sync/files] 200 / 812 delivered · 600 waiting · 12 held: shared code not accepted on this Mac · more next pass (requests ceiling)",
+    "[sync/files] 400 more path(s) to reconcile; taking them next pass.",
+    "[sync/files] 200 down, 0 up, 0 conflict(s), 200 already in step.",
+    "[sync/files] 200 more path(s) to reconcile; taking them next pass.",
+    "[sync/files] 200 down, 0 up, 0 conflict(s), 400 already in step.",
+    "[sync/files] 600 / 812 delivered · 200 waiting · 12 held: shared code not accepted on this Mac · more next pass (requests ceiling)",
+    "[sync/files] 200 down, 0 up, 0 conflict(s), 600 already in step.",
+    "[sync/files] 800 / 812 delivered · 12 held: shared code not accepted on this Mac"
+  ],
+  "log": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/ab/sync/cold-v204-r2/studio.log",
+  "samples": [
+    {
+      "t": 1003,
+      "rss": 197,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 2009,
+      "rss": 200,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 3016,
+      "rss": 202,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 4024,
+      "rss": 204,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 5032,
+      "rss": 205,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 6040,
+      "rss": 207,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 7049,
+      "rss": 208,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 8058,
+      "rss": 209,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 9065,
+      "rss": 210,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 10071,
+      "rss": 212,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 11077,
+      "rss": 215,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 12079,
+      "rss": 228,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 13086,
+      "rss": 232,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 14094,
+      "rss": 239,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 15100,
+      "rss": 267,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 16106,
+      "rss": 275,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 17110,
+      "rss": 276,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 18121,
+      "rss": 279,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 19127,
+      "rss": 281,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 20133,
+      "rss": 286,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 21137,
+      "rss": 287,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 22143,
+      "rss": 288,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 23149,
+      "rss": 289,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 24157,
+      "rss": 291,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 25162,
+      "rss": 294,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 26169,
+      "rss": 294,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 27178,
+      "rss": 296,
+      "delivered": 200,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 28184,
+      "rss": 307,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 29193,
+      "rss": 307,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 30201,
+      "rss": 308,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 31206,
+      "rss": 308,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 32215,
+      "rss": 308,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 33228,
+      "rss": 308,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 34238,
+      "rss": 309,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 35247,
+      "rss": 310,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 36252,
+      "rss": 310,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 37257,
+      "rss": 310,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 38264,
+      "rss": 311,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 39273,
+      "rss": 311,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 40278,
+      "rss": 311,
+      "delivered": 400,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 41284,
+      "rss": 314,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 42287,
+      "rss": 314,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 43297,
+      "rss": 314,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 44305,
+      "rss": 314,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 45313,
+      "rss": 314,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 46321,
+      "rss": 314,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 47326,
+      "rss": 315,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 48334,
+      "rss": 316,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 49341,
+      "rss": 316,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 50348,
+      "rss": 316,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 51357,
+      "rss": 316,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 52366,
+      "rss": 316,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 53372,
+      "rss": 316,
+      "delivered": 600,
+      "tracked": 812,
+      "phase": "seeding"
+    },
+    {
+      "t": 54378,
+      "rss": 317,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 55383,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 56392,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 57400,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 58405,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 59415,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 60423,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 61429,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 62436,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 63442,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 64448,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 65454,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 66460,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 67466,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 68473,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 69479,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 70490,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 71498,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 72507,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 73516,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 74526,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 75534,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 76543,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 77550,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 78559,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    },
+    {
+      "t": 79564,
+      "rss": 328,
+      "delivered": 800,
+      "tracked": 812,
+      "phase": "converged"
+    }
+  ]
+}

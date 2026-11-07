@@ -1,0 +1,144 @@
+{
+  "current": {
+    "date": "2026-11-05T10:20:26.462Z",
+    "canvas": ".design/ui/AI-StudyMate/ux/retention-ladder.tsx (studio) [base]",
+    "engine": "webkit-safari",
+    "url": "http://localhost:4517/",
+    "panFrames": 60,
+    "zoomFrames": 40,
+    "p50FrameMs": 17,
+    "p95FrameMs": 208,
+    "maxFrameMs": 225,
+    "panP95Ms": 18,
+    "zoomP95Ms": 224,
+    "settleMaxMs": 310,
+    "longtasks": 0,
+    "longFrames": 37,
+    "jankFrames": 40,
+    "settleLongFrames": 2,
+    "boardsOnScreen": 1,
+    "artboardRenders": 9,
+    "annotationRenders": 15,
+    "instrumented": true,
+    "passes": 3,
+    "p95SpreadMs": 8,
+    "zoomP95SpreadMs": 8,
+    "longFramesRange": 1,
+    "kept": [
+      {
+        "p50": 17,
+        "p95": 208,
+        "panP95": 19,
+        "zoomP95": 224,
+        "longFrames": 36,
+        "jankFrames": 39,
+        "settleLongFrames": 2,
+        "boardsOnScreen": 1
+      },
+      {
+        "p50": 18,
+        "p95": 214,
+        "panP95": 18,
+        "zoomP95": 232,
+        "longFrames": 37,
+        "jankFrames": 40,
+        "settleLongFrames": 2,
+        "boardsOnScreen": 1
+      },
+      {
+        "p50": 17,
+        "p95": 206,
+        "panP95": 18,
+        "zoomP95": 224,
+        "longFrames": 37,
+        "jankFrames": 40,
+        "settleLongFrames": 1,
+        "boardsOnScreen": 1
+      }
+    ],
+    "window": "1600x1000",
+    "frame": {
+      "mode": "today",
+      "w": 1600,
+      "h": 948,
+      "dpr": 2,
+      "innerW": 1600,
+      "innerH": 948
+    },
+    "idle": {
+      "frameP50": 17,
+      "parentP50": 17
+    }
+  },
+  "previous": {
+    "date": "2026-11-05T10:18:37.385Z",
+    "canvas": ".design/ui/AI-StudyMate/ux/retention-ladder.tsx (studio) [base]",
+    "engine": "webkit-safari",
+    "url": "http://localhost:4517/",
+    "panFrames": 60,
+    "zoomFrames": 40,
+    "p50FrameMs": 18,
+    "p95FrameMs": 202,
+    "maxFrameMs": 217,
+    "panP95Ms": 19,
+    "zoomP95Ms": 213,
+    "settleMaxMs": 203,
+    "longtasks": 0,
+    "longFrames": 35,
+    "jankFrames": 40,
+    "settleLongFrames": 1,
+    "boardsOnScreen": 1,
+    "artboardRenders": 1,
+    "annotationRenders": 2,
+    "instrumented": true,
+    "passes": 3,
+    "p95SpreadMs": 1,
+    "zoomP95SpreadMs": 14,
+    "longFramesRange": 1,
+    "kept": [
+      {
+        "p50": 18,
+        "p95": 202,
+        "panP95": 18,
+        "zoomP95": 220,
+        "longFrames": 35,
+        "jankFrames": 40,
+        "settleLongFrames": 1,
+        "boardsOnScreen": 1
+      },
+      {
+        "p50": 17,
+        "p95": 202,
+        "panP95": 19,
+        "zoomP95": 213,
+        "longFrames": 35,
+        "jankFrames": 40,
+        "settleLongFrames": 2,
+        "boardsOnScreen": 1
+      },
+      {
+        "p50": 18,
+        "p95": 201,
+        "panP95": 19,
+        "zoomP95": 206,
+        "longFrames": 36,
+        "jankFrames": 40,
+        "settleLongFrames": 1,
+        "boardsOnScreen": 1
+      }
+    ],
+    "window": "1600x1000",
+    "frame": {
+      "mode": "today",
+      "w": 1600,
+      "h": 948,
+      "dpr": 2,
+      "innerW": 1600,
+      "innerH": 948
+    },
+    "idle": {
+      "frameP50": 17,
+      "parentP50": 17
+    }
+  }
+}

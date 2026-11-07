@@ -1,0 +1,3630 @@
+{
+  "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4",
+  "results": [
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "shell › tree-new-folder › canvas-jump-toggle-ui-videoformats",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a resumed state could not be walked to again: --replay: \"canvas-jump-toggle-ui-videoformats\" is not in the state \"shell › tree-new-folder\" (there: project-pill | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-menu | share-cluster-panels | share-cluster-share | panel-tab-tree | panel-tab-layers | panel-tab-assets "
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Smoke › New canvas › canvas-jump-toggle-ui-videoformats",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a resumed state could not be walked to again: --replay: \"canvas-jump-toggle-ui-videoformats\" is not in the state \"canvas Smoke › New canvas\" (there: project-pill | share-cluster-comments | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-menu | share-cluster-panels | share-cluster-share | zoom-undo-undo | zoom-undo"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › canvas-pin-ui-cut › canvas-jump-toggle-ui-videoclipinspect",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a resumed state could not be walked to again: --replay: \"canvas-jump-toggle-ui-videoclipinspect\" is not in the state \"canvas Landing › canvas-pin-ui-cut\" (there: project-pill | share-cluster-comments | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-menu | share-cluster-panels | share-cluster-share | zoom-undo-und"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › canvas-pin-ui-cut › canvas-unpin-ui-cut › canvas-jump-toggle-ui-video",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a resumed state could not be walked to again: --replay: \"canvas-jump-toggle-ui-video\" is not in the state \"canvas Landing › canvas-pin-ui-cut › canvas-unpin-ui-cut\" (there: project-pill | share-cluster-comments | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-menu | share-cluster-panels | share-cluster-share | zo"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Smoke › Artboard SMOKE/01 · RENDER › insp-export-go › share-cluster-exports › export-job-more-0cc0a64e-6321-47a0-8b52-5ebecaf7fbb3",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a resumed state could not be walked to again: --replay: \"export-job-more-0cc0a64e-6321-47a0-8b52-5ebecaf7fbb3\" is not in the state \"canvas Smoke › Artboard SMOKE/01 · RENDER › insp-export-go › share-cluster-exports\" (there: project-pill | share-cluster-comments | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-men"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Smoke › toolbar-slot-frame › size-picker-all-web › size-picker-tile-web-laptop › Fit to screen",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a resumed state could not be walked to again: --replay: \"Fit to screen\" is not in the state \"canvas Smoke › toolbar-slot-frame › size-picker-all-web › size-picker-tile-web-laptop\" (there: project-pill | share-cluster-comments | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-menu | share-cluster-panels | share-clu"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "shell › tree-new-folder",
+      "control": "Create folder",
+      "key": "button:Create folder",
+      "frame": "shell",
+      "role": "button",
+      "effect": "disabled",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "shell › tree-new-folder",
+      "control": "canvases-show-file-names",
+      "key": "tid:canvases-show-file-names",
+      "frame": "shell",
+      "role": "switch",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · canvases-show-file-names",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "shell › tree-new-folder",
+      "control": "canvases-hidden-files",
+      "key": "tid:canvases-hidden-files",
+      "frame": "shell",
+      "role": "switch",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · canvases-hidden-files",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "shell › tree-new-folder",
+      "control": "canvases-folder-copy",
+      "key": "tid:canvases-folder-copy",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · canvases-folder-copy",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "shell › tree-new-folder",
+      "control": "canvases-ds-open",
+      "key": "tid:canvases-ds-open",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · canvases-ds-open",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "shell › tree-new-folder",
+      "control": "Design system",
+      "key": "treeitem:Design system",
+      "frame": "shell",
+      "role": "treeitem",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · Design system",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "shell › tree-new-folder",
+      "control": "tree-section-design-system",
+      "key": "tid:tree-section-design-system",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · tree-section-design-system",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "shell › tree-new-folder",
+      "control": "canvases-advanced-trash",
+      "key": "tid:canvases-advanced-trash",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · canvases-advanced-trash",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "shell › tree-new-folder",
+      "control": "canvases-refresh",
+      "key": "tid:canvases-refresh",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · canvases-refresh",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › New canvas",
+      "control": "Create brief board",
+      "key": "button:Create brief board",
+      "frame": "shell",
+      "role": "button",
+      "effect": "disabled",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate",
+      "control": "canvas-jump-toggle-ui-landing",
+      "key": "tid:canvas-jump-toggle-ui-landing",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › panel-tab-tree › panel-icon-left › canvas-pin-ui-landing · canvas-jump-toggle-ui-landing",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate",
+      "control": "Close",
+      "key": "button:Close",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › project-pill › project-menu-row-sub-help › project-menu-row-help.shortcuts · Close",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate",
+      "control": "Google Gemini (Nano Banana + Veo) — no key",
+      "key": "select:Google Gemini (Nano Banana + Veo) — no key",
+      "frame": "shell",
+      "role": "select",
+      "effect": "single-option",
+      "note": "a select with one option"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate",
+      "control": "1:1 16:9 9:16 4:3 3:4 4:5",
+      "key": "select:1:1 16:9 9:16 4:3 3:4 4:5",
+      "frame": "shell",
+      "role": "select",
+      "effect": "value net(/_api/diagnostics/disk)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate",
+      "control": "Place the generated image on the canvas",
+      "key": "input:Place the generated image on the canvas",
+      "frame": "shell",
+      "role": "input",
+      "effect": "value dom(14)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate",
+      "control": "Generate",
+      "key": "button:Generate",
+      "frame": "shell",
+      "role": "button",
+      "effect": "disabled",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › project-pill › project-menu-row-sub-edit › project-menu-row-select.all",
+      "control": "canvas-pin-ui-cut",
+      "key": "tid:canvas-pin-ui-cut",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › panel-tab-tree › panel-icon-left · canvas-pin-ui-cut",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › project-pill › project-menu-row-sub-edit › project-menu-row-select.all",
+      "control": "edit-align-left",
+      "key": "tid:edit-align-left",
+      "frame": "canvas",
+      "role": "button",
+      "effect": "dom(70) net(/_api/canvas-meta,/_api/index)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › project-pill › project-menu-row-sub-edit › project-menu-row-select.all",
+      "control": "edit-align-hcentre",
+      "key": "tid:edit-align-hcentre",
+      "frame": "canvas",
+      "role": "button",
+      "effect": "dom(77) net(/_api/canvas-meta,/_api/index)",
+      "note": "no effect after earlier clicks in the state; first in a clean state it has one"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › project-pill › project-menu-row-sub-edit › project-menu-row-select.all",
+      "control": "edit-align-right",
+      "key": "tid:edit-align-right",
+      "frame": "canvas",
+      "role": "button",
+      "effect": "dom(75) net(/_api/canvas-meta,/_api/index)",
+      "note": "no effect after earlier clicks in the state; first in a clean state it has one"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › project-pill › project-menu-row-sub-edit › project-menu-row-select.all",
+      "control": "edit-align-top",
+      "key": "tid:edit-align-top",
+      "frame": "canvas",
+      "role": "button",
+      "effect": "dom(73)",
+      "note": "no effect after earlier clicks in the state; first in a clean state it has one"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › project-pill › project-menu-row-sub-edit › project-menu-row-select.all",
+      "control": "edit-align-vmiddle",
+      "key": "tid:edit-align-vmiddle",
+      "frame": "canvas",
+      "role": "button",
+      "effect": "dom(75)",
+      "note": "no effect after earlier clicks in the state; first in a clean state it has one"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › project-pill › project-menu-row-sub-edit › project-menu-row-select.all",
+      "control": "edit-align-bottom",
+      "key": "tid:edit-align-bottom",
+      "frame": "canvas",
+      "role": "button",
+      "effect": "dom(74)",
+      "note": "no effect after earlier clicks in the state; first in a clean state it has one"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › project-pill › project-menu-row-sub-edit › project-menu-row-select.all",
+      "control": "edit-distribute-h",
+      "key": "tid:edit-distribute-h",
+      "frame": "canvas",
+      "role": "button",
+      "effect": "disabled",
+      "note": "Select three or more to space them evenly. [aria-description]"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › project-pill › project-menu-row-sub-edit › project-menu-row-select.all",
+      "control": "edit-distribute-v",
+      "key": "tid:edit-distribute-v",
+      "frame": "canvas",
+      "role": "button",
+      "effect": "disabled",
+      "note": "Select three or more to space them evenly. [aria-description]"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › project-pill › project-menu-row-sub-edit › project-menu-row-select.all",
+      "control": "edit-tidy",
+      "key": "tid:edit-tidy",
+      "frame": "canvas",
+      "role": "button",
+      "effect": "dom(72)",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home",
+      "control": "project-pill",
+      "key": "tid:project-pill",
+      "frame": "shell",
+      "role": "button",
+      "effect": "aria(aria-expanded@project-pill) popup focus→project-menu-row-sub-file +2 controls",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home",
+      "control": "home-search-open",
+      "key": "tid:home-search-open",
+      "frame": "shell",
+      "role": "button",
+      "effect": "popup value focus→home-search +1 controls net(/_home/recent-searches)",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home",
+      "control": "home-ask-send",
+      "key": "tid:home-ask-send",
+      "frame": "shell",
+      "role": "button",
+      "effect": "disabled",
+      "note": "This page is open in a browser. Projects open from the deskt [title]"
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home",
+      "control": "home-target-chip",
+      "key": "tid:home-target-chip",
+      "frame": "shell",
+      "role": "button",
+      "effect": "disabled",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home",
+      "control": "home-starter-portfolio",
+      "key": "tid:home-starter-portfolio",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value focus→home-ask-input",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home",
+      "control": "home-starter-logos-new",
+      "key": "tid:home-starter-logos-new",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home",
+      "control": "home-starter-moodboard",
+      "key": "tid:home-starter-moodboard",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home",
+      "control": "home-empty-canvas",
+      "key": "tid:home-empty-canvas",
+      "frame": "shell",
+      "role": "button",
+      "effect": "disabled",
+      "note": "This page is open in a browser. Projects open from the deskt [title]"
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home",
+      "control": "home-open-folder",
+      "key": "tid:home-open-folder",
+      "frame": "shell",
+      "role": "button",
+      "effect": "disabled",
+      "note": "This page is open in a browser. Projects open from the deskt [title]"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell › New canvas › canvas-jump-toggle-ui-videomusic",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a resumed state could not be walked to again: --replay: \"canvas-jump-toggle-ui-videomusic\" is not in the state \"shell › New canvas\" (there: project-pill | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-menu | share-cluster-panels | share-cluster-share | panel-tab-tree | panel-tab-layers | panel-tab-assets | panel"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › canvas-pin-ui-print › canvas-unpin-ui-print › canvas-jump-toggle-ui-videoformats",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a resumed state could not be walked to again: --replay: \"canvas-jump-toggle-ui-videoformats\" is not in the state \"canvas Smoke › canvas-pin-ui-print › canvas-unpin-ui-print\" (there: project-pill | share-cluster-comments | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-menu | share-cluster-panels | share-cluster-s"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › toolbar-slot-frame › size-picker-tile-video-reels › Fit to screen",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a resumed state could not be walked to again: --replay: \"Fit to screen\" is not in the state \"canvas Smoke › toolbar-slot-frame › size-picker-tile-video-reels\" (there: project-pill | share-cluster-comments | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-menu | share-cluster-panels | share-cluster-share | zoom-und"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › panel-tab-layers › h1 · heading · F2 to rename › insp-add-interaction › adv-add-property",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a resumed state could not be walked to again: --replay: \"adv-add-property\" is not in the state \"canvas Landing › panel-tab-layers › h1 · heading · F2 to rename › insp-add-interaction\" (there: project-pill | share-cluster-comments | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-menu | share-cluster-panels | share"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › Artboard SMOKE/01 · RENDER › insp-export-go › share-cluster-exports › export-job-again-4961bb3c-d614-4e92-ae42-760b66364400",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a resumed state could not be walked to again: --replay: \"export-job-again-4961bb3c-d614-4e92-ae42-760b66364400\" is not in the state \"canvas Smoke › Artboard SMOKE/01 · RENDER › insp-export-go › share-cluster-exports\" (there: project-pill | share-cluster-comments | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-me"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › Artboard SMOKE/01 · RENDER › insp-export-go › share-cluster-exports › export-job-more-4961bb3c-d614-4e92-ae42-760b66364400",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a resumed state could not be walked to again: --replay: \"export-job-more-4961bb3c-d614-4e92-ae42-760b66364400\" is not in the state \"canvas Smoke › Artboard SMOKE/01 · RENDER › insp-export-go › share-cluster-exports\" (there: project-pill | share-cluster-comments | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-men"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell › tree-new-folder",
+      "control": "Create folder",
+      "key": "button:Create folder",
+      "frame": "shell",
+      "role": "button",
+      "effect": "disabled",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell › tree-new-folder",
+      "control": "canvases-show-file-names",
+      "key": "tid:canvases-show-file-names",
+      "frame": "shell",
+      "role": "switch",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · canvases-show-file-names",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell › tree-new-folder",
+      "control": "canvases-hidden-files",
+      "key": "tid:canvases-hidden-files",
+      "frame": "shell",
+      "role": "switch",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · canvases-hidden-files",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell › tree-new-folder",
+      "control": "canvases-folder-copy",
+      "key": "tid:canvases-folder-copy",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · canvases-folder-copy",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell › tree-new-folder",
+      "control": "canvases-ds-open",
+      "key": "tid:canvases-ds-open",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · canvases-ds-open",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell › tree-new-folder",
+      "control": "Design system",
+      "key": "treeitem:Design system",
+      "frame": "shell",
+      "role": "treeitem",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · Design system",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell › tree-new-folder",
+      "control": "tree-section-design-system",
+      "key": "tid:tree-section-design-system",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · tree-section-design-system",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell › tree-new-folder",
+      "control": "canvases-advanced-trash",
+      "key": "tid:canvases-advanced-trash",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · canvases-advanced-trash",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell › tree-new-folder",
+      "control": "canvases-refresh",
+      "key": "tid:canvases-refresh",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced · canvases-refresh",
+      "note": "the same control, already clicked",
+      "states": 3
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › New canvas",
+      "control": "Create brief board",
+      "key": "button:Create brief board",
+      "frame": "shell",
+      "role": "button",
+      "effect": "disabled",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › palette-mode-preview › toolbar-slot-section",
+      "control": "templates-tile-kanban",
+      "key": "tid:templates-tile-kanban",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value focus→canvas-frame -9 controls dom(13)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › palette-mode-preview › toolbar-slot-section",
+      "control": "templates-tile-retro",
+      "key": "tid:templates-tile-retro",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value focus→canvas-frame -9 controls dom(13)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › palette-mode-preview › toolbar-slot-section",
+      "control": "templates-tile-flow",
+      "key": "tid:templates-tile-flow",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value focus→canvas-frame -9 controls dom(18)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › palette-mode-preview › toolbar-slot-section",
+      "control": "templates-tile-calendar",
+      "key": "tid:templates-tile-calendar",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value focus→canvas-frame -9 controls dom(13)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › palette-mode-preview › toolbar-slot-section",
+      "control": "templates-tile-roadmap",
+      "key": "tid:templates-tile-roadmap",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value focus→canvas-frame -9 controls dom(21)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › palette-mode-preview › toolbar-slot-section",
+      "control": "templates-tile-brainstorm",
+      "key": "tid:templates-tile-brainstorm",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value focus→canvas-frame -9 controls dom(13)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › palette-mode-preview › toolbar-slot-section",
+      "control": "templates-tile-checklist",
+      "key": "tid:templates-tile-checklist",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value focus→canvas-frame -9 controls dom(18)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › palette-mode-preview › toolbar-slot-section",
+      "control": "templates-tile-blank",
+      "key": "tid:templates-tile-blank",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value focus→canvas-frame -9 controls dom(13)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › palette-mode-preview › toolbar-slot-section",
+      "control": "templates-ask-send",
+      "key": "tid:templates-ask-send",
+      "frame": "shell",
+      "role": "button",
+      "effect": "disabled",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate",
+      "control": "canvas-jump-toggle-ui-landing",
+      "key": "tid:canvas-jump-toggle-ui-landing",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "canvas Smoke › canvas-pin-ui-landing · canvas-jump-toggle-ui-landing",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate",
+      "control": "Close",
+      "key": "button:Close",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › project-pill › project-menu-row-sub-file › project-menu-row-project.new · Close",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate",
+      "control": "Google Gemini (Nano Banana + Veo) — no key",
+      "key": "select:Google Gemini (Nano Banana + Veo) — no key",
+      "frame": "shell",
+      "role": "select",
+      "effect": "single-option",
+      "note": "a select with one option"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate",
+      "control": "1:1 16:9 9:16 4:3 3:4 4:5",
+      "key": "select:1:1 16:9 9:16 4:3 3:4 4:5",
+      "frame": "shell",
+      "role": "select",
+      "effect": "value net(/_api/diagnostics/disk)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate",
+      "control": "Place the generated image on the canvas",
+      "key": "input:Place the generated image on the canvas",
+      "frame": "shell",
+      "role": "input",
+      "effect": "value dom(6)",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate",
+      "control": "Generate",
+      "key": "button:Generate",
+      "frame": "shell",
+      "role": "button",
+      "effect": "disabled",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "VideoEdit",
+      "key": "treeitem:VideoEdit",
+      "frame": "shell",
+      "role": "treeitem",
+      "effect": "twin",
+      "twin": "shell · VideoEdit",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "canvas-row-ui-videoedit",
+      "key": "tid:canvas-row-ui-videoedit",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · canvas-row-ui-videoedit",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "canvas-pin-ui-videoedit",
+      "key": "tid:canvas-pin-ui-videoedit",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · canvas-pin-ui-videoedit",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "tree-row-menu-ui-videoedit",
+      "key": "tid:tree-row-menu-ui-videoedit",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · tree-row-menu-ui-videoedit",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "_cache/",
+      "key": "treeitem:_cache/",
+      "frame": "shell",
+      "role": "treeitem",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · _cache/",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "file-row-cache",
+      "key": "tid:file-row-cache",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · file-row-cache",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "_comments/",
+      "key": "treeitem:_comments/",
+      "frame": "shell",
+      "role": "treeitem",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · _comments/",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "file-row-comments",
+      "key": "tid:file-row-comments",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · file-row-comments",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "_export-jobs/",
+      "key": "treeitem:_export-jobs/",
+      "frame": "shell",
+      "role": "treeitem",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · _export-jobs/",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "file-row-export-jobs",
+      "key": "tid:file-row-export-jobs",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · file-row-export-jobs",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "_locator.json",
+      "key": "treeitem:_locator.json",
+      "frame": "shell",
+      "role": "treeitem",
+      "effect": "disabled",
+      "note": ""
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "file-row-locator-json",
+      "key": "tid:file-row-locator-json",
+      "frame": "shell",
+      "role": "button",
+      "effect": "net(/_api/diagnostics/disk)",
+      "note": "pointer blocked (timeout); clicked via el.click()"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "_server.json",
+      "key": "treeitem:_server.json",
+      "frame": "shell",
+      "role": "treeitem",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · _server.json",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "file-row-server-json",
+      "key": "tid:file-row-server-json",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · file-row-server-json",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "_state/",
+      "key": "treeitem:_state/",
+      "frame": "shell",
+      "role": "treeitem",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · _state/",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "file-row-state",
+      "key": "tid:file-row-state",
+      "frame": "shell",
+      "role": "button",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · file-row-state",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json",
+      "control": "Share…",
+      "key": "menuitem:Share…",
+      "frame": "shell",
+      "role": "menuitem",
+      "effect": "twin",
+      "twin": "shell › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-cut-meta-json · Share…",
+      "note": "the same control, already clicked"
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home",
+      "control": "project-pill",
+      "key": "tid:project-pill",
+      "frame": "shell",
+      "role": "button",
+      "effect": "aria(aria-expanded@project-pill) popup focus→project-menu-row-sub-file +2 controls",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home",
+      "control": "home-search-open",
+      "key": "tid:home-search-open",
+      "frame": "shell",
+      "role": "button",
+      "effect": "popup value focus→home-search +1 controls net(/_home/recent-searches)",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home",
+      "control": "home-ask-send",
+      "key": "tid:home-ask-send",
+      "frame": "shell",
+      "role": "button",
+      "effect": "disabled",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home",
+      "control": "home-target-chip",
+      "key": "tid:home-target-chip",
+      "frame": "shell",
+      "role": "button",
+      "effect": "aria(aria-expanded@home-target-chip) popup focus→home-target-item-new +1 controls",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home",
+      "control": "home-starter-portfolio",
+      "key": "tid:home-starter-portfolio",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value focus→home-ask-input",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home",
+      "control": "home-starter-logos-new",
+      "key": "tid:home-starter-logos-new",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home",
+      "control": "home-starter-moodboard",
+      "key": "tid:home-starter-moodboard",
+      "frame": "shell",
+      "role": "button",
+      "effect": "value",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home",
+      "control": "signin-cloud",
+      "key": "tid:signin-cloud",
+      "frame": "shell",
+      "role": "button",
+      "effect": "popup announce focus→body dom(17) native(home_cloud_sign_in_prepare)",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home",
+      "control": "signin-local",
+      "key": "tid:signin-local",
+      "frame": "shell",
+      "role": "button",
+      "effect": "popup value focus→home-create-name +3 controls",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home",
+      "control": "signin-advanced",
+      "key": "tid:signin-advanced",
+      "frame": "shell",
+      "role": "button",
+      "effect": "aria(aria-expanded@signin-advanced) +5 controls",
+      "note": ""
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home",
+      "control": "home-empty-canvas",
+      "key": "tid:home-empty-canvas",
+      "frame": "shell",
+      "role": "button",
+      "effect": "popup announce +1 controls dom(7) net(/_home/projects/create-local) native(open_project)",
+      "note": "destructive first click → popup announce +1 controls dom(7) net(/_home/projects/create-local) native(open_project)",
+      "destructive": true
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home › signin-local",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a replay step was not found, also after a fresh load: step 1/1 (signin-local) is not on screen"
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home › signin-advanced",
+      "control": "(surface)",
+      "effect": "unreachable",
+      "note": "a replay step was not found, also after a fresh load: step 1/1 (signin-advanced) is not on screen"
+    }
+  ],
+  "errors": [
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open tree-new-folder>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50336/_ws?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open tree-new-folder>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50336/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open New canvas>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50503/_ws?fc=dWkvU21va2UudHN4.99q8_VLWjrWuzDSW1v08Aw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open New canvas>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50503/_ws/collab/ui-smoke?fc=dWkvU21va2UudHN4.99q8_VLWjrWuzDSW1v08Aw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open canvas-pin-ui-cut>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50623/_ws?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open canvas-pin-ui-cut>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50623/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open open ui-landing>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50770/_ws?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open open ui-landing>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50770/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open share-cluster-exports>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50895/_ws?fc=dWkvU21va2UudHN4.99q8_VLWjrWuzDSW1v08Aw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open share-cluster-exports>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50895/_ws/collab/ui-smoke?fc=dWkvU21va2UudHN4.99q8_VLWjrWuzDSW1v08Aw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open size-picker-tile-web-laptop>",
+      "kind": "console.error (server restarting)",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED\n    at http://localhost:48519/_api/diagnostics/disk:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open size-picker-tile-web-laptop>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51051/_ws?fc=dWkvU21va2UudHN4.99q8_VLWjrWuzDSW1v08Aw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open size-picker-tile-web-laptop>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51051/_ws/collab/ui-smoke?fc=dWkvU21va2UudHN4.99q8_VLWjrWuzDSW1v08Aw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open size-picker-tile-web-laptop>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51228/_ws?fc=dWkvU21va2UudHN4.99q8_VLWjrWuzDSW1v08Aw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open size-picker-tile-web-laptop>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51228/_ws/collab/ui-smoke?fc=dWkvU21va2UudHN4.99q8_VLWjrWuzDSW1v08Aw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open New canvas>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51361/_ws?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<open New canvas>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51361/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<idle>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51423/_ws?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<idle>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51423/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<again, clean: edit-align-hcentre>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51483/_ws?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<again, clean: edit-align-hcentre>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51483/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<again, clean: edit-align-right>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51588/_ws?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<again, clean: edit-align-right>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51588/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<again, clean: edit-align-top>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51663/_ws?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<again, clean: edit-align-top>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51663/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<again, clean: edit-align-vmiddle>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51709/_ws?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<again, clean: edit-align-vmiddle>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51709/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<again, clean: edit-align-bottom>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51768/_ws?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<again, clean: edit-align-bottom>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51768/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.-yT3HTfH36oBtl1TvOI6HA' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "home",
+      "surface": "home",
+      "mode": "browser",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open New canvas>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50332/_ws?fc=dWkvTGFuZGluZy50c3g.RKd7tTUX9QWFT9FYzbhpCw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open New canvas>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50332/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.RKd7tTUX9QWFT9FYzbhpCw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open canvas-pin-ui-print>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50535/_ws?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open canvas-pin-ui-print>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50535/_ws/collab/ui-smoke?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open canvas-pin-ui-print>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:48499/_ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open canvas-pin-ui-print>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50535/_ws?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open size-picker-tile-video-reels>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50749/_ws?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open size-picker-tile-video-reels>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50749/_ws/collab/ui-smoke?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open h1 · heading · F2 to rename>",
+      "kind": "http 404 (fixture media)",
+      "text": "GET /.design/system/acme/components.json\n  answer: Not found",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open h1 · heading · F2 to rename>",
+      "kind": "console.error (fixture media)",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)\n    at http://localhost:48499/.design/system/acme/components.json:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open h1 · heading · F2 to rename>",
+      "kind": "http 404 (fixture media)",
+      "text": "GET /.design/system/acme/components.json\n  answer: Not found",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open h1 · heading · F2 to rename>",
+      "kind": "console.error (fixture media)",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)\n    at http://localhost:48499/.design/system/acme/components.json:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open insp-add-interaction>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50860/_ws?fc=dWkvTGFuZGluZy50c3g.RKd7tTUX9QWFT9FYzbhpCw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open insp-add-interaction>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50860/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.RKd7tTUX9QWFT9FYzbhpCw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open insp-add-interaction>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:48499/_ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open insp-add-interaction>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:50860/_ws?fc=dWkvTGFuZGluZy50c3g.RKd7tTUX9QWFT9FYzbhpCw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open h1 · heading · F2 to rename>",
+      "kind": "http 404 (fixture media)",
+      "text": "GET /.design/system/acme/components.json\n  answer: Not found",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open h1 · heading · F2 to rename>",
+      "kind": "console.error (fixture media)",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)\n    at http://localhost:48499/.design/system/acme/components.json:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open h1 · heading · F2 to rename>",
+      "kind": "http 404 (fixture media)",
+      "text": "GET /.design/system/acme/components.json\n  answer: Not found",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open h1 · heading · F2 to rename>",
+      "kind": "console.error (fixture media)",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)\n    at http://localhost:48499/.design/system/acme/components.json:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open share-cluster-exports>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51029/_ws?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open share-cluster-exports>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51029/_ws/collab/ui-smoke?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open share-cluster-exports>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51201/_ws?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open share-cluster-exports>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51201/_ws/collab/ui-smoke?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open share-cluster-exports>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51398/_ws?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open share-cluster-exports>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51398/_ws/collab/ui-smoke?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open New canvas>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51566/_ws?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open New canvas>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51566/_ws/collab/ui-smoke?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open New canvas>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:48499/_ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open New canvas>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51566/_ws?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<idle>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51634/_ws?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<idle>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51634/_ws/collab/ui-smoke?fc=dWkvU21va2UudHN4.v1vsXmVAm2focamCkhz_-A' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<idle>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51814/_ws?fc=dWkvTGFuZGluZy50c3g.RKd7tTUX9QWFT9FYzbhpCw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<idle>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51814/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.RKd7tTUX9QWFT9FYzbhpCw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open export-adv-crop>",
+      "kind": "console.error (server restarting)",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED\n    at http://localhost:48499/_api/diagnostics/disk:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open canvases-hidden-files>",
+      "kind": "console.error (server restarting)",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED\n    at http://localhost:48499/_api/diagnostics/disk:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open canvases-hidden-files>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51922/_ws?fc=dWkvTGFuZGluZy50c3g.RKd7tTUX9QWFT9FYzbhpCw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open canvases-hidden-files>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51922/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.RKd7tTUX9QWFT9FYzbhpCw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open canvases-hidden-files>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:48499/_ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open canvases-hidden-files>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51922/_ws?fc=dWkvTGFuZGluZy50c3g.RKd7tTUX9QWFT9FYzbhpCw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open canvases-hidden-files>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51954/_ws?fc=dWkvTGFuZGluZy50c3g.RKd7tTUX9QWFT9FYzbhpCw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<open canvases-hidden-files>",
+      "kind": "console.error (server restarting)",
+      "text": "WebSocket connection to 'ws://localhost:51954/_ws/collab/ui-landing?fc=dWkvTGFuZGluZy50c3g.RKd7tTUX9QWFT9FYzbhpCw' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "home",
+      "surface": "home",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "home",
+      "surface": "home",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "home",
+      "surface": "home",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    },
+    {
+      "shell": "home",
+      "surface": "home",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    }
+  ],
+  "external": [
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    }
+  ],
+  "popups": [],
+  "unreachable": [],
+  "statesDone": [
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "shell › tree-new-folder"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › New canvas"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › project-pill › project-menu-row-sub-edit › project-menu-row-select.all"
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home"
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home › project-pill"
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home › home-search-open"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell › tree-new-folder"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › New canvas"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › palette-mode-preview › toolbar-slot-section"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell with a hub link › project-menu-row-export.open › export-advanced-toggle › export-adv-crop"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json"
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home"
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home › project-pill"
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home › home-search-open"
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home › home-target-chip"
+    }
+  ],
+  "redone": [
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "shell › tree-new-folder"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › New canvas"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate"
+    },
+    {
+      "shell": "project",
+      "mode": "browser",
+      "surface": "canvas Landing › project-pill › project-menu-row-sub-edit › project-menu-row-select.all"
+    },
+    {
+      "shell": "home",
+      "mode": "browser",
+      "surface": "home"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell › tree-new-folder"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › New canvas"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Smoke › palette-mode-preview › toolbar-slot-section"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › ⌘K › palette-row-ai.generate"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "shell with a hub link › project-menu-row-export.open › export-advanced-toggle › export-adv-crop"
+    },
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "surface": "canvas Landing › canvases-advanced › canvases-hidden-files › tree-row-menu-ui-smoke-meta-json"
+    },
+    {
+      "shell": "home",
+      "mode": "tauri",
+      "surface": "home"
+    }
+  ],
+  "registry": [
+    {
+      "id": "nav.home",
+      "path": "Menu › Back to Home",
+      "advanced": false
+    },
+    {
+      "id": "canvas.new",
+      "path": "Menu › File › New canvas",
+      "advanced": false
+    },
+    {
+      "id": "project.new",
+      "path": "Menu › File › New project…",
+      "advanced": false
+    },
+    {
+      "id": "project.open",
+      "path": "Menu › File › Open project…",
+      "advanced": false
+    },
+    {
+      "id": "project.pull-copy",
+      "path": "Menu › File › Pull a local copy…",
+      "advanced": false
+    },
+    {
+      "id": "project.share-github",
+      "path": "Menu › File › Share on GitHub…",
+      "advanced": false
+    },
+    {
+      "id": "canvas.duplicate",
+      "path": "Menu › File › Duplicate canvas",
+      "advanced": false
+    },
+    {
+      "id": "canvas.rename",
+      "path": "Menu › File › Rename canvas",
+      "advanced": false
+    },
+    {
+      "id": "canvas.move",
+      "path": "Menu › File › Move to…",
+      "advanced": false
+    },
+    {
+      "id": "import.figma",
+      "path": "Menu › File › Import from Figma…",
+      "advanced": false
+    },
+    {
+      "id": "import.brand",
+      "path": "Menu › File › Import a brand…",
+      "advanced": false
+    },
+    {
+      "id": "video.assemble",
+      "path": "Menu › File › Assemble clips into a video",
+      "advanced": false
+    },
+    {
+      "id": "export.open",
+      "path": "Menu › File › Export…",
+      "advanced": false
+    },
+    {
+      "id": "handoff.open",
+      "path": "Menu › File › Handoff to production",
+      "advanced": false
+    },
+    {
+      "id": "canvas.close",
+      "path": "Menu › File › Close canvas",
+      "advanced": false
+    },
+    {
+      "id": "account.switch",
+      "path": "Menu › File › Sign in as another account…",
+      "advanced": false
+    },
+    {
+      "id": "edit.undo",
+      "path": "Menu › Edit › Undo",
+      "advanced": false
+    },
+    {
+      "id": "edit.redo",
+      "path": "Menu › Edit › Redo",
+      "advanced": false
+    },
+    {
+      "id": "edit.undo-history",
+      "path": "Menu › Edit › Undo history…",
+      "advanced": false
+    },
+    {
+      "id": "edit.cut",
+      "path": "Menu › Edit › Cut",
+      "advanced": false
+    },
+    {
+      "id": "edit.copy",
+      "path": "Menu › Edit › Copy",
+      "advanced": false
+    },
+    {
+      "id": "edit.paste",
+      "path": "Menu › Edit › Paste",
+      "advanced": false
+    },
+    {
+      "id": "edit.copy-properties",
+      "path": "Menu › Edit › Copy properties",
+      "advanced": false
+    },
+    {
+      "id": "edit.paste-properties",
+      "path": "Menu › Edit › Paste properties",
+      "advanced": false
+    },
+    {
+      "id": "select.all",
+      "path": "Menu › Edit › Select all",
+      "advanced": false
+    },
+    {
+      "id": "select.none",
+      "path": "Menu › Edit › Deselect all",
+      "advanced": false
+    },
+    {
+      "id": "select.all-annotations",
+      "path": "Menu › Edit › Select all annotations",
+      "advanced": false
+    },
+    {
+      "id": "artboard.new-desktop",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: Desktop",
+      "advanced": true
+    },
+    {
+      "id": "artboard.new-laptop",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: Laptop",
+      "advanced": true
+    },
+    {
+      "id": "artboard.new-tablet",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: Tablet",
+      "advanced": true
+    },
+    {
+      "id": "artboard.new-mobile",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: Mobile",
+      "advanced": true
+    },
+    {
+      "id": "artboard.new-a4",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: A4",
+      "advanced": true
+    },
+    {
+      "id": "artboard.new-letter",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: Letter",
+      "advanced": true
+    },
+    {
+      "id": "artboard.new-video",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: Video",
+      "advanced": true
+    },
+    {
+      "id": "view.panels",
+      "path": "Menu › View › Hide panels",
+      "advanced": false
+    },
+    {
+      "id": "view.comments",
+      "path": "Menu › View › Comments",
+      "advanced": false
+    },
+    {
+      "id": "view.assets",
+      "path": "Menu › View › Assets",
+      "advanced": false
+    },
+    {
+      "id": "view.exports",
+      "path": "Menu › View › Exports",
+      "advanced": false
+    },
+    {
+      "id": "view.annotations",
+      "path": "Menu › View › Annotations",
+      "advanced": false
+    },
+    {
+      "id": "mode.preview",
+      "path": "Menu › View › Preview",
+      "advanced": false
+    },
+    {
+      "id": "present.from-selection",
+      "path": "Menu › View › Present",
+      "advanced": false
+    },
+    {
+      "id": "present.from-start",
+      "path": "Menu › View › Present from the start",
+      "advanced": false
+    },
+    {
+      "id": "present.canvas",
+      "path": "Menu › View › Present the canvas",
+      "advanced": false
+    },
+    {
+      "id": "view.zoom-in",
+      "path": "Menu › View › Zoom in",
+      "advanced": false
+    },
+    {
+      "id": "view.zoom-out",
+      "path": "Menu › View › Zoom out",
+      "advanced": false
+    },
+    {
+      "id": "view.zoom-fit",
+      "path": "Menu › View › Zoom to fit",
+      "advanced": false
+    },
+    {
+      "id": "view.zoom-actual",
+      "path": "Menu › View › Actual size",
+      "advanced": false
+    },
+    {
+      "id": "view.layers-panel",
+      "path": "Menu › View › Advanced › Layers as a panel",
+      "advanced": true
+    },
+    {
+      "id": "view.inspector",
+      "path": "Menu › View › Advanced › Inspector",
+      "advanced": true
+    },
+    {
+      "id": "view.inspector-on-select",
+      "path": "Menu › View › Advanced › Open inspector on select",
+      "advanced": true
+    },
+    {
+      "id": "view.timeline-keep-open",
+      "path": "Menu › View › Advanced › Keep timeline open",
+      "advanced": true
+    },
+    {
+      "id": "view.minimap",
+      "path": "Menu › View › Advanced › Minimap",
+      "advanced": true
+    },
+    {
+      "id": "view.zoom-controls",
+      "path": "Menu › View › Advanced › Zoom controls",
+      "advanced": true
+    },
+    {
+      "id": "view.print-guides",
+      "path": "Menu › View › Advanced › Print guides",
+      "advanced": true
+    },
+    {
+      "id": "view.hidden-files",
+      "path": "Menu › View › Advanced › Hidden files",
+      "advanced": true
+    },
+    {
+      "id": "view.pin-panels",
+      "path": "Menu › View › Advanced › Pin panels to the side",
+      "advanced": true
+    },
+    {
+      "id": "help.shortcuts",
+      "path": "Menu › Help › Keyboard shortcuts",
+      "advanced": false
+    },
+    {
+      "id": "help.guides",
+      "path": "Menu › Help › Help and guides",
+      "advanced": false
+    },
+    {
+      "id": "help.whats-new",
+      "path": "Menu › Help › What's new",
+      "advanced": false
+    },
+    {
+      "id": "help.tour",
+      "path": "Menu › Help › Take the tour",
+      "advanced": false
+    },
+    {
+      "id": "help.setup",
+      "path": "Menu › Help › Set up Maude…",
+      "advanced": false
+    },
+    {
+      "id": "help.intro",
+      "path": "Menu › Help › Watch the intro",
+      "advanced": false
+    },
+    {
+      "id": "help.sharing",
+      "path": "Menu › Help › How sharing works",
+      "advanced": false
+    },
+    {
+      "id": "help.report-bug",
+      "path": "Menu › Help › Report a bug…",
+      "advanced": false
+    },
+    {
+      "id": "history.open",
+      "path": "Menu › Version history",
+      "advanced": false
+    },
+    {
+      "id": "share.open",
+      "path": "Menu › Share…",
+      "advanced": false
+    },
+    {
+      "id": "diag.sync",
+      "path": "Menu › Diagnostics › Sync",
+      "advanced": false
+    },
+    {
+      "id": "diag.server",
+      "path": "Menu › Diagnostics › Server",
+      "advanced": false
+    },
+    {
+      "id": "diag.ai",
+      "path": "Menu › Diagnostics › AI setup",
+      "advanced": false
+    },
+    {
+      "id": "diag.logs",
+      "path": "Menu › Diagnostics › Logs",
+      "advanced": false
+    },
+    {
+      "id": "canvas.reload",
+      "path": "Menu › Diagnostics › Reload canvas",
+      "advanced": false
+    },
+    {
+      "id": "diag.ai-recheck",
+      "path": "Menu › Diagnostics › Check AI setup again",
+      "advanced": false
+    },
+    {
+      "id": "diag.address",
+      "path": "Menu › Diagnostics › Advanced › Address",
+      "advanced": true
+    },
+    {
+      "id": "diag.process",
+      "path": "Menu › Diagnostics › Advanced › Process",
+      "advanced": true
+    },
+    {
+      "id": "diag.project-folder",
+      "path": "Menu › Diagnostics › Advanced › Project folder",
+      "advanced": true
+    },
+    {
+      "id": "sync.resync",
+      "path": "Menu › Diagnostics › Advanced › Resync now",
+      "advanced": true
+    },
+    {
+      "id": "sync.download-all",
+      "path": "Menu › Diagnostics › Advanced › Download all",
+      "advanced": true
+    },
+    {
+      "id": "settings.open",
+      "path": "Menu › Settings…",
+      "advanced": false
+    }
+  ],
+  "minutes": "8.9"
+}

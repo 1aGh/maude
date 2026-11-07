@@ -1,0 +1,118 @@
+{
+  "steps": [
+    {
+      "open": 2,
+      "label": "p-lef01248e06855453",
+      "tabs": 2,
+      "runningProjects": 2,
+      "servers": [
+        {
+          "pid": 20645,
+          "rssMB": 56
+        },
+        {
+          "pid": 20653,
+          "rssMB": 128
+        },
+        {
+          "pid": 21164,
+          "rssMB": 136
+        }
+      ]
+    },
+    {
+      "open": 3,
+      "label": "p-l6f7248f5db773ef2",
+      "tabs": 3,
+      "runningProjects": 3,
+      "servers": [
+        {
+          "pid": 20645,
+          "rssMB": 56
+        },
+        {
+          "pid": 20653,
+          "rssMB": 128
+        },
+        {
+          "pid": 21164,
+          "rssMB": 119
+        },
+        {
+          "pid": 21544,
+          "rssMB": 137
+        }
+      ]
+    },
+    {
+      "open": 4,
+      "label": "p-lc7a1eab8b9e2b6d7",
+      "tabs": 4,
+      "runningProjects": 3,
+      "servers": [
+        {
+          "pid": 20645,
+          "rssMB": 55
+        },
+        {
+          "pid": 21164,
+          "rssMB": 119
+        },
+        {
+          "pid": 21544,
+          "rssMB": 123
+        },
+        {
+          "pid": 21925,
+          "rssMB": 136
+        }
+      ]
+    },
+    {
+      "open": 5,
+      "label": "p-l963cf8a01a003412",
+      "tabs": 5,
+      "runningProjects": 3,
+      "servers": [
+        {
+          "pid": 20645,
+          "rssMB": 55
+        },
+        {
+          "pid": 21544,
+          "rssMB": 121
+        },
+        {
+          "pid": 21925,
+          "rssMB": 134
+        },
+        {
+          "pid": 22350,
+          "rssMB": 136
+        }
+      ]
+    }
+  ],
+  "final": {
+    "tabs": 5,
+    "runningProjects": 3,
+    "servers": [
+      {
+        "pid": 20645,
+        "rssMB": 55
+      },
+      {
+        "pid": 21544,
+        "rssMB": 121
+      },
+      {
+        "pid": 21925,
+        "rssMB": 134
+      },
+      {
+        "pid": 22350,
+        "rssMB": 136
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "tree": "/Users/iagh/git/personal/maude/.claude/worktrees/ab-w203",
+  "canvases": 4,
+  "opened": 4,
+  "failed": 0,
+  "openS": 1.5,
+  "bootMB": 190.1,
+  "peakDuringOpenMB": 431.2,
+  "afterOpenMB": 431.2,
+  "settleS": 0,
+  "afterSettleMB": 431.2,
+  "procsAfterSettle": 1,
+  "idleMedianMB": 356.9,
+  "idleEndMB": 344.2,
+  "idleTreeMedianMB": 1885,
+  "idleCpuMedian": 2,
+  "idleCpuMax": 3.8,
+  "idleCpuMean": 2,
+  "idleTreeCpuMean": 45.2,
+  "procs": 1
+}

@@ -1,0 +1,138 @@
+{
+  "steps": [
+    {
+      "open": 2,
+      "label": "p-l016448aba5f329f9",
+      "tabs": 2,
+      "runningProjects": 2,
+      "servers": [
+        {
+          "pid": 24479,
+          "rssMB": 68
+        },
+        {
+          "pid": 24487,
+          "rssMB": 147
+        },
+        {
+          "pid": 24996,
+          "rssMB": 137
+        }
+      ]
+    },
+    {
+      "open": 3,
+      "label": "p-l0c00e8b300a9e317",
+      "tabs": 3,
+      "runningProjects": 3,
+      "servers": [
+        {
+          "pid": 24479,
+          "rssMB": 65
+        },
+        {
+          "pid": 24487,
+          "rssMB": 132
+        },
+        {
+          "pid": 24996,
+          "rssMB": 117
+        },
+        {
+          "pid": 25375,
+          "rssMB": 137
+        }
+      ]
+    },
+    {
+      "open": 4,
+      "label": "p-la0a149bfc8ecd614",
+      "tabs": 4,
+      "runningProjects": 4,
+      "servers": [
+        {
+          "pid": 24479,
+          "rssMB": 52
+        },
+        {
+          "pid": 24487,
+          "rssMB": 105
+        },
+        {
+          "pid": 24996,
+          "rssMB": 105
+        },
+        {
+          "pid": 25375,
+          "rssMB": 122
+        },
+        {
+          "pid": 25787,
+          "rssMB": 106
+        }
+      ]
+    },
+    {
+      "open": 5,
+      "label": "p-ldbeae0fb0b1d33bc",
+      "tabs": 5,
+      "runningProjects": 5,
+      "servers": [
+        {
+          "pid": 24479,
+          "rssMB": 49
+        },
+        {
+          "pid": 24487,
+          "rssMB": 102
+        },
+        {
+          "pid": 24996,
+          "rssMB": 105
+        },
+        {
+          "pid": 25375,
+          "rssMB": 118
+        },
+        {
+          "pid": 25787,
+          "rssMB": 118
+        },
+        {
+          "pid": 26171,
+          "rssMB": 122
+        }
+      ]
+    }
+  ],
+  "final": {
+    "tabs": 5,
+    "runningProjects": 5,
+    "servers": [
+      {
+        "pid": 24479,
+        "rssMB": 50
+      },
+      {
+        "pid": 24487,
+        "rssMB": 107
+      },
+      {
+        "pid": 24996,
+        "rssMB": 106
+      },
+      {
+        "pid": 25375,
+        "rssMB": 119
+      },
+      {
+        "pid": 25787,
+        "rssMB": 119
+      },
+      {
+        "pid": 26171,
+        "rssMB": 123
+      }
+    ]
+  }
+}

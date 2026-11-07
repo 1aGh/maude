@@ -1,0 +1,144 @@
+{
+  "app": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/ab/app-204/Maude.app",
+  "canvases": 60,
+  "switches": 3,
+  "openStatuses": {
+    "200": 3
+  },
+  "bootS": 3.1,
+  "afterBoot": {
+    "webContentMB": 288.6,
+    "webContentFootprintMB": 342,
+    "appTreeMB": 2695.9
+  },
+  "afterSwitch": {
+    "webContentMB": 477.8,
+    "webContentFootprintMB": 548,
+    "appTreeMB": 3386.6,
+    "perWebContent": [
+      16,
+      29,
+      433
+    ]
+  },
+  "idleWebContentFootprintMedianMB": 531.5,
+  "idleAppFootprintMedianMB": 44,
+  "idleMaudeServerFootprintMB": 197.5,
+  "idleWebContentMedianMB": 434.6,
+  "idleWebContentEndMB": 414.9,
+  "idleWebkitAllMedianMB": 472.7,
+  "idleWebContentCpuMean": 0.3,
+  "idleWebkitCpuMean": 0.4,
+  "idleAppTreeMedianMB": 3177.5,
+  "idleAppTreeCpuMean": 1.6,
+  "idleMaudeServerMB": 611.9,
+  "maudeServers": 2,
+  "webContentProcs": 3,
+  "display": {
+    "displaySleepAssertions": [
+      "UserIsActive                   1",
+      "PreventUserIdleDisplaySleep    1",
+      "pid 1122(UniversalControl): [0x000270af000594f0] 01:20:07 PreventUserIdleDisplaySleep named: \"com.apple.universalcontrol.preventDisplaySleep\"",
+      "pid 557(powerd): [0x00014647000985fa] 13:26:48 UserIsActive named: \"com.apple.powermanagement.lidopen\""
+    ],
+    "locked": false
+  },
+  "afterBootSnap": {
+    "label": "afterBoot",
+    "at": 1793853076239,
+    "webContentMB": 288.609375,
+    "webContentN": 3,
+    "webContentFootprintMB": 342,
+    "appFootprintMB": 44,
+    "maudeServerFootprintMB": 224,
+    "webContentCpuS": 2.38,
+    "webkitAllMB": 332.34375,
+    "webkitAllCpuS": 3.21,
+    "appMB": 94.34375,
+    "appTreeMB": 2695.875,
+    "appTreeCpuS": 14.079999999999998,
+    "maudeServers": 2,
+    "maudeServerMB": 596.625,
+    "perWebContent": [
+      21,
+      48,
+      220
+    ]
+  },
+  "afterSwitchSnap": {
+    "label": "afterSwitch",
+    "at": 1793853085528,
+    "webContentMB": 477.796875,
+    "webContentN": 3,
+    "webContentFootprintMB": 548,
+    "appFootprintMB": 44,
+    "maudeServerFootprintMB": 201,
+    "webContentCpuS": 4.08,
+    "webkitAllMB": 524.78125,
+    "webkitAllCpuS": 5.55,
+    "appMB": 93.609375,
+    "appTreeMB": 3386.625,
+    "appTreeCpuS": 37.519999999999996,
+    "maudeServers": 2,
+    "maudeServerMB": 695,
+    "perWebContent": [
+      16,
+      29,
+      433
+    ]
+  },
+  "samples": [
+    {
+      "t": 5,
+      "label": "idle",
+      "at": 1793853090708,
+      "webContentMB": 454.25,
+      "webContentN": 3,
+      "webContentFootprintMB": 531,
+      "appFootprintMB": 44,
+      "maudeServerFootprintMB": 201,
+      "webContentCpuS": 4.09,
+      "webkitAllMB": 497.609375,
+      "webkitAllCpuS": 5.57,
+      "appMB": 93.234375,
+      "appTreeMB": 3245.40625,
+      "appTreeCpuS": 37.589999999999996,
+      "maudeServers": 2,
+      "maudeServerMB": 640.890625,
+      "perWebContent": [
+        16,
+        29,
+        410
+      ],
+      "webContentCpu": 0.19305019305018895,
+      "webkitCpu": 0.38610038610039504,
+      "appTreeCpu": 1.3513513513513569
+    },
+    {
+      "t": 10,
+      "label": "idle",
+      "at": 1793853095884,
+      "webContentMB": 414.890625,
+      "webContentN": 3,
+      "webContentFootprintMB": 532,
+      "appFootprintMB": 44,
+      "maudeServerFootprintMB": 194,
+      "webContentCpuS": 4.11,
+      "webkitAllMB": 447.8125,
+      "webkitAllCpuS": 5.59,
+      "appMB": 92.296875,
+      "appTreeMB": 3109.625,
+      "appTreeCpuS": 37.69,
+      "maudeServers": 2,
+      "maudeServerMB": 582.984375,
+      "perWebContent": [
+        15,
+        23,
+        377
+      ],
+      "webContentCpu": 0.3863987635239656,
+      "webkitCpu": 0.3863987635239485,
+      "appTreeCpu": 1.931993817619811
+    }
+  ]
+}

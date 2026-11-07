@@ -1,0 +1,224 @@
+{
+  "files": 60,
+  "fileMB": 23.8,
+  "latencyMs": 0,
+  "fillSlots": 4,
+  "done": true,
+  "firstFileS": 2,
+  "wallS": 2,
+  "peakRssMB": 269,
+  "cell": {
+    "gets": 0,
+    "misses503": 0,
+    "fills": 0,
+    "peakInFlight": 0,
+    "rate429": 0
+  },
+  "final": {
+    "phase": "seeding",
+    "tracked": 72,
+    "delivered": 60,
+    "remaining": 12,
+    "bytesRemaining": 0,
+    "blocked": [],
+    "etaMs": null,
+    "startedAt": 1793848881147
+  },
+  "tailLines": [
+    "[sync/files] journal file plane active — one lane, both directions, per-file delivery state in the Sync panel.",
+    "[sync/files] 60 down, 0 up, 0 conflict(s), 0 already in step.",
+    "[sync/files] 60 / 72 delivered · 12 waiting",
+    "[sync/files] 60 / 72 delivered · 12 waiting"
+  ],
+  "log": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/ab/sync/smoke-v203-r1/studio.log",
+  "samples": [
+    {
+      "t": 1011,
+      "rss": 217,
+      "delivered": 0,
+      "tracked": 0
+    },
+    {
+      "t": 2016,
+      "rss": 249,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 3022,
+      "rss": 258,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 4027,
+      "rss": 258,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 5037,
+      "rss": 258,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 6045,
+      "rss": 258,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 7054,
+      "rss": 258,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 8062,
+      "rss": 258,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 9069,
+      "rss": 258,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 10076,
+      "rss": 258,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 11084,
+      "rss": 258,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 12088,
+      "rss": 258,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 13096,
+      "rss": 258,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 14101,
+      "rss": 167,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 15108,
+      "rss": 150,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 16112,
+      "rss": 269,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 17122,
+      "rss": 269,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 18125,
+      "rss": 241,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 19129,
+      "rss": 169,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 20135,
+      "rss": 167,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 21144,
+      "rss": 168,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 22151,
+      "rss": 167,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 23157,
+      "rss": 167,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 24164,
+      "rss": 167,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 25172,
+      "rss": 167,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 26179,
+      "rss": 167,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    },
+    {
+      "t": 27183,
+      "rss": 167,
+      "delivered": 60,
+      "tracked": 72,
+      "phase": "seeding"
+    }
+  ]
+}

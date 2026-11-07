@@ -1,0 +1,46 @@
+{
+  "app": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/ab/app-203/Maude.app",
+  "canvases": 60,
+  "switches": 40,
+  "openStatuses": {
+    "200": 40
+  },
+  "bootS": 4.1,
+  "afterBoot": {
+    "webContentMB": 234.5,
+    "webContentFootprintMB": 315,
+    "appTreeMB": 2353.3
+  },
+  "afterSwitch": {
+    "webContentMB": 909.9,
+    "webContentFootprintMB": 1037,
+    "appTreeMB": 401.7,
+    "perWebContent": [
+      12,
+      9,
+      889
+    ]
+  },
+  "idleWebContentFootprintMedianMB": 1060.5,
+  "idleAppFootprintMedianMB": 43,
+  "idleMaudeServerFootprintMB": 405,
+  "idleWebContentMedianMB": 850.8,
+  "idleWebContentEndMB": 278.6,
+  "idleWebkitAllMedianMB": 893.2,
+  "idleWebContentCpuMean": 1.4,
+  "idleWebkitCpuMean": 1.7,
+  "idleAppTreeMedianMB": 259.8,
+  "idleAppTreeCpuMean": 1.8,
+  "idleMaudeServerMB": 154.9,
+  "maudeServers": 2,
+  "webContentProcs": 3,
+  "display": {
+    "displaySleepAssertions": [
+      "UserIsActive                   1",
+      "PreventUserIdleDisplaySleep    1",
+      "pid 607(bluetoothd): [0x000002e500098976] 13:09:31 UserIsActive named: \"Bluetooth LE HID Activity\"",
+      "pid 557(powerd): [0x00014647000985fa] 13:41:37 UserIsActive named: \"com.apple.powermanagement.lidopen\""
+    ],
+    "locked": false
+  }
+}

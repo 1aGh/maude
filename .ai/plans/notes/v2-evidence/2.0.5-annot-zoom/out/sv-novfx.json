@@ -1,0 +1,64 @@
+{
+  "current": {
+    "date": "2026-11-05T10:04:48.572Z",
+    "canvas": ".design/ui/AI-StudyMate/ux/retention-ladder.tsx (studio) [novfx]",
+    "engine": "webkit-safari",
+    "url": "http://localhost:4517/",
+    "panFrames": 60,
+    "zoomFrames": 40,
+    "p50FrameMs": 17,
+    "p95FrameMs": 237,
+    "maxFrameMs": 257,
+    "panP95Ms": 18,
+    "zoomP95Ms": 256,
+    "settleMaxMs": 222,
+    "longtasks": 0,
+    "longFrames": 37,
+    "jankFrames": 41,
+    "settleLongFrames": 2,
+    "boardsOnScreen": 1,
+    "artboardRenders": 8,
+    "annotationRenders": 16,
+    "instrumented": true,
+    "passes": 2,
+    "p95SpreadMs": 31,
+    "zoomP95SpreadMs": 20,
+    "longFramesRange": 1,
+    "kept": [
+      {
+        "p50": 17,
+        "p95": 237,
+        "panP95": 18,
+        "zoomP95": 256,
+        "longFrames": 37,
+        "jankFrames": 41,
+        "settleLongFrames": 2,
+        "boardsOnScreen": 1
+      },
+      {
+        "p50": 17,
+        "p95": 206,
+        "panP95": 18,
+        "zoomP95": 236,
+        "longFrames": 36,
+        "jankFrames": 41,
+        "settleLongFrames": 1,
+        "boardsOnScreen": 1
+      }
+    ],
+    "window": "1600x1000",
+    "frame": {
+      "mode": "today",
+      "w": 1600,
+      "h": 948,
+      "dpr": 2,
+      "innerW": 1600,
+      "innerH": 948
+    },
+    "idle": {
+      "frameP50": 17,
+      "parentP50": 17
+    }
+  },
+  "previous": null
+}

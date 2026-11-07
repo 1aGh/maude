@@ -1,0 +1,85 @@
+{
+  "ui/AI-StudyMate/ux/retention-ladder": {
+    "010bd7dc": {
+      "canvas": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/perf-rl/proj2/.design/ui/AI-StudyMate/ux/retention-ladder.tsx",
+      "col": 6,
+      "componentName": "Retention7Dni",
+      "jsxPath": [
+        "DesignCanvas",
+        "DCSection"
+      ],
+      "line": 48
+    },
+    "1c2fba1b": {
+      "canvas": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/perf-rl/proj2/.design/ui/AI-StudyMate/ux/retention-ladder.tsx",
+      "col": 6,
+      "componentName": "Header",
+      "jsxPath": [
+        "div",
+        "div"
+      ],
+      "line": 36
+    },
+    "339ecaec": {
+      "canvas": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/perf-rl/proj2/.design/ui/AI-StudyMate/ux/retention-ladder.tsx",
+      "col": 4,
+      "componentName": "Header",
+      "jsxPath": [
+        "div"
+      ],
+      "line": 20
+    },
+    "5fa3e83b": {
+      "canvas": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/perf-rl/proj2/.design/ui/AI-StudyMate/ux/retention-ladder.tsx",
+      "col": 10,
+      "componentName": "Retention7Dni",
+      "jsxPath": [
+        "DesignCanvas",
+        "DCSection",
+        "DCArtboard",
+        "Header"
+      ],
+      "line": 50
+    },
+    "b3139c2e": {
+      "canvas": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/perf-rl/proj2/.design/ui/AI-StudyMate/ux/retention-ladder.tsx",
+      "col": 6,
+      "componentName": "Header",
+      "jsxPath": [
+        "div",
+        "div"
+      ],
+      "line": 40
+    },
+    "bc79756e": {
+      "canvas": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/perf-rl/proj2/.design/ui/AI-StudyMate/ux/retention-ladder.tsx",
+      "col": 6,
+      "componentName": "Header",
+      "jsxPath": [
+        "div",
+        "div"
+      ],
+      "line": 39
+    },
+    "dee2d181": {
+      "canvas": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/perf-rl/proj2/.design/ui/AI-StudyMate/ux/retention-ladder.tsx",
+      "col": 8,
+      "componentName": "Retention7Dni",
+      "jsxPath": [
+        "DesignCanvas",
+        "DCSection",
+        "DCArtboard"
+      ],
+      "line": 49
+    },
+    "f7340ba3": {
+      "canvas": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/perf-rl/proj2/.design/ui/AI-StudyMate/ux/retention-ladder.tsx",
+      "col": 4,
+      "componentName": "Retention7Dni",
+      "jsxPath": [
+        "DesignCanvas"
+      ],
+      "line": 47
+    }
+  }
+}

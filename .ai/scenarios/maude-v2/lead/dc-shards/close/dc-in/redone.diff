@@ -1,0 +1,13 @@
+diff --git a/scripts/v2-verify/dead-controls/crawl.mjs b/scripts/v2-verify/dead-controls/crawl.mjs
+index c3554e40a..497a13f7e 100644
+--- a/scripts/v2-verify/dead-controls/crawl.mjs
++++ b/scripts/v2-verify/dead-controls/crawl.mjs
+@@ -516,6 +516,8 @@ export class Crawler {
+         }
+         queue.push(st);
+       } catch (e) {
++        // not judged again after all: --merge keeps the earlier shards' rows of it (else they vanish uncounted)
++        this.redone = this.redone.filter((r) => r.surface !== path);
+         this.results.push({
+           mode: this.mode,
+           surface: path,

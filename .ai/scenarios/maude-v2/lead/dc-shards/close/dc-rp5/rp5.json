@@ -1,0 +1,426 @@
+{
+  "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4",
+  "results": [],
+  "errors": [
+    {
+      "shell": "project",
+      "surface": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "kind": "console.error (blocked external)",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector\n    at https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap:0",
+      "build": "8a69f1cfcbc4b584d92f73a6f3744cfc712d58f4"
+    }
+  ],
+  "external": [
+    {
+      "shell": "project",
+      "mode": "tauri",
+      "control": "<load>",
+      "url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    }
+  ],
+  "popups": [],
+  "unreachable": [
+    {
+      "mode": "tauri",
+      "surface": "project",
+      "why": "crawler crashed: Error: --replay: \"h1 · heading · F2 to rename\" is not in the state \"canvas Landing › panel-tab-layers\" (there: project-pill | palette-mode-edit | palette-mode-preview | palette-mode-present | mode-present-menu | share-cluster-panels | share-cluster-share | panel-tab-tree | panel-tab-layers | panel-tab-assets | panel-fold-left | layers-advanced | st-empty-start-quick-setup | panel-icon-right | panel-icon-assistant)\n    at Crawler.walkPath (file:///Volumes/D/maude-runner/slot2/scripts/v2-verify/dead-controls/crawl.mjs:573:15)\n    at async Crawler.runPaths (file:///Volumes/D/maude-runner/slot2/scripts/v2-verify/dead-controls/crawl.mjs:604:18)\n    at async crawlMode (file:///Volumes/D/maude-runner/slot2/scripts/v2-verify/dead-controls.mjs:287:19)\n    at async Promise.all (index 0)\n    at async file:///Volumes/D/maude-runner/slot2/scripts/v2-verify/dead-controls.mjs:326:1"
+    }
+  ],
+  "statesDone": [],
+  "redone": [],
+  "registry": [
+    {
+      "id": "nav.home",
+      "path": "Menu › Back to Home",
+      "advanced": false
+    },
+    {
+      "id": "canvas.new",
+      "path": "Menu › File › New canvas",
+      "advanced": false
+    },
+    {
+      "id": "project.new",
+      "path": "Menu › File › New project…",
+      "advanced": false
+    },
+    {
+      "id": "project.open",
+      "path": "Menu › File › Open project…",
+      "advanced": false
+    },
+    {
+      "id": "project.pull-copy",
+      "path": "Menu › File › Pull a local copy…",
+      "advanced": false
+    },
+    {
+      "id": "project.share-github",
+      "path": "Menu › File › Share on GitHub…",
+      "advanced": false
+    },
+    {
+      "id": "canvas.duplicate",
+      "path": "Menu › File › Duplicate canvas",
+      "advanced": false
+    },
+    {
+      "id": "canvas.rename",
+      "path": "Menu › File › Rename canvas",
+      "advanced": false
+    },
+    {
+      "id": "canvas.move",
+      "path": "Menu › File › Move to…",
+      "advanced": false
+    },
+    {
+      "id": "import.figma",
+      "path": "Menu › File › Import from Figma…",
+      "advanced": false
+    },
+    {
+      "id": "import.brand",
+      "path": "Menu › File › Import a brand…",
+      "advanced": false
+    },
+    {
+      "id": "video.assemble",
+      "path": "Menu › File › Assemble clips into a video",
+      "advanced": false
+    },
+    {
+      "id": "export.open",
+      "path": "Menu › File › Export…",
+      "advanced": false
+    },
+    {
+      "id": "handoff.open",
+      "path": "Menu › File › Handoff to production",
+      "advanced": false
+    },
+    {
+      "id": "canvas.close",
+      "path": "Menu › File › Close canvas",
+      "advanced": false
+    },
+    {
+      "id": "account.switch",
+      "path": "Menu › File › Sign in as another account…",
+      "advanced": false
+    },
+    {
+      "id": "edit.undo",
+      "path": "Menu › Edit › Undo",
+      "advanced": false
+    },
+    {
+      "id": "edit.redo",
+      "path": "Menu › Edit › Redo",
+      "advanced": false
+    },
+    {
+      "id": "edit.undo-history",
+      "path": "Menu › Edit › Undo history…",
+      "advanced": false
+    },
+    {
+      "id": "edit.cut",
+      "path": "Menu › Edit › Cut",
+      "advanced": false
+    },
+    {
+      "id": "edit.copy",
+      "path": "Menu › Edit › Copy",
+      "advanced": false
+    },
+    {
+      "id": "edit.paste",
+      "path": "Menu › Edit › Paste",
+      "advanced": false
+    },
+    {
+      "id": "edit.copy-properties",
+      "path": "Menu › Edit › Copy properties",
+      "advanced": false
+    },
+    {
+      "id": "edit.paste-properties",
+      "path": "Menu › Edit › Paste properties",
+      "advanced": false
+    },
+    {
+      "id": "select.all",
+      "path": "Menu › Edit › Select all",
+      "advanced": false
+    },
+    {
+      "id": "select.none",
+      "path": "Menu › Edit › Deselect all",
+      "advanced": false
+    },
+    {
+      "id": "select.all-annotations",
+      "path": "Menu › Edit › Select all annotations",
+      "advanced": false
+    },
+    {
+      "id": "artboard.new-desktop",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: Desktop",
+      "advanced": true
+    },
+    {
+      "id": "artboard.new-laptop",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: Laptop",
+      "advanced": true
+    },
+    {
+      "id": "artboard.new-tablet",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: Tablet",
+      "advanced": true
+    },
+    {
+      "id": "artboard.new-mobile",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: Mobile",
+      "advanced": true
+    },
+    {
+      "id": "artboard.new-a4",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: A4",
+      "advanced": true
+    },
+    {
+      "id": "artboard.new-letter",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: Letter",
+      "advanced": true
+    },
+    {
+      "id": "artboard.new-video",
+      "path": "Menu › Edit › Advanced › New artboard › New artboard: Video",
+      "advanced": true
+    },
+    {
+      "id": "view.panels",
+      "path": "Menu › View › Hide panels",
+      "advanced": false
+    },
+    {
+      "id": "view.comments",
+      "path": "Menu › View › Comments",
+      "advanced": false
+    },
+    {
+      "id": "view.assets",
+      "path": "Menu › View › Assets",
+      "advanced": false
+    },
+    {
+      "id": "view.exports",
+      "path": "Menu › View › Exports",
+      "advanced": false
+    },
+    {
+      "id": "view.annotations",
+      "path": "Menu › View › Annotations",
+      "advanced": false
+    },
+    {
+      "id": "mode.preview",
+      "path": "Menu › View › Preview",
+      "advanced": false
+    },
+    {
+      "id": "present.from-selection",
+      "path": "Menu › View › Present",
+      "advanced": false
+    },
+    {
+      "id": "present.from-start",
+      "path": "Menu › View › Present from the start",
+      "advanced": false
+    },
+    {
+      "id": "present.canvas",
+      "path": "Menu › View › Present the canvas",
+      "advanced": false
+    },
+    {
+      "id": "view.zoom-in",
+      "path": "Menu › View › Zoom in",
+      "advanced": false
+    },
+    {
+      "id": "view.zoom-out",
+      "path": "Menu › View › Zoom out",
+      "advanced": false
+    },
+    {
+      "id": "view.zoom-fit",
+      "path": "Menu › View › Zoom to fit",
+      "advanced": false
+    },
+    {
+      "id": "view.zoom-actual",
+      "path": "Menu › View › Actual size",
+      "advanced": false
+    },
+    {
+      "id": "view.layers-panel",
+      "path": "Menu › View › Advanced › Layers as a panel",
+      "advanced": true
+    },
+    {
+      "id": "view.inspector",
+      "path": "Menu › View › Advanced › Inspector",
+      "advanced": true
+    },
+    {
+      "id": "view.inspector-on-select",
+      "path": "Menu › View › Advanced › Open inspector on select",
+      "advanced": true
+    },
+    {
+      "id": "view.timeline-keep-open",
+      "path": "Menu › View › Advanced › Keep timeline open",
+      "advanced": true
+    },
+    {
+      "id": "view.minimap",
+      "path": "Menu › View › Advanced › Minimap",
+      "advanced": true
+    },
+    {
+      "id": "view.zoom-controls",
+      "path": "Menu › View › Advanced › Zoom controls",
+      "advanced": true
+    },
+    {
+      "id": "view.print-guides",
+      "path": "Menu › View › Advanced › Print guides",
+      "advanced": true
+    },
+    {
+      "id": "view.hidden-files",
+      "path": "Menu › View › Advanced › Hidden files",
+      "advanced": true
+    },
+    {
+      "id": "view.pin-panels",
+      "path": "Menu › View › Advanced › Pin panels to the side",
+      "advanced": true
+    },
+    {
+      "id": "help.shortcuts",
+      "path": "Menu › Help › Keyboard shortcuts",
+      "advanced": false
+    },
+    {
+      "id": "help.guides",
+      "path": "Menu › Help › Help and guides",
+      "advanced": false
+    },
+    {
+      "id": "help.whats-new",
+      "path": "Menu › Help › What's new",
+      "advanced": false
+    },
+    {
+      "id": "help.tour",
+      "path": "Menu › Help › Take the tour",
+      "advanced": false
+    },
+    {
+      "id": "help.setup",
+      "path": "Menu › Help › Set up Maude…",
+      "advanced": false
+    },
+    {
+      "id": "help.intro",
+      "path": "Menu › Help › Watch the intro",
+      "advanced": false
+    },
+    {
+      "id": "help.sharing",
+      "path": "Menu › Help › How sharing works",
+      "advanced": false
+    },
+    {
+      "id": "help.report-bug",
+      "path": "Menu › Help › Report a bug…",
+      "advanced": false
+    },
+    {
+      "id": "history.open",
+      "path": "Menu › Version history",
+      "advanced": false
+    },
+    {
+      "id": "share.open",
+      "path": "Menu › Share…",
+      "advanced": false
+    },
+    {
+      "id": "diag.sync",
+      "path": "Menu › Diagnostics › Sync",
+      "advanced": false
+    },
+    {
+      "id": "diag.server",
+      "path": "Menu › Diagnostics › Server",
+      "advanced": false
+    },
+    {
+      "id": "diag.ai",
+      "path": "Menu › Diagnostics › AI setup",
+      "advanced": false
+    },
+    {
+      "id": "diag.logs",
+      "path": "Menu › Diagnostics › Logs",
+      "advanced": false
+    },
+    {
+      "id": "canvas.reload",
+      "path": "Menu › Diagnostics › Reload canvas",
+      "advanced": false
+    },
+    {
+      "id": "diag.ai-recheck",
+      "path": "Menu › Diagnostics › Check AI setup again",
+      "advanced": false
+    },
+    {
+      "id": "diag.address",
+      "path": "Menu › Diagnostics › Advanced › Address",
+      "advanced": true
+    },
+    {
+      "id": "diag.process",
+      "path": "Menu › Diagnostics › Advanced › Process",
+      "advanced": true
+    },
+    {
+      "id": "diag.project-folder",
+      "path": "Menu › Diagnostics › Advanced › Project folder",
+      "advanced": true
+    },
+    {
+      "id": "sync.resync",
+      "path": "Menu › Diagnostics › Advanced › Resync now",
+      "advanced": true
+    },
+    {
+      "id": "sync.download-all",
+      "path": "Menu › Diagnostics › Advanced › Download all",
+      "advanced": true
+    },
+    {
+      "id": "settings.open",
+      "path": "Menu › Settings…",
+      "advanced": false
+    }
+  ],
+  "minutes": "10.9"
+}

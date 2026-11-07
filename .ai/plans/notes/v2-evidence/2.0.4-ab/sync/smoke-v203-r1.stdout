@@ -1,0 +1,35 @@
+hub journal holds 72 files (2 s to import)
+{
+  "files": 60,
+  "fileMB": 23.8,
+  "latencyMs": 0,
+  "fillSlots": 4,
+  "done": true,
+  "firstFileS": 2,
+  "wallS": 2,
+  "peakRssMB": 269,
+  "cell": {
+    "gets": 0,
+    "misses503": 0,
+    "fills": 0,
+    "peakInFlight": 0,
+    "rate429": 0
+  },
+  "final": {
+    "phase": "seeding",
+    "tracked": 72,
+    "delivered": 60,
+    "remaining": 12,
+    "bytesRemaining": 0,
+    "blocked": [],
+    "etaMs": null,
+    "startedAt": 1793848881147
+  },
+  "tailLines": [
+    "[sync/files] journal file plane active — one lane, both directions, per-file delivery state in the Sync panel.",
+    "[sync/files] 60 down, 0 up, 0 conflict(s), 0 already in step.",
+    "[sync/files] 60 / 72 delivered · 12 waiting",
+    "[sync/files] 60 / 72 delivered · 12 waiting"
+  ],
+  "log": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/ab/sync/smoke-v203-r1/studio.log"
+}

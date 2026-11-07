@@ -1,0 +1,24 @@
+{
+  "pin": {
+    "on": false,
+    "widths": {}
+  },
+  "fold": {},
+  "seen": {},
+  "whatsNewSeen": "2.0.4",
+  "version": 2,
+  "theme": "dark",
+  "minimap": false,
+  "zoom": false,
+  "annotations": true,
+  "autoOpenInspector": true,
+  "panelSides": {
+    "tree": "left",
+    "layers": "left",
+    "inspector": "right",
+    "comments": "right",
+    "changes": "right",
+    "assistant": "right"
+  },
+  "layersMode": "separate"
+}

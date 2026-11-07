@@ -1,0 +1,46 @@
+{
+  "app": "/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/ab/app-204/Maude.app",
+  "canvases": 60,
+  "switches": 3,
+  "openStatuses": {
+    "200": 3
+  },
+  "bootS": 3.1,
+  "afterBoot": {
+    "webContentMB": 288.6,
+    "webContentFootprintMB": 342,
+    "appTreeMB": 2695.9
+  },
+  "afterSwitch": {
+    "webContentMB": 477.8,
+    "webContentFootprintMB": 548,
+    "appTreeMB": 3386.6,
+    "perWebContent": [
+      16,
+      29,
+      433
+    ]
+  },
+  "idleWebContentFootprintMedianMB": 531.5,
+  "idleAppFootprintMedianMB": 44,
+  "idleMaudeServerFootprintMB": 197.5,
+  "idleWebContentMedianMB": 434.6,
+  "idleWebContentEndMB": 414.9,
+  "idleWebkitAllMedianMB": 472.7,
+  "idleWebContentCpuMean": 0.3,
+  "idleWebkitCpuMean": 0.4,
+  "idleAppTreeMedianMB": 3177.5,
+  "idleAppTreeCpuMean": 1.6,
+  "idleMaudeServerMB": 611.9,
+  "maudeServers": 2,
+  "webContentProcs": 3,
+  "display": {
+    "displaySleepAssertions": [
+      "UserIsActive                   1",
+      "PreventUserIdleDisplaySleep    1",
+      "pid 1122(UniversalControl): [0x000270af000594f0] 01:20:07 PreventUserIdleDisplaySleep named: \"com.apple.universalcontrol.preventDisplaySleep\"",
+      "pid 557(powerd): [0x00014647000985fa] 13:26:48 UserIsActive named: \"com.apple.powermanagement.lidopen\""
+    ],
+    "locked": false
+  }
+}

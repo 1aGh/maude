@@ -1,0 +1,8 @@
+{
+  "formatVersion": 2,
+  "name": "perf-retention-ladder",
+  "designRoot": ".design",
+  "canvasGroups": [
+    { "label": "Canvasy", "path": "ui" }
+  ]
+}
