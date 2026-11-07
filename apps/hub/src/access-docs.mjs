@@ -126,6 +126,11 @@ export function stripSummon({ states, context }) {
 const ROLE_RANK = ['observer', 'viewer', 'member', 'owner'];
 /** The mark a role this hub vouched for carries (the studio drops an unmarked hub-relayed role). */
 export const HUB_ROLE_MARK = 'hub';
+/**
+ * T5.2 (#165) — the /health word that says this hub runs `stampHubRole` on every document. An older hub
+ * relays `roleBy: 'hub'` as a peer sent it, so a studio keeps a hub-relayed role only where this is.
+ */
+export const PRESENCE_ROLE_CAPABILITY = 'presence-role-v1';
 
 /**
  * V2-8.9 round B L1 — `beforeHandleAwareness`: the presence `role` word ("· Owner") is the hub's,

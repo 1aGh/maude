@@ -66,6 +66,7 @@ import {
   DOC_REFUSAL_REASON,
   docContextFields,
   docDoor,
+  PRESENCE_ROLE_CAPABILITY,
   peerAccess,
   stampHubRole,
   stripSummon,
@@ -1383,6 +1384,8 @@ export function createHub(config = {}) {
               FILE_CLASSES_V2_CAPABILITY,
               // fix/205: the doors take paths up to 32 segments (an older one stops at 8).
               FILE_DEPTH_V2_CAPABILITY,
+              // T5.2 (#165): presence roles are stamped here (stampHubRole) — a studio trusts a relayed role only then.
+              PRESENCE_ROLE_CAPABILITY,
               // Issue #204: `/studio/signin?client=desktop` + `/auth/desktop/exchange`. The
               // desktop request rides a cookie signed with HUB_SECRET — none, no word.
               ...(secret ? [DESKTOP_SIGNIN_CAPABILITY] : []),

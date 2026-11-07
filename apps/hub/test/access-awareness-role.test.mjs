@@ -99,3 +99,15 @@ describe('stampHubRole (unit)', () => {
     assert.deepEqual(internal.get(1), { role: 'owner' });
   });
 });
+
+// T5.2 (#165) — a studio keeps a hub-relayed role only from a hub that says it stamps them: an older
+// hub relays `roleBy: 'hub'` exactly as a peer sent it, so the mark alone proves nothing there.
+describe('presence-role-v1', () => {
+  test('the hub that stamps roles says so in /health', async () => {
+    const health = await (await fetch(`${hub.http}/health`)).json();
+    assert.ok(
+      health.capabilities.includes('presence-role-v1'),
+      JSON.stringify(health.capabilities)
+    );
+  });
+});
