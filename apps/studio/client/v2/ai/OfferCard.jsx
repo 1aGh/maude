@@ -83,6 +83,25 @@ export function acceptOffer({ offer, ask, send = sendAskSelection, mode = shellM
   return !!sent;
 }
 
+/**
+ * "Put them in a section" (15 an-ai-write): the notes AI just wrote, gathered into one section. The same send
+ * path as "Make these changes", with those notes as the scope; the design is not touched, so the shell stays in
+ * Preview. Fewer than two notes have nothing to gather.
+ */
+export function putInSection({ offer, ask, send = sendAskSelection }) {
+  const wrote = Array.isArray(offer?.wrote) ? offer.wrote : [];
+  if (wrote.length < 2) return false;
+  return !!send({
+    text: OFFER_WORDS.section,
+    scope: annotationsScope({
+      file: ask?.file,
+      ids: wrote,
+      artboards: ask?.artboards,
+      kinds: { sticky: wrote.length },
+    }),
+  });
+}
+
 export function OfferSlot({ parts, status }) {
   const id = useMessage((m) => m.id);
   const latestId = useThread((t) => t.messages[t.messages.length - 1]?.id);
@@ -116,6 +135,9 @@ export function OfferSlot({ parts, status }) {
   if (!visible) return null;
   const make = () => {
     if (acceptOffer({ offer, ask })) fold(id);
+  };
+  const gather = () => {
+    if (putInSection({ offer, ask })) fold(id);
   };
   const leaves = leavesLine(offer.leaves.length);
   return (
@@ -151,6 +173,16 @@ export function OfferSlot({ parts, status }) {
         >
           {OFFER_WORDS.secondary}
         </button>
+        {offer.wrote?.length > 1 ? (
+          <button
+            type="button"
+            className="btn btn--sm"
+            data-testid="ai-offer-section"
+            onClick={gather}
+          >
+            {OFFER_WORDS.section}
+          </button>
+        ) : null}
         <button
           type="button"
           className="btn btn--sm btn--primary"

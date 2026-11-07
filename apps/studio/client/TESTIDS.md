@@ -1797,6 +1797,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-offer-says` | testid | The plan in one line, as the agent wrote it, rendered as text. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-offer-leaves` | testid | The line that names how many stickies the offer leaves alone. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-offer-make` | testid | The offer card's one button, "Make these changes": sends the follow-up with the same stickies as the scope. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
+| `ai-offer-section` | testid | T2.6 (15 an-ai-write): The offer card's "Put them in a section" button, shown when the AI wrote two or more notes: sends those words with the notes as the scope. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | test:annotations-ai-offer | new |
 | `ai-offer-sends` | testid | The offer card's line saying exactly what "Make these changes" sends: words, stickies, how many it resolves, the refs (sec-a C2). | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-offer-skip` | testid | The offer card's "Not now": folds the card, sends nothing. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-seen` | testid | Canvas side: the layer that holds the AI offer's outlines (aria-hidden, no pointer events). | `annotations/ui/ai-seen.tsx` · `AiSeenRings` | — | new |

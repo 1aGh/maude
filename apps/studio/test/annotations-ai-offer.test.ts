@@ -13,7 +13,7 @@ import {
   stripOffer,
   tagForRef,
 } from '../client/v2/ai/ai-offer.js';
-import { leavesLine, offerOf } from '../client/v2/ai/OfferCard.jsx';
+import { leavesLine, offerOf, putInSection } from '../client/v2/ai/OfferCard.jsx';
 import { createSeenLane, createSeenStore } from '../client/v2/ai/seen-relay.js';
 
 const block = (o: unknown) => `\`\`\`maude-offer\n${JSON.stringify(o)}\n\`\`\``;
@@ -118,7 +118,11 @@ describe('what the canvas hears', () => {
   });
 
   test("the fixed words are the app's", () => {
-    expect(OFFER_WORDS).toEqual({ primary: 'Make these changes', secondary: 'Not now' });
+    expect(OFFER_WORDS).toEqual({
+      primary: 'Make these changes',
+      secondary: 'Not now',
+      section: 'Put them in a section',
+    });
     expect(leavesLine(0)).toBe('');
     expect(leavesLine(1)).toBe('1 sticky isn’t included.');
     expect(leavesLine(3)).toBe('3 stickies aren’t included.');
@@ -191,5 +195,44 @@ describe('the relay', () => {
     x.emit({ dgn: 'canvas-rendered' }, x.w);
     expect(x.w.sent).toHaveLength(2);
     expect(x.w.sent[1]).toEqual({ dgn: 'ai-seen', targets: t });
+  });
+});
+
+describe('T2.6 (15 an-ai-write): "Put them in a section"', () => {
+  test('the offer may list the notes the AI just wrote; only well-formed ids are kept', () => {
+    const wrote = ['s_n1', 's_n2', 's_n1', 'bad id', '<script>', 7, 's_n3'];
+    const r = parseOffer(block({ ...good, answers: [], leaves: [], wrote }), { scopeIds: [] });
+    expect(r.offer?.wrote).toEqual(['s_n1', 's_n2', 's_n3']);
+    // no list, no key: an offer without notes written reads as it always did
+    expect(parseOffer(block(good), { scopeIds: SCOPE }).offer).not.toHaveProperty('wrote');
+    // a list that is not a list is ignored
+    expect(
+      parseOffer(block({ ...good, wrote: 's_n1' }), { scopeIds: SCOPE }).offer
+    ).not.toHaveProperty('wrote');
+  });
+
+  test('the button sends the fixed words with those notes as the scope, and leaves the mode alone', () => {
+    const offer = {
+      v: 1,
+      says: 'x',
+      answers: [],
+      leaves: [],
+      targets: [],
+      wrote: ['s_n1', 's_n2'],
+    };
+    const ask = { file: 'ui/Pricing.tsx', ids: [], artboards: ['desktop'], kinds: {} };
+    const sent: Array<{ text: string; scope: { ids: string[]; kind: string } }> = [];
+    const picked: string[] = [];
+    const mode = { select: (m: string) => picked.push(m) };
+    const send = (a: never) => (sent.push(a), true);
+    expect(putInSection({ offer, ask, send, mode })).toBe(true);
+    expect(sent[0].text).toBe('Put them in a section');
+    expect(sent[0].scope.kind).toBe('annotations');
+    expect(sent[0].scope.ids).toEqual(['s_n1', 's_n2']);
+    expect(picked).toEqual([]); // the notes live in Preview; nothing about this goes to Edit
+    // fewer than two notes: nothing to gather, nothing sent
+    expect(putInSection({ offer: { ...offer, wrote: ['s_n1'] }, ask, send, mode })).toBe(false);
+    expect(putInSection({ offer: { ...offer, wrote: undefined }, ask, send, mode })).toBe(false);
+    expect(sent.length).toBe(1);
   });
 });
