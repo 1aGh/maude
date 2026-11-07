@@ -510,7 +510,9 @@ const ENGINE_CSS = `
 .dc-section-collapsed { display: contents; }
 
 .dc-canvas .dc-artboard {
-  background: var(--bg-0, #ffffff);
+  /* 2.0.7 - the artboard's own colour once known (artboard-live-gate.tsx): an unpainted body or WebKit tile shows it,
+     never the design system's --bg-0 (a black square on a dark one). */
+  background: var(--dc-own-bg, var(--bg-0, #ffffff));
   color: var(--fg-0, #2a2520);
   /* Quiet frame chrome — FigJam Section / Figma Frame canonical. The Memphis
      hard-shadow is the Maude brand on USER CONTENT inside artboards; the frame

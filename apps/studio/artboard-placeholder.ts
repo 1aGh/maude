@@ -145,6 +145,15 @@ export function backgroundOf(
   return isClear(bg) ? '' : bg;
 }
 
+/**
+ * The own colour this artboard is known to have ('' when nothing is known yet): its measured background, else its
+ * `background` prop, else the canvas's. The frame takes it (`--dc-own-bg`), so an unpainted body or an unpainted
+ * WebKit tile shows the artboard's colour, never `var(--bg-0)` (a black square on a dark design system).
+ */
+export function knownBackground(id: string, background?: string): string {
+  return backgrounds.get(id) || background || canvasBg || '';
+}
+
 /** An artboard's colour as soon as it mounts (its picture comes later): its own skeleton and the canvas guess. */
 export function rememberBackground(id: string, bg: string): void {
   if (!bg) return;

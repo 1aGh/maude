@@ -38,6 +38,7 @@ import {
   backgroundOf,
   canvasBackground,
   choosePlaceholder,
+  knownBackground,
   rememberBackground,
   rememberPicture,
   subscribeCanvasBackground,
@@ -83,7 +84,7 @@ interface Runtime {
   visible: IntersectionObserver | null;
   keep: IntersectionObserver | null;
   ids: WeakMap<Element, string>;
-  /** 2.0.7 — small artboards stand in as a still picture during a zoom (WebKit, heavy canvases). */
+  /** 2.0.7 — the overview level: artboards under the cut show their still (WebKit). */
   stills: StillController | null;
 }
 
@@ -94,7 +95,7 @@ interface Runtime {
  * reselected after `loaded` — the selected clip was gone (2.0.7 video regression). Bump `RUNTIME_SHAPE` when
  * `Runtime` or `LiveRegistry` changes shape (a canvas-lib change hard-reloads the frame anyway).
  */
-const RUNTIME_SHAPE = 2;
+const RUNTIME_SHAPE = 3;
 const RUNTIME_KEY = '__maudeArtboardLive';
 interface RuntimeSlot {
   shape: number;
@@ -209,10 +210,10 @@ function getRuntime(): Runtime | null {
     const st = new StillController({ take: drawStill, info: (id) => registry.slotInfo(id) });
     registry.onSettle(() => st.settle());
     stills = st;
-    (window as unknown as { __maudeStillStats?: () => unknown }).__maudeStillStats = () => ({
-      ...st.stats(),
-      raster: { ...rasterTimings },
-    });
+    const w = window as unknown as Record<string, unknown>;
+    w.__maudeStillStats = () => ({ ...st.stats(), raster: { ...rasterTimings } });
+    // the views each artboard went through (the flicker count of the overview level)
+    w.__maudeStillHistory = (id?: string) => st.history(id);
   }
   const runtime: Runtime = { registry, budget, near, visible, keep, ids, stills };
   const slot: RuntimeSlot = { shape: RUNTIME_SHAPE, search: window.location.search, runtime };
@@ -381,18 +382,18 @@ export function ArtboardLiveGate({
 
   useMediaSleep(articleRef, live, on);
 
-  // 2.0.7 — the still that stands in during a zoom: registered while the children are mounted.
-  // The selected / active artboard and a video one never swap (`pinned`, `eager`).
+  // 2.0.7 — the overview level (artboard-still.ts): registered while the children are mounted; under the cut the
+  // artboard shows its still. The selected / active artboard and a video one never do (`pinned`, `eager`).
   const stills = on && rt ? rt.stills : null;
-  const flags = useRef({ pinned, eager });
-  flags.current = { pinned, eager };
-  useEffect(() => {
+  const flags = useRef({ pinned, eager, bg: background });
+  flags.current = { pinned, eager, bg: background };
+  // A layout effect: an artboard mounting under the cut is hidden behind its still (or cover) before it paints.
+  useLayoutEffect(() => {
     const article = articleRef.current;
     const body = bodyRef.current;
     if (!stills || !seen || !article || !body) return;
-    const off = stills.register(id, { article, body });
-    stills.update(id, flags.current);
-    return off;
+    const f = flags.current;
+    return stills.register(id, { article, body, bg: knownBackground(id, f.bg) }, f);
   }, [stills, seen, id, articleRef, bodyRef]);
   useEffect(() => {
     stills?.update(id, { pinned, eager });
@@ -420,6 +421,11 @@ export function ArtboardLiveGate({
     rt.registry.setWeight(id, b.getElementsByTagName('*').length);
     // its colour at once (four elements at most): the next placeholders of this canvas take it
     rememberBackground(id, backgroundOf(b));
+    const own = knownBackground(id, background);
+    if (own) {
+      articleRef.current?.style.setProperty('--dc-own-bg', own);
+      stills?.update(id, { bg: own });
+    }
     let timer: ReturnType<typeof setTimeout> | undefined;
     const shoot = () => {
       if (!b.isConnected) return;
@@ -435,12 +441,20 @@ export function ArtboardLiveGate({
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [on, rt, id, seen, bodyRef]);
+  }, [on, rt, id, seen, bodyRef, articleRef, background, stills]);
+
+  // Not mounted: the frame takes the colour known so far (an unpainted body is never var(--bg-0)).
+  const ownBg = on && !seen ? knownBackground(id, background) : '';
+  useLayoutEffect(() => {
+    if (ownBg) articleRef.current?.style.setProperty('--dc-own-bg', ownBg);
+  }, [ownBg, articleRef]);
 
   const value = on ? state : ALL_LIVE;
   if (!on || seen) return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
   const ph = choosePlaceholder(id, background);
-  const pic = ph.picture;
+  const kept = stills?.cache.peek(id);
+  // a kept still stands in for a released artboard (the same picture it shows when mounted under the cut)
+  const pic = kept ? undefined : ph.picture;
   return (
     <LiveContext.Provider value={value}>
       <div
@@ -452,6 +466,7 @@ export function ArtboardLiveGate({
           backgroundColor: ph.bg || undefined,
         }}
       >
+        {kept ? <StillCopy still={kept.el} /> : null}
         {pic?.blocks.map((b, i) => (
           <i
             // biome-ignore lint/suspicious/noArrayIndexKey: a still picture; its blocks never reorder
@@ -471,6 +486,22 @@ export function ArtboardLiveGate({
   );
 }
 
+/** A copy of a kept still (the cache's own canvas stays the cache's): drawn once, on mount. */
+function StillCopy({ still }: { still: HTMLElement }) {
+  return (
+    <canvas
+      className="dc-artboard-still-copy"
+      ref={(c) => {
+        const src = still as HTMLCanvasElement;
+        if (!c || !src.width || c.width === src.width) return;
+        c.width = src.width;
+        c.height = src.height;
+        c.getContext('2d')?.drawImage(src, 0, 0);
+      }}
+    />
+  );
+}
+
 /** Paused CSS animations while asleep, the placeholder and the still. (A released WebGL canvas's picture is artboard-webgl.ts's.) */
 export const ARTBOARD_LIVE_CSS = `${ARTBOARD_STILL_CSS}
 .dc-artboard[data-dc-asleep] .dc-artboard-body *,
@@ -480,10 +511,5 @@ html[data-dc-crowded] .dc-canvas .dc-artboard { will-change: auto; }
 .dc-artboard-sleeping { width: 100%; position: relative; overflow: hidden; }
 .dc-artboard-sleeping > i { position: absolute; display: block; opacity: 0.45; border-radius: 2px; }
 .dc-artboard-sleeping > i[data-media] { background: color-mix(in srgb, currentColor 16%, transparent); }
-.dc-artboard-sleeping[data-dc-placeholder='skeleton'] {
-  background-image: linear-gradient(color-mix(in srgb, currentColor 8%, transparent), color-mix(in srgb, currentColor 8%, transparent));
-  background-size: 56% 12px;
-  background-position: 8% 32px;
-  background-repeat: no-repeat;
-}
+.dc-artboard-sleeping > .dc-artboard-still-copy { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 `;
