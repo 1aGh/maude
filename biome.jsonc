@@ -45,6 +45,9 @@
       "!**/site/.vercel",
       "!**/site/app/mdcc-tokens.css",
       "!**/site/content/docs/reference",
+      // gen:reference writes these with JSON.stringify(…, 2); a short pages list would be collapsed by
+      // the formatter and rewritten by the generator on every run (site-content gate drift).
+      "!**/site/content/docs/commands-*/meta.json",
       "!**/site/out",
       "!**/site/next-env.d.ts",
       "!**/pnpm-lock.yaml",

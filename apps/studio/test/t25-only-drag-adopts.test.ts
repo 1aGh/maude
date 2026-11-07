@@ -4,10 +4,9 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-
-import type { RectStroke, SectionStroke, Stroke } from '../annotations-model.ts';
 import { Scene } from '../annotations/scene.ts';
 import { strokesToElementMap } from '../annotations/v1-adapter.ts';
+import type { RectStroke, SectionStroke, Stroke } from '../annotations-model.ts';
 
 const section = (id: string, x: number, y: number, w: number, h: number): SectionStroke => ({
   id,
