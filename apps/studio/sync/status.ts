@@ -174,6 +174,8 @@ export interface FilePlaneStatus {
     paths: string[];
     /** Issue #207 (7b) — `delete-out`: the folders the held deletes sit in, largest first. */
     folders?: { folder: string; count: number }[];
+    /** #167 T5.3 — `code-held`: the hub could not name every held file (more are held than listed). */
+    overflow?: true;
     /** One sentence, in the user's terms, about what is waiting and why. */
     detail: string;
   }[];

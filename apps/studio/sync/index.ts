@@ -7064,12 +7064,15 @@ export function filePlaneHeld(
   }
   // p8-held-surface — what the HUB holds back from the code lane (owner reads only). Without
   // this row a held file was not synced, not committed, and nobody was told.
-  if (result.codeHeld && result.codeHeld.count > 0) {
+  // #167 T5.3 — an overflowed hold list is a row even when it names nothing: files are held unlisted.
+  if (result.codeHeld && (result.codeHeld.count > 0 || result.codeHeld.overflow === true)) {
+    const overflow = result.codeHeld.overflow === true;
     held.push({
       kind: 'code-held',
       count: result.codeHeld.count,
       paths: result.codeHeld.paths.map((h) => h.path),
-      detail: codeHeldDetail(result.codeHeld.count),
+      ...(overflow ? { overflow: true as const } : {}),
+      detail: codeHeldDetail(result.codeHeld.count, { overflow }),
     });
   }
   // Issue #175 — files the project's server will not take. Counted already under
@@ -7140,7 +7143,15 @@ export function hubRefusedDetail(reasons: readonly string[]): string {
  * (CONTRACT §4: what happened · what is safe · one verb). Only the owner reads it, and only the
  * owner sets the canvas folders, so the verb is theirs to take.
  */
-export function codeHeldDetail(count: number): string {
+export function codeHeldDetail(count: number, { overflow = false } = {}): string {
+  // #167 T5.3 — the hub's hold list overflowed (its cap or a cut walk): files it could not name are
+  // held back from the code lane too, so the row says so — even when it lists none.
+  if (overflow && count === 0) {
+    return 'Files made as canvases before the canvas folders were set may be held back: the project’s server couldn’t keep track of every one, so those outside the canvas folders don’t sync. Nothing was removed. Add their folders to the canvas folders to keep them as canvases.';
+  }
+  if (overflow) {
+    return `${codeHeldDetail(count)} The project’s server couldn’t keep track of every one, so more may be held than are listed.`;
+  }
   return count === 1
     ? '1 file was made or changed as a canvas before the canvas folders were set, and is outside them now, so it doesn’t sync. Nothing was removed. Add its folder to the canvas folders to keep it as a canvas.'
     : `${count} files were made or changed as canvases before the canvas folders were set, and are outside them now, so they don’t sync. Nothing was removed. Add their folders to the canvas folders to keep them as canvases.`;
