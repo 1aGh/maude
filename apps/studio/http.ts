@@ -297,6 +297,7 @@ import {
   serveFile,
   serveIndexHtml,
 } from './static-lane.ts';
+import { studioPageHostRedirect } from './studio-page-host.ts';
 import { sanitizeForLog } from './sync/cell-pairing.ts';
 import { linkHub } from './sync/hub-link.ts';
 import { accessFor, getHubRecord, linkRoleSource } from './sync/hubs-config.ts';
@@ -7501,6 +7502,13 @@ export function createHttp(
   }
 
   function serveStudioPage(req: Request): Promise<Response> {
+    // 2.0.7 — on the canvas origin's site, or WebKit strips every frame's capability (studio-page-host.ts).
+    const sameSite = studioPageHostRedirect(req, {
+      canvasOrigin: ctx.canvasOrigin,
+      mainOrigin: ctx.mainOrigin,
+      workspace: isWorkspaceMode(),
+    });
+    if (sameSite) return Promise.resolve(sameSite);
     let embed = false;
     try {
       embed = new URL(req.url).searchParams.get('embed') === '1';
