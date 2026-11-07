@@ -43,6 +43,8 @@ import {
   subscribeCanvasBackground,
   takePicture,
 } from './artboard-placeholder.ts';
+import { ARTBOARD_STILL_CSS, resolveStillMode, StillController } from './artboard-still.ts';
+import { drawStill, rasterTimings } from './artboard-still-raster.ts';
 import { WebglBudget } from './artboard-webgl.ts';
 
 const ALL_LIVE: ArtboardLiveState = { live: true, seen: true, media: true };
@@ -81,6 +83,8 @@ interface Runtime {
   visible: IntersectionObserver | null;
   keep: IntersectionObserver | null;
   ids: WeakMap<Element, string>;
+  /** 2.0.7 — small artboards stand in as a still picture during a zoom (WebKit, heavy canvases). */
+  stills: StillController | null;
 }
 
 /**
@@ -90,7 +94,7 @@ interface Runtime {
  * reselected after `loaded` — the selected clip was gone (2.0.7 video regression). Bump `RUNTIME_SHAPE` when
  * `Runtime` or `LiveRegistry` changes shape (a canvas-lib change hard-reloads the frame anyway).
  */
-const RUNTIME_SHAPE = 1;
+const RUNTIME_SHAPE = 2;
 const RUNTIME_KEY = '__maudeArtboardLive';
 interface RuntimeSlot {
   shape: number;
@@ -197,7 +201,20 @@ function getRuntime(): Runtime | null {
       mountedNodes: Math.round(registry.mountedWeight()),
     });
   }
-  const runtime: Runtime = { registry, budget, near, visible, keep, ids };
+  let stills: StillController | null = null;
+  if (
+    resolveStillMode({ search: window.location.search, webkit: isWebkit(), liveMode: mode }) ===
+    'on'
+  ) {
+    const st = new StillController({ take: drawStill, info: (id) => registry.slotInfo(id) });
+    registry.onSettle(() => st.settle());
+    stills = st;
+    (window as unknown as { __maudeStillStats?: () => unknown }).__maudeStillStats = () => ({
+      ...st.stats(),
+      raster: { ...rasterTimings },
+    });
+  }
+  const runtime: Runtime = { registry, budget, near, visible, keep, ids, stills };
   const slot: RuntimeSlot = { shape: RUNTIME_SHAPE, search: window.location.search, runtime };
   (window as unknown as Record<string, unknown>)[RUNTIME_KEY] = slot;
   return runtime;
@@ -222,12 +239,21 @@ export async function holdAllLive(): Promise<() => void> {
   return release;
 }
 
+/**
+ * The viewport wrote this zoom (canvas-lib's applyViewport, every frame of a gesture): small artboards swap to
+ * their stills on the first scale step of a gesture. Cheap — a comparison per registered artboard.
+ */
+export function noteGestureZoom(zoom: number): void {
+  getRuntime()?.stills?.noteZoom(zoom);
+}
+
 /** Feeds the published (settle-cadence) zoom and the gesture flag. Renders nothing. */
 export function ArtboardLiveFeed({ zoom, interacting }: { zoom: number; interacting: boolean }) {
   useEffect(() => {
     const rt = getRuntime();
     if (!rt || rt.registry.mode === 'off') return;
     rt.registry.setZoom(zoom);
+    rt.stills?.setZoom(zoom);
   }, [zoom]);
   useEffect(() => {
     const rt = getRuntime();
@@ -355,6 +381,27 @@ export function ArtboardLiveGate({
 
   useMediaSleep(articleRef, live, on);
 
+  // 2.0.7 — the still that stands in during a zoom: registered while the children are mounted.
+  // The selected / active artboard and a video one never swap (`pinned`, `eager`).
+  const stills = on && rt ? rt.stills : null;
+  const flags = useRef({ pinned, eager });
+  flags.current = { pinned, eager };
+  useEffect(() => {
+    const article = articleRef.current;
+    const body = bodyRef.current;
+    if (!stills || !seen || !article || !body) return;
+    const off = stills.register(id, { article, body });
+    stills.update(id, flags.current);
+    return off;
+  }, [stills, seen, id, articleRef, bodyRef]);
+  useEffect(() => {
+    stills?.update(id, { pinned, eager });
+  }, [stills, id, pinned, eager]);
+  // a wake or a sleep changes what is painted (paused animations, a WebGL picture): draw it again
+  useEffect(() => {
+    stills?.markDirty(id, live ? 'woke' : 'slept');
+  }, [stills, id, live]);
+
   // Remember the height the children had, so the placeholder holds it.
   const lastHeight = useRef(0);
   useLayoutEffect(() => {
@@ -424,8 +471,8 @@ export function ArtboardLiveGate({
   );
 }
 
-/** Paused CSS animations while asleep, and the placeholder. (A released WebGL canvas's picture is artboard-webgl.ts's.) */
-export const ARTBOARD_LIVE_CSS = `
+/** Paused CSS animations while asleep, the placeholder and the still. (A released WebGL canvas's picture is artboard-webgl.ts's.) */
+export const ARTBOARD_LIVE_CSS = `${ARTBOARD_STILL_CSS}
 .dc-artboard[data-dc-asleep] .dc-artboard-body *,
 .dc-artboard[data-dc-asleep] .dc-artboard-body *::before,
 .dc-artboard[data-dc-asleep] .dc-artboard-body *::after { animation-play-state: paused !important; }

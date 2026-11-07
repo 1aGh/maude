@@ -395,6 +395,13 @@ export class LiveRegistry {
     return this.interacting;
   }
 
+  /** On screen, and the elements its children came to (measured, or the estimate) — the stills' heavy signal. */
+  slotInfo(id: string): { visible: boolean; weight: number } | null {
+    const s = this.slots.get(id);
+    if (!s) return null;
+    return { visible: s.visible, weight: s.admitted ? this.weightOf(s) : 0 };
+  }
+
   visibleCount(): number {
     let n = 0;
     for (const s of this.slots.values()) if (s.visible) n += 1;
