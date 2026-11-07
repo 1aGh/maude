@@ -16,7 +16,7 @@ Starts the Maude Studio server through the installed `maude` CLI. It scans the p
 - **Selecting** — in Edit, click an object to select it; Esc or a click on empty canvas clears it. The selection is mirrored to `<designRoot>/_active.json`, so `/design:edit` can scope its change to it.
 - **Search** (⌘K) and **Version history** (⌥⌘H). **Hide panels** (⌘\) leaves only the canvas.
 
-The server reads `<repo>/.design/config.json` at boot. Binds **4399**, or the next free port up to 4408, and opens the default browser (`NO_OPEN=1` skips that). Idempotent: if already running, it just prints the URL. `Ctrl+C` in the terminal stops it.
+The server reads `<repo>/.design/config.json` at boot. Binds **4399**, or the next free port up to 4408. `maude design server-up` never opens a window (agents and other commands boot the studio through it), so this command opens the studio itself once the server answers. `maude design serve` opens the default browser (`NO_OPEN=1` skips that). Idempotent: if already running, it just prints the URL. `Ctrl+C` in the terminal stops a foreground `serve`.
 
 **Input `$ARGUMENTS`:** `[--port <n>]`
 
@@ -30,11 +30,16 @@ the executable Studio runtime is resolved by `maude`.
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 PORT=$(maude design server-up --root "$REPO_ROOT")
+URL="http://localhost:$PORT/"
+open "$URL" 2>/dev/null || xdg-open "$URL" 2>/dev/null || echo "Open $URL"
 ```
 
 `server-up` is idempotent: it verifies the project's existing server and returns
-its port. Open the returned local Studio URL with the host browser tools or the
-system browser when the user requested it. It does not accept `--port`.
+its port. It starts the server with `NO_OPEN=1` always, so opening the window is
+this command's job: the last line opens the Studio URL in the system browser
+(`open` on macOS, `xdg-open` on Linux) or, with neither, prints it. When the host
+has its own browser tools, open the same URL there instead. `server-up` does not
+accept `--port`.
 
 For an explicit `--port <n>`, first check the project's `_server.json` and health.
 Reuse an existing healthy instance; do not start a second server for the project.

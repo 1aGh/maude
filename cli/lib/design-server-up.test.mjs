@@ -8,6 +8,8 @@ import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { stubServerSource } from '../../scripts/lib/stub-studio-server.mjs';
+
 const helper = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../apps/studio/bin/server-up.sh'
@@ -119,5 +121,46 @@ for (const [layout, ok] of [
       assert.match(stderr, /using compiled dev-server binary/);
       assert.doesNotMatch(stderr, /ignoring dev-server binary/);
     } else assert.match(stderr, /ignoring dev-server binary/);
+  });
+}
+
+// T1.9 (#206) — server-up is how agents and verbs boot a studio; it must never pop a browser window at the
+// person, whatever the caller's env says. /design:browse opens the window itself after server-up.
+// A stub compiled server records the env it was started with, writes _server.json and answers /_health.
+for (const callerNoOpen of [undefined, '0', '']) {
+  test(`server-up starts the studio with NO_OPEN=1 (caller NO_OPEN=${JSON.stringify(callerNoOpen)})`, async (t) => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'maude-server-up-noopen-')));
+    await mkdir(join(root, '.design'));
+    const stub = join(root, 'Maude.app/Contents/MacOS/maude-server');
+    await mkdir(dirname(stub), { recursive: true });
+    await writeFile(stub, stubServerSource(process.execPath), { mode: 0o700 });
+    const env = { ...process.env, CLAUDE_PLUGIN_ROOT: root, MAUDE_DEV_SERVER_BIN: stub };
+    delete env.NO_OPEN;
+    if (callerNoOpen !== undefined) env.NO_OPEN = callerNoOpen;
+    const result = await new Promise((done, reject) => {
+      const child = spawn('bash', [helper, '--root', root, '--timeout', '15'], { cwd: root, env });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (c) => {
+        stdout += c;
+      });
+      child.stderr.on('data', (c) => {
+        stderr += c;
+      });
+      child.on('error', reject);
+      child.on('exit', (code) => done({ code, stdout, stderr }));
+    });
+    t.after(async () => {
+      try {
+        const { pid } = JSON.parse(await readFile(join(root, '.design/_server.json'), 'utf8'));
+        if (Number.isInteger(pid) && pid > 1) process.kill(pid, 'SIGTERM');
+      } catch {
+        /* never started */
+      }
+      await rm(root, { recursive: true, force: true });
+    });
+    assert.equal(result.code, 0, result.stderr);
+    const seen = JSON.parse(await readFile(join(root, '.design/_stub-env.json'), 'utf8'));
+    assert.equal(seen.NO_OPEN, '1');
   });
 }
