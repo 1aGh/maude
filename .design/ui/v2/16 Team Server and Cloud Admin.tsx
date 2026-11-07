@@ -173,7 +173,7 @@ function PickOpt({ on, title, sub }: { on?: boolean; title: string; sub: string 
 }
 
 /* ═══ Cloud pieces ══════════════════════════════════════════════════════════════════════════ */
-const CL_TABS: NavTab[] = [{ label: "Overview" }, { label: "Projects" }, { label: "People", count: 3 }, { label: "Billing" }];
+const CL_TABS: NavTab[] = [{ label: "Overview" }, { label: "Projects" }, { label: "People", count: 3 }, { label: "Settings" }];
 const CL = { name: "Maude Cloud", place: "StudyFi", me: "Michal · Owner" };
 
 type Proj = { name: string; art: Art; people: { ini: string; tone: Tone }[]; canvases: number; edits: string; state: ReactNode };
@@ -202,7 +202,7 @@ export default function TeamServerAndCloudAdmin() {
       <DCSection id="team-server" title="Team server — StudyFi Design" subtitle="design.studyfi.com, run by StudyFi: is everything working, who's here, who's waiting — and an invite that needs no approval and no token">
         <DCArtboard id="ts-overview" label="1 · At a glance — working, who's here, what needs you" width={W} height={H} fixed>
           <Stage note={<Note n={1} title="Is it working, and does anything need me?">One line says the team server is healthy; four numbers open their list; the only red things are the ones you can act on. Ports, data folders and the admin key moved to Settings › Advanced.</Note>}>
-            <Browser host="design.studyfi.com" path="/admin">
+            <Browser host="design.studyfi.com" path="/">
               <Nav {...TS} tabs={TS_TABS} current="Overview" />
               <div className="ad-main">
                 <div className="ad-head">
@@ -269,7 +269,7 @@ export default function TeamServerAndCloudAdmin() {
 
         <DCArtboard id="ts-people" label="2 · People — one list, and Invite that is the approval" width={W} height={H} fixed>
           <Stage note={<Note n={2} title="One list, one Invite, no tokens.">Everyone is in one table, and their status says where they are: invited, asking to join, here, turned off. An invite already says what they can do, so whoever opens it is in. The domain rule lets colleagues in without you.</Note>}>
-            <Browser host="design.studyfi.com" path="/admin/people">
+            <Browser host="design.studyfi.com" path="/people">
               <Nav {...TS} tabs={TS_TABS} current="People" />
               <div className="ad-main">
                 <div className="ad-head">
@@ -302,7 +302,7 @@ export default function TeamServerAndCloudAdmin() {
                   <span className="ad-pick" role="radiogroup">
                     <PickOpt on title="Can edit" sub="Change canvases, draw, use AI, move things to the trash" />
                     <PickOpt title="Can comment" sub="Look, comment and download" />
-                    <PickOpt title="Admin" sub="Also invites people and runs this team server" />
+                    <PickOpt title="Admin" sub="Also invites people and runs this team server · asks you to confirm" />
                   </span>
                 </span>
                 <span className="field">
@@ -311,7 +311,7 @@ export default function TeamServerAndCloudAdmin() {
                 </span>
                 <div className="ad-promise"><Icon name="check" size={14} /><span>No approving and no token afterwards. They open the email, sign in, and the Maude app connects with one click.</span></div>
                 <div className="ad-sheet-a">
-                  <span className="btn btn--ghost"><Icon name="link" size={14} />Copy a link instead</span>
+                  <span className="btn btn--ghost"><Icon name="link" size={14} />Copy a one-time link</span>
                   <span className="ad-sp" />
                   <span className="btn">Cancel</span>
                   <span className="btn btn--primary">Send 2 invites</span>
@@ -323,7 +323,7 @@ export default function TeamServerAndCloudAdmin() {
 
         <DCArtboard id="ts-invitee" label="3 · What Marek sees — three screens, no waiting, no token" width={W} height={H} fixed>
           <Stage note={<Note n={3} title="Proposed: the invite rides through Google sign-in.">Today Google sign-in forgets the invite, so everyone waits for approval and then for a token. Now the invite is the approval, and the app links itself: the same code shows in the app and on the page, and one click confirms it.</Note>}>
-            <div className="maude-v2 k-v2 ad-closeup" data-theme="light">
+            <div className="ds k-v2 ad-closeup" data-theme="light">
               <div className="ad-story">
                 <div className="ad-story-h">
                   <div><h1 className="ad-h1">From the email to working in the app</h1><p className="ad-sub">Marek, invited a minute ago as Can edit. Marek never sees a token, a command or a waiting room.</p></div>
@@ -338,7 +338,7 @@ export default function TeamServerAndCloudAdmin() {
                         <p className="ad-web-s">The StudyFi team's designs · 14 people</p>
                         <span className="ad-web-role"><Icon name="edit" size={12} />You can edit</span>
                         <span className="btn btn--primary btn--lg"><span className="ad-g">G</span>Continue with Google</span>
-                        <p className="ad-web-fine">Use marek@studyfi.com — that's who the invite is for.</p>
+                        <p className="ad-web-fine">Use marek@studyfi.com — that's who the invite is for. Signed in as someone else? The page says so and offers <u>Use another account</u>.</p>
                       </div>
                     </Browser>
                     <p className="ad-step-cap">The page says who invited Marek, to what, and what Marek can do. Google is the only button.</p>
@@ -352,10 +352,11 @@ export default function TeamServerAndCloudAdmin() {
                         <p className="ad-web-s">StudyFi app and Marketing site are ready for you.</p>
                         <span className="btn btn--primary btn--lg"><Mark size={16} tile="var(--accent-fg)" star="var(--accent)" />Open in Maude</span>
                         <span className="btn btn--ghost">Don't have it? Download Maude for Mac</span>
+                        <span className="ad-web-code"><span>Maude will ask you to check this code</span><b>K7F-Q2M</b></span>
                         <p className="ad-web-fine">Just looking? <u>Open in the browser</u></p>
                       </div>
                     </Browser>
-                    <p className="ad-step-cap">The invite was the approval: no "waiting for access". Michal gets a line in What happened.</p>
+                    <p className="ad-step-cap">The invite was the approval: no "waiting for access". The page already shows the code the app will ask Marek to check.</p>
                   </div>
                   <div className="ad-step">
                     <span className="ad-step-l"><span className="ad-step-n">3</span>The app connects — check the code</span>
@@ -374,7 +375,7 @@ export default function TeamServerAndCloudAdmin() {
                         </div>
                       </div>
                     </div>
-                    <p className="ad-step-cap">Then Home shows both projects. The Mac appears under Marek's Macs; removing Marek signs that Mac out too.</p>
+                    <p className="ad-step-cap">It doesn't match → nothing connects and the page offers Try again. A match: Home shows both projects and the Mac joins Marek's Macs.</p>
                   </div>
                 </div>
                 <div className="ad-compare">
@@ -400,7 +401,7 @@ export default function TeamServerAndCloudAdmin() {
 
         <DCArtboard id="ts-settings" label="4 · Settings — who can join, backups, Git, and Advanced" width={W} height={H} fixed>
           <Stage note={<Note n={4} title="Nothing deleted, only folded.">Every switch the old admin had is still here. Join rules, backups and Git come first, each with a status word and one action. Tokens for scripts, connected sessions and the admin key wait in Advanced — and a token now belongs to a person.</Note>}>
-            <Browser host="design.studyfi.com" path="/admin/settings">
+            <Browser host="design.studyfi.com" path="/settings">
               <Nav {...TS} tabs={TS_TABS} current="Settings" />
               <div className="ad-main">
                 <div className="ad-head"><div><h1 className="ad-h1">Settings</h1><p className="ad-sub">StudyFi Design · design.studyfi.com</p></div></div>
@@ -530,10 +531,12 @@ export default function TeamServerAndCloudAdmin() {
                   <div className="ad-card">
                     <h2 className="ad-card-h">Asks to edit <small>2</small></h2>
                     <div className="ad-need"><Avatar ini="V" tone="grey" size="lg" /><span className="ad-need-t"><strong>Vojta · Combine-kampan</strong><span>Can view · "chci upravit text na plakátu"</span></span><span className="ad-need-a"><span className="btn btn--sm">Not now</span><span className="btn btn--sm btn--primary">Allow editing</span></span></div>
+                    <div className="ad-need"><Avatar ini="A" tone="yellow" size="lg" /><span className="ad-need-t"><strong>Anna · Marketing site</strong><span>Can view · asked yesterday</span></span><span className="ad-need-a"><span className="btn btn--sm">Not now</span><span className="btn btn--sm btn--primary">Allow editing</span></span></div>
                   </div>
                   <div className="ad-card">
                     <h2 className="ad-card-h">Invites not opened <small>2</small></h2>
                     <div className="ad-need"><Avatar ini="E" tone="grey" size="lg" /><span className="ad-need-t"><strong>eva.pokorna@studyfi.com · StudyFi app</strong><span>Can edit · sent 3 days ago, works 4 more</span></span><span className="ad-need-a"><span className="btn btn--ghost btn--sm">Cancel invite</span><span className="btn btn--sm">Send again</span></span></div>
+                    <div className="ad-need"><Avatar ini="R" tone="grey" size="lg" /><span className="ad-need-t"><strong>radek@alligators.cz · Alligators brand</strong><span>Can comment · sent 6 days ago, works 1 more</span></span><span className="ad-need-a"><span className="btn btn--ghost btn--sm">Cancel invite</span><span className="btn btn--sm">Send again</span></span></div>
                   </div>
                 </div>
                 <div className="ad-card">
@@ -570,7 +573,7 @@ export default function TeamServerAndCloudAdmin() {
         </DCArtboard>
 
         <DCArtboard id="cl-operator" label="7 · Operator — the whole service, and making a project for anyone" width={W} height={H} fixed>
-          <Stage note={<Note n={7} title="Proposed: you can make anything, for anyone.">An ink band says you see every account. New project for an account also makes the account, skips checkout with a complimentary plan and sends one invite — logged as yours.</Note>}>
+          <Stage note={<Note n={7} title="Proposed: you can make anything, for anyone.">An ink band says you see every account. New project for an account also makes the account, can be Promo from the first minute (storage and a reason in the same sheet), skips checkout and sends one invite — logged as yours.</Note>}>
             <Browser host="cloud.maude.sh" path="/operator">
               <div className="ad-op-band"><Icon name="server" size={13} />Operator — you are looking at every account on Maude Cloud. Changes here are logged as yours.</div>
               <Nav op name="Maude Cloud" place="Whole service" tag={<span className="ad-op-tag" style={{ marginLeft: "var(--space-2)" }}>Operator</span>} tabs={[{ label: "Overview" }, { label: "Accounts" }, { label: "Projects" }, { label: "Fleet", count: 1 }, { label: "Events" }]} current="Overview" me="Michal" />
@@ -588,13 +591,13 @@ export default function TeamServerAndCloudAdmin() {
                 </div>
                 <div className="ad-cols ad-cols--2-1">
                   <div className="ad-card">
-                    <div className="ad-tabs"><span className="ad-tab" aria-pressed="true">Newest accounts</span><span className="ad-tab">Most active</span><span className="ad-tab">Trial ends soon <span className="ad-count">6</span></span><span className="ad-tabs-sp" /><span className="ad-filter"><Icon name="search" size={13} />Email, project or id</span></div>
+                    <div className="ad-tabs"><span className="ad-tab" aria-pressed="true">Newest accounts</span><span className="ad-tab">Most active</span><span className="ad-tab">Trial ends soon <span className="ad-count">6</span></span><span className="ad-tab">Promo <span className="ad-count">3</span></span><span className="ad-tabs-sp" /><span className="ad-filter"><Icon name="search" size={13} />Email, project or id</span></div>
                     <table className="ad-table">
                       <thead><tr><th scope="col">Account</th><th scope="col">Plan</th><th scope="col" className="ad-num">Projects</th><th scope="col" className="ad-num">People</th><th scope="col">Last here</th><th scope="col"><span className="ad-sr">Action</span></th></tr></thead>
                       <tbody>
                         <tr><td><Who name="Alligators Brno" email="tomas@alligators.cz" tone="green" /></td><td>Team</td><td className="ad-num">3</td><td className="ad-num">9</td><td className="ad-quiet">Now</td><td><span className="btn btn--ghost btn--sm">Open</span></td></tr>
                         <tr className="is-hl"><td><Who name="Ateliér Kolář" email="jan@kolar.studio" tone="lilac" /></td><td><StatusWord state="warn">Trial · 2 days left</StatusWord></td><td className="ad-num">1</td><td className="ad-num">2</td><td className="ad-quiet">1 h ago</td><td><span className="btn btn--ghost btn--sm">Open</span></td></tr>
-                        <tr><td><Who name="StudyFi" email="team@studyfi.com" tone="yellow" ini="S" /></td><td>Team · complimentary</td><td className="ad-num">5</td><td className="ad-num">12</td><td className="ad-quiet">Now</td><td><span className="btn btn--ghost btn--sm">Open</span></td></tr>
+                        <tr><td><Who name="StudyFi" email="team@studyfi.com" tone="yellow" ini="S" /></td><td><span className="ad-promo">Promo · Dedicated 250 GB</span></td><td className="ad-num">5</td><td className="ad-num">12</td><td className="ad-quiet">Now</td><td><span className="btn btn--ghost btn--sm">Open</span></td></tr>
                         <tr><td><Who name="Open studio Brno" email="hello@openstudio.cz" tone="sky" ini="O" /></td><td>Solo</td><td className="ad-num">2</td><td className="ad-num">1</td><td className="ad-quiet">Yesterday</td><td><span className="btn btn--ghost btn--sm">Open</span></td></tr>
                       </tbody>
                     </table>
@@ -615,14 +618,114 @@ export default function TeamServerAndCloudAdmin() {
                 <span className="field">
                   <span className="field-label">Plan</span>
                   <span className="ad-pick" role="radiogroup">
-                    <PickOpt on title="Complimentary" sub="Free until you change it · counts as Team" />
+                    <PickOpt on title="Promo" sub="Never a trial, never paused · you pick the storage" />
                     <PickOpt title="Trial, 14 days" sub="Then Jana picks a plan" />
                   </span>
+                </span>
+                <span className="field">
+                  <span className="field-label">Promo storage</span>
+                  <span className="seg ad-seg"><span className="ad-seg-b">Project · 25 GB</span><span className="ad-seg-b" aria-pressed="true">Dedicated · 250 GB</span><span className="ad-seg-b">Unlimited</span></span>
+                  <span className="field-hint">Why: <b>Design studio we work with</b> · Ends: never</span>
                 </span>
                 <span className="field"><span className="field-label">Also invite</span><span className="ad-in ad-in--ph">Emails, as Can edit</span></span>
                 <div className="ad-sheet-a"><span className="ad-quiet" style={{ fontSize: "var(--type-xs)" }}>Logged as yours in the audit</span><span className="ad-sp" /><span className="btn">Cancel</span><span className="btn btn--primary">Make project</span></div>
               </section>
             </Browser>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="cl-op-promo" label="11 · Operator — mark a project as Promo" width={W} height={H} fixed>
+          <Stage note={<Note n={11} title="Proposed: Promo is a plan state you set, not an accident.">The operator marks a project Promo with a reason, a storage tier (25 GB, 250 GB or Unlimited) and an optional end. It never becomes a trial and is never paused; every change lands in the log.</Note>}>
+            <Browser host="cloud.maude.sh" path="/operator/projects/alligators">
+              <div className="ad-op-band"><Icon name="server" size={13} />Operator — you are looking at every account on Maude Cloud. Changes here are logged as yours.</div>
+              <Nav op name="Maude Cloud" place="Whole service" tag={<span className="ad-op-tag" style={{ marginLeft: "var(--space-2)" }}>Operator</span>} tabs={[{ label: "Overview" }, { label: "Accounts" }, { label: "Projects" }, { label: "Fleet", count: 1 }, { label: "Events" }]} current="Projects" me="Michal" />
+              <div className="ad-main">
+                <div className="ad-head">
+                  <div><h1 className="ad-h1">Alligators brand</h1><p className="ad-sub">Owner Tomáš · tomas@alligators.cz · 93 canvases · 9 people · cell up</p></div>
+                  <div className="ad-head-a"><span className="btn">Reconcile</span><span className="btn btn--primary"><Icon name="spark" size={14} />Mark as Promo</span></div>
+                </div>
+                <div className="ad-cols ad-cols--2-1">
+                  <div className="ad-stack">
+                    <div className="ad-card">
+                      <h2 className="ad-card-h">Plan <StatusWord state="warn">No plan — never paused, but nothing says why</StatusWord></h2>
+                      <dl className="ad-kv" style={{ padding: "0 var(--space-5) var(--space-4)" }}>
+                        <dt>Made</dt><dd>By hand, 12 Mar — before trials existed</dd>
+                        <dt>Trial</dt><dd>Never started on this project</dd>
+                        <dt>Storage</dt><dd>3.1 GB used · no limit set</dd>
+                      </dl>
+                    </div>
+                    <div className="ad-card">
+                      <h2 className="ad-card-h">Log <span className="ad-link">All events</span></h2>
+                      <div className="ad-feed">
+                        <Ev icon="sync" when="Today"><span>Reconciled · cell up, 2.0.0</span></Ev>
+                        <Ev icon="people" when="2 Nov"><strong>Tomáš</strong> <span>invited radek@alligators.cz</span></Ev>
+                        <Ev icon="folder" when="12 Mar"><strong>Michal</strong> <span>made the project by hand</span></Ev>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="ad-card">
+                    <h2 className="ad-card-h">Recent jobs</h2>
+                    <div className="ad-feed">
+                      <Ev icon="export" when="9 min"><span>Export · 4 images</span></Ev>
+                      <Ev icon="server" when="03:00"><span>Backup · 412 MB</span></Ev>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="ad-veil" />
+              <section className="ad-sheet" style={{ right: 28, top: 140, width: 420 }} aria-label="Mark as Promo">
+                <h2 className="ad-sheet-t">Mark Alligators brand as Promo</h2>
+                <p className="ad-sheet-s">It stays free, never becomes a trial and is never paused.</p>
+                <span className="field"><span className="field-label">Why</span><span className="ad-in ad-in--focus">Our own club — showcase project<i className="ad-caret" style={{ marginLeft: 2 }} /></span><span className="field-hint">Only operators see this.</span></span>
+                <span className="field">
+                  <span className="field-label">Storage</span>
+                  <span className="ad-pick" role="radiogroup">
+                    <PickOpt title="Project · 25 GB" sub="Like the €29 plan" />
+                    <PickOpt on title="Dedicated · 250 GB" sub="Like the €129 plan" />
+                    <PickOpt title="Unlimited" sub="No storage limit at all" />
+                  </span>
+                </span>
+                <span className="field"><span className="field-label">Ends</span><span className="ad-sel">Never<Icon name="chevron" size={12} /></span><span className="field-hint">With a date, the owner hears 30 days before.</span></span>
+                <div className="ad-sheet-a"><span className="ad-quiet" style={{ fontSize: "var(--type-xs)" }}>Logged as yours</span><span className="ad-sp" /><span className="btn">Cancel</span><span className="btn btn--primary">Mark as Promo</span></div>
+              </section>
+            </Browser>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="cl-promo-owner" label="12 · What Promo looks like to the owner — and when it changes" width={W} height={H} fixed>
+          <Stage note={<Note n={12} title="Promo instead of Choose a plan.">The owner sees Promo where a plan or a trial banner would be, and members see nothing about money. If Promo has an end date, the owner hears 30 days before and nothing is paused until a choice is due; a paid plan simply takes over from Promo, never both at once.</Note>}>
+            <div className="ds k-v2 ad-closeup" data-theme="light">
+              <h1 className="ad-h1">Promo, from the owner's side</h1>
+              <p className="ad-sub" style={{ marginBottom: "var(--space-5)" }}>Settings › Plan on cloud.maude.sh, for Tomáš, the owner of Alligators brand.</p>
+              <div className="ad-promo-grid">
+                <div className="ad-card ad-card--pad">
+                  <span className="ad-promo-l">Today</span>
+                  <h2 className="ad-sheet-t"><span className="ad-promo">Promo</span> Alligators brand</h2>
+                  <dl className="ad-kv">
+                    <dt>Plan</dt><dd>Promo from Maude · free</dd>
+                    <dt>Storage</dt><dd>3.1 of 250 GB</dd>
+                    <dt>Ends</dt><dd>Never</dd>
+                  </dl>
+                  <p className="ad-sub">No trial, no card, nothing to choose. Where other owners see Choose a plan, this says Promo.</p>
+                </div>
+                <div className="ad-card ad-card--pad">
+                  <span className="ad-promo-l">With an end date — 30 days before</span>
+                  <h2 className="ad-sheet-t"><span className="ad-promo">Promo</span> ends on 31 Dec</h2>
+                  <p className="ad-sub">Pick a plan to keep editing after that. Nothing is deleted, and until you choose, everyone can still open and export everything.</p>
+                  <span className="ad-head-a"><span className="btn btn--primary">Choose a plan</span><span className="btn btn--ghost">Ask Maude for more time</span></span>
+                </div>
+                <div className="ad-card ad-card--pad">
+                  <span className="ad-promo-l">A paid plan starts</span>
+                  <h2 className="ad-sheet-t">Project · €29 a month</h2>
+                  <p className="ad-sub">Promo ends the moment the plan starts — never both, never charged twice. The log keeps that it was Promo until 4 Nov.</p>
+                </div>
+                <div className="ad-card ad-card--pad">
+                  <span className="ad-promo-l">Members of a Promo project</span>
+                  <h2 className="ad-sheet-t">Nothing changes for them</h2>
+                  <p className="ad-sub">Anna and Radek work as in any project. Plan, Promo and storage live only in the owner's Settings; their own accounts and trials are separate and untouched.</p>
+                </div>
+              </div>
+            </div>
           </Stage>
         </DCArtboard>
       </DCSection>
@@ -632,7 +735,7 @@ export default function TeamServerAndCloudAdmin() {
         <DCArtboard id="un-member-ts" label="8 · A member on the team server — Marek, Can edit" width={W} height={H} fixed>
           <Stage note={<Note n={8} title="Same address, a member's page.">Marek opens design.studyfi.com and lands on a Home of Marek's own: projects, who's here, Macs and how to bring a colleague. No health, no settings, no one else's sessions — Michal sees those on the same page, as Admin.</Note>}>
             <Browser host="design.studyfi.com" path="/">
-              <Nav name={TS.name} place={TS.place} tabs={[{ label: "Home" }, { label: "Projects" }, { label: "People" }]} current="Home" me="Marek · Can edit" ini="M" tone="green" />
+              <Nav name={TS.name} place={TS.place} tabs={[{ label: "Overview" }, { label: "Projects" }, { label: "People" }]} current="Overview" me="Marek · Can edit" ini="M" tone="green" />
               <div className="ad-main">
                 <div className="ad-head">
                   <div><h1 className="ad-h1">Hi Marek.</h1><p className="ad-sub">You can edit everything on StudyFi Design · Michal and Tereza run it</p></div>
@@ -678,7 +781,7 @@ export default function TeamServerAndCloudAdmin() {
         <DCArtboard id="un-member-cl" label="9 · A member on Maude Cloud — Anna, in two projects she doesn't own" width={W} height={H} fixed>
           <Stage note={<Note n={9} title="On Maude Cloud a member is also somebody's customer.">Anna sees what StudyFi shares and what Anna can do in each — and, separately, Anna's own account: empty, a free trial one click away. No Billing and no People for StudyFi; those are Michal's, as Owner.</Note>}>
             <Browser host="cloud.maude.sh" path="/">
-              <Nav name="Maude Cloud" place="Anna Králová" tabs={[{ label: "Home" }, { label: "Shared with you" }, { label: "Your Macs" }]} current="Home" me="Anna" ini="A" tone="yellow" />
+              <Nav name="Maude Cloud" place="Anna Králová" tabs={[{ label: "Overview" }, { label: "Projects" }]} current="Overview" me="Anna" ini="A" tone="yellow" />
               <div className="ad-main">
                 <div className="ad-head">
                   <div><h1 className="ad-h1">Hi Anna.</h1><p className="ad-sub">StudyFi shares 2 projects with you</p></div>
@@ -721,15 +824,15 @@ export default function TeamServerAndCloudAdmin() {
 
         <DCArtboard id="un-one" label="10 · One set of pages — team server and Maude Cloud, every role" width={W} height={H} fixed>
           <Stage note={<Note n={10} title="Proposed: merge the two into one web app.">One codebase serves both; the role decides what's shown, and each service adds only its own: Billing on Maude Cloud, Health and backups on a team server. Admin becomes a role on your own sign-in.</Note>}>
-            <div className="maude-v2 k-v2 ad-closeup" data-theme="light">
+            <div className="ds k-v2 ad-closeup" data-theme="light">
               <h1 className="ad-h1">Five people, one page — what each of them gets</h1>
-              <p className="ad-sub" style={{ marginBottom: "var(--space-5)" }}>The nav is the same island everywhere; tabs appear only when there's something behind them for you.</p>
+              <p className="ad-sub" style={{ marginBottom: "var(--space-5)" }}>One set of tab names and addresses for every role; the role only narrows what's on them. Your Macs lives in the avatar menu.</p>
               <div className="ad-navs">
                 {([
                   ["Team server · Admin", TS.name, TS.place, ["Overview", "People", "Projects", "Settings"], "Michal · Admin"],
-                  ["Team server · Member", TS.name, TS.place, ["Home", "Projects", "People"], "Marek · Can edit"],
-                  ["Maude Cloud · Owner", "Maude Cloud", "StudyFi", ["Overview", "Projects", "People", "Billing"], "Michal · Owner"],
-                  ["Maude Cloud · Member", "Maude Cloud", "Anna Králová", ["Home", "Shared with you", "Your Macs"], "Anna"],
+                  ["Team server · Member", TS.name, TS.place, ["Overview", "Projects", "People"], "Marek · Can edit"],
+                  ["Maude Cloud · Owner", "Maude Cloud", "StudyFi", ["Overview", "Projects", "People", "Settings"], "Michal · Owner"],
+                  ["Maude Cloud · Member", "Maude Cloud", "Anna Králová", ["Overview", "Projects"], "Anna"],
                   ["Maude Cloud · Operator", "Maude Cloud", "Whole service", ["Overview", "Accounts", "Projects", "Fleet", "Events"], "Michal"],
                 ] as [string, string, string, string[], string][]).map(([who, name, place, tabs, me]) => (
                   <div key={who} className="ad-navrow">
@@ -743,13 +846,14 @@ export default function TeamServerAndCloudAdmin() {
                   <thead><tr><th scope="col">Page</th><th scope="col">Team server Admin</th><th scope="col">Team server Member</th><th scope="col">Cloud Owner</th><th scope="col">Cloud Member</th><th scope="col">Operator</th></tr></thead>
                   <tbody>
                     {([
-                      ["Overview with numbers", "All of it", "Home: your work", "All of it", "Home: your work", "Whole service"],
-                      ["Projects", "All · make new", "Yours · open", "All · make new", "Shared with you", "Every account's"],
+                      ["Overview", "All the numbers", "Your work", "All the numbers", "Your work", "Whole service"],
+                      ["Projects", "All · make new", "Yours · open", "All · make new", "Filter: Shared with you", "Every account's · mark Promo"],
                       ["People", "See · invite · change", "See who's here", "See · invite · change", "—", "Every account's"],
                       ["Who can join", "Change", "Read the rule", "—", "—", "—"],
                       ["Health · backups · Git", "Settings", "—", "Run for you", "—", "Fleet"],
-                      ["Billing", "—", "—", "Billing", "Your own account", "Plans for anyone"],
-                      ["Your Macs", "✓", "✓", "✓", "✓", "✓"],
+                      ["Settings › Billing", "—", "—", "Plan · Promo shown here", "Your own account", "Plans and Promo for anyone"],
+                      ["Your Macs (avatar menu)", "✓", "✓", "✓", "✓", "✓"],
+                      ["Address", "/people", "/people", "/people", "/projects", "/operator/…"],
                     ] as string[][]).map((r) => (
                       <tr key={r[0]}><th scope="row">{r[0]}</th>{r.slice(1).map((c, i) => <td key={i} className={c === "—" ? "ad-quiet" : ""}>{c === "—" ? "Not shown" : c}</td>)}</tr>
                     ))}
