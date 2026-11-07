@@ -8,12 +8,12 @@
   "plugins": {
     "design": {
       "commands": 31,
-      "skills": 43,
+      "skills": 12,
       "agents": 22
     },
     "flow": {
       "commands": 10,
-      "skills": 24,
+      "skills": 14,
       "agents": 15
     },
     "maude": {

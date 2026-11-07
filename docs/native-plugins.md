@@ -102,8 +102,10 @@ legacy skill name and selects the appropriate file without global text replaceme
 - Edit the procedure once in `commands/<verb>.md`, or in the shared skill and its
   references. Codex command entries only link to that procedure; no generation
   script, adapter build or second copy of the workflow is needed.
-- When adding a command, add its small `skills/source-command-<verb>/SKILL.md`
-  entry and `agents/openai.yaml`. Keep names, short descriptions and links aligned.
+- When adding a command, run `node scripts/gen-plugin-surfaces.mjs`: it writes the small
+  `codex-skills/source-command-<verb>/SKILL.md` entry and `agents/openai.yaml`. They sit
+  outside `skills/` on purpose, so Claude Code does not load them; the Codex manifest
+  lists `./skills/` and `./codex-skills/`. Keep names, short descriptions and links aligned.
 - Prefer skill descriptions around 80–160 characters and entry files under 8 KB.
   These are maintenance targets, not claims about a fixed host parser limit.
 - Keep prerequisites and safety constraints in the entry. Reference tables say

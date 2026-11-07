@@ -164,7 +164,7 @@ test('S12.10: the ratchet holds 0 for /design:new, its stages and ui-kit', () =>
       k === 'commands/new.md' ||
       k.startsWith('references/new/') ||
       k.startsWith('skills/ui-kit/') ||
-      k === 'skills/source-command-new/SKILL.md' ||
+      k === 'codex-skills/source-command-new/SKILL.md' ||
       k === 'skills/design/_guide-28-artboards.md'
   );
   assert.deepEqual(left, []);

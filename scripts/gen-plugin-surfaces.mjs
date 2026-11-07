@@ -8,7 +8,7 @@
 // 1. apps/studio/client/panels/slash-commands.gen.js — STATIC_COMMANDS, from the design plugin's
 //    commands/*.md frontmatter (`name`, `description`, `argument-hint`). The AI chat panel's
 //    autocomplete is instant before any `claude` session exists, so the list is baked in.
-// 2. plugins/<design|flow>/skills/source-command-<verb>/{SKILL.md,agents/openai.yaml} — the Codex
+// 2. plugins/<design|flow>/codex-skills/source-command-<verb>/{SKILL.md,agents/openai.yaml} — the Codex
 //    entry points. Each is a thin wrapper that points at the live commands/<verb>.md (the shape
 //    a01938288 committed), so a mirror can drift only in its description, name or title, and
 //    those are exactly what this renders and checks. An orphan mirror (its command is gone) is
@@ -28,6 +28,11 @@ export const ROOT = process.env.MAUDE_SURFACES_ROOT
   ? resolve(process.env.MAUDE_SURFACES_ROOT)
   : resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PLUGINS = ['design', 'flow'];
+// Codex-only entry points live OUTSIDE `skills/`: Claude Code scans `skills/` unconditionally (a
+// manifest `skills` key only ADDS to it), so a mirror there costs context in every Claude session.
+// Each `.codex-plugin/plugin.json` lists this folder next to `./skills/` (#156, decision
+// maude/v2-T4.3-codex-skills-outside-skills).
+const MIRROR_DIR = 'codex-skills';
 const CONTRACT = '.design/system/maude-v2/CONTRACT.md';
 const SLASH_OUT = 'apps/studio/client/panels/slash-commands.gen.js';
 const VOICE_OUT = 'plugins/design/skills/contract-voice/SKILL.md';
@@ -231,7 +236,7 @@ export function plan() {
   out.set(SLASH_OUT, renderSlash());
   for (const plugin of PLUGINS) {
     for (const c of commandsOf(plugin)) {
-      const dir = `plugins/${plugin}/skills/source-command-${c.verb}`;
+      const dir = `plugins/${plugin}/${MIRROR_DIR}/source-command-${c.verb}`;
       out.set(`${dir}/SKILL.md`, renderMirrorSkill(c));
       out.set(`${dir}/agents/openai.yaml`, renderMirrorYaml(c));
     }
@@ -244,10 +249,11 @@ export function plan() {
 export function orphans(expected) {
   const found = [];
   for (const plugin of PLUGINS) {
-    const skills = join(ROOT, 'plugins', plugin, 'skills');
+    const skills = join(ROOT, 'plugins', plugin, MIRROR_DIR);
+    if (!existsSync(skills)) continue;
     for (const d of readdirSync(skills)) {
       if (!d.startsWith('source-command-')) continue;
-      const rel = `plugins/${plugin}/skills/${d}`;
+      const rel = `plugins/${plugin}/${MIRROR_DIR}/${d}`;
       if (!expected.has(`${rel}/SKILL.md`)) found.push(rel);
     }
   }

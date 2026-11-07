@@ -6,7 +6,7 @@
     "name": "1aGh"
   },
   "license": "MIT",
-  "skills": "./skills/",
+  "skills": ["./skills/", "./codex-skills/"],
   "interface": {
     "displayName": "Maude Flow",
     "shortDescription": "Planning, implementation, validation and decision memory.",

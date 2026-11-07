@@ -13,7 +13,10 @@ const names = (dir, ext) =>
     .filter((f) => (ext ? f.endsWith(ext) : statSync(join(FLOW, dir, f)).isDirectory()))
     .map((f) => (ext ? f.slice(0, -ext.length) : f));
 const COMMANDS = new Set(names('commands', '.md'));
-const SKILLS = new Set(names('skills'));
+// `codex-skills/` holds the Codex-only `source-command-*` entry points (outside `skills/`, so Claude
+// Code does not load them); `$flow:source-command-plan` resolves there.
+const MIRRORS = names('codex-skills');
+const SKILLS = new Set([...names('skills'), ...MIRRORS]);
 const AGENTS = new Set(names('agents', '.md'));
 // Placeholders used in prose ("`flow:role` agent", "`$flow:skill-name`").
 // `flow:flow` is the doubled-namespace example in the naming test's prose; `source-command-verb`
@@ -97,9 +100,7 @@ test('the ratchet catches a planted dangling reference', () => {
 });
 
 test('every command has its Codex mirror and every mirror its command', () => {
-  const mirrors = [...SKILLS]
-    .filter((s) => s.startsWith('source-command-'))
-    .map((s) => s.slice(15));
+  const mirrors = MIRRORS.filter((s) => s.startsWith('source-command-')).map((s) => s.slice(15));
   assert.deepEqual(
     [...COMMANDS].filter((c) => !mirrors.includes(c)),
     [],
@@ -116,7 +117,7 @@ test('every command has its Codex mirror and every mirror its command', () => {
         .match(/^description:\s*(.+)$/m)?.[1]
         ?.trim()
         .replace(/^"(.*)"$/, '$1');
-    const mf = join(FLOW, 'skills', `source-command-${c}`, 'SKILL.md');
+    const mf = join(FLOW, 'codex-skills', `source-command-${c}`, 'SKILL.md');
     const want = desc(join(FLOW, 'commands', `${c}.md`));
     if (want) assert.equal(desc(mf), want, `${mf} description drifted from commands/${c}.md`);
   }
