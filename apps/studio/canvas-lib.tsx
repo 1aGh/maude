@@ -2938,7 +2938,8 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
       <ArtboardLiveFeed zoom={controller.viewport.zoom} interacting={!!controller.isInteracting} />
       {/* ── S8.19 (L1) placeholder frames ── "Waiting for Jonas's Mac" / Missing over a picture
           that failed to load; driven only by the shell's dgn `asset-state` (asset-placeholder.tsx). */}
-      <AssetPlaceholderLayer />
+      {/* 2.0.7 — the frames ride the live camera through a pan / zoom instead of a layout read per frame. */}
+      <AssetPlaceholderLayer camera={getLiveViewport} interacting={!!controller.isInteracting} />
       {/* r5-2 — a play / pause button over a placed or annotation clip (hover / selected), in Edit and Preview. */}
       <VideoPlayLayer />
     </div>
