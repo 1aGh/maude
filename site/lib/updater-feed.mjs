@@ -129,22 +129,39 @@ const ARCH_TOKENS = {
   armv7: ['armv7', 'armhf'],
 };
 
+// The same release also carries the npm CLI's standalone binaries (`maude-darwin-arm64`,
+// `maude-win32-x64.exe`, …, from build-binaries.yml). They are never an updater artifact —
+// the Tauri bundles are named after productName `Maude_…` / `Maude.app…` — but the Windows
+// one ends in `.exe` and names `x64`, and it sorts first: in 2.0.8 the feed picked it and
+// answered every Windows install 502 "signature asset missing".
+const isCliBinary = (name) => name.startsWith('maude-');
+
 /**
  * The platform artifact + its detached signature asset.
+ *
+ * Extensions are tried in PLATFORM_EXT order (Windows: the .msi, then the NSIS installer),
+ * and within one extension the asset that names this arch comes first, then the rest (a
+ * universal macOS bundle names none). The first SIGNED candidate wins; `missing: 'signature'`
+ * only when there are candidates and none has its `<asset>.sig`.
+ *
  * @returns {{ asset: object, sigAsset: object } | { missing: 'artifact' | 'signature' }}
  */
 export function pickArtifact(release, target, arch) {
   const exts = PLATFORM_EXT[target] ?? [];
-  const tokens = ARCH_TOKENS[arch] ?? [arch];
+  const tokens = (ARCH_TOKENS[arch] ?? [arch]).map((t) => String(t).toLowerCase());
   const assets = release?.assets ?? [];
-  const candidates = assets.filter((a) => exts.some((e) => a.name.endsWith(e)));
-  const asset =
-    candidates.find((a) => tokens.some((t) => a.name.toLowerCase().includes(t.toLowerCase()))) ??
-    candidates[0];
-  if (!asset) return { missing: 'artifact' };
-  const sigAsset = assets.find((a) => a.name === `${asset.name}.sig`);
-  if (!sigAsset) return { missing: 'signature' };
-  return { asset, sigAsset };
+  const namesArch = (a) => tokens.some((t) => a.name.toLowerCase().includes(t));
+  let unsigned = false;
+  for (const ext of exts) {
+    const ofExt = assets.filter((a) => a.name.endsWith(ext) && !isCliBinary(a.name));
+    const ordered = [...ofExt.filter(namesArch), ...ofExt.filter((a) => !namesArch(a))];
+    for (const asset of ordered) {
+      const sigAsset = assets.find((a) => a.name === `${asset.name}.sig`);
+      if (sigAsset) return { asset, sigAsset };
+      unsigned = true;
+    }
+  }
+  return { missing: unsigned ? 'signature' : 'artifact' };
 }
 
 // The user-facing installer per platform (the marketing "Download for Mac" button, V2-7.2) — NOT

@@ -117,3 +117,58 @@ test('the artifact and its signature are picked per platform', () => {
   assert.deepEqual(pickArtifact(release, 'windows', 'x86_64'), { missing: 'signature' });
   assert.deepEqual(pickArtifact(release, 'linux', 'x86_64'), { missing: 'artifact' });
 });
+
+// The v2.0.8 release's real asset list, in GitHub's order (2.0.8). The feed answered
+// windows/x86_64 with 502 "signature asset missing": the CLI binary `maude-win32-x64.exe`
+// ends in `.exe`, names `x64` and sorts first, so it was picked over the signed installers.
+const V208_ASSETS = [
+  'maude-darwin-arm64',
+  'maude-darwin-x64',
+  'maude-linux-arm64',
+  'maude-linux-arm64-musl',
+  'maude-linux-x64',
+  'maude-linux-x64-musl',
+  'maude-win32-x64.exe',
+  'Maude.app.tar.gz',
+  'Maude.app.tar.gz.sig',
+  'Maude_2.0.8_amd64.deb',
+  'Maude_2.0.8_universal.dmg',
+  'Maude_2.0.8_x64-setup.exe',
+  'Maude_2.0.8_x64-setup.exe.sig',
+  'Maude_2.0.8_x64_en-US.msi',
+  'Maude_2.0.8_x64_en-US.msi.sig',
+].map((name) => ({ name, browser_download_url: `https://example.test/${name}` }));
+
+test('v2.0.8: windows gets the signed .msi, never the CLI binary', () => {
+  const win = pickArtifact(rel('v2.0.8', { assets: V208_ASSETS }), 'windows', 'x86_64');
+  assert.equal(win.asset?.name, 'Maude_2.0.8_x64_en-US.msi');
+  assert.equal(win.sigAsset?.name, 'Maude_2.0.8_x64_en-US.msi.sig');
+});
+
+test('v2.0.8: windows falls back to the signed NSIS installer when the .msi is absent', () => {
+  const assets = V208_ASSETS.filter((a) => !a.name.includes('.msi'));
+  const win = pickArtifact(rel('v2.0.8', { assets }), 'windows', 'x86_64');
+  assert.equal(win.asset?.name, 'Maude_2.0.8_x64-setup.exe');
+  assert.equal(win.sigAsset?.name, 'Maude_2.0.8_x64-setup.exe.sig');
+});
+
+test('v2.0.8: before the desktop build uploads, the CLI binary alone means "no artifact yet"', () => {
+  const assets = V208_ASSETS.filter((a) => a.name.startsWith('maude-'));
+  assert.deepEqual(pickArtifact(rel('v2.0.8', { assets }), 'windows', 'x86_64'), {
+    missing: 'artifact',
+  });
+});
+
+test('v2.0.8: both macOS arches get the universal app bundle', () => {
+  for (const arch of ['aarch64', 'x86_64']) {
+    const mac = pickArtifact(rel('v2.0.8', { assets: V208_ASSETS }), 'darwin', arch);
+    assert.equal(mac.asset?.name, 'Maude.app.tar.gz');
+    assert.equal(mac.sigAsset?.name, 'Maude.app.tar.gz.sig');
+  }
+});
+
+test('v2.0.8: linux has no updater artifact (a .deb, no AppImage) → nothing to offer', () => {
+  assert.deepEqual(pickArtifact(rel('v2.0.8', { assets: V208_ASSETS }), 'linux', 'x86_64'), {
+    missing: 'artifact',
+  });
+});
