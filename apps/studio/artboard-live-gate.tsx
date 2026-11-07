@@ -51,7 +51,7 @@ import {
   StillController,
 } from './artboard-still.ts';
 import { rasterTimings, startStill } from './artboard-still-raster.ts';
-import { StillWarmup } from './artboard-still-warmup.ts';
+import { StillWarmup, WARM_ENABLED } from './artboard-still-warmup.ts';
 import { WebglBudget } from './artboard-webgl.ts';
 
 const ALL_LIVE: ArtboardLiveState = { live: true, seen: true, media: true };
@@ -228,7 +228,7 @@ function getRuntime(): Runtime | null {
     w.__maudeStillHistory = (id?: string) => st.history(id);
     // the last drawings: slices, the longest one, when the walk / the decode / the drawing ended
     w.__maudeStillJobs = () => st.jobs();
-    if (mode === 'sleep') {
+    if (mode === 'sleep' && WARM_ENABLED) {
       warmup = startWarmup(registry, st, articles);
       const wu = warmup;
       w.__maudeStillWarm = () => ({ ...wu.stats(), cache: st.cache.stats() });

@@ -12,6 +12,7 @@ import { LiveRegistry } from '../artboard-live.ts';
 import { STILL_SETTLE_HOLD_MS, StillCache, StillController } from '../artboard-still.ts';
 import {
   StillWarmup,
+  WARM_ENABLED,
   WARM_GAP_MS,
   WARM_QUIET_MS,
   WARM_STEP_MAX_MS,
@@ -106,6 +107,12 @@ function runToEnd(r: ReturnType<typeof host>, ms = 60_000) {
     r.drawAll();
   }
 }
+
+describe('the switch', () => {
+  test('ships off in 2.0.7 (round 3: settle cost and blank Safari placeholders not resolved)', () => {
+    expect(WARM_ENABLED).toBe(false);
+  });
+});
 
 describe('the warm-up loop', () => {
   test('one artboard at a time, nearest first, only after the quiet; released once drawn; done when all have stills', () => {
@@ -252,7 +259,7 @@ function manual() {
 describe('the registry side', () => {
   test('a warm mount: far, asleep, within the budget; released at once; never mid-gesture', () => {
     const m = manual();
-    let clock = 0;
+    const clock = 0;
     const r = new LiveRegistry('sleep', m.schedule, { now: () => clock, budget: 1000 });
     for (const id of ['a', 'b', 'v', 'p', 'n']) r.subscribe(id, () => {});
     r.setWeight('a', 1);

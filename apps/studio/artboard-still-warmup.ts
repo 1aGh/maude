@@ -14,6 +14,13 @@
  * (`eager`, its media rule), never one on screen or near (the ring's), each artboard at most once per document.
  */
 
+/**
+ * Off in 2.0.7 (contract 207-overview-level, round 3): in Safari the fit-all zoom cycle after an idle open settled
+ * 1–1.5 frames over base with it on (A/A, cause not found), the warmed placeholders looked as blank as before in the
+ * Safari frame strip (Playwright WebKit draws them with their pictures — unverified in Safari), and the page held
+ * ~0.4 GB more. Flip only with those three re-measured.
+ */
+export const WARM_ENABLED = false;
 /** Quiet needed before the warm-up mounts the next artboard: no input, no camera move (ms). */
 export const WARM_QUIET_MS = 1500;
 /** Between one artboard's release and the next one's mount (ms): the frames the release paints in. */
