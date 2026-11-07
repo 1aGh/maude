@@ -3,11 +3,15 @@
 // The canvas frame (untrusted origin, DDR-054) never reaches this store: it only posts a still over the typed
 // bridge, and client/v2/shell/still-bridge.js decides the key. This module holds the bytes and the caps:
 //
-//   one record per (pid, scope, artboard)   scope = the frame's capability for its canvas (C4), chosen by the shell
+//   one record per (pid, scope, artboard)   scope = a SHA-256 of the frame's capability for its canvas (C4), chosen
+//          by the shell (the capability itself is never written down)
 //   src  = the index's srcHash:metaHash:depsHash at write time; `list` returns only records of the CURRENT src and
 //          deletes the others (a changed canvas never shows a stale still)
-//   caps = 256 kB a still (and a real still WebP, bridge/still-webp.ts) · 32 MB a project · 96 MB the store ·
-//          2000 stills a canvas · 300 writes a minute a canvas; over a cap the record used longest ago goes first
+//   caps = 256 kB a still (and a real still WebP, bridge/still-webp.ts) · 8 MB and 2000 stills a canvas · 32 MB a
+//          project · 96 MB the store · 300 writes and 2 MB a minute a canvas
+//   eviction: a canvas pays for its own writes first (its own records used longest ago); another canvas's records go
+//          only when the project or store cap still holds after that, oldest first — so one canvas's writes neither
+//          flush another canvas nor tell it anything about that canvas's use
 //
 // Storage: the main origin's IndexedDB (`maude-stills`) — the app's own data store in the desktop shell, the
 // browser profile's otherwise; never the design root (not synced, not committed). No IndexedDB, or one that
@@ -18,7 +22,14 @@ import { checkStillWebp, STILL_PERSIST_MAX_BYTES } from '../../../bridge/still-w
 export const STILL_PROJECT_MAX_BYTES = 32 * 1024 * 1024;
 export const STILL_STORE_MAX_BYTES = 96 * 1024 * 1024;
 export const STILL_CANVAS_MAX = 2000;
+/** A canvas's share of the project cap. */
+export const STILL_CANVAS_MAX_BYTES = 8 * 1024 * 1024;
 export const STILL_WRITES_PER_MINUTE = 300;
+export const STILL_BYTES_PER_MINUTE = 2 * 1024 * 1024;
+/** A read refreshes a record's place in the eviction order only when its last refresh is older than this. */
+export const STILL_TOUCH_AFTER_MS = 10 * 60_000;
+/** The record shape. Records of another shape (the first one, keyed on the plain capability) are dropped. */
+export const STILL_RECORD_V = 2;
 const MAX_PART = 2048;
 
 const okPart = (s) =>
@@ -34,14 +45,21 @@ export function memoryStillBackend() {
       return [...meta.values()].map((m) => ({ ...m }));
     },
     async getBytes(k) {
-      return bytes.get(k) ?? null;
+      // a copy, as IndexedDB gives: the bridge transfers (detaches) the answer's buffers
+      return bytes.get(k)?.slice(0) ?? null;
     },
     async put(m, b) {
       meta.set(m.k, { ...m });
       bytes.set(m.k, b);
     },
-    async touch(m) {
-      if (meta.has(m.k)) meta.set(m.k, { ...m });
+    /** Several records' new `at` in one go (IndexedDB: one transaction). */
+    async touch(ms) {
+      for (const m of ms) if (meta.has(m.k)) meta.set(m.k, { ...m });
+    },
+    /** tests: a raw record, as an older build wrote it */
+    _raw(m, b) {
+      meta.set(m.k, { ...m });
+      bytes.set(m.k, b);
     },
     async del(keys) {
       for (const k of keys) {
@@ -114,7 +132,10 @@ export function idbStillBackend(idb = typeof indexedDB !== 'undefined' ? indexed
         meta.put(m);
         bytes.put(b, m.k);
       }),
-    touch: (m) => run('readwrite', (meta) => void meta.put(m)),
+    touch: (ms) =>
+      run('readwrite', (meta) => {
+        for (const m of ms) meta.put(m);
+      }),
     del: (keys) =>
       run('readwrite', (meta, bytes) => {
         for (const k of keys) {
@@ -127,26 +148,34 @@ export function idbStillBackend(idb = typeof indexedDB !== 'undefined' ? indexed
 
 /**
  * The store. `put` and `list` never throw: a failing backend is the same as no store.
- * Records: `{ k, pid, scope, artboard, src, sig, size, at }` + the bytes beside them.
+ * Records: `{ v, k, pid, scope, artboard, src, sig, size, at }` + the bytes beside them.
  */
 export function createStillStore({ backend = idbStillBackend(), now = () => Date.now() } = {}) {
   let metas = null; // Map k → meta, loaded once
   let loading = null;
-  const writes = new Map(); // `${pid}\0${scope}` → write times in the last minute
+  const writes = new Map(); // `${pid}\0${scope}` → [time, bytes] of its writes in the last minute
   let tick = 0;
   const stamp = () => Math.max(now(), ++tick);
   const load = async () => {
     if (metas) return metas;
     loading ??= (async () => {
       const m = new Map();
+      const old = [];
       try {
         for (const r of (await backend?.loadMeta()) ?? []) {
-          if (r && typeof r.k === 'string' && Number.isFinite(r.size)) m.set(r.k, r);
+          if (!r || typeof r.k !== 'string') continue;
+          if (r.v === STILL_RECORD_V && Number.isFinite(r.size)) m.set(r.k, r);
+          else old.push(r.k);
         }
       } catch {
         /* no store: an empty one */
       }
       metas = m;
+      if (old.length) {
+        try {
+          await backend?.del(old);
+        } catch {}
+      }
       return m;
     })();
     return loading;
@@ -158,25 +187,32 @@ export function createStillStore({ backend = idbStillBackend(), now = () => Date
       await backend?.del(keys);
     } catch {}
   };
-  /** Over a cap: the record used longest ago goes first, among `pool`, until `room()` is true. */
-  const evict = async (pool, over) => {
+  /**
+   * Over a cap: records leave until `over()` is false — first `own` (the writing canvas's, used longest ago first),
+   * then `rest` (oldest first). The record just written is in neither.
+   */
+  const evict = async (own, rest, over) => {
     const out = [];
-    for (const r of [...pool].sort((a, b) => a.at - b.at)) {
+    const byAge = (rs) => [...rs].sort((x, y) => x.at - y.at);
+    for (const r of [...byAge(own), ...byAge(rest)]) {
       if (!over()) break;
+      if (!metas.has(r.k)) continue;
       out.push(r.k);
       metas.delete(r.k);
     }
     await drop(out);
   };
-  const rateOk = (pid, scope) => {
+  /** One canvas's write rate: writes and bytes in the last minute. */
+  const rateOk = (pid, scope, size) => {
     const id = `${pid}\0${scope}`;
     const t = now();
-    const list = (writes.get(id) ?? []).filter((x) => t - x < 60_000);
-    if (list.length >= STILL_WRITES_PER_MINUTE) {
+    const list = (writes.get(id) ?? []).filter((x) => t - x[0] < 60_000);
+    const sent = list.reduce((n, x) => n + x[1], 0);
+    if (list.length >= STILL_WRITES_PER_MINUTE || sent + size > STILL_BYTES_PER_MINUTE) {
       writes.set(id, list);
       return false;
     }
-    list.push(t);
+    list.push([t, size]);
     writes.set(id, list);
     return true;
   };
@@ -190,25 +226,32 @@ export function createStillStore({ backend = idbStillBackend(), now = () => Date
       if (!check.ok) return false;
       const size = bytes.byteLength;
       if (size > STILL_PERSIST_MAX_BYTES) return false;
-      if (!rateOk(pid, scope)) return false;
+      if (!rateOk(pid, scope, size)) return false;
       const m = await load();
       const k = keyOf(pid, scope, artboard);
-      const rec = { k, pid, scope, artboard, src, sig, size, at: stamp() };
+      const rec = { v: STILL_RECORD_V, k, pid, scope, artboard, src, sig, size, at: stamp() };
       const prev = m.get(k);
       m.set(k, rec);
-      const all = [...m.values()];
-      const canvas = all.filter((r) => r.pid === pid && r.scope === scope);
-      const project = all.filter((r) => r.pid === pid);
-      const sum = (rs) => rs.reduce((n, r) => n + (m.has(r.k) ? r.size : 0), 0);
-      const others = (rs) => rs.filter((r) => r.k !== k);
+      const live = (pred) => [...m.values()].filter(pred);
+      const sum = (rs) => rs.reduce((n, r) => n + r.size, 0);
+      const mine = (r) => r.pid === pid && r.scope === scope;
+      const ownOld = () => live((r) => mine(r) && r.k !== k);
+      // 1. the canvas's own count and its share of the project: only its own records go
+      await evict(ownOld(), [], () => {
+        const rs = live(mine);
+        return rs.length > STILL_CANVAS_MAX || sum(rs) > STILL_CANVAS_MAX_BYTES;
+      });
+      // 2. the project, 3. the store: the writer's own records first, then the oldest of the others
       await evict(
-        others(canvas),
-        () =>
-          [...m.values()].filter((r) => r.pid === pid && r.scope === scope).length >
-          STILL_CANVAS_MAX
+        ownOld(),
+        live((r) => r.pid === pid && !mine(r)),
+        () => sum(live((r) => r.pid === pid)) > STILL_PROJECT_MAX_BYTES
       );
-      await evict(others(project), () => sum(project) > STILL_PROJECT_MAX_BYTES);
-      await evict(others(all), () => sum(all) > STILL_STORE_MAX_BYTES);
+      await evict(
+        ownOld(),
+        live((r) => !mine(r)),
+        () => sum(live(() => true)) > STILL_STORE_MAX_BYTES
+      );
       try {
         await backend.put(rec, bytes.slice(0));
         return true;
@@ -229,6 +272,8 @@ export function createStillStore({ backend = idbStillBackend(), now = () => Date
       await drop(mine.filter((r) => r.src !== src).map((r) => r.k));
       const out = [];
       const bad = [];
+      const touched = [];
+      const t = now();
       for (const r of mine) {
         if (r.src !== src) continue;
         let bytes = null;
@@ -241,11 +286,17 @@ export function createStillStore({ backend = idbStillBackend(), now = () => Date
           bad.push(r.k);
           continue;
         }
-        r.at = stamp();
-        try {
-          await backend.touch(r);
-        } catch {}
+        // a read refreshes the eviction order: only a record not refreshed lately, all in one write
+        if (t - r.at > STILL_TOUCH_AFTER_MS) {
+          r.at = stamp();
+          touched.push(r);
+        }
         out.push({ artboard: r.artboard, sig: r.sig, bytes });
+      }
+      if (touched.length) {
+        try {
+          await backend.touch(touched);
+        } catch {}
       }
       await drop(bad);
       return out;
