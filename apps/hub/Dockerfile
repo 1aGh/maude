@@ -240,7 +240,7 @@ COPY apps/hub/src/project-transactions/baseline.mjs \
 COPY apps/hub/src/votes.mjs /build/apps/hub/src/votes.mjs
 COPY cli/lib/bash-guard.mjs cli/lib/finding-text.mjs cli/lib/confine-out.mjs \
      cli/lib/confine-root.mjs cli/lib/studio-locate.mjs cli/lib/handoff.mjs \
-     cli/lib/json-schema-lite.mjs cli/lib/pkg-root.mjs cli/lib/design-hook.mjs /build/cli/lib/
+     cli/lib/json-schema-lite.mjs cli/lib/pkg-root.mjs cli/lib/design-hook.mjs cli/lib/hook-state.mjs /build/cli/lib/
 # The client bundle + stylesheet are COMMITTED artifacts (see CLAUDE.md: what
 # you commit is what ships) — MAUDE_SKIP_RUNTIME_BUILD keeps the runtime bundles
 # verbatim for the same reason. The E1 seal below records what came out of here.

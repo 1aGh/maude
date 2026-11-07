@@ -511,6 +511,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/agent/run/end': REFUSED,
   '/_api/agent/write/claim': REFUSED,
   '/_api/agent/bash/window': REFUSED,
+  '/_api/agent/bash/settle': REFUSED, // #164: settles a LOCAL hook call's bytes; a cell has no hook
   '/_api/design/init': REFUSED,
   // Resync + the sweep cancel (v0.60.0) restart the SYNC RUNTIME of whatever
   // process serves this project. On a laptop that is the person's own studio
