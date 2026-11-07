@@ -36,8 +36,8 @@ const CONTRACT: Record<string, [string, string, string, string, string]> = {
   'comment-pins': ['shown', 'shown', 'hidden', 'hidden', 'shown'],
   measure: ['on', 'on', 'off', 'off', 'on'],
   'ai-changes': ['live', 'live', 'held', 'live-unmarked', 'live'],
-  'left-panels': ['shown', 'folded', 'hidden', 'hidden', 'shown'],
-  'ai-panel': ['shown', 'folded', 'hidden', 'hidden', 'none'],
+  'left-panels': ['shown', 'shown', 'hidden', 'hidden', 'shown'],
+  'ai-panel': ['shown', 'shown', 'hidden', 'hidden', 'none'],
   // r2-p3 (Michal TD1d): a mode switch changes only the toolbar — Preview keeps Edit's cluster and pill
   'share-cluster': ['full', 'full', 'hidden', 'hidden', 'full-access'],
   inspect: ['inspector', 'panel-on-cmd-click', 'hidden', 'hidden', 'panel-on-click'],
@@ -118,10 +118,8 @@ describe('the questions consumers ask are answers read from the table', () => {
     expect(holdsAiChanges('preview')).toBe(false);
   });
 
-  test('Preview folds the panels; nothing else does', () => {
-    expect(foldsPanels('preview')).toBe(true);
-    for (const [m, p] of MODES.filter(([m]) => m !== 'preview'))
-      expect(foldsPanels(m, p)).toBe(false);
+  test('no mode folds the panels: Preview keeps them too (#163)', () => {
+    for (const [m, p] of MODES) expect(foldsPanels(m, p)).toBe(false);
   });
 });
 

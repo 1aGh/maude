@@ -63,10 +63,11 @@ export const MODE_SHOWS = Object.freeze({
   measure: row('on', 'on', 'off', 'off', 'on'),
   /** A8 — what an AI write does on the canvas: `held` only in Present · Artboards. */
   'ai-changes': row('live', 'live', 'held', 'live-unmarked', 'live'),
-  /** Shell: the Canvases (left) panel. */
-  'left-panels': row('shown', 'folded', 'hidden', 'hidden', 'shown'),
-  /** Shell: the AI chat panel (C30: a viewing role has none). */
-  'ai-panel': row('shown', 'folded', 'hidden', 'hidden', 'none'),
+  /** Shell: the Canvases (left) panel. #163 (Michal): a mode switch changes only the toolbar, so Preview keeps
+   *  the panels where the person left them; it never folds them to their corner icons (⌘\ is the person's). */
+  'left-panels': row('shown', 'shown', 'hidden', 'hidden', 'shown'),
+  /** Shell: the AI chat panel (C30: a viewing role has none). Shown in Preview too (#163). */
+  'ai-panel': row('shown', 'shown', 'hidden', 'hidden', 'none'),
   /** Shell: the Share cluster. `full-access` = full, with the access word. r2-p3 (Michal TD1d): a mode switch
    *  changes only the toolbar, so Preview keeps Edit's full cluster (faces, status word, avatar); `compact`
    *  (faces + status step aside) is no mode's cell any more. */
@@ -160,7 +161,7 @@ export const holdsAiChanges = (
   present?: Pick<PresentSpec, 'kind'> | null
 ): boolean => modeCell('ai-changes', mode, present) === 'held';
 
-/** Preview folds the Canvases / AI chat panels to their corner icons; no other mode does (Present hides). */
+/** Does a mode fold the Canvases / AI chat panels to their corner icons? None does since #163 (Present hides). */
 export const foldsPanels = (
   mode: CanvasModeV2,
   present?: Pick<PresentSpec, 'kind'> | null

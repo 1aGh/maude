@@ -3,6 +3,16 @@
   "version": "2.0.8",
   "entries": [
     {
+      "id": "preview-keeps-panels",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Preview keeps your panels open",
+      "summary": "Switching to Preview now changes only the toolbar. The Canvases and AI chat panels stay where you left them, and ⌘\\ still hides every panel.",
+      "learnMore": "https://maude.sh/docs/desktop/window",
+      "surface": "design-ui"
+    },
+    {
       "id": "text-esc-keeps-words",
       "version": null,
       "date": null,
