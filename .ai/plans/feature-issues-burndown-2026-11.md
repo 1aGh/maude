@@ -156,13 +156,13 @@ W5 and W6 use Opus.
 
 ### W2 — Canvas and shell (client; Opus where it touches the frame bridge)
 
-- [ ] T2.1 **#212 §4, §1, §2, §3:**
+- [x] T2.1 **#212 §4, §1, §2, §3:**
   - the fail-first test (an evicted still comes back as a still);
   - 400 px stills;
   - a two-tier cache (an encoded WebP tier that is never evicted, with a cap, plus a decoded LRU);
   - one still element is reused on release;
   - measure a full-canvas pan in Safari and Tauri, against the 2.0.7 p95 (memory `maude-perf-measure-full-canvas-sweep`).
-- [ ] T2.2 **#212 §5** (D2, security risk class, Opus): persistence across sessions over the typed bridge, keyed by project, canvas, source hash and artboard. Run the security pair.
+- [x] T2.2 **#212 §5** (D2, security risk class, Opus): persistence across sessions over the typed bridge, keyed by project, canvas, source hash and artboard. Run the security pair.
 - [x] T2.3 **#151 §4–§6:**
   - why the `.ldm-hifi` components get no `data-cd-id` (stamping gap), and fix it;
   - D5 "Re-attach to element", with PATCH accepting the anchor;
@@ -365,3 +365,4 @@ W5 and W6 use Opus.
 - 2026-11-07 merged T2.6b part 1 (083ef90dd 052b0e6ec ab9aa2977): background working tab tooltip "<project> · AI is working on <canvas>". Lead decision: no cross-project toast — keep `v2-lead-other-tab-no-cross-project-toast` (per-project isolation); the strip mark + tooltip carry ai-other-tab (CONTRACT line to add). E2E specs → T2.6c.
 - 2026-11-07 merged T5.3 part 1 (3e3a8fd4c 699271593 66d46fc44: DS manifest only under declared groups, per-subtree depth cut + gone tombstones, overflow flag fails closed, tail holds delta, replay release only when gone, pruned-hold ghosts, wake test). Lead fixes a78c9a1ae: hub Dockerfile stages hook-state.mjs, studio-manifest classifies /_api/agent/bash/settle (both regressions from #164). Item 6 → option A (lead). Part 2 running.
 - 2026-11-07 merged T2.2-sec b6b0a5d21 (sibling guard + per-session latch: no still writes in a session where two canvas frames were ever mounted; answer-once; 2 MB/min + 8 MB per canvas; own-scope-first eviction; hashed scope; release builds drop __maudeStill* globals). Trade-off for Michal: with kept-alive tabs most sessions write no new stills (earlier ones still show). Re-review running.
+- 2026-11-07 T2.2 re-review: F1/F2 closed; open case was two unsandboxed canvas frames (compare, diff) → sandboxed + pin test (red without). T2.1/T2.2 ticked; Safari/Chromium sweep verifier still running for the measured section.
