@@ -116,6 +116,81 @@ validated); settle max within one frame of base — **met on sweep and zoomsweep
 (base 19–260, fix 29–124: two of three rounds 70–105 ms over) — most likely the still drawings that resume 600 ms
 after the settle (draws of up to 114–138 ms wall time, `takes.max`) inside the 1.2 s settle window.
 
+## Round 2 and 3 (2.0.7 follow-ups): sliced stills, the settle hold for pans, the warm-up
+
+Round 2 (`615a2c7c3`, "prev" below): stills are drawn in slices (`artboard-still-raster.ts` `startStill`) within a
+per-frame budget (`STILL_PAN_BUDGET_MS` 4 / `STILL_IDLE_BUDGET_MS` 8), also mid-pan, and nothing is drawn for
+`STILL_SETTLE_HOLD_MS` (1.2 s) after a zoom settles — that fixed the fit-all settle max (gate above). Round 3:
+
+1. **The hold applies to pans too** (`a10b5dd8e`): a pan inside the 1.2 s after a zoom no longer draws. Kept — it is
+   cheap and never worse — but it does **not** bring sweep-after-zoom to ≤ 55: the zoomsweep's sweep runs mostly
+   past the hold, and what costs is drawing during a pan at all (control "nopan" below: no drawing mid-pan).
+2. **The warm-up** (`127f6794c`, `artboard-still-warmup.ts`): after the open, while nothing moves, it mounts each
+   never-mounted artboard far away, asleep, within the DOM budget (`LiveRegistry.setWarm`), lets the controller
+   draw its still, and releases it at once — its placeholder then shows the kept still. One at a time; only after
+   `WARM_QUIET_MS` (1.5 s) without input or camera move, with the controller quiet (no gesture, past the hold, no
+   hand-back, nothing being drawn) and the ring's mounts done (`WARM_RING_QUIET_MS` 300); any input pauses it at
+   once (a mount not made yet is withdrawn; a made one is released only once quiet); never past the DOM budget or
+   the still cache's bytes (a dropped still would be warmed again forever); never pinned / eager (video) / near /
+   on-screen / over-the-cut artboards; each once per document. **It ships OFF** (`WARM_ENABLED = false`,
+   `71a7b2784`) — the numbers below.
+
+Harness `/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/ov3/`
+(`batch2.sh`–`batch5.sh`, `lane.sh`, `sweep.js`, `warmrun.sh` + `warmprobe.js`, `stripsafari.sh`, `agg2.py`): real
+Safari (safaridriver), mascot, window 1600 × 1000, dpr 1, `caffeinate -d`, every row's 1-min load 2.9–5.9 (bar 6).
+Arms, each its own server and APFS project clone: **base** `d74d94df1` · **prev** `615a2c7c3` · **nowarm** this tip
+with the warm-up off (= the shipped state) · **fix** the warm-up on · **nopan** nowarm with no drawing mid-gesture
+(control) · **warmon** = fix on nowarm's tree lineage (A/A). Lanes opened 8 s after the artboards appear unless "@45 s".
+
+| lane (p95 ms, rounds) | base | prev | nowarm (shipped) | fix (warm-up on) | nopan (control) |
+| --- | --- | --- | --- | --- | --- |
+| sweep 10 % | 213 · 213 · 197 | 56 · 51 · 50 | **49 · 45 · 49** | 59 · 47 · 47 | 42 · 47 · 40 (vs nowarm 49 · 64 · 52) |
+| zoomsweep 10 % | 164 · 153 · 167 | 68 · 58 · 61 | **66 · 66 · 63** | 50 · 58 · 58 | 87 · 52 · 53 (vs nowarm 67 · 62 · 56) |
+| zoomcycle fit 2.65 % | 1326 · 970 · 1049 | — | **78 · 69 · 89** | 76 · 63 · 75 | — |
+| settle max: sweep / zoomsweep / zoomcycle | 270–278 / 189–300 / 25–33 | 208–219 / 116–121 / — | 120–158 / 144–195 / **30–37** | 166–192 / 165–182 / 20–30 | — |
+
+**@45 s (the warm-up finished on fix):** sweep fix 41 · 48 · 61 vs nowarm 44 · 54; zoomsweep fix 60 · 56 · 57 · 60 ·
+84 (one 258 outlier) vs nowarm 67 · 75 · 61; **zoomcycle settle max fix 40–53 (6 rows), warmon 39–48 (3) vs nowarm
+24–42 (6)** — over base 25–33 by 1–1.5 frames, though that cycle warmed 0 artboards (all 88 on screen at fit);
+p95 fix 71–115, warmon 92–116, nowarm 63–98. Cause not found (the warm-up is idle there: it waits 1.5 s of quiet,
+the settle window is 1.2 s).
+
+**The warm-up at idle** (Safari, two runs): 57 artboards warmed in **26.8 s** (both runs), 0 failed, cache 30 → 84
+stills (12 → 24 MB; of the 4 without one, one is the active artboard, the other 3 not identified), mounted 28–29 / 8.5k elements
+throughout (budget 12k). The canvas's WebContent process: CPU mean 34–43 % over the 30 s (peaks 122–154 % in the
+first 2 s — the open itself), RSS 0.75–0.9 GB → 1.35–1.44 GB at the end (nowarm 0.77–1.0 GB after the open).
+Playwright WebKit (dpr 2): at 1600 × 1000 the on-screen artboards already weigh 17–19k elements, so the warm-up
+mounts nothing (`full: budget`); at 1100 × 700 it warmed 67, and every placeholder copy has content (37 % of its
+pixels off its dominant colour, median; 0 flat). **At dpr 2 the cache (96 MB) holds ~64 stills**, so the warm-up
+stops at `full: cache` before 88.
+
+**Flicker / first pass** (mascot sweep at 10 %, on-screen states per artboard, Safari):
+
+| | nowarm (shipped) | fix @ 8 s (warm-up running) | fix @ 45 s (warm-up done) |
+| --- | --- | --- | --- |
+| covers on screen (mounted, no still yet) | 18 | 10 | **0** |
+| placeholder never mounted, flat own colour | 42 | 32 | **3** |
+| placeholder showing its kept still (DOM) | 0 | 9 | **39** |
+
+**But the Safari frame strips show the warmed placeholders as blank as the flat ones** — same white blocks in both
+arms (`out/strip-nowarm/strip.png`, `out/strip-fix/strip.png`, frames `f00–f11.png`, crops `f04-crop.png`, under the
+harness dir). Playwright WebKit draws the same copies with their pictures, so most likely Safari draws a far
+artboard's still before its pictures load or decode (the walk is `content-visibility`-skipped there) — **not
+verified** (no Safari time left in the slot): `stillcheck.sh` / `stillcheck.js` measures it in one run.
+
+**Verdict.** The pan hold ships (sweep 10 % 45–49 ≤ 50 ✓; sweep-after-zoom 63–66, unchanged from prev 58–68 — the
+≤ 55 bar is **not met**). The warm-up is a bad trade as it stands: it does empty the first pass in DOM terms (0
+covers, 3 flat) and helps sweep-after-zoom (fix 50–58 / 56–60 vs 63–75), but it pushes the fit-all settle max over
+base, holds ~0.4 GB more, and in Safari its placeholders look no different. **Chromium** (stills and warm-up off
+there, base / fix, Playwright, load 3.5–5.9): sweep p95 8.4 · 8.5 / 9.8 · 8.5, zoomsweep 8.3 · 9.3 · 10.8 /
+8.6 · 17.3 · 12.3, zoomcycle 183 · 212 / 212 · 210 (its own fit-all cliff in both) — no regression.
+
+Fail-first (`ff2.sh` + `ff2.py`, each rule reverted on a copy, the current tests): overview-level 24 — parent red 1,
+`pan-exempt` red 1 (the pan-hold test), real 24/0; warm-up 11 — parent red (no module), `warm-no-quiet` 3 red,
+`warm-no-withdraw` 1, `warm-no-budget` 1, `warm-no-cache` 1, `warm-no-once` 2, `warm-release-busy` 1,
+`warm-release-grace` 1, `warm-quiet-drawing` 1, real 0 red. The `eager` exclusion in `warmCandidates` has no
+red variant: an eager artboard is always mounted in `sleep`, so `admitted` already excludes it (kept, defensive).
+
 ## Persistence — the safe design, and why it is not in this change
 
 - **Frame-side storage (IndexedDB / Cache API on the canvas origin): rejected.** Every canvas frame shares that one
@@ -168,6 +243,13 @@ after the settle (draws of up to 114–138 ms wall time, `takes.max`) inside the
 - `canvas-lib.tsx`: `.dc-artboard { background: var(--dc-own-bg, var(--bg-0, #ffffff)) }`.
 - Anything that reads an overview artboard's DOM geometry still can (the DOM never leaves); its painted pixels are the
   still's. A capture never runs it (`liveMode: 'off'`).
+- Rounds 2–3: `artboard-still.ts` `STILL_PAN_BUDGET_MS`, `STILL_IDLE_BUDGET_MS`, `STILL_SETTLE_HOLD_MS` (pans too),
+  `STILL_MAX_DECODING`, `STILL_WALK_ATTR`; `StillController.quiet(drawing?)`, `lastActivity()`, `zoomNow()`,
+  `hasStill(id)`, `onStill(fn)`; `StillCache.max`; `__maudeStillJobs()`. `artboard-still-warmup.ts`:
+  `WARM_ENABLED` (false), `WARM_QUIET_MS`, `WARM_GAP_MS`, `WARM_POLL_MS`, `WARM_STEP_MAX_MS`, `StillWarmup`
+  (`kick`, `input`, `wake`, `stillDone`, `stop`, `stats`) over a `WarmHost` adapter. `artboard-live.ts`
+  `LiveRegistry.setWarm`, `isMounted`, `warmCandidates`, `lastMountAt`. Gate: `startWarmup` (only when
+  `WARM_ENABLED`), `window.__maudeStillWarm()`, `RUNTIME_SHAPE` 4.
 
 ## Tests
 
@@ -179,7 +261,14 @@ out swaps to its still at once or stays live until drawn; `targetView` per view;
 still with no cover and an equal signature is not redrawn, a changed one is; a remount over the cut hands over from
 the kept still; the LRU byte budget never drops what stands in; the signature; a hidden body is shown for the walk
 only; the CSS; mounted: the frame takes its own colour, no skeleton bar, the gate registers. 
-`test/v2-207-overview-stills.test.tsx` keeps the shared predicates (3).
+`test/v2-207-overview-stills.test.tsx` keeps the shared predicates (3). Rounds 2–3 brought
+`v2-207-overview-level` to 24 (pan drawing, the settle hold incl. a pan in it, the frame budget, a change while
+drawn, the decode pipeline, the walk CSS, the sliced job mounted) and added `test/v2-207-still-warmup.test.ts` (11:
+the switch is off; one at a time nearest first after the quiet, released once drawn; input withdraws an unmade
+mount; a made one is released only when quiet; camera moves count as input; DOM budget, cache bytes, has-a-still,
+over-the-cut and tried-once skips; the step timeout; the settle wakes it; the registry's warm mount — far, asleep,
+within budget, released at once, never mid-gesture; light mode and captures offer nothing; the controller's
+`quiet()` / `onStill`). Their fail-first table is in round 3 above.
 
 Fail-first (`ff2.sh`, each rule reverted on a copy of `artboard-still.ts`): real 17/0 · base (`00032a82f`) red (the
 module lacks the API) · no overview rule 9 red · no exemption 2 red · no hand-over 4 red · no cover 6 red · no cache 2
@@ -188,11 +277,15 @@ red · no unhide-for-the-walk 1 red · real again 17/0.
 ## Open questions (recommended default)
 
 - **The cut, 200 px** (Michal said ~120): default 200 — measured above; 120 leaves his 10 % lane untouched.
-- **First pass shows flat blocks** (above). Default next step: draw a cover's still during a pan when the last frames
-  were fast (one per ≥ 300 ms, collect ≤ 20 ms), measured on the sweep lane; and the shell-side persistence below so
-  a re-open never shows one. Michal should see a test build with this before calling it done.
-- **Settle max on the fit-all zoomcycle** (gate not met): default — defer drawings while a settle's 1.2 s window is
-  open and split the walk of a hidden body (its children are `display: none`, so the walk forces their style and
-  layout); re-measure the zoomcycle lane.
+- **First pass shows flat blocks** — round 2 draws covers mid-pan (sliced); ~42 never-mounted artboards stay flat
+  placeholders. The warm-up empties that in DOM terms but ships off (round 3). Default next step: (1) one Safari run
+  of `stillcheck.sh` with `WARM_ENABLED` on — if the warmed copies are blank there, wait for the far body's pictures
+  (`img.decode()` + `complete`, bounded) before its walk; (2) find the fit-all settle cost with the warm-up idle (A/A
+  above); (3) the shell-side persistence below, which removes the cold first pass without any warm-up mounting.
+- **Sweep-after-zoom ≤ 55** (not met: 63–66 shipped, base 153–167): the cost is drawing during a pan at all (nopan
+  52–53). Default: keep drawing mid-pan (it is what turns covers into stills on a first pass); revisit with a smaller
+  `STILL_PAN_BUDGET_MS` (2) measured on zoomsweep + sweep together.
+- **Settle max on the fit-all zoomcycle**: round 2 fixed it (shipped 30–37 vs base 25–33 in round 3; fix-with-warm-up
+  20–30 @ 8 s). Re-check with the warm-up only if it is turned on (40–53 @ 45 s).
 - **Chromium fit-all cliff** (a 5.9–17 s frame in both arms): not this change; a separate finding.
 - **The Tauri app lane** (Michal: "the window feels slower than Safari"): not run in this spike — see the hand-back.
