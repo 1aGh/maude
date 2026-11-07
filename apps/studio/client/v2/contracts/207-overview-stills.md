@@ -101,6 +101,37 @@ change).
 Drawing cost (`__maudeStillStats`): 27 stills at open, ~9–37 ms each (231 ms total), longest synchronous collect
 16–45 ms, paint 2 ms.
 
+## Measured — paced hand-back (`ba5bcc447`, base = release tip `3cfe14153`)
+
+Same harness, Safari, mascot 10 %, base and fix both with the missing-picture-frames fix. `pz` = the default pass
+(pan then zoom; the kept passes pan ~0.9 s after the previous pass's zoom — pan after zoom). `zo` = zoom only
+(`--pan 2`: its "pan p95" is the first two frames of the gesture).
+
+| run | load (base / fix) | zoom p95 | pan p95 | settle max | long ≥ 50 |
+| --- | --- | --- | --- | --- | --- |
+| pz r1 | 5.92 / 4.23 | 332 / 187 | 64 / 85 | 76 / 202 | 34 / 23 |
+| pz r2 | 4.16 / 5.68 | 441 / 99 | 59 / 92 | 180 / 92 | 34 / 16 |
+| pz r3 | 5.57 / 4.73 | 299 / 142 | 79 / 99 | 39 / 120 | 29 / 20 |
+| pz r4 (take delay 2 s, not committed) | 5.64 / 4.98 | 377 / 165 | 46 / 93 | 160 / 130 | 31 / 22 |
+| zo r1 | 4.85 / 3.82 | 428 / 132 | 65 / 97 | 383 / 184 | 31 / 17 |
+| zo r2 | 5.41 / 3.16 | 591 / 152 | 67 / 108 | 43 / 105 | 33 / 17 |
+| zo r3 | 3.29 / — | 408 / refused (load 11) | 55 / — | 30 / — | 30 / — |
+| DS 10 % | 5.87 / 5.65 | 15 / 15 | 15 / 15 | 15 / 15 | 1 / 0 |
+| math 10 % | 5.63 / 4.64 | 47 / 45 | 19 / 21 | 16 / 15 | 1 / 1 |
+| Chromium mascot 10 % | 3.98 / 3.39 | 33.4 / 50 | 33.4 / 16.8 | 66.7 / 66.6 | 1 / 3 |
+
+- **Zoom keeps its gain: 299–591 → 99–187 (2.3–4 ×).** Long frames 29–34 → 16–23.
+- **Settle max: the 288–358 ms frame is gone** (92–202, mean 147 vs base mean 155 across the six paired rows) — but
+  not under 50, and two of five pairs are worse than base by more than a frame.
+- **Pan after zoom is NOT at base: 46–79 → 85–108 (≈ 1.5 ×), and the zoom-only runs show it is the first frames of
+  the next gesture** (2-frame "pan" 55–67 → 97–108). Drawing stills later (2 s) did not change it (r4), so it is not
+  the redraw: the most likely cost is the hand-back still painting (one artboard's first paint at the new zoom lands
+  in the next frame) when the next gesture starts ~0.9 s after the last one. Pausing on gesture input stops the
+  queue but not the paint already in flight.
+- Chromium differences are within its 16.7 ms frame quantum (the feature is off there); DS and math unchanged.
+
+**Ship gate (coordinator): not met** — pan after zoom is above base and settle max is above 50 ms.
+
 ## Rejected alternatives
 
 - **Server thumbnails (V2-2.17 `thumbs/`)**: per-artboard pictures exist as a job kind, but the routes are
