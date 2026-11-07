@@ -7096,7 +7096,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         ctx.bus.emit('activity:unsuppress', rel);
         return { ok: false, status: 413, error: 'canvas source too large to grow' };
       }
-      const res = await insertArtboard(r.abs, { id, label, width, height });
+      // #164 B4 — the op says its bytes like delete/insert-element: the person's edit, or (inside an AI
+      // route's write claim) the run's, never an `outside` change the watcher had to guess
+      const res = await sayingWrites(before, 'Added an artboard', () =>
+        insertArtboard(r.abs, { id, label, width, height })
+      );
       const after = await Bun.file(r.abs).text();
       if (after === before) {
         ctx.bus.emit('activity:unsuppress', rel);
@@ -7107,7 +7111,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       } catch {
         /* snapshot best-effort */
       }
-      return { ok: true, artboardId: res.artboardId, seq: logUndo(r.abs, before, after) };
+      const seq = logUndo(r.abs, before, after);
+      noteSourceWritten(rel, after, 'Added an artboard');
+      return { ok: true, artboardId: res.artboardId, seq };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
       return {
@@ -7357,7 +7363,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     try {
       const before = await Bun.file(r.abs).text();
       announceOp(r.abs, rel, before, { kind: 'artboard', fn: 'label', artboardId, args: [label] });
-      await setArtboardLabel(r.abs, artboardId, label);
+      // #164 B4 — says its bytes (see insertArtboardOp)
+      await sayingWrites(before, 'Renamed an artboard', () =>
+        setArtboardLabel(r.abs, artboardId, label)
+      );
       const after = await Bun.file(r.abs).text();
       if (after === before) {
         ctx.bus.emit('activity:unsuppress', rel);
@@ -7368,7 +7377,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       } catch {
         /* snapshot best-effort */
       }
-      return { ok: true, seq: logUndo(r.abs, before, after) };
+      const seq = logUndo(r.abs, before, after);
+      noteSourceWritten(rel, after, 'Renamed an artboard');
+      return { ok: true, seq };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
       return {
@@ -7842,13 +7853,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
-      await editArrayElementString(r.abs, arrayName, index, field, value);
+      // #164 B4 — says its bytes (see insertArtboardOp)
+      await sayingWrites(before, 'Replaced media', () =>
+        editArrayElementString(r.abs, arrayName, index, field, value)
+      );
       const after = await Bun.file(r.abs).text();
       if (after === before) {
         ctx.bus.emit('activity:unsuppress', rel);
         return { ok: true };
       }
-      return { ok: true, seq: logUndo(r.abs, before, after) };
+      const seq = logUndo(r.abs, before, after);
+      noteSourceWritten(rel, after, 'Replaced media');
+      return { ok: true, seq };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
       return {
