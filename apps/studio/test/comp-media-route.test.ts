@@ -121,8 +121,9 @@ describe('the route is a main-origin read, in neither canvas allowlist', () => {
     const http = {
       routes: {},
       canvasRoutes: {},
+      unclaimed: {},
       tableCanvasPaths: table.canvasPaths,
-    } as unknown as Pick<Http, 'routes' | 'canvasRoutes' | 'tableCanvasPaths'>;
+    } as unknown as Pick<Http, 'routes' | 'canvasRoutes' | 'tableCanvasPaths' | 'unclaimed'>;
     expect(Object.keys(canvasOriginRoutes(http))).not.toContain(ROUTE);
   });
 });

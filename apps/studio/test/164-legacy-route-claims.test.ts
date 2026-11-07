@@ -16,9 +16,11 @@ import path from 'node:path';
 
 import { createLocalLeaseHome } from '../ai/lease-home.ts';
 import { createRunRegistry } from '../ai/runs.ts';
+import { currentWriteClaim, routeWriteClaim, withWriteClaim } from '../ai/write-claim.ts';
 import { createApi } from '../api.ts';
 import type { Context } from '../context.ts';
-import { CANVAS_SAFE_API, claimingLegacyRoutes } from '../http.ts';
+import { CANVAS_SAFE_API, claimingLegacyRoutes, type Http } from '../http.ts';
+import { canvasOriginRoutes } from '../routes/canvas-origin.ts';
 import { runStageHooks } from '../routes/project-undo.ts';
 import { attachLocalHome, type LocalHome, OUTSIDE_KIND } from '../sync/local-kernel.ts';
 
@@ -203,7 +205,7 @@ describe('#164 B4 — which legacy paths are wrapped', () => {
     return new Response('ok');
   };
 
-  test('a canvas-safe path, /_api/canvas and a hook path keep their own handler', () => {
+  test('/_api/canvas and a hook path keep their own handler; F2 — a canvas-safe path is wrapped on the main origin', () => {
     const own = {
       '/_api/annotations': probe('/_api/annotations'),
       '/_api/canvas': probe('/_api/canvas'),
@@ -212,10 +214,96 @@ describe('#164 B4 — which legacy paths are wrapped', () => {
     };
     const wrapped = claimingLegacyRoutes(own, null);
     for (const p of CANVAS_SAFE_API)
-      if (p in own) expect(wrapped[p as keyof typeof own]).toBe(own[p as keyof typeof own]);
+      if (p in own) expect(wrapped[p as keyof typeof own]).not.toBe(own[p as keyof typeof own]);
     expect(wrapped['/_api/canvas']).toBe(own['/_api/canvas']);
     expect(wrapped['/_api/agent/x']).toBe(own['/_api/agent/x']);
     expect(wrapped['/_api/insert-artboard']).not.toBe(own['/_api/insert-artboard']);
     expect(Object.keys(wrapped)).toEqual(Object.keys(own));
+  });
+});
+
+describe('#164 F2 / D5 — who a legacy write claims for', () => {
+  const closers: Array<() => void> = [];
+  afterAll(() => {
+    for (const c of closers) c();
+  });
+  async function registry() {
+    const reg = createRunRegistry({
+      designRoot: null,
+      home: createLocalLeaseHome({ actor: 'you' }),
+      autoRenew: false,
+    });
+    closers.push(() => reg.close());
+    const runId = (await reg.ask({ origin: 'maude-chat', chatId: 'c1', label: 'Tidy', lazy: true }))
+      .runId as string;
+    return { reg, runId };
+  }
+  /** A handler that records the run its writes would claim for (null: the person's). */
+  const recorder = () => {
+    const seen: Array<string | null> = [];
+    const h = async () => {
+      seen.push(currentWriteClaim()?.runId ?? null);
+      return new Response('ok');
+    };
+    return { seen, h };
+  };
+  const req = (p: string, method: string, headers: Record<string, string>, body: unknown = {}) =>
+    new Request(`http://127.0.0.1:4399${p}`, {
+      method,
+      headers: { 'content-type': 'application/json', host: '127.0.0.1:4399', ...headers },
+      body: JSON.stringify(body),
+    });
+
+  test('an AI request to PATCH /_api/canvas-meta or PUT /_api/annotations on the main origin is the run’s; the canvas origin never claims', async () => {
+    const { reg, runId } = await registry();
+    const meta = recorder();
+    const board = recorder();
+    const own = { '/_api/canvas-meta': meta.h, '/_api/annotations': board.h };
+    const main = claimingLegacyRoutes(own, reg);
+    const canvas = canvasOriginRoutes({
+      routes: main,
+      unclaimed: own,
+      canvasRoutes: {},
+      tableCanvasPaths: [],
+    } as unknown as Pick<Http, 'routes' | 'canvasRoutes' | 'tableCanvasPaths' | 'unclaimed'>);
+    const ai = { 'X-Maude-Chat': 'c1' };
+    const patch = { file: 'ui/Home.tsx', patch: { layout: {} } };
+    await main['/_api/canvas-meta'](req('/_api/canvas-meta', 'PATCH', ai, patch));
+    await main['/_api/annotations'](req('/_api/annotations', 'PUT', ai));
+    await main['/_api/canvas-meta'](req('/_api/canvas-meta', 'PATCH', {}, patch));
+    await main['/_api/annotations'](req('/_api/annotations', 'PUT', {}));
+    // the canvas listener: the same header from a planted canvas claims nothing
+    await (canvas['/_api/canvas-meta'] as (r: Request) => Promise<Response>)(
+      req('/_api/canvas-meta', 'PATCH', ai, patch)
+    );
+    await (canvas['/_api/annotations'] as (r: Request) => Promise<Response>)(
+      req('/_api/annotations', 'PUT', ai)
+    );
+    expect(meta.seen).toEqual([runId, null, null]);
+    expect(board.seen).toEqual([runId, null, null]);
+  });
+
+  test('D5 — a route that starts long-lived work (ACP chat, jobs, sync, hub link) answers under no claim', async () => {
+    const { reg } = await registry();
+    const paths = [
+      '/_api/acp/chat',
+      '/_api/export-jobs',
+      '/_api/generate-jobs',
+      '/_api/sync/settings',
+      '/_api/hub/link',
+    ];
+    const rec = recorder();
+    const main = claimingLegacyRoutes(Object.fromEntries(paths.map((p) => [p, rec.h])), reg);
+    for (const p of paths) await main[p](req(p, 'POST', { 'X-Maude-Chat': 'c1' }));
+    expect(rec.seen).toEqual(paths.map(() => null));
+  });
+
+  test('D5 — a claim is re-checked when it is read: once the run ended it claims nothing', async () => {
+    const { reg, runId } = await registry();
+    const run = routeWriteClaim(req('/_api/x', 'POST', { 'X-Maude-Chat': 'c1' }), reg);
+    expect(run?.runId).toBe(runId);
+    expect(withWriteClaim(run, () => currentWriteClaim()?.runId ?? null)).toBe(runId);
+    await (reg as unknown as { stop(id: string): Promise<unknown> }).stop(runId);
+    expect(withWriteClaim(run, () => currentWriteClaim()?.runId ?? null)).toBeNull();
   });
 });

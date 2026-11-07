@@ -574,10 +574,19 @@ export interface LocalRuntime {
   ): void;
   claimAiWrite(key: string, repoRel: string, hash?: string | null): void;
   /**
-   * #164 — call `call`'s settle: its window closes; the writes it parked join the run that claimed
-   * their bytes (`claimed`: the repo-relative files the settle claimed), the rest land as outside.
+   * #164 — run `key`'s call `call` settles: its window closes; the writes it parked join that run when
+   * their bytes are claimed (`claimed`: the repo-relative files the settle claimed), the rest land as
+   * outside. F5 — false (nothing resolved) when that run has no window for the call.
    */
-  settleShellCall(call: string, claimed?: readonly string[]): void;
+  settleShellCall(key: string, call: string, claimed?: readonly string[]): boolean;
+  /**
+   * F5/F6 — run `key`'s window for call `call`, or null: `covers` the repo-relative files it parks,
+   * `left` the ones the stage saw leave the disk while it was open (D4).
+   */
+  shellCall(
+    key: string,
+    call: string
+  ): { all: boolean; covers(repoRel: string): boolean; left(repoRel: string): boolean } | null;
   /** p8-a1-claims (F17) — run `key` is about to delete canvas `repoRel`: the delete joins the run. */
   claimAiDelete(key: string, repoRel: string): void;
   /** p8-sec2-lows I1 — the delete claimed by `claimAiDelete` failed; drop the claim. */
@@ -830,6 +839,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     // #164 — writes a call's window parked and nobody claimed: recorded as outside, as the watcher
     // would have recorded them (one action per canvas; the disk already holds the bytes)
     release: (w) => serial(() => releaseOutside(w.slug, w.writes)),
+    // D1 — releaseOutside sends a canvas's parked writes as one change (first base, last bytes)
+    mergeParked: true,
   });
 
   async function releaseOutside(
@@ -2497,14 +2508,33 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       const canvas = rel ? canvasOfRel(rel) : null;
       if (canvas) stage.claim(key, canvas, hash ?? null);
     },
-    settleShellCall(call, claimed) {
+    settleShellCall(key, call, claimed) {
       const canvases = (claimed ?? [])
         .map((repoRel) => {
           const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
           return rel ? canvasOfRel(rel) : null;
         })
         .filter((c): c is string => !!c);
-      stage.settleShellCall(call, canvases);
+      return stage.settleShellCall(key, call, canvases);
+    },
+    shellCall(key, call) {
+      const w = stage.shellCall(key, call);
+      if (!w) return null;
+      const canvas = (repoRel: string) => {
+        const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
+        return rel ? canvasOfRel(rel) : null;
+      };
+      return {
+        all: w.all,
+        covers: (repoRel) => {
+          const c = canvas(repoRel);
+          return !!c && w.covers(c);
+        },
+        left: (repoRel) => {
+          const c = canvas(repoRel);
+          return !!c && w.left(c);
+        },
+      };
     },
     claimAiDelete(key, repoRel) {
       const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');

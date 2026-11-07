@@ -226,8 +226,9 @@ describe('the routes are in neither canvas allowlist, and refuse Can view in the
     const http = {
       routes: {},
       canvasRoutes: {},
+      unclaimed: {},
       tableCanvasPaths: table.canvasPaths,
-    } as unknown as Pick<Http, 'routes' | 'canvasRoutes' | 'tableCanvasPaths'>;
+    } as unknown as Pick<Http, 'routes' | 'canvasRoutes' | 'tableCanvasPaths' | 'unclaimed'>;
     for (const p of ROUTES) {
       expect(specs.find((s) => s.path === p)).toMatchObject({ method: 'GET', origin: 'main' });
       expect(CANVAS_SAFE_API.has(p)).toBe(false);

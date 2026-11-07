@@ -461,7 +461,7 @@ describe('a call that cannot claim: a named-file window (A1, #164 parking)', () 
     expect(stage.parked()).toEqual([{ slug: 'ui-a', lane: 'html' }]);
     stage.begin('acp:c9', 'cut', { runId: 'r_sh', shell: shell(false) });
     expect(stage.captures('ui-a', true, 'late call bytes')).toBe(true); // closed, waiting for its settle
-    stage.settleShellCall('b1'); // the settle claimed nothing: released as outside, never the run's
+    stage.settleShellCall('r_sh', 'b1'); // the settle claimed nothing: released as outside, never the run's
     expect(await parked).toMatchObject({ status: 'accepted' });
     expect(sent.map((s) => s.kind)).toEqual(['edit']);
     expect(stage.summaryOf('r_sh')?.canvases).toEqual([]);
@@ -479,7 +479,7 @@ describe('a call that cannot claim: a named-file window (A1, #164 parking)', () 
     stage.begin('acp:c8', 'export', { runId: 'r_card', shell: shell(false) });
     void stage.capture('ui-b', 'doc-b', prop('html', 'person while the card waits', 'b0', 'tx_p'));
     expect(stage.summaryOf('r_card')?.canvases).toEqual([]);
-    stage.releaseShellCall('b2', 'no-settle'); // close + SETTLE_WAIT_MS with no settle
+    stage.releaseShellCall('r_card', 'b2', 'no-settle'); // close + SETTLE_WAIT_MS with no settle
     expect(stage.parked()).toEqual([]);
     expect(stage.captures('ui-b', true, 'person after')).toBe(false);
   });
@@ -490,7 +490,7 @@ describe('a call that cannot claim: a named-file window (A1, #164 parking)', () 
     const shell = (open: boolean) => ({ call: 'b3', open, slugs: ['ui-c'] });
     stage.begin('acp:c7', 'mixed', { runId: 'r_mix', shell: shell(true) });
     stage.begin('acp:c7', 'mixed', { runId: 'r_mix', shell: shell(false) });
-    stage.settleShellCall('b3');
+    stage.settleShellCall('r_mix', 'b3');
     stage.begin('acp:c7', 'mixed', { runId: 'r_mix' });
     expect(stage.captures('ui-c', true, 'a person after the edit tool')).toBe(false);
     stage.claim('r_mix', 'ui-c', hashBytes('edit tool bytes'));
@@ -506,7 +506,7 @@ describe('a call that cannot claim: a named-file window (A1, #164 parking)', () 
     const first = stage.capture('ui-d', 'doc-d', prop('html', 'one', 'zero', 'tx_1'));
     // the settle claims the final bytes before the watcher delivers them (watcher lag)
     stage.claim('r_two', 'ui-d', hashBytes('two'));
-    stage.settleShellCall('b4', ['ui-d']);
+    stage.settleShellCall('r_two', 'b4', ['ui-d']);
     expect(stage.parked()).toEqual([{ slug: 'ui-d', lane: 'html' }]); // waits for the claimed bytes
     const second = stage.capture('ui-d', 'doc-d', prop('html', 'two', 'one', 'tx_2'));
     expect(stage.parked()).toEqual([]);
