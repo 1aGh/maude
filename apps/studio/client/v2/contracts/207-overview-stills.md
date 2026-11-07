@@ -44,32 +44,62 @@ overview with a margin; at 12.5 % a 1600 px artboard is exactly 200 and stays li
 
 ## Measured
 
-Real Safari (safaridriver), `perf.sh --studio`, mascot canvas, Canvas view at 10 %, 28 on screen, ms. **Incomplete:
-the paired matrix was cut off at round 1 when the screen locked after midnight (`occluded`, rc 3) — the numbers
-below are single pairs on a machine at load 2.4–5.4 and must be re-run (see Continue).**
+Real Safari (safaridriver) and Playwright Chromium, `perf.sh --studio` against an isolated copy of studyfi-207 on a
+private server, Canvas view, camera reset before each run, base = `fa357058b`, fix = this branch, paired and
+interleaved, run under `caffeinate -d`, the display on (`pmset` log) for every row. ms; load = 1-min load average
+when the run started. The machine was shared all night (load spikes to 32 from other sessions), so rows above load 8
+or refused by the probe are listed but not used.
 
-| arm | load | p95 | pan p95 | zoom p95 | max | long ≥ 50 | settle max | renders |
+Mascot canvas, Safari, 10 % (28 artboards on screen, 88 artboard renders every run — one settle per gesture):
+
+| round | arm | load | p95 | pan p95 | zoom p95 | max | long ≥ 50 | settle max |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| base (`fa357058b`) | 2.44 | 210 | 98 | 318 | 353 | 29 | 18 | 88 |
-| fix v1 (swap all, release at 2 ×) | 3.11 | 104 | 81 | 120 | 297 | 18 | 346 | 88 |
-| base | 4.69 | 334 | 94 | 711 | 774 | 34 | 23 | 88 |
-| fix v2 (hold to settle, 4 / frame back) | 5.42 | 513 | 683 | 271 | 873 | 35 | 385 | 88 |
+| A | base | 2.44 | 210 | 98 | 318 | 353 | 29 | 18 |
+| A | fix (first version) | 3.11 | 104 | 81 | 120 | 297 | 18 | 346 |
+| B | base | 5.94 | 346 | 119 | 514 | 608 | 38 | 25 |
+| B | fix | — | refused: studio idle 149 ms, machine starved (load 10), 3 tries | | | | | |
+| C | base | 5.93 | 569 | 342 | 692 | 960 | 43 | 40 |
+| C | fix | 8.06 | 264 | 155 | 267 | 827 | 29 | 358 |
+| D | base | 3.54 | 244 | 175 | 284 | 316 | 35 | 69 |
+| D | fix | 5.69 | 133 | 273 | 133 | 411 | 23 | 307 |
+| E | base | 4.57 | 278 | 55 | 325 | 328 | 32 | 67 |
+| E | fix | 4.62 | 185 | 135 | 190 | 471 | 23 | 288 |
+| (unused) | base | 32.5 | 550 | 135 | 958 | 1166 | 30 | 541 |
+| (unused) | fix | 6.65 | 131 | 521 | 131 | 1336 | 16 | 286 |
+| (unused, earlier) | fix | 5.42 | 513 | 683 | 271 | 873 | 35 | 385 |
 
-The v2 pair ran at load 5.4 with a throttled-frame retry and a 328 ms spread between passes: its pan p95 (683) is
-not credible against every other pan sample (58–239) and is the first thing to re-measure.
+- **Zoom p95: 284–692 → 133–267 (≈ 2–2.5 × lower in every valid pair).** Long frames 32–43 → 23–29.
+- **Pan p95 regressed: base 55 / 98 / 119 / 175 / 342 vs fix 81 / 135 / 155 / 273 (and 521, 683 at higher load).**
+  The harness pans right after the previous pass's zoom (its settle window is 900 ms); the most likely cause is the
+  paint of the handed-back live content landing in the next pan. Not fixed — see Open questions.
+- **Settle max 25–69 → 288–358 ms**: the first hand-back frame (4 artboards repainted at the new scale).
+- **Target (zoom p95 < 50 ms) not met.** Same-session floor on this machine: bodies hidden with nothing painted is
+  40 / 111 ms (p50 / p90) per zoom frame; stills shown measure the same (39 / 95) once the missing-picture layer is
+  hidden; with it, 79 / 127.
 
-Same-session arm comparison (synthetic ctrl+wheel zoom burst, 24 frames, load ~4.5, frame ms p50 / p90):
-stills shown 79 / 127; stills shown + `dc-absent-layer` hidden **39 / 95**; bodies hidden, nothing in their place
-40 / 111 (the spike's reference arm); live, absent layer hidden 55 / 179. **The still costs nothing over the
-bodies-hidden floor**; on this canvas the asset layer adds ~40 ms a frame on top.
+Controls (one pair each):
 
-Drawing cost (`__maudeStillStats`): 27 stills for 28 on-screen artboards (one is pinned/active), 45 drawings at
-open, ~28 ms wall each, longest synchronous collect 20–45 ms, paint 2 ms. Before the `src`-retry filter the
-canvas at rest redrew ~2 stills a second (asset retries of missing pictures).
+| canvas · engine · zoom | arm | load | p95 | pan p95 | zoom p95 | long | settle max |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| DS · Safari · 10 % (6 on screen) | base / fix | 5.83 / 3.90 | 15 / 15 | 15 / 15 | 15 / 15 | 0 / 0 | 16 / 15 |
+| math-learning-spaces · Safari · 10 % (21 on screen) | base / fix | 4.01 / 4.76 | 71 / 86 | 37 / 34 | 116 / 100 | 6 / 5 | 15 / 16 |
+| mascot · Safari · 30 % (2 on screen) | base / fix | 4.96 / 5.68 | 25 / 16 | 19 / 17 | 50 / 22 | 2 / 1 | 15 / 15 |
+| mascot · Chromium · 10 % (32 on screen) | base / fix | 4.39 / 3.85 | 16.8 / 16.7 | 16.8 / 16.8 | 16.8 / 16.8 | 0 / 0 | 50 / 33.4 |
 
-Not measured yet: Chromium (the feature is off there — `resolveStillMode`; base = fix except one no-op call per
-frame), the DS canvas and math-learning-spaces (both expected under `STILL_MIN_ON_SCREEN_NODES` — confirm their
-`onScreenNodes`), and the 30 % data point.
+DS, math, 30 % and Chromium: no change beyond noise (the feature is off in Chromium; DS and math stay under the
+heavy bar or have nothing small enough — their settle max is unchanged, so no hand-back ran).
+
+Gesture start and end (mascot, Safari, 10 %, one-notch zoom kept alive 1.6 s; screenshots
+`/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/ov/shots/g0-settled.png`,
+`…/g1-gesture-start.png`, `…/g2-after-settle.png`): 27 of 28 artboards swapped (the 28th is the active one), **0
+swapped without a still**, no black square in the frame; after the settle **0 bodies left hidden**. Hand-back in
+7 steps over 261 ms (27 → 23 → 19 → 15 → 11 → 7 → 3 → 0), the first step 105 ms. Visible difference at gesture
+start: text turns into lines and rounded shapes are approximated — the artboards keep their colours, pictures and
+figures. The red-hatched "Picture not found" frames in the shots are the canvas's own missing pictures (not this
+change).
+
+Drawing cost (`__maudeStillStats`): 27 stills at open, ~9–37 ms each (231 ms total), longest synchronous collect
+16–45 ms, paint 2 ms.
 
 ## Rejected alternatives
 
@@ -116,5 +146,7 @@ mid-restore keeps the rest, and the mounted wiring (the gate registers, a zoom w
 - **`dc-absent-layer` costs ~40 ms a frame on this canvas** (measured: synthetic zoom p50 79 → 39 ms with the
   layer hidden). The mascot canvas names ~59 pictures that do not exist (`pose_cheer_front.png`, …); the asset
   layer follows each frame's element rect every animation frame. Not this change's file — a follow-up (below).
-- Pans: unchanged by this (pan p95 is the quiet-frame spike's). Default: leave; revisit only with Michal's
-  feedback from the app.
+- **Pan after a zoom is slower (above).** Default next step: measure a pan burst 0–1.5 s after a zoom settle in one
+  session with and without the hand-back; if it is the hand-back paint, either keep the stills through a pan that
+  starts before the hand-back finished (already true for the rest of the queue) and extend that to the whole
+  hand-back window, or spread the hand-back over idle frames only. Do not ship to Michal as "smooth" before this.
