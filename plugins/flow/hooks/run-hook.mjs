@@ -39,7 +39,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, relative, sep } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const STATE = '.ai/state';
 const WAITING = `${STATE}/run-waiting.md`;
@@ -424,4 +424,13 @@ function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+// Compare real paths: the plugin cache is often reached through a symlinked config dir, and a
+// plain href compare then never runs main() — every verb exits 0 silently with no run armed.
+const isEntry = () => {
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1]);
+  } catch {
+    return import.meta.url === pathToFileURL(process.argv[1]).href;
+  }
+};
+if (process.argv[1] && isEntry()) main();

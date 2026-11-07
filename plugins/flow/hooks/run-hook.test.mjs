@@ -364,3 +364,17 @@ test('helpers: planOpen, preset and record-path parity with the CLI', () => {
   const root = fixture({ record: null });
   assert.equal(runRecordPath(root, ENV), recordPath(root, ENV));
 });
+
+test('a verb runs when the hook is reached through a symlinked plugin folder', () => {
+  // The plugin cache is often reached via a symlinked config dir; an href compare of
+  // import.meta.url vs argv[1] then never ran main() and every verb exited 0 silently.
+  const linkDir = join(SANDBOX, 'linked-hooks');
+  symlinkSync(dirname(HOOK), linkDir);
+  const root = fixture({ record: null });
+  const r = spawnSync(process.execPath, [join(linkDir, 'run-hook.mjs'), 'status'], {
+    cwd: root,
+    encoding: 'utf8',
+    env: env(root),
+  });
+  assert.match(r.stdout, /no run is armed/);
+});
