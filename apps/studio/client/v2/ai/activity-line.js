@@ -203,6 +203,58 @@ function editPhrase(u, ctx) {
   return { text: `AI is editing ${name}` };
 }
 
+/** The artboard kinds a plan step may name (CONTRACT §1, Menu › File › New artboard): the only words of a plan step
+ *  the step line repeats. Anything else a step says stays out — the line never quotes the AI's prose. */
+const KIND_WORDS = ['Desktop', 'Laptop', 'Tablet', 'Mobile', 'A4', 'Letter', 'Video'];
+const kindOf = (e) => {
+  const text = typeof e?.content === 'string' ? e.content : '';
+  return KIND_WORDS.find((k) => new RegExp(`\\b${k}\\b`, 'i').test(text)) ?? null;
+};
+
+/** The Design system's sections (13 ds-make-filling), named by the words a plan step uses for them. */
+const SECTION_WORDS = [
+  ['Brand', /\bbrand\b/i],
+  ['Colour', /\bcolou?rs?\b/i],
+  ['Type', /\b(?:type|typography)\b/i],
+  ['Space', /\b(?:space|spacing)\b/i],
+  ['Motion', /\bmotion\b/i],
+  ['Components', /\bcomponents?\b/i],
+  ['Patterns', /\bpatterns?\b/i],
+];
+const sectionOf = (e) => {
+  const text = typeof e?.content === 'string' ? e.content : '';
+  return SECTION_WORDS.find(([, re]) => re.test(text))?.[0] ?? null;
+};
+
+/** 13 ds-make-filling: "Brand and Colour done · 5 sections to go". Only a plan that names three or more
+ *  sections is the Design system's; the names come from the fixed list above, never from the step's prose. */
+function sectionStepLine(entries) {
+  const named = entries.map((e) => ({ name: sectionOf(e), done: e.status === 'completed' }));
+  if (named.filter((n) => n.name).length < 3) return null;
+  const done = named.filter((n) => n.name && n.done).map((n) => n.name);
+  const left = named.filter((n) => n.name && !n.done).length;
+  const list =
+    done.length > 1 ? `${done.slice(0, -1).join(', ')} and ${done[done.length - 1]}` : done[0];
+  const parts = [
+    list && `${list} done`,
+    left && `${left} ${left === 1 ? 'section' : 'sections'} to go`,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
+}
+
+/** 01 cf-ai-drafting: "Desktop done · Mobile next" — the last finished step and the next one to come, each named
+ *  by an artboard kind. Null when the plan names no kind on either side (the caller keeps "Step 2 of 3"). */
+function kindStepLine(entries, i) {
+  let done = null;
+  for (let j = i - 1; j >= 0 && !done; j--)
+    if (entries[j].status === 'completed') done = kindOf(entries[j]);
+  let next = null;
+  for (let j = i + 1; j < entries.length && !next; j++)
+    if (entries[j].status !== 'completed') next = kindOf(entries[j]);
+  const parts = [done && `${done} done`, next && `${next} next`].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
+}
+
 function planPhrase(u) {
   const entries = Array.isArray(u?.entries)
     ? u.entries.filter((e) => e && typeof e === 'object')
@@ -211,7 +263,8 @@ function planPhrase(u) {
   let i = entries.findIndex((e) => e.status === 'in_progress');
   if (i < 0) i = entries.findIndex((e) => e.status !== 'completed');
   if (i < 0) return null;
-  const step = `Step ${i + 1} of ${entries.length}`;
+  const step =
+    sectionStepLine(entries) ?? kindStepLine(entries, i) ?? `Step ${i + 1} of ${entries.length}`;
   const doing = doingOf(typeof entries[i].content === 'string' ? entries[i].content : '');
   return { text: doing ? `AI is ${doing}` : `AI is on step ${i + 1} of ${entries.length}`, step };
 }

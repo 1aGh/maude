@@ -206,6 +206,13 @@ describe('sections that have not been drawn yet are outlines (13 · ds-make-fill
     // "drawing" wins over content; "done" wins over emptiness
     expect(section(m, 'brand')).toContain('data-ds-state="drawing"');
     expect(section(m, 'colour')).not.toContain('ds-outline');
+    // T2.6 (13 ds-make-filling): the section being drawn wears a fixed tag by kind, never a word of the ask;
+    // a section that only waits has none
+    expect(type).toContain('data-testid="ds-outline-tag-type"');
+    expect(type).toContain('AI is setting the type');
+    expect(section(m, 'brand')).toContain('AI is drawing the brand');
+    setOutlineStates({ type: 'waiting' });
+    expect(section(m, 'type')).not.toContain('ds-outline-tag');
   });
 
   test("a system that is made draws every section as it did; the shell's words are cleaned", async () => {

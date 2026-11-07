@@ -38794,6 +38794,22 @@
     "v2": "new"
   },
   {
+    "hook": "ds-outline-tag-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "T2.6 (13 ds-make-filling): The fixed tag (\"AI is setting the type\") a section wears while it is being drawn; words by section kind, never the ask.",
+    "producer": {
+      "file": "apps/studio/ds/board/outline.tsx",
+      "symbol": "useSectionOutline"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/ds-make-board.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ds-outline-<kind>",
     "kind": "testid",
     "pattern": true,

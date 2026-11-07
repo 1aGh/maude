@@ -190,6 +190,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `ds-dir-note` | testid | S10.16b: What happened (`data-tone` ok or warn), in words. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
 | `ds-dir-nosystem` | testid | S10.16b: The selection is not part of a design system. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
 | `ds-dir-loading` | testid | S10.16b: Reading the system. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-outline-tag-<kind>` | testid (pattern) | T2.6 (13 ds-make-filling): The fixed tag ("AI is setting the type") a section wears while it is being drawn; words by section kind, never the ask. | `ds/board/outline.tsx` · `useSectionOutline` | test:ds-make-board | new |
 | `ds-outline-<kind>` | testid (pattern) | S10.16b: A section that waits or is being drawn while the system is made, on the Design system canvas (`data-ds-state` waiting or drawing). | `ds/board/outline.tsx` · `useSectionOutline` | test:ds-make-board | new |
 | `[data-ds-direction]` | selector | S10.16b: The tile of a direction on the Design system canvas (`data-ds-direction` = a, b or c; `data-picked`). A click on it selects the direction in the inspector. | `ds/board/directions.tsx` · `DirTile` | test:ds-make-board | new |
 | `ds-preview-bar` | testid | S10.14: "Preview in …" — the menu and the banner while the project is looked at in another system (`data-target`). Session-only. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
