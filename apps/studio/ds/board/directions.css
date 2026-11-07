@@ -156,6 +156,14 @@
   color: color-mix(in srgb, CanvasText 80%, transparent);
   animation: ds-outline-pulse 1.4s ease-in-out infinite;
 }
+/* 13 ds-make-filling: the tag of the section being drawn, at the foot of its outline */
+.ds-board.ds-outline .ds-outline-tag {
+  position: absolute;
+  left: 18px;
+  bottom: 14px;
+  font-weight: 500;
+  color: color-mix(in srgb, CanvasText 70%, transparent);
+}
 @keyframes ds-outline-pulse {
   50% {
     background: color-mix(in srgb, CanvasText 5%, transparent);

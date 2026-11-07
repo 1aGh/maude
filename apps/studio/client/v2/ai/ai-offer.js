@@ -32,7 +32,11 @@ export const OFFER_TARGETS_MAX = 8;
 export const OFFER_WORDS = Object.freeze({
   primary: 'Make these changes',
   secondary: 'Not now',
+  /** 15 an-ai-write: a review the AI WROTE as notes — gather those notes into one section. */
+  section: 'Put them in a section',
 });
+/** The most notes one offer may list as written (the same cap as an ask's scope). */
+export const OFFER_WROTE_MAX = 100;
 
 const ID = '[A-Za-z0-9_.:-]{1,128}';
 const REF_RE = new RegExp(`^(?:ab:${ID}|el:${ID}/${ID})$`);
@@ -100,11 +104,19 @@ export function parseOffer(text, { scopeIds = [], echoes = [] } = {}) {
   }
   const says = plain(raw.says, OFFER_SAYS_MAX);
   if (!says) return { text: src, offer: null };
+  // 15 an-ai-write: the ids of the notes this answer WROTE. They are not in the ask's scope (the ask named none),
+  // so only their shape is checked; the button sends them back as a scope and the run reads them like any scope.
+  const wrote = Array.isArray(raw.wrote)
+    ? [
+        ...new Set(raw.wrote.filter((id) => typeof id === 'string' && ANNOTATION_ID_RE.test(id))),
+      ].slice(0, OFFER_WROTE_MAX)
+    : [];
   return {
     text: stripped,
     offer: {
       v: 1,
       says,
+      ...(wrote.length ? { wrote } : {}),
       answers: idList(raw.answers, scope),
       leaves: idList(raw.leaves, scope).filter((id) => !idList(raw.answers, scope).includes(id)),
       targets,

@@ -29545,6 +29545,22 @@
     "v2": "new"
   },
   {
+    "hook": "ai-offer-section",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "T2.6 (15 an-ai-write): The offer card's \"Put them in a section\" button, shown when the AI wrote two or more notes: sends those words with the notes as the scope.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-ai-offer.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ai-offer-sends",
     "kind": "testid",
     "pattern": false,
@@ -38803,6 +38819,22 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-outline-tag-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "T2.6 (13 ds-make-filling): The fixed tag (\"AI is setting the type\") a section wears while it is being drawn; words by section kind, never the ask.",
+    "producer": {
+      "file": "apps/studio/ds/board/outline.tsx",
+      "symbol": "useSectionOutline"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/ds-make-board.test.tsx"
     ],
     "v2": "new"
   },

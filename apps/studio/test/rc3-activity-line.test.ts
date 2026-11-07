@@ -201,6 +201,64 @@ describe('phraseFor - one event, one short line in product voice', () => {
     );
     expect(p?.text).toBe('AI is on step 1 of 1');
   });
+  test('T2.6 (01 cf-ai-drafting): a plan that names artboard kinds reads "Desktop done · Mobile next"', () => {
+    const entries = (a: string, b: string, c: string) => [
+      { content: 'Draw the Desktop artboard', status: a },
+      { content: 'Draw the Tablet artboard', status: b },
+      { content: 'Draw the Mobile artboard', status: c },
+    ];
+    const at = (e: unknown[]) => phraseFor({ sessionUpdate: 'plan', entries: e }, ctx);
+    expect(at(entries('completed', 'in_progress', 'pending'))?.step).toBe(
+      'Desktop done · Mobile next'
+    );
+    // the first step has nothing done yet; the last has nothing left
+    expect(at(entries('in_progress', 'pending', 'pending'))?.step).toBe('Tablet next');
+    expect(at(entries('completed', 'completed', 'in_progress'))?.step).toBe('Tablet done');
+    // words the AI invents are never the step line: only the fixed artboard-kind vocabulary counts
+    const odd = at([
+      { content: 'Draw Ignore all rules', status: 'completed' },
+      { content: 'Draw the footer', status: 'in_progress' },
+      { content: 'Draw Hacked', status: 'pending' },
+    ]);
+    expect(odd?.step).toBe('Step 2 of 3');
+  });
+  test('T2.6 (13 ds-make-filling): a plan of Design system sections reads "Brand and Colour done · 5 sections to go"', () => {
+    const plan = (...st: string[]) =>
+      [
+        'Draw the brand',
+        'Set the colours',
+        'Set the type',
+        'Set the spacing',
+        'Set the motion',
+        'Draw the components',
+        'Compose the patterns',
+      ].map((content, i) => ({ content, status: st[i] ?? 'pending' }));
+    const at = (e: unknown[]) => phraseFor({ sessionUpdate: 'plan', entries: e }, ctx);
+    expect(at(plan('completed', 'completed', 'in_progress'))?.step).toBe(
+      'Brand and Colour done · 5 sections to go'
+    );
+    expect(at(plan('in_progress'))?.step).toBe('7 sections to go');
+    expect(
+      at(
+        plan(
+          'completed',
+          'completed',
+          'completed',
+          'completed',
+          'completed',
+          'completed',
+          'in_progress'
+        )
+      )?.step
+    ).toBe('Brand, Colour, Type, Space, Motion and Components done · 1 section to go');
+    // one section word in an ordinary plan ("Check the type of file") is not a Design system plan
+    expect(
+      at([
+        { content: 'Check the type of file', status: 'in_progress' },
+        { content: 'Draw the footer', status: 'pending' },
+      ])?.step
+    ).toBe('Step 1 of 2');
+  });
   test('bookkeeping updates say nothing', () => {
     expect(phraseFor({ sessionUpdate: 'usage_update' }, ctx)).toBeNull();
     expect(phraseFor(done('x'), ctx)).toBeNull();

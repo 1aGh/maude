@@ -190,6 +190,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `ds-dir-note` | testid | S10.16b: What happened (`data-tone` ok or warn), in words. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
 | `ds-dir-nosystem` | testid | S10.16b: The selection is not part of a design system. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
 | `ds-dir-loading` | testid | S10.16b: Reading the system. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-outline-tag-<kind>` | testid (pattern) | T2.6 (13 ds-make-filling): The fixed tag ("AI is setting the type") a section wears while it is being drawn; words by section kind, never the ask. | `ds/board/outline.tsx` · `useSectionOutline` | test:ds-make-board | new |
 | `ds-outline-<kind>` | testid (pattern) | S10.16b: A section that waits or is being drawn while the system is made, on the Design system canvas (`data-ds-state` waiting or drawing). | `ds/board/outline.tsx` · `useSectionOutline` | test:ds-make-board | new |
 | `[data-ds-direction]` | selector | S10.16b: The tile of a direction on the Design system canvas (`data-ds-direction` = a, b or c; `data-picked`). A click on it selects the direction in the inspector. | `ds/board/directions.tsx` · `DirTile` | test:ds-make-board | new |
 | `ds-preview-bar` | testid | S10.14: "Preview in …" — the menu and the banner while the project is looked at in another system (`data-target`). Session-only. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
@@ -1797,6 +1798,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-offer-says` | testid | The plan in one line, as the agent wrote it, rendered as text. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-offer-leaves` | testid | The line that names how many stickies the offer leaves alone. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-offer-make` | testid | The offer card's one button, "Make these changes": sends the follow-up with the same stickies as the scope. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
+| `ai-offer-section` | testid | T2.6 (15 an-ai-write): The offer card's "Put them in a section" button, shown when the AI wrote two or more notes: sends those words with the notes as the scope. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | test:annotations-ai-offer | new |
 | `ai-offer-sends` | testid | The offer card's line saying exactly what "Make these changes" sends: words, stickies, how many it resolves, the refs (sec-a C2). | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-offer-skip` | testid | The offer card's "Not now": folds the card, sends nothing. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-seen` | testid | Canvas side: the layer that holds the AI offer's outlines (aria-hidden, no pointer events). | `annotations/ui/ai-seen.tsx` · `AiSeenRings` | — | new |

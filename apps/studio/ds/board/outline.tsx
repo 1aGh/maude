@@ -106,6 +106,17 @@ export const OUTLINE_WORDS = Object.freeze({
   drawing: (label: string) => `${label} — drawing now`,
 });
 
+/** 13 ds-make-filling: the tag a section being drawn wears — fixed words by section kind, never a word of the ask. */
+export const DRAWING_TAGS: Record<SectionKind, string> = Object.freeze({
+  brand: 'AI is drawing the brand',
+  colour: 'AI is setting the colours',
+  type: 'AI is setting the type',
+  space: 'AI is setting the spacing',
+  motion: 'AI is setting the motion',
+  components: 'AI is drawing the components',
+  patterns: 'AI is composing the patterns',
+});
+
 /** The outline a waiting or drawing section draws, or null. A hook: call it before any early return. */
 export function useSectionOutline(kind: SectionKind, model: BoardModel | null) {
   listenForOutlineStates();
@@ -122,6 +133,11 @@ export function useSectionOutline(kind: SectionKind, model: BoardModel | null) {
       data-testid={`ds-outline-${kind}`}
     >
       <span>{OUTLINE_WORDS[state](label)}</span>
+      {state === 'drawing' ? (
+        <span className="ds-outline-tag" data-testid={`ds-outline-tag-${kind}`}>
+          {DRAWING_TAGS[kind]}
+        </span>
+      ) : null}
     </div>
   );
 }
