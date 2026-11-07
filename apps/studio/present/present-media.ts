@@ -114,8 +114,12 @@ export interface PresentMedia extends StageMedia {
   hasClip(artboardId: string): boolean;
 }
 
-/** Retries for a Player that is not mounted yet, and the wait between them. */
-const MOUNT_TRIES = 5;
+/**
+ * Retries for a Player that is not mounted yet, and the wait between them. A video artboard far from where the
+ * canvas was mounts its Player only once Present brings it on screen (2.0.7 — far media loads nothing), a frame
+ * or a few after `arrive`: ~1.2 s of patience.
+ */
+const MOUNT_TRIES = 20;
 const MOUNT_WAIT_MS = 60;
 /** After this long a clip that was told to play with sound but is not playing is retried muted. */
 const SOUND_CHECK_MS = 400;

@@ -65,6 +65,11 @@ const PRIVILEGED = [
   // p8-import-link — the studio fetches a URL the caller names: a canvas reaching it would be SSRF from the person's Mac
   '/_api/import-link',
   '/_api/import-link/key',
+  // fix/207 — the person's shared-code consent: a canvas must neither give it nor learn it
+  '/_api/sync/code-consent',
+  '/_api/sync/code-consent/set',
+  // 2.0.7 #7b — deleting a batch of files on the hub: a canvas must never send it
+  '/_api/sync/held-deletes',
 ];
 
 describe('CANVAS_SAFE_API ↔ the canvas server routes map (V2-2.5)', () => {

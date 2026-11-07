@@ -13,6 +13,7 @@
 // event plus a heal event) for the same write reloads once.
 
 import { type Context, reloadConfig } from './context.ts';
+import { isFolderSystemFile } from './ds/folder-systems.ts';
 
 export const CONFIG_RELOAD_DEBOUNCE_MS = 150;
 
@@ -32,7 +33,9 @@ export function wireConfigReload(
   const debounceMs = opts.debounceMs ?? CONFIG_RELOAD_DEBOUNCE_MS;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const onEvent = (rel: unknown) => {
-    if (!isConfigJson(rel)) return;
+    // 2.0.7 — a system folder's Design system canvas (or its tokens) arriving, going or changing
+    // adds, drops or rethemes a folder-owned system in the merged list (ds/folder-systems.ts)
+    if (!isConfigJson(rel) && !isFolderSystemFile(rel)) return;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;

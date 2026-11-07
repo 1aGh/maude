@@ -71,7 +71,7 @@ import {
   stripSummon,
 } from './access-docs.mjs';
 import { createPokeVisibility, registerKnownCanvases } from './access-files.mjs';
-import { claimForMatch, planPausedFromEnv } from './access-gate.mjs';
+import { claimForMatch, isProjectOwnerMatch, planPausedFromEnv } from './access-gate.mjs';
 import { ADMIN_CSS, ADMIN_HTML, ADMIN_JS, adminAssetsLoaded } from './admin-assets.mjs';
 import {
   generateAdminSecret,
@@ -185,6 +185,7 @@ import {
   JOURNAL_PATH,
   JOURNAL_REPORT_PATH,
   OWNER_DELETE_SOURCE,
+  OWNER_PURGE_SOURCE,
   openJournal,
   quarantineFlatCanvasTwins,
   quarantineStaleInert,
@@ -267,6 +268,7 @@ import { handleUploadSessions, UPLOADS_PREFIX } from './upload-sessions.mjs';
 import { countLinkedOidc } from './users.mjs';
 import { BACKUP_PREFIX, conversionGate, createV2Conversion } from './v2-convert.mjs';
 import { createWorkspaceAgent } from './workspace-agent.mjs';
+import { checkoutCanvasPathsIn } from './workspace-files.mjs';
 import { ensureWorkspaceId } from './workspace-identity.mjs';
 
 const HUB_VERSION = readOwnVersion();
@@ -769,7 +771,14 @@ export function createHub(config = {}) {
         journal.recordWrite({
           designRoot: journalDesignRoot,
           path: rel,
-          source: info?.owner === true ? OWNER_DELETE_SOURCE : 'peer-put',
+          // A confirmed purge (owner-purge.mjs) is its own source: outside both
+          // door windows, inside the replay count like every tombstone.
+          source:
+            info?.purge === true
+              ? OWNER_PURGE_SOURCE
+              : info?.owner === true
+                ? OWNER_DELETE_SOURCE
+                : 'peer-put',
           deleted: true,
         }) ?? null
       );
@@ -979,12 +988,9 @@ export function createHub(config = {}) {
         // owner/admin-role token over the WHOLE project, or the operator's env
         // secret. Not `admin`'s role-less case — the admin console's invites
         // are role-less (and may be scoped to one canvas), and an invitee must
-        // not be able to make every Maude 1 peer read-only. Same bar as the
-        // project-config door.
-        owner:
-          !m.readOnly &&
-          (m.source === 'env' ||
-            ((m.role === 'owner' || m.role === 'admin') && (m.scope ?? '*') === '*')),
+        // not be able to make every Maude 1 peer read-only. The one reading
+        // every owner-only door shares (`isProjectOwnerMatch`).
+        owner: isProjectOwnerMatch(m),
       };
     }
     if (presentsCellSecret(req, secret))
@@ -1480,6 +1486,18 @@ export function createHub(config = {}) {
             dsGrants: dsGrantRoutes, // S10.18a-2
             // P8 — `/_api/share/*` for a cloud tab (routes-v2/share.mjs): only where a studio is served.
             share: studioProxy ? { publicUrl } : null,
+            // 2.0.7 #8 — the owner's confirmed bulk purge (owner-purge.mjs): the
+            // same checkout doors the file door's DELETE uses.
+            purge: () =>
+              journal && journalDesignRoot
+                ? {
+                    journal,
+                    designRoot: journalDesignRoot,
+                    dataDir,
+                    materializer,
+                    onDeleted: noteCheckoutDelete,
+                  }
+                : null,
           },
         })
       ) {
@@ -2541,28 +2559,12 @@ export function createHub(config = {}) {
   /** slug → design-root-relative `.tsx` path, from the checkout (workspace mode). */
   const checkoutCanvasPaths = () => {
     const root = designRootFor();
-    const out = new Map();
-    if (!root) return out;
-    const walk = (abs, rel, depth) => {
-      if (depth > 16) return;
-      let entries;
-      try {
-        entries = readdirSync(abs, { withFileTypes: true });
-      } catch {
-        return;
-      }
-      for (const e of entries) {
-        if (e.name.startsWith('_') || e.name.startsWith('.') || e.name === 'node_modules') continue;
-        const childRel = rel ? `${rel}/${e.name}` : e.name;
-        if (e.isDirectory()) walk(join(abs, e.name), childRel, depth + 1);
-        else if (e.isFile() && e.name.endsWith('.tsx')) {
-          const slug = canvasSlugFromRel(childRel, process.env.MAUDE_DESIGN_ROOT ?? '.design');
-          if (slug && !out.has(slug)) out.set(slug, childRel);
-        }
-      }
-    };
-    walk(root, '', 1);
-    return out;
+    if (!root) return new Map();
+    // fix/207 — a `_` module in a folder is a document the studio syncs; only
+    // `_` folders (and `_` names at the design root) are runtime state.
+    return checkoutCanvasPathsIn(root, (rel) =>
+      canvasSlugFromRel(rel, process.env.MAUDE_DESIGN_ROOT ?? '.design')
+    );
   };
   /** Folders under the declared canvas groups (runtime `_*` and dot-dirs excluded). */
   const checkoutFolders = () => {

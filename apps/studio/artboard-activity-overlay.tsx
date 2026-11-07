@@ -17,8 +17,8 @@
  */
 
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
-
 import { acceptFromShell } from './bridge/dgn-protocol.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 
 export interface OverlayRect {
   x: number;
@@ -526,11 +526,11 @@ export function ArtboardRingsLayer() {
           box.style.height = `${Math.round(b - t + 10)}px`;
         }
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
     };
   }, [ids, live, groupIds]);
 

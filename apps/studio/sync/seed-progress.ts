@@ -41,8 +41,13 @@ export interface SeedProgress {
   tracked: number;
   /** Rows in a terminal-good state. */
   delivered: number;
-  /** `tracked - delivered - blocked - held`, floored at 0. */
+  /** `tracked - delivered - blocked - held - ignored`, floored at 0. */
   remaining: number;
+  /**
+   * Issue #207 — rows in a folder the project does not sync (`linkedHub.ignoreFolders`). A
+   * person's choice, not waiting and not a fault: their own count, outside `remaining`.
+   */
+  ignored?: number;
   /**
    * Issue #204 — rows this Mac REFUSES to take (a code module from a hub it has not vouched for).
    * Not waiting — nothing moves them but a person's consent — and not "blocked" on the hub's side
@@ -50,6 +55,16 @@ export interface SeedProgress {
    * `computeSeedProgress`; optional only so older snapshots still type.
    */
   held?: number;
+  /**
+   * fix/207 — `held` split by WHY. The status line used to say "N held: shared code not accepted"
+   * for both, and on Michal's desktop 6 555 render PNGs moved out of the project (held by the
+   * delete rule, `DELETED_HERE_HELD_REASON`) read as 6 942 files of shared code. Always set by
+   * `computeSeedProgress`; optional only so older snapshots still type.
+   */
+  heldCode?: number;
+  heldDeletedHere?: number;
+  /** Issue #207 (7b) — deleted on this Mac in a large batch, waiting for the person's answer. */
+  heldDeleteAsk?: number;
   /**
    * Outstanding rows whose last attempt FAILED and that wait out a backoff (`stuck`, `attempts`
    * ≥ 1) — counted inside `remaining` (they are not delivered), named here so a status line can say
@@ -111,6 +126,55 @@ export function isHeldByConsent(row: LedgerRow): boolean {
   );
 }
 
+/**
+ * fix/207 — the paths THIS Mac holds because it has not allowed shared code from the hub: the rows
+ * behind Sync details' "Allow shared code…" (a `code-consent` held row). Sorted, so the panel's list
+ * is stable between passes.
+ */
+export function codeConsentHeldPaths(rows: Readonly<Record<string, LedgerRow>>): string[] {
+  const out: string[] = [];
+  for (const [rel, row] of Object.entries(rows))
+    if (row.state === 'stuck' && row.reason === CODE_MODULE_HELD_REASON) out.push(rel);
+  return out.sort();
+}
+
+/**
+ * fix/207 — Sync details' sentence for that row (CONTRACT §4: what happened · what is safe · one
+ * verb). The verb is the row's button, Allow shared code… — the only place the answer changes in
+ * the app (the summary used to read "shared code not accepted on this Mac", a choice nobody could
+ * make there).
+ */
+export function codeConsentHeldDetail(count: number): string {
+  const n = count.toLocaleString('en-US');
+  return count === 1
+    ? '1 file of shared code from this project is waiting: shared code reaches this Mac only once you allow it. Nothing is lost. Allow shared code and it arrives with the next sync.'
+    : `${n} files of shared code from this project are waiting: shared code reaches this Mac only once you allow it. Nothing is lost. Allow shared code and they arrive with the next sync.`;
+}
+
+/**
+ * fix/207 — the status line's words for what this Mac holds, one phrase per reason, so a deleted
+ * PNG is never "shared code" and no phrase names a choice the app does not offer.
+ */
+export function heldWords(
+  p: Pick<SeedProgress, 'heldCode' | 'heldDeletedHere' | 'heldDeleteAsk'>
+): string[] {
+  const out: string[] = [];
+  const files = (n: number) => `${n.toLocaleString('en-US')} ${n === 1 ? 'file' : 'files'}`;
+  const code = p.heldCode ?? 0;
+  const deleted = p.heldDeletedHere ?? 0;
+  const ask = p.heldDeleteAsk ?? 0;
+  if (ask > 0)
+    out.push(
+      `${files(ask)} deleted on this Mac ${ask === 1 ? 'waits' : 'wait'} for your answer (Sync details)`
+    );
+  if (code > 0)
+    out.push(
+      `${files(code)} of shared code ${code === 1 ? 'waits' : 'wait'} for your yes (Sync details)`
+    );
+  if (deleted > 0) out.push(`${files(deleted)} deleted on this Mac stay deleted here`);
+  return out;
+}
+
 /** States that will not move again without something changing. */
 const BLOCKED: ReadonlySet<DeliveryState> = new Set<DeliveryState>([
   'refused',
@@ -146,6 +210,10 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
   let delivered = 0;
   let bytesRemaining = 0;
   let held = 0;
+  let heldCode = 0;
+  let heldDeletedHere = 0;
+  let heldDeleteAsk = 0;
+  let ignored = 0;
   let retrying = 0;
   let retryingFile: { rel: string; reason: string } | undefined;
   const blockedCounts = new Map<BlockedClass, number>();
@@ -157,8 +225,26 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
       delivered += 1;
       continue;
     }
+    if (state === 'ignored') {
+      ignored += 1;
+      continue;
+    }
+    // Issue #207 (7b) — a delete waiting for the person's answer, and a file kept on the hub: held
+    // here by a choice (asked, or made), never "waiting" to move.
+    if (state === 'delete-held') {
+      held += 1;
+      heldDeleteAsk += 1;
+      continue;
+    }
+    if (state === 'hub-only') {
+      held += 1;
+      heldDeletedHere += 1;
+      continue;
+    }
     if (isHeldByConsent(row)) {
       held += 1;
+      if (row.reason === CODE_MODULE_HELD_REASON) heldCode += 1;
+      else heldDeletedHere += 1;
       continue;
     }
     if (state && BLOCKED.has(state)) {
@@ -182,7 +268,7 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
     .map(([cls, count]) => ({ class: cls, count }))
     .sort((a, b) => b.count - a.count);
   const blockedTotal = blocked.reduce((n, b) => n + b.count, 0);
-  const remaining = Math.max(0, tracked - delivered - blockedTotal - held);
+  const remaining = Math.max(0, tracked - delivered - blockedTotal - held - ignored);
 
   const paused =
     typeof input.pausedUntil === 'number' && Number.isFinite(input.pausedUntil)
@@ -205,6 +291,10 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
     delivered,
     remaining,
     held,
+    heldCode,
+    heldDeletedHere,
+    ...(heldDeleteAsk > 0 ? { heldDeleteAsk } : {}),
+    ...(ignored > 0 ? { ignored } : {}),
     retrying,
     ...(retryingFile ? { retryingFile } : {}),
     bytesRemaining,

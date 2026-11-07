@@ -15,9 +15,9 @@
 // transform, like the selection chrome, so a dot is 10 px at any zoom.
 
 import { useEffect, useRef, useState } from 'react';
-
 import { showCanvasToast } from '../canvas-notifications.tsx';
 import { resolveSelectionEl } from '../dom-selection.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
@@ -243,11 +243,11 @@ export function CornerDots({ readOnly = false }: { readOnly?: boolean }) {
         last = key;
         force((n) => n + 1);
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
     };
   }, [ok, el]);
 

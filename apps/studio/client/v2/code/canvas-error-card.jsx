@@ -23,7 +23,7 @@ import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { Check, Copy, Spark } from '../ai/icons.jsx';
 import { INDEX_CHANGED_EVENT } from '../canvases/use-canvas-index.js';
 import { projectRel } from '../shell/native-doors.js';
-import { BUILD_FAILURE_BODY, buildFailureReason } from './canvas-waiting.js';
+import { BUILD_FAILURE_BODY, buildFailureReason, loadReasonWords } from './canvas-waiting.js';
 import { CanvasBuildingCard, CanvasWaitingCard } from './canvas-waiting-card.jsx';
 import { registerErrorCard } from './code-bus.js';
 import {
@@ -152,6 +152,8 @@ export function CanvasErrorCard({
   askAiAvailable = true,
   /** #189 — the build stopped outside the code (`{ class, count? }`): no Ask AI, the reason under the fold. */
   buildFailure = null,
+  /** 2.0.7 — which of the studio's waits ran out (`canvasError.reason`), named when nothing else is. */
+  loadReason = null,
   /** The fold starts open (a test / a caller that wants the details up front). */
   detailsOpen = false,
 }) {
@@ -274,6 +276,13 @@ export function CanvasErrorCard({
               {buildFailureReason(buildFailure)}
             </span>
           </div>
+        ) : loadReasonWords(loadReason) ? (
+          <div className="v2-err-row">
+            <span className="v2-err-k">Reason</span>
+            <span className="v2-err-v" data-testid="canvas-error-load-reason">
+              {loadReasonWords(loadReason)}
+            </span>
+          </div>
         ) : (
           <p className="v2-err-none" data-testid="canvas-error-none">
             No details were reported. Reload the canvas, or ask AI to look.
@@ -388,6 +397,8 @@ export function CanvasLoadFailure({
   fetchImpl,
   /** How often the waiting card re-asks (a file landing also re-asks at once). */
   watchMs = WAITING_WATCH_MS,
+  /** 2.0.7 — passed to the card: which wait ran out. */
+  loadReason = null,
 }) {
   const [stamp, setStamp] = useState(0);
   const err = useCanvasError({ canvas, stamp, quiet: true, fetchImpl });
@@ -449,7 +460,7 @@ export function CanvasLoadFailure({
     );
   }
   // files it imports haven't reached this Mac, or are held back: not a mistake in its code
-  if (waiting) return <CanvasWaitingCard canvas={canvas} waiting={waiting} />;
+  if (waiting) return <CanvasWaitingCard canvas={canvas} waiting={waiting} fetchImpl={fetchImpl} />;
   if (building) return <CanvasBuildingCard canvas={canvas} />;
   return (
     <>
@@ -466,6 +477,7 @@ export function CanvasLoadFailure({
         onReload={onReload}
         onCopy={onCopy}
         buildFailure={buildFailure}
+        loadReason={loadReason}
       />
     </>
   );

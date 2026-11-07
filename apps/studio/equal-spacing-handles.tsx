@@ -13,9 +13,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-
 import { resolveSelectionEl } from './dom-selection.ts';
 import { detectEqualSpacing, type EqualSpacingResult } from './equal-spacing-detector.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import { useSelectionSet } from './use-selection-set.tsx';
 
 const HOVER_PADDING_PX = 40;
@@ -198,7 +198,7 @@ export function EqualSpacingHandles() {
 
     const onFrame = () => {
       if (rafRef.current != null) return;
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
 
     // Initial paint + continuous follow on pan/zoom/scroll.
@@ -211,7 +211,7 @@ export function EqualSpacingHandles() {
 
     return () => {
       alive = false;
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
       window.removeEventListener('scroll', recheck, { capture: true } as EventListenerOptions);
       window.removeEventListener('resize', recheck);
       observer.disconnect();

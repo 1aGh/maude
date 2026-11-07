@@ -603,6 +603,20 @@ const HUMAN_ONLY_ROUTES = [
     what: 'Connect to the hub',
     why: "it sends this Mac's hub credential to the folder's hub",
   },
+  // fix/207 — the person's yes (or no) to shared code from the project's hub; the studio answers a
+  // POST without the window's own fetch 403 window-only (routes/sync.ts).
+  {
+    re: /\/_api\/sync\/code-consent\/set(?![\w-])/i,
+    what: 'Allow shared code',
+    why: 'it lets code from the project run on this Mac, outside the canvas sandbox',
+  },
+  // 2.0.7 #7b — the answer to a batch of local deletes held by the delete breaker; Delete removes the
+  // files on the hub for every teammate (routes/sync.ts answers it 403 window-only too).
+  {
+    re: /\/_api\/sync\/held-deletes(?![\w-])/i,
+    what: 'Delete on the hub too',
+    why: 'it deletes a batch of files on the project’s hub, for every teammate',
+  },
   // V2-8.9 round 2 R2-M2 — the desktop's share writes run with this Mac's hub credential; the studio
   // answers them 403 window-only without the window's own fetch (routes/share.ts).
   {

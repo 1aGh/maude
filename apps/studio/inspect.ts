@@ -621,6 +621,11 @@ const INSPECTOR_SCRIPT = `
 
   var pinNodes = [];
   var rafToken = null;
+  // the pins follow the camera: never deferred by the gesture freeze (frame-clock.ts)
+  var pinRaf = function (fn) {
+    var ff = window.__maudeFrameFreeze;
+    return ff ? ff.raf(fn) : requestAnimationFrame(fn);
+  };
 
   function buildPinNodes() {
     pinLayer.innerHTML = '';
@@ -682,10 +687,10 @@ const INSPECTOR_SCRIPT = `
   function tick() {
     rafToken = null;
     placePins();
-    if (pinNodes.length) rafToken = requestAnimationFrame(tick);
+    if (pinNodes.length) rafToken = pinRaf(tick);
   }
   function startTick() {
-    if (rafToken == null && pinNodes.length) rafToken = requestAnimationFrame(tick);
+    if (rafToken == null && pinNodes.length) rafToken = pinRaf(tick);
   }
 
   function schedulePins() { buildPinNodes(); startTick(); }

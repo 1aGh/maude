@@ -97,6 +97,7 @@ import {
   IconUngroup,
   SHAPE_KIND_ICONS,
 } from './canvas-icons.tsx';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import { holdHoverFocus } from './toolbars/tool-panel.ts';
 import { IconMore } from './toolbars/toolbar-icons.tsx';
 import { useAnnotationSelectionOptional } from './use-annotation-selection.tsx';
@@ -627,7 +628,7 @@ export function AnnotationContextToolbar({
       const u = unionRect(rects);
       if (!u) {
         el.style.display = 'none';
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = frameRaf(tick);
         return;
       }
       el.style.display = 'flex';
@@ -646,11 +647,11 @@ export function AnnotationContextToolbar({
       if (left + tbW > winW - 8) left = winW - tbW - 8;
       el.style.left = `${Math.round(left)}px`;
       el.style.top = `${Math.round(top)}px`;
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, [selectedStrokes, editingId]);
 

@@ -57,6 +57,7 @@ import {
   type Closure,
   type ClosureCache,
   canvasImportsReport,
+  canvasMissingImportsReport,
   closureFor,
   createClosureCache,
   projectClosureConfig,
@@ -582,6 +583,11 @@ export interface ProjectVisibility {
    */
   canvasImports(canvases: readonly string[]): ReadonlyMap<string, string[]>;
   /**
+   * 2.0.7 — of `canvases`, the ones with an import that resolves to no file → those imports
+   * (closure.ts `canvasMissingImportsReport`). Memoized per tree generation like `canvasImports`.
+   */
+  canvasMissingImports?(canvases: readonly string[]): ReadonlyMap<string, string[]>;
+  /**
    * 2.0.2 — resolves once the closure's listing holds a materializing cell's journal media (the
    * first `listMaterializable` answer; later ones refresh in the background). Immediate off a
    * cell. The access gate awaits it before judging a session with grants.
@@ -644,11 +650,24 @@ export function projectVisibility(
     while (reports.size > 16) reports.delete(reports.keys().next().value as string);
     return report;
   };
+  const missingReports = new Map<string, ReadonlyMap<string, string[]>>();
+  const canvasMissingImports = (canvases: readonly string[]) => {
+    const cfg = config();
+    const key = `${generation}\u0002${JSON.stringify(cfg)}\u0003${canvases.join('\u0001')}`;
+    const hit = missingReports.get(key);
+    if (hit) return hit;
+    const report = canvasMissingImportsReport(reader, canvases, cfg);
+    missingReports.set(key, report);
+    while (missingReports.size > 16)
+      missingReports.delete(missingReports.keys().next().value as string);
+    return report;
+  };
   const src: ProjectVisibility = Object.freeze({
     closureOf,
     visibilityFor,
     current: () => visibilityFor(currentAccess()),
     canvasImports,
+    canvasMissingImports,
     ready,
   });
   sources.set(ctx, src);
@@ -682,6 +701,8 @@ interface IndexDataShape {
   canvasImportsCanvases?: Record<string, string[]>;
   // 2.0.5 (#205) — a canvas → the design-root files its built module was refused for (access/refused-inputs.ts)
   canvasRefusedInputs?: Record<string, string[]>;
+  // 2.0.7 — a canvas → its imports that resolve to no file (its frame is refused; closure.ts)
+  canvasMissingImports?: Record<string, string[]>;
 }
 
 /** Repo-relative `.design/ui/x/y.tsx` → every ancestor dir (`.design/ui`, `.design/ui/x`). */
@@ -748,6 +769,12 @@ export function filterIndexData<T extends IndexDataShape>(
   if (data.canvasImportsCanvases) out.canvasImportsCanvases = namesSeen(data.canvasImportsCanvases);
   // 2.0.5 (#205) — the refused files by the same rule: only names this reader sees, no all-hidden entry
   if (data.canvasRefusedInputs) out.canvasRefusedInputs = namesSeen(data.canvasRefusedInputs);
+  // 2.0.7 — a missing import is a path that is NOT on disk, read from the canvas's own source, which the
+  // reader sees: kept for the canvases it sees (a name `vis.sees` would always drop, there is no such file)
+  if (data.canvasMissingImports)
+    out.canvasMissingImports = Object.fromEntries(
+      Object.entries(data.canvasMissingImports).filter(([k]) => seen(k))
+    );
   // S10.4 — the revision fields name systems and revisions: a session sees the ones it renders with.
   if (data.dsConverted) {
     const byName = <V>(m: Record<string, V> | undefined) =>

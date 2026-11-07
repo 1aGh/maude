@@ -181,6 +181,38 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/sync/cancel-assets', method: 'POST' },
     agent: cli('maude design curl-local -X POST http://127.0.0.1:<port>/_api/sync/cancel-assets'),
   },
+  // Issue #207 — which folders a project syncs is the person's choice (a versioned config write
+  // that changes what reaches the team), so the AI is never taught it.
+  'sync.ignore-folder': {
+    effect: 'none',
+    minRole: 'edit',
+    server: { route: '/_api/sync/settings', method: 'POST' },
+    agent: human('hub-link', 'which folders the project syncs is the person’s choice'),
+  },
+  'sync.sync-folder-again': {
+    effect: 'none',
+    minRole: 'edit',
+    server: { route: '/_api/sync/settings', method: 'POST' },
+    agent: human('hub-link', 'which folders the project syncs is the person’s choice'),
+  },
+  // Issue #207 (7b) — the answer to a batch of local deletes held by the delete breaker. Deleting on the
+  // hub removes the files for every teammate (each held on their Mac for their own confirm), so it is
+  // the person's decision, never the AI's; keeping them on the hub is only about this Mac's copy.
+  'sync.delete-held-on-hub': {
+    effect: 'shared',
+    minRole: 'edit',
+    server: { route: '/_api/sync/held-deletes', method: 'POST' },
+    agent: human(
+      'hub-link',
+      'deleting a batch of files on the project’s hub is the person’s choice'
+    ),
+  },
+  'sync.keep-held-on-hub': {
+    effect: 'none',
+    minRole: 'edit',
+    server: { route: '/_api/sync/held-deletes', method: 'POST' },
+    agent: human('hub-link', 'which deleted files stay on the hub is the person’s choice'),
+  },
   // p8-held-conflict-status — the two versions of a held source conflict (read only): this Mac's file and
   // the project's, kept in `_history/<slug>/sync-recovery/`. `maude design sync status` lists the slugs.
   // No `server`: the action itself only opens a sheet; the read under it is Sync details' own GET.
@@ -191,6 +223,24 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     ),
   },
   'sync.get-latest': GIT('/_api/git/pull', 'git pull'),
+  // fix/207 — the person's yes / no to shared code (.ts/.js) from the project's hub: it runs on this
+  // Mac outside the canvas sandbox (DDR-054), so an agent can never say yes for them (human
+  // 'consent'). The route answers only the window's own fetch (routes/sync.ts) and bash-guard names it.
+  'sync.allow-code': {
+    effect: 'external',
+    minRole: 'edit',
+    server: { route: '/_api/sync/code-consent/set', method: 'POST' },
+    agent: human(
+      'consent',
+      'the person’s yes to shared code from this project’s hub running on their Mac'
+    ),
+  },
+  'sync.stop-code': {
+    effect: 'none',
+    minRole: 'edit',
+    server: { route: '/_api/sync/code-consent/set', method: 'POST' },
+    agent: human('consent', 'takes back the person’s yes to shared code'),
+  },
   'sync.sign-in-again': {
     effect: 'none',
     agent: human('hub-link', 'signing in to the cloud is the person’s own credential'),
@@ -1073,6 +1123,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.layers': { effect: 'none', agent: cli('maude design open --panel layers') },
   'view.inspector-on-select': PREF(),
   'view.minimap': PREF(),
+  // 2.0.7 B2 — Canvas | Pages and its paging are the person's own view of the canvas (the view file, per Mac)
+  'view.pages': PREF(),
+  'pages.next': PREF(),
+  'pages.prev': PREF(),
   'view.zoom-controls': PREF(),
   'view.print-guides': PREF(),
   'present.canvas': NAV('<canvas> --mode present'),

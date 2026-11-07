@@ -16,6 +16,7 @@ import { type ReactElement, useCallback, useEffect, useRef, useState } from 'rea
 import { createPortal } from 'react-dom';
 import { canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { selectedVideoElements, togglePlayback } from './editing/video-play.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import { useSelectionSetOptional } from './use-selection-set.tsx';
 
 /** The chrome marker the selection / annotation handlers skip (input-router, artboard-marquee, annotations-layer). */
@@ -171,11 +172,11 @@ export function VideoPlayLayer({ inShell }: { inShell?: boolean } = {}): ReactEl
           b.style.top = `${at.top}px`;
         }
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
     };
   }, [targetKey]);
 

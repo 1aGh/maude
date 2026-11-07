@@ -28,6 +28,7 @@ import {
   spaceTokenFor,
   tokenRuler,
 } from './editing/token-ruler.tsx';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import {
   computeGapDrag,
   computeGapMidpoints,
@@ -179,19 +180,19 @@ export function SpacingHandlesOverlay(): ReactNode {
       // irrelevant mid-drag anyway — the drag has its own live-preview chrome).
       if (isElementDragActive()) {
         hideAll();
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = frameRaf(tick);
         return;
       }
       const el = resolveSelectionEl(document, one) as HTMLElement | null;
       if (!el) {
         hideAll();
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = frameRaf(tick);
         return;
       }
       const r = el.getBoundingClientRect();
       if (r.width <= 0 && r.height <= 0) {
         hideAll();
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = frameRaf(tick);
         return;
       }
       const cs = getComputedStyle(el);
@@ -249,11 +250,11 @@ export function SpacingHandlesOverlay(): ReactNode {
         h.style.top = `${Math.round(pt.y)}px`;
         i++;
       }
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, [active, one]);
 

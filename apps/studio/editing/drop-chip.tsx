@@ -6,8 +6,8 @@
 // The chip follows pan and zoom while it is up (a drag takes a few seconds, the camera can move under it).
 
 import { type ReactElement, useEffect, useState } from 'react';
-
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 
 /** The chip's words (07 · ve-drop). */
 export const DROP_CHIP_TEXT = 'Or drop here — adds at the end';
@@ -80,10 +80,10 @@ export function DropChip(): ReactElement | null {
         key = k;
         tick((n) => n + 1);
       }
-      raf = requestAnimationFrame(loop);
+      raf = frameRaf(loop);
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    raf = frameRaf(loop);
+    return () => frameCaf(raf);
   }, [artboardId]);
 
   if (!artboardId || typeof document === 'undefined') return null;

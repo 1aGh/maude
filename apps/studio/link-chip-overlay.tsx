@@ -12,6 +12,7 @@ import { linkLabel, parseLinkTarget } from './bridge/link-target.ts';
 import { modeShows } from './bridge/mode-shows.ts';
 import { DsIcon } from './canvas-ds-icons.tsx';
 import { resolveSelectionEl } from './dom-selection.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import { type Selection, useSelectionSet } from './use-selection-set.tsx';
 
 const LINK_ATTR = 'data-cd-link';
@@ -139,11 +140,11 @@ export function LinkChipOverlay() {
             : { words, left, top, from }
         );
       }
-      raf.current = requestAnimationFrame(tick);
+      raf.current = frameRaf(tick);
     };
-    raf.current = requestAnimationFrame(tick);
+    raf.current = frameRaf(tick);
     return () => {
-      if (raf.current != null) cancelAnimationFrame(raf.current);
+      if (raf.current != null) frameCaf(raf.current);
       raf.current = null;
     };
   }, [editing, selected]);

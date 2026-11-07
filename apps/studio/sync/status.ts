@@ -167,12 +167,18 @@ export interface FilePlaneStatus {
       | 'hub-older'
       | 'hub-refused'
       /** 2.0.5: files the legacy (v1) pull could not save here; retried later, less often. */
-      | 'pull-failed';
+      | 'pull-failed'
+      /** fix/207: shared code this Mac holds until the person allows it (Allow shared code…). */
+      | 'code-consent';
     count: number;
     paths: string[];
+    /** Issue #207 (7b) — `delete-out`: the folders the held deletes sit in, largest first. */
+    folders?: { folder: string; count: number }[];
     /** One sentence, in the user's terms, about what is waiting and why. */
     detail: string;
   }[];
+  /** Issue #207 (7b) — the owner's purge of held deletes, while it runs (or the reason it stopped). */
+  deletePurge?: { total: number; done: number; running: boolean; error?: string };
   /**
    * Files this lane could NOT move on the last pass — issue #109.
    *
@@ -201,6 +207,14 @@ export interface FilePlaneStatus {
     unmeasured: number;
     byClass: Record<string, { files: number; bytes: number }>;
   };
+  /**
+   * Issue #207 — folders with a long run of pictures still going up (a render sequence). Not a
+   * fault: they sync like everything else. Sync details names them and offers "Don't sync this
+   * folder". Absent when there are none.
+   */
+  largeSequences?: { folder: string; files: number; bytes: number }[];
+  /** Issue #207 — the folders this project does not sync (`linkedHub.ignoreFolders`). */
+  ignoreFolders?: string[];
   /**
    * The hub asked us to slow down and the WHOLE LANE is paused until `until`.
    *

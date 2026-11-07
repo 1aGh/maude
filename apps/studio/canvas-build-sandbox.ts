@@ -93,6 +93,58 @@ export const BUILD_RSS_LIMIT_MB = sandboxKnob(
   128,
   8_192
 );
+/**
+ * 2.0.7 (#3) — how many canvas builds run AT ONCE, across every canvas of this server. `inflight`
+ * below bounds builds per canvas; nothing bounded them across canvases, and opening a design system
+ * asks for many at once (the board, the gallery's specimens, thumbnails): the board plus its 58
+ * specimens started 48 worker processes together, 1.2 GB resident, and the board itself took 6.3 s
+ * instead of 0.7 s — on a two-core cell, long enough to outlive the request and show the error card
+ * (#2). The rest wait their turn, in the order they were asked for. Desktop in-process builds share
+ * the same slots (`withBuildSlot`, http.ts).
+ */
+export const BUILD_CONCURRENCY = sandboxKnob(
+  process.env,
+  'MAUDE_CANVAS_BUILD_CONCURRENCY',
+  2,
+  1,
+  16
+);
+
+/** A FIFO counting semaphore: at most `limit` tasks run; the rest start as earlier ones settle. */
+export function createBuildSlots(limit: number) {
+  let active = 0;
+  const waiting: Array<() => void> = [];
+  const release = () => {
+    active--;
+    const next = waiting.shift();
+    if (next) next();
+  };
+  return {
+    async run<T>(task: () => Promise<T>): Promise<T> {
+      if (active >= limit) await new Promise<void>((go) => waiting.push(go));
+      active++;
+      try {
+        return await task();
+      } finally {
+        release();
+      }
+    },
+    stats: () => ({ active, queued: waiting.length, limit }),
+  };
+}
+
+const buildSlots = createBuildSlots(BUILD_CONCURRENCY);
+
+/** Run one canvas build in a slot (the sandbox's workers and the desktop's in-process builds). */
+export function withBuildSlot<T>(task: () => Promise<T>): Promise<T> {
+  return buildSlots.run(task);
+}
+
+/** How many builds are running and waiting now (for `/_health.render`). */
+export function buildSlotStats() {
+  return buildSlots.stats();
+}
+
 /** How many built modules to keep. Each is a string that bundles the shared chrome — ~2 MB of
  *  text however small the canvas (issue #204), so the byte bound below is the one that bites. */
 export const CACHE_MAX_ENTRIES = sandboxKnob(
@@ -544,19 +596,23 @@ function startBuild({
   const started = Date.now();
   entry.promise = (async (): Promise<SandboxBuildResult> => {
     try {
-      const result = stoppedWith
-        ? stoppedWith
-        : await runWorker({
-            designRoot,
-            canvasAbs,
-            assetUrlBase,
-            env,
-            ceilingMs,
-            onStart: (stop) => {
-              stopEarly = stop;
-              if (stoppedWith) stop(stoppedWith);
-            },
-          });
+      // In a slot (#3): the ceiling starts when the worker does, not while it waits its turn, and a
+      // build superseded while it waited never spawns.
+      const result = await withBuildSlot(async () =>
+        stoppedWith
+          ? stoppedWith
+          : await runWorker({
+              designRoot,
+              canvasAbs,
+              assetUrlBase,
+              env,
+              ceilingMs,
+              onStart: (stop) => {
+                stopEarly = stop;
+                if (stoppedWith) stop(stoppedWith);
+              },
+            })
+      );
       const elapsed = Date.now() - started;
       counters.cpuMsTotal += elapsed;
       counters.durationsMs.push(elapsed);

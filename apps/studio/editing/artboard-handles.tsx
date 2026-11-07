@@ -15,8 +15,8 @@
 // (use-element-resize.tsx) stand down for an artboard — one set of handles, not two.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-
 import { useDragStateContext } from '../canvas-lib.tsx';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { physicalSizeWords } from '../kinds/physical.ts';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
@@ -317,7 +317,7 @@ export function ArtboardHandles(): React.ReactNode {
       for (const el of handleEls.current.values()) el.style.display = 'none';
     };
     const tick = () => {
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
       const m = measureArtboard(document, id);
       if (!m) return hide();
       if (marked !== m.article) {
@@ -371,9 +371,9 @@ export function ArtboardHandles(): React.ReactNode {
         el.style.top = `${Math.round(at[h][1])}px`;
       }
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      cancelAnimationFrame(raf);
+      frameCaf(raf);
       marked?.removeAttribute('data-ed-selected');
       const label = marked?.querySelector(':scope > .dc-artboard-label');
       label?.removeAttribute('data-ed-size');

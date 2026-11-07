@@ -182,3 +182,16 @@ export const CAPABILITY_HOMES = [
     actionId: 'view.trash',
   },
 ];
+
+/**
+ * 2.0.7 polish (decision `v2-207-pages-left-panel-follows`) — the artboard in view on the open canvas, which the
+ * artboard lists under a canvas row and a Design system row mark: in Pages the artboard on the page (it turns with
+ * ‹ › and the keys, which never touch the selection), else the selected artboard of the open canvas.
+ *   selected  the shell's selection (one object or a list; its first counts)
+ *   pagesAt   the active canvas's page while it shows Pages (use-canvas-mode-lane `usePagesArtboard`), else null
+ */
+export function artboardInView({ selected, activePath, pagesAt = null }) {
+  if (typeof pagesAt === 'string' && pagesAt) return pagesAt;
+  const sel = Array.isArray(selected) ? selected[0] : selected;
+  return sel && activePath && sel.file === activePath ? (sel.artboardId ?? null) : null;
+}

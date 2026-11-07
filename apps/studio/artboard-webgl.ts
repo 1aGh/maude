@@ -24,6 +24,7 @@
  */
 
 import { type GlCandidate, planWebgl, WEBGL_LIVE_CAP } from './artboard-live.ts';
+import { frameRaf } from './frame-clock.ts';
 
 type GL = WebGLRenderingContext | WebGL2RenderingContext;
 type LoseExt = { loseContext(): void; restoreContext(): void };
@@ -190,7 +191,7 @@ export class WebglBudget {
     this.frame =
       opts.frame ??
       ((fn) => {
-        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => fn());
+        if (typeof requestAnimationFrame === 'function') frameRaf(() => fn());
         else setTimeout(fn, 16);
       });
   }

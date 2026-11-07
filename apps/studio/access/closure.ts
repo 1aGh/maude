@@ -22,6 +22,7 @@ import { canvasArtifacts } from '../canvas-artifacts.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { Paths } from '../context.ts';
 import { dsDepsFor, importsDs, importsDsBoard, specimenRels } from '../ds/ds-resolver.ts';
+import { folderSystemOf, pinnedFolderSystem } from '../ds/folder-systems.ts';
 import {
   CANVAS_LIB_SPEC,
   CARRIES_ALL,
@@ -431,20 +432,49 @@ function readJsonObject(project: ProjectReader, rel: string): Record<string, unk
 }
 
 /** The system a canvas renders under — the same chain as `ds-resolver.ts` `canvasSystemFor`
- *  (owner by path → meta `designSystem` → `defaultDesignSystem` → first), read through the
- *  ProjectReader instead of the disk. */
-function canvasSystem(project: ProjectReader, canvas: string, cfg: ClosureConfig): DsSystem | null {
+ *  (owner by path → 2.0.7 owner by its own folder → meta `designSystem` (configured, else a folder
+ *  system of exactly that name) → `defaultDesignSystem` → the first of the merged list), read
+ *  through the ProjectReader instead of the disk. */
+function canvasSystem(
+  project: ProjectReader,
+  canvas: string,
+  cfg: ClosureConfig,
+  files?: ReadonlySet<string>
+): DsSystem | null {
   const systems = cfg.designSystems;
-  if (!systems.length) return null;
   const owner = systems.find((s) => canvas.startsWith(`${s.path}/`));
   if (owner) return owner;
+  // 2.0.7 — a system folder the config does not list (a cell's config.json never syncs) still owns
+  // its own canvases: its board draws its own specimens, never the default system's.
+  const hasFile = (r: string) => (files ? files.has(r) : project.text(r) !== null);
+  const folder = folderSystemOf(canvas, systems, hasFile);
+  if (folder) return folder;
+  // …and a canvas that pins it by name renders with it; a name with no such folder stays at the default
+  const named = (name: unknown): DsSystem | null =>
+    typeof name === 'string' && name
+      ? (systems.find((s) => s.name === name) ?? pinnedFolderSystem(name, systems, hasFile))
+      : null;
   const declared = readJsonObject(
     project,
     canvas.replace(/\.(tsx|html)$/i, '.meta.json')
   )?.designSystem;
-  const byMeta = typeof declared === 'string' ? systems.find((s) => s.name === declared) : null;
+  const byMeta = named(declared);
   if (byMeta) return byMeta;
-  return systems.find((s) => s.name === cfg.defaultDesignSystem) ?? systems[0] ?? null;
+  const byDefault = named(cfg.defaultDesignSystem);
+  if (byDefault) return byDefault;
+  if (systems.length) return systems[0] ?? null;
+  // no configured system: the first folder system by name, as the merged list orders them
+  const listed = files ?? new Set(project.list());
+  const segs = new Set<string>();
+  for (const r of listed) {
+    const m = /^system\/([^/]+)\/design-system\.tsx$/.exec(r);
+    if (m) segs.add(m[1] as string);
+  }
+  for (const seg of [...segs].sort()) {
+    const f = folderSystemOf(`system/${seg}/design-system.tsx`, systems, (r) => listed.has(r));
+    if (f) return f;
+  }
+  return null;
 }
 
 /** A design-system file a canvas-only session reads: not a specimen, not a UI kit. */
@@ -592,6 +622,9 @@ interface WalkEnv {
   listTruncated: boolean;
   /** p8-closure-lows — canvas-shaped entries the listing saw but did not yield (`unlisted`). */
   unlisted: readonly string[];
+  /** 2.0.7 (#207) — `files`' openable canvas files (`.tsx`/`.html`, not `_`-prefixed) by NFC slug,
+   *  and `unlisted` by NFC slug: what `grantedBySlug` scanned the whole listing for, per owner. */
+  slugIndex: () => { files: ReadonlyMap<string, string[]>; unlisted: ReadonlySet<string> };
 }
 
 function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: ClosureConfig): WalkEnv {
@@ -727,7 +760,21 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
     typeof project.present === 'function';
   const listTruncated = !reports || project.listTruncated?.() === true;
   const unlisted = reports ? [...(project.unlisted?.() ?? [])] : [];
-  return { files, textOf, isCanvas, cfg, project, known, listTruncated, unlisted };
+  let slugs: { files: Map<string, string[]>; unlisted: Set<string> } | null = null;
+  const slugIndex = () => {
+    if (slugs) return slugs;
+    const bySlug = new Map<string, string[]>();
+    for (const f of files) {
+      if (!/\.(tsx|html)$/i.test(f) || f.startsWith('_')) continue;
+      const slug = slugNfc(f);
+      const list = bySlug.get(slug);
+      if (list) list.push(f);
+      else bySlug.set(slug, [f]);
+    }
+    slugs = { files: bySlug, unlisted: new Set(unlisted.map(slugNfc)) };
+    return slugs;
+  };
+  return { files, textOf, isCanvas, cfg, project, known, listTruncated, unlisted, slugIndex };
 }
 
 const SAME_NAME_RE =
@@ -764,6 +811,58 @@ function isUiKitRel(rel: string): boolean {
   return segs[2] === 'ui_kits' || (segs[2] === 'preview' && /^ui_kits-/i.test(segs[3] ?? ''));
 }
 
+/**
+ * 2.0.7 (#207) — a file's import groups, remembered by its path AND its full text. Every canvas's
+ * walk reads the shared design-system and helper modules again, and every file event starts a new
+ * generation (a new walk env), so one `/_index-data` scanned the same few hundred files once per
+ * canvas that reaches them — and again after any write anywhere in the tree. The answer is a pure
+ * function of (text, path), and a hit needs the stored text to be EQUAL to the text read now (never
+ * a hash or an mtime: a planted file cannot borrow a benign twin's import list), so a cached answer
+ * is exactly the answer a fresh scan would give. Bounded by entries and by the text it holds.
+ */
+const GROUPS_MEMO_MAX_ENTRIES = 8192;
+const GROUPS_MEMO_MAX_CHARS = 64 * 1024 * 1024;
+const groupsMemo = new Map<string, { text: string; groups: string[][] }>();
+let groupsMemoChars = 0;
+function walkImportGroups(text: string, rel: string): readonly (readonly string[])[] {
+  const hit = groupsMemo.get(rel);
+  if (hit && hit.text === text) {
+    groupsMemo.delete(rel);
+    groupsMemo.set(rel, hit);
+    return hit.groups;
+  }
+  const groups = relativeImportGroups(text, `${VROOT}/${rel}`, VROOT);
+  if (hit) {
+    groupsMemo.delete(rel);
+    groupsMemoChars -= hit.text.length;
+  }
+  if (text.length <= GROUPS_MEMO_MAX_CHARS / 4) {
+    groupsMemo.set(rel, { text, groups });
+    groupsMemoChars += text.length;
+    while (
+      groupsMemo.size > GROUPS_MEMO_MAX_ENTRIES ||
+      (groupsMemoChars > GROUPS_MEMO_MAX_CHARS && groupsMemo.size > 1)
+    ) {
+      const [oldest, entry] = groupsMemo.entries().next().value as [
+        string,
+        { text: string; groups: string[][] },
+      ];
+      groupsMemo.delete(oldest);
+      groupsMemoChars -= entry.text.length;
+    }
+  }
+  return groups;
+}
+
+/** Test seam (#207): the import-groups memo's size, and a reset. */
+export const importGroupsMemo = {
+  size: () => groupsMemo.size,
+  clear: () => {
+    groupsMemo.clear();
+    groupsMemoChars = 0;
+  },
+};
+
 /** A canvas slug in Unicode NFC — how the same-name owner rule compares names (p8-closure-lows-2). */
 const slugNfc = (rel: string): string => canvasSlugFromRel(rel, '').normalize('NFC');
 
@@ -774,7 +873,12 @@ function walkImports(
   env: WalkEnv,
   canvas: string,
   granted: ReadonlySet<string>
-): { visited: Array<{ rel: string; text: string }>; refused: Set<string>; blocked: boolean } {
+): {
+  visited: Array<{ rel: string; text: string }>;
+  refused: Set<string>;
+  missing: Set<string>;
+  blocked: boolean;
+} {
   // gate-b-c4e — what an import may pull into the closure. A file of the design root's runtime
   // state never (the build refuses it too); a canvas's board / meta / EDL never (they are that
   // canvas's, not a module). Helpers, components and the design system stay reachable.
@@ -785,6 +889,9 @@ function walkImports(
   const refused = new Set<string>();
   // gate-b-c4l — anything the walk does not follow, or cannot resolve, blocks the canvas.
   let blocked = false;
+  // 2.0.7 — the design-root paths of the imports that resolved to no file (a file deleted, renamed or not
+  // here yet): they block the canvas like any unresolved import, and the shell names them on its card.
+  const missing = new Set<string>();
   // p8-perf-814 (V2-8.14) — a same-name stylesheet's owner that is NO file and has no meta of its
   // own, and that folds to the slug of granted canvases only, IS the granted canvas: its only
   // canvas-ness is the granted canvas's own slug-keyed board. (`Combine-admin.tsx` importing
@@ -809,13 +916,13 @@ function walkImports(
     if (hit !== undefined) return hit;
     let any = false;
     let foreign = false;
-    for (const f of env.files) {
-      if (!/\.(tsx|html)$/i.test(f) || f.startsWith('_') || slugNfc(f) !== slug) continue;
+    const index = env.slugIndex();
+    for (const f of index.files.get(slug) ?? []) {
       if (granted.has(f)) any = true;
       else foreign = true;
     }
     // An entry the listing saw but left out is foreign, granted or not: it cannot be read.
-    for (const f of env.unlisted) if (slugNfc(f) === slug) foreign = true;
+    if (index.unlisted.has(slug)) foreign = true;
     slugOwned.set(slug, any && !foreign);
     return any && !foreign;
   };
@@ -836,7 +943,7 @@ function walkImports(
   };
   // The transitive relative import graph, from the canvas (and the DS override it pulls in).
   const queue: string[] = [canvas];
-  const sys = canvasSystem(env.project, canvas, env.cfg);
+  const sys = canvasSystem(env.project, canvas, env.cfg, env.files);
   const canvasText = env.textOf(canvas);
   if (sys && canvasText !== null && importsDs(canvasText))
     queue.push(`${sys.path}/preview/_ds.tsx`);
@@ -880,7 +987,7 @@ function walkImports(
         else blocked = true;
       }
     if (!MODULE_EXT_RE.test(rel) && !/\.css$/i.test(rel)) continue;
-    for (const group of relativeImportGroups(text, `${VROOT}/${rel}`, VROOT)) {
+    for (const group of walkImportGroups(text, rel)) {
       let resolved = false;
       for (const abs of group) {
         const dep = abs
@@ -893,10 +1000,20 @@ function walkImports(
         if (ownSurfaceStyle(dep) || importable(dep)) queue.push(dep);
         else blocked = true;
       }
-      if (!resolved) blocked = true;
+      if (!resolved) {
+        blocked = true;
+        const first = group[0];
+        if (first?.startsWith(`${VROOT}/`))
+          missing.add(
+            first
+              .slice(VROOT.length + 1)
+              .split(sep)
+              .join('/')
+          );
+      }
     }
   }
-  return { visited, refused, blocked: blocked || refused.size > 0 };
+  return { visited, refused, missing, blocked: blocked || refused.size > 0 };
 }
 
 /**
@@ -918,6 +1035,29 @@ export function canvasImportsReport(
     if (!files.has(canvas)) continue;
     const { refused } = walkImports(env, canvas, new Set([canvas]));
     if (refused.size) out.set(canvas, [...refused].sort());
+  }
+  return out;
+}
+
+/**
+ * 2.0.7 — per canvas, the imports that resolve to no file in the design root (sorted; a canvas with none is
+ * absent). Such a canvas is blocked (c4l), so its frame is refused before the build and no build error
+ * could name the file: the shell reads this (`/_index-data` `canvasMissingImports`) to say which file is
+ * missing instead of "It didn't finish loading". Reader-free: the names come from the canvas's own source.
+ */
+export function canvasMissingImportsReport(
+  project: ProjectReader,
+  canvases: readonly string[],
+  config?: ClosureConfig
+): Map<string, string[]> {
+  const files = new Set<string>(project.list());
+  const cfg = config ?? closureConfigOf(readJsonObject(project, 'config.json'));
+  const env = walkEnv(project, files, cfg);
+  const out = new Map<string, string[]>();
+  for (const canvas of canvases) {
+    if (!files.has(canvas)) continue;
+    const { missing } = walkImports(env, canvas, new Set([canvas]));
+    if (missing.size) out.set(canvas, [...missing].sort());
   }
   return out;
 }
@@ -980,7 +1120,7 @@ function compute(
       if (DYNAMIC_RES.some((re) => re.test(text))) dynamic.add(canvas);
       for (const a of existingAssetRefs(text)) closureAssets.add(a);
     }
-    const sys = canvasSystem(project, canvas, cfg);
+    const sys = canvasSystem(project, canvas, cfg, files);
     // Static asset references in the canvas's own sidecars (meta, board).
     for (const rel of ownedOf(canvas, twins)) {
       if (rel === canvas || !TEXT_SCAN_RE.test(rel)) continue;

@@ -33,6 +33,7 @@ import { createWorkspaceAgent, slugFromDocName } from '../src/workspace-agent.mj
 import {
   attributionFor,
   canvasSlug,
+  checkoutCanvasPathsIn,
   DOC_TYPES,
   filesForCanvas,
   indexCanvasPaths,
@@ -132,6 +133,46 @@ describe('workspace-files (pure)', () => {
     assert.deepEqual([...index.entries()].sort(), [
       ['home', 'Home.tsx'],
       ['ui-card', 'ui/Card.tsx'],
+    ]);
+  });
+
+  // fix/207 — a `_` FILE inside a canvas folder is the user's module (a DS's
+  // `preview/_ui-feedback.tsx`): the studio syncs it as a project document, so
+  // the checkout index must know it. Only `_` DIRECTORIES are runtime state.
+  it('indexes a `_` module inside a folder; `_` directories stay runtime state', () => {
+    const index = indexCanvasPaths([
+      'system/ds/preview/_ui-feedback.tsx',
+      'system/ds/preview/colors.tsx',
+      '_state/x.tsx',
+      '_history/system-ds-preview-_ui-feedback/1.tsx',
+      'system/ds/_cache/y.tsx',
+    ]);
+    assert.deepEqual([...index.entries()].sort(), [
+      ['system-ds-preview-_ui-feedback', 'system/ds/preview/_ui-feedback.tsx'],
+      ['system-ds-preview-colors', 'system/ds/preview/colors.tsx'],
+    ]);
+  });
+
+  // The accepted-mode baseline's `checkoutPath` (server.mjs) walks the same rule.
+  it('the checkout walk knows a `_` module in a folder, never a runtime folder', () => {
+    const root = tmp();
+    const put = (rel) => {
+      mkdirSync(join(root, rel, '..'), { recursive: true });
+      writeFileSync(join(root, rel), 'export const x = 1;\n');
+    };
+    for (const rel of [
+      'system/ds/preview/_ui-feedback.tsx',
+      'ui/home.tsx',
+      '_state/x.tsx',
+      '_root-module.tsx',
+      'system/ds/_cache/y.tsx',
+      '.hidden/z.tsx',
+    ])
+      put(rel);
+    const slugOf = (rel) => canvasSlug(rel);
+    assert.deepEqual([...checkoutCanvasPathsIn(root, slugOf).entries()].sort(), [
+      ['system-ds-preview-_ui-feedback', 'system/ds/preview/_ui-feedback.tsx'],
+      ['ui-home', 'ui/home.tsx'],
     ]);
   });
 
@@ -769,6 +810,95 @@ describe('workspace agent, end to end against real git', () => {
     assert.ok(
       !existsSync(join(repo, '.design/ui-card.tsx')),
       'must not flatten an existing canvas'
+    );
+    await agent.stop();
+  });
+
+  // fix/207 (design.studyfi.com, v2.0.6): the boot scan skipped every `_` file,
+  // so a DS module already in the checkout had no recorded body. Every later
+  // store then read the checkout's own file as "a local edit awaiting its
+  // watcher" and held the body (and its css) forever: a teammate's edit never
+  // reached the checkout or its history, and the paired studio found the
+  // project's version differing from the disk.
+  it('a `_` module already in the checkout takes the project’s next version and commits it', {
+    skip: gitOk ? false : 'git not available',
+  }, async () => {
+    const repo = tmp();
+    const dir = join(repo, '.design/system/ds/preview');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, '_ui-feedback.tsx'), 'export const Toast = () => <p>old</p>;\n');
+    writeFileSync(join(dir, '_ui-feedback.css'), '.t { color: red; }\n');
+    const agent = createWorkspaceAgent({ repoDir: repo, debounceMs: 5, log: silent() });
+    await agent.start();
+
+    const doc = new Y.Doc();
+    const next = "import './_ui-feedback.css';\nexport const Toast = () => <p>new</p>;\n";
+    doc.getText('html').insert(0, next);
+    doc.getText('css').insert(0, '.t { color: blue; }\n');
+    // As every studio stamps it (the path the document was made from).
+    doc.getMap('syncMeta').set('path', 'system/ds/preview/_ui-feedback.tsx');
+    const out = await agent.onDocumentStored({
+      documentName: 'ws/a/main/system-ds-preview-_ui-feedback',
+      document: doc,
+      user: null,
+    });
+    assert.deepEqual(out?.written?.sort(), [
+      'system/ds/preview/_ui-feedback.css',
+      'system/ds/preview/_ui-feedback.tsx',
+    ]);
+    assert.equal(readFileSync(join(dir, '_ui-feedback.tsx'), 'utf8'), next);
+    assert.equal(readFileSync(join(dir, '_ui-feedback.css'), 'utf8'), '.t { color: blue; }\n');
+    assert.equal((await agent.flush()).ok, true);
+    assert.equal(
+      execFileSync('git', ['show', 'HEAD:.design/system/ds/preview/_ui-feedback.tsx'], {
+        cwd: repo,
+        encoding: 'utf8',
+      }),
+      next
+    );
+    await agent.stop();
+  });
+
+  // The cell case: a paired studio is the projector (writesCheckout false) and
+  // the hub only commits. The one store that lands before the projector's write
+  // must still let the projector's bytes reach history (no second store comes:
+  // the projector's write does not change the document) — a `_`
+  // module the boot scan skipped was held out of the cell's git for good, and a
+  // cold start (the checkout is re-cloned) then brought the old body back under
+  // the project's newer version: "<module> differs from the project".
+  it('a paired cell commits a `_` module the projector wrote (store before projector)', {
+    skip: gitOk ? false : 'git not available',
+  }, async () => {
+    const repo = tmp();
+    const dir = join(repo, '.design/system/ds/preview');
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, '_ui-feedback.tsx');
+    writeFileSync(file, 'export const Toast = () => <p>old</p>;\n');
+    const agent = createWorkspaceAgent({
+      repoDir: repo,
+      debounceMs: 60_000,
+      log: silent(),
+      writesCheckout: () => false,
+    });
+    await agent.start();
+    const doc = new Y.Doc();
+    doc.getMap('syncMeta').set('path', 'system/ds/preview/_ui-feedback.tsx');
+    const next = 'export const Toast = () => <p>new</p>;\n';
+    doc.getText('html').insert(0, next);
+    const args = {
+      documentName: 'ws/a/main/system-ds-preview-_ui-feedback',
+      document: doc,
+      user: null,
+    };
+    await agent.onDocumentStored(args); // the hub hook first…
+    writeFileSync(file, next); // …then the studio projector
+    assert.equal((await agent.flush()).ok, true);
+    assert.equal(
+      execFileSync('git', ['show', 'HEAD:.design/system/ds/preview/_ui-feedback.tsx'], {
+        cwd: repo,
+        encoding: 'utf8',
+      }),
+      next
     );
     await agent.stop();
   });

@@ -28,6 +28,7 @@
  */
 
 import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
+import { frameRafOn } from '../../frame-clock.ts';
 import { artboardMembers } from '../artboard-members.ts';
 import { DEFAULT_INK } from '../constants.ts';
 import { parseHostRef } from '../elements/_shared.ts';
@@ -892,7 +893,7 @@ export function createDomRideSink(
         g.classList.add('is-settling');
         old.classList.add('is-leaving');
         s.appendChild(g);
-        doc.defaultView?.requestAnimationFrame(() => g.classList.add('is-in'));
+        if (doc.defaultView) frameRafOn(doc.defaultView, () => g.classList.add('is-in'));
         doc.defaultView?.setTimeout(() => old.remove(), 200);
       } else {
         old?.remove();

@@ -41,6 +41,19 @@ export const SYNC_ACTIONS: ActionDef[] = [
   pick('sync.discard-ai-edit', 'Discard'),
   // Moving now's ✕: `POST /_api/sync/cancel-assets` (the sweep stops; uploads are idempotent)
   pick('sync.cancel-transfer', 'Cancel the transfer'),
+  // fix/207 — shared code from the project's hub: Sync details' held row and the canvas-waiting card
+  // open the consent sheet; `POST /_api/sync/code-consent/set { allow }` records the answer on this
+  // Mac (the window's own fetch only, Can edit).
+  pick('sync.allow-code', 'Allow shared code…'),
+  pick('sync.stop-code', 'Stop allowing shared code…'),
+  // Issue #207 — Sync details › a long run of pictures going up: leave its folder out, or bring a
+  // left-out folder back (`POST /_api/sync/settings { addIgnoreFolder | removeIgnoreFolder }`).
+  pick('sync.ignore-folder', 'Don’t sync this folder'),
+  pick('sync.sync-folder-again', 'Sync it again'),
+  // Issue #207 (7b) — Sync details › Deleted on this Mac, held: send the held deletes to the hub as
+  // one confirmed batch, or keep the files on the hub (`POST /_api/sync/held-deletes { answer }`).
+  pick('sync.delete-held-on-hub', 'Move to the hub’s trash too…'),
+  pick('sync.keep-held-on-hub', 'Keep on the hub'),
   // Get latest (moved here from Version history) and Sign in again: every role keeps them
   { id: 'sync.get-latest', label: 'Get latest', kind: 'command', exec: 'shell', search: ROW },
   { id: 'sync.sign-in-again', label: 'Sign in again', kind: 'command', exec: 'shell', search: ROW },

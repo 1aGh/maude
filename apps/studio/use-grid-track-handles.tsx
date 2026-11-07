@@ -27,6 +27,7 @@
 import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { globalCdOccurrence, resolveSelectionEl } from './dom-selection.ts';
 import { isElementDragActive } from './drag-state.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import {
   computeGutterLines,
   computeTrackDrag,
@@ -150,7 +151,7 @@ export function GridTrackHandlesOverlay(): ReactNode {
     const tick = () => {
       rafRef.current = null;
       const reschedule = () => {
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = frameRaf(tick);
       };
       const bail = () => {
         hideAll();
@@ -226,11 +227,11 @@ export function GridTrackHandlesOverlay(): ReactNode {
           i++;
         }
       }
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, [active, one]);
 

@@ -74,6 +74,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 
+import { isProjectOwnerMatch } from './access-gate.mjs';
 import { normalizeGroup } from './file-membership.mjs';
 import { readHubMeta, verifyToken, writeHubMeta } from './tokens.mjs';
 
@@ -414,7 +415,7 @@ export async function handleProjectConfigDoor(ctx) {
   }
   // The same bar as a code module at the file door — and project-wide: a
   // token scoped to one canvas does not get to rename the project.
-  if (match.readOnly || match.role !== 'owner' || (match.scope && match.scope !== '*')) {
+  if (!isProjectOwnerMatch(match)) {
     respond(response, 403, 'only the project owner can set the project config');
     return true;
   }

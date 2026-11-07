@@ -26,8 +26,15 @@
 //   - there is no per-hub consent row in Settings › Connections to keep in step with.
 //
 // An explicit recorded `false` still wins: a person who said no on this Mac keeps their no.
+//
+// fix/207 — and that person can now change their answer IN THE APP (`createCodeConsentControl`
+// below, behind `POST /_api/sync/code-consent/set`): before it, the only writer was the terminal's
+// `maude design link`, which never asked again once a `false` was recorded, so "re-link and answer
+// yes" could not be followed. The answer is still LOCAL and still the person's: the route is
+// main-origin only, window-only and Can edit, and nothing a hub says reaches it.
 
 import { CELL_ZONE, cellDoorUrl } from '../client/v2/cloud/browser-door.js';
+import { getHubRecord, recordCodeModulesAllowed } from './hubs-config.ts';
 import { normHub } from './link-consent.ts';
 
 export type CodeModuleConsentHow = 'cell' | 'recorded' | 'cloud';
@@ -71,4 +78,83 @@ export function codeModuleConsent(o: CodeModuleConsentInput): CodeModuleConsentH
   const hub = normHub(o.hubUrl);
   if (hub && normHub(env.MAUDE_APP_BOUND_HUB) === hub && isMaudeCloudCell(hub)) return 'cloud';
   return null;
+}
+
+/** What the consent sheet and Sync details show about this Mac's answer for the linked hub. */
+export interface CodeConsentView {
+  /** the hub's host, the only name of it the UI shows */
+  host: string;
+  /** may code modules land here right now */
+  allowed: boolean;
+  /** why (null = they may not) */
+  how: CodeModuleConsentHow | null;
+  /** the answer recorded on this Mac (null = none recorded) */
+  recorded: boolean | null;
+  /** may the person change it here: a signed-in record exists and this is not a cell */
+  changeable: boolean;
+}
+
+export type CodeConsentSetResult =
+  | { ok: true; changed: boolean; view: CodeConsentView }
+  | { ok: false; reason: 'cell' | 'not-signed-in' };
+
+export interface CodeConsentControl {
+  /** The cached answer the file plane reads at every gate (cheap: no disk read). */
+  allowed(): boolean;
+  /** Re-read hubs.json; true when the answer changed (a CLI re-link, another window). */
+  refresh(): boolean;
+  view(): CodeConsentView;
+  /** Record the person's answer on this Mac and take it at once. */
+  set(allow: boolean): CodeConsentSetResult;
+}
+
+/**
+ * The live receive consent of one sync runtime (fix/207). `codeModuleConsent` decides; this keeps
+ * its answer in memory, re-reads it when hubs.json changes, and writes the person's answer through
+ * `recordCodeModulesAllowed` into the PROFILE's hubs.json (`hubsConfigPath()` at call time).
+ */
+export function createCodeConsentControl(o: {
+  cellPairing: boolean;
+  hubUrl: string;
+  env?: Record<string, string | undefined>;
+  /** the profile's hubs.json; absent = `hubsConfigPath()` at each read (the process's profile) */
+  hubsPath?: string;
+}): CodeConsentControl {
+  const record = () => (o.cellPairing ? null : getHubRecord(o.hubUrl, o.hubsPath));
+  const decide = () =>
+    codeModuleConsent({
+      cellPairing: o.cellPairing,
+      hubUrl: o.hubUrl,
+      storedRecord: record(),
+      env: o.env ?? process.env,
+    });
+  let how = decide();
+  let host = '';
+  try {
+    host = new URL(o.hubUrl).host;
+  } catch {
+    host = '';
+  }
+  const view = (): CodeConsentView => {
+    const rec = record();
+    const recorded = typeof rec?.codeModulesAllowed === 'boolean' ? rec.codeModulesAllowed : null;
+    return { host, allowed: how !== null, how, recorded, changeable: !o.cellPairing && !!rec };
+  };
+  return {
+    allowed: () => how !== null,
+    refresh() {
+      const before = how !== null;
+      how = decide();
+      return (how !== null) !== before;
+    },
+    view,
+    set(allow) {
+      if (o.cellPairing) return { ok: false, reason: 'cell' };
+      if (!recordCodeModulesAllowed(o.hubUrl, allow === true, o.hubsPath))
+        return { ok: false, reason: 'not-signed-in' };
+      const before = how !== null;
+      how = decide();
+      return { ok: true, changed: (how !== null) !== before, view: view() };
+    },
+  };
 }

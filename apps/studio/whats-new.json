@@ -2,6 +2,33 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "canvas-pages-view",
+      "version": "2.0.7",
+      "date": "2026-11-06",
+      "kind": "feature",
+      "title": "See a canvas one artboard at a time",
+      "summary": "Switch the bar at the top of a canvas from Canvas to Pages: one artboard fills the window, and the arrows on the bar, PageDown and PageUp (or → and ← with nothing selected) go through them in the Present order. The canvas remembers it on this Mac. Preview and Present come back when you switch to Canvas.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "opening-artboard-skeletons",
+      "version": "2.0.7",
+      "date": "2026-11-06",
+      "kind": "improvement",
+      "title": "Big canvases show their artboards at once",
+      "summary": "When you open a canvas, every artboard shows right away as an outline with its name, in its place and at its size. The canvas replaces them once it is drawn, so a big canvas no longer opens on an empty screen. Exports never show the outlines.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "design-system-artboard-list",
+      "version": "2.0.7",
+      "date": "2026-11-06",
+      "kind": "improvement",
+      "title": "Your design system's artboards in Canvases",
+      "summary": "A design system row in the Canvases panel now opens into its artboards, in order, like any canvas. Click one to go straight to it.",
+      "surface": "design-ui"
+    },
+    {
       "id": "heavy-canvases-stay-up",
       "version": "2.0.5",
       "date": "2026-11-05",

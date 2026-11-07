@@ -25,6 +25,8 @@
  * while typing/moving).
  */
 
+import { frameCafOn, frameRafOn } from './frame-clock.ts';
+
 /**
  * Place a collapsed caret inside a contentEditable at a viewport point —
  * `caretRangeFromPoint` (WebKit/Chromium), `caretPositionFromPoint`
@@ -264,13 +266,13 @@ export function mountCaret(editable: HTMLElement, win: Window): () => void {
   let raf = 0;
   const tick = (): void => {
     position();
-    raf = win.requestAnimationFrame(tick);
+    raf = frameRafOn(win, tick);
   };
   position();
-  raf = win.requestAnimationFrame(tick);
+  raf = frameRafOn(win, tick);
 
   return () => {
-    win.cancelAnimationFrame(raf);
+    frameCafOn(win, raf);
     doc.removeEventListener('selectionchange', onUpdate);
     editable.removeEventListener('input', onUpdate);
     editable.removeEventListener('keyup', onUpdate);

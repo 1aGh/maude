@@ -24,7 +24,7 @@ import { shellToast, totalCounts } from '../shell/util.js';
 import { assetTileSelected } from '../v2/assets/assets-bus.js';
 import { selectionHasTakes } from '../v2/assets/takes.js';
 import { keyOutcome } from '../v2/shell/role-gate.js';
-import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
+import { ROLE_DENIAL, shellMode } from '../v2/shell/use-canvas-mode-lane.js';
 import { installFocusRescue } from '../v2/shell/modal-focus.js';
 import { useAnnotationPrefsLane } from '../v2/shell/use-annotation-prefs.js';
 import { singleKeysStore, useSingleKeysLane } from '../v2/shell/use-single-keys.js';
@@ -54,6 +54,8 @@ function shellState(d) {
     assetTileSelected: assetTileSelected(),
     // S8.16: the one selected picture has other takes — ← → step them (image.next-take / image.prev-take)
     selectionHasTakes: selectionHasTakes(sel, d.activePath),
+    // 2.0.7 B2: the active canvas shows Pages — ⌥⌘P and the Present keys are off (greyed, the key swallowed)
+    pagesView: shellMode.get().pages === true,
   };
 }
 

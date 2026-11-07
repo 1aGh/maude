@@ -75,7 +75,7 @@ describe('LOD — the overview', () => {
 describe('LiveRegistry', () => {
   test('off: every artboard is live and seen without any observer input', () => {
     const r = new LiveRegistry('off', () => {});
-    expect(r.get('a')).toEqual({ live: true, seen: true });
+    expect(r.get('a')).toEqual({ live: true, seen: true, media: true });
   });
 
   test('an artboard nobody reported as near sleeps and is not seen', () => {
@@ -83,7 +83,7 @@ describe('LiveRegistry', () => {
     const r = new LiveRegistry('sleep', m.schedule);
     r.subscribe('a', () => {});
     m.flush();
-    expect(r.get('a')).toEqual({ live: false, seen: false });
+    expect(r.get('a')).toEqual({ live: false, seen: false, media: false });
   });
 
   test('near artboards wake a few per frame, and sleep at once when they leave', () => {
@@ -112,9 +112,9 @@ describe('LiveRegistry', () => {
     r.subscribe('a', () => {});
     r.setNear('a', true);
     m.flush();
-    expect(r.get('a')).toEqual({ live: true, seen: true });
+    expect(r.get('a')).toEqual({ live: true, seen: true, media: true });
     r.setNear('a', false);
-    expect(r.get('a')).toEqual({ live: false, seen: false });
+    expect(r.get('a')).toEqual({ live: false, seen: false, media: false });
   });
 
   test('light mode mounts nothing in the overview (zoomed out), however near', () => {
@@ -125,10 +125,10 @@ describe('LiveRegistry', () => {
     r.setNear('a', true);
     r.setVisible('a', true);
     m.flush();
-    expect(r.get('a')).toEqual({ live: false, seen: false });
+    expect(r.get('a')).toEqual({ live: false, seen: false, media: false });
     r.setZoom(1);
     m.flush();
-    expect(r.get('a')).toEqual({ live: true, seen: true });
+    expect(r.get('a')).toEqual({ live: true, seen: true, media: true });
   });
 
   test('no wake while a gesture is in flight; the queue drains when it settles', () => {

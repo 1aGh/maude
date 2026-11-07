@@ -16,6 +16,11 @@ export const OCCLUDED_HZ = 50;
 /** 500 ms idle windows the occlusion guard reads before refusing (a busy page settles, a frozen one never does). */
 export const IDLE_WINDOWS = 20;
 
+// 2.0.7 — every frame sampler and pacer below takes the canvas frame's EXEMPT clock
+// (`__maudeFrameFreeze.raf`, frame-clock.ts) when it is there: the shell gates
+// requestAnimationFrame while the camera moves, so a sampler on the gated one would
+// record no frames during the very gesture it measures (and a pacer would stall it).
+
 // ── Idle rAF probe (the WebKit cross-origin-frame throttle check) ────────────
 //
 // WebKit caps requestAnimationFrame at ~30 fps in a cross-origin iframe the
@@ -38,12 +43,12 @@ export function idleRafSource(frames = 40) {
   const tick = (t) => {
     if (last) deltas.push(t - last);
     last = t;
-    if (deltas.length < ${n}) { window.requestAnimationFrame(tick); return; }
+    if (deltas.length < ${n}) { (window.__maudeFrameFreeze ? window.__maudeFrameFreeze.raf : window.requestAnimationFrame.bind(window))(tick); return; }
     const s = deltas.slice().sort((a, b) => a - b);
     window.__maudePerfIdle = { frames: s.length, p50: Math.round(s[Math.floor(s.length / 2)] * 100) / 100 };
     if (typeof done === 'function') done(JSON.stringify(window.__maudePerfIdle));
   };
-  window.requestAnimationFrame(tick);
+  (window.__maudeFrameFreeze ? window.__maudeFrameFreeze.raf : window.requestAnimationFrame.bind(window))(tick);
   return 'STARTED';
 })(typeof arguments !== 'undefined' ? arguments[arguments.length - 1] : undefined)`;
 }
@@ -225,9 +230,9 @@ export function harnessSource({ pan, zoom, injectCss, fitAll, setFlags }) {
   const tick = (t) => {
     if (last) frames.push(t - last);
     last = t;
-    if (running) win.requestAnimationFrame(tick);
+    if (running) (win.__maudeFrameFreeze ? win.__maudeFrameFreeze.raf : win.requestAnimationFrame.bind(win))(tick);
   };
-  win.requestAnimationFrame(tick);
+  (win.__maudeFrameFreeze ? win.__maudeFrameFreeze.raf : win.requestAnimationFrame.bind(win))(tick);
 
   const rect = host.getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
@@ -238,7 +243,7 @@ export function harnessSource({ pan, zoom, injectCss, fitAll, setFlags }) {
     clientX: cx, clientY: cy, bubbles: true, cancelable: true,
   }));
 
-  const nextFrame = () => new Promise((r) => win.requestAnimationFrame(() => r()));
+  const nextFrame = () => new Promise((r) => (win.__maudeFrameFreeze ? win.__maudeFrameFreeze.raf : win.requestAnimationFrame.bind(win))(() => r()));
 
   // The world transform is the ground truth that the gesture LANDED. Without
   // this check a probe whose synthetic events get swallowed reports a beautiful
@@ -264,9 +269,9 @@ export function harnessSource({ pan, zoom, injectCss, fitAll, setFlags }) {
       const idleTick = () => {
         if (!idleOn) return;
         idleFrames += 1;
-        win.requestAnimationFrame(idleTick);
+        (win.__maudeFrameFreeze ? win.__maudeFrameFreeze.raf : win.requestAnimationFrame.bind(win))(idleTick);
       };
-      win.requestAnimationFrame(idleTick);
+      (win.__maudeFrameFreeze ? win.__maudeFrameFreeze.raf : win.requestAnimationFrame.bind(win))(idleTick);
       await new Promise((r) => win.setTimeout(r, 500));
       idleOn = false;
       idleHz = Math.max(idleHz, idleFrames * 2);

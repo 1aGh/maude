@@ -17,6 +17,7 @@ import { canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { modeShows } from './bridge/mode-shows.ts';
 import { useArtboardsContext } from './canvas-lib.tsx';
 import { resolveSelectionEl, shortText } from './dom-selection.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import { isAnnotationTool, isEditableTarget } from './input-router.tsx';
 import { inspectsSelection, type Neighbour, neighbourOf } from './inspect-canvas.ts';
 import { useCanvasKeys } from './use-canvas-keys.ts';
@@ -165,12 +166,12 @@ export function InspectOverlay() {
       } else {
         tag.dataset.on = 'false';
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
       alive = false;
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
     };
   }, [one, zoom]);
 

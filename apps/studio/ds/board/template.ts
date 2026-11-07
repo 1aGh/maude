@@ -4,7 +4,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { ROW_GAP } from '../../canvas-rows.ts';
+import { MAX_ROW_COLUMNS, ROW_GAP } from '../../canvas-rows.ts';
 import { DEV_SERVER_ROOT } from '../../paths.ts';
 import { SECTIONS, type SectionKind } from './types.ts';
 
@@ -22,9 +22,9 @@ export interface OwnSpecimenArtboard {
 }
 
 /**
- * Own artboards sit below the seven sections at a showcase's size (V2-1.6 §5.2's example): one row
- * per section, in the order the artboards come (convert-map.ts gives them in section order), each
- * row `rowGap` below the last. A specimen page grows past `h` (the artboard hugs its content, 1 500–4 750
+ * Own artboards sit below the seven sections at a showcase's size (V2-1.6 §5.2's example): each
+ * section starts a row, in the order the artboards come (convert-map.ts gives them in section order),
+ * wraps after `MAX_ROW_COLUMNS` pages (2.0.7 fix #6), and each row sits `rowGap` below the last. A specimen page grows past `h` (the artboard hugs its content, 1 500–4 750
  * px measured live on this repo's two systems, 2026-10-31), and the height is only known once the page
  * is on screen — so the generator writes the COMPACT pitch (`h + ROW_GAP`) and the open canvas re-pitches
  * the rows from the measured heights (`canvas-rows.ts` `flowRows`, r3-ds-rows): a row is as tall as its
@@ -33,22 +33,42 @@ export interface OwnSpecimenArtboard {
  */
 export const OWN_ARTBOARD = { w: 1440, h: 900, y: 1860, gap: 48, rowGap: ROW_GAP } as const;
 
-/** The design-px box of each own artboard: one row per section, in first-seen order. */
+/**
+ * The design-px box of each own artboard: each section starts a row, in first-seen order, and wraps
+ * onto the next row after `MAX_ROW_COLUMNS` pages (2.0.7 fix #6 — one row per section made StudyFi's
+ * 29 component pages a 43 000 px row and the canvas fitted at 2 %).
+ */
 function ownLayout(own: readonly OwnSpecimenArtboard[]) {
-  const rows: Array<string | undefined> = [];
-  const col = new Map<string | undefined, number>();
-  return own.map((o) => {
-    if (!rows.includes(o.section)) rows.push(o.section);
-    const i = col.get(o.section) ?? 0;
-    col.set(o.section, i + 1);
-    return {
-      id: o.id,
-      x: i * (OWN_ARTBOARD.w + OWN_ARTBOARD.gap),
-      y: OWN_ARTBOARD.y + rows.indexOf(o.section) * (OWN_ARTBOARD.h + OWN_ARTBOARD.rowGap),
-      w: OWN_ARTBOARD.w,
-      h: OWN_ARTBOARD.h,
-    };
-  });
+  const sections: Array<string | undefined> = [];
+  const bySection = new Map<string | undefined, OwnSpecimenArtboard[]>();
+  for (const o of own) {
+    if (!bySection.has(o.section)) {
+      sections.push(o.section);
+      bySection.set(o.section, []);
+    }
+    bySection.get(o.section)?.push(o);
+  }
+  const place = new Map<string, { x: number; y: number }>();
+  let row = 0;
+  for (const s of sections) {
+    const pages = bySection.get(s) ?? [];
+    pages.forEach((o, i) => {
+      const col = i % MAX_ROW_COLUMNS;
+      place.set(o.id, {
+        x: col * (OWN_ARTBOARD.w + OWN_ARTBOARD.gap),
+        y:
+          OWN_ARTBOARD.y +
+          (row + Math.floor(i / MAX_ROW_COLUMNS)) * (OWN_ARTBOARD.h + OWN_ARTBOARD.rowGap),
+      });
+    });
+    row += Math.ceil(pages.length / MAX_ROW_COLUMNS);
+  }
+  return own.map((o) => ({
+    id: o.id,
+    ...(place.get(o.id) as { x: number; y: number }),
+    w: OWN_ARTBOARD.w,
+    h: OWN_ARTBOARD.h,
+  }));
 }
 
 /**

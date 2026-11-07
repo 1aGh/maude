@@ -2,6 +2,11 @@
 //
 //   POST /_api/sync/resync   → { ok, sync, resync? } · 409 busy · 200 { ok:false, reason } when there
 //                              is nothing to restart · 403 { ok:false, reason, detail } at the gates
+//   GET  /_api/sync/code-consent      → { consent: CodeConsentView | null } (fix/207)
+//   POST /_api/sync/code-consent/set  { allow } → { ok, consent } · 403 window-only / read-only ·
+//                              409 not-linked / not-signed-in / cell
+//   POST /_api/sync/held-deletes  { answer: delete|keep, folder? } → { ok, how, count } · 403
+//                              window-only / read-only / not-owner · 409 not-linked / nothing-held / busy
 //
 // MAIN ORIGIN ONLY (never `origin: 'canvas'`): resync re-handshakes every document against the
 // person's own hub and re-runs a whole-project comparison — an amplification primitive a canvas must
@@ -21,6 +26,8 @@
 
 import { currentAccess, notInScopeResponse } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
+import type { CodeConsentControl } from '../sync/code-module-consent.ts';
+import type { HeldDeletesControl } from '../sync/held-deletes.ts';
 import type { LinkGate } from '../sync/link-consent.ts';
 import type { ResyncTrace } from '../sync/resync-trace.ts';
 import type { RouteSpec } from './table.ts';
@@ -29,7 +36,20 @@ import type { RouteSpec } from './table.ts';
 export interface SyncControlLike {
   busy?(): boolean;
   restart(): Promise<{ syncing: boolean; canvases?: number; reason?: string; detail?: string }>;
+  /** fix/207 — the running runtime: its shared-code consent and its "pass now". */
+  current?(): unknown;
 }
+
+/** fix/207 — the slice of the running runtime the consent routes use (sync/index.ts SyncRuntime). */
+interface ConsentRuntime {
+  codeConsent?(): CodeConsentControl | null;
+  heldDeletes?(): HeldDeletesControl | null;
+  pullRemoteNow?(): Promise<void>;
+}
+const consentRuntime = (c: SyncControlLike | null | undefined): ConsentRuntime | null => {
+  const r = c?.current?.();
+  return r && typeof r === 'object' ? (r as ConsentRuntime) : null;
+};
 
 export interface SyncRouteDeps {
   /** `ctx.syncControl` — a LIVE view: server.ts attaches it after the table is built. */
@@ -136,6 +156,162 @@ export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
         }
         const r = await deps.link.confirm();
         return json(r.ok ? 200 : r.reason === 'nothing-pending' ? 409 : 500, r);
+      },
+    },
+    // fix/207 — may the linked hub deliver SHARED CODE (`.ts`/`.js` modules) to this Mac? The answer
+    // the consent sheet shows (Sync details' held row, the canvas-waiting card). MAIN ORIGIN ONLY: a
+    // canvas never learns whether code would reach this Mac. Names the host and the answer, nothing
+    // else (no token, no account).
+    {
+      method: 'GET',
+      path: '/_api/sync/code-consent',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: async () => {
+        if (!access().can('read', null)) return notInScopeResponse();
+        const consent = consentRuntime(deps.control())?.codeConsent?.() ?? null;
+        return json(200, { consent: consent ? consent.view() : null });
+      },
+    },
+    // fix/207 — the person's answer: "Allow shared code from <host>" / "Stop allowing shared code".
+    // Code modules land OUTSIDE the sandboxed canvas origin — the agent and every `maude design *`
+    // helper read them (DDR-054) — so this is the same class of act as Connect: the person's, in the
+    // Maude window. Gates, in order: the table's CSRF + DNS-rebind (`guardTableRoute`), then
+    // `Sec-Fetch-Site: same-origin` (window-only, routes/cloud-move.ts), then Can edit (a signed-in
+    // member of that hub; the role is this Mac's stored one), then a signed-in record for the hub
+    // the RUNTIME dials (never a body field). Never canvas-safe; refused in a cell (studio-manifest);
+    // the agent never reaches it (human 'consent'; cli/lib/bash-guard.mjs human-only).
+    {
+      method: 'POST',
+      path: '/_api/sync/code-consent/set',
+      origin: 'main',
+      readOnly: 'refused',
+      refuse: (reason) => {
+        (deps.warn ?? ((m: string) => console.warn(m)))(
+          `[sync] ${reason} request to the shared-code consent route — refused.`
+        );
+        return json(403, {
+          ok: false,
+          reason,
+          detail:
+            reason === 'cross-origin'
+              ? 'Answer this from Maude itself, not from inside a canvas.'
+              : "Answer this from the Maude app or this machine's own browser tab.",
+        });
+      },
+      async handle(req) {
+        if (req.headers.get('sec-fetch-site') !== 'same-origin') {
+          return json(403, {
+            ok: false,
+            reason: 'window-only',
+            detail: 'Answer this in Sync details in the Maude window.',
+          });
+        }
+        if (!access().can('edit', null)) {
+          return json(403, {
+            error: 'read-only',
+            reason: 'not-allowed',
+            message: 'Ask the owner to change this.',
+          });
+        }
+        let body: unknown = null;
+        try {
+          body = await req.json();
+        } catch {
+          body = null;
+        }
+        const allow = (body as { allow?: unknown } | null)?.allow;
+        if (typeof allow !== 'boolean') {
+          return json(400, { ok: false, reason: 'bad-request', detail: 'Say yes or no.' });
+        }
+        const runtime = consentRuntime(deps.control());
+        const consent = runtime?.codeConsent?.() ?? null;
+        if (!consent) {
+          return json(409, {
+            ok: false,
+            reason: 'not-linked',
+            detail: 'This project isn’t syncing with a hub right now.',
+          });
+        }
+        const r = consent.set(allow);
+        if (!r.ok) {
+          return json(409, {
+            ok: false,
+            reason: r.reason,
+            detail:
+              r.reason === 'cell'
+                ? 'Shared code is always allowed on the project’s own server.'
+                : 'Sign in to this project’s hub first.',
+          });
+        }
+        // Held rows are admitted on the very next pass — start it now rather than in 20 s.
+        if (r.changed && allow) void runtime?.pullRemoteNow?.().catch(() => {});
+        return json(200, { ok: true, consent: r.view });
+      },
+    },
+    // Issue #207 (7b) — the answer to "Deleted on this Mac, held": `{ answer: 'delete' | 'keep',
+    // folder? }`. Delete sends the held deletes as one confirmed batch (the hub's door, or the owner's
+    // confirmed purge past its budget — sync/held-deletes.ts); Keep leaves them on the hub. The same
+    // class of act as the shared-code answer: the person's, in the Maude window (window-only, Can edit;
+    // never canvas-safe; refused in a cell; human 'hub-link').
+    {
+      method: 'POST',
+      path: '/_api/sync/held-deletes',
+      origin: 'main',
+      readOnly: 'refused',
+      refuse: (reason) => {
+        (deps.warn ?? ((m: string) => console.warn(m)))(
+          `[sync] ${reason} request to the held-deletes route — refused.`
+        );
+        return json(403, {
+          ok: false,
+          reason,
+          detail:
+            reason === 'cross-origin'
+              ? 'Answer this from Maude itself, not from inside a canvas.'
+              : "Answer this from the Maude app or this machine's own browser tab.",
+        });
+      },
+      async handle(req) {
+        if (req.headers.get('sec-fetch-site') !== 'same-origin') {
+          return json(403, {
+            ok: false,
+            reason: 'window-only',
+            detail: 'Answer this in Sync details in the Maude window.',
+          });
+        }
+        if (!access().can('edit', null)) {
+          return json(403, {
+            error: 'read-only',
+            reason: 'not-allowed',
+            message: 'Ask the owner to change this.',
+          });
+        }
+        let body: unknown = null;
+        try {
+          body = await req.json();
+        } catch {
+          body = null;
+        }
+        const answer = (body as { answer?: unknown } | null)?.answer;
+        const folder = (body as { folder?: unknown } | null)?.folder ?? null;
+        if (
+          (answer !== 'delete' && answer !== 'keep') ||
+          (folder !== null && (typeof folder !== 'string' || folder.length > 1024))
+        ) {
+          return json(400, { ok: false, reason: 'bad-request', detail: 'Say delete or keep.' });
+        }
+        const control = consentRuntime(deps.control())?.heldDeletes?.() ?? null;
+        if (!control) {
+          return json(409, {
+            ok: false,
+            reason: 'not-linked',
+            detail: 'This project isn’t syncing with a hub right now.',
+          });
+        }
+        const r = await control.answer(answer, folder as string | null);
+        if (r.ok) return json(200, r);
+        return json(r.reason === 'not-owner' ? 403 : 409, r);
       },
     },
     {

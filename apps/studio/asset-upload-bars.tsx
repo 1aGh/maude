@@ -8,8 +8,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-
 import type { AssetStateItem } from './bridge/dgn-protocol.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 
 /** rel → progress (0..1, or null when the Mac does not know how far it is) for every `uploading` item. */
 export function uploadingOf(
@@ -128,11 +128,11 @@ export function UploadBars({
         div.style.top = `${Math.round(r.bottom - BAR_PX)}px`;
         div.style.width = `${Math.round(r.width)}px`;
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
     };
   }, [bars]);
 

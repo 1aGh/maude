@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { runCanvasModes } from './canvas-cli.ts';
 import { checkSystem, type SystemReport } from './check.ts';
 import { emitTokensJson } from './emit.ts';
+import { withFolderSystems } from './folder-systems.ts';
 import type { PostBuild } from './post-build.ts';
 import { indexRegistry, loadRegistry } from './registry.ts';
 import {
@@ -135,7 +136,12 @@ export function loadProject(
   const cfgPath = join(designRoot, 'config.json');
   if (!existsSync(cfgPath)) throw new UsageError(`no .design/config.json under ${root}`);
   const config = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>;
-  return { root, designRoot, config, systems: systemConfigsFrom(config) };
+  return {
+    root,
+    designRoot,
+    config,
+    systems: systemConfigsFrom(withFolderSystems(config, designRoot)),
+  };
 }
 
 export function selectSystems(project: Project, names: string[]): SystemConfig[] {

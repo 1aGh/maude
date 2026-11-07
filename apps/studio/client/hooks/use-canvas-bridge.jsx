@@ -1338,7 +1338,7 @@ export function useCanvasBridge({
           // page it names is the open canvas (the frame is the proof, not the `file` it claims), and the
           // next `loaded` (Reload canvas) retires it.
           if (m.dgn === 'canvas-failed' && activePath)
-            setCanvasError({ path: activePath, kind: 'compile' });
+            setCanvasError({ path: activePath, kind: 'compile', reason: 'frame' });
         }
       } else if (m.dgn === 'loaded' && m.file) {
         stampFollowRef.current.bump(); // a reloaded canvas carries the file's ids (stamp-follow.js)

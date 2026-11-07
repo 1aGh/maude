@@ -193,8 +193,11 @@ export function menuCtx({
   online = true,
   // p8-v1-drop — a design system here is below Conformant (client/v2/ds/upgrade-offers.js)
   dsUpgradeOffered = false,
+  // 2.0.7 B2 — the active canvas shows Pages: Preview and Present grey out, Next / Previous page come on
+  pagesView = false,
 } = {}) {
   const facts = new Set();
+  if (pagesView) facts.add('pagesView');
   if (dsUpgradeOffered) facts.add('dsUpgradeOffered');
   if (native) facts.add('native');
   // S3.7b — a desktop project linked to a cloud hub (Copy presentation link is enabled there).

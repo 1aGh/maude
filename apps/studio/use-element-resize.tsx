@@ -29,6 +29,7 @@
 import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { globalCdOccurrence, resolveSelectionEl } from './dom-selection.ts';
 import { isElementDragActive } from './drag-state.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import { useSelectionSet } from './use-selection-set.tsx';
 import { useToolMode } from './use-tool-mode.tsx';
 
@@ -451,20 +452,20 @@ export function ElementResizeOverlay(): ReactNode {
       // doesn't compound the jank ("hrozně zavaší ten toolbar").
       if (isElementDragActive()) {
         hideAll();
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = frameRaf(tick);
         return;
       }
       const el = resolveSelectionEl(document, one) as HTMLElement | null;
       // Skip inline text runs where width/height are meaningless (no explicit box).
       if (!el) {
         hideAll();
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = frameRaf(tick);
         return;
       }
       const r = el.getBoundingClientRect();
       if (r.width <= 0 && r.height <= 0) {
         hideAll();
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = frameRaf(tick);
         return;
       }
       // Stage D4 — an artboard gets growth-only handles (E/S/SE) and NO rotate
@@ -554,11 +555,11 @@ export function ElementResizeOverlay(): ReactNode {
         readout.style.opacity = '0';
       }
 
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, [active, one, artboardOnly]);
 

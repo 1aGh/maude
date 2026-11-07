@@ -46,10 +46,14 @@ export function Specimen({ src, mode: modeProp }: { src: string; mode?: 'light' 
   // 2.0.5 — a specimen page mounts once its artboard first comes near the viewport (a board of 58 built
   // every page at open). The artboard keeps its size meanwhile; captures and exports mount all of them.
   const seen = useArtboardSeen();
+  const mode = modeProp ?? stored;
+  // 2.0.7 — the pending page carries the system's root class and theme like the page itself: without them its
+  // `var(--bg-1)` fell back to the `Canvas` system colour, which in a dark scheme is a black box.
   if (!seen)
     return (
-      <div
-        className="ds-board ds-specimen ds-specimen-pending"
+      <DSRoot
+        theme={model ? themeFor(model, mode) : undefined}
+        className={`ds-board ds-specimen ds-specimen-pending${model?.rootClass ? ` ${model.rootClass}` : ''}${mode === 'dark' ? ' ds-dark' : ''}`}
         data-ds-specimen={src}
         aria-hidden="true"
       />
@@ -57,7 +61,6 @@ export function Specimen({ src, mode: modeProp }: { src: string; mode?: 'light' 
   const mod = getSpecimen(src) as { default?: ComponentType } | ComponentType | undefined;
   const Comp = (typeof mod === 'function' ? mod : mod?.default) as ComponentType | undefined;
   if (!Comp) return <Missing src={src} why="is not loaded" />;
-  const mode = modeProp ?? stored;
   return (
     <DSRoot
       theme={model ? themeFor(model, mode) : undefined}

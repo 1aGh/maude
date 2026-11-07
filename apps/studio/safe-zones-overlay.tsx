@@ -19,6 +19,7 @@
  */
 
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 
 import {
   type BandRect,
@@ -156,7 +157,7 @@ function useUnderFlags(artboardId: string | undefined, bands: BandRect[], w: num
       );
     };
     const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(run);
+      if (!frame) frame = frameRaf(run);
     };
     schedule();
     const body = document.querySelector(`[data-dc-screen="${escapeId(artboardId)}"]`);
@@ -166,7 +167,7 @@ function useUnderFlags(artboardId: string | undefined, bands: BandRect[], w: num
       mo.observe(body, { subtree: true, childList: true, characterData: true, attributes: true });
     }
     return () => {
-      if (frame) cancelAnimationFrame(frame);
+      if (frame) frameCaf(frame);
       mo?.disconnect();
     };
   }, [artboardId, bands, w]);

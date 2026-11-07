@@ -106,7 +106,12 @@ import { createRunRegistry, type RunRegistry } from './ai/runs.ts';
 import { type Api, ASSET_CHUNK_BYTES, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
 import { importBrandRequest } from './bin/_brand-site.mjs';
 import { buildCanvasModule } from './canvas-build.ts';
-import { buildCanvasSandboxed, buildStats, sandboxFailureClass } from './canvas-build-sandbox.ts';
+import {
+  buildCanvasSandboxed,
+  buildStats,
+  sandboxFailureClass,
+  withBuildSlot,
+} from './canvas-build-sandbox.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
 import { budgetFromEnv, createModuleCache, moduleBytes } from './canvas-module-cache.ts';
 import { TranspileError } from './canvas-pipeline.ts';
@@ -292,6 +297,7 @@ import {
   serveFile,
   serveIndexHtml,
 } from './static-lane.ts';
+import { studioPageHostRedirect } from './studio-page-host.ts';
 import { sanitizeForLog } from './sync/cell-pairing.ts';
 import { linkHub } from './sync/hub-link.ts';
 import { accessFor, getHubRecord, linkRoleSource } from './sync/hubs-config.ts';
@@ -382,26 +388,28 @@ export function rootIdentity(root: string): string {
 }
 
 /**
- * DDR-247 — the studio page's CSP. Always `frame-ancestors`; in the `?embed=1`
- * view also `frame-src 'self' <canvas origin>`: the embed frames exactly one
- * canvas, and a hostile canvas must not be able to navigate its own frame to a
- * foreign origin (a look-alike sign-in page) inside someone else's app.
+ * DDR-247 — the studio page's CSP. Always `frame-ancestors`, and always `frame-src 'self' <canvas
+ * origin>`: every iframe the studio creates is a canvas shell (the canvas, Compare, the design-system
+ * grid, Present, Diff), so a hostile canvas must not be able to navigate its own frame to a foreign
+ * origin — a look-alike sign-in page inside Maude or inside an embedding app, and the one way left to
+ * carry out what its code could read (localhost cookies of other local servers, canvas text), since
+ * the canvas CSP already closes every fetch/img/media sink. The sandbox has no allow-top-navigation
+ * or allow-popups, so this closes the last navigation lane (decision v2-207-studio-frame-src-always;
+ * it was embed-only before).
  */
 export function studioPageCsp(
   mainOrigin: string | undefined,
   embedOrigins: readonly string[],
-  { embed = false, canvasOrigin }: { embed?: boolean; canvasOrigin?: string } = {}
+  { canvasOrigin }: { embed?: boolean; canvasOrigin?: string } = {}
 ): string {
   const directives = [`frame-ancestors ${frameAncestors(mainOrigin, embedOrigins)}`];
-  if (embed) {
-    let canvas = '';
-    try {
-      canvas = canvasOrigin ? new URL(canvasOrigin).origin : '';
-    } catch {
-      /* unparseable — 'self' alone, the canvas then fails closed */
-    }
-    directives.push(`frame-src ${["'self'", canvas].filter(Boolean).join(' ')}`);
+  let canvas = '';
+  try {
+    canvas = canvasOrigin ? new URL(canvasOrigin).origin : '';
+  } catch {
+    /* unparseable — 'self' alone, the canvas then fails closed */
   }
+  directives.push(`frame-src ${["'self'", canvas].filter(Boolean).join(' ')}`);
   return directives.join('; ');
 }
 
@@ -1010,16 +1018,20 @@ export async function serveCanvasTsx(
       return respondWithCanvasModule(req, cached);
     }
     try {
-      result = await buildCanvasModule(absPath, source, {
-        designRoot: ctx.paths.designRoot,
-        // UNCONDITIONAL, desktop included (feature-sync-file-plane, Task 9 —
-        // the binding debate's CONDITION on the `code-module` class): a
-        // canvas import resolves inside the design root on EVERY runtime, so
-        // a synced module cannot make the build read the wider filesystem.
-        // The cell worker has always armed this (canvas-build-worker.ts).
-        restrictImportsTo: ctx.paths.designRoot,
-        assetUrlBase: designRootUrlBase(ctx.paths),
-      });
+      // 2.0.7 (#3) — in one of the server's build slots, like the sandbox's workers: a design system
+      // opening asks for many builds at once, and each in-process Bun.build holds its own module graph.
+      result = await withBuildSlot(() =>
+        buildCanvasModule(absPath, source, {
+          designRoot: ctx.paths.designRoot,
+          // UNCONDITIONAL, desktop included (feature-sync-file-plane, Task 9 —
+          // the binding debate's CONDITION on the `code-module` class): a
+          // canvas import resolves inside the design root on EVERY runtime, so
+          // a synced module cannot make the build read the wider filesystem.
+          // The cell worker has always armed this (canvas-build-worker.ts).
+          restrictImportsTo: ctx.paths.designRoot,
+          assetUrlBase: designRootUrlBase(ctx.paths),
+        })
+      );
     } catch (err) {
       // S11.6 — the build's own error (an import, the allowlist) for `/_api/canvas-errors`;
       // a syntax error is re-read from the file there, so only these need remembering.
@@ -1320,14 +1332,16 @@ async function serveHistoricalCanvas(
     const css = await laneAtRef(versionReaders(ctx), repoRel, sha, 'css', from);
     const cssSig = css == null ? todayCssSig(absPath) : null;
     try {
-      const result = await buildCanvasModule(absPath, source, {
-        overrides: cssOverridesFor(absPath, css),
-        designRoot: ctx.paths.designRoot,
-        // Same unconditional allowlist as the live build above — a HISTORICAL
-        // source is still tenant/peer-authored content.
-        restrictImportsTo: ctx.paths.designRoot,
-        assetUrlBase: designRootUrlBase(ctx.paths),
-      });
+      const result = await withBuildSlot(() =>
+        buildCanvasModule(absPath, source, {
+          overrides: cssOverridesFor(absPath, css),
+          designRoot: ctx.paths.designRoot,
+          // Same unconditional allowlist as the live build above — a HISTORICAL
+          // source is still tenant/peer-authored content.
+          restrictImportsTo: ctx.paths.designRoot,
+          assetUrlBase: designRootUrlBase(ctx.paths),
+        })
+      );
       const body = moduleBytes(result.js);
       cached = {
         body,
@@ -3593,6 +3607,9 @@ export function createHttp(
       Response.json(
         await api.buildIndexData({
           role: isWorkspaceMode() ? req.headers.get('x-maude-role') : null,
+          fresh: new URL(req.url).searchParams.get('fresh') === '1',
+          // #207 (list speed) — the tree loader takes the bare listing on a first open ever
+          partial: new URL(req.url).searchParams.get('partial') === '1',
         }),
         { headers: { 'Cache-Control': 'no-store' } }
       ),
@@ -4512,8 +4529,18 @@ export function createHttp(
         syncFiles?: unknown;
         propagateDeletes?: unknown;
         resolveFirstAnchor?: unknown;
+        addIgnoreFolder?: unknown;
+        removeIgnoreFolder?: unknown;
       }>(req, 4 * 1024);
       const patch: Record<string, unknown> = {};
+      // Issue #207 — Sync details › "Don't sync this folder" / "Sync it again": one folder at a time.
+      for (const key of ['addIgnoreFolder', 'removeIgnoreFolder'] as const) {
+        if (!(key in (body ?? {}))) continue;
+        const v = body?.[key];
+        if (typeof v !== 'string' || v.length === 0 || v.length > 1024)
+          return new Response(`${key} must be a folder path`, { status: 400 });
+        patch[key] = v;
+      }
       if ('syncFiles' in (body ?? {})) {
         if (typeof body?.syncFiles !== 'boolean')
           return new Response('syncFiles must be a boolean', { status: 400 });
@@ -7477,6 +7504,13 @@ export function createHttp(
   }
 
   function serveStudioPage(req: Request): Promise<Response> {
+    // 2.0.7 — on the canvas origin's site, or WebKit strips every frame's capability (studio-page-host.ts).
+    const sameSite = studioPageHostRedirect(req, {
+      canvasOrigin: ctx.canvasOrigin,
+      mainOrigin: ctx.mainOrigin,
+      workspace: isWorkspaceMode(),
+    });
+    if (sameSite) return Promise.resolve(sameSite);
     let embed = false;
     try {
       embed = new URL(req.url).searchParams.get('embed') === '1';

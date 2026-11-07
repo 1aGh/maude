@@ -209,6 +209,21 @@ describe('the jump list rendered (11 · pn-jump)', () => {
     expect(q(host, 'jump-artboard-ui-combine-kampan-d7')?.getAttribute('aria-current')).toBeNull();
   });
 
+  test('2.0.7 polish: the artboard in view moving (Pages’ ‹ ›) moves the mark and scrolls its row into view', async () => {
+    const { host, rerender } = await mount({ activePath: KAMPAN, activeArtboard: 'd1' });
+    await click(q(host, 'canvas-jump-toggle-ui-combine-kampan'));
+    const list = q(host, 'canvas-list');
+    if (!list) throw new Error('no canvas-list');
+    Object.defineProperty(list, 'clientHeight', { configurable: true, value: 120 });
+    expect(list.scrollTop).toBe(0);
+    await rerender({ activePath: KAMPAN, activeArtboard: 'p2' });
+    // one mark, on p2 (d1 may have left the windowed list once it scrolled)
+    const marked = all(host, '[aria-current="true"][data-testid^="jump-artboard-"]');
+    expect(marked.map((m) => m.dataset.testid)).toEqual(['jump-artboard-ui-combine-kampan-p2']);
+    // the last of 21 rows sits far below a 120 px list: it is scrolled to
+    expect(list.scrollTop).toBeGreaterThan(300);
+  });
+
   test('a dynamic canvas says its artboards are made when it runs', async () => {
     const { host } = await mount();
     await click(q(host, 'canvas-jump-toggle-ui-generated'));

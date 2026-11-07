@@ -134,6 +134,122 @@
         }
       }
     </script>
+    <script id="maude-frame-freeze">
+      // 2.0.7 — the gesture freeze (apps/studio/frame-clock.ts). While the camera moves, an artboard's own frame
+      // callbacks wait: requestAnimationFrame is gated HERE, before any module loads, so the canvas runtime gets
+      // the gated one too (motion keeps the function it found when it loaded). A callback that comes due while
+      // frozen is held and runs on the first frame after the thaw, in the order it was requested; a cancel still
+      // reaches it. Maude's own frame code calls the exempt `raf`. A freeze not renewed for WATCHDOG_MS thaws
+      // itself, so a canvas that went away mid-gesture never leaves the frame frozen.
+      (function (W) {
+        if (typeof W.requestAnimationFrame !== 'function' || W.__maudeFrameFreeze) return;
+        var nativeRaf = W.requestAnimationFrame.bind(W);
+        var nativeCaf = W.cancelAnimationFrame.bind(W);
+        var later = W.setTimeout.bind(W);
+        var unlater = W.clearTimeout.bind(W);
+        var WATCHDOG_MS = 2000;
+        var frozen = false;
+        var held = new Map();
+        var flushId = 0;
+        var watchdog = 0;
+        var subs = [];
+        var n = { freezes: 0, deferred: 0, flushed: 0, watchdog: 0 };
+        var tell = function () {
+          var list = subs.slice();
+          for (var i = 0; i < list.length; i++) {
+            try {
+              list[i](frozen);
+            } catch (e) {
+              later(function () {
+                throw e;
+              }, 0);
+            }
+          }
+        };
+        var flush = function (t) {
+          flushId = 0;
+          var due = Array.from(held.keys());
+          for (var i = 0; i < due.length; i++) {
+            if (frozen) return;
+            var cb = held.get(due[i]);
+            if (!cb) continue;
+            held.delete(due[i]);
+            n.flushed++;
+            try {
+              cb(t);
+            } catch (e) {
+              later(function () {
+                throw e;
+              }, 0);
+            }
+          }
+        };
+        var gated = function (cb) {
+          if (typeof cb !== 'function') return nativeRaf(cb);
+          var id = nativeRaf(function (t) {
+            if (!frozen) return cb(t);
+            held.set(id, cb);
+            n.deferred++;
+          });
+          return id;
+        };
+        var cancel = function (id) {
+          if (!held.delete(id)) nativeCaf(id);
+        };
+        var set = function (on) {
+          if (on) {
+            if (watchdog) unlater(watchdog);
+            watchdog = later(function () {
+              watchdog = 0;
+              n.watchdog++;
+              set(false);
+            }, WATCHDOG_MS);
+            if (frozen) return;
+            frozen = true;
+            n.freezes++;
+            return tell();
+          }
+          if (watchdog) unlater(watchdog);
+          watchdog = 0;
+          if (!frozen) return;
+          frozen = false;
+          if (held.size && !flushId) flushId = nativeRaf(flush);
+          tell();
+        };
+        W.requestAnimationFrame = gated;
+        W.cancelAnimationFrame = cancel;
+        Object.defineProperty(W, '__maudeFrameFreeze', {
+          configurable: false,
+          writable: false,
+          value: Object.freeze({
+            v: 1,
+            raf: nativeRaf,
+            caf: cancel,
+            set: set,
+            frozen: function () {
+              return frozen;
+            },
+            on: function (fn) {
+              subs.push(fn);
+              return function () {
+                var i = subs.indexOf(fn);
+                if (i >= 0) subs.splice(i, 1);
+              };
+            },
+            stats: function () {
+              return {
+                frozen: frozen,
+                freezes: n.freezes,
+                held: held.size,
+                deferred: n.deferred,
+                flushed: n.flushed,
+                watchdog: n.watchdog,
+              };
+            },
+          }),
+        });
+      })(window);
+    </script>
     <style>
       :root {
         color-scheme: light dark;
@@ -948,6 +1064,53 @@ function scopeCss(css, value, opts = {}) {
           });
       }
       // soft-reload:end
+      // build-wait:begin
+      // 2.0.7 (#2) — A COLD BUILD IS NOT A FAILURE. On a team server a canvas whose build outlives the
+      // request is answered 503 + Retry-After ("still being built") while the build goes on and is
+      // cached (2.0.4 task P). The frame used to treat that 503 as a broken canvas: it gave up after
+      // the second 503, or — when the build finished during the second ask — after a 200 it never
+      // imported, and the studio showed "can't be drawn right now" with no details over a canvas a
+      // Reload then drew at once (design.studyfi.com, first open of the design system after a
+      // restart). Now a 503 waits its Retry-After and asks again, up to the deadline; a build that
+      // finished in between is imported at once; anything else fails as before.
+      const BUILD_WAIT_DEADLINE_MS = 10 * 60 * 1000;
+      function importWhenBuilt(url, io) {
+        const started = io.now();
+        let attempt = 0;
+        let afterBuilt = 0;
+        const next = () => {
+          const u = attempt === 0 ? url : url + (url.includes('?') ? '&' : '?') + 'v=b' + attempt;
+          return io.load(u).catch((err) =>
+            io.probe(url).then((p) => {
+              attempt++;
+              if (p && p.status === 503 && io.now() - started < BUILD_WAIT_DEADLINE_MS) {
+                if (io.onWaiting) io.onWaiting(attempt);
+                const s = Math.min(10, Math.max(1, Number(p.retryAfterS) || 5));
+                return io.sleep(s * 1000).then(next);
+              }
+              // built while we asked: the module is in the server's cache now — import it (once more)
+              if (p && p.ok && afterBuilt++ < 1) return next();
+              throw err;
+            })
+          );
+        };
+        return next();
+      }
+      const shellBuildIo = {
+        load: (u) => import(u),
+        probe: (u) =>
+          fetch(u, { headers: { 'Cache-Control': 'no-store' } }).then(
+            (r) => {
+              try { if (r.body) r.body.cancel(); } catch (e) { /* already read */ }
+              return { ok: r.ok, status: r.status, retryAfterS: Number(r.headers.get('Retry-After')) || 0 };
+            },
+            () => null
+          ),
+        sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+        now: () => Date.now(),
+        onWaiting: (n) => console.info('[canvas-shell] still being built — waiting (' + n + ')'),
+      };
+      // build-wait:end
       // Phase 6.5 — exporters pass ?hide-chrome=1 to flip the export-mode
       // stylesheet from `media="not all"` to `media="all"`, hiding the
       // dev-server overlays during capture. See `<style id="canvas-hide-chrome">`.
@@ -1559,7 +1722,7 @@ function scopeCss(css, value, opts = {}) {
           // React singleton (inlining a second React would break hooks).
           const [{ mountCanvas }, mod] = await Promise.all([
             import(withCap('/_client/comment-mount.js')),
-            import(canvasUrl),
+            importWhenBuilt(canvasUrl, shellBuildIo),
             metaFetch,
           ]);
           const Canvas = mod.default;

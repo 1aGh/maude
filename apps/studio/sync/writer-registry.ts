@@ -539,6 +539,11 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   // gate-b-sec4 — Connect a committed link this Mac never made: a per-Mac record + a sync restart
   '/_api/sync/link': { class: 'read' },
   '/_api/sync/link/confirm': { class: 'local', rows: 'X16' },
+  // fix/207 — this Mac's shared-code consent: a per-Mac answer in the profile's hubs.json
+  '/_api/sync/code-consent': { class: 'read' },
+  '/_api/sync/code-consent/set': { class: 'local', rows: 'X16' },
+  // 2.0.7 #7b — the answer to held local deletes: this Mac's ledger (Keep) or the hub's own doors (Delete)
+  '/_api/sync/held-deletes': { class: 'local', rows: 'X16' },
   // S11.17 — Retry lands the canvas writes a full disk held; each then travels like any studio write
   '/_api/diagnostics/disk-retry': { class: 'local' },
   // p8-a1-save-hold — the closing page lands the saves held behind an AI call; each then travels like any studio write

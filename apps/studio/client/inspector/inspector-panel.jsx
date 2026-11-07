@@ -20,7 +20,7 @@ import { isFilterKind } from '../v2/kinds/kind-filter-model.js';
 import { useKindFilter } from '../v2/kinds/kind-filter-store.js';
 import { artboardCounts } from '../v2/kinds/layers-kind-model.js';
 import { LayersAdvanced } from '../v2/left-panel/layers-advanced.jsx';
-import { ArtboardLayers, currentBoard } from '../v2/layers/artboard-layers.jsx';
+import { ArtboardLayers, currentBoard, treeOfBoard } from '../v2/layers/artboard-layers.jsx';
 import { timelineSelectionElement, useTimelineSelection } from '../v2/timeline/selection.js';
 import '../v2/inspector/sections/index.js'; // S2.3: the Position · Size · Layout bodies register themselves
 
@@ -161,6 +161,9 @@ export function InspectorPanel({
   // gate-b-polish3 — the open canvas's artboards ({ id, label, kind }), its name, and how a row selects one
   layersBoards = null,
   layersCanvasName = '',
+  // 2.0.7 fix (decision `v2-207-layers-current`) — the artboard the person is on (`artboardInView`: the page in
+  // Pages, else the selection's artboard on this canvas); Layers marks it and draws only its tree under it
+  layersArtboard = null,
   onSelectArtboard,
   // S11.9 — Layers › Advanced › Select by selector: posts `select-by-selector {selector}` to the open canvas.
   onSelectBySelector,
@@ -551,16 +554,27 @@ export function InspectorPanel({
   const el = Array.isArray(selected) ? selected[0] : selected;
   // gate-b-polish3 (08 · ak-mixed-fit / 14) — the Layers tab by artboard: every artboard a row (kind glyph +
   // label), the tree of the one you are in nested under it. No artboard list known → the tree alone.
+  // 2.0.7 fix (decision `v2-207-layers-current`): the marked row is the artboard you are on, and only THAT artboard's
+  // tree is drawn under it — a tree that is late or for another artboard leaves the row busy until its own lands.
+  const markedBoard = currentBoard({
+    boards: layersBoards ?? [],
+    onBoard: layersArtboard,
+    selectedArtboard: el?.artboardId ?? null,
+    treeArtboard: layersTree?.artboardId ?? emptyBoard?.artboardId ?? null,
+  });
+  const layersShown = treeOfBoard(layersTree, markedBoard);
+  const layersPending = !!markedBoard && !layersShown;
+  // 2.0.7 (decision `v2-207-pages-stale-selection`) — the selection's own layer path (the fallback for an empty
+  // tree) may be drawn under the marked row only when the selection is on that artboard: under "NOVÝ v3 · A1" it
+  // drew a path ending in another artboard (`article[data-dc-screen="spine-home-entry"]`).
+  const selOnMarked = !markedBoard || el?.artboardId === markedBoard;
   const byArtboard = (inner) => (
     <ArtboardLayers
       boards={layersBoards}
       canvasName={layersCanvasName}
       count={artboardCount}
-      current={currentBoard({
-        boards: layersBoards ?? [],
-        treeArtboard: layersTree?.artboardId ?? emptyBoard?.artboardId ?? null,
-        selectedArtboard: el?.artboardId ?? null,
-      })}
+      current={markedBoard}
+      pending={layersPending}
       onPick={onSelectArtboard}
     >
       {inner}
@@ -721,16 +735,23 @@ export function InspectorPanel({
           </div>
         ) : effTab === 'layers' &&
           emptyBoard &&
-          layersTree?.artboardId === emptyBoard.artboardId &&
-          !layersTree?.nodes?.length ? (
+          layersShown?.artboardId === emptyBoard.artboardId &&
+          !layersShown?.nodes?.length ? (
           byArtboard(<LayersEmpty artboard={emptyBoard.label} />)
-        ) : effTab === 'layers' && layersBoards?.length && !el && !layersTree?.nodes?.length ? (
+        ) : effTab === 'layers' && layersPending ? (
+          // the artboard you are on is marked; its own tree is on its way (never another artboard's in its place)
           byArtboard(null)
-        ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) && (dsTruth || dsSystem) ? (
+        ) : effTab === 'layers' &&
+          layersBoards?.length &&
+          (!el || !selOnMarked) &&
+          !layersShown?.nodes?.length ? (
+          // the marked artboard's tree is empty: nothing under its row (never another artboard's path in its place)
+          byArtboard(null)
+        ) : !el && !(effTab === 'layers' && layersShown?.nodes?.length) && (dsTruth || dsSystem) ? (
           // c7 · 13 truth shots: a waiting review is the whole empty place — the system block (Which way changes flow,
           // Advanced) is what it shows when nothing else is waiting (advanced.jsx header)
           <>{dsTruth || dsSystem}</>
-        ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) ? (
+        ) : !el && !(effTab === 'layers' && layersShown?.nodes?.length) ? (
           <div className="sh-rp-empty">
             {/* <p> wrapper — sh-rp-empty is a flex column, bare text nodes +
                 kbd would stack as stretched flex items. */}
@@ -738,7 +759,7 @@ export function InspectorPanel({
           </div>
         ) : effTab === 'layers' ? (
           byArtboard(
-            layersTree?.nodes?.length ? (
+            layersShown?.nodes?.length ? (
               <>
                 {/* gate-b-polish3 — the key strip is no longer default chrome (README: no dev chrome in the
                     default view); the same words ride on the tree as its tooltip and its accessible description. */}
@@ -753,7 +774,7 @@ export function InspectorPanel({
                   ref={layerTreeRef}
                   onKeyDown={onTreeKeyDown}
                 >
-                  {withSlot(layersTree.nodes, layersSlot).map((n, ni) => (
+                  {withSlot(layersShown.nodes, layersSlot).map((n, ni) => (
                     <LayerRow
                       key={`${n.id}:${n.index}`}
                       node={n}
@@ -795,7 +816,7 @@ export function InspectorPanel({
                   {reorderMsg}
                 </div>
               </>
-            ) : el && Array.isArray(el.dom_path) && el.dom_path.length ? (
+            ) : el && selOnMarked && Array.isArray(el.dom_path) && el.dom_path.length ? (
               el.dom_path.map((node, i) => (
                 <div
                   key={i}

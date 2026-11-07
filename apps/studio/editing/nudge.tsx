@@ -8,8 +8,8 @@
 // of a drag). It never writes and never takes a key.
 
 import { useEffect, useRef, useState } from 'react';
-
 import { resolveSelectionEl } from '../dom-selection.ts';
+import { frameRaf } from '../frame-clock.ts';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
 import { stampedParent } from './selection.tsx';
 
@@ -134,7 +134,7 @@ export function NudgeReadout({ readOnly = false }: { readOnly?: boolean }) {
       if (e.key === 'Alt') return showGaps();
       if (!ARROWS.has(e.key)) return;
       // after v1's handler has run (it previews inline in the same task)
-      requestAnimationFrame(() => {
+      frameRaf(() => {
         const one = oneElement(selRef.current);
         if (!one || !(one.el instanceof HTMLElement)) return;
         const t = nudgeTag(e.key, one.el.offsetLeft, one.el.offsetTop);

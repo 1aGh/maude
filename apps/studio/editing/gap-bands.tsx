@@ -12,8 +12,8 @@
 // Pure where it can be (`computeBands` takes rects and numbers), so it runs without layout.
 
 import { useEffect, useRef, useState } from 'react';
-
 import { resolveSelectionEl } from '../dom-selection.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { type RectLike, worldScaleOf } from './arrange.ts';
@@ -212,7 +212,7 @@ export function GapBands({ readOnly }: { readOnly?: boolean }) {
     }
     let last = '';
     const tick = () => {
-      raf.current = requestAnimationFrame(tick);
+      raf.current = frameRaf(tick);
       const el = resolveSelectionEl(document, one) as HTMLElement | null;
       const next = el ? bandsFor(el) : [];
       const dragged = tokenRuler.get()?.gapIndex ?? null;
@@ -224,7 +224,7 @@ export function GapBands({ readOnly }: { readOnly?: boolean }) {
     };
     tick();
     return () => {
-      if (raf.current != null) cancelAnimationFrame(raf.current);
+      if (raf.current != null) frameCaf(raf.current);
       setBands([]);
     };
   }, [active, one]);

@@ -1,3 +1,4 @@
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 // editing/page-activity.ts — Maude 2.0.4 (task O): one "is anyone using this canvas right now" clock for the
 // canvas runtime's per-frame and polling loops.
 //
@@ -186,17 +187,17 @@ export function activeFrameLoop(
   let running = false;
   const frame = () => {
     if (!running) return;
-    raf = requestAnimationFrame(frame);
+    raf = frameRaf(frame);
     tick();
   };
   const start = () => {
     if (running) return;
     running = true;
-    raf = requestAnimationFrame(frame);
+    raf = frameRaf(frame);
   };
   const stop = () => {
     running = false;
-    cancelAnimationFrame(raf);
+    frameCaf(raf);
   };
   if (activity.active()) start();
   else tick();

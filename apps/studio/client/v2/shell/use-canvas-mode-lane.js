@@ -40,6 +40,7 @@ import {
   shellEscDecision,
 } from './canvas-mode.js';
 import { SEED_LADDER_MS } from './occlusion-insets.js';
+import { savePagesPick, saveThemePick } from './pages-pick.js';
 import { appOnlyFor, ROLE_DENIAL, showRoleDenial } from './role-denial.js';
 import { insetsLane } from './use-occluded-insets.js';
 import { panelLayout, usePanelLayout } from './use-panel-layout.js';
@@ -122,6 +123,21 @@ const presentingNow = () => presentingOf(shellMode.get());
 export function usePresentMode() {
   const presentMode = useSyncExternalStore(shellMode.subscribe, presentingNow, presentingNow);
   return [presentMode, useCallback(setPresenting, [])];
+}
+
+const pagesNow = () => shellMode.get().pages === true;
+
+/** 2.0.7 B2 — does the active canvas show Pages? (Preview and Present are off meanwhile.) */
+export function usePagesView() {
+  return useSyncExternalStore(shellMode.subscribe, pagesNow, pagesNow);
+}
+
+const pagesAtNow = () =>
+  shellMode.get().pages === true ? (shellMode.get().pagesAt ?? null) : null;
+
+/** 2.0.7 polish — the artboard on the active canvas's page while it shows Pages, else null. */
+export function usePagesArtboard() {
+  return useSyncExternalStore(shellMode.subscribe, pagesAtNow, pagesAtNow);
 }
 
 // S3.2b — the shell's own controls (and the keys the shell hears) step the presenting canvas through the
@@ -268,6 +284,8 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   // biome-ignore lint/correctness/useExhaustiveDependencies: activePath is the trigger
   useEffect(() => {
     setPeers([]);
+    // 2.0.7 B2 — Pages is the canvas's own: a newly active canvas says again (it answers the seed below)
+    shellMode.pages(false);
     const win = activeWin();
     if (win) lane.seed(win, seedOf());
   }, [activePath, lane]);
@@ -300,6 +318,16 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
       if (!m) return;
       if (m.dgn === 'peers') {
         setPeers(m.peers);
+      } else if (m.dgn === 'pages-view') {
+        // 2.0.7 B2 — the active canvas shows Pages (or stopped): Preview and Present follow (canvas-mode.js);
+        // 2.0.7 polish — with the artboard on the page, which the left panel marks
+        shellMode.pages(m.on, m.id);
+      } else if (m.dgn === 'pages-pick') {
+        // 2.0.7 B2 — the person switched Canvas | Pages: remember it for the canvas the shell has open
+        void savePagesPick(L.activePath, L.cfg?.designRel, m.view);
+      } else if (m.dgn === 'theme-pick') {
+        // the Light | Dark pick, the same way (the canvas origin has no lane for it)
+        void saveThemePick(L.activePath, L.cfg?.designRel, m.theme);
       } else if (m.dgn === 'present-position') {
         // Present · Artboards moved on (S3.2a's stage echoes every step); the canvas's own hold
         // (_shell.html) lands its held write on the same move. Active canvas only (the table's gate).
@@ -354,6 +382,8 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   return {
     mode,
     caps,
+    /** 2.0.7 B2 — the active canvas shows Pages: the switch greys Preview and Present with the reason. */
+    pages: snap.pages === true,
     /** The Present spec while presenting (Artboards · Canvas), else null. */
     presentSpec: snap.present,
     peers,

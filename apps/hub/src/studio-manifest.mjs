@@ -524,6 +524,12 @@ export const STUDIO_ROUTES = Object.freeze({
   // would record a PERSON's consent on shared infrastructure
   '/_api/sync/link': REFUSED,
   '/_api/sync/link/confirm': REFUSED,
+  // fix/207 — a cell's own code consent is its pairing; a PERSON's answer has no place on shared
+  // infrastructure (and a member must not learn or change it)
+  '/_api/sync/code-consent': REFUSED,
+  '/_api/sync/code-consent/set': REFUSED,
+  // 2.0.7 #7b — a PERSON's answer to their Mac's held deletes; a cell has no local deletes to hold
+  '/_api/sync/held-deletes': REFUSED,
   '/_api/sync/cancel-assets': REFUSED,
   // feature-before-first-external-users Task 2/3 — the sync Settings toggles,
   // ownership (adopt/detach) and the _trash restore/prune. Same reasoning as

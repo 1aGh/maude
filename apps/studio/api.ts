@@ -2,7 +2,7 @@
 // Returns plain objects; http.ts wraps them in Response.json().
 
 import crypto from 'node:crypto';
-import { type Dirent, existsSync, renameSync } from 'node:fs';
+import { type Dirent, existsSync, lstatSync, readdirSync, renameSync } from 'node:fs';
 import {
   lstat,
   mkdir,
@@ -64,6 +64,7 @@ import {
   type OpResult,
 } from './comments/ops.ts';
 import { trashFolderDsCanvas } from './ds/convert.ts';
+import { folderSystemOf } from './ds/ds-resolver.ts';
 import { DS_CANVAS } from './ds/engine.ts';
 import { readHead } from './ds/head.ts';
 import { dsRenderIndex } from './ds/render-rev.ts';
@@ -150,6 +151,17 @@ import {
   sanitizeReuseText,
 } from './generation/audio-library.ts';
 import { createHistory } from './history.ts';
+import { pidOf, projectDir } from './index/snapshot.ts';
+import {
+  CANVAS_INDEX_SEED_DEBOUNCE_MS,
+  CANVAS_INDEX_WRITE_EVENTS,
+  type CanvasIndexPart,
+  createIndexCache,
+  isRootRuntimeRel,
+  readCanvasIndexSeed,
+  writeCanvasIndexSeed,
+  yieldToLoop,
+} from './index-cache.ts';
 import { createSingleFlight } from './index-flight.ts';
 import { clearLocatorSlug, readLocator, writeLocator } from './locator.ts';
 import { listMaterializable } from './materialize-client.ts';
@@ -325,24 +337,26 @@ export async function findFiles(
   exts: string[],
   dirsOut?: string[]
 ): Promise<string[]> {
-  const out: string[] = [];
   let entries: Dirent[];
   try {
     entries = await readdir(absRoot, { withFileTypes: true });
   } catch {
-    return out;
+    return [];
   }
   entries.sort((a, b) => a.name.localeCompare(b.name));
+  // 2.0.7 (#207) — a folder's files are `lstat`-ed together, not one await after another: on an
+  // 11k-file project the serial awaits alone held `/_index-data` seconds whenever the server was
+  // busy. Order is unchanged (each entry keeps its slot; folders are walked in the same order).
+  const slots: Array<string[] | Promise<string | null>> = [];
   for (const e of entries) {
-    if (e.name.startsWith('.') && !HIDDEN_OK.has(e.name)) continue;
-    if (e.name.startsWith('_')) continue;
-    if (SKIP_DIRS.has(e.name)) continue;
+    const kind = findFilesEntry(e, exts);
+    if (!kind) continue;
     const full = path.join(absRoot, e.name);
     const rel = path.posix.join(prefix, e.name);
-    if (e.isDirectory()) {
+    if (kind === 'dir') {
       dirsOut?.push(rel);
-      out.push(...(await findFiles(full, rel, exts, dirsOut)));
-    } else if (e.isFile() && exts.some((x) => e.name.toLowerCase().endsWith(x))) {
+      slots.push(await findFiles(full, rel, exts, dirsOut));
+    } else {
       // feature-studio-file-preview security review — `e.isFile()` (not just
       // "not a directory") excludes symlinks: a symlink Dirent is neither
       // isDirectory() nor isFile(), so without this check a symlink dropped
@@ -359,14 +373,72 @@ export async function findFiles(
       // legitimately multiply-linked, so excluding them closes the same
       // one-click-disclosure path for a hardlink planted at, say, a
       // teammate's readable dotfile.
-      try {
-        const st = await lstat(full);
-        if (st.nlink > 1) continue;
-      } catch {
-        continue;
-      }
-      out.push(rel);
+      slots.push(
+        lstat(full).then(
+          (st) => (singlyLinked(st) ? rel : null),
+          () => null
+        )
+      );
     }
+  }
+  const out: string[] = [];
+  for (const slot of slots) {
+    if (Array.isArray(slot)) {
+      for (const f of slot) out.push(f);
+      continue;
+    }
+    const rel = await slot;
+    if (rel !== null) out.push(rel);
+  }
+  return out;
+}
+
+/** What `findFiles` does with one directory entry: walk it, list it (after the link check), or skip it. */
+function findFilesEntry(e: Dirent, exts: readonly string[]): 'dir' | 'file' | null {
+  if (e.name.startsWith('.') && !HIDDEN_OK.has(e.name)) return null;
+  if (e.name.startsWith('_')) return null;
+  if (SKIP_DIRS.has(e.name)) return null;
+  if (e.isDirectory()) return 'dir';
+  // `isFile()` excludes symlinks (see findFiles)
+  if (e.isFile() && exts.some((x) => e.name.toLowerCase().endsWith(x))) return 'file';
+  return null;
+}
+/** A hardlinked file (`nlink > 1`) is never listed (see findFiles). */
+const singlyLinked = (st: { nlink: number }) => st.nlink <= 1;
+
+/**
+ * #207 (list speed) — `findFiles` in one go: the same entries, skips, link check and order, without
+ * an await per folder and per file. The tree's first answer walks this way: StudyFi's 109 folders and
+ * 1.5k files take ~20 ms, where the awaited walk gave the loop away ~1.7k times and, on a server busy
+ * right after boot, took most of a second.
+ */
+export function findFilesSync(
+  absRoot: string,
+  prefix: string,
+  exts: string[],
+  dirsOut?: string[]
+): string[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(absRoot, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+  const out: string[] = [];
+  for (const e of entries) {
+    const kind = findFilesEntry(e, exts);
+    if (!kind) continue;
+    const full = path.join(absRoot, e.name);
+    const rel = path.posix.join(prefix, e.name);
+    if (kind === 'dir') {
+      dirsOut?.push(rel);
+      for (const f of findFilesSync(full, rel, exts, dirsOut)) out.push(f);
+      continue;
+    }
+    try {
+      if (singlyLinked(lstatSync(full))) out.push(rel);
+    } catch {}
   }
   return out;
 }
@@ -1040,7 +1112,13 @@ export interface Api {
   }): Promise<ReorderRevertResult>;
   // Aggregate data
   /** `viewer.role` — the proxy-vouched role in a cell (`null` on a desktop). */
-  buildIndexData(viewer?: { role?: string | null }): Promise<unknown>;
+  /** #207 — `fresh`: wait for a real build instead of a previous run's copy (`indexStale`).
+   *  `partial`: with no copy either, the bare listing may answer first (`indexPartial`). */
+  buildIndexData(viewer?: {
+    role?: string | null;
+    fresh?: boolean;
+    partial?: boolean;
+  }): Promise<unknown>;
   buildSystemData(dsName?: string | null): Promise<unknown>;
 }
 
@@ -2341,6 +2419,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return v === 'light' || v === 'dark' ? v : null;
   }
 
+  // 2.0.7 B2 — the person's Canvas | Pages pick for this canvas (canvas-pages.ts). Same class as canvasTheme:
+  // per user, per Mac, view.json only (DDR-115); a closed set from the untrusted canvas origin.
+  function normalizeCanvasView(v: unknown): 'canvas' | 'pages' | null {
+    return v === 'canvas' || v === 'pages' ? v : null;
+  }
+
   // Issue #91 security follow-up — `layout.artboards[]` (DDR-027 position-only
   // entries) is reachable from the untrusted canvas origin (DDR-054) via the
   // same PATCH lane as overlays/locked above, but previously had no count or
@@ -2397,6 +2481,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     overlays?: Record<string, boolean>;
     locked?: string[];
     canvasTheme?: 'light' | 'dark';
+    canvasView?: 'canvas' | 'pages';
   } | null> {
     const viewAbs = canvasViewPath(file);
     if (!viewAbs) return null;
@@ -2407,16 +2492,19 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         const ov = normalizeOverlays((obj as { overlays?: unknown }).overlays);
         const lk = normalizeLocked((obj as { locked?: unknown }).locked);
         const ct = normalizeCanvasTheme((obj as { canvasTheme?: unknown }).canvasTheme);
+        const cv = normalizeCanvasView((obj as { canvasView?: unknown }).canvasView);
         const result: {
           viewport?: { x: number; y: number; zoom: number };
           overlays?: Record<string, boolean>;
           locked?: string[];
           canvasTheme?: 'light' | 'dark';
+          canvasView?: 'canvas' | 'pages';
         } = {};
         if (vp) result.viewport = vp;
         if (ov && Object.keys(ov).length > 0) result.overlays = ov;
         if (lk && lk.length > 0) result.locked = lk;
         if (ct) result.canvasTheme = ct;
+        if (cv) result.canvasView = cv;
         return result;
       }
       return null;
@@ -2508,15 +2596,25 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     obj.locked = undefined;
     // r4 #6 — `canvasTheme` (the Light | Dark pick) is the same class.
     obj.canvasTheme = undefined;
+    // 2.0.7 B2 — `canvasView` (Canvas | Pages) is the same class.
+    obj.canvasView = undefined;
     const view = await loadCanvasView(file);
     if (view?.viewport) obj.viewport = view.viewport;
     if (view?.overlays) obj.overlays = view.overlays;
     if (view?.locked) obj.locked = view.locked;
     if (view?.canvasTheme) obj.canvasTheme = view.canvasTheme;
+    if (view?.canvasView) obj.canvasView = view.canvasView;
     // Preserve the historic contract: no meta AND no camera/overlays → null
     // (GET → {}, PATCH-on-rejected-path → 404). A view-only canvas still
     // returns its camera/overlays.
-    if (!hadMeta && !view?.viewport && !view?.overlays && !view?.locked && !view?.canvasTheme)
+    if (
+      !hadMeta &&
+      !view?.viewport &&
+      !view?.overlays &&
+      !view?.locked &&
+      !view?.canvasTheme &&
+      !view?.canvasView
+    )
       return null;
     return obj;
   }
@@ -2636,6 +2734,33 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
               await Bun.write(
                 viewAbs,
                 `${JSON.stringify({ ...current, canvasTheme: ct }, null, 2)}\n`
+              );
+            }
+          }
+        } catch {
+          /* best-effort */
+        }
+      }
+    }
+
+    // --- Per-user Canvas | Pages lane (2.0.7 B2): canvasView → view file, never the versioned meta. Same shape as
+    // the Light | Dark lane above: REPLACE, `null` forgets the pick (back to Canvas), anything else is a no-op.
+    if (patch.canvasView !== undefined) {
+      const viewAbs = canvasViewPath(file);
+      if (viewAbs) {
+        try {
+          const current = await readCanvasViewRaw(file);
+          if (patch.canvasView === null) {
+            const { canvasView: _drop, ...rest } = current;
+            await mkdir(sessionDir(paths.canvasStateDir), { recursive: true });
+            await Bun.write(viewAbs, `${JSON.stringify(rest, null, 2)}\n`);
+          } else {
+            const cv = normalizeCanvasView(patch.canvasView);
+            if (cv !== null) {
+              await mkdir(sessionDir(paths.canvasStateDir), { recursive: true });
+              await Bun.write(
+                viewAbs,
+                `${JSON.stringify({ ...current, canvasView: cv }, null, 2)}\n`
               );
             }
           }
@@ -7889,16 +8014,83 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // it, so a build that started before a change is never handed to a later caller.
   const indexFlight = createSingleFlight<unknown>();
   ctx.bus.on('fs:any', () => indexFlight.bump());
-  function buildIndexData(viewer?: { role?: string | null }) {
+  // #207 — on a desktop the expensive part (the canvas groups and what is derived from each
+  // canvas) is kept between requests (index-cache.ts) and rebuilt only when something it reads
+  // changes; a copy on disk answers the first request after a restart at once. A cell keeps the
+  // per-request build: its listing also follows the hub's journal, which raises no file event.
+  const canvasIndex = createIndexCache<CanvasIndexPart>({
+    build: (early) => buildCanvasIndexPart(early),
+    seed: () => readCanvasIndexSeed(canvasIndexSeedPath(), cfgIndexKey()),
+    persist: (part) => scheduleCanvasIndexSeed(part),
+    onError: (err) => console.warn('[index-data] background build failed:', err),
+  });
+  ctx.bus.on('fs:any', (rel: string) => {
+    if (!isRootRuntimeRel(rel)) canvasIndex.invalidate();
+  });
+  // An API write announces itself before the disk event arrives, and the client reloads the tree
+  // as soon as the write answers: the cache must already know (else it answers "fresh" from before).
+  for (const e of CANVAS_INDEX_WRITE_EVENTS) ctx.bus.on(e, () => canvasIndex.invalidate());
+  let seedTimer: ReturnType<typeof setTimeout> | null = null;
+  let seedPending: CanvasIndexPart | null = null;
+  function scheduleCanvasIndexSeed(part: CanvasIndexPart) {
+    seedPending = part;
+    if (seedTimer) return;
+    seedTimer = setTimeout(() => {
+      seedTimer = null;
+      const p = seedPending;
+      seedPending = null;
+      if (p) writeCanvasIndexSeed(canvasIndexSeedPath(), p, cfgIndexKey());
+    }, CANVAS_INDEX_SEED_DEBOUNCE_MS);
+    (seedTimer as { unref?: () => void }).unref?.();
+  }
+  function canvasIndexSeedPath() {
+    return path.join(projectDir(pidOf(paths.repoRoot)), 'tree.json');
+  }
+  /** What the cached part was built under: a config reload with other groups/systems is a miss. */
+  function cfgIndexKey() {
+    return JSON.stringify([
+      paths.designRel,
+      cfg.canvasGroups,
+      cfg.designSystems ?? [],
+      cfg.defaultDesignSystem ?? null,
+    ]);
+  }
+  let cachedCfgKey = '';
+
+  function buildIndexData(viewer?: { role?: string | null; fresh?: boolean; partial?: boolean }) {
     // A canvas-only session's answer is filtered by its own grants: never shared.
     if (!projectVisibility(ctx).current().full) return buildIndexDataNow(viewer);
-    return indexFlight.run(`${viewer?.role ?? ''}|${currentSession()}`, () =>
-      buildIndexDataNow(viewer)
-    );
+    if (isWorkspaceMode())
+      return indexFlight.run(`${viewer?.role ?? ''}|${currentSession()}`, () =>
+        buildIndexDataNow(viewer)
+      );
+    const key = cfgIndexKey();
+    if (key !== cachedCfgKey) {
+      cachedCfgKey = key;
+      canvasIndex.invalidate();
+    }
+    // Only the route (which always passes a viewer) may be answered from a previous run's copy; an
+    // internal caller (S11.4 availability: "what is on this Mac") always waits for a real build.
+    // #207 (list speed) — the tree loader asks `partial`: on the first open ever (no copy) it is
+    // answered with the bare listing the build publishes before any content read.
+    return canvasIndex
+      .get({ fresh: viewer === undefined || viewer.fresh === true, partial: viewer?.partial })
+      .then(({ value, stale, partial }) => assembleIndexData(value, viewer, stale, partial));
   }
 
   async function buildIndexDataNow(viewer?: { role?: string | null }) {
-    const groups = [];
+    return assembleIndexData(await buildCanvasIndexPart(), viewer, false);
+  }
+
+  /**
+   * The canvas groups and everything derived per canvas — the slow, reader-independent part.
+   * `early` gets the bare listing first: the groups as one walk of names (no file is read), with
+   * nothing derived — no design system, kind, revision or import report.
+   */
+  async function buildCanvasIndexPart(
+    early?: (listing: CanvasIndexPart) => void
+  ): Promise<CanvasIndexPart> {
+    const groups: CanvasIndexPart['groups'] = [];
 
     // DDR-093 — per-canvas design-system map (repo-relative canvas path → DS
     // name) so the client's canvasUrl() injects each UI canvas's OWN tokens
@@ -7907,11 +8099,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const canvasDesignSystems: Record<string, string> = {};
     // S10.4 (V2-1.6 §5.8) — the revision a canvas was left on (`dsRev`), for the converted systems only:
     // an unconverted project builds none of this, and its payload is what it always was.
-    const convertedDs = new Set(
-      (cfg.designSystems ?? [])
-        .filter((d) => readHead(path.join(paths.designRoot, d.path)).state === 'ok')
-        .map((d) => d.name)
-    );
+    // (read after the listing is out: a system's head is a content read)
+    const readConvertedDs = () =>
+      new Set(
+        (cfg.designSystems ?? [])
+          .filter((d) => readHead(path.join(paths.designRoot, d.path)).state === 'ok')
+          .map((d) => d.name)
+      );
     const canvasRevs: Record<string, { system: string; dsRev: string; kept?: string }> = {};
     // DDR-174 (T15) — surface a canvas's `.meta.json` `kind` in the file tree
     // when it's a value the user should notice at a glance (today: only
@@ -7940,35 +8134,15 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const owner = (cfg.designSystems ?? []).find(
         (d) => d.path === `system/${folder}` || d.path.endsWith(`/${folder}`)
       );
-      return owner?.name ?? null;
+      // 2.0.7 — a system folder the config does not list owns its own files too (folderSystemOf).
+      return (
+        owner?.name ??
+        folderSystemOf(r, cfg.designSystems ?? [], (f) =>
+          existsSync(path.join(paths.designRoot, ...f.split('/')))
+        )?.name ??
+        null
+      );
     };
-
-    // PROJECT — top-level .design/ files (README.md, INDEX.md, config.json, …).
-    // These are non-HTML so they're listed but not openable in the iframe; the
-    // sidebar can still display them as context (mirrors CV-08 mock).
-    const projectFiles: string[] = [];
-    try {
-      const entries = await readdir(paths.designRoot, { withFileTypes: true });
-      entries.sort((a, b) => a.name.localeCompare(b.name));
-      for (const e of entries) {
-        if (!e.isFile()) continue;
-        if (e.name.startsWith('_')) continue;
-        if (e.name.startsWith('.')) continue;
-        if (!/\.(md|json|txt|yml|yaml|css)$/i.test(e.name)) continue;
-        projectFiles.push(path.posix.join(paths.designRel, e.name));
-      }
-    } catch {}
-    if (projectFiles.length) {
-      groups.push({
-        label: 'Project',
-        paths: projectFiles,
-        fullPath: paths.designRel,
-        // Strip `.design/` — the section header already names the parent;
-        // the chain `▾ .design → file` was redundant.
-        stripPrefix: `${paths.designRel}/`,
-        kind: 'project' as const,
-      });
-    }
 
     // Canvas groups — strip just `.design/` so the immediate subdir
     // (`system`, `ui`, …) shows up as a dir wrapper in the tree (mirrors
@@ -7980,6 +8154,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // (FileRow non-HTML branch).
     // Cell materializer — the media the hub can serve although this checkout
     // does not hold it. `null` everywhere else (desktop, self-hosted hub).
+    // #207 (list speed) — an answer already made (a previous run's copy handed out by the request that
+    // started this build) gets out before the walk below takes the loop.
+    await yieldToLoop();
     const materializable = await listMaterializable();
     for (const g of cfg.canvasGroups) {
       const groupAbs = path.join(paths.designRoot, g.path);
@@ -8000,7 +8177,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const groupExts = isDs
         ? ['.tsx', '.html', '.md', '.css', '.json', ...PREVIEW_ASSET_EXTS]
         : ['.tsx', '.html', '.css', '.json', ...PREVIEW_ASSET_EXTS];
-      const filePaths = await findFiles(groupAbs, groupRel, groupExts, dirs);
+      // #207 (list speed) — one walk of names that never gives the loop away (findFilesSync).
+      const filePaths = findFilesSync(groupAbs, groupRel, groupExts, dirs);
       // A materializing cell lists media its checkout does not hold.
       if (materializable) {
         mergeMaterializable(filePaths, dirs, materializable, {
@@ -8008,36 +8186,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           groupPath: g.path,
           exts: PREVIEW_ASSET_EXTS,
         });
-      }
-      // DDR-093 — record each `.tsx` canvas's design system. canvasUrl() only
-      // injects tokens for `.tsx`, so skip everything else. Path-owned DS wins
-      // (system/<ds>/…); otherwise the sidecar's `meta.designSystem`, defaulting
-      // to the project default when the canvas declares none.
-      for (const fp of filePaths) {
-        if (!fp.endsWith('.tsx')) continue;
-        let dsName = ownerDsName(fp);
-        let meta: Record<string, unknown> | null = null;
-        if (!dsName) {
-          meta = await loadCanvasMeta(fp);
-          const declared = meta?.designSystem;
-          dsName = typeof declared === 'string' && declared.trim() ? declared : defaultDs;
-          const kind = meta?.kind;
-          if (typeof kind === 'string' && NOTABLE_KINDS.has(kind)) canvasKinds[fp] = kind;
-        }
-        canvasDesignSystems[fp] = dsName;
-        if (convertedDs.has(dsName)) {
-          // a canvas inside the system's own folder carries no sidecar read above
-          meta ??= await loadCanvasMeta(fp);
-          const dsRev = meta?.dsRev;
-          // p8-dead-reasons — `dsKept`: the head a person declined with "Keep this version" (the card stays away)
-          const kept = meta?.dsKept;
-          if (typeof dsRev === 'string' && dsRev)
-            canvasRevs[fp] = {
-              system: dsName,
-              dsRev,
-              ...(typeof kept === 'string' && kept ? { kept } : {}),
-            };
-        }
       }
       // Strip down to `g.path` so per-DS folders (`project`, `beta`, …) show
       // up as the top-level dirs inside the DS section. Single-DS configs get
@@ -8071,42 +8219,48 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       });
     }
 
-    // RUNTIME — gitignored state files (_active.json, _server.json) +
-    // pointers to _history/ and _comments/ dirs. Visible but inert in the
-    // sidebar; matches the CV-08 mock's bottom section.
-    //
-    // V2-2.8 S7 (V2-1.16 L8 "everyone-fix") — in a cell this listing named
-    // every member's session file (`_active.<session>.json`, Cloud Phase 27
-    // D3) to every member. Non-owners get no Runtime group at all; the owner's
-    // keeps the shared entries and their OWN session file, never another
-    // member's. A desktop has no roles or sessions, so its list is unchanged.
-    const workspace = isWorkspaceMode();
-    const showRuntime = !workspace || viewer?.role === 'owner';
-    const mySession = currentSession();
-    const runtimeFiles: string[] = [];
-    try {
-      const entries = showRuntime ? await readdir(paths.designRoot, { withFileTypes: true }) : [];
-      entries.sort((a, b) => a.name.localeCompare(b.name));
-      for (const e of entries) {
-        if (!e.name.startsWith('_')) continue;
-        if (workspace) {
-          // `_<stem>.<session>.json` is one member's sibling of a singleton.
-          const keyed = /^_[^.]+\.([^.]+)\.json$/.exec(e.name)?.[1];
-          if (keyed && normalizeSessionKey(keyed) === keyed && keyed !== mySession) continue;
+    // #207 (list speed) — the bare listing goes out now (the tree loader on a first open ever draws it),
+    // and the answer it belongs to gets out before the content reads below take the loop.
+    if (early) {
+      early({ groups: [...groups], canvasDesignSystems: {}, canvasKinds: {} });
+      await yieldToLoop();
+    }
+    // tests only: hold the content reads until a file exists (the listing-first test proves the order)
+    const gate = process.env.MAUDE_TEST_INDEX_DETAILS_GATE;
+    while (gate && !existsSync(gate)) await new Promise((r) => setTimeout(r, 20));
+
+    // DDR-093 — record each `.tsx` canvas's design system. canvasUrl() only
+    // injects tokens for `.tsx`, so skip everything else. Path-owned DS wins
+    // (system/<ds>/…); otherwise the sidecar's `meta.designSystem`, defaulting
+    // to the project default when the canvas declares none.
+    const convertedDs = readConvertedDs();
+    for (const g of groups) {
+      for (const fp of g.paths) {
+        if (!fp.endsWith('.tsx')) continue;
+        let dsName = ownerDsName(fp);
+        let meta: Record<string, unknown> | null = null;
+        if (!dsName) {
+          meta = await loadCanvasMeta(fp);
+          const declared = meta?.designSystem;
+          dsName = typeof declared === 'string' && declared.trim() ? declared : defaultDs;
+          const kind = meta?.kind;
+          if (typeof kind === 'string' && NOTABLE_KINDS.has(kind)) canvasKinds[fp] = kind;
         }
-        runtimeFiles.push(path.posix.join(paths.designRel, e.name));
+        canvasDesignSystems[fp] = dsName;
+        if (convertedDs.has(dsName)) {
+          // a canvas inside the system's own folder carries no sidecar read above
+          meta ??= await loadCanvasMeta(fp);
+          const dsRev = meta?.dsRev;
+          // p8-dead-reasons — `dsKept`: the head a person declined with "Keep this version" (the card stays away)
+          const kept = meta?.dsKept;
+          if (typeof dsRev === 'string' && dsRev)
+            canvasRevs[fp] = {
+              system: dsName,
+              dsRev,
+              ...(typeof kept === 'string' && kept ? { kept } : {}),
+            };
+        }
       }
-    } catch {}
-    if (runtimeFiles.length) {
-      groups.push({
-        label: 'Runtime',
-        paths: runtimeFiles,
-        fullPath: paths.designRel,
-        // Same as PROJECT — strip `.design/` so each row sits flat under the
-        // section header instead of nested under a redundant `.design` dir.
-        stripPrefix: `${paths.designRel}/`,
-        kind: 'runtime' as const,
-      });
     }
 
     // S10.4 — which revision each canvas renders. Present only once a system is converted: a project that
@@ -8127,12 +8281,125 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const imports = projectVisibility(ctx).canvasImports(canvasRels);
     const canvasImportsCanvases: Record<string, string[]> = {};
     for (const [rel, list] of imports) canvasImportsCanvases[`${prefix}${rel}`] = list;
+    // 2.0.7 — an import that resolves to no file blocks the canvas the same way (its frame answers 403
+    // before any build could name the file): the shell names the missing file on the card.
+    const missing = projectVisibility(ctx).canvasMissingImports?.(canvasRels) ?? new Map();
+    const canvasMissingImports: Record<string, string[]> = {};
+    for (const [rel, list] of missing) canvasMissingImports[`${prefix}${rel}`] = list;
+    return {
+      groups,
+      canvasDesignSystems,
+      canvasKinds,
+      ...(imports.size ? { canvasImportsCanvases } : {}),
+      ...(missing.size ? { canvasMissingImports } : {}),
+      ...(dsRender
+        ? {
+            canvasDsRevs: Object.fromEntries(
+              Object.entries(canvasRevs).map(([fp, r]) => [fp, r.dsRev])
+            ),
+            canvasDsKept: Object.fromEntries(
+              Object.entries(canvasRevs)
+                .filter(([, r]) => r.kept)
+                .map(([fp, r]) => [fp, r.kept as string])
+            ),
+            systemHeads: dsRender.systemHeads,
+            dsConverted: dsRender.dsConverted,
+            dsRevGaps: dsRender.dsRevGaps,
+          }
+        : {}),
+    };
+  }
+
+  /**
+   * #207 — the payload for one request: the (cached) canvas part plus what is cheap and per request —
+   * the Project and Runtime rows (one root listing each; the Runtime row depends on the reader), the
+   * refused-inputs report the http layer keeps in memory, and the reader's filter.
+   */
+  async function assembleIndexData(
+    part: CanvasIndexPart,
+    viewer: { role?: string | null } | undefined,
+    stale: boolean,
+    partial?: boolean
+  ) {
+    const head: CanvasIndexPart['groups'] = [];
+    const tail: CanvasIndexPart['groups'] = [];
+    // #207 (list speed) — ONE listing of the design root, read in this tick: an answer from the cache
+    // (a copy, the bare listing) is then made at once, never after a build's next slice of work.
+    let rootEntries: Dirent[] = [];
+    try {
+      rootEntries = readdirSync(paths.designRoot, { withFileTypes: true });
+      rootEntries.sort((a, b) => a.name.localeCompare(b.name));
+    } catch {}
+    // PROJECT — top-level .design/ files (README.md, INDEX.md, config.json, …).
+    // These are non-HTML so they're listed but not openable in the iframe; the
+    // sidebar can still display them as context (mirrors CV-08 mock).
+    const projectFiles: string[] = [];
+    {
+      for (const e of rootEntries) {
+        if (!e.isFile()) continue;
+        if (e.name.startsWith('_')) continue;
+        if (e.name.startsWith('.')) continue;
+        if (!/\.(md|json|txt|yml|yaml|css)$/i.test(e.name)) continue;
+        projectFiles.push(path.posix.join(paths.designRel, e.name));
+      }
+    }
+    if (projectFiles.length) {
+      head.push({
+        label: 'Project',
+        paths: projectFiles,
+        fullPath: paths.designRel,
+        // Strip `.design/` — the section header already names the parent;
+        // the chain `▾ .design → file` was redundant.
+        stripPrefix: `${paths.designRel}/`,
+        kind: 'project' as const,
+      });
+    }
+
+    // RUNTIME — gitignored state files (_active.json, _server.json) +
+    // pointers to _history/ and _comments/ dirs. Visible but inert in the
+    // sidebar; matches the CV-08 mock's bottom section.
+    //
+    // V2-2.8 S7 (V2-1.16 L8 "everyone-fix") — in a cell this listing named
+    // every member's session file (`_active.<session>.json`, Cloud Phase 27
+    // D3) to every member. Non-owners get no Runtime group at all; the owner's
+    // keeps the shared entries and their OWN session file, never another
+    // member's. A desktop has no roles or sessions, so its list is unchanged.
+    const workspace = isWorkspaceMode();
+    const showRuntime = !workspace || viewer?.role === 'owner';
+    const mySession = currentSession();
+    const runtimeFiles: string[] = [];
+    {
+      const entries = showRuntime ? rootEntries : [];
+      for (const e of entries) {
+        if (!e.name.startsWith('_')) continue;
+        if (workspace) {
+          // `_<stem>.<session>.json` is one member's sibling of a singleton.
+          const keyed = /^_[^.]+\.([^.]+)\.json$/.exec(e.name)?.[1];
+          if (keyed && normalizeSessionKey(keyed) === keyed && keyed !== mySession) continue;
+        }
+        runtimeFiles.push(path.posix.join(paths.designRel, e.name));
+      }
+    }
+    if (runtimeFiles.length) {
+      tail.push({
+        label: 'Runtime',
+        paths: runtimeFiles,
+        fullPath: paths.designRel,
+        // Same as PROJECT — strip `.design/` so each row sits flat under the
+        // section header instead of nested under a redundant `.design` dir.
+        stripPrefix: `${paths.designRel}/`,
+        kind: 'runtime' as const,
+      });
+    }
+
+    const prefix = `${paths.designRel}/`;
     // 2.0.5 (#205) — a canvas whose BUILT module the inputs gate refused (it inlined a file another canvas
     // owns): the files, kept per canvas by the http layer (access/refused-inputs.ts). Main origin only — the
     // canvas origin's 403 stays the bare not-in-scope body.
     const refused = refusedInputsFor(ctx).report();
     const canvasRefusedInputs: Record<string, string[]> = {};
     for (const [rel, list] of refused) canvasRefusedInputs[`${prefix}${rel}`] = list;
+    const { groups, ...derived } = part;
 
     // S9.10 (V2-1.16 L8) — a canvas-only session's tree: what it sees, nothing else.
     return filterIndexData(
@@ -8140,26 +8407,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         project: cfg.name,
         projectLabel: ctx.projectLabel,
         designRoot: paths.designRel,
-        groups,
-        canvasDesignSystems,
-        canvasKinds,
-        ...(imports.size ? { canvasImportsCanvases } : {}),
+        groups: [...head, ...groups, ...tail],
+        ...derived,
         ...(refused.size ? { canvasRefusedInputs } : {}),
-        ...(dsRender
-          ? {
-              canvasDsRevs: Object.fromEntries(
-                Object.entries(canvasRevs).map(([fp, r]) => [fp, r.dsRev])
-              ),
-              canvasDsKept: Object.fromEntries(
-                Object.entries(canvasRevs)
-                  .filter(([, r]) => r.kept)
-                  .map(([fp, r]) => [fp, r.kept as string])
-              ),
-              systemHeads: dsRender.systemHeads,
-              dsConverted: dsRender.dsConverted,
-              dsRevGaps: dsRender.dsRevGaps,
-            }
-          : {}),
+        // #207 — a previous run's copy, answered while the first build runs; the client asks again.
+        ...(stale ? { indexStale: true } : {}),
+        // #207 (list speed) — the bare listing: no canvas has its design system, kind or import
+        // report yet (and nothing is granted by it); the client draws the tree and asks again.
+        ...(partial ? { indexPartial: true } : {}),
       },
       projectVisibility(ctx).current(),
       paths.designRel,

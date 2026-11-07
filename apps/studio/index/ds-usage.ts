@@ -26,6 +26,7 @@ import { listElements } from '../canvas-edit.ts';
 import { type CanvasContext, type CanvasState, checkCanvas } from '../ds/canvas-check.ts';
 import { checkSystem, type SystemReport } from '../ds/check.ts';
 import { type CssRule, ownDeclarations, scanCssRules, splitSelectorList } from '../ds/css-scan.ts';
+import { isFolderSystemFile, withFolderSystems } from '../ds/folder-systems.ts';
 import { indexRegistry, loadRegistry, type RegistryIndex } from '../ds/registry.ts';
 import {
   diskFs,
@@ -537,7 +538,8 @@ export function createDsUsage(o: DsUsageOptions): DsUsageIndex {
     const fs = diskFs(root);
     const next = new Map<string, SysInfo>();
     const models = new Map<string, SystemModel>();
-    const cfgs = systemConfigsFrom(config);
+    // 2.0.7 — the configured systems, then the folder-owned ones (ds/folder-systems.ts)
+    const cfgs = systemConfigsFrom(withFolderSystems(config, root));
     const hash = createHash('sha256');
     for (const cfg of cfgs) {
       const model = loadSystem(fs, cfg);
@@ -854,6 +856,7 @@ export function createDsUsage(o: DsUsageOptions): DsUsageIndex {
   // ── events ─────────────────────────────────────────────────────────────────────────────────
   const isSystemFile = (rel: string) =>
     rel === 'config.json' ||
+    isFolderSystemFile(rel) ||
     (rel.startsWith('system/') &&
       (rel.endsWith('.css') || rel.endsWith('components.json') || rel.endsWith('tokens.json')));
 

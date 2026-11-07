@@ -7,8 +7,8 @@
 // artboards (`[data-dc-screen="<id>"]`), follows them while the camera moves, and never writes.
 
 import { useEffect, useRef, useState } from 'react';
-
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 
 type Lit = { id: string; left: number; top: number; width: number; height: number };
 
@@ -82,11 +82,11 @@ export function UndoPreview() {
         last = key;
         setLit(next); // only when a box moved — a still camera re-renders nothing
       }
-      raf.current = requestAnimationFrame(tick);
+      raf.current = frameRaf(tick);
     };
     tick();
     return () => {
-      if (raf.current != null) cancelAnimationFrame(raf.current);
+      if (raf.current != null) frameCaf(raf.current);
       raf.current = null;
     };
   }, [want]);
