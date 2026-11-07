@@ -1363,6 +1363,7 @@ export async function importPages({
   }
 
   const tokens = readDsTokens(root, designRootRel);
+  const fontTokens = readDsFontTokens(root, designRootRel);
   const budget = makeAssetBudget();
   const written = [];
   const reports = [];
@@ -1450,7 +1451,7 @@ export async function importPages({
         try {
           result =
             mode === 'jsx'
-              ? toCanvas(doc, pageNode, { kind, tokens })
+              ? toCanvas(doc, pageNode, { kind, tokens, fontTokens })
               : toRenderCanvas(doc, pageNode, { kind });
         } catch (err) {
           if (!(err instanceof JsxTooLargeError)) throw err;
@@ -1736,11 +1737,12 @@ export async function importFrames({
   let resolvedAssets = 0;
   const budget = makeAssetBudget();
   const tokens = readDsTokens(root, designRootRel);
+  const fontTokens = readDsFontTokens(root, designRootRel);
 
   const staging = dryRun ? null : makeStagingDir();
   try {
     for (const [i, frame] of frames.entries()) {
-      const result = toArtboard(doc, frame, { kind, tokens });
+      const result = toArtboard(doc, frame, { kind, tokens, fontTokens });
       reports.push(result.report);
       pendingExports += result.pendingExports.length;
 

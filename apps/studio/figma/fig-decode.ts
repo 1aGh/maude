@@ -376,6 +376,7 @@ function restType(change: Record<string, unknown>): string | undefined {
  */
 function toRestPaint(paint: unknown): unknown {
   const p = obj(paint);
+  if (p && Array.isArray(p.stops) && p.gradientStops === undefined) return toRestGradient(p);
   if (!p || p.imageRef !== undefined) return paint;
   const hash = obj(p.image)?.hash;
   if (!Array.isArray(hash) || hash.length === 0 || hash.length > 64) return paint;
@@ -386,6 +387,53 @@ function toRestPaint(paint: unknown): unknown {
     hex += n.toString(16).padStart(2, '0');
   }
   return { ...p, imageRef: hex };
+}
+
+/**
+ * A `.fig` gradient paint -> the REST one. `.fig` says `stops` + a `transform`
+ * (node box -> gradient space); REST says `gradientStops` + three handle points
+ * in the node's own normalised box. The CSS lane reads the REST shape, so
+ * without this a `.fig` gradient reached the vector geometry but never the
+ * rectangle's `background` (#155 §4).
+ *
+ * The handles are gradient-space anchors carried back through
+ * `inverse(transform)`: linear = start / end / width, the rest = centre /
+ * x-radius / y-radius. A singular transform yields no handles (stops only), so
+ * the mapper falls back to a box-centred gradient rather than a guessed angle.
+ */
+function toRestGradient(p: Record<string, unknown>): Record<string, unknown> {
+  const { stops, transform, ...rest } = p;
+  const out: Record<string, unknown> = { ...rest, gradientStops: stops };
+  const t = obj(transform);
+  const m00 = num(t?.m00) ?? 1;
+  const m01 = num(t?.m01) ?? 0;
+  const m02 = num(t?.m02) ?? 0;
+  const m10 = num(t?.m10) ?? 0;
+  const m11 = num(t?.m11) ?? 1;
+  const m12 = num(t?.m12) ?? 0;
+  const det = m00 * m11 - m01 * m10;
+  if (!Number.isFinite(det) || Math.abs(det) < 1e-9) return out;
+  const linear = str(p.type) === 'GRADIENT_LINEAR';
+  const anchors = linear
+    ? [
+        [0, 0.5],
+        [1, 0.5],
+        [0, 1],
+      ]
+    : [
+        [0.5, 0.5],
+        [1, 0.5],
+        [0.5, 1],
+      ];
+  const round = (v: number) => Math.round(v * 1e6) / 1e6 + 0;
+  const handles = anchors.map(([gx, gy]) => ({
+    x: round((m11 * gx - m01 * gy + (m01 * m12 - m11 * m02)) / det),
+    y: round((-m10 * gx + m00 * gy + (m10 * m02 - m00 * m12)) / det),
+  }));
+  if (handles.every((h) => Number.isFinite(h.x) && Number.isFinite(h.y))) {
+    out.gradientHandlePositions = handles;
+  }
+  return out;
 }
 
 function overrides(change: Record<string, unknown>): unknown[] {

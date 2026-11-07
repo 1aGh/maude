@@ -80,6 +80,8 @@ export const DISPOSITIONS = Object.freeze([
   'asset-unavailable-offline',
   'jsx-cap-reached',
   'value-rejected',
+  /** A paint or effect CSS has no exact twin for (diamond gradient, a blend mode), drawn by the nearest one. */
+  'paint-approximated',
   // ── The codegen route (DDR-219 D9). Three dispositions, one rule: what makes
   // them safe is that `detail` carries a BOUNDED token plus a count, never the
   // upstream family or utility name verbatim — `detail` is the one field on the

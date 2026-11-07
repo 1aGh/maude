@@ -214,3 +214,49 @@ describe('#155 §5 — the import report names the nodes that could not be read'
     expect(nodeErrorLines({ nodeErrors: [], nodeErrorCount: 0 })).toBe('');
   });
 });
+
+describe('#155 §3 (T4.1, D8) — an imported frame renders in the project type stack', () => {
+  test('the text family lands on the DS --font-body variable, never on the Figma name', async () => {
+    mkdirSync(join(sandbox, '.design', 'system', 'ds'), { recursive: true });
+    await Bun.write(
+      join(sandbox, '.design', 'system', 'ds', 'tokens.css'),
+      ":root { --font-body: 'Hanken Grotesk', system-ui, sans-serif; --font-mono: 'JetBrains Mono', monospace; }\n"
+    );
+    await Bun.write(
+      join(sandbox, '.design', 'config.json'),
+      JSON.stringify({
+        defaultDesignSystem: 'ds',
+        designSystems: [{ name: 'ds', tokensCssRel: 'system/ds/tokens.css' }],
+      })
+    );
+    const text = (id: string, family: string, y: number) => ({
+      id,
+      name: 'label',
+      type: 'TEXT',
+      characters: 'Hello',
+      absoluteBoundingBox: box(10, y, 100, 20),
+      style: { fontFamily: family, fontSize: 16 },
+      fills: [{ type: 'SOLID', visible: true, color: { r: 0, g: 0, b: 0, a: 1 } }],
+    });
+    const d = doc('design', [
+      {
+        id: '8:1',
+        name: 'Card',
+        type: 'FRAME',
+        absoluteBoundingBox: box(0, 0, 300, 100),
+        fills: [{ type: 'SOLID', visible: true, color: { r: 1, g: 1, b: 1, a: 1 } }],
+        children: [text('8:2', 'Nunito', 10), text('8:3', 'Fira Code', 40)],
+      },
+    ]);
+    const r = await importFrames({ root: sandbox, slug: 'fonts', local: localOf(d) });
+    const tsx = await Bun.file(r.written[0].path).text();
+    expect(tsx).toContain('fontFamily: "var(--font-body)"');
+    expect(tsx).toContain('fontFamily: "var(--font-mono)"');
+    expect(tsx).not.toContain('Nunito');
+    expect(tsx).not.toContain('Fira Code');
+    const subs = r.reports[0].entries.filter(
+      (e: { disposition: string }) => e.disposition === 'font-substituted'
+    );
+    expect(subs).toHaveLength(2);
+  });
+});
