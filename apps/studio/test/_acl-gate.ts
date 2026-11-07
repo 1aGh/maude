@@ -283,13 +283,15 @@ export async function bootGateCell(
           MAUDE_PROJECT_NAME: 'Alligators',
         }),
     MAUDE_TEST_ACL_REVERT: (opts.revert ?? []).join(','),
+    // T2.5b — B's AI run below is planted through the retired v1 bracket's test seam
+    MAUDE_E2E_LEGACY_AI_BRACKET: '1',
     ...(opts.env ?? {}),
   });
   const base = `http://localhost:${port}`;
   const info = JSON.parse(readFileSync(join(designRoot, '_server.json'), 'utf8')) as {
     canvasPort?: number;
   };
-  // Plant B activity as the owner: an AI run on B.
+  // Plant B activity as the owner: an AI run on B (the legacy-bracket test seam, routes/ai.ts).
   let bRunId: string | null = null;
   try {
     await fetch(`${base}/_api/ai/start`, {

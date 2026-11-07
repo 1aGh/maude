@@ -20,7 +20,7 @@ import {
   runView,
 } from '../ai/run-lifecycle.ts';
 import { createRunRegistry, type RegistryOptions } from '../ai/runs.ts';
-import { createAiRoutes } from '../routes/ai.ts';
+import { createAiRoutes, LEGACY_AI_BRACKET_SWITCH, legacyBracketSeam } from '../routes/ai.ts';
 import { matchRoute } from '../routes/table.ts';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -771,13 +771,29 @@ describe('/_api/ai/runs* and the v1 /_api/ai routes (routes/ai.ts)', () => {
     });
   });
 
-  test('S6: the v1 /design:edit curl — start holds the selected artboard and shows a ring; heartbeat; end', async () => {
-    const actions: string[] = [];
-    const { reg, call, events } = table({
-      selectedArtboard: () => 'hero',
-      beginAction: (k, n) => void actions.push(`begin ${k} ${n}`),
-      endAction: async (k, o) => (actions.push(`end ${k} ${o}`), { actionId: 'x' }),
-    });
+  test('T2.5b (#163): the v1 bracket is retired — start/heartbeat/end answer 410 Gone, no run, no lease', async () => {
+    const { reg, call, events } = table({ selectedArtboard: () => 'hero' });
+    for (const route of ['/_api/ai/start', '/_api/ai/heartbeat', '/_api/ai/end']) {
+      const r = await call('POST', route, { file: '.design/ui/C.tsx', author: 'Claude' });
+      expect(r.status).toBe(410);
+      expect(r.body).toMatchObject({ code: 'gone', use: '/_api/agent/run/begin' });
+    }
+    expect(reg.live()).toEqual([]);
+    expect(reg.view().mine).toEqual([]);
+    expect((await call('GET', '/_api/ai')).body.entries).toEqual([]);
+    expect(events.some(([e]) => e === 'ai-activity')).toBe(false);
+  });
+
+  test('T2.5b: the legacy bracket seam is a non-release e2e switch only', () => {
+    const env = { [LEGACY_AI_BRACKET_SWITCH]: '1' };
+    expect(legacyBracketSeam(env, false)).toBe(true);
+    expect(legacyBracketSeam(env, true)).toBe(false);
+    expect(legacyBracketSeam({}, false)).toBe(false);
+    expect(legacyBracketSeam({ [LEGACY_AI_BRACKET_SWITCH]: 'yes' }, false)).toBe(false);
+  });
+
+  test('T2.5b seam: start holds the selected artboard and shows a ring; heartbeat; end — leases only', async () => {
+    const { reg, call, events } = table({ selectedArtboard: () => 'hero', legacyBracket: true });
     const start = await call('POST', '/_api/ai/start', {
       file: '.design/ui/C.tsx',
       author: 'Claude',
@@ -804,7 +820,7 @@ describe('/_api/ai/runs* and the v1 /_api/ai routes (routes/ai.ts)', () => {
       200
     );
     const end = await call('POST', '/_api/ai/end', { file: '.design/ui/C.tsx' });
-    expect(end.body).toEqual({ cleared: true, action: { actionId: 'x' } });
+    expect(end.body).toEqual({ cleared: true });
     expect(reg.get(run.runId)?.outcome).toBe('done');
     expect((await call('POST', '/_api/ai/heartbeat', { file: '.design/ui/C.tsx' })).status).toBe(
       404
@@ -814,14 +830,10 @@ describe('/_api/ai/runs* and the v1 /_api/ai routes (routes/ai.ts)', () => {
       file: '.design/ui/C.tsx',
       entry: null,
     });
-    expect(actions).toEqual([
-      'begin edit:.design/ui/C.tsx Claude edited C',
-      'end edit:.design/ui/C.tsx done',
-    ]);
   });
 
-  test('v1 start without a selection is lazy: the run holds nothing until an edit claims', async () => {
-    const { reg, call } = table({ selectedArtboard: () => null });
+  test('T2.5b seam: start without a selection is lazy — the run holds nothing until an edit claims', async () => {
+    const { reg, call } = table({ selectedArtboard: () => null, legacyBracket: true });
     await call('POST', '/_api/ai/start', { file: '.design/ui/C.tsx' });
     expect(reg.live()[0]?.leases).toEqual([]);
     expect(reg.live()[0]?.state).toBe('running');

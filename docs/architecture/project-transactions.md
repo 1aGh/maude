@@ -81,8 +81,11 @@ checkout: the studio projection on a desktop, the studio child in a cell (the
 workspace agent stops writing the checkout once accepted revisions are on).
 
 **AI and multi-file actions (T16)**: an agent turn in the app's chat (from its
-first canvas edit to the end of the turn) and a `/design:edit` run
-(`/_api/ai/start` … `/_api/ai/end {outcome}`) are each ONE project action. The
+first canvas edit to the end of the turn) and a terminal Claude Code run (the
+design plugin's hooks: `/_api/agent/run/begin` … `/_api/agent/run/end {outcome}`,
+its writes claimed byte-for-byte at `edit/check`) are each ONE project action.
+The v1 `/_api/ai/start` … `/_api/ai/end` bracket is retired (410 Gone, T2.5b):
+it could not claim a write, so nothing it bracketed was ever the AI's. The
 file changes tools make meanwhile are staged (`sync/action-stage.ts`), not
 proposed; a clean end proposes them as one transaction (`kind: 'ai'`, labelled
 with the request) — the first base and the last content per lane. A cancel,

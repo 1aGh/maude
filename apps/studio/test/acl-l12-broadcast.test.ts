@@ -19,6 +19,7 @@ import {
   asUser,
   B_REL,
   bootAclCell,
+  LEGACY_AI_BRACKET_ENV,
   frameCap,
   hasCanary,
   type Listener,
@@ -34,7 +35,7 @@ describe('the canary sweep over the sockets (booted cell)', () => {
   let cell: AclCell;
   const socks: Record<string, Listener> = {};
   beforeAll(async () => {
-    cell = await bootAclCell();
+    cell = await bootAclCell(LEGACY_AI_BRACKET_ENV);
     const ws = cell.base.replace(/^http/, 'ws');
     const wsCanvas = cell.canvasBase.replace(/^http/, 'ws');
     const open = async (name: string, url: string, headers: Record<string, string>) => {
