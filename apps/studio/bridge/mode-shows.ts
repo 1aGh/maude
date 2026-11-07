@@ -165,4 +165,5 @@ export const holdsAiChanges = (
 export const foldsPanels = (
   mode: CanvasModeV2,
   present?: Pick<PresentSpec, 'kind'> | null
-): boolean => modeCell('left-panels', mode, present) === 'folded';
+  // the table holds no `folded` cell any more; the read stays, so a row that folds again needs no new code
+): boolean => (modeCell('left-panels', mode, present) as string) === 'folded';
