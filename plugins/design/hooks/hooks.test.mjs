@@ -7,6 +7,7 @@
 // agent RouteSpecs, so the CLI is spawned async — a spawnSync would block the server's loop).
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -15,6 +16,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -27,6 +29,12 @@ import { createRunRegistry } from '../../../apps/studio/ai/runs.ts';
 import { agentRouteSpecs } from '../../../apps/studio/routes/agent.ts';
 import { mountRoutes } from '../../../apps/studio/routes/table.ts';
 import { rootIdentity } from '../../../cli/lib/studio-locate.mjs';
+
+// #164 B1 — the hooks keep the lane manifest under ~/.claude/maude-hook. A test must never write there:
+// every spawned hook inherits this override.
+const HOOK_STATE_HOME = realpathSync(mkdtempSync(join(tmpdir(), 'maude-hook-state-')));
+process.env.MAUDE_HOOK_STATE_HOME = HOOK_STATE_HOME;
+afterAll(() => rmSync(HOOK_STATE_HOME, { recursive: true, force: true }));
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 const MAUDE = join(ROOT, 'cli', 'bin', 'maude.mjs');
@@ -2011,12 +2019,12 @@ describe('p8-secfix-hook F2 — a background call binds what its process writes 
 
   test('nohup … & and run_in_background: Stop checks the file the process wrote later', async () => {
     const cases = [
-      ['bg1', bash(project, 'bg1', 't1', 'nohup python3 w.py &')],
+      ['bg1', bash(project, 'bg1', 't1', 'nohup python3 w.py .design &')],
       [
         'bg2',
         {
-          ...bash(project, 'bg2', 't2', 'python3 w.py'),
-          tool_input: { command: 'python3 w.py', run_in_background: true },
+          ...bash(project, 'bg2', 't2', 'python3 w.py .design'),
+          tool_input: { command: 'python3 w.py .design', run_in_background: true },
         },
       ],
     ];
@@ -2039,7 +2047,7 @@ describe('p8-secfix-hook F2 — a background call binds what its process writes 
 
   test('F2 → F4: an edit after the background process wrote never takes the run base from it', async () => {
     writeFileSync(canvasPath(project), CANVAS);
-    const sh = bash(project, 'bg3', 't4', 'nohup python3 w.py &');
+    const sh = bash(project, 'bg3', 't4', 'nohup python3 w.py .design &');
     await hook('pre-bash', sh);
     await hook('post-bash', sh); // returned before the process wrote
     await Bun.sleep(10);
@@ -2058,7 +2066,7 @@ describe('p8-secfix-hook F2 — a background call binds what its process writes 
 
   test('a call that waits for its process: post-bash binds and drops its mark', async () => {
     writeFileSync(canvasPath(project), CANVAS);
-    const input = bash(project, 'fg1', 't3', 'python3 w.py');
+    const input = bash(project, 'fg1', 't3', 'python3 w.py .design');
     await hook('pre-bash', input);
     expect(existsSync(join(runIn('fg1'), 'bash', 't3.json'))).toBe(true);
     await hook('post-bash', input);
@@ -2155,8 +2163,8 @@ describe('p8-secfix-hook-2 N1 — a background mark lasts for its turn', () => {
     writeFileSync(canvasPath(project), CANVAS);
     await prompt('n1e', 'p1');
     const dev = {
-      ...bash(project, 'n1e', 'bgdev', 'python3 w.py'),
-      tool_input: { command: 'python3 w.py', run_in_background: true },
+      ...bash(project, 'n1e', 'bgdev', 'python3 w.py .design'),
+      tool_input: { command: 'python3 w.py .design', run_in_background: true },
     };
     await hook('pre-bash', dev);
     await hook('post-bash', dev);
@@ -2585,6 +2593,8 @@ describe('p8-sec2-attrib A1 — a write the command does not name is bound by it
   beforeAll(() => {
     project = makeProject('maude-hook-a1-');
     writeFileSync(join(project, '.design', 'ui', 'D.tsx'), OTHER_CANVAS);
+    mkdirSync(join(project, 'tools'));
+    writeFileSync(join(project, 'tools', 'normalise.py'), "ROOT = '.design'\n");
     server = Bun.serve({
       port: 0,
       async fetch(req) {
@@ -2596,6 +2606,8 @@ describe('p8-sec2-attrib A1 — a write the command does not name is bound by it
             manifestVersion: 'bbbbbbbbbbbb',
             version: '2.4.0',
           });
+        // an older studio has no settle route: #164 B1 falls back to today's binding
+        if (url.pathname === '/_api/agent/bash/settle') return new Response('no', { status: 404 });
         if (url.pathname.startsWith('/_api/agent/')) {
           bodies.push([url.pathname, await req.json()]);
           return Response.json({ artboards: [], window: true });
@@ -2618,19 +2630,24 @@ describe('p8-sec2-attrib A1 — a write the command does not name is bound by it
   });
 
   // (a literal `sed -i … .design/ui/*.tsx` never gets here: pre-bash denies it `not-a-writer`; these
-  // are the shapes the guard cannot read)
-  for (const [id, cmd] of [
+  // are the shapes the guard cannot read). #164: each reaches the design root by name, so each is `all`.
+  // (these run against a studio with no settle route: the 404 fallback is today's binding, #164 B1)
+  for (const [id, cmd, cwd] of [
     ['find', "find .design -name '*.tsx' -exec sed -i '' 's/Hi/Yo/' {} +"],
     [
       'computed',
-      `python3 -c "p='.de'+'sign/ui/'+'C'+'.tsx'; s=open(p).read(); open(p,'w').write(s.replace('Hi','Yo'))"`,
+      `python3 -c "p='ui/'+'C'+'.tsx'; s=open(p).read(); open(p,'w').write(s.replace('Hi','Yo'))"`,
+      '.design', // run from inside the design root: it reaches every canvas by a computed name
     ],
     ['script', 'python3 tools/normalise.py'],
   ])
     test(`${id}: an all-canvas window opens, and only the canvas whose bytes changed is bound`, async () => {
       writeFileSync(canvasPath(project), CANVAS);
       bodies.length = 0;
-      const input = bash(project, `a1${id}`, `t${id}`, cmd);
+      const input = {
+        ...bash(project, `a1${id}`, `t${id}`, cmd),
+        ...(cwd ? { cwd: join(project, cwd) } : {}),
+      };
       await hook('pre-bash', input);
       const open = bodies.find(([p]) => p === '/_api/agent/bash/window');
       expect(open?.[1]).toMatchObject({ open: true, files: [], all: true });
@@ -2644,4 +2661,259 @@ describe('p8-sec2-attrib A1 — a write the command does not name is bound by it
       const touched = bodies.find(([p]) => p === '/_api/agent/edit/touched');
       expect(touched?.[1].files).toEqual(['ui/C.tsx']);
     });
+});
+
+// #164 B1 (H4, H5) — a call that cannot claim is bound by what it changed. Pre-bash takes a lane
+// manifest (stat key + sha256 per canvas-lane file) OUTSIDE the project; post-bash diffs against it and
+// POSTs the changed files to /_api/agent/bash/settle. Every failure ends in "no claim" (outside): the
+// hook never binds a file it cannot prove, and never reads the project for what it should have kept.
+describe('#164 B1 — the manifest lives outside the project, and the settle fails closed', () => {
+  let project;
+  let server;
+  const bodies = [];
+  /** @type {(body: any) => Response} */
+  let settleReply;
+  const echo = (b) =>
+    Response.json({ bound: b.changed.filter((c) => c.sha).map((c) => c.path), person: [] });
+  const sha256 = (s) => createHash('sha256').update(s).digest('hex');
+  const state = (s, id) => join(HOOK_STATE_HOME, rootIdentity(project), s, 'bash', `${id}.json`);
+  const runDir = (s) => join(project, '.design', '_runs', s);
+  const calls = (path) => bodies.filter(([p]) => p === path).map(([, b]) => b);
+  const walk = (dir) =>
+    existsSync(dir)
+      ? readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
+          d.isDirectory() ? walk(join(dir, d.name)) : [join(dir, d.name)]
+        )
+      : [];
+  const touchedOf = (s) => {
+    try {
+      return Object.keys(JSON.parse(readFileSync(join(runDir(s), 'touched.json'), 'utf8')));
+    } catch {
+      return [];
+    }
+  };
+  const ALL = "find .design -name '*.tsx' -exec sed -i '' 's/Hi/Yo/' {} +";
+
+  beforeAll(() => {
+    project = makeProject('maude-hook-164-');
+    mkdirSync(join(project, 'scripts'));
+    writeFileSync(join(project, 'scripts', 'other.py'), 'print(1)\n');
+    server = Bun.serve({
+      port: 0,
+      async fetch(req) {
+        const url = new URL(req.url);
+        if (url.pathname === '/_health')
+          return Response.json({
+            app: 'design',
+            rootId: rootIdentity(project),
+            manifestVersion: 'bbbbbbbbbbbb',
+            version: '2.4.0',
+          });
+        if (url.pathname.startsWith('/_api/agent/')) {
+          const b = await req.json();
+          bodies.push([url.pathname, b]);
+          if (url.pathname === '/_api/agent/bash/settle') return settleReply(b);
+          return Response.json({ artboards: [], window: true });
+        }
+        return new Response('not found', { status: 404 });
+      },
+    });
+    writeFileSync(
+      join(project, '.design', '_server.json'),
+      JSON.stringify({
+        pid: process.pid,
+        port: server.port,
+        url: `http://127.0.0.1:${server.port}`,
+      })
+    );
+  });
+  afterAll(() => {
+    server?.stop(true);
+    rmSync(project, { recursive: true, force: true });
+  });
+  const fresh = () => {
+    bodies.length = 0;
+    settleReply = echo;
+    writeFileSync(canvasPath(project), CANVAS);
+  };
+
+  test('H4 — pre-bash keeps the manifest outside the project, 0600; nothing under _runs holds it', async () => {
+    fresh();
+    const input = bash(project, 'h4', 'th4', ALL);
+    await hook('pre-bash', input);
+    const p = state('h4', 'th4');
+    expect(existsSync(p)).toBe(true);
+    expect(statSync(p).mode & 0o777).toBe(0o600);
+    const st = JSON.parse(readFileSync(p, 'utf8'));
+    expect(st).toMatchObject({ v: 1, mode: 'all' });
+    expect(st.manifest.files['ui/C.tsx']).toHaveLength(5);
+    expect(st.manifest.files['ui/C.tsx'][4]).toBe(sha256(CANVAS));
+    const marks = walk(join(project, '.design', '_runs'));
+    expect(marks.length).toBeGreaterThan(0);
+    for (const f of marks) {
+      const text = readFileSync(f, 'utf8');
+      expect(`${f} ${text.includes('manifest')}`).toBe(`${f} false`);
+      expect(`${f} ${text.includes('hashes')}`).toBe(`${f} false`);
+    }
+    await hook('post-bash', input);
+  });
+
+  test('post-bash settles the files whose bytes changed (full sha256) and binds what the studio bound', async () => {
+    fresh();
+    const input = bash(project, 'h4b', 'th4b', ALL);
+    await hook('pre-bash', input);
+    expect(calls('/_api/agent/bash/window')[0]).toMatchObject({ open: true, all: true, files: [] });
+    await Bun.sleep(15);
+    const yo = CANVAS.replace('Hi', 'Yo');
+    writeFileSync(canvasPath(project), yo);
+    await hook('post-bash', input);
+    const [settle] = calls('/_api/agent/bash/settle');
+    expect(settle).toMatchObject({ session: 'h4b', toolUseId: 'th4b' });
+    expect(settle.changed).toEqual([
+      { path: 'ui/C.tsx', sha: sha256(yo), created: false, deleted: false },
+    ]);
+    // the settle closes the window: no separate close
+    expect(calls('/_api/agent/bash/window').filter((w) => w.open === false)).toEqual([]);
+    expect(touchedOf('h4b')).toEqual(['ui/C.tsx']);
+    expect(existsSync(state('h4b', 'th4b'))).toBe(false);
+    expect(existsSync(join(runDir('h4b'), 'bash', 'th4b.json'))).toBe(false);
+  });
+
+  test('a person-landed file in the reply is not the AI touch', async () => {
+    fresh();
+    settleReply = () => Response.json({ bound: [], person: ['ui/C.tsx'] });
+    const input = bash(project, 'h4c', 'th4c', ALL);
+    await hook('pre-bash', input);
+    await Bun.sleep(15);
+    writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
+    await hook('post-bash', input);
+    expect(calls('/_api/agent/bash/settle')).toHaveLength(1);
+    expect(touchedOf('h4c')).toEqual([]);
+  });
+
+  test('H5 — a missing or corrupt manifest sends no claim and binds no touch', async () => {
+    for (const how of ['corrupt', 'missing', 'wrong-shape']) {
+      fresh();
+      const input = bash(project, `h5${how}`, `th5${how}`, ALL);
+      await hook('pre-bash', input);
+      const p = state(`h5${how}`, `th5${how}`);
+      if (how === 'corrupt') writeFileSync(p, '{"v":1,"manifest":');
+      else if (how === 'missing') rmSync(p);
+      else writeFileSync(p, JSON.stringify({ v: 1, mode: 'all', manifest: { files: 'nope' } }));
+      await Bun.sleep(15);
+      writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
+      await hook('post-bash', input);
+      const settles = calls('/_api/agent/bash/settle');
+      expect(`${how} ${settles.length}`).toBe(`${how} 1`);
+      expect(`${how} ${JSON.stringify(settles[0].changed)}`).toBe(`${how} []`);
+      expect(touchedOf(`h5${how}`)).toEqual([]);
+    }
+  });
+
+  test('H5 — a call that cannot claim and names nothing near the design root opens no window', async () => {
+    for (const cmd of ['python3 scripts/other.py', 'pnpm test']) {
+      fresh();
+      const input = bash(project, 'h5n', 'th5n', cmd);
+      await hook('pre-bash', input);
+      expect(calls('/_api/agent/bash/window')).toEqual([]);
+      expect(existsSync(state('h5n', 'th5n'))).toBe(false);
+      await Bun.sleep(10);
+      writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
+      await hook('post-bash', input);
+      expect(calls('/_api/agent/bash/settle')).toEqual([]);
+      expect(touchedOf('h5n')).toEqual([]); // a person's save is not the AI's touch
+    }
+  });
+
+  test('a canvas the call creates is named, and settles as a create', async () => {
+    fresh();
+    // (a literal `.design/…` path in a writing script is refused by the guard; the S7 shape is a
+    // relative name from inside the design root)
+    const cmd = `python3 -c "open('New Board.tsx','w').write('x')"`;
+    const input = { ...bash(project, 'h4d', 'th4d', cmd), cwd: join(project, '.design', 'ui') };
+    await hook('pre-bash', input);
+    expect(calls('/_api/agent/bash/window')[0]).toMatchObject({
+      open: true,
+      files: ['ui/New Board.tsx'],
+    });
+    writeFileSync(join(project, '.design', 'ui', 'New Board.tsx'), 'x');
+    await hook('post-bash', input);
+    expect(calls('/_api/agent/bash/settle')[0].changed).toEqual([
+      { path: 'ui/New Board.tsx', sha: sha256('x'), created: true, deleted: false },
+    ]);
+    rmSync(join(project, '.design', 'ui', 'New Board.tsx'));
+  });
+
+  test('more than 32 changed files go in batches, the window closes on the last', async () => {
+    fresh();
+    const input = bash(project, 'h4e', 'th4e', ALL);
+    await hook('pre-bash', input);
+    const names = Array.from({ length: 40 }, (_, i) => `many${i}.tsx`);
+    for (const n of names) writeFileSync(join(project, '.design', 'ui', n), CANVAS);
+    await hook('post-bash', input);
+    const settles = calls('/_api/agent/bash/settle');
+    expect(settles.map((s) => s.changed.length)).toEqual([32, 8]);
+    expect(settles.map((s) => s.more === true)).toEqual([true, false]);
+    for (const n of names) rmSync(join(project, '.design', 'ui', n));
+  });
+
+  test('a studio that errors on the settle: nothing is bound', async () => {
+    fresh();
+    settleReply = () => new Response('boom', { status: 500 });
+    const input = bash(project, 'h5e', 'th5e', ALL);
+    await hook('pre-bash', input);
+    await Bun.sleep(15);
+    writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
+    await hook('post-bash', input);
+    expect(calls('/_api/agent/bash/settle')).toHaveLength(1);
+    expect(touchedOf('h5e')).toEqual([]);
+  });
+
+  test('a terminal-lane verb is never `all`: no window for a cwd inside the design root', async () => {
+    fresh();
+    const input = {
+      ...bash(project, 'h7', 'th7', 'maude design import-asset logo.png'),
+      cwd: join(project, '.design', 'ui'),
+    };
+    const r = await hook('pre-bash', input);
+    expect(r.stdout).toBe('');
+    expect(calls('/_api/agent/bash/window')).toEqual([]);
+  });
+
+  test('a background call keeps its window past post-bash and settles at Stop', async () => {
+    fresh();
+    const input = {
+      ...bash(project, 'h8', 'th8', ALL),
+      tool_input: { command: ALL, run_in_background: true },
+    };
+    await hook('pre-bash', input);
+    await hook('post-bash', input);
+    expect(calls('/_api/agent/bash/settle')).toEqual([]);
+    expect(existsSync(state('h8', 'th8'))).toBe(true);
+    await Bun.sleep(15);
+    writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
+    await hook('stop', { session_id: 'h8', cwd: project, stop_hook_active: false });
+    const settles = calls('/_api/agent/bash/settle');
+    expect(settles).toHaveLength(1);
+    expect(settles[0].changed.map((c) => c.path)).toEqual(['ui/C.tsx']);
+    expect(existsSync(state('h8', 'th8'))).toBe(false);
+    // a second Stop does not settle again
+    await hook('stop', { session_id: 'h8', cwd: project, stop_hook_active: false });
+    expect(calls('/_api/agent/bash/settle')).toHaveLength(1);
+  });
+
+  test('no studio running: the diff still binds touched.json, and nothing throws', async () => {
+    const p = makeProject('maude-hook-164-nostudio-');
+    try {
+      const input = bash(p, 'h9', 'th9', ALL);
+      expect((await hook('pre-bash', input)).status).toBe(0);
+      await Bun.sleep(15);
+      writeFileSync(join(p, '.design', 'ui', 'C.tsx'), CANVAS.replace('Hi', 'Yo'));
+      expect((await hook('post-bash', input)).status).toBe(0);
+      const t = JSON.parse(readFileSync(join(p, '.design', '_runs', 'h9', 'touched.json'), 'utf8'));
+      expect(Object.keys(t)).toEqual(['ui/C.tsx']);
+    } finally {
+      rmSync(p, { recursive: true, force: true });
+    }
+  });
 });
