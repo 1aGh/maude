@@ -181,12 +181,49 @@ export function hubCheckoutClass(
   }
   if (cls !== 'code-module') return cls;
   const ownerSha = holds.heldCodeSha(rel);
-  if (ownerSha === undefined) return cls;
+  if (ownerSha === undefined) return note ? unheldBody(rel, holds, { hasFile, sha256 }) : cls;
   if (ownerSha && typeof sha256 === 'function' && sha256() === ownerSha) {
     holds.releaseHold(rel);
     return cls;
   }
   return 'never';
+}
+
+/**
+ * #167 T5.3 — a would-be-code body from a NON-OWNER lane (`note`: the walk, the studio nudge,
+ * hydrate) at a path with no hold, after a declaration. Two ways it is still teammate content:
+ *
+ *   - a GHOST: the path was held and its hold was pruned when the file went; bytes an unhooked
+ *     writer restores there (a git restore) are held again — unless they are exactly the owner's
+ *     last code version, which is the owner's own and lifts the ghost;
+ *   - the OVERFLOW flag: some boundary canvas may never have been noted (the cap, or a cut walk),
+ *     so a path that would be a canvas under the boundary and has no owner code row is `never`.
+ *
+ * The owner's own write door (`peer-put`) never notes, so neither rule ever refuses the owner.
+ */
+function unheldBody(rel, holds, { hasFile, sha256 }) {
+  const ownCode = holds.ownerCodeSha?.(rel) ?? null;
+  if (holds.isGhost?.(rel)) {
+    if (ownCode && typeof sha256 === 'function' && sha256() === ownCode) {
+      holds.clearGhost(rel);
+      return 'code-module';
+    }
+    holds.reholdGhost(rel);
+    return 'never';
+  }
+  if (
+    holds.holdsOverflowed?.() === true &&
+    ownCode === null &&
+    classifyProjectFile(rel, { canvasGroups: null, hasFile }) === 'canvas-owned'
+  ) {
+    return 'never';
+  }
+  return 'code-module';
+}
+
+/** #167 T5.3 — whether this checkout's hold store overflowed (told to the owner). */
+export function heldOverflowed(designRoot) {
+  return classHolds.get(designRoot)?.holdsOverflowed?.() === true;
 }
 
 /** Paths a checkout holds back from the code lane (see `hubCheckoutClass`). */
@@ -314,6 +351,11 @@ export function listProjectFiles(designRoot) {
   const fileSet = new Set(found.map((f) => f.rel));
   const canvasGroups = readCanvasGroups(designRoot);
   const opts = { canvasGroups, hasFile: (r) => fileSet.has(r) };
+  // #167 T5.3 — a walk while the hub is the folder boundary is the pass that notes every
+  // boundary canvas: a cut walk, or a note refused at the cap, sets the overflow flag; a
+  // complete one that refused nothing clears it.
+  const boundaryPass = canvasGroups === null ? classHolds.get(designRoot) : null;
+  boundaryPass?.holdPassStart?.();
 
   const files = [];
   for (const f of found) {
@@ -329,6 +371,7 @@ export function listProjectFiles(designRoot) {
     files.push({ path: f.rel, sha256, size: f.size, mtimeMs: f.mtimeMs, class: cls });
   }
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  boundaryPass?.holdPassEnd?.({ truncated });
 
   if (truncated && !warnedTruncated.has(designRoot)) {
     warnedTruncated.add(designRoot);

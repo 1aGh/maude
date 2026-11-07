@@ -61,6 +61,7 @@ import { isProjectOwnerMatch } from './access-gate.mjs';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import {
   heldCodeEntries,
+  heldOverflowed,
   hubCheckoutClass,
   listProjectFiles,
   readCanvasGroups,
@@ -228,7 +229,31 @@ export function openJournal(
       code_sha TEXT,
       at_ms    INTEGER NOT NULL
     );
+    -- #167 T5.3: holds released since the tail's generation (the tail's delta), and
+    -- GHOSTS — a hold pruned because its file was gone remembers its path, so bytes an
+    -- unhooked writer restores there later are held again rather than read as code.
+    CREATE TABLE IF NOT EXISTS class_hold_released (
+      path  TEXT PRIMARY KEY,
+      seq   INTEGER NOT NULL,
+      ghost INTEGER NOT NULL DEFAULT 0,
+      at_ms INTEGER NOT NULL
+    );
   `);
+  // #167 T5.3 — the journal head a hold was noted at (the tail carries only holds noted at or
+  // after its generation's seq). Additive: an older hub inserts without it (NULL = always
+  // carried); a pre-existing hold is stamped with today's head, so it rides the tail until a
+  // generation taken after this upgrade holds it.
+  if (
+    !db
+      .prepare('PRAGMA table_info(class_holds)')
+      .all()
+      .some((c) => c.name === 'noted_seq')
+  ) {
+    db.exec('ALTER TABLE class_holds ADD COLUMN noted_seq INTEGER');
+    db.prepare(
+      'UPDATE class_holds SET noted_seq = (SELECT COALESCE(MAX(seq), 0) FROM file_journal)'
+    ).run();
+  }
 
   const getMeta = db.prepare('SELECT v FROM journal_meta WHERE k = ?');
   const setMeta = db.prepare(
@@ -310,8 +335,23 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
     allCursors: db.prepare('SELECT * FROM peer_cursors ORDER BY label ASC'),
     holdGet: db.prepare('SELECT code_sha FROM class_holds WHERE path = ?'),
     holdInsert: db.prepare(
-      'INSERT OR IGNORE INTO class_holds (path, code_sha, at_ms) VALUES (?, ?, ?)'
+      'INSERT OR IGNORE INTO class_holds (path, code_sha, at_ms, noted_seq) VALUES (?, ?, ?, ?)'
     ),
+    holdsSince: db.prepare(
+      'SELECT path FROM class_holds WHERE noted_seq IS NULL OR noted_seq >= ? ORDER BY path ASC'
+    ),
+    releasedUpsert: db.prepare(
+      `INSERT INTO class_hold_released (path, seq, ghost, at_ms) VALUES (?, ?, ?, ?)
+       ON CONFLICT(path) DO UPDATE SET seq = excluded.seq, ghost = excluded.ghost, at_ms = excluded.at_ms`
+    ),
+    releasedDelete: db.prepare('DELETE FROM class_hold_released WHERE path = ?'),
+    releasedSince: db.prepare(
+      'SELECT path FROM class_hold_released WHERE seq >= ? ORDER BY path ASC'
+    ),
+    releasedPrune: db.prepare('DELETE FROM class_hold_released WHERE ghost = 0 AND seq < ?'),
+    ghostGet: db.prepare('SELECT 1 AS hit FROM class_hold_released WHERE path = ? AND ghost = 1'),
+    ghostClear: db.prepare('UPDATE class_hold_released SET ghost = 0 WHERE path = ?'),
+    ghostCount: db.prepare('SELECT COUNT(*) AS n FROM class_hold_released WHERE ghost = 1'),
     holdDelete: db.prepare('DELETE FROM class_holds WHERE path = ?'),
     holdAll: db.prepare('SELECT path FROM class_holds ORDER BY path ASC'),
     holdCount: db.prepare('SELECT COUNT(*) AS n FROM class_holds'),
@@ -356,31 +396,64 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
       }
     }
   };
+  /**
+   * #167 T5.3 — the overflow flag (`journal_meta` `holds_overflow`): set when a note was refused
+   * at the cap or a walk was cut while the hub was the folder boundary, so some boundary canvas
+   * may be un-noted. While set, `hubCheckoutClass` reads a would-be-code body from a non-owner
+   * lane with no owner code row as `never` (fails closed). Persisted: a restart or a wake (the db
+   * rides the generation) keeps it. Cleared only by a complete undeclared walk that refused
+   * nothing — the one pass that noted every boundary canvas.
+   */
+  let overflowed = getMeta.get('holds_overflow')?.v === '1';
+  let refusedThisPass = false;
+  const setOverflow = (on, { quiet = false } = {}) => {
+    if (overflowed === on) return;
+    overflowed = on;
+    setMeta.run('holds_overflow', on ? '1' : '0');
+    if (on && !quiet) {
+      log.error?.(
+        '[journal] class holds overflowed — boundary canvases without an owner code row are held back from the code lane until a complete walk while no folders are declared.'
+      );
+    }
+  };
   /** Insert one hold with the owner's last live code sha for it (or NULL). */
   const insertHold = (rel) => {
+    if (stmts.holdGet.get(rel) !== undefined) return true;
     if (holdCount >= maxHolds) {
+      refusedThisPass = true;
+      setOverflow(true, { quiet: true }); // the cap line below says it
       if (!warnedHoldCap) {
         warnedHoldCap = true;
         log.error?.(
-          `[journal] class-hold cap (${maxHolds}) reached — further boundary canvases are not noted, so a later folder declaration could read them as owner code.`
+          `[journal] class-hold cap (${maxHolds}) reached — further boundary canvases are not noted; until a complete walk while no folders are declared, every un-noted one is held back from the code lane (the overflow flag).`
         );
       }
       return false;
     }
     const row = stmts.latestForPath.get(rel);
     const codeSha = row && row.deleted === 0 && row.class === 'code-module' ? row.sha256 : null;
-    const info = stmts.holdInsert.run(rel, codeSha, now());
+    const info = stmts.holdInsert.run(rel, codeSha, now(), stmts.head.get().head);
     if (info.changes > 0) {
       holdCount += 1;
+      // Held again: no release (and no ghost) to carry for it.
+      stmts.releasedDelete.run(rel);
       holdsChanged();
     }
     return true;
   };
-  const deleteHold = (rel) => {
+  /** Drop one hold. `gone` (its file is gone) leaves a ghost of the path (#167 T5.3). */
+  const deleteHold = (rel, { gone = false } = {}) => {
     const info = stmts.holdDelete.run(rel);
     noted.delete(rel);
     if (info.changes > 0) {
       holdCount = Math.max(0, holdCount - 1);
+      let ghost = gone;
+      if (ghost && stmts.ghostCount.get().n >= maxHolds) {
+        // No room to remember it: the overflow flag fails the path closed instead.
+        ghost = false;
+        setOverflow(true);
+      }
+      stmts.releasedUpsert.run(rel, stmts.head.get().head, ghost ? 1 : 0, now());
       holdsChanged();
     }
   };
@@ -408,6 +481,35 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
     releaseHold(rel) {
       deleteHold(rel);
     },
+    /** #167 T5.3 — the owner's last live code sha for `rel`, or null. */
+    ownerCodeSha(rel) {
+      const row = stmts.latestForPath.get(rel);
+      return row && row.deleted === 0 && row.class === 'code-module' ? row.sha256 : null;
+    },
+    /** #167 T5.3 — a hold on `rel` was pruned because its file was gone. */
+    isGhost(rel) {
+      return stmts.ghostGet.get(rel) !== undefined;
+    },
+    clearGhost(rel) {
+      stmts.ghostClear.run(rel);
+    },
+    /** #167 T5.3 — bytes returned at a ghost path from a non-owner lane: hold them again. */
+    reholdGhost(rel) {
+      if (insertHold(rel)) noted.add(rel);
+    },
+    holdsOverflowed: () => overflowed,
+    /** #167 T5.3 — a walk while the hub is the folder boundary starts / ends (`listProjectFiles`). */
+    holdPassStart() {
+      refusedThisPass = false;
+    },
+    holdPassEnd({ truncated = false } = {}) {
+      if (truncated) setOverflow(true);
+      else if (!refusedThisPass) setOverflow(false);
+    },
+    /** #167 T5.3 — a generation holds everything before `seq`: forget the releases it covers. */
+    pruneReleases(seq) {
+      stmts.releasedPrune.run(seq);
+    },
     heldPaths() {
       return stmts.holdAll.all().map((r) => r.path);
     },
@@ -425,7 +527,7 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
       } catch (err) {
         if (err?.code !== 'ENOENT' && err?.code !== 'ENOTDIR') return false;
       }
-      deleteHold(rel);
+      deleteHold(rel, { gone: true });
       return true;
     },
     /** The walk's prune: every hold whose file is gone. */
@@ -624,6 +726,8 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
         note: !deleted && HOLD_NOTE_SOURCES.has(source) && isRegularFile(join(designRoot, rel)),
       });
       if (!isFilePlaneClass(cls)) return null;
+      // #167 T5.3 — the owner's own write door at a ghost path: the bytes are the owner's.
+      if (source === 'peer-put' && !deleted) stmts.ghostClear.run(rel);
 
       const prev = stmts.latestForPath.get(rel);
       const at = now();
@@ -855,11 +959,17 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
         .prepare('SELECT * FROM file_journal WHERE seq > ? ORDER BY seq ASC')
         .all(sinceSeq);
       const lines = rows.map((r) => JSON.stringify(toTail(r)));
-      // N2 — the hold set rides every tail write, whole (it is capped): a hold
-      // is noted with no journal row, and a cell that slept between a note and
-      // the next generation must wake with it. No holds ⇒ the old shape exactly.
-      const held = handle.heldPaths();
-      if (held.length > 0) lines.push(JSON.stringify({ holds: held }));
+      // N2 — the holds ride the tail: a hold is noted with no journal row, and a
+      // cell that slept between a note and the next generation must wake with it.
+      // #167 T5.3 — only the DELTA since the generation (`sinceSeq`): the holds
+      // noted at or after it, and the paths released since (`released`, on the
+      // one `holds` line, so a 2.0.x reader keeps reading `holds`). Nothing
+      // changed ⇒ the old row-only shape exactly, which an older hub reads clean.
+      const held = stmts.holdsSince.all(sinceSeq).map((r) => r.path);
+      const released = stmts.releasedSince.all(sinceSeq).map((r) => r.path);
+      if (held.length > 0 || released.length > 0) {
+        lines.push(JSON.stringify({ holds: held, ...(released.length ? { released } : {}) }));
+      }
       return lines.join('\n');
     },
 
@@ -919,15 +1029,35 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
       /** N2 — hold lines, applied AFTER the rows (their code sha is re-derived
        *  from the replayed journal, see `restoreHolds`). */
       const holdLines = [];
+      const parsed = [];
+      for (const line of lines) {
+        try {
+          parsed.push(JSON.parse(line));
+        } catch {
+          malformed += 1;
+        }
+      }
       const run = db.transaction(() => {
-        for (const line of lines) {
-          let row;
-          try {
-            row = JSON.parse(line);
-          } catch {
+        // #167 T5.3 — releases FIRST, so the owner's code row written after a
+        // prune is not refused by a hold the generation still carries. A tail is
+        // not trusted to lift a hold: a released path is dropped only when its
+        // file is gone from this disk NOW — the walk's own prune, done in time
+        // (it leaves a ghost, like the walk). A file still there stays held.
+        for (const row of parsed) {
+          if (!row || typeof row !== 'object' || 'seq' in row || !('released' in row)) continue;
+          if (!Array.isArray(row.released)) {
             malformed += 1;
             continue;
           }
+          for (const rel of row.released.slice(0, maxHolds)) {
+            if (typeof rel !== 'string' || !isProjectFileShape(rel)) {
+              malformed += 1;
+              continue;
+            }
+            if (designRoot) handle.dropHoldIfGone(designRoot, rel);
+          }
+        }
+        for (const row of parsed) {
           if (row && typeof row === 'object' && 'holds' in row && !('seq' in row)) {
             holdLines.push(row.holds);
             continue;
@@ -1057,7 +1187,13 @@ function ownerHeld(match, designRoot) {
   if (!isProjectOwnerMatch(match)) return {};
   if (!designRoot) return {};
   const held = heldCodeEntries(designRoot);
-  return { held: held.slice(0, MAX_HELD_LISTED), heldCount: held.length };
+  return {
+    held: held.slice(0, MAX_HELD_LISTED),
+    heldCount: held.length,
+    // #167 T5.3 — additive: the list may be short (the hold cap or a cut walk), and the
+    // boundary canvases it could not name are held back until a complete walk.
+    ...(heldOverflowed(designRoot) ? { heldOverflow: true } : {}),
+  };
 }
 
 /**
@@ -1357,6 +1493,7 @@ export function createJournalTail({
           'INSERT INTO journal_meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v'
         )
         .run(TAIL_BASE_KEY, String(seq));
+      journal.pruneReleases?.(seq);
       await flush();
     },
     /** SIGTERM: land whatever is inside the debounce window. */
