@@ -6,7 +6,11 @@ import { join } from 'node:path';
 
 import { textEditKey } from '../editing/text-in-place.tsx';
 
-const key = (k: string, extra: Partial<{ shiftKey: boolean }> = {}) => ({ key: k, shiftKey: false, ...extra });
+const key = (k: string, extra: Partial<{ shiftKey: boolean }> = {}) => ({
+  key: k,
+  shiftKey: false,
+  ...extra,
+});
 
 describe('Esc on an inline text', () => {
   test('Esc commits the typed words — it does not restore the old text', () => {

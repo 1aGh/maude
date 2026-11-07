@@ -2,6 +2,16 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "preview-bar-only-with-back",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "A quieter Preview",
+      "summary": "The Previewing bar at the top of Preview now shows only after you follow a link in the design, to take you back. A plain switch to Preview changes only the toolbar.",
+      "learnMore": "https://maude.sh/docs/desktop/window",
+      "surface": "design-ui"
+    },
+    {
       "id": "preview-keeps-panels",
       "version": null,
       "date": null,

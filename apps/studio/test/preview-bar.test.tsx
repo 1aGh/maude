@@ -2,7 +2,8 @@
 //   · PreviewBar: "Previewing <canvas>" · "⌥⌘P to edit" for editors / "⌥⌘P for Viewing" for a viewing role,
 //     and a back slot (S3.10a fills it: "‹ Homepage") that is absent until a link was followed
 //   · ZoomOnly: the zoom percentage and nothing else
-//   · PreviewChrome: both show in Preview only — Edit, Viewing and Present render neither
+//   · PreviewChrome: the bar shows in Preview only, and only with a Back (#163) — Edit, Viewing and Present
+//     render neither
 //   · ProjectPill `folded`: the mark only (Preview), the accessible name unchanged
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
@@ -109,8 +110,9 @@ describe('ZoomOnly', () => {
 });
 
 describe('PreviewChrome: Preview only', () => {
+  // #163: the bar needs a Back to show, so these mount it with one
   const chrome = (mode: string, caps = ALL_CAPS) => (
-    <PreviewChrome mode={mode} caps={caps} name="Combine-kampan" zoom={0.14} />
+    <PreviewChrome mode={mode} caps={caps} name="Combine-kampan" zoom={0.14} back="Homepage" />
   );
 
   // r2 P3 (TD1d): Preview keeps Edit's Undo · Redo · zoom island (the host draws it), so no ZoomOnly here
