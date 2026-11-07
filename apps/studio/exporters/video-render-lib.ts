@@ -27,6 +27,7 @@
 import { renderMediaOnWeb } from '@remotion/web-renderer';
 import type { ComponentType } from 'react';
 
+import { installCapturePrepass } from './capture-prepass.ts';
 import { installSvgSerializeGuard } from './svg-inline.ts';
 
 interface RenderVideoOpts {
@@ -78,6 +79,9 @@ async function renderVideo(opts: RenderVideoOpts): Promise<RenderVideoResult> {
   // Issue #150 §1 — an inline <svg> with its own `position`/`left`/`top` rendered
   // as an empty bitmap. The guard is scoped to this one render (see svg-inline.ts).
   const restoreSerializer = installSvgSerializeGuard();
+  // Issue #150 §2 + §3 — a size-less svg <img> drawn cropped / not at all, and absolute children
+  // of a transformed static parent jumping to the frame. Scoped to this one render too.
+  const restorePrepass = installCapturePrepass();
   let result: Awaited<ReturnType<typeof renderMediaOnWeb>>;
   try {
     result = await renderMediaOnWeb({
@@ -107,6 +111,7 @@ async function renderVideo(opts: RenderVideoOpts): Promise<RenderVideoResult> {
       pageResponsiveness: 'disabled',
     });
   } finally {
+    restorePrepass();
     restoreSerializer();
   }
   const blob = await result.getBlob();
