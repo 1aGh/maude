@@ -2098,7 +2098,11 @@ mod tests {
             .collect();
         assert_eq!(
             keys,
-            ["account", "closing", "dot", "initial", "kind", "label", "name", "place", "resting", "tone"]
+            // #172 T2.6b: `working_on`, a canvas file stem beside the working mark only.
+            [
+                "account", "closing", "dot", "initial", "kind", "label", "name", "place", "resting", "tone",
+                "working_on"
+            ]
         );
     }
 
