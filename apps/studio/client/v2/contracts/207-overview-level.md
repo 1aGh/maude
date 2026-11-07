@@ -191,6 +191,65 @@ Fail-first (`ff2.sh` + `ff2.py`, each rule reverted on a copy, the current tests
 `warm-release-grace` 1, `warm-quiet-drawing` 1, real 0 red. The `eager` exclusion in `warmCandidates` has no
 red variant: an eager artboard is always mounted in `sleep`, so `admitted` already excludes it (kept, defensive).
 
+## Round 4 (2.0.7): the gesture freeze — an artboard does no work of its own while the camera moves
+
+Michal: "while you pan or zoom, artboards must not redraw … the user notices nothing." Above the cut (or the
+active artboard) an awake artboard kept running its own rAF loops, motion, Remotion, WebGL and video mid-gesture.
+
+1. **The frame gate** (`plugins/design/templates/_shell.html`, script `maude-frame-freeze`; `frame-clock.ts`).
+   The canvas frame's shell replaces `window.requestAnimationFrame` / `cancelAnimationFrame` BEFORE any module
+   loads, so the canvas runtime gets the gated one too (motion's frameloop captures the function when
+   `motion_react.js` evaluates; Remotion's Player, pixi and canvas code look it up per call). While frozen, a
+   callback asked for or coming due is held; the thaw runs the held ones on the next frame, in request order, with
+   that frame's timestamp; a cancel still reaches a held one; a callback that throws does not stop the others; a
+   gesture that starts again mid-flush keeps the rest held; a freeze not renewed for 2 s thaws itself (watchdog).
+   The runtime bundles are untouched (`dist/runtime/*` not regenerated). `__maudeFrameFreeze` (non-writable)
+   carries the exempt `raf`, `caf`, `set`, `frozen`, `on`, `stats`.
+2. **Maude's own frame code is exempt**: every rAF call in the frame's import graph (canvas-lib's + the comment
+   layer's, 54 files, 172 calls) goes through `frameRaf` / `frameCaf` / `frameRafOn(win, …)`, the inspector's
+   injected pins and `maude design perf`'s samplers/pacers take `__maudeFrameFreeze.raf`. So the camera's
+   animation, the gesture's own quiet frame (`afterQuietFrame` — gated, the gesture would end only on its 1 s
+   fallback), the ring's queue, the stills' slices and every chrome loop that follows the camera (halos, comment
+   pins, caret, toolbars) never wait. `test/v2-207-gesture-freeze.test.ts` fails on a bare call.
+3. **canvas-lib** renews the freeze on every camera input (`markInteracting`) and thaws it at the gesture's end
+   (`endInteracting`) and on an unmount mid-gesture. A programmatic camera move (fit, jump) is a gesture too.
+4. **What runs without a frame callback** (`artboard-freeze.ts`, on the freeze's transitions, in the awake
+   artboards that show their body — an asleep one is paused already, one under its still renders no body): CSS
+   animations (`data-dc-frozen`, the `data-dc-asleep` rule), scripted Web Animations (paused / played; a CSS
+   animation or transition is left to the attribute — `pause()` on one would detach it from
+   `animation-play-state` for good and break the sleep rule), silent `<video>` not owned by a VideoComp. A video
+   WITH sound plays on (a pan must not cut the sound). The thaw resumes exactly what the freeze paused, if still
+   paused and connected. Remotion's Player is frozen through its rAF loop (its audio plays on).
+5. **The ring changes nothing mid-gesture** (`artboard-live.ts`): no sleep, no media release, no unmount, no
+   eviction (a mid-gesture on-screen mount goes past the budget up to the ceiling; the settle frees the excess from
+   the off-screen ones, farthest first). On screen, only what would otherwise show a block mounts: an artboard
+   under the cut waits (`setMayWait`, the gate's `inOverviewCut` at the live zoom); the active and video ones
+   never wait. `churnStats()` (in `__maudeWebglStats().churn`) counts mounts, releases and mid-gesture changes.
+6. **Timers are not held** (documented): canvas-lib's own gesture end, settle and publish run on `setTimeout`,
+   React's scheduler and every library share them; deferring them would delay the gesture's end and Maude's own
+   React work. A canvas opts in with `useArtboardGesture()` (re-renders only its caller) to skip a tick.
+
+Rejected: deferring every global rAF without routing Maude's own code (every chrome loop that tracks the camera
+by `getBoundingClientRect` — halos, comment pins, the caret — would freeze in screen space while the world moves);
+a build-time shadow of `requestAnimationFrame` in Maude's modules (touches the C4 build/judge pipeline; canvas
+code and canvas-lib share one bundle scope, so a banner would exempt the canvas too); telling Maude's callers
+from the canvas's by stack (both live in the same bundled module URL); `MotionGlobalConfig` (no pause, only
+`skipAnimations` / manual timing that still runs every frame); `getAnimations().pause()` on CSS animations
+(detaches them from `animation-play-state`, the sleep rule stops working); wrapping timers (above).
+
+Tests: `test/v2-207-gesture-freeze.test.ts` (10: the gate on a fake window, extracted from the real shell; the
+routing ratchet; the perf and pin clocks), `test/v2-207-gesture-freeze-canvas.test.tsx` (a wheel pan on a mounted
+canvas in `sleep`: an artboard's own rAF loop does not tick, its article carries `data-dc-frozen`, the silent
+video pauses and the one with sound does not, the gesture ends on its own quiet frame < 600 ms after the last
+wheel, all of it resumes), `test/v2-207-gesture-ring.test.ts` (3). Fail-first (`scratchpad/ff/ff.sh`, each rule
+reverted on an APFS clone): parent 14 red; no-shell-gate 8, camera-not-exempt 2, no-hold-when-due 6,
+cancel-misses-held 1, flush-ignores-refreeze 1, no-watchdog 1, quiet-frame-gated 2, canvas-no-freeze 1,
+canvas-no-thaw 1, artboards-not-frozen 1, pauses-loud-video 1, no-media-resume 1, no-css-resume 1,
+ratchet-bare-call 1, ring-downs-mid-gesture 1, ring-evicts-mid-gesture 1, ring-no-wait-under-cut 1,
+ring-pinned-waits 1, ring-no-settle-trim 1, perf-gated-clock 1; the fix 14/0.
+
+Measured: see "Round 4 — Safari" below (filled after the Safari slot).
+
 ## Persistence — the safe design, and why it is not in this change
 
 - **Frame-side storage (IndexedDB / Cache API on the canvas origin): rejected.** Every canvas frame shares that one
