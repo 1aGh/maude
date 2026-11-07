@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Generate one MDX reference page per command + a grouped sidebar meta.json.
-// Output lives at content/docs/commands-{flow,design}/<name>.mdx + meta.json.
+// Output lives at content/docs/commands-{flow,design,design-video}/<name>.mdx + meta.json.
 // Run as a prebuild step — see site/package.json `prebuild` script.
 //
 // Source of truth (phase-17 Risk #1): the command catalog — which commands exist, their
@@ -25,7 +25,11 @@ const repoRoot = resolve(__dirname, '../../');
 const docsRoot = resolve(__dirname, '../content/docs');
 const repoUrl = 'https://github.com/1aGh/maude/blob/main';
 
-const SOURCE_DIR = { flow: 'plugins/flow/commands', design: 'plugins/design/commands' };
+const SOURCE_DIR = {
+  flow: 'plugins/flow/commands',
+  design: 'plugins/design/commands',
+  'design-video': 'plugins/design-video/commands',
+};
 
 function parseFrontmatter(raw) {
   const match = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);

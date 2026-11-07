@@ -43,7 +43,12 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 
-import { DESIGN_PLUGIN_DIR, FLOW_PLUGIN_DIR, KGAI_PLUGIN_DIR } from '../paths.ts';
+import {
+  DESIGN_PLUGIN_DIR,
+  DESIGN_VIDEO_PLUGIN_DIR,
+  FLOW_PLUGIN_DIR,
+  KGAI_PLUGIN_DIR,
+} from '../paths.ts';
 import { readUiPrefs } from '../ui-prefs.ts';
 
 /**
@@ -65,6 +70,8 @@ export interface SessionPluginDeps {
   native: boolean;
   /** Bundled `design` plugin dir, or null (npm/web layout). */
   designDir: string | null;
+  /** Bundled `design-video` plugin dir (DDR-249), or null (npm/web layout / an older bundle). */
+  designVideoDir?: string | null;
   /** Bundled `flow` plugin dir, or null (npm/web layout). */
   flowDir: string | null;
   /** Bundled third-party `kgai` plugin dir, or null (only staged in the .app). */
@@ -86,6 +93,10 @@ export function computeSessionPlugins(deps: SessionPluginDeps): SdkPluginConfig[
     if (dir) out.push({ type: 'local', path: dir, skipMcpDiscovery: true });
   };
   add(deps.designDir);
+  // design-video (#156 §4, DDR-249) is opt-in in a terminal, but the app ships its video
+  // features (reel, footage analysis, video comps, Lottie handoff), so the chat always loads it.
+  // It needs design (its agents run under design's hooks), so it never loads alone.
+  if (deps.designDir) add(deps.designVideoDir ?? null);
   // `/flow` auto-load is intentionally OFF for now (2026-07-03) — the chat ships
   // design-only. `deps.flowDir` stays resolved (harmless) so restoring it is a
   // one-liner: re-add `add(deps.flowDir)`.
@@ -214,6 +225,7 @@ export function resolveSessionPlugins(): SdkPluginConfig[] {
   return computeSessionPlugins({
     native: isNativePluginContext(),
     designDir: DESIGN_PLUGIN_DIR,
+    designVideoDir: DESIGN_VIDEO_PLUGIN_DIR,
     flowDir: FLOW_PLUGIN_DIR,
     kgaiDir: KGAI_PLUGIN_DIR,
   });

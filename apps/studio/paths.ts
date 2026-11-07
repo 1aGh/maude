@@ -107,7 +107,7 @@ export const SCHEMA_DIR: string = join(DEV_SERVER_ROOT, 'schema');
  */
 export function pluginDirFrom(
   devServerRoot: string,
-  plugin: 'design' | 'flow' | 'kgai'
+  plugin: 'design' | 'design-video' | 'flow' | 'kgai'
 ): string | null {
   const dir = join(devServerRoot, '..', '..', 'plugins', plugin);
   return existsSync(join(dir, '.claude-plugin', 'plugin.json')) ? dir : null;
@@ -115,6 +115,15 @@ export function pluginDirFrom(
 
 /** Bundled `design` plugin tree, or `null` (npm/web layout). See {@link pluginDirFrom}. */
 export const DESIGN_PLUGIN_DIR: string | null = pluginDirFrom(DEV_SERVER_ROOT, 'design');
+
+/**
+ * Bundled `design-video` plugin tree (the opt-in video split, DDR-249), or `null` (npm/web layout).
+ * See {@link pluginDirFrom}.
+ */
+export const DESIGN_VIDEO_PLUGIN_DIR: string | null = pluginDirFrom(
+  DEV_SERVER_ROOT,
+  'design-video'
+);
 
 /** Bundled `flow` plugin tree, or `null` (npm/web layout). See {@link pluginDirFrom}. */
 export const FLOW_PLUGIN_DIR: string | null = pluginDirFrom(DEV_SERVER_ROOT, 'flow');

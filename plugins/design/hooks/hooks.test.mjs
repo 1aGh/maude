@@ -1182,13 +1182,23 @@ describe('S12.5 — a critic spawned with the documented hand-off', () => {
 });
 
 // S12.7 — bounded writers + untrusted-input readers on hand-offs (V2-1.18 §5.5, DDR-174/183).
+// An agent's file. The footage agents live in the opt-in video plugin (#156 §4, DDR-249); the
+// design plugin's hooks still hold them, so this suite reads them from there.
+const agentFile = (agent) =>
+  join(
+    ROOT,
+    'plugins',
+    agent.startsWith('footage-') ? 'design-video' : 'design',
+    'agents',
+    `${agent}.md`
+  );
+
 // The writers are spawned with the hand-off their own agent file documents, used as written.
 describe('S12.7 — bounded writers and untrusted-input readers', () => {
   let project;
   const S = 's127';
-  const PLUGIN = join(ROOT, 'plugins', 'design');
   const IN = (agent) => {
-    const text = readFileSync(join(PLUGIN, 'agents', `${agent}.md`), 'utf8');
+    const text = readFileSync(agentFile(agent), 'utf8');
     const m = /```json\n([\s\S]*?)\n```/.exec(text.slice(text.search(/^#+ Sample hand-off/m)));
     return JSON.parse(m[1].replaceAll('<session>', S));
   };
@@ -1367,9 +1377,8 @@ describe('S12.7 — bounded writers and untrusted-input readers', () => {
 describe('gate-b-sec2 — bounded writers: maude-verb allowlists, fail closed without a hand-off', () => {
   let project;
   const S = 'sec2';
-  const PLUGIN = join(ROOT, 'plugins', 'design');
   const IN = (agent, session = S) => {
-    const text = readFileSync(join(PLUGIN, 'agents', `${agent}.md`), 'utf8');
+    const text = readFileSync(agentFile(agent), 'utf8');
     const m = /```json\n([\s\S]*?)\n```/.exec(text.slice(text.search(/^#+ Sample hand-off/m)));
     return JSON.parse(m[1].replaceAll('<session>', session));
   };
@@ -1448,7 +1457,7 @@ describe('gate-b-sec2 — bounded writers: maude-verb allowlists, fail closed wi
   // hand-off its body documents, because the hook refuses a run-folder write `owns` does not name.
   test('every run-folder file a writer body saves is in its sample owns; a sibling stays refused', async () => {
     for (const agent of ['ds-migrator', 'draw-agent', 'footage-director', 'reconstruct-agent']) {
-      const body = readFileSync(join(PLUGIN, 'agents', `${agent}.md`), 'utf8');
+      const body = readFileSync(agentFile(agent), 'utf8');
       const doc = IN(agent);
       const n = doc.n;
       const id = { 'ds-migrator': 'm1', 'draw-agent': 'd1', 'footage-director': 'f1' }[agent];
@@ -1565,7 +1574,7 @@ describe('gate-b-sec2 — bounded writers: maude-verb allowlists, fail closed wi
     const { AGENT_VERBS, HANDOFF_REQUIRED } = await import('../../../cli/lib/design-hook.mjs');
     for (const agent of HANDOFF_REQUIRED) expect(Object.hasOwn(AGENT_VERBS, agent)).toBe(true);
     for (const [agent, allowed] of Object.entries(AGENT_VERBS)) {
-      const text = readFileSync(join(PLUGIN, 'agents', `${agent}.md`), 'utf8');
+      const text = readFileSync(agentFile(agent), 'utf8');
       const tools = /^tools:(.*)$/m.exec(text)?.[1] ?? '';
       if (!/\bBash\b/.test(tools)) {
         expect(allowed).toEqual([]);

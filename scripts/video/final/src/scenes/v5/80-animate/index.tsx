@@ -7,7 +7,7 @@ import { easeOut, font, lerp, maude, PANEL_SHADOW, Phrase, Void } from '../../..
  *
  * The Sparky mark from beat 70 comes alive — waves, blinks, antenna twinkles,
  * bobs — emits a single .lottie, then the SAME motion plays in sync on a desktop
- * frame + a phone frame, frame for frame. Grounded: /design:to-lottie.
+ * frame + a phone frame, frame for frame. Grounded: /design-video:to-lottie.
  * VO: "Animate it once. Ship a single file — web and native, frame for frame."
  */
 const t = maude.dark;

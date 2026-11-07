@@ -1,0 +1,6 @@
+{
+  "$comment": "Per-file counts of banned v1 strings under plugins/design-video (cli/lib/plugin-v2-words.test.mjs). Closed at 0 from the split (DDR-249): any banned string in a file fails. Re-baseline only deliberately (MAUDE_RATCHET_REBASE=1).",
+  "patternsHash": "b79175864119",
+  "total": 0,
+  "files": {}
+}

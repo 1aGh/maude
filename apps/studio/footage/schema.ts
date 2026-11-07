@@ -15,7 +15,7 @@
  *                  cut). Per-project-cut.
  *
  *             Both are *metadata only* — never pixels, never re-encoded video.
- *             The `/design:reel` codegen reads the `Edl` and emits a
+ *             The `/design-video:reel` codegen reads the `Edl` and emits a
  *             Timeline-parseable `<TransitionSeries>` video-comp TSX (video-comp
  *             SKILL.md is the authoring contract).
  *
@@ -151,8 +151,8 @@ export interface FootageAnalysis {
   /** Cross-cutting tags ("rebrand", "exterior", "people"). */
   tags?: string[];
   /** Optional audio/speech note — gist + language of what is said, filled ONLY when
-   *  an orchestrator (e.g. /design:video-analyze) hands the analyst a transcript.
-   *  Absent for the default vision-only path (e.g. /design:reel). */
+   *  an orchestrator (e.g. /design-video:video-analyze) hands the analyst a transcript.
+   *  Absent for the default vision-only path (e.g. /design-video:reel). */
   speech?: string;
 }
 

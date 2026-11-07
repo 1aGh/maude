@@ -4,6 +4,7 @@
 #
 # Plugins covered:
 #   - plugins/design/.claude-plugin/plugin.json
+#   - plugins/design-video/.claude-plugin/plugin.json (the opt-in video plugin, DDR-249)
 #   - plugins/flow/.claude-plugin/plugin.json
 #
 # Usage:
@@ -37,8 +38,10 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PKG_PATH="$ROOT/package.json"
 PLUGIN_PATHS=(
   "$ROOT/plugins/design/.claude-plugin/plugin.json"
+  "$ROOT/plugins/design-video/.claude-plugin/plugin.json"
   "$ROOT/plugins/flow/.claude-plugin/plugin.json"
   "$ROOT/plugins/design/.codex-plugin/plugin.json"
+  "$ROOT/plugins/design-video/.codex-plugin/plugin.json"
   "$ROOT/plugins/flow/.codex-plugin/plugin.json"
 )
 # The native desktop shell (Phase 32) ships under the same release line — its

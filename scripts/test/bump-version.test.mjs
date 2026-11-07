@@ -58,8 +58,10 @@ const SUBS = [
 const JSON_MANIFESTS = [
   'package.json',
   'plugins/design/.claude-plugin/plugin.json',
+  'plugins/design-video/.claude-plugin/plugin.json',
   'plugins/flow/.claude-plugin/plugin.json',
   'plugins/design/.codex-plugin/plugin.json',
+  'plugins/design-video/.codex-plugin/plugin.json',
   'plugins/flow/.codex-plugin/plugin.json',
   ...SUBS.map((s) => `packages/maude-${s}/package.json`),
   'apps/studio/package.json',

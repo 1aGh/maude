@@ -18,10 +18,15 @@ import { DESIGN_VERBS_BY_TIER } from './design-help.gen.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DESIGN = join(ROOT, 'plugins', 'design');
+// The video commands and skills moved to the opt-in design-video plugin (#156 §4, DDR-249).
+const VIDEO = join(ROOT, 'plugins', 'design-video');
 const read = (rel) => readFileSync(join(DESIGN, rel), 'utf8');
+const readVideo = (rel) => readFileSync(join(VIDEO, rel), 'utf8');
 
-const COMMANDS = ['export', 'handoff', 'import', 'photo', 'generate', 'reel', 'video-analyze'];
-const SKILLS = ['ai-generation', 'video-comp', 'footage-director', 'footage-keyframes'];
+const COMMANDS = ['export', 'handoff', 'import', 'photo', 'generate'];
+const SKILLS = ['ai-generation'];
+const VIDEO_COMMANDS = ['reel', 'video-analyze'];
+const VIDEO_SKILLS = ['video-comp', 'footage-director', 'footage-keyframes', 'video-generation'];
 const mdIn = (dir) =>
   readdirSync(dir)
     .filter((f) => f.endsWith('.md'))
@@ -29,6 +34,8 @@ const mdIn = (dir) =>
 const FILES = [
   ...COMMANDS.map((c) => join(DESIGN, 'commands', `${c}.md`)),
   ...SKILLS.flatMap((s) => mdIn(join(DESIGN, 'skills', s))),
+  ...VIDEO_COMMANDS.map((c) => join(VIDEO, 'commands', `${c}.md`)),
+  ...VIDEO_SKILLS.flatMap((s) => mdIn(join(VIDEO, 'skills', s))),
   join(DESIGN, 'commands', 'assets.md'),
 ];
 
@@ -139,7 +146,7 @@ test('S12.14: generate covers the three modalities and the take swap', () => {
 });
 
 test('S12.14: reel makes its canvas with the app’s create and places shots with reel-place', () => {
-  const r = read('commands/reel.md');
+  const r = readVideo('commands/reel.md');
   assert.match(r, /POST \/_api\/canvas/);
   assert.match(r, /maude design reel-place <slug> --next/);
   assert.doesNotMatch(r, /Maude 1\.x/);
@@ -147,10 +154,10 @@ test('S12.14: reel makes its canvas with the app’s create and places shots wit
 });
 
 test('S12.14: video-analyze reads the words through transcribe-local', () => {
-  const v = read('commands/video-analyze.md');
+  const v = readVideo('commands/video-analyze.md');
   assert.match(v, /maude design transcribe-local/);
   assert.match(v, /exit 3|Exit 3/);
-  assert.match(read('skills/footage-keyframes/SKILL.md'), /transcribe-local/);
+  assert.match(readVideo('skills/footage-keyframes/SKILL.md'), /transcribe-local/);
 });
 
 test('S12.14: the wave-B files are at ratchet 0', () => {

@@ -30,12 +30,12 @@ Headless Chrome (and many real user browsers / OS accessibility settings) defaul
 
 #### 0.6 Video-comp pre-load (DDR-148)
 
-When the feedback mentions video / animation-as-video cues — `video`, `klip`, `clip`, `animace`, `animation`, `mp4`, `gif`, `hudba`, `music`, `soundtrack`, `titulek`, `title card`, `transition`, `crossfade`, `motion graphic`, `showreel`, `trailer` — **OR** the active canvas already contains `<VideoComp` — load skill **`design:video-comp`** before dispatching the edit, so the composition stays inside the Remotion iron rules (frame-driven values only, no CSS animations in a comp, only bundled imports, `assets/` sources). One-liner grep:
+When the feedback mentions video / animation-as-video cues — `video`, `klip`, `clip`, `animace`, `animation`, `mp4`, `gif`, `hudba`, `music`, `soundtrack`, `titulek`, `title card`, `transition`, `crossfade`, `motion graphic`, `showreel`, `trailer` — **OR** the active canvas already contains `<VideoComp` — load skill **`design-video:video-comp`** before dispatching the edit, so the composition stays inside the Remotion iron rules (frame-driven values only, no CSS animations in a comp, only bundled imports, `assets/` sources). One-liner grep:
 
 ```bash
 grep -qiE 'video|klip|clip|animace|animation|mp4|gif|hudba|music|soundtrack|titulek|title card|transition|crossfade|motion graphic|showreel|trailer' <<< "$ARGUMENTS" && VIDEO_EDIT=1
 grep -q '<VideoComp' "$ACTIVE_CANVAS_ABS" 2>/dev/null && VIDEO_EDIT=1
-[ -n "$VIDEO_EDIT" ] && echo "→ loading skill design:video-comp (Remotion composition rules)"
+[ -n "$VIDEO_EDIT" ] && echo "→ loading skill design-video:video-comp (Remotion composition rules)"
 ```
 
 #### 0.6b Timeline clip verbs — the headless editor door (enhanced-video-editing)

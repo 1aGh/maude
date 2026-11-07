@@ -29,7 +29,7 @@ Project-specific values (designRoot, rootClass, tokens, accent, colorSpace) come
 
 **Default output mode:** `--asset` (standalone file). Choose `--inline` when the mark belongs directly in the open canvas (a logo in the header, an icon in a button).
 
-**Animation:** when the brief asks for motion (morph / pulse / blink / "animated…"), draw-agent also reads `references/draw/motion-rules.md`, plans a keyframe `Timeline` via IR (`morphVariants` / `timeline` / `sequence`+`parallel`+`stagger`), emits via `toAnimatedSvg`/`toAnimatedJsx`, and **must verify it live** via `draw-proof --motion` (a freeze-frame can't capture motion — DDR-094). Production delivery for web+mobile is Lottie via `/design:to-lottie`.
+**Animation:** when the brief asks for motion (morph / pulse / blink / "animated…"), draw-agent also reads `references/draw/motion-rules.md`, plans a keyframe `Timeline` via IR (`morphVariants` / `timeline` / `sequence`+`parallel`+`stagger`), emits via `toAnimatedSvg`/`toAnimatedJsx`, and **must verify it live** via `draw-proof --motion` (a freeze-frame can't capture motion — DDR-094). Production delivery for web+mobile is Lottie via `/design-video:to-lottie`.
 
 ## Flow
 

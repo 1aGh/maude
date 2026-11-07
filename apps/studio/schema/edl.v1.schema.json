@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://maude.sh/schema/edl/v1",
   "title": "Maude edit decision list (<slug>.edl.json), v1",
-  "description": "The documented shape of an EDL (`/design:reel`, skill design:footage-director). The runtime source is `validateEdl` in apps/studio/footage/schema.ts — `maude design check --strict` runs it; test/schema-drift.test.ts holds this file to the same verdicts on a corpus. Every optional field may also be null. V2-1.12 R8: v1's reader treats an EDL with ANY unknown key as missing, so v2 adds no keys to this format.",
+  "description": "The documented shape of an EDL (`/design-video:reel`, skill design-video:footage-director). The runtime source is `validateEdl` in apps/studio/footage/schema.ts — `maude design check --strict` runs it; test/schema-drift.test.ts holds this file to the same verdicts on a corpus. Every optional field may also be null. V2-1.12 R8: v1's reader treats an EDL with ANY unknown key as missing, so v2 adds no keys to this format.",
   "type": "object",
   "additionalProperties": false,
   "properties": {

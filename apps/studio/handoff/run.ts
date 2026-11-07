@@ -120,7 +120,7 @@ export function handoffPrompt(req: HandoffRequest, designRel: string): string {
       break;
     case 'lottie':
       lines.push(
-        `Follow /design:to-lottie for "${req.canvas}" --verify and write the animation to ${req.outRel}.`
+        `Follow /design-video:to-lottie for "${req.canvas}" --verify and write the animation to ${req.outRel}.`
       );
       break;
     default:

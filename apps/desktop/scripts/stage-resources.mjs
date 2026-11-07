@@ -158,16 +158,18 @@ console.log('[stage-resources] staged pkgRoot anchors → cli/ + package.json');
 
 // --- Plugin trees: design + flow loadable surfaces (DDR-143) -----------------
 // The ACP chat session auto-loads these as session-scoped LOCAL plugins so
-// `/design:*` + `/flow:*` resolve with zero manual install: the dev-server points
-// `_meta.claudeCode.options.plugins` at Resources/plugins/{design,flow} (paths.ts
-// DESIGN_PLUGIN_DIR/FLOW_PLUGIN_DIR, gated on `.claude-plugin/plugin.json`). We
+// `/design:*`, `/design-video:*` + `/flow:*` resolve with zero manual install: the dev-server points
+// `_meta.claudeCode.options.plugins` at Resources/plugins/{design,design-video,flow} (paths.ts
+// DESIGN_PLUGIN_DIR/DESIGN_VIDEO_PLUGIN_DIR/FLOW_PLUGIN_DIR, gated on `.claude-plugin/plugin.json`). We
 // copy the WHOLE plugin dir (commands/agents/skills/hooks/.claude-plugin +
 // templates/) because the command markdown references `$CLAUDE_PLUGIN_ROOT/…`
 // paths (templates, agents) at runtime, and the design/templates leg ALSO
 // satisfies http.ts's TEMPLATES_DIR (`<root>/../../plugins/design/templates`) for
 // the canvas iframe harness. Small (~2 MB markdown) vs the sidecar; no
 // node_modules in a plugin tree, but filter defensively to match the studio copy.
-const PLUGIN_TREES = ['design', 'flow'];
+// design-video is opt-in in a terminal but not in the app: the app ships its video features, so the
+// chat loads it next to design (#156 §4, DDR-249).
+const PLUGIN_TREES = ['design', 'design-video', 'flow'];
 for (const plugin of PLUGIN_TREES) {
   const src = join(REPO_ROOT, 'plugins', plugin);
   need(join(src, '.claude-plugin', 'plugin.json'), `plugins/${plugin}/.claude-plugin/plugin.json`);

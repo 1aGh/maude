@@ -26,7 +26,7 @@ actually moves at runtime?**
    is the anti-pattern the engine removes — it drifts and bypasses the proof gate.
 
 2. **Production delivery is Lottie-from-code, web AND mobile.** The maude SMIL/JSX
-   form is for **authoring/preview**. Ship via `/design:to-lottie` (one `.lottie`,
+   form is for **authoring/preview**. Ship via `/design-video:to-lottie` (one `.lottie`,
    1:1 on `lottie-web`/`dotlottie-react` + `lottie-react-native`). The native
    rn-svg/Reanimated renderer (`/design:to-rn`) is a **fallback for light
    animation only** — continuous rich morph hits rn-svg's perf ceiling and
@@ -52,7 +52,7 @@ so an animated transform never clobbers a static one — keep it that way.
 
 ---
 
-## The 8 conversion rules (when emitting Lottie — `/design:to-lottie`)
+## The 8 conversion rules (when emitting Lottie — `/design-video:to-lottie`)
 
 Each was found the hard way in the POC; the skill MUST encode all 8 (full text in
 [`design-to-lottie-skill-spec.md`](../../../../.ai/plans/notes/design-to-lottie-skill-spec.md)):

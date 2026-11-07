@@ -108,29 +108,27 @@ test('--check goes red on an orphan mirror whose command is gone, and a plain ru
   assert.equal(run(root, '--check').status, 0);
 });
 
-test('the slash list holds every design command, and nothing else', () => {
+// The in-app chat loads design and design-video (DDR-249), so its slash list names both.
+test('the slash list holds every design and design-video command, and nothing else', () => {
   const gen = read('apps/studio/client/panels/slash-commands.gen.js');
-  const listed = [...gen.matchAll(/name: '(design:[^']+)'/g)].map((m) => m[1]).sort();
+  const listed = [...gen.matchAll(/name: '([a-z-]+:[^']+)'/g)].map((m) => m[1]).sort();
   assert.deepEqual(
     listed,
-    verbsOf('design').map((v) => `design:${v}`)
+    [
+      ...verbsOf('design').map((v) => `design:${v}`),
+      ...verbsOf('design-video').map((v) => `design-video:${v}`),
+    ].sort()
   );
-  for (const v of [
-    'board',
-    'generate',
-    'photo',
-    'reel',
-    'import',
-    'video-analyze',
-    'chat',
-    'hub-workspace',
-  ]) {
+  for (const v of ['board', 'generate', 'photo', 'import', 'chat', 'hub-workspace']) {
     assert.ok(listed.includes(`design:${v}`), `design:${v} is in the slash list`);
+  }
+  for (const v of ['reel', 'video-analyze', 'to-lottie']) {
+    assert.ok(listed.includes(`design-video:${v}`), `design-video:${v} is in the slash list`);
   }
 });
 
-test('every command has a mirror and every mirror has a command (design and flow)', () => {
-  for (const plugin of ['design', 'flow']) {
+test('every command has a mirror and every mirror has a command (each plugin)', () => {
+  for (const plugin of ['design', 'design-video', 'flow']) {
     const mirrors = readdirSync(join(REPO, 'plugins', plugin, 'codex-skills'))
       .filter((d) => d.startsWith('source-command-'))
       .map((d) => d.slice('source-command-'.length))
@@ -158,7 +156,7 @@ test('the contract-voice body is CONTRACT §3–§4, verbatim', () => {
 // to it), so a Codex-only mirror there is loaded, and paid for, in every Claude session. The
 // mirrors live in codex-skills/ and only the Codex manifest lists that folder.
 test('no Codex mirror sits under skills/ (Claude Code would load it)', () => {
-  for (const plugin of ['design', 'flow']) {
+  for (const plugin of ['design', 'design-video', 'flow']) {
     const leaked = readdirSync(join(REPO, 'plugins', plugin, 'skills')).filter((d) =>
       d.startsWith('source-command-')
     );
@@ -167,7 +165,7 @@ test('no Codex mirror sits under skills/ (Claude Code would load it)', () => {
 });
 
 test('each Codex manifest lists skills/ and codex-skills/ (Codex replaces its default when skills is set)', () => {
-  for (const plugin of ['design', 'flow']) {
+  for (const plugin of ['design', 'design-video', 'flow']) {
     const manifest = JSON.parse(read(`plugins/${plugin}/.codex-plugin/plugin.json`));
     assert.deepEqual(manifest.skills, ['./skills/', './codex-skills/'], `${plugin} manifest`);
   }

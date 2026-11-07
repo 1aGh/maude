@@ -19,7 +19,7 @@ import statsJson from './stats.json';
 
 export { CATEGORY_META, CATEGORY_ORDER, COMMAND_CATALOG, groupByCategory, isDaily };
 
-export type PluginSlug = 'flow' | 'design';
+export type PluginSlug = 'flow' | 'design' | 'design-video';
 
 /** Catalog shapes (mirror the JSDoc typedefs in command-catalog.mjs). */
 export type CatalogCommand = { name: string; category: string };

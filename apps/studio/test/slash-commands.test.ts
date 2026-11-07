@@ -118,24 +118,26 @@ describe('filterCommands', () => {
   });
 });
 
-// S12.2 — the list is generated from plugins/design/commands/*.md; a command added there shows
-// up in the AI chat panel's autocomplete without a hand edit.
-describe('STATIC_COMMANDS covers every design command', () => {
-  const dir = join(import.meta.dir, '..', '..', '..', 'plugins', 'design', 'commands');
-  const verbs = readdirSync(dir)
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => f.slice(0, -3));
+// S12.2 — the list is generated from plugins/{design,design-video}/commands/*.md (the in-app chat
+// loads both, DDR-249); a command added there shows up in the AI chat panel's autocomplete
+// without a hand edit.
+describe('STATIC_COMMANDS covers every design and design-video command', () => {
+  const namesOf = (plugin: string) =>
+    readdirSync(join(import.meta.dir, '..', '..', '..', 'plugins', plugin, 'commands'))
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => `${plugin}:${f.slice(0, -3)}`);
+  const names = [...namesOf('design'), ...namesOf('design-video')];
 
-  test('there are design commands to cover', () => {
-    expect(verbs.length).toBeGreaterThanOrEqual(24);
+  test('there are commands to cover', () => {
+    expect(names.filter((n) => n.startsWith('design:')).length).toBeGreaterThanOrEqual(24);
+    expect(names).toContain('design-video:reel');
   });
-  test('every commands/*.md has a design:<verb> entry', () => {
+  test('every commands/*.md has a <plugin>:<verb> entry', () => {
     const have = new Set(STATIC_COMMANDS.map((c) => c.name));
-    const missing = verbs.filter((v) => !have.has(`design:${v}`));
-    expect(missing).toEqual([]);
+    expect(names.filter((n) => !have.has(n))).toEqual([]);
   });
   test('and nothing else is listed', () => {
-    const want = new Set(verbs.map((v) => `design:${v}`));
+    const want = new Set(names);
     expect(STATIC_COMMANDS.filter((c) => !want.has(c.name)).map((c) => c.name)).toEqual([]);
   });
 });

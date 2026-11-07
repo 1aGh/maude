@@ -1,0 +1,19 @@
+{
+  "name": "design-video",
+  "version": "2.0.8",
+  "description": "Video cuts, footage analysis and Lottie export for Maude Design.",
+  "author": {
+    "name": "1aGh"
+  },
+  "license": "MIT",
+  "skills": ["./skills/", "./codex-skills/"],
+  "interface": {
+    "displayName": "Maude Design Video",
+    "shortDescription": "Video cuts, footage analysis and Lottie export for Maude Design.",
+    "longDescription": "Video cuts, footage analysis and Lottie export for Maude Design. Opt-in: install it next to the design plugin when you work with video.",
+    "developerName": "1aGh",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": ["Use $design-video:source-command-reel to cut a folder of clips into a reel."]
+  }
+}

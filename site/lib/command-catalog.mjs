@@ -20,7 +20,7 @@
  */
 
 /** @typedef {{ name: string, category: string }} CatalogCommand */
-/** @typedef {{ slug: 'flow' | 'design', label: string, prefix: string, commands: CatalogCommand[] }} CatalogPlugin */
+/** @typedef {{ slug: 'flow' | 'design' | 'design-video', label: string, prefix: string, commands: CatalogCommand[] }} CatalogPlugin */
 
 /** Sidebar + tree group order. Unlisted categories sort alphabetically after these. */
 export const CATEGORY_ORDER = [
@@ -88,11 +88,8 @@ export const COMMAND_CATALOG = [
       { name: 'draw', category: 'daily' },
       { name: 'export', category: 'daily' },
       { name: 'handoff', category: 'daily' },
-      { name: 'to-lottie', category: 'daily' },
       { name: 'to-rn', category: 'daily' },
       { name: 'photo', category: 'daily' },
-      { name: 'reel', category: 'daily' },
-      { name: 'video-analyze', category: 'daily' },
       { name: 'generate', category: 'daily' },
       { name: 'import', category: 'daily' },
       { name: 'assets', category: 'daily' },
@@ -108,6 +105,17 @@ export const COMMAND_CATALOG = [
       { name: 'setup-docs', category: 'setup' },
       { name: 'hub-workspace', category: 'hub' },
       { name: 'smoke', category: 'validate' },
+    ],
+  },
+  {
+    // The opt-in video plugin (#156 §4, DDR-249).
+    slug: 'design-video',
+    label: 'Design video',
+    prefix: '/design-video:',
+    commands: [
+      { name: 'reel', category: 'daily' },
+      { name: 'video-analyze', category: 'daily' },
+      { name: 'to-lottie', category: 'daily' },
     ],
   },
 ];

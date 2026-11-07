@@ -1,6 +1,0 @@
-interface:
-  display_name: "design:reel"
-  short_description: "Analyze raw footage and create a directed video cut with…"
-  default_prompt: "Use $design:source-command-reel with the task details I provide."
-policy:
-  allow_implicit_invocation: false
