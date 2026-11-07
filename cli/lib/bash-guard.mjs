@@ -37,7 +37,7 @@
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { realpathDeep } from './confine-out.mjs';
 import { DESIGN_ROOT_FLAGS, ROOT_FLAGS, SESSION_ENV_KEYS } from './confine-root.mjs';
@@ -816,7 +816,7 @@ export function designVerbOf(cmd, verbs) {
  * a flag denylist over tools that add flags per release is the class Claude Code's own read-only
  * check lost to (CVE-2025-64755, CVE-2025-66032); leaving them out costs only a claim window.
  */
-const READERS = new Set([
+export const READERS = new Set([
   'ls',
   'cat',
   'head',
@@ -1712,6 +1712,275 @@ export function changedDesignFiles(designRoot, hashes, since, opts = {}) {
     if (!Object.hasOwn(before, rel) || before[rel] !== now) out.push(rel);
   }
   return out;
+}
+
+/**
+ * #164 B1 — the frozen READERS list `bash-guard-readers.test.mjs` compares `READERS` against. A tool
+ * joins `READERS` only if none of its flags writes a file (no `-o FILE`, no `w` command, no `-i`, no
+ * `--output`, no `--pre CMD`): a reader that does costs a wrong "provably a read", so a call that runs
+ * it skips the window and its write lands as outside. Adding one means changing this pin in the same
+ * commit, with the "cannot write" check the test names.
+ */
+export const READERS_PIN = Object.freeze([
+  '[',
+  'basename',
+  'cat',
+  'cd',
+  'cmp',
+  'column',
+  'cut',
+  'date',
+  'df',
+  'diff',
+  'dirname',
+  'du',
+  'echo',
+  'egrep',
+  'false',
+  'fgrep',
+  'find',
+  'grep',
+  'head',
+  'jq',
+  'ls',
+  'md5',
+  'nl',
+  'popd',
+  'printf',
+  'pushd',
+  'pwd',
+  'readlink',
+  'realpath',
+  'sha256sum',
+  'shasum',
+  'sleep',
+  'stat',
+  'tail',
+  'test',
+  'tr',
+  'true',
+  'type',
+  'wc',
+  'which',
+]);
+
+// ── #164 B1: the lane snapshot, its diff, and what a call can plausibly write ────────────────
+
+/** @typedef {{ v: 1, complete: boolean, files: Record<string, [string, string, number, string, string | null]> }} LaneManifest */
+
+const laneSha = (bytes) => createHash('sha256').update(bytes).digest('hex');
+const sameKey = (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
+const filesOf = (m) =>
+  m && typeof m === 'object' && m.files && typeof m.files === 'object' ? m.files : null;
+
+/**
+ * A manifest of every canvas-lane file of `designRoot`: `rel → [mtimeNs, ctimeNs, size, ino, sha]`.
+ * The stat key includes `ctime` (a `touch -r` restore moves it) and the inode (a rename-over). The sha
+ * (sha256, hex) is taken only on a cache miss, within `budgetMs`: a file whose key matches `prev` or
+ * `cache` reuses that sha, so a stat-only pass hashes nothing. Past a bound (`budgetMs`, `maxEntries`,
+ * `maxFiles`) the rest has `sha: null` or is left out, and `complete` is false. The hash cache is
+ * non-authoritative: a stale entry can only mis-list a touch, never claim bytes (the studio re-reads).
+ *
+ * @returns {LaneManifest}
+ */
+export function laneSnapshot(
+  designRoot,
+  { prev = null, cache = null, budgetMs = 800, maxEntries = 50_000, maxFiles = 20_000 } = {}
+) {
+  const t0 = performance.now();
+  const pf = filesOf(prev);
+  const cf = filesOf(cache);
+  /** @type {LaneManifest['files']} */
+  const files = {};
+  let complete = true;
+  let entries = 0;
+  let count = 0;
+  let stop = false;
+  const walk = (dir, relDir) => {
+    let names;
+    try {
+      names = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const d of names) {
+      if (stop) return;
+      if (++entries > maxEntries) {
+        complete = false;
+        stop = true;
+        return;
+      }
+      if (d.name.startsWith('_') || d.name.startsWith('.') || d.name === 'node_modules') continue;
+      const abs = join(dir, d.name);
+      const rel = relDir ? `${relDir}/${d.name}` : d.name;
+      if (d.isDirectory()) {
+        walk(abs, rel);
+      } else if (d.isFile() && LANE_FILE_RE.test(d.name)) {
+        if (count >= maxFiles) {
+          complete = false;
+          stop = true;
+          return;
+        }
+        let st;
+        try {
+          st = statSync(abs, { bigint: true });
+        } catch {
+          continue; // gone
+        }
+        const key = [String(st.mtimeNs), String(st.ctimeNs), Number(st.size), String(st.ino)];
+        let sha = null;
+        for (const src of [pf, cf]) {
+          const e = src && Object.hasOwn(src, rel) ? src[rel] : null;
+          if (Array.isArray(e) && e.length >= 5 && sameKey(e, key) && typeof e[4] === 'string') {
+            sha = e[4];
+            break;
+          }
+        }
+        if (sha === null) {
+          if (performance.now() - t0 >= budgetMs) complete = false;
+          else {
+            try {
+              sha = laneSha(readFileSync(abs));
+            } catch {
+              continue; // gone
+            }
+          }
+        }
+        files[rel] = [...key, sha];
+        count++;
+      }
+    }
+  };
+  walk(designRoot, '');
+  return { v: 1, complete, files };
+}
+
+/**
+ * The lane files that differ between two manifests, sorted by path:
+ * `{ path, sha, created, deleted }` with `sha` the post-call bytes' sha256, or null when it cannot be
+ * stated (the file was past the budget, so no pre-hash exists, or no post-hash): null never claims.
+ * A rewrite to the same bytes (a `sed -i` with no match) is not listed. An incomplete manifest proves
+ * neither a create (pre) nor a delete (post), so those are not reported as such.
+ */
+export function laneDiff(pre, post) {
+  const a = filesOf(pre);
+  const b = filesOf(post);
+  if (!a || !b) return [];
+  const out = [];
+  for (const [path, q] of Object.entries(b)) {
+    const p = Object.hasOwn(a, path) ? a[path] : null;
+    if (!p) {
+      const proven = pre.complete === true;
+      out.push({ path, sha: proven ? (q[4] ?? null) : null, created: proven, deleted: false });
+    } else if (!sameKey(p, q)) {
+      // a rewrite to the same bytes (`sed -i` with no match) is not a change
+      if (p[4] === null) out.push({ path, sha: null, created: false, deleted: false });
+      else if (q[4] === null || q[4] !== p[4])
+        out.push({ path, sha: q[4] ?? null, created: false, deleted: false });
+    }
+  }
+  if (post.complete === true)
+    for (const path of Object.keys(a))
+      if (!Object.hasOwn(b, path)) out.push({ path, sha: null, created: false, deleted: true });
+  return out.sort((x, y) => (x.path < y.path ? -1 : x.path > y.path ? 1 : 0));
+}
+
+const SCRIPT_EXT_RE = /\.(?:py|mjs|cjs|js|ts|mts|cts|sh|bash|zsh|rb|pl|php|lua)$/i;
+const LANE_EXT = '(?:tsx|jsx|meta\\.json|annotations\\.json)';
+const QUOTED_LANE_RE = new RegExp(`(["'\`])([^"'\`\\n]{1,300}?\\.${LANE_EXT})\\1`, 'gi');
+const BARE_LANE_RE = new RegExp(
+  `(?:^|[\\s=(,\\[:])([^\\s"'\`<>|;&()=,\\[\\]]+\\.${LANE_EXT})(?![A-Za-z0-9_.-])`,
+  'gi'
+);
+const reEscape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const posix = (p) => p.split(sep).join('/');
+
+/**
+ * What a call that may write can plausibly write, judged from its command text (and the text of a
+ * script file it runs: a literal operand with a script extension, or the program word itself, an existing
+ * file inside the project, at most `scriptMaxBytes`):
+ *   `named` — canvas-lane files the text names, plus lane paths it names that do not exist yet (a
+ *             create), resolved against the effective cwd (a literal `cd` moves it);
+ *   `all`   — names none, but the text references the design root (its absolute path or its `.design`
+ *             segment), or the cwd is inside it, or it names more files than one window carries;
+ *   `none`  — anything else (`pnpm test`, `git pull`): no snapshot, no window; a canvas such a call
+ *             writes lands as outside.
+ *
+ * @param {string} designRoot
+ * @param {string} cwd
+ * @param {unknown} command
+ * @returns {{ mode: 'named' | 'all' | 'none', files: string[] }}
+ */
+export function callCoverage(designRoot, cwd, command, { scriptMaxBytes = 262_144 } = {}) {
+  if (typeof command !== 'string' || !command.trim()) return { mode: 'none', files: [] };
+  const root = resolve(designRoot);
+  const project = dirname(root);
+  const inProject = (abs) => abs === project || abs.startsWith(project + sep);
+  const inDesign = (abs) => abs === root || abs.startsWith(root + sep);
+  const base = basename(root);
+  const cmds = parseBash(command);
+  // the effective cwd, and the files a script word names
+  let cur = resolve(cwd || '.');
+  let cdInside = inDesign(cur);
+  const texts = [command];
+  const cwds = [cur];
+  const scripts = new Set();
+  for (const cmd of cmds ?? []) {
+    const e = effective(cmd.words);
+    if (e && e.name === 'cd' && e.args[0]?.literal && !isOpt(e.args[0])) {
+      cur = resolve(cur, e.args[0].text);
+      cwds.push(cur);
+      if (inDesign(cur)) cdInside = true;
+      continue;
+    }
+    cmd.words.forEach((w, i) => {
+      if (!w.literal || !w.text || w.text.startsWith('-')) return;
+      if (SCRIPT_EXT_RE.test(w.text) || (i === 0 && /[/.]/.test(w.text))) {
+        const abs = resolve(cur, w.text);
+        if (inProject(abs)) scripts.add(abs);
+      }
+    });
+  }
+  for (const abs of scripts) {
+    try {
+      const st = statSync(abs);
+      if (!st.isFile() || st.size > scriptMaxBytes) continue;
+      texts.push(readFileSync(abs, 'utf8'));
+    } catch {
+      /* not a readable file */
+    }
+  }
+  const text = texts.join('\n');
+  const found = new Set(namedDesignFiles(designRoot, text, { max: 33 }));
+  // lane paths that do not exist yet (a create), resolved against the effective cwd
+  const cands = new Set();
+  for (const m of text.matchAll(QUOTED_LANE_RE)) cands.add(m[2]);
+  // a bare scan over what the quoted scan left (else `'A B Cut.tsx'` also yields `Cut.tsx`)
+  for (const m of text.replace(QUOTED_LANE_RE, ' ').matchAll(BARE_LANE_RE)) cands.add(m[1]);
+  for (const c of cands) {
+    if (/[*?{}$`~]/.test(c)) continue; // computed or globbed, not a name
+    const tries = isAbsolute(c)
+      ? [c]
+      : [
+          ...cwds.map((d) => resolve(d, c)),
+          ...(c.startsWith(`${base}/`) || c.startsWith(`./${base}/`) ? [resolve(project, c)] : []),
+        ];
+    for (const abs of tries) {
+      if (!inDesign(abs) || abs === root) continue;
+      const rel = posix(relative(root, abs));
+      if (
+        rel.split('/').some((s) => s.startsWith('_') || s.startsWith('.') || s === 'node_modules')
+      )
+        continue;
+      if (LANE_FILE_RE.test(rel)) found.add(rel);
+    }
+  }
+  if (found.size > 32) return { mode: 'all', files: [] };
+  if (found.size) return { mode: 'named', files: [...found].sort() };
+  const refsRoot =
+    text.includes(root) ||
+    new RegExp(`(?:^|[^A-Za-z0-9_.-])${reEscape(base)}(?=[/\\\\'"\`\\s)]|$)`).test(text);
+  return refsRoot || cdInside ? { mode: 'all', files: [] } : { mode: 'none', files: [] };
 }
 
 export { CANVAS_RE };

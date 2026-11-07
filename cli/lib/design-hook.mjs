@@ -67,18 +67,26 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import {
   bashBackgrounds,
   bashMayWrite,
-  changedDesignFiles,
+  callCoverage,
   classifyBash,
-  designLaneHashes,
   designVerbOf,
   designWritesSince,
+  laneDiff,
+  laneSnapshot,
   maudeWords,
-  namedDesignFiles,
   parseBash,
 } from './bash-guard.mjs';
 import { realpathDeep } from './confine-out.mjs';
 import { sessionRoot } from './confine-root.mjs';
 import { cleanFinding, cleanText, fileText, findingLine } from './finding-text.mjs';
+import {
+  bashStatePath,
+  lanesCachePath,
+  pruneStates,
+  readState,
+  removeState,
+  writeState,
+} from './hook-state.mjs';
 import { DESIGN_REL, findProjectRoot, locateStudio, postStudio } from './studio-locate.mjs';
 
 export const HOOK_EVENTS = [
@@ -1399,17 +1407,42 @@ async function preBash(ctx, input) {
       : {};
   // p8-a1-claims — `interp`: something in the call writes without claiming (no table: assume so).
   // A terminal-lane verb cannot claim either (no MAUDE_CHAT_ID names a chat).
-  const interp = !claimingVerbs(ctx) || bashMayWrite(command, claimingVerbs(ctx)) || !hookChat();
-  // Such a call gets a time window for the canvases its command NAMES only (bash-guard
-  // `namedDesignFiles`): a person's save to any other canvas during it stays theirs.
-  const files = interp ? namedDesignFiles(ctx.designRoot, command) : [];
-  // p8-sec2-attrib A1 — a path it only computes (`sed -i … *.tsx`, `find -exec`, `'Ho'+'me.tsx'`) is
-  // not named, yet the call may write it: hash every canvas lane now, so its end binds exactly the
-  // files whose bytes changed (the studio drops what a person's save landed). A call that names
-  // nothing opens an all-canvas window for the run stage instead (it takes outside writes; no hold).
+  const interp = !claiming || bashMayWrite(command, claiming) || !hookChat();
   const at = Date.now();
-  const hashes = interp ? designLaneHashes(ctx.designRoot) : null;
-  const all = interp && !files.length;
+  // #164 — what such a call can plausibly write (bash-guard `callCoverage`): `named` canvases (a
+  // create included), `all` of them, or `none` (`pnpm test`, `git pull`: no snapshot, no window; a
+  // canvas it writes lands as outside). A terminal-lane verb whose only reason to be here is the missing
+  // chat is never `all`.
+  let cover = { mode: 'none', files: [] };
+  if (interp) {
+    cover = callCoverage(ctx.designRoot, ctx.cwd, command);
+    if (cover.mode === 'all' && claiming && !bashMayWrite(command, claiming))
+      cover = { mode: 'none', files: [] };
+  }
+  // The lane manifest (stat key + sha256 per canvas file) is taken now, outside the project
+  // (hook-state.mjs): post-bash diffs against it and settles exactly the files whose bytes changed.
+  // Any failure here means no window and no claim: the call's writes land as outside, never the AI's.
+  if (cover.mode !== 'none') {
+    try {
+      const statePath = bashStatePath(ctx.root, ctx.session, toolUseId);
+      if (!statePath) throw new Error('unsafe key');
+      const manifest = laneSnapshot(ctx.designRoot, { cache: readState(lanesCachePath(ctx.root)) });
+      writeState(statePath, {
+        v: 1,
+        at,
+        mode: cover.mode,
+        files: cover.files,
+        ...(verbOnly ? { verbOnly: true } : {}),
+        ...bg,
+        snaps,
+        manifest,
+      });
+      writeState(lanesCachePath(ctx.root), manifest);
+      pruneStates(ctx.root);
+    } catch {
+      cover = { mode: 'none', files: [] };
+    }
+  }
   writeAt(
     join(ctx.run, 'bash', `${toolUseId}.json`),
     JSON.stringify({
@@ -1417,10 +1450,11 @@ async function preBash(ctx, input) {
       snaps,
       ...(verbOnly ? { verbOnly: true } : {}),
       ...bg,
-      ...(interp ? { interp: true, files, hashes, ...(all ? { all: true } : {}) } : {}),
+      ...(interp ? { interp: true, mode: cover.mode, files: cover.files } : {}),
     })
   );
-  if (files.length || all) await bashWindow(ctx, toolUseId, true, files, all);
+  if (cover.mode !== 'none')
+    await bashWindow(ctx, toolUseId, true, cover.files, cover.mode === 'all');
   return null;
 }
 
@@ -1519,24 +1553,153 @@ async function postBash(ctx, input) {
   const markP = join(ctx.run, 'bash', `${toolUseId}.json`);
   const mark = readJson(markP, null);
   if (!mark || typeof mark.at !== 'number') return null; // not a write verb
-  // p8-a1-claims — the call returned: its window shuts (the studio keeps it SHELL_SETTLE_MS more)
-  const files = Array.isArray(mark.files) ? mark.files.filter((f) => typeof f === 'string') : [];
-  if ((files.length || mark.all) && !mark.bg)
-    await bashWindow(ctx, toolUseId, false, files, mark.all === true);
-  await bindBashWrites(ctx, toolUseId, mark, input.agent_type ?? 'main', mark.at);
+  const by = input.agent_type ?? 'main';
+  // #164 — a call with a window (`named` / `all`) is settled by what it changed; a background one
+  // keeps its window and settles at Stop (`drainBackground`)
+  if (windowedMark(mark)) {
+    if (!mark.bg) {
+      await settleCall(ctx, toolUseId, mark, by);
+      rmSync(markP, { force: true });
+    } else writeAt(markP, JSON.stringify({ ...mark, seen: Date.now() }));
+    return null;
+  }
+  // a call with no window (`none`): nothing of it can be told from a person's save, so only the
+  // canvases a `maude design` verb in it snapshotted are bound
+  if (mark.interp === true && !Object.keys(mark.snaps ?? {}).length) {
+    if (mark.bg) writeAt(markP, JSON.stringify({ ...mark, seen: Date.now() }));
+    else rmSync(markP, { force: true });
+    return null;
+  }
+  await bindBashWrites(ctx, toolUseId, mark, by, mark.at);
   if (mark.bg) writeAt(markP, JSON.stringify({ ...mark, seen: Date.now() }));
   else rmSync(markP, { force: true });
   return null;
 }
 
+/** #164 — does this mark carry a window the studio parked writes for? */
+const windowedMark = (mark) => mark?.mode === 'named' || mark?.mode === 'all';
+const isManifest = (m) =>
+  !!m && typeof m === 'object' && m.v === 1 && !!m.files && typeof m.files === 'object';
+const SETTLE_BATCH = 32; // the studio's CLAIM_MAX_FILES
+
+/**
+ * #164 — the call returned (or its turn ended): diff the lane manifest taken before it against the lanes
+ * now, and send the files whose bytes changed (with their sha256) to the studio, which claims those
+ * bytes for the run and releases every other write it parked during the window as outside.
+ * Fail closed: a missing / corrupt manifest sends `changed: []`; a studio that does not answer, or
+ * answers anything but 200, binds nothing. An older studio (no settle route: 404) gets today's
+ * binding. `studio` is the one located for the whole Stop, when there is one.
+ */
+async function settleCall(ctx, toolUseId, mark, by, studio = undefined) {
+  const statePath = bashStatePath(ctx.root, ctx.session, toolUseId);
+  const st = statePath ? readState(statePath, null) : null;
+  let changed = [];
+  let valid = false;
+  if (st && isManifest(st.manifest)) {
+    try {
+      const now = laneSnapshot(ctx.designRoot, {
+        prev: st.manifest,
+        cache: readState(lanesCachePath(ctx.root)),
+      });
+      changed = laneDiff(st.manifest, now);
+      valid = true;
+    } catch {
+      changed = [];
+    }
+  }
+  if (statePath) removeState(statePath);
+  const named = Array.isArray(mark.files) ? mark.files.filter((f) => typeof f === 'string') : [];
+  const located =
+    studio === undefined ? await locateStudio(ctx.root, { timeoutMs: LOCATE_MS }) : studio;
+  // no studio: nothing to claim for; the hook still keeps its own record of what the call changed
+  if (!located) {
+    if (valid)
+      bindTouches(
+        ctx,
+        mark,
+        by,
+        changed.map((c) => c.path)
+      );
+    return;
+  }
+  const batches = [];
+  for (let i = 0; i < Math.max(1, changed.length); i += SETTLE_BATCH)
+    batches.push(changed.slice(i, i + SETTLE_BATCH));
+  const bound = new Set();
+  const person = new Set();
+  let answered = false;
+  for (let i = 0; i < batches.length; i++) {
+    const res = await postStudio(
+      located,
+      '/_api/agent/bash/settle',
+      {
+        ...runKey(ctx),
+        toolUseId,
+        changed: batches[i],
+        ...(i < batches.length - 1 ? { more: true } : {}),
+      },
+      { timeoutMs: 2000 }
+    );
+    if (!res) {
+      if (!answered && valid)
+        bindTouches(
+          ctx,
+          mark,
+          by,
+          changed.map((c) => c.path)
+        );
+      return;
+    }
+    if (res.status === 404 && !answered) {
+      // an older studio: the window is claim-taking, and its binding is by file name
+      await bashWindow(ctx, toolUseId, false, named, mark.mode === 'all');
+      await bindBashWrites(ctx, toolUseId, mark, by, mark.at, [
+        ...new Set([...named, ...changed.map((c) => c.path)]),
+      ]);
+      return;
+    }
+    if (res.status !== 200) return; // refused: nothing is bound
+    answered = true;
+    for (const p of Array.isArray(res.body?.bound) ? res.body.bound : []) bound.add(p);
+    for (const p of Array.isArray(res.body?.person) ? res.body.person : []) person.add(p);
+  }
+  const mine = [...bound].filter((p) => typeof p === 'string' && !person.has(p)).sort();
+  if (!mine.length) return;
+  bindTouches(ctx, mark, by, mine);
+  // the studio maps what the run now owns to artboards (run.touch)
+  await postStudio(
+    located,
+    '/_api/agent/edit/touched',
+    { ...runKey(ctx), toolUseId, via: 'bash', since: mark.at, files: mine },
+    { timeoutMs: 900 }
+  );
+}
+
+/** touched.json for these files (`via: 'bash'`), and no base is taken after the write. */
+function bindTouches(ctx, mark, by, rels) {
+  for (const rel of rels) {
+    if (!aiMayHaveWritten(mark, rel)) continue;
+    let at;
+    try {
+      at = statSync(join(ctx.designRoot, rel)).mtimeMs;
+    } catch {
+      continue; // gone again
+    }
+    recordTouch(ctx, rel, { by, via: 'bash', artboards: null, at });
+    markShellWrite(ctx, rel); // F4 — no base taken after this write
+  }
+}
+
 /**
  * Bind the design files changed since `since` to the run: touched.json (`via: 'bash'`) and the
- * studio's `edit/touched` for the call's window (from `mark.at`).
+ * studio's `edit/touched` for the call's window (from `mark.at`). `files` (an older studio's
+ * fallback: the canvases the call named plus the ones whose bytes changed) goes to the studio as
+ * the call's file list.
  */
-async function bindBashWrites(ctx, toolUseId, mark, by, since) {
-  const files = designWritesSince(ctx.designRoot, since);
-  if (!files.length) return;
-  for (const rel of files) {
+async function bindBashWrites(ctx, toolUseId, mark, by, since, files = null) {
+  const written = designWritesSince(ctx.designRoot, since);
+  if (!written.length) return;
+  for (const rel of written) {
     if (!aiMayHaveWritten(mark, rel)) continue;
     let at;
     try {
@@ -1558,9 +1721,14 @@ async function bindBashWrites(ctx, toolUseId, mark, by, since) {
         via: 'bash',
         since: mark.at,
         // p8-a1-claims — only claiming verbs wrote: the studio binds what they claimed, nothing else;
-        // a call that cannot claim binds the canvases its command named and (p8-sec2-attrib A1) every
-        // file whose bytes it changed — the studio skips what a person's save landed
-        ...(mark.interp ? { files: interpFiles(ctx, mark) } : { claimedOnly: true }),
+        // a call that cannot claim binds the canvases its command named and every file whose bytes it
+        // changed (an older studio, `files`) — the studio skips what a person's save landed; a call
+        // whose window is `none` binds only the canvases its verbs snapshotted
+        ...(files
+          ? { files }
+          : mark.interp
+            ? { files: Object.keys(mark.snaps ?? {}), claimedOnly: true }
+            : { claimedOnly: true }),
       },
       { timeoutMs: 900 }
     );
@@ -1568,23 +1736,14 @@ async function bindBashWrites(ctx, toolUseId, mark, by, since) {
 
 /**
  * fix/ds-convert-hooks-cli #11 — may the AI's own call have written `rel`? A call of `maude design`
- * verbs only (`verbOnly`) wrote, as the AI's, just the canvases its command named (`snaps`); the rest
- * a verb or sync wrote during it is Maude's: it is not bound, and no shell mark keeps a later edit
- * from taking it as the run's base, so Stop never holds the AI to it.
+ * verbs only (`verbOnly`), or one with no window (#164 `none`), wrote, as the AI's, just the canvases
+ * its verbs snapshotted (`snaps`); the rest a verb or sync (or a person) wrote during it is not bound,
+ * and no shell mark keeps a later edit from taking it as the run's base, so Stop never holds the AI
+ * to it.
  */
 const aiMayHaveWritten = (mark, rel) =>
-  mark?.verbOnly !== true ||
+  (mark?.verbOnly !== true && !(mark?.interp === true && !windowedMark(mark))) ||
   (!!mark.snaps && typeof mark.snaps === 'object' && Object.hasOwn(mark.snaps, rel));
-
-/**
- * p8-sec2-attrib A1 — what a call that cannot claim may have written: the canvases it named, plus every
- * canvas lane whose bytes changed against the hashes pre-bash took (none taken: by mtime alone).
- */
-function interpFiles(ctx, mark) {
-  const named = Array.isArray(mark.files) ? mark.files.filter((f) => typeof f === 'string') : [];
-  const hashes = mark.hashes && typeof mark.hashes === 'object' ? mark.hashes : {};
-  return [...new Set([...named, ...changedDesignFiles(ctx.designRoot, hashes, mark.at)])].sort();
-}
 
 /**
  * p8-secfix-hook F2 — at the turn's end (Stop / SubagentStop), what every still-running background
@@ -1616,6 +1775,16 @@ async function drainBackground(ctx, studio) {
   }
   marks.sort((a, b) => b.m.at - a.m.at); // newest first
   for (const x of marks.splice(BG_MARKS_MAX)) rmSync(join(dir, x.n), { force: true });
+  // #164 — a background call that holds a window settles now, once (a later Stop skips it): the
+  // window closes, and what its process wrote is claimed or released as outside. It is no longer
+  // bound by mtime below.
+  for (const x of marks) {
+    if (!windowedMark(x.m)) continue;
+    if (x.m.settled !== true)
+      await settleCall(ctx, x.toolUseId, x.m, typeof x.m.by === 'string' ? x.m.by : 'main', studio);
+    writeAt(join(dir, x.n), JSON.stringify({ ...x.m, settled: true, seen: Date.now() }));
+  }
+  for (let i = marks.length - 1; i >= 0; i--) if (windowedMark(marks[i].m)) marks.splice(i, 1);
   if (!marks.length) return;
   const sinceOf = (x) =>
     typeof x.m.seen === 'number' && x.m.seen >= x.m.at && x.m.seen <= now ? x.m.seen : x.m.at;
@@ -1644,7 +1813,13 @@ async function drainBackground(ctx, studio) {
         toolUseId: oldest.toolUseId,
         via: 'bash',
         since: oldest.m.at,
-        ...(marks.every((x) => !x.m.interp) ? { claimedOnly: true } : {}),
+        // a window-less (`none`) call binds only the canvases its verbs snapshotted
+        ...(marks.every((x) => !x.m.interp)
+          ? { claimedOnly: true }
+          : {
+              files: [...new Set(marks.flatMap((x) => Object.keys(x.m.snaps ?? {})))],
+              claimedOnly: true,
+            }),
       },
       { timeoutMs: 900 }
     );
