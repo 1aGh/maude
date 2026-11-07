@@ -31,6 +31,7 @@ import {
   launchChromium,
   newShellContext,
 } from './_pw-launch.mjs';
+import { createHardKill, defaultVideoScale, hardTimeoutMessage } from './_video-limits.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, cur, i, all) => {
@@ -67,25 +68,43 @@ if (!url) {
 }
 
 const timeoutMs = Number(timeout) * 1000;
-const deviceScaleFactor = Math.max(1, Math.min(4, Number(scale) || 1));
+// `--scale auto` (the exporter's answer when the user passed none): the artboard is measured once the
+// browser is up and the default is picked from its size (issue #128 §2c, _video-limits.mjs).
+const scaleIsAuto = scale === 'auto';
+let deviceScaleFactor = Math.max(1, Math.min(4, Number(scale) || 1));
 
 // Hard self-kill — the whole shim, not just individual Playwright calls, has a
 // wall-clock ceiling. `launchChromium` has NO timeout, and on headless Linux
 // `--enable-gpu` can hang Chromium at GPU-process init before a single log line
 // — a silent wedge that ate the full 600s render budget with nothing to show.
 // This guarantees the process EXITS with a diagnostic instead of hanging, so
-// the render worker (and the export gate) fail fast and legibly. Generous
-// enough for a slow software encode; well under any job/test budget.
-const HARD_KILL_MS = Math.max(timeoutMs, 150_000);
-const hardKill = setTimeout(() => {
-  console.error(
-    `_video-playwright: HARD TIMEOUT after ${HARD_KILL_MS}ms — exiting. The render did not ` +
-      `complete (see the last stage logged above; on headless Linux this is usually the video ` +
-      `encoder or GPU init). gpu=${process.env.MAUDE_CAPTURE_GPU === '1' ? 'on' : 'off'}.`
-  );
-  process.exit(7);
-}, HARD_KILL_MS);
-hardKill.unref?.();
+// the render worker (and the export gate) fail fast and legibly.
+//
+// The ceiling is NOT flat (issue #128 §2a): the frame-step fallback runs ~2.5 s/frame, so a flat
+// 150 s killed a 1294-frame comp at frame 413. The budget grows with the frame count (known once
+// the comp meta / --frames is read) and is stretched while frames keep completing; only a render
+// that stops producing frames, or never starts, hits it.
+let lastFrame = 0;
+let totalFrames = 0;
+const hardKill = createHardKill({
+  timeoutMs,
+  onKill: (ms) => {
+    console.error(
+      hardTimeoutMessage({
+        ms,
+        platform: process.platform,
+        gpu: process.env.MAUDE_CAPTURE_GPU === '1',
+        frame: lastFrame,
+        total: totalFrames,
+      })
+    );
+    process.exit(7);
+  },
+});
+if (Number(framesArg) > 0) {
+  totalFrames = Number(framesArg);
+  hardKill.setFrames(totalFrames);
+}
 // `--audio` is presence-checked (Object.fromEntries maps a bare flag to '1'), so
 // absence of the flag entirely (not passed) still defaults to audio ON — video.ts
 // always passes an explicit '0'/'1'.
@@ -148,8 +167,62 @@ const gpuArgs =
 console.error(
   `_video-playwright: launching chromium (gpu=${gpuArgs.length ? 'on' : 'off'}, format=${format})`
 );
+const widen = args.widen !== undefined;
+const selector = selectorArg
+  ? selectorArg
+  : artboard
+    ? `[data-dc-screen="${cssEscape(artboard)}"]`
+    : '[data-dc-screen]';
+
+/**
+ * `--scale auto`: load the canvas once at 1x, measure the target artboard and pick the default
+ * scale from its short side (decision maude/burndown-d6-default-export-scale). A device scale
+ * factor is fixed per browser context, so the real run opens a fresh context at the result.
+ * Anything that goes wrong measuring keeps the historical 2x.
+ */
+async function probeDefaultScale(browser) {
+  try {
+    const { ctx, goto } = await newShellContext(browser, {
+      serviceWorkers: 'block',
+      viewport: { width: 1440, height: 900 },
+      deviceScaleFactor: 1,
+    });
+    try {
+      const page = await ctx.newPage();
+      await goto(page, url, { waitUntil: 'load', timeout: timeoutMs });
+      const target = page.locator(selector).first();
+      await target.waitFor({ state: 'visible', timeout: timeoutMs });
+      await page.evaluate(() => {
+        const world = document.querySelector('.dc-world');
+        if (world) {
+          world.style.zoom = '1';
+          world.style.transform = 'none';
+        }
+      });
+      const size = await target.evaluate((el, wide) => {
+        const ab = wide ? (el.closest('[data-dc-screen]') ?? el) : el;
+        const r = ab.getBoundingClientRect();
+        return { width: r.width, height: r.height };
+      }, widen);
+      const chosen = defaultVideoScale(size.width, size.height);
+      console.error(
+        `_video-playwright: scale auto → ${chosen}x (artboard ${Math.round(size.width)}×${Math.round(size.height)})`
+      );
+      return chosen;
+    } finally {
+      await ctx.close().catch(() => {});
+    }
+  } catch (e) {
+    console.error(
+      `_video-playwright: scale auto: could not measure the artboard (${e instanceof Error ? e.message : e}) — using 2x`
+    );
+    return defaultVideoScale(0, 0);
+  }
+}
+
 const browser = await launchChromium(gpuArgs.length ? { args: gpuArgs } : undefined);
 console.error('_video-playwright: browser launched');
+if (scaleIsAuto) deviceScaleFactor = await probeDefaultScale(browser);
 try {
   // gate-b-c4d — confined to the origin the shell lands on (popups, other origins refused).
   const { ctx, goto: gotoShell } = await newShellContext(browser, {
@@ -202,12 +275,6 @@ try {
   // Resolve the target artboard handle. Priority: explicit --selector (from the
   // export scope Target) → --artboard id → first artboard. `--widen` climbs to
   // the enclosing [data-dc-screen] (the descendant-selector export case).
-  const widen = args.widen !== undefined;
-  const selector = selectorArg
-    ? selectorArg
-    : artboard
-      ? `[data-dc-screen="${cssEscape(artboard)}"]`
-      : '[data-dc-screen]';
   const located = page.locator(selector).first();
   await located.waitFor({ state: 'visible', timeout: timeoutMs });
   const handle = widen
@@ -324,6 +391,11 @@ try {
       const frameCount = frameRange
         ? frameRange[1] - frameRange[0] + 1
         : (compMeta?.durationInFrames ?? 0);
+      // The fast path can fail and hand over to frame-step: the budget must already know the length.
+      if (frameCount > 0) {
+        totalFrames = frameCount;
+        hardKill.setFrames(frameCount);
+      }
 
       const result = {
         fps: compMeta?.fps ?? null,
@@ -480,6 +552,8 @@ async function frameStepCapture({
   const maxFrames = Number(maxFramesArg) > 0 ? Number(maxFramesArg) : 3600;
   const wantedFrames = Number(framesArg) || compMeta?.durationInFrames || Math.round(fps * 3); // 3 s default
   const frameCount = Math.min(maxFrames, wantedFrames);
+  totalFrames = frameCount;
+  hardKill.setFrames(frameCount);
   if (wantedFrames > maxFrames) {
     console.error(
       `⚠ _video-playwright: comp is ${wantedFrames} frames but the export cap is ` +
@@ -615,6 +689,8 @@ async function frameStepCapture({
     // "N of M" instead of a static "Exporting…". Filtered out of the summary
     // stdout the exporter reads. Human log stays throttled on stderr.
     console.log(`MAUDE_PROGRESS {"current":${f + 1},"total":${frameCount}}`);
+    lastFrame = f + 1;
+    hardKill.progress();
     if (f % 30 === 0) console.error(`frame ${f + 1}/${frameCount}`);
   }
 

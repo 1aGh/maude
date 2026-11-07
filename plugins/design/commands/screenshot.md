@@ -2,7 +2,7 @@
 name: screenshot
 category: daily
 description: "Capture the active canvas, one artboard, an element or all screens."
-argument-hint: "[--screen|--element <id> | --selector <css> | --full | --all-screens | --shell] [--area <n>]"
+argument-hint: "[--screen|--element <id> | --selector <css> | --full | --all-screens | --shell] [--frame <N>] [--area <n>]"
 ---
 
 # /design:screenshot — capture active canvas
@@ -23,6 +23,7 @@ The single source of truth for the screenshot logic is `maude design screenshot`
 | `--selector <css>` | Custom CSS selector (power-user — prefer `--screen`/`--element` where possible). |
 | `--all-screens` | Loops over every artboard, saving `<NNN>-screen-<id>.png` into the run folder's `shots/`. |
 | `--shell` | The studio itself instead of a canvas: panels, toolbar and the AI chat panel are in frame. For reporting a bug in Maude, not for design review. |
+| `--frame <N>` | A video artboard at frame `N` (not frame 0, which is usually black): the viewport is sized to the artboard, the canvas seeks to the frame, and the shot waits for a paint. Fails when the canvas has no video to seek. Use it with `--screen`, `--element`, `--selector` or `--full`. |
 | `--area <name>` | Label for the single-shot output (default `full`). Examples: `roster-row`, `top-bar`. |
 
 **Examples:**
@@ -30,6 +31,7 @@ The single source of truth for the screenshot logic is `maude design screenshot`
 /design:screenshot
 /design:screenshot --screen onboarding-welcome
 /design:screenshot --element cta-primary
+/design:screenshot --screen reel --frame 240
 /design:screenshot --all-screens
 /design:screenshot --selector ".roster-row:nth-child(1)" --area roster-row
 ```

@@ -10,6 +10,7 @@
 #                 [--all-screens] [--out <path>] [--out-dir <dir>]
 #                 [--timeout 8] [--engine auto|agent-browser|playwright]
 #                 [--theme <name>] [--root <repo>] [--canvas <rel|"">]
+#                 [--frame <N>]
 #
 # Notes:
 #   - Exactly one of --screen / --element / --selector / --full / --shell is
@@ -30,6 +31,11 @@
 #     client knows its own open tab — must be able to say "nothing is open"
 #     instead of having a stale path resolved behind its back.
 #   - --out required for single-shot modes; --out-dir required for --all-screens.
+#   - --frame <N> captures a video-comp at frame N (issue #128 §6): the viewport is sized to the
+#     target element (a tall artboard is not clipped), the canvas's `window.__maude_seek__(N,
+#     { strict: true })` bridge seeks, the shot waits for a paint, then captures. A canvas with no
+#     seek bridge FAILS (exit 3) rather than shipping the frame-0 shot the flag exists to avoid.
+#     Single-shot modes only (--screen/--element/--selector/--full); not with --shell/--all-screens.
 #   - --theme <name> forces every `[data-theme]` element (DS artboard wrappers)
 #     to that value BEFORE capture, via a DOM eval — does not touch the actual
 #     canvas file or the running server's state. Used to capture a DS's
@@ -52,6 +58,8 @@ ENGINE="auto"
 ALL_SCREENS=0
 ROOT=""
 THEME=""
+FRAME=""
+FRAME_SET=0
 ACTIVE=""
 # Tri-state for --canvas: unset → resolve from _active.json (the CLI default);
 # set to a path → open that; set to "" → open nothing. The empty case is
@@ -74,6 +82,7 @@ while [ $# -gt 0 ]; do
     --timeout)  TIMEOUT="$2"; shift 2 ;;
     --engine)   ENGINE="$2"; shift 2 ;;
     --theme)    THEME="$2"; shift 2 ;;
+    --frame)    FRAME_SET=1; FRAME="${2:-}"; shift 2 ;;
     --root)     ROOT="$2"; shift 2 ;;
     --help|-h)
       sed -n '2,27p' "$0" | sed 's/^# \?//'
@@ -99,6 +108,19 @@ if [ -n "$THEME" ]; then
       exit 2
       ;;
   esac
+fi
+
+if [ $FRAME_SET -eq 1 ]; then
+  case "$FRAME" in
+    ""|*[!0-9]*)
+      echo "screenshot.sh: --frame needs a whole frame number (0, 1, 2, …), got '$FRAME'" >&2
+      exit 2
+      ;;
+  esac
+  if [ $ALL_SCREENS -eq 1 ] || [ "$MODE" = "shell" ]; then
+    echo "screenshot.sh: --frame captures one artboard of a video-comp; it cannot combine with --all-screens or --shell" >&2
+    exit 2
+  fi
 fi
 
 if [ $ALL_SCREENS -eq 1 ]; then
@@ -273,6 +295,7 @@ pw_screenshot() {
   echo "→ playwright engine; first invocation may install chromium (~150MB, one-off)" >&2
   local theme_args=()
   [ -n "$THEME" ] && theme_args=(--theme "$THEME")
+  [ $FRAME_SET -eq 1 ] && theme_args+=(--frame "$FRAME")
   if [ -n "$css" ]; then
     npm exec --yes --package=playwright -- node "$pw_script" --url "$URL" --selector "$css" --out "$out" --timeout "$TIMEOUT" "${theme_args[@]}" >&2 || return 1
   else
@@ -348,6 +371,69 @@ open_active_in_shell() {
   echo "→ shell: canvas iframe never attached after ${TIMEOUT}s — capturing chrome as-is" >&2
 }
 
+# A string as a JS double-quoted literal (the selector may carry quotes: [data-dc-screen="x"]).
+js_string() {
+  local v="$1"
+  v="${v//\\/\\\\}"
+  v="${v//\"/\\\"}"
+  printf '"%s"' "$v"
+}
+
+# ---------- --frame <N>: put a video-comp on frame N before the shot (issue #128 §6) ----------
+# Without it a video artboard captures frame 0, which is usually black (media not decoded yet).
+# Order matters: size the viewport to the target FIRST (the layout settles), seek SECOND, wait for
+# paint THIRD, shoot last. Every failure here is fatal — a wrong frame looks like a valid shot.
+frame_fail() {
+  echo "✗ --frame $FRAME: $1" >&2
+  rm -f "$OUT"
+  exit 3
+}
+
+seek_frame() {
+  [ $FRAME_SET -eq 1 ] || return 0
+  [ "$ENGINE" = "agent-browser" ] || return 0
+  # The bridge is installed by the first VideoComp to mount, a tick after the artboard exists.
+  local poll=0 has=""
+  while [ $poll -lt "$TIMEOUT" ]; do
+    has=$("$AB" eval "typeof window.__maude_seek__ === 'function' ? 'yes' : 'no'" 2>/dev/null | tr -d '[:space:]"')
+    [ "$has" = "yes" ] && break
+    sleep 1
+    poll=$((poll + 1))
+  done
+  [ "$has" = "yes" ] || frame_fail "this canvas has no window.__maude_seek__ bridge (is the artboard a video-comp? it mounts a VideoComp)"
+
+  if [ -n "$CSS_SEL" ]; then
+    local sel size w h
+    sel=$(js_string "$CSS_SEL")
+    size=$("$AB" eval "(function(){var e=document.querySelector($sel);if(!e)return 'miss';var r=e.getBoundingClientRect();return Math.ceil(r.width)+'x'+Math.ceil(r.height)})()" 2>/dev/null | tr -d '[:space:]"')
+    case "$size" in
+      [0-9]*x[0-9]*)
+        w="${size%x*}"
+        h="${size#*x}"
+        [ "$w" -gt 8192 ] && w=8192
+        [ "$h" -gt 8192 ] && h=8192
+        if [ "$w" -gt 0 ] && [ "$h" -gt 0 ]; then
+          "$AB" set viewport "$w" "$h" >&2 || frame_fail "could not size the viewport to ${w}x${h}"
+          echo "→ viewport sized to the artboard: ${w}x${h}" >&2
+        fi
+        ;;
+      *) echo "→ --frame: target element not measurable ('$size') — keeping the current viewport" >&2 ;;
+    esac
+  fi
+
+  local seeked
+  seeked=$("$AB" eval "window.__maude_seek__($FRAME, { strict: true }).then(function(){return 'seeked'})" 2>&1 | tr -d '[:space:]"')
+  case "$seeked" in
+    *seeked) ;;
+    *) frame_fail "the seek did not land (${seeked:-no answer})" ;;
+  esac
+  # __maude_seek__ resolves after ITS paint; two more frames let a freshly decoded video frame reach the screen.
+  "$AB" eval "new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(function(){r('painted')})})})" >/dev/null 2>&1 \
+    || frame_fail "the page did not paint after the seek"
+  sleep 0.3
+  echo "→ seeked to frame $FRAME" >&2
+}
+
 navigate_once() {
   if [ "$ENGINE" = "agent-browser" ]; then
     # A failed navigation MUST propagate. agent-browser leaves the session on a
@@ -394,6 +480,7 @@ navigate_once() {
       sleep 1
     fi
     apply_theme_override
+    seek_frame
   fi
 }
 
