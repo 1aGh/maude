@@ -13,7 +13,6 @@
 // never wonder whether an object is focused or selected.
 
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-
 import { canvasKeyIndex } from '../actions/canvas-keys.ts';
 import { canvasKeyCtx } from '../actions/ctx.ts';
 import { chordFromEvent } from '../actions/keys.ts';
@@ -28,6 +27,7 @@ import {
   openCommentComposer,
   resolveSelectionEl,
 } from '../dom-selection.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { isEditableTarget, TOOLBAR_INSERT_EVENT, type Tool } from '../input-router.tsx';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
@@ -182,11 +182,11 @@ export function FocusRing() {
           div.style.height = `${Math.round(r.height)}px`;
         }
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
     };
   }, [kb, one]);
 

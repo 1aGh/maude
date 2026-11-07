@@ -19,6 +19,7 @@ import { type RefObject, useEffect, useRef, useSyncExternalStore } from 'react';
 import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
 import type { CanvasModeV2 } from '../bridge/canvas-modes.ts';
 import { type Insets, visibleRect, ZERO_INSETS } from '../bridge/occlusion.ts';
+import { frameCafOn, frameRafOn } from '../frame-clock.ts';
 
 export interface Camera {
   x: number;
@@ -385,8 +386,8 @@ export function usePreviewCamera<T extends BoardRect>(opts: UsePreviewCameraOpti
       fit: (rect) => optsRef.current.fit(rect as T),
       holdOverview: () =>
         optsRef.current.artboards.length > 1 && !win.document.querySelector('[data-cd-link]'),
-      raf: (cb) => win.requestAnimationFrame(cb),
-      caf: (id) => win.cancelAnimationFrame(id),
+      raf: (cb) => frameRafOn(win, cb),
+      caf: (id) => frameCafOn(win, id),
       now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
       reducedMotion: () => reducedMotion(win),
       durationMs: () => cssTokenMs(win),

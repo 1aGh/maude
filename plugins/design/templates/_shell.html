@@ -134,6 +134,122 @@
         }
       }
     </script>
+    <script id="maude-frame-freeze">
+      // 2.0.7 — the gesture freeze (apps/studio/frame-clock.ts). While the camera moves, an artboard's own frame
+      // callbacks wait: requestAnimationFrame is gated HERE, before any module loads, so the canvas runtime gets
+      // the gated one too (motion keeps the function it found when it loaded). A callback that comes due while
+      // frozen is held and runs on the first frame after the thaw, in the order it was requested; a cancel still
+      // reaches it. Maude's own frame code calls the exempt `raf`. A freeze not renewed for WATCHDOG_MS thaws
+      // itself, so a canvas that went away mid-gesture never leaves the frame frozen.
+      (function (W) {
+        if (typeof W.requestAnimationFrame !== 'function' || W.__maudeFrameFreeze) return;
+        var nativeRaf = W.requestAnimationFrame.bind(W);
+        var nativeCaf = W.cancelAnimationFrame.bind(W);
+        var later = W.setTimeout.bind(W);
+        var unlater = W.clearTimeout.bind(W);
+        var WATCHDOG_MS = 2000;
+        var frozen = false;
+        var held = new Map();
+        var flushId = 0;
+        var watchdog = 0;
+        var subs = [];
+        var n = { freezes: 0, deferred: 0, flushed: 0, watchdog: 0 };
+        var tell = function () {
+          var list = subs.slice();
+          for (var i = 0; i < list.length; i++) {
+            try {
+              list[i](frozen);
+            } catch (e) {
+              later(function () {
+                throw e;
+              }, 0);
+            }
+          }
+        };
+        var flush = function (t) {
+          flushId = 0;
+          var due = Array.from(held.keys());
+          for (var i = 0; i < due.length; i++) {
+            if (frozen) return;
+            var cb = held.get(due[i]);
+            if (!cb) continue;
+            held.delete(due[i]);
+            n.flushed++;
+            try {
+              cb(t);
+            } catch (e) {
+              later(function () {
+                throw e;
+              }, 0);
+            }
+          }
+        };
+        var gated = function (cb) {
+          if (typeof cb !== 'function') return nativeRaf(cb);
+          var id = nativeRaf(function (t) {
+            if (!frozen) return cb(t);
+            held.set(id, cb);
+            n.deferred++;
+          });
+          return id;
+        };
+        var cancel = function (id) {
+          if (!held.delete(id)) nativeCaf(id);
+        };
+        var set = function (on) {
+          if (on) {
+            if (watchdog) unlater(watchdog);
+            watchdog = later(function () {
+              watchdog = 0;
+              n.watchdog++;
+              set(false);
+            }, WATCHDOG_MS);
+            if (frozen) return;
+            frozen = true;
+            n.freezes++;
+            return tell();
+          }
+          if (watchdog) unlater(watchdog);
+          watchdog = 0;
+          if (!frozen) return;
+          frozen = false;
+          if (held.size && !flushId) flushId = nativeRaf(flush);
+          tell();
+        };
+        W.requestAnimationFrame = gated;
+        W.cancelAnimationFrame = cancel;
+        Object.defineProperty(W, '__maudeFrameFreeze', {
+          configurable: false,
+          writable: false,
+          value: Object.freeze({
+            v: 1,
+            raf: nativeRaf,
+            caf: cancel,
+            set: set,
+            frozen: function () {
+              return frozen;
+            },
+            on: function (fn) {
+              subs.push(fn);
+              return function () {
+                var i = subs.indexOf(fn);
+                if (i >= 0) subs.splice(i, 1);
+              };
+            },
+            stats: function () {
+              return {
+                frozen: frozen,
+                freezes: n.freezes,
+                held: held.size,
+                deferred: n.deferred,
+                flushed: n.flushed,
+                watchdog: n.watchdog,
+              };
+            },
+          }),
+        });
+      })(window);
+    </script>
     <style>
       :root {
         color-scheme: light dark;

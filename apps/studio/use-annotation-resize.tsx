@@ -44,6 +44,7 @@ import {
   strokeRotation,
 } from './annotations-layer.tsx';
 import { getLiveViewport, useViewportControllerContext } from './canvas-lib.tsx';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import { useAnnotationSelection } from './use-annotation-selection.tsx';
 
 const RESIZE_CSS = `
@@ -691,11 +692,11 @@ export function AnnotationResizeOverlay({ store }: { store: StrokesStoreValue | 
         handle.style.top = `${Math.round(sy - halfH)}px`;
         handle.dataset.corner = pos.corner;
       }
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, [selectedStroke, vp]);
 

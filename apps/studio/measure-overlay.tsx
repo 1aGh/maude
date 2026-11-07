@@ -29,6 +29,7 @@ import { modeShows } from './bridge/mode-shows.ts';
 import { useArtboardsContext } from './canvas-lib.tsx';
 import { resolveSelectionEl } from './dom-selection.ts';
 import { computePairGap } from './equal-spacing-detector.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import { resolveHoverTarget } from './input-router.tsx';
 import { type ModifierState, reduceModifiers } from './use-cursor-modifiers.tsx';
 import { useGovernedMode } from './use-governed-mode.ts';
@@ -234,12 +235,12 @@ export function MeasureOverlay() {
       } else {
         hideBoth();
       }
-      rafId = requestAnimationFrame(tick);
+      rafId = frameRaf(tick);
     };
-    rafId = requestAnimationFrame(tick);
+    rafId = frameRaf(tick);
     return () => {
       alive = false;
-      if (rafId != null) cancelAnimationFrame(rafId);
+      if (rafId != null) frameCaf(rafId);
     };
   }, [active, one, hoverEl, zoom]);
 

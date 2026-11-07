@@ -15,8 +15,8 @@
 // that stops refreshing — or lies about time — holds nothing.
 
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
-
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import {
   createHoldPublisher,
@@ -401,11 +401,11 @@ export function HoldRings() {
             div.dataset.hold === 'person' ? RING_OFFSET : 2
           );
         }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
     };
   }, [drawn]);
 

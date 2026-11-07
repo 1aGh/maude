@@ -15,11 +15,11 @@
 // Read-only canvases do nothing here (the server refuses anyway).
 
 import { useEffect, useRef, useState } from 'react';
-
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
 import { DsIcon } from '../canvas-ds-icons.tsx';
 import { getLiveViewport } from '../canvas-lib.tsx';
 import { showCanvasToast } from '../canvas-notifications.tsx';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import type { Tool } from '../input-router.tsx';
 import { customSpec, presetById } from '../kinds/presets.ts';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
@@ -269,10 +269,10 @@ export function SizeGhost({ readOnly = false }: { readOnly?: boolean }) {
         key = k;
         tick((n) => n + 1);
       }
-      raf = requestAnimationFrame(loop);
+      raf = frameRaf(loop);
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    raf = frameRaf(loop);
+    return () => frameCaf(raf);
   }, [ghost]);
 
   if (!ghost || typeof document === 'undefined') return null;

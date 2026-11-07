@@ -19,9 +19,9 @@
 // Pure where it can be (the line, the numbering, the slot rect take numbers and rects).
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-
 import { showCanvasToast } from '../canvas-notifications.tsx';
 import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import type { CommandRecord } from '../undo-stack.ts';
 import type { RectLike } from './arrange.ts';
 import { crumbLabel } from './crumbs.ts';
@@ -502,7 +502,7 @@ export function ReorderSlot() {
     }
     let last = '';
     const tick = () => {
-      raf.current = requestAnimationFrame(tick);
+      raf.current = frameRaf(tick);
       const next = paintOf(s);
       // Layers draws the same slot: tell the shell when the place changes (not on every frame)
       const msg = next ? slotMessage(s) : null;
@@ -520,7 +520,7 @@ export function ReorderSlot() {
     };
     tick();
     return () => {
-      if (raf.current != null) cancelAnimationFrame(raf.current);
+      if (raf.current != null) frameCaf(raf.current);
       setPaint(null);
     };
   }, [s]);

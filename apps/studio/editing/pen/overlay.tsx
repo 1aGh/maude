@@ -3,6 +3,7 @@
 // tokens; motion is none (a live drag draws as fast as the pointer moves).
 
 import { useEffect, useState } from 'react';
+import { frameCaf, frameRaf } from '../../frame-clock.ts';
 
 export const PEN_CSS = `
 /* the input layer pen/draw.tsx renders: its rule used to live only in the shape tool's style (G3) */
@@ -139,9 +140,9 @@ export function useFrameTick(read: () => string, on: boolean): void {
         last = now;
         force((n) => n + 1);
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    raf = frameRaf(tick);
+    return () => frameCaf(raf);
   }, [on, read]);
 }

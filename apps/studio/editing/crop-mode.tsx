@@ -13,10 +13,10 @@
 // Nothing is written while the pointer is down. A read-only canvas never enters; a locked picture says so.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
 import { showCanvasToast } from '../canvas-notifications.tsx';
 import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
@@ -399,12 +399,12 @@ export function CropMode({ readOnly }: { readOnly?: boolean }) {
           const n = measureBox(active.el);
           return b && b.left === n.left && b.top === n.top && b.w === n.w && b.h === n.h ? b : n;
         });
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
       document.removeEventListener('keydown', key, true);
-      cancelAnimationFrame(raf);
+      frameCaf(raf);
     };
   }, [active, commit, leave]);
 

@@ -10,8 +10,8 @@
 // bubble follows pan and zoom; when it goes, it says `null` once.
 
 import { useEffect, useRef, useState } from 'react';
-
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { AiPointRings } from './ai-point-ring.tsx';
 import { unionRect } from './ask-bubble.tsx';
 
@@ -145,11 +145,11 @@ function AiScopeBox(): null | React.JSX.Element {
         told.current = key;
         tellShell(box);
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
     };
   }, [rows]);
 

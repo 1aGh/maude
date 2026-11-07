@@ -23,6 +23,7 @@ import { type RefObject, useEffect, useLayoutEffect, useRef, useSyncExternalStor
 import { canvasModeStore, reportPresentPosition } from '../bridge/canvas-mode-store.ts';
 import type { ArtboardRect } from '../canvas-lib.tsx';
 import { togglePlayback } from '../editing/video-play.ts';
+import { frameCafOn, frameRafOn } from '../frame-clock.ts';
 import { resolveBleedMm, resolveMmPx } from '../print/units.ts';
 import {
   type AwarenessChanges,
@@ -734,8 +735,8 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
       readMeta: () =>
         (win as unknown as { __canvas_meta__?: { present?: PresentMeta } }).__canvas_meta__
           ?.present,
-      raf: (cb) => win.requestAnimationFrame(cb),
-      caf: (id) => win.cancelAnimationFrame(id),
+      raf: (cb) => frameRafOn(win, cb),
+      caf: (id) => frameCafOn(win, id),
       now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
       reducedMotion: () => reducedMotion(win),
       liftMs: () => cssMs(win),

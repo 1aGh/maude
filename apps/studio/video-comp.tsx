@@ -32,6 +32,7 @@ import {
 import { useArtboardActive, useArtboardMedia } from './artboard-live-gate.tsx';
 import { canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { videoLabelTail } from './editing/video-label.ts';
+import { frameRaf } from './frame-clock.ts';
 import { resolvedPoster } from './kinds/meta.ts';
 import { VideoPlayChrome } from './video-play-chrome.tsx';
 
@@ -278,7 +279,7 @@ function clamp(n: number, lo: number, hi: number): number {
 function afterPaint(): Promise<void> {
   if (typeof requestAnimationFrame !== 'function') return Promise.resolve();
   return new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    frameRaf(() => frameRaf(() => resolve()));
   });
 }
 

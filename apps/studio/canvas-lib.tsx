@@ -103,7 +103,6 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-
 import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import { ArtboardActivityOverlay } from './artboard-activity-overlay.tsx';
 import { ArtboardConvertMarks } from './artboard-convert-marks.tsx';
@@ -137,6 +136,7 @@ import { DsIcon } from './canvas-ds-icons.tsx';
 import { flowRows, isDsCanvasIds, wrapRows } from './canvas-rows.ts';
 import { CanvasShell } from './canvas-shell.tsx';
 import { registerCanvasThemeSystem } from './canvas-theme.ts';
+import { frameCaf, frameRaf, setFrameFreeze } from './frame-clock.ts';
 import { pressStartsPan } from './input-router.tsx';
 import { summaryWords } from './kinds/warnings.ts';
 import { presentHidesCss, usePresentStage } from './present/present-stage.tsx';
@@ -225,7 +225,7 @@ import { VideoPlayLayer } from './video-play-overlay.tsx';
 
 // 2.0.5 — is this artboard running live (near the viewport, not zoomed out to the overview)? Gate a render
 // loop, a simulation or an expensive first mount on it. Always true in captures and exports.
-export { useArtboardActive, useArtboardSeen } from './artboard-live-gate.tsx';
+export { useArtboardActive, useArtboardGesture, useArtboardSeen } from './artboard-live-gate.tsx';
 export type { CompSnapshot, VideoCompMeta, VideoCompProps } from './video-comp.tsx';
 // S7.5 — the comp vocabulary (V2-1.10 §5.3): literal-prop components; the build injects their
 // derived data (`__words`, `__speech`, video/inject.ts). A 1.x build lacks these exports, so a
@@ -348,7 +348,7 @@ function afterQuietFrame(fn: () => void, fallbackMs = 1000): void {
     fn();
   };
   const fallback = setTimeout(run, fallbackMs);
-  requestAnimationFrame(() => setTimeout(run, 0));
+  frameRaf(() => setTimeout(run, 0));
 }
 
 // WebKit (Safari + the Tauri WKWebView native shell, DDR-106) vs Blink (Chrome).
@@ -1338,7 +1338,7 @@ let liveVpLastAt = 0;
 let liveVpLastKey = '';
 
 function liveVpTick(t: number): void {
-  liveVpRaf = requestAnimationFrame(liveVpTick);
+  liveVpRaf = frameRaf(liveVpTick);
   if (t - liveVpLastAt < PUBLISH_MS) return;
   liveVpLastAt = t;
   const cur = liveViewport;
@@ -1353,12 +1353,12 @@ function subscribeLiveViewport(fn: (v: ViewportState) => void): () => void {
   liveVpSubs.add(fn);
   if (liveVpRaf === 0 && typeof requestAnimationFrame === 'function') {
     liveVpLastKey = '';
-    liveVpRaf = requestAnimationFrame(liveVpTick);
+    liveVpRaf = frameRaf(liveVpTick);
   }
   return () => {
     liveVpSubs.delete(fn);
     if (liveVpSubs.size === 0 && liveVpRaf !== 0) {
-      cancelAnimationFrame(liveVpRaf);
+      frameCaf(liveVpRaf);
       liveVpRaf = 0;
     }
   };
@@ -1552,6 +1552,10 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
   // pointer events.
   const markInteracting = useCallback(() => {
     interactingRef.current = true;
+    // 2.0.7 — the gesture freeze: artboards' own frame callbacks, animations and silent videos wait until the
+    // camera stops (frame-clock.ts, artboard-freeze.ts). Every input renews it; the shell's watchdog thaws a
+    // freeze nobody renews.
+    setFrameFreeze(true);
     if (!isInteractingStateRef.current) {
       isInteractingStateRef.current = true;
       // Start of a fresh gesture burst — remember the scale so settle can tell
@@ -1577,6 +1581,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     const endInteracting = () => {
       interactingRef.current = false;
       isInteractingStateRef.current = false;
+      setFrameFreeze(false);
       setIsInteracting(false);
       // Motion has stopped — re-write the world transform in crisp mode so the
       // WebKit path drops its compositor layer and re-rasterizes text sharply at
@@ -1724,7 +1729,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
   const animateTo = useCallback(
     (target: ViewportState, durationMs = 240) => {
       if (animationRef.current != null) {
-        cancelAnimationFrame(animationRef.current);
+        frameCaf(animationRef.current);
         animationRef.current = null;
       }
       const dur = prefersReducedMotion() ? 0 : Math.max(0, durationMs);
@@ -1746,12 +1751,12 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
           zoom: clampZoom(start.zoom + (target.zoom - start.zoom) * e),
         });
         if (t < 1) {
-          animationRef.current = requestAnimationFrame(tick);
+          animationRef.current = frameRaf(tick);
         } else {
           animationRef.current = null;
         }
       };
-      animationRef.current = requestAnimationFrame(tick);
+      animationRef.current = frameRaf(tick);
     },
     [applyViewport]
   );
@@ -2119,7 +2124,9 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       }
       if (interactEndTimerRef.current != null) clearTimeout(interactEndTimerRef.current);
       interactSeqRef.current += 1; // a quiet check still in flight ends nothing after unmount
-      if (animationRef.current != null) cancelAnimationFrame(animationRef.current);
+      // that ended check would have thawed the artboards: an unmount mid-gesture (a soft reload) thaws them now
+      if (interactingRef.current) setFrameFreeze(false);
+      if (animationRef.current != null) frameCaf(animationRef.current);
     };
   }, []);
 
@@ -4349,8 +4356,8 @@ export function PhotoPreviewBridge() {
     };
     scan();
     const observer = new MutationObserver(() => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(scan);
+      frameCaf(raf);
+      raf = frameRaf(scan);
     });
     observer.observe(document.body, {
       childList: true,
@@ -4360,7 +4367,7 @@ export function PhotoPreviewBridge() {
     });
     return () => {
       cancelled = true;
-      cancelAnimationFrame(raf);
+      frameCaf(raf);
       observer.disconnect();
     };
   }, [apply, nextFetchGen, isLatestFetch]);

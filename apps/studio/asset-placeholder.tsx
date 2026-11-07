@@ -21,9 +21,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-
 import { UploadBars } from './asset-upload-bars.tsx';
 import { type AssetStateItem, acceptFromShell } from './bridge/dgn-protocol.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 
 /** What a frame says. `null` = draw nothing (the picture is here, or still uploading from here). */
 export interface FrameWords {
@@ -546,11 +546,11 @@ export function AssetPlaceholderLayer({
         const div = nodes.current.get(f.key);
         if (div) place(f, div);
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
     };
   }, [frames, rideWorld]);
 

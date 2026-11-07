@@ -10,6 +10,7 @@
 // Pure like empty-report.ts (the document, the clock and the post are injected): the throttle and the "once
 // per change" rule are unit tests. One post per animation frame at most.
 
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { articleOf, bodyOf, type EmptyRect, labelOf } from './empty-report.ts';
 
 // unlike the empty hint's rect, an artboard panned half off the left or top edge really is at a negative x / y
@@ -70,12 +71,12 @@ export function createAnchorReporter(deps: AnchorReporterDeps): AnchorReporter {
     deps.raf ??
     ((fn: () => void) =>
       typeof requestAnimationFrame === 'function'
-        ? requestAnimationFrame(fn)
+        ? frameRaf(fn)
         : (setTimeout(fn, 16) as unknown as number));
   const caf =
     deps.caf ??
     ((id: number) =>
-      typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame(id) : clearTimeout(id));
+      typeof cancelAnimationFrame === 'function' ? frameCaf(id) : clearTimeout(id));
   let pending: number | null = null;
   let lastKey = NONE; // what the shell was last told
 

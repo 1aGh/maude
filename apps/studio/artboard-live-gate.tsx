@@ -26,6 +26,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
+import { ARTBOARD_FREEZE_CSS, ArtboardFreeze } from './artboard-freeze.ts';
 import {
   type ArtboardLiveState,
   KEEP_MARGIN,
@@ -53,6 +54,7 @@ import {
 import { rasterTimings, startStill } from './artboard-still-raster.ts';
 import { StillWarmup, WARM_ENABLED } from './artboard-still-warmup.ts';
 import { WebglBudget } from './artboard-webgl.ts';
+import { frameFreezeApi, frameFrozen, frameRaf, onFrameFreeze } from './frame-clock.ts';
 
 const ALL_LIVE: ArtboardLiveState = { live: true, seen: true, media: true };
 const LiveContext = createContext<ArtboardLiveState>(ALL_LIVE);
@@ -83,6 +85,16 @@ export function useArtboardSeen(): boolean {
   return useContext(LiveContext).seen;
 }
 
+/**
+ * Is the camera moving right now (a pan, a zoom)? While it is, Maude holds the artboards' frame callbacks and
+ * pauses their CSS animations and silent videos; a timer (setInterval / setTimeout) is the canvas's own — skip
+ * a tick while this is true. Opt-in: only a component that calls it re-renders when a gesture starts and stops.
+ * Always `false` outside the canvas frame's shell (tests, captures never move the camera).
+ */
+export function useArtboardGesture(): boolean {
+  return useSyncExternalStore(onFrameFreeze, frameFrozen, () => false);
+}
+
 interface Runtime {
   registry: LiveRegistry;
   budget: WebglBudget | null;
@@ -94,8 +106,10 @@ interface Runtime {
   stills: StillController | null;
   /** 2.0.7 — draws the stills of artboards that never mounted, one at a time while nothing moves. */
   warmup: StillWarmup | null;
-  /** the article of each observed artboard (the warm-up's distance and cut) */
+  /** the article of each observed artboard (the warm-up's distance and cut, the gesture freeze) */
   articles: Map<string, HTMLElement>;
+  /** 2.0.7 — pauses the awake artboards' own animations and silent videos while the camera moves. */
+  freeze: ArtboardFreeze | null;
 }
 
 /**
@@ -105,7 +119,7 @@ interface Runtime {
  * reselected after `loaded` — the selected clip was gone (2.0.7 video regression). Bump `RUNTIME_SHAPE` when
  * `Runtime` or `LiveRegistry` changes shape (a canvas-lib change hard-reloads the frame anyway).
  */
-const RUNTIME_SHAPE = 4;
+const RUNTIME_SHAPE = 5;
 const RUNTIME_KEY = '__maudeArtboardLive';
 interface RuntimeSlot {
   shape: number;
@@ -157,7 +171,7 @@ function getRuntime(): Runtime | null {
   if (held && held.search === window.location.search) return held.runtime;
   const mode: LiveMode = resolveLiveMode({ search: window.location.search, embedded: embedded() });
   const schedule = (fn: () => void) =>
-    typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16);
+    typeof requestAnimationFrame === 'function' ? frameRaf(fn) : setTimeout(fn, 16);
   const registry = new LiveRegistry(mode, schedule);
   const ids = new WeakMap<Element, string>();
   let near: IntersectionObserver | null = null;
@@ -213,6 +227,18 @@ function getRuntime(): Runtime | null {
     });
   }
   const articles = new Map<string, HTMLElement>();
+  // 2.0.7 — the gesture freeze: while the camera moves the awake artboards' CSS animations, scripted Web
+  // Animations and silent videos pause (artboard-freeze.ts); their frame callbacks wait in the shell's gate.
+  let freeze: ArtboardFreeze | null = null;
+  if (mode !== 'off') {
+    const fz = new ArtboardFreeze();
+    onFrameFreeze((on) => (on ? fz.freeze(articles.values()) : fz.thaw()));
+    freeze = fz;
+    (window as unknown as { __maudeFreezeStats?: () => unknown }).__maudeFreezeStats = () => ({
+      ...fz.stats(),
+      frame: frameFreezeApi()?.stats() ?? null,
+    });
+  }
   let stills: StillController | null = null;
   let warmup: StillWarmup | null = null;
   if (
@@ -244,6 +270,7 @@ function getRuntime(): Runtime | null {
     stills,
     warmup,
     articles,
+    freeze,
   };
   const slot: RuntimeSlot = { shape: RUNTIME_SHAPE, search: window.location.search, runtime };
   (window as unknown as Record<string, unknown>)[RUNTIME_KEY] = slot;
@@ -320,7 +347,7 @@ export async function holdAllLive(): Promise<() => void> {
   const release = rt.registry.holdAllLive();
   rt.budget?.apply();
   if (typeof requestAnimationFrame === 'function')
-    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    await new Promise<void>((r) => frameRaf(() => frameRaf(() => r())));
   return release;
 }
 
@@ -590,7 +617,7 @@ function StillCopy({ still }: { still: HTMLElement }) {
 }
 
 /** Paused CSS animations while asleep, the placeholder and the still. (A released WebGL canvas's picture is artboard-webgl.ts's.) */
-export const ARTBOARD_LIVE_CSS = `${ARTBOARD_STILL_CSS}
+export const ARTBOARD_LIVE_CSS = `${ARTBOARD_STILL_CSS}${ARTBOARD_FREEZE_CSS}
 .dc-artboard[data-dc-asleep] .dc-artboard-body *,
 .dc-artboard[data-dc-asleep] .dc-artboard-body *::before,
 .dc-artboard[data-dc-asleep] .dc-artboard-body *::after { animation-play-state: paused !important; }

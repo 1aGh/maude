@@ -13,6 +13,7 @@
 
 import { type JSX, useEffect, useRef } from 'react';
 import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
+import { frameCafOn, frameRafOn } from '../frame-clock.ts';
 import { useCollab, useForeignAwareness } from '../use-collab.tsx';
 import { sanitizePointer, type WorldPoint } from './pointer-point.ts';
 
@@ -310,8 +311,8 @@ export function usePointerDot(opts: UsePointerDotOptions): void {
       },
       color: () => collabRef.current?.myColor || 'oklch(0.74 0.16 40)',
       now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
-      raf: (cb) => win.requestAnimationFrame(cb),
-      caf: (id) => win.cancelAnimationFrame(id),
+      raf: (cb) => frameRafOn(win, cb),
+      caf: (id) => frameCafOn(win, id),
       reducedMotion: () => {
         try {
           return !!win.matchMedia?.('(prefers-reduced-motion: reduce)').matches;

@@ -17,12 +17,12 @@
 // `.dc-multi-artboard-tb` on the bar over artboards.
 
 import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
 import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
 import { useArtboardsContext, useDragStateContext } from '../canvas-lib.tsx';
 import { showCanvasToast } from '../canvas-notifications.tsx';
 import { isElementDragActive } from '../drag-state.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
@@ -433,7 +433,7 @@ export function AlignBar({ readOnly = false }: { readOnly?: boolean }) {
       div.setAttribute('data-on', 'false');
     };
     const tick = () => {
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
       const { selected: sel } = live.current;
       const els: Element[] =
         kind === 'artboards'
@@ -457,8 +457,8 @@ export function AlignBar({ readOnly = false }: { readOnly?: boolean }) {
       div.style.top = `${at.top}px`;
       div.setAttribute('data-on', 'true');
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    raf = frameRaf(tick);
+    return () => frameCaf(raf);
   }, [kind]);
 
   if (!model) return null;

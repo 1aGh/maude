@@ -34,6 +34,7 @@
  */
 
 import type { StillJob, WalkHooks } from './artboard-still-raster.ts';
+import { frameRaf } from './frame-clock.ts';
 
 /**
  * The overview cut: an artboard narrower than this on screen (CSS px) shows its still. One constant (Michal first
@@ -452,10 +453,7 @@ export class StillController {
       o.now ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
     this.frame =
       o.frame ??
-      ((fn) =>
-        typeof requestAnimationFrame === 'function'
-          ? requestAnimationFrame(fn)
-          : setTimeout(fn, 16));
+      ((fn) => (typeof requestAnimationFrame === 'function' ? frameRaf(fn) : setTimeout(fn, 16)));
     this.observe = o.observe === undefined ? defaultObserve : o.observe;
     this.info = o.info;
     this.painted = o.painted ?? defaultPainted;

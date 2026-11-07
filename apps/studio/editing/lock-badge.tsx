@@ -8,8 +8,8 @@
 // Read-only on purpose: the badge never writes and never captures the pointer.
 
 import { useEffect, useRef, useState } from 'react';
-
 import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { type CrumbNode, crumbLabel } from './crumbs.ts';
 
 const LOCKED = '[data-cd-locked]';
@@ -103,7 +103,7 @@ export function LockBadge({ readOnly = false }: { readOnly?: boolean }) {
     const onMove = (e: PointerEvent) => {
       if (raf.current != null) return;
       const { clientX, clientY, target } = e;
-      raf.current = requestAnimationFrame(() => {
+      raf.current = frameRaf(() => {
         raf.current = null;
         const el = editing() && target instanceof Element ? lockedUnder(target) : null;
         if (!el) {
@@ -127,7 +127,7 @@ export function LockBadge({ readOnly = false }: { readOnly?: boolean }) {
       document.removeEventListener('pointermove', onMove, true);
       document.removeEventListener('pointerleave', onLeave, true);
       window.removeEventListener('blur', onLeave);
-      if (raf.current != null) cancelAnimationFrame(raf.current);
+      if (raf.current != null) frameCaf(raf.current);
     };
   }, [readOnly]);
 

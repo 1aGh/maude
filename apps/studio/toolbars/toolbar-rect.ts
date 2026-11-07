@@ -8,6 +8,7 @@
 // Pure (the clock and the post are injected) so the throttle is a unit test, not a timing test.
 
 import type { CanvasModeV2 } from '../bridge/canvas-modes.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 
 export interface ToolbarRect {
   x: number;
@@ -53,12 +54,12 @@ export function createRectPoster(deps: RectPosterDeps): RectPoster {
     deps.raf ??
     ((fn: () => void) =>
       typeof requestAnimationFrame === 'function'
-        ? requestAnimationFrame(fn)
+        ? frameRaf(fn)
         : (setTimeout(fn, 16) as unknown as number));
   const caf =
     deps.caf ??
     ((id: number) =>
-      typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame(id) : clearTimeout(id));
+      typeof cancelAnimationFrame === 'function' ? frameCaf(id) : clearTimeout(id));
   let pending: number | null = null;
   let last = '';
   return {

@@ -14,8 +14,8 @@
 // without a layout engine; the DOM fills the measurements in.
 
 import { useEffect, useRef } from 'react';
-
 import { resolveSelectionEl } from '../dom-selection.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { pageRootOf } from '../input-router.tsx';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
 import { selectionForElement, stampedParent } from './selection.tsx';
@@ -279,11 +279,11 @@ export function OrderBadges({ active }: { active: boolean }) {
         n.style.left = `${Math.round(edge ? edge.left : r.left) + 5}px`;
         n.style.top = `${Math.round(r.top) + (edge ? 2 : 5)}px`;
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
       root.textContent = '';
     };
   }, [active, one]);

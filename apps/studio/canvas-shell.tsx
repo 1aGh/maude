@@ -119,6 +119,7 @@ import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.
 import { commitTextInPlace, lockedTextLine, textOpDeps } from './editing/text-actions.ts';
 import { worldMenuSections } from './editing/world-menu.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import {
   crossedDragThreshold,
   dropPageRoot,
@@ -3640,7 +3641,7 @@ function CanvasRouter({
   useEffect(
     () => () => {
       if (hoverRafRef.current != null && typeof cancelAnimationFrame !== 'undefined') {
-        cancelAnimationFrame(hoverRafRef.current);
+        frameCaf(hoverRafRef.current);
       }
     },
     []
@@ -3653,7 +3654,7 @@ function CanvasRouter({
       onHover: ({ deep, clientX, clientY }) => {
         pendingHoverRef.current = { deep, x: clientX, y: clientY };
         if (hoverRafRef.current == null && typeof requestAnimationFrame !== 'undefined') {
-          hoverRafRef.current = requestAnimationFrame(applyHover);
+          hoverRafRef.current = frameRaf(applyHover);
         }
       },
       onSelect: ({ mode, deep, clientX, clientY }) => {
@@ -3890,11 +3891,11 @@ function HoverHalo({ el }: { el: Element | null }) {
         div.style.width = `${Math.round(r.width)}px`;
         div.style.height = `${Math.round(r.height)}px`;
       }
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, [el]);
 
@@ -3998,11 +3999,11 @@ function SelectionHalos() {
           child.style.height = `${Math.round(r.height) + gap * 2}px`;
         }
       }
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, [selected]);
 
@@ -4732,11 +4733,11 @@ function GroupBbox() {
       div.style.top = `${Math.round(yMin - pad)}px`;
       div.style.width = `${Math.round(xMax - xMin + pad * 2)}px`;
       div.style.height = `${Math.round(yMax - yMin + pad * 2)}px`;
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, [selected]);
 

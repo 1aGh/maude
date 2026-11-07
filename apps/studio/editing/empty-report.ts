@@ -1,3 +1,4 @@
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 // apps/studio/editing/empty-report.ts — S11.2: the canvas tells its shell what is empty.
 //
 // Two facts the shell cannot know for itself (it never reads the canvas DOM):
@@ -127,12 +128,12 @@ export function createEmptyReporter(deps: EmptyReporterDeps): EmptyReporter {
     deps.raf ??
     ((fn: () => void) =>
       typeof requestAnimationFrame === 'function'
-        ? requestAnimationFrame(fn)
+        ? frameRaf(fn)
         : (setTimeout(fn, 16) as unknown as number));
   const caf =
     deps.caf ??
     ((id: number) =>
-      typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame(id) : clearTimeout(id));
+      typeof cancelAnimationFrame === 'function' ? frameCaf(id) : clearTimeout(id));
   let pending: number | null = null;
   let lastCount = -1;
   let lastKey: string | null = null;

@@ -13,10 +13,10 @@
 // closes the bar.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-
 import { uploadAsset } from '../asset-upload.ts';
 import { showCanvasToast } from '../canvas-notifications.tsx';
 import type { ElementRef } from '../edit-ops/types.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { isEditableTarget } from '../input-router.tsx';
 import { isEmbedCanvas, isReadOnlyCanvas } from '../read-only-mode.ts';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
@@ -341,10 +341,10 @@ export function PasteBar({ readOnly }: { readOnly?: boolean }) {
             : { left: r.left, top: r.bottom + 14 }
         );
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    raf = frameRaf(tick);
+    return () => frameCaf(raf);
   }, [placedRef]);
 
   if (!bar) return null;

@@ -11,8 +11,8 @@
 // Tokens only: the accent is the canvas's own `--maude-hud-accent`; the arc and ring take no other colour.
 
 import { useEffect, useState } from 'react';
-
 import { isCzech, tiePositions } from '../edit-ops/czech-ties.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { langIn } from './type-role.ts';
 
 export const TEXT_RING_STYLE_ID = 'maude-text-in-place-css';
@@ -153,17 +153,17 @@ export function TextInPlace({ readOnly }: { readOnly?: boolean }) {
     // pan / zoom fire no DOM event: follow them with rAF for as long as a text is being edited (the
     // discrete events below keep the arcs right where rAF is paused, e.g. an occluded WKWebView)
     const loop = () => {
-      raf = measure() ? requestAnimationFrame(loop) : 0;
+      raf = measure() ? frameRaf(loop) : 0;
     };
     const kick = () => {
       measure(true);
-      if (!raf && document.querySelector(EDITING)) raf = requestAnimationFrame(loop);
+      if (!raf && document.querySelector(EDITING)) raf = frameRaf(loop);
     };
     const events = ['input', 'keyup', 'focusin', 'focusout', 'selectionchange'] as const;
     for (const e of events) document.addEventListener(e, kick, true);
     return () => {
       for (const e of events) document.removeEventListener(e, kick, true);
-      if (raf) cancelAnimationFrame(raf);
+      if (raf) frameCaf(raf);
     };
   }, [readOnly]);
 

@@ -38,11 +38,11 @@ import {
   useState,
 } from 'react';
 import { createRoot } from 'react-dom/client';
-
 import { acceptFromShell } from './bridge/dgn-protocol.ts';
 import { annotationElement, annotationIdAt, clientToWorld } from './comment-anchor.ts';
 import { CommentsOverlay } from './comments-overlay.tsx';
 import { deriveFile, hoverTargetToSelection } from './dom-selection.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import {
   type HoverTarget,
   isOverlayTarget,
@@ -173,10 +173,10 @@ function CommentHost({ children, file }: { children: ReactNode; file: string | u
     // re-check on the next frame + a short timeout before deciding.
     const check = () => setIsSpecimen(isBareSpecimen());
     check();
-    const raf = requestAnimationFrame(check);
+    const raf = frameRaf(check);
     const t = setTimeout(check, 120);
     return () => {
-      cancelAnimationFrame(raf);
+      frameCaf(raf);
       clearTimeout(t);
     };
   }, []);
@@ -321,11 +321,11 @@ function MountSelectionHalo({ el }: { el: HTMLElement }) {
       } else if (div) {
         div.style.display = 'none';
       }
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, []);
 
@@ -377,11 +377,11 @@ function MountHoverHalo({ el }: { el: HTMLElement }) {
       } else if (div) {
         div.style.display = 'none';
       }
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, []);
 

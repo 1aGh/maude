@@ -35,6 +35,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 
 import { DRAG_THRESHOLD_PX as INPUT_DRAG_THRESHOLD_PX, isPageHit } from './input-router.tsx';
 import type { Selection } from './use-selection-set.tsx';
@@ -514,7 +515,7 @@ export function useArtboardDrag(opts: UseArtboardDragOptions): UseArtboardDragHa
   const frameLoop = useMemo(() => {
     const cancel = () => {
       if (rafRef.current !== null && typeof cancelAnimationFrame === 'function')
-        cancelAnimationFrame(rafRef.current);
+        frameCaf(rafRef.current);
       rafRef.current = null;
     };
     const flush = () => {
@@ -527,7 +528,7 @@ export function useArtboardDrag(opts: UseArtboardDragOptions): UseArtboardDragHa
     const schedule = () => {
       if (rafRef.current !== null) return;
       if (typeof requestAnimationFrame !== 'function') flush();
-      else rafRef.current = requestAnimationFrame(flush);
+      else rafRef.current = frameRaf(flush);
     };
     return { cancel, schedule };
   }, [emit]);

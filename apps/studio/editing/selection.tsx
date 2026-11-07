@@ -12,10 +12,10 @@
 // (S2-edit-ops.md §7) through use-selection-set's describer seam.
 
 import { useEffect, useRef } from 'react';
-
 import type { SelectionCrumb } from '../bridge/dgn-protocol.ts';
 import { hoverTargetToSelection, resolveSelectionEl } from '../dom-selection.ts';
 import type { ElementRef } from '../edit-ops/types.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import { type Selection, setSelectionDescriber, useSelectionSet } from '../use-selection-set.tsx';
 import {
   buildCrumbs,
@@ -255,11 +255,11 @@ export function EditingSelection({ readOnly = false }: { readOnly?: boolean }) {
           }
         }
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
     };
   }, [one]);
 

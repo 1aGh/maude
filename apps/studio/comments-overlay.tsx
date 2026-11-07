@@ -73,6 +73,7 @@ import { mineIdsOf, restampMine, viewerFor } from './comments/mine-stamp.ts';
 import { committerRows, type MentionRow } from './comments/people.ts';
 import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';
 import { resolveByDomPath } from './dom-selection.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import { toneColor } from './presence/tones.ts';
 import {
   COMMENTS_PAUSED_REASON,
@@ -1195,7 +1196,7 @@ function MentionAwareTextarea({
       setToken(null);
       // Restore caret just past the inserted token + trailing space.
       const newCaret = token.start + tag.length + 1;
-      requestAnimationFrame(() => {
+      frameRaf(() => {
         ta.focus();
         ta.setSelectionRange(newCaret, newCaret);
       });
@@ -1384,7 +1385,7 @@ function CommentPin({
       }
       if (!pos) {
         pin.style.display = 'none';
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = frameRaf(tick);
         return;
       }
       pin.style.display = 'grid';
@@ -1394,11 +1395,11 @@ function CommentPin({
       const top = Math.round(pos.y - 14);
       pin.style.left = `${left}px`;
       pin.style.top = `${top}px`;
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, [comment]);
 
@@ -1482,11 +1483,11 @@ export function CommentComposer({
       const placed = placeNearPoint(anchor, { w: node.offsetWidth, h: node.offsetHeight });
       node.style.left = `${Math.round(placed.x)}px`;
       node.style.top = `${Math.round(placed.y)}px`;
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, [state]);
 
@@ -1727,11 +1728,11 @@ export function CommentThread({
       const placed = placeNearPoint(anchor, { w: node.offsetWidth, h: node.offsetHeight });
       node.style.left = `${Math.round(placed.x)}px`;
       node.style.top = `${Math.round(placed.y)}px`;
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = frameRaf(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = frameRaf(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) frameCaf(rafRef.current);
     };
   }, [comment]);
 

@@ -14,8 +14,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-
 import { acceptFromShell } from './bridge/dgn-protocol.ts';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 
 export interface AiCopyPair {
   from: string;
@@ -136,11 +136,11 @@ export function AiCopyLinks(): React.JSX.Element | null {
           } else link.style.display = 'none';
         }
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
     };
   }, [pairs]);
 

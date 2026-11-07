@@ -123,6 +123,7 @@ import { VoteDots } from './annotations/ui/vote-dots.tsx';
 import { projectStrokes, type StrokeCache } from './annotations/ui/world.ts';
 import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
 import { reasonProps } from './client/v2/access/disabled-reason.js';
+import { frameCaf, frameRaf } from './frame-clock.ts';
 import { setStickerSelected } from './toolbars/shell-panels.ts';
 /**
  * @file       annotations-layer.tsx — FigJam-style annotation overlay
@@ -1198,7 +1199,7 @@ export function AnnotationsLayer() {
       ),
       // read at every frame: the theme can flip between two drags
       defaultInk: () => resolveDefaultInk(readChromeTheme()),
-      schedule: (fn) => requestAnimationFrame(fn),
+      schedule: (fn) => frameRaf(fn),
     });
     rideRef.current = ctl;
     return () => {
@@ -4507,13 +4508,13 @@ export function AnnotationsLayer() {
     const onMove = (e: PointerEvent) => {
       last = { x: e.clientX, y: e.clientY };
       if (raf == null && typeof requestAnimationFrame !== 'undefined') {
-        raf = requestAnimationFrame(apply);
+        raf = frameRaf(apply);
       }
     };
     document.addEventListener('pointermove', onMove, { passive: true });
     return () => {
       document.removeEventListener('pointermove', onMove);
-      if (raf != null && typeof cancelAnimationFrame !== 'undefined') cancelAnimationFrame(raf);
+      if (raf != null && typeof cancelAnimationFrame !== 'undefined') frameCaf(raf);
       clear();
     };
   }, [tool]);

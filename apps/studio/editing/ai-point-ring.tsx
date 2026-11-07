@@ -11,8 +11,8 @@
 // Decorative: aria-hidden, pointer-events none.
 
 import { useEffect, useRef, useState } from 'react';
-
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 
 export interface PointRow {
   artboard: string;
@@ -125,11 +125,11 @@ export function AiPointRings(): null | React.JSX.Element {
           ring.style.height = `${Math.round(r.height + PAD * 2)}px`;
         });
       }
-      raf = requestAnimationFrame(tick);
+      raf = frameRaf(tick);
     };
-    raf = requestAnimationFrame(tick);
+    raf = frameRaf(tick);
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
+      if (raf != null) frameCaf(raf);
     };
   }, [visible, rows]);
 

@@ -14,11 +14,11 @@
 // Pure where it can be (the maths takes rects and numbers, so it runs without layout).
 
 import { useEffect, useRef, useState } from 'react';
-
 import { resolveSelectionEl } from '../dom-selection.ts';
 import { isElementDragActive } from '../drag-state.ts';
 import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
 import type { PinH, PinV } from '../edit-ops/words-css.ts';
+import { frameCaf, frameRaf } from '../frame-clock.ts';
 import type { CommandRecord } from '../undo-stack.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { type RectLike, worldScaleOf } from './arrange.ts';
@@ -332,7 +332,7 @@ export function PinGuides({ readOnly }: { readOnly?: boolean }) {
     }
     let last = '';
     const tick = () => {
-      raf.current = requestAnimationFrame(tick);
+      raf.current = frameRaf(tick);
       if (isElementDragActive()) return;
       const el = resolveSelectionEl(document, one) as HTMLElement | null;
       const next = el ? guidesFor(el) : [];
@@ -352,7 +352,7 @@ export function PinGuides({ readOnly }: { readOnly?: boolean }) {
     };
     tick();
     return () => {
-      if (raf.current != null) cancelAnimationFrame(raf.current);
+      if (raf.current != null) frameCaf(raf.current);
       setGuides([]);
     };
   }, [one, readOnly]);
