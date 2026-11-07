@@ -269,6 +269,16 @@ impl RunsSnapshot {
         }
     }
 
+    /// #172 T2.6b (03 `ai-other-tab`): the canvas the strip's tooltip names — the first WORKING
+    /// run's canvas file stem (`canvas_display`). A waiting ask has not started, and needs you /
+    /// done have their own marks. Only the scope's path is read, never a word of the run.
+    pub fn working_canvas(&self) -> Option<String> {
+        self.mine
+            .iter()
+            .filter(|r| r.phase() == RunPhase::Working)
+            .find_map(|r| r.scope.as_ref().and_then(|s| canvas_display(&s.canvas)))
+    }
+
     /// The registry's needs-you count (the Dock badge's addend), never below
     /// what the rows show.
     pub fn needs_count(&self) -> u32 {
@@ -683,7 +693,14 @@ pub fn dot_for(fired: &[Transition]) -> Option<crate::tabs::Dot> {
 /// the runs' level this tick; done is the transition and stays until the tab is activated
 /// (`WindowBook::focus`).
 fn mark_tab(app: &AppHandle, root: &str, snapshot: &RunsSnapshot, fired: &[Transition]) {
-    crate::tabs::set_mark(app, root, snapshot.level(), fired.contains(&Transition::Finished));
+    let canvas = snapshot.working_canvas();
+    crate::tabs::set_mark(
+        app,
+        root,
+        snapshot.level(),
+        fired.contains(&Transition::Finished),
+        canvas.as_deref(),
+    );
 }
 
 /// Debug-only e2e helper (V2-3.9 T7 `tabs-identity`): one poll tick that saw `root`'s AI
@@ -1316,6 +1333,27 @@ mod tests {
         let idle = parse_runs(br#"{"live":0,"needsYou":0,"mine":[]}"#).unwrap();
         assert_eq!((idle.live_chats(), idle.any_live(), idle.level()), (0, false, None));
         assert!(parse_runs(b"not json").is_none());
+    }
+
+    // #172 T2.6b — the strip tooltip's canvas: the first WORKING run's canvas stem, never a waiting,
+    // needs-you or ended run's, and never any other field of the run.
+    #[test]
+    fn the_working_canvas_is_the_first_working_runs_file_stem() {
+        let snap = parse_runs(RUNS_BODY.as_bytes()).unwrap();
+        assert_eq!(snap.working_canvas().as_deref(), Some("Combine"));
+        let asking = parse_runs(
+            br#"{"mine":[{"runId":"r_aaaaaa2","state":"needs-you","scope":{"canvas":"ui/Uniformy-2027.tsx"}},
+                        {"runId":"r_aaaaaa1","state":"running","scope":{"canvas":"path:.design/ui/A4 plakat.tsx"}}]}"#,
+        )
+        .unwrap();
+        assert_eq!(asking.working_canvas().as_deref(), Some("A4 plakat"));
+        let terminal = parse_runs(br#"{"live":1,"mine":[{"runId":"r_terminal1","state":"running"}]}"#).unwrap();
+        assert_eq!(terminal.working_canvas(), None, "no scope: no name");
+        let waiting = parse_runs(
+            br#"{"mine":[{"runId":"r_aaaaaa3","state":"waiting","scope":{"canvas":"ui/B.tsx"}}]}"#,
+        )
+        .unwrap();
+        assert_eq!(waiting.working_canvas(), None, "a waiting ask has not started");
     }
 
     #[test]
