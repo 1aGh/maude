@@ -119,8 +119,8 @@ describe('md-edge-viewer · a view-only link, in a browser', () => {
     const boot = createShellMode(capsFor(CAN_VIEW));
     expect(boot.get()).toMatchObject({ mode: 'preview', nonce: 0 });
     expect(wantsFold('preview', boot.get())).toBe(false); // the Canvases list is there to open a canvas from
-    boot.select('preview'); // chosen: now Preview folds them (md-model)
-    expect(wantsFold('preview', boot.get())).toBe(true);
+    boot.select('preview'); // chosen: Preview still keeps them (#163: only the toolbar changes)
+    expect(wantsFold('preview', boot.get())).toBe(false);
     expect(wantsFold('viewing', boot.get())).toBe(false);
     // the initial mode itself: an editor lands in Edit, anyone else in Preview
     expect(createShellMode(capsFor(EDITOR)).get().mode).toBe('edit');

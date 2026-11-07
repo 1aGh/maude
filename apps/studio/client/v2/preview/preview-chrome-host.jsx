@@ -1,7 +1,7 @@
 // client/v2/preview/preview-chrome-host.jsx — S3.9: Preview's chrome, wired to the shell (04 md-motion).
 //
-// In Preview the shell adds one small island of its own: the PreviewBar (top centre — which canvas, what esc
-// does). r2-p3 (Michal TD1d): a mode switch changes only the toolbar — the pill, the Share cluster and the
+// In Preview the shell adds one small island of its own: the PreviewBar (top centre — which canvas, the way
+// back, what leaves Preview), and only once a followed link gave it a Back (#163). r2-p3 (Michal TD1d): a mode switch changes only the toolbar — the pill, the Share cluster and the
 // Undo · Redo · zoom island keep Edit's form (the ZoomOnly readout and the folded pill are retired here).
 //
 // `PreviewChrome` is the pure render (mode + caps + names in, islands out); `ShellPreviewChrome` collects
@@ -32,12 +32,22 @@ import { ZoomUndo, zoomUndoForm } from '../undo/zoom-undo.jsx';
 import { useViewportCamera } from './zoom-only.jsx';
 
 /** The islands, in Preview only. `state` is `in` while entering/showing, `out` for the exit fade.
- *  `openApp` — the browser's "Open in the Mac app" link (`openInAppLink`), absent everywhere else. */
+ *  `openApp` — the browser's "Open in the Mac app" link (`openInAppLink`), absent everywhere else.
+ *  #163 (Michal): the Previewing bar shows only when there is a Back to go to (a followed link); a plain
+ *  switch to Preview changes only the toolbar. */
 export function PreviewChrome({ mode, caps, name, zoom, back, onBack, openApp, state = 'in' }) {
   if (mode !== 'preview') return null;
   return (
     <>
-      <PreviewBar name={name} hint={previewHint(caps)} back={back} onBack={onBack} state={state} />
+      {back ? (
+        <PreviewBar
+          name={name}
+          hint={previewHint(caps)}
+          back={back}
+          onBack={onBack}
+          state={state}
+        />
+      ) : null}
       <OpenInApp href={openApp} state={state} />
     </>
   );

@@ -13,6 +13,56 @@
       "surface": "design-ui"
     },
     {
+      "id": "only-drag-adopts",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Only a drag puts an object into a section",
+      "summary": "Fan out, align, distribute and the arrow keys no longer drop an object into a section it ends up over. Drag it in when you want it there.",
+      "learnMore": "https://maude.sh/docs/desktop/window",
+      "surface": "design-ui"
+    },
+    {
+      "id": "object-menu-add-comment",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Add comment, right in the object menu",
+      "summary": "Right-click an object and Add comment is now near the top, under Ask AI, instead of inside Advanced.",
+      "learnMore": "https://maude.sh/docs/desktop/window",
+      "surface": "design-ui"
+    },
+    {
+      "id": "preview-bar-only-with-back",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "A quieter Preview",
+      "summary": "The Previewing bar at the top of Preview now shows only after you follow a link in the design, to take you back. A plain switch to Preview changes only the toolbar.",
+      "learnMore": "https://maude.sh/docs/desktop/window",
+      "surface": "design-ui"
+    },
+    {
+      "id": "preview-keeps-panels",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Preview keeps your panels open",
+      "summary": "Switching to Preview now changes only the toolbar. The Canvases and AI chat panels stay where you left them, and ⌘\\ still hides every panel.",
+      "learnMore": "https://maude.sh/docs/desktop/window",
+      "surface": "design-ui"
+    },
+    {
+      "id": "text-esc-keeps-words",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Esc keeps the words you typed",
+      "summary": "When you edit a text on the canvas, Esc now ends the edit and keeps what you typed, for every text. Press ⌘Z to put the old words back.",
+      "learnMore": "https://maude.sh/docs/design",
+      "surface": "design-ui"
+    },
+    {
       "id": "canvas-pages-view",
       "version": "2.0.7",
       "date": "2026-11-06",

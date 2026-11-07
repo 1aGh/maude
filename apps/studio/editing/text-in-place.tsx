@@ -45,6 +45,17 @@ export function ensureTextRingStyle(doc: Document = document): void {
   doc.head.appendChild(el);
 }
 
+/**
+ * What a keydown means while a text is being edited where it stands. Esc keeps the typed words for every text,
+ * as Figma does (#163): it ends the edit and saves, it never puts the old text back — Undo is the way back.
+ * Enter (no Shift) ends the edit by blurring, which saves too.
+ */
+export function textEditKey(e: { key: string; shiftKey?: boolean }): 'commit' | 'blur' | 'none' {
+  if (e.key === 'Escape') return 'commit';
+  if (e.key === 'Enter' && !e.shiftKey) return 'blur';
+  return 'none';
+}
+
 export interface TieArc {
   /** the index of the space in the element's text */
   at: number;

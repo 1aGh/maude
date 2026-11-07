@@ -98,8 +98,9 @@ describe('modes-present (S3.13)', () => {
     const inEdit = await cluster();
     expect(inEdit.form).toBe('full');
     await chord('p', 'KeyP', { altKey: true, metaKey: true });
-    await $(tid('preview-bar')).waitForExist({ timeout: 6000 });
     await landsOn('preview');
+    // #163: a plain switch to Preview draws no Previewing bar (it shows only with a Back)
+    expect(await $(tid('preview-bar')).isExisting()).toBe(false);
     expect(await cluster()).toEqual(inEdit);
     await capture('preview');
     // r4 #14 (Michal): in view mode, esc with nothing selected must not switch to Edit
@@ -170,7 +171,6 @@ describe('modes-present (S3.13)', () => {
       }
     };
     await chord('p', 'KeyP', { altKey: true, metaKey: true });
-    await $(tid('preview-bar')).waitForExist({ timeout: 6000 });
     await landsOn('preview');
     await chord('c', 'KeyC'); // Comment in hand
     await chord('v', 'KeyV');
@@ -203,8 +203,8 @@ describe('modes-present (S3.13)', () => {
 
   // 04 md-motion (6 · Edit → Preview, in motion): "220 ms on --dur-panel, shaped by --ease-out … Reduce motion: a 1 ms
   // cut". The camera's own ease is pinned on a manual clock (preview-motion.test.tsx); this is the CHROME half, read
-  // off the real elements while the real app does it: the Preview bar's entrance, and the picture of a panel that
-  // folds toward its icon. The chord is dispatched INSIDE the page so the rAF sampler starts on the same tick.
+  // off the real elements while the real app does it. Since #163 a plain switch moves no chrome (no bar without a
+  // Back, no panel fold), so the recorder must see neither. The chord is dispatched INSIDE the page so the rAF sampler starts on the same tick.
   // WebKit prints `.25` where the token says `0.25`: compare the numbers, not the text
   const squash = (s: string) => (s.match(/-?\d*\.?\d+/g) ?? []).map(Number).join(',');
   const toMs = (v: string) =>
@@ -311,7 +311,9 @@ describe('modes-present (S3.13)', () => {
     return { seen: Object.values(rec.seen), dur: rec.dur, failure: rec.failure };
   }
 
-  it('md-motion: Edit → Preview eases over --dur-panel (220 ms) on --ease-out, and the bar leads', async () => {
+  // #163 (Michal): Preview keeps the panels and draws no bar without a Back, so a plain Edit → Preview moves
+  // nothing in the chrome: no bar entrance, no panel ghost. The tokens the chrome would use are still pinned.
+  it('md-motion: Edit → Preview moves no chrome (no bar, no panel fold); --dur-panel is 220 ms on --ease-out', async () => {
     await landsOn('edit');
     const tokens = await browser.execute((sel: string) => {
       const cs = getComputedStyle(document.querySelector(sel) as Element);
@@ -326,26 +328,10 @@ describe('modes-present (S3.13)', () => {
     const run = await recordTransition(ROOT);
     expect(run.failure).toBe('');
     await landsOn('preview');
-    const bar = run.seen.find((s) => s.target === 'preview-bar' && s.name === 'sh-pbar-in');
-    if (!bar)
-      throw new Error(
-        `no entrance animation on the Preview bar; saw ${JSON.stringify(run.seen.map((s) => `${s.name}@${s.target}`))}`
-      );
-    expect(bar.duration).toBe(220);
-    expect(squash(bar.easing)).toBe(EASE_TOKEN);
-    // storyboard frame 2 (40 ms): ease-out has done most of the move already — a linear fade would sit at 0.18
-    const near40 = bar.samples
-      .filter((s) => s.at >= 30 && s.at <= 90)
-      .sort((a, b) => a.at - b.at)[0];
-    expect(near40).toBeDefined();
-    expect(near40.opacity).toBeGreaterThan(0.3);
-    // storyboard frame 3 (220 ms): landed
-    expect(bar.samples.at(-1)?.opacity).toBeGreaterThan(0.99);
-    // a panel that stopped showing leaves as a ghost on the same clock and curve
-    for (const g of run.seen.filter((s) => s.name === 'sh-island-fold')) {
-      expect(g.duration).toBe(220);
-      expect(squash(g.easing)).toBe(EASE_TOKEN);
-    }
+    expect(EASE_TOKEN).not.toBe('');
+    expect(run.seen.some((s) => s.target === 'preview-bar')).toBe(false);
+    expect(run.seen.some((s) => s.name === 'sh-island-fold')).toBe(false);
+    expect(await $(tid('preview-bar')).isExisting()).toBe(false);
     await capture('md-motion preview');
     // Esc stays in Preview (r4 #14); ⌥⌘P is the way back to Edit
     await chord('p', 'KeyP', { altKey: true, metaKey: true });

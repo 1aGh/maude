@@ -1605,7 +1605,13 @@ export function AnnotationsLayer() {
    * inverse (peer-safe: it reverts only fields still holding our values).
    */
   const commitStrokes = useCallback(
-    (prev: readonly Stroke[], next: readonly Stroke[], label?: string) => {
+    (
+      prev: readonly Stroke[],
+      next: readonly Stroke[],
+      label?: string,
+      /** #163 — `drag`: the person dragged the objects; only a drag adopts them into a section */
+      opts?: { drag?: boolean }
+    ) => {
       setPreview(null);
       // An upload still in flight is not on the board: it leaves the view
       // when this commit removes it or when its uploaded form lands.
@@ -1629,7 +1635,7 @@ export function AnnotationsLayer() {
         prevMap, // S4.16 — a new sticky over a video is pinned to the playhead (annotations/time-marks.ts)
         withMembership(
           prevMap,
-          strokesToElementMap(persist(next), committed),
+          strokesToElementMap(persist(next), committed, { adoptOnMove: opts?.drag === true }),
           dragBusRef.current?.layoutRects() ?? []
         ),
         playheadOf
@@ -3592,7 +3598,8 @@ export function AnnotationsLayer() {
             landed,
             `${st.altDup ? 'duplicate' : 'move'} ${st.movedIds.length} stroke${
               st.movedIds.length === 1 ? '' : 's'
-            }`
+            }`,
+            { drag: true }
           );
         };
         return {

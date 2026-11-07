@@ -20491,7 +20491,7 @@
     "hook": "preview-bar",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Preview's line, top centre: \"Previewing <canvas>\" and what esc does; `data-state` in/out drives the fade, `data-occludes=\"top\"`.",
+    "meaning": "Preview's line, top centre: \"Previewing <canvas>\" and what esc does; `data-state` in/out drives the fade, `data-occludes=\"top\"`. Drawn only while there is a Back (a followed link, #163): a plain switch to Preview has no bar.",
     "producer": {
       "file": "apps/studio/client/v2/preview/preview-bar.jsx",
       "symbol": "PreviewBar"

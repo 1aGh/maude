@@ -14,7 +14,7 @@ import { canvasRow } from '../helpers/tree';
  *
  *   Edit      select the linked heading            -> the chip says "Go to Cut"
  *   Preview   ⌥⌘P, click the heading               -> Cut opens in Preview, the bar shows "‹ Smoke"
- *   Back      click the bar's back button          -> Smoke again, no back button
+ *   Back      click the bar's back button          -> Smoke again, and no bar (#163: it shows only with a Back)
  *
  * Driving model (memory: the canvas iframe is unreachable by DOM selectors once the origin split is on):
  * the heading is found by COORDINATES from `window.__maudeCanvasRects()`, clicks and chords are synthetic
@@ -129,8 +129,11 @@ describe('follow a link and back (S3.10a)', () => {
   it('Preview: a click follows the link to Cut; the bar says where back goes', async () => {
     startReport('modes-present-links-follow');
     await chord('p', { metaKey: true, altKey: true, code: 'KeyP' });
-    await $('[data-testid="preview-bar"]').waitForExist({ timeout: 8000 });
-    expect(await $('[data-testid="preview-bar-back"]').isExisting()).toBe(false);
+    await browser
+      .waitUntil(async () => (await inFrame('edit-link-chip')) === null, { timeout: 8000 })
+      .catch(() => undefined);
+    // #163: no Back yet, so no Previewing bar at all
+    expect(await $('[data-testid="preview-bar"]').isExisting()).toBe(false);
     // the chip is Edit chrome: gone in Preview
     expect(await inFrame('edit-link-chip')).toBeNull();
     // a click that lands before the frame has taken Preview selects instead of following (2026-10-27 V2-8.3
@@ -159,14 +162,19 @@ describe('follow a link and back (S3.10a)', () => {
     await capture('preview-on-cut');
   });
 
-  it('Back: the bar’s back button returns to Smoke and the button goes', async () => {
+  it('Back: the bar’s back button returns to Smoke and the bar goes with it', async () => {
     startReport('modes-present-links-back');
     await $('[data-testid="preview-bar-back"]').click();
-    await browser.waitUntil(async () => (await barText('preview-bar-title')).includes('Smoke'), {
+    // #163: with nothing left to go back to, the Previewing bar is gone
+    await browser.waitUntil(async () => !(await $('[data-testid="preview-bar"]').isExisting()), {
       timeout: 10000,
       timeoutMsg: 'back never returned to the first canvas',
     });
-    expect(await $('[data-testid="preview-bar-back"]').isExisting()).toBe(false);
+    await waitForCanvasRects();
+    await browser.waitUntil(async () => (await rectOf(HEADING))?.id === 'smoke-h1', {
+      timeout: 10000,
+      timeoutMsg: 'Smoke’s linked heading never came back',
+    });
     await capture('back-on-smoke');
     // leave Preview the ordinary way: esc is unchanged by links
     await chord('Escape', { code: 'Escape' });

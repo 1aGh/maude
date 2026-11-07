@@ -8,12 +8,13 @@
 //   Bring to front ⌘] · Bring forward ] · Send backward [ · Send to back ⌘[
 //   Lock ⇧⌘L (Unlock) · Hide (Show)
 //   Version history of this object (one object)
-//   Advanced ▸  Add comment · Inspect · Select layer ▸ · Insert ▸ · Replace image… · Edit Photo… ·
+//   Advanced ▸  Inspect · Select layer ▸ · Insert ▸ · Replace image… · Edit Photo… ·
 //               Convert children to absolute position · Copy CSS · Copy data-cd-id ·
 //               Export selection… · Deselect
 //   Remove ⌫
 //
-// Ask AI about “<name>” ⌘/ opens the list (S2.22; it runs `ai.ask-selection` through the ask bubble). Cut / Copy /
+// Ask AI about “<name>” ⌘/ opens the list, Add comment C right under it (#163, Michal: the main group, no
+// longer under Advanced ▸) (S2.22; it runs `ai.ask-selection` through the ask bubble). Cut / Copy /
 // Paste are the object clipboard (V2-clipboard-objects, editing/clipboard.ts: edit-ops, the clipboard in the shell).
 // "Nothing deleted": every v1 row is either in the main list or under Advanced ▸ (D6). Pure over the item
 // structure — testable without a DOM.
@@ -45,7 +46,14 @@ export function objectNameOf(els: readonly Element[]): string | null {
   return el.tagName.toLowerCase();
 }
 
-const MAIN = new Set(['duplicate-element', 'copy-style', 'paste-style', 'delete-element', 'hide']);
+const MAIN = new Set([
+  'add-comment',
+  'duplicate-element',
+  'copy-style',
+  'paste-style',
+  'delete-element',
+  'hide',
+]);
 
 // ── what the rows say about the selection ─────────────────────────────────────────────────────
 
@@ -130,6 +138,8 @@ export function objectMenuSections(v1: MenuSection[], deps: ObjectMenuDeps): Men
         icon: 'spark',
         onSelect: () => window.dispatchEvent(new CustomEvent(ASK_OBJECTS_EVENT)),
       },
+      // #163 — the v1 row as it was (id, label, C, handler); absent when the role's v1 menu has none
+      ...reuse('add-comment', { icon: 'comment' }),
     ],
     [
       ...(deps.clip

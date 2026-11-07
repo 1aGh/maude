@@ -117,6 +117,7 @@ import {
 } from './editing/reorder-slot.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
 import { commitTextInPlace, lockedTextLine, textOpDeps } from './editing/text-actions.ts';
+import { textEditKey } from './editing/text-in-place.tsx';
 import { worldMenuSections } from './editing/world-menu.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
 import { frameCaf, frameRaf } from './frame-clock.ts';
@@ -3349,7 +3350,7 @@ function CanvasRouter({
   // nodes) to edit its copy in place. Commit (blur / Enter) posts `dgn:edit-text`
   // to the shell, which calls the main-origin /_api/edit-text → editText writes
   // the escaped JSXText to source; the file-watcher HMR reload re-renders from
-  // the persisted source. Esc restores the original. Mixed/expression elements
+  // the persisted source. Esc keeps the typed words too (#163, `textEditKey`). Mixed/expression elements
   // are skipped (the engine would refuse them anyway — honest no-op).
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -3357,9 +3358,6 @@ function CanvasRouter({
     if (!host) return;
     let editing: HTMLElement | null = null;
     let original = '';
-    // r2-text-tool — a text the Text tool has just made: esc keeps what was typed (there is nothing of yours to
-    // restore; restoring would put back the placeholder "Text"). Any other text: esc restores, as before.
-    let escKeeps = false;
     // Unified custom blinking caret (text-caret.ts) — mounted for the whole
     // edit session, disposed in teardown. Hides the native caret while up.
     let caretDispose: (() => void) | null = null;
@@ -3370,10 +3368,12 @@ function CanvasRouter({
     let lastTextCommit: { el: HTMLElement; original: string } | null = null;
     const onBlur = (): void => commitEdit(true);
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
+      // #163 — Esc keeps the typed words for every text, as Figma does; Undo is the way back.
+      const act = textEditKey(e);
+      if (act === 'commit') {
         e.preventDefault();
-        commitEdit(escKeeps);
-      } else if (e.key === 'Enter' && !e.shiftKey) {
+        commitEdit(true);
+      } else if (act === 'blur') {
         e.preventDefault();
         (e.currentTarget as HTMLElement | null)?.blur?.();
       }
@@ -3477,7 +3477,7 @@ function CanvasRouter({
       stamped: HTMLElement,
       clientX: number,
       clientY: number,
-      opts?: { selectAll?: boolean; escKeeps?: boolean }
+      opts?: { selectAll?: boolean }
     ): void {
       if (editing) return;
       // Cloud Phase 25 C2 — inline text edit is a source write; a read-only
@@ -3493,7 +3493,6 @@ function CanvasRouter({
       }
       editing = stamped;
       original = stamped.textContent ?? '';
-      escKeeps = opts?.escKeeps === true;
       stamped.setAttribute('contenteditable', 'plaintext-only');
       stamped.classList.add('dc-text-editing');
       stamped.addEventListener('blur', onBlur, true);
@@ -3598,14 +3597,12 @@ function CanvasRouter({
           clientX?: number;
           clientY?: number;
           selectAll?: boolean;
-          escKeeps?: boolean;
         }>
       ).detail;
       if (!detail?.el || !host.contains(detail.el)) return;
       // V2-8.7 — ↵ on a selected text arrives with selectAll (the keyboard door has no caret point)
       enterEditModeAt(detail.el, detail.clientX ?? 0, detail.clientY ?? 0, {
         selectAll: detail.selectAll === true,
-        escKeeps: detail.escKeeps === true,
       });
     };
     // The shell rejected the last inline text edit — revert the optimistic

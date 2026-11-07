@@ -125,6 +125,7 @@ describe('PreviewChrome in the browser (co-browser-view)', () => {
         caps={NO_CAPS}
         name="Combine-kampan"
         zoom={0.27}
+        back="Homepage"
         openApp={link}
       />
     );
@@ -133,7 +134,9 @@ describe('PreviewChrome in the browser (co-browser-view)', () => {
     expect(q('[data-testid="preview-open-app"]')?.getAttribute('href')).toBe(link);
   });
   test('the desktop app (no link): the same chrome without the island', async () => {
-    await mount(<PreviewChrome mode="preview" caps={NO_CAPS} name="Combine-kampan" zoom={1} />);
+    await mount(
+      <PreviewChrome mode="preview" caps={NO_CAPS} name="Combine-kampan" zoom={1} back="Homepage" />
+    );
     expect(q('[data-testid="preview-bar"]')).not.toBeNull();
     expect(q('[data-testid="preview-open-app"]')).toBeNull();
   });
