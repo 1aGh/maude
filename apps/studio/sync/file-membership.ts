@@ -319,7 +319,10 @@ export function classifyProjectFile(rel: string, opts: ClassifyOptions = {}): Fi
       const sibling = `${rel.slice(0, -'.css'.length)}.tsx`;
       if (opts.hasFile(sibling)) return 'canvas-owned';
     }
-    if (isDsManifest(rel, groups)) return 'companion-text';
+    // #167 T5.3 — a design system lives only under a group the owner declared (or the default
+    // pair): the hub boundary's implicit top folder is a canvas group, never a DS home.
+    if (isDsManifest(rel, normalizedGroups(opts.canvasGroups ?? undefined)))
+      return 'companion-text';
   }
 
   // The annotations sidecar's REAL shape: flat at the design root, keyed by
