@@ -1551,7 +1551,9 @@ async function postBash(ctx, input) {
   const toolUseId = hookKey(input.tool_use_id);
   if (!toolUseId) return null;
   const markP = join(ctx.run, 'bash', `${toolUseId}.json`);
-  const mark = readJson(markP, null);
+  // #164 F7 — a windowed call's mode, coverage and background flag come from the state file kept
+  // OUTSIDE the project; the in-project mark (the AI can rewrite or delete it) adds nothing to them.
+  const mark = effectiveMark(ctx, toolUseId, readJson(markP, null));
   if (!mark || typeof mark.at !== 'number') return null; // not a write verb
   const by = input.agent_type ?? 'main';
   // #164 — a call with a window (`named` / `all`) is settled by what it changed; a background one
@@ -1578,6 +1580,39 @@ async function postBash(ctx, input) {
 
 /** #164 — does this mark carry a window the studio parked writes for? */
 const windowedMark = (mark) => mark?.mode === 'named' || mark?.mode === 'all';
+
+/**
+ * #164 F7 — the call's window state as pre-bash recorded it outside the project, or null when there
+ * is none (no window was opened, or the file is gone / torn / not of the expected shape).
+ */
+function callState(ctx, toolUseId) {
+  const p = bashStatePath(ctx.root, ctx.session, toolUseId);
+  const st = p ? readState(p, null) : null;
+  if (!st || typeof st !== 'object' || st.v !== 1 || !windowedMark(st)) return null;
+  if (typeof st.at !== 'number' || !Number.isFinite(st.at)) return null;
+  return st;
+}
+
+/**
+ * The mark post-bash and Stop act on. With a valid state file the call is windowed exactly as the
+ * state says (mode, files, bg, verbOnly, snaps, start time) and the in-project `mark` adds only its
+ * `seen` stamp. Without one, `mark` is all there is: a windowed `mark` then settles with nothing
+ * claimed (it only closes the window), and one that is not windowed is as before.
+ */
+function effectiveMark(ctx, toolUseId, mark) {
+  const st = callState(ctx, toolUseId);
+  if (!st) return mark && typeof mark === 'object' ? mark : null;
+  return {
+    at: st.at,
+    interp: true,
+    mode: st.mode,
+    files: Array.isArray(st.files) ? st.files.filter((f) => typeof f === 'string') : [],
+    snaps: st.snaps && typeof st.snaps === 'object' ? st.snaps : {},
+    ...(st.verbOnly === true ? { verbOnly: true } : {}),
+    ...(st.bg === true ? { bg: true, by: typeof st.by === 'string' ? st.by : 'main' } : {}),
+    ...(typeof mark?.seen === 'number' ? { seen: mark.seen } : {}),
+  };
+}
 const isManifest = (m) =>
   !!m && typeof m === 'object' && m.v === 1 && !!m.files && typeof m.files === 'object';
 const SETTLE_BATCH = 32; // the studio's CLAIM_MAX_FILES
@@ -1609,6 +1644,12 @@ async function settleCall(ctx, toolUseId, mark, by, studio = undefined) {
   }
   if (statePath) removeState(statePath);
   const named = Array.isArray(mark.files) ? mark.files.filter((f) => typeof f === 'string') : [];
+  // #164 F6 — a `named` call can only have written what its command names (a create included): a
+  // change elsewhere in the root is not sent, so the studio releases it as outside
+  if (valid && mark.mode === 'named') {
+    const cover = new Set(named);
+    changed = changed.filter((c) => cover.has(c.path));
+  }
   const located =
     studio === undefined ? await locateStudio(ctx.root, { timeoutMs: LOCATE_MS }) : studio;
   // no studio: nothing to claim for; the hook still keeps its own record of what the call changed
@@ -1653,12 +1694,17 @@ async function settleCall(ctx, toolUseId, mark, by, studio = undefined) {
     if (res.status === 404 && !answered) {
       // an older studio: the window is claim-taking, and its binding is by file name
       await bashWindow(ctx, toolUseId, false, named, mark.mode === 'all');
-      await bindBashWrites(ctx, toolUseId, mark, by, mark.at, [
-        ...new Set([...named, ...changed.map((c) => c.path)]),
-      ]);
+      if (valid)
+        await bindBashWrites(ctx, toolUseId, mark, by, mark.at, [
+          ...new Set([...named, ...changed.map((c) => c.path)]),
+        ]);
       return;
     }
-    if (res.status !== 200) return; // refused: nothing is bound
+    if (res.status !== 200) {
+      // D2 — refused: nothing is bound, and the window is closed so the studio's 3 s release applies
+      await bashWindow(ctx, toolUseId, false, named, mark.mode === 'all');
+      return;
+    }
     answered = true;
     for (const p of Array.isArray(res.body?.bound) ? res.body.bound : []) bound.add(p);
     for (const p of Array.isArray(res.body?.person) ? res.body.person : []) person.add(p);
@@ -1765,13 +1811,25 @@ async function drainBackground(ctx, studio) {
   const now = Date.now();
   const turn = turnStart(ctx, now);
   const marks = [];
-  for (const n of names) {
+  // #164 F7 — a background call is also known by its state file outside the project, so a deleted
+  // in-project mark does not leave its window open until the studio times it out
+  const stateSample = bashStatePath(ctx.root, ctx.session, 'x');
+  let stateNames = [];
+  try {
+    if (stateSample) stateNames = readdirSync(dirname(stateSample));
+  } catch {
+    /* no state */
+  }
+  for (const n of new Set([...names, ...stateNames])) {
     const toolUseId = n.endsWith('.json') ? hookKey(n.slice(0, -5)) : null;
     if (!toolUseId) continue;
-    const m = readJson(join(dir, n), null);
+    const m = effectiveMark(ctx, toolUseId, readJson(join(dir, n), null));
     if (!m?.bg) continue;
-    if (!liveMark(m, now, turn)) rmSync(join(dir, n), { force: true });
-    else marks.push({ n, toolUseId, m });
+    if (!liveMark(m, now, turn)) {
+      rmSync(join(dir, n), { force: true });
+      const sp = bashStatePath(ctx.root, ctx.session, toolUseId);
+      if (sp) removeState(sp);
+    } else marks.push({ n, toolUseId, m });
   }
   marks.sort((a, b) => b.m.at - a.m.at); // newest first
   for (const x of marks.splice(BG_MARKS_MAX)) rmSync(join(dir, x.n), { force: true });

@@ -2810,6 +2810,77 @@ describe('#164 B1 — the manifest lives outside the project, and the settle fai
     }
   });
 
+  // #164 F7 — the call's mode and coverage come from the state file OUTSIDE the project; the
+  // in-project mark can be rewritten or deleted by the AI and must not leave a window open.
+  test('F7 — a rewritten in-project mark cannot turn a windowed call into an unwindowed one', async () => {
+    fresh();
+    const input = bash(project, 'f7a', 'tf7a', ALL);
+    await hook('pre-bash', input);
+    const markP = join(runDir('f7a'), 'bash', 'tf7a.json');
+    writeFileSync(markP, JSON.stringify({ at: Date.now(), mode: 'none', files: [] }));
+    await Bun.sleep(15);
+    writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
+    await hook('post-bash', input);
+    const settles = calls('/_api/agent/bash/settle');
+    expect(settles).toHaveLength(1);
+    expect(settles[0].changed.map((c) => c.path)).toEqual(['ui/C.tsx']);
+    expect(existsSync(state('f7a', 'tf7a'))).toBe(false);
+  });
+
+  test('F7 — a deleted in-project mark still settles from the state file', async () => {
+    fresh();
+    const input = bash(project, 'f7b', 'tf7b', ALL);
+    await hook('pre-bash', input);
+    rmSync(join(runDir('f7b'), 'bash', 'tf7b.json'));
+    await Bun.sleep(15);
+    writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
+    await hook('post-bash', input);
+    expect(calls('/_api/agent/bash/settle')).toHaveLength(1);
+    expect(existsSync(state('f7b', 'tf7b'))).toBe(false);
+  });
+
+  test('F7 — a mark that says "background" on a foreground call does not keep its window open', async () => {
+    fresh();
+    const input = bash(project, 'f7c', 'tf7c', ALL);
+    await hook('pre-bash', input);
+    const markP = join(runDir('f7c'), 'bash', 'tf7c.json');
+    writeFileSync(markP, JSON.stringify({ ...JSON.parse(readFileSync(markP, 'utf8')), bg: true }));
+    await hook('post-bash', input);
+    expect(calls('/_api/agent/bash/settle')).toHaveLength(1);
+  });
+
+  test('F6 — a named call settles only the files it names, not the whole root diff', async () => {
+    fresh();
+    const dPath = join(project, '.design', 'ui', 'D.tsx');
+    writeFileSync(dPath, CANVAS);
+    const cmd = `python3 -c "open('C.tsx','w').write('x')"`;
+    const input = { ...bash(project, 'f6', 'tf6', cmd), cwd: join(project, '.design', 'ui') };
+    await hook('pre-bash', input);
+    expect(calls('/_api/agent/bash/window')[0]).toMatchObject({ open: true, files: ['ui/C.tsx'] });
+    await Bun.sleep(15);
+    writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
+    writeFileSync(dPath, CANVAS.replace('Hi', 'Person')); // a person's save elsewhere
+    await hook('post-bash', input);
+    const [settle] = calls('/_api/agent/bash/settle');
+    expect(settle.changed.map((c) => c.path)).toEqual(['ui/C.tsx']);
+    rmSync(dPath);
+  });
+
+  test('D2 — any non-200 settle answer closes the window so the release applies', async () => {
+    for (const status of [500, 403, 409]) {
+      fresh();
+      settleReply = () => new Response('no', { status });
+      const input = bash(project, `d2${status}`, `td2${status}`, ALL);
+      await hook('pre-bash', input);
+      await Bun.sleep(15);
+      writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
+      await hook('post-bash', input);
+      const shut = calls('/_api/agent/bash/window').filter((w) => w.open === false);
+      expect(`${status} ${shut.length}`).toBe(`${status} 1`);
+      expect(touchedOf(`d2${status}`)).toEqual([]);
+    }
+  });
+
   test('H5 — a call that cannot claim and names nothing near the design root opens no window', async () => {
     for (const cmd of ['python3 scripts/other.py', 'pnpm test']) {
       fresh();
