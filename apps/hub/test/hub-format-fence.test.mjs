@@ -21,47 +21,13 @@ import { createAcceptedRevisions } from '../src/project-transactions/hub-integra
 import { openSqliteProjectStore } from '../src/project-transactions/store-sqlite.mjs';
 import { createHub } from '../src/server.mjs';
 import { addToken } from '../src/tokens.mjs';
+import { until } from './_until.mjs';
 
 const dirs = [];
 after(() => {
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
 });
 
-/** A poll gap this far above the 20 ms interval means the process did not run. */
-const FROZEN_GAP_MS = 500;
-
-/**
- * Wait for `fn()` for `ms` of time this process actually RAN.
- *
- * A wall-clock deadline also charges time the process spent not running — a
- * runner starved by the rest of the machine, a stopped process, a clock step.
- * The deadline then expires on the first tick after the freeze, before the
- * socket data queued behind it is read, and the test reports a hub that never
- * answered when the hub was never asked (the V2-8.1 red of 2026-10-31: every
- * other step of the restart test ran in its usual ~55 ms, then the v2 peer
- * "waited" exactly the 8 s deadline). So the clock is monotonic and a frozen
- * gap is charged as one poll. A hub that really never answers still fails:
- * the loop keeps ticking and every tick is charged.
- */
-async function until(fn, ms = 8000, what = 'condition', explain = null) {
-  let ran = 0;
-  let frozen = 0;
-  let last = performance.now();
-  while (!(await fn())) {
-    if (ran >= ms) {
-      const why = explain ? ` — ${explain()}` : '';
-      throw new Error(
-        `${what} not reached before deadline (ran ${Math.round(ran)} ms, frozen ${Math.round(frozen)} ms)${why}`
-      );
-    }
-    await new Promise((r) => setTimeout(r, 20));
-    const now = performance.now();
-    const gap = now - last;
-    last = now;
-    if (gap > FROZEN_GAP_MS) frozen += gap;
-    ran += gap > FROZEN_GAP_MS ? 20 : gap;
-  }
-}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function startHub(reuse = null) {
@@ -569,31 +535,5 @@ describe('the format barrier (the setMode order)', () => {
       store.close();
       rmSync(dir, { recursive: true, force: true });
     }
-  });
-});
-
-describe('the wait helper charges only the time the process ran', () => {
-  // The same process that serves the hub runs the wait, so a freeze stops both:
-  // what was queued behind it (here a flag, on a real hub the socket's answer)
-  // is read one tick after the freeze, and the wait must still be waiting then.
-  const freeze = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-
-  test('a freeze longer than the deadline is not a hang', async () => {
-    let ready = false;
-    setTimeout(() => {
-      freeze(900);
-      // Queued after the wait's own overdue tick, as a socket's data would be.
-      setTimeout(() => {
-        ready = true;
-      }, 1);
-    }, 30);
-    await until(() => ready, 300, 'the flag set behind the freeze');
-  });
-
-  test('a condition that never holds still fails, and says how long it ran', async () => {
-    await assert.rejects(
-      until(() => false, 200, 'never'),
-      /^Error: never not reached before deadline \(ran \d+ ms, frozen 0 ms\)$/
-    );
   });
 });

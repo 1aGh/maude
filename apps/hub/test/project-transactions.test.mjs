@@ -16,20 +16,13 @@ import { accessClaims, signAccessToken } from '../src/cloud-identity.mjs';
 import { laneHash } from '../src/project-transactions/lanes.mjs';
 import { createHub } from '../src/server.mjs';
 import { addToken } from '../src/tokens.mjs';
+import { until } from './_until.mjs';
 
 const EMPTY = laneHash('');
 const dirs = [];
 after(() => {
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
 });
-
-async function until(fn, ms = 8000, what = 'condition') {
-  const end = Date.now() + ms;
-  while (!(await fn())) {
-    if (Date.now() >= end) throw new Error(`${what} not reached before deadline`);
-    await new Promise((r) => setTimeout(r, 20));
-  }
-}
 
 const src = (title, color = 'black') =>
   `export default () => <h1 title="${title}" color="${color}">x</h1>;\n`;

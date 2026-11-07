@@ -128,13 +128,7 @@ export function openDoc(ws, token, name, { keep = false } = {}) {
   });
 }
 
-export async function until(fn, ms = 5000, what = 'condition') {
-  const end = Date.now() + ms;
-  while (!(await fn())) {
-    if (Date.now() >= end) throw new Error(`${what} not reached before deadline`);
-    await new Promise((r) => setTimeout(r, 20));
-  }
-}
+export { until } from './_until.mjs';
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

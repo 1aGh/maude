@@ -18,19 +18,12 @@ import * as Y from 'yjs';
 import { openSqliteProjectStore } from '../src/project-transactions/store-sqlite.mjs';
 import { createHub } from '../src/server.mjs';
 import { addToken } from '../src/tokens.mjs';
+import { until } from './_until.mjs';
 
 const dirs = [];
 after(() => {
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
 });
-
-async function until(fn, ms = 10000, what = 'condition') {
-  const end = Date.now() + ms;
-  while (!(await fn())) {
-    if (Date.now() >= end) throw new Error(`${what} not reached before deadline`);
-    await new Promise((r) => setTimeout(r, 25));
-  }
-}
 
 async function startHub(dataDir) {
   const built = createHub({ port: 0, dataDir, secret: 'test-secret', verbose: false });

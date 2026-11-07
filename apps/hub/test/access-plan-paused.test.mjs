@@ -35,6 +35,7 @@ import { createHub } from '../src/server.mjs';
 import { decide, STUDIO_PREFIXES, STUDIO_ROUTES } from '../src/studio-manifest.mjs';
 import { createStudioProxy, INJECTED_HEADER_PREFIX } from '../src/studio-proxy.mjs';
 import { addToken } from '../src/tokens.mjs';
+import { until } from './_until.mjs';
 
 const MATCHES = {
   owner: { label: 'o', owner: 'o@x.test', role: 'owner', readOnly: false, scope: '*' },
@@ -549,27 +550,19 @@ describe('S9.15b: the hub Yjs door opens writers read-only while paused', () => 
     providers.push(p);
     return p;
   }
-  async function until(fn, what) {
-    const end = Date.now() + 8000;
-    while (!fn()) {
-      if (Date.now() >= end) throw new Error(`${what} not reached`);
-      await new Promise((r) => setTimeout(r, 20));
-    }
-  }
-
   test('paused: a member syncs read-only and its write never lands', {
     timeout: 30000,
   }, async () => {
     const name = 'ws/local/main/ui-paused';
     process.env.MAUDE_PLAN_STATE = 'paused';
     const paused = open(name);
-    await until(() => paused.provider.synced, 'paused member synced');
+    await until(() => paused.provider.synced, 8000, 'paused member synced');
     assert.equal(paused.provider.authorizedScope, 'readonly');
     paused.doc.getText('html').insert(0, 'written-while-paused;');
 
     delete process.env.MAUDE_PLAN_STATE;
     const after = open(name);
-    await until(() => after.provider.synced, 'unpaused member synced');
+    await until(() => after.provider.synced, 8000, 'unpaused member synced');
     assert.equal(after.provider.authorizedScope, 'read-write');
     await new Promise((r) => setTimeout(r, 400));
     assert.doesNotMatch(after.text(), /written-while-paused/);

@@ -19,14 +19,30 @@ afterAll(() => rmSync(MODULES, { recursive: true, force: true }));
 const STUB = `export const DrawProof = (props: Record<string, unknown>) => props;\n`;
 writeFileSync(join(MODULES, 'canvas-lib-stub.ts'), STUB);
 
+/**
+ * Run a child so a hung one cannot hold the test run (issue #171: a one-off CI
+ * hang of ~43 min). SIGKILL because a child that ignores the default SIGTERM
+ * would sit out its whole sleep; stdin ignored and stdout/stderr piped so
+ * nothing waits on a terminal or an inherited descriptor.
+ */
+function spawnBounded(cmd: string, args: string[], env: NodeJS.ProcessEnv, timeoutMs = 60_000) {
+  return spawnSync(cmd, args, {
+    encoding: 'utf8',
+    env,
+    timeout: timeoutMs,
+    killSignal: 'SIGKILL',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
 /** Run the helper against a sandbox; the capture step fails fast on purpose. */
 function runProof(args: string[]) {
   const { root, designRoot } = makeSandbox();
   writeFileSync(join(designRoot, '_server.json'), JSON.stringify({ port: 1 }));
-  const res = spawnSync('bash', [SCRIPT, '--root', root, '--engine', 'agent-browser', ...args], {
-    encoding: 'utf8',
-    env: { ...process.env, MAUDE_AGENT_BROWSER: '/usr/bin/false', NO_OPEN: '1' },
-    timeout: 60_000,
+  const res = spawnBounded('bash', [SCRIPT, '--root', root, '--engine', 'agent-browser', ...args], {
+    ...process.env,
+    MAUDE_AGENT_BROWSER: '/usr/bin/false',
+    NO_OPEN: '1',
   });
   return { ...res, root, designRoot };
 }
@@ -43,6 +59,21 @@ async function loadProof(src: string): Promise<{ name: unknown; html: unknown }>
   };
   return { name: props.name, html: props.mark.props.dangerouslySetInnerHTML.__html };
 }
+
+describe('the proof harness cannot hang the run (#171)', () => {
+  test('a child that ignores SIGTERM and leaves a grandchild on its pipes is killed at the timeout', () => {
+    const t = Date.now();
+    const res = spawnBounded(
+      'bash',
+      ['-c', "trap '' TERM; sleep 15 & sleep 15; wait"],
+      process.env,
+      800
+    );
+    const took = Date.now() - t;
+    expect(res.signal).toBe('SIGKILL');
+    expect(took).toBeLessThan(5000);
+  }, 30_000);
+});
 
 describe('draw-proof generates an inert harness (V2-2.4b gate)', () => {
   const NAMES = [
@@ -93,10 +124,10 @@ describe('draw-proof generates an inert harness (V2-2.4b gate)', () => {
     writeFileSync(victim, 'export default function Real() { return null; }\n');
     mkdirSync(join(designRoot, '_draw'), { recursive: true });
     spawnSync('ln', ['-s', victim, join(designRoot, '_draw', 'mark.proof.tsx')]);
-    spawnSync(
+    spawnBounded(
       'bash',
       [SCRIPT, '--root', root, '--engine', 'agent-browser', '--asset', asset, '--slug', 'mark'],
-      { env: { ...process.env, MAUDE_AGENT_BROWSER: '/usr/bin/false' }, timeout: 60_000 }
+      { ...process.env, MAUDE_AGENT_BROWSER: '/usr/bin/false' }
     );
     expect(readFileSync(victim, 'utf8')).toBe('export default function Real() { return null; }\n');
   }, 60_000);

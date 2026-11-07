@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
 
 import { capture, startReport } from '../helpers/evidence';
+import { hubProcess } from '../helpers/hub-process';
 import { waitForSidecar } from '../helpers/sidecar';
 import { pinCurrentWindow } from '../helpers/windows';
 
@@ -83,7 +84,7 @@ describe('offline-conflict (native-desktop)', () => {
   });
 
   it('1–3 · offline edit, the teammate’s edit lands first, back online with one sticky to look at', async () => {
-    process.kill(t().hubPid, 'SIGSTOP');
+    process.kill(hubProcess(t()), 'SIGSTOP');
     try {
       writeFileSync(mine(), board([sticky('s1', 'Číslo na zádech větší — 30 cm')]));
       const foot = await $(`${tid('canvases-foot')}[data-slot="sync"]`);
@@ -91,7 +92,7 @@ describe('offline-conflict (native-desktop)', () => {
       expect(await foot.getText()).toContain('kept on this Mac');
       await capture('01-offline-foot');
     } finally {
-      process.kill(t().hubPid, 'SIGCONT');
+      process.kill(hubProcess(t()), 'SIGCONT');
     }
     // the teammate's change reaches the project before this Mac's outbox drains
     writeFileSync(

@@ -160,9 +160,15 @@ describe('maude verb tiers — the generated allow list', () => {
 // denied, twice, and the terminal agent concluded every `maude` command needed approval. The flag forms of help
 // are read-only, so they ride with the verbs — as EXACT rules (no `:*`): nothing but the help output gets through.
 describe('maude verb tiers — the help flag forms', () => {
-  const HELP = ['Bash(maude --help)', 'Bash(maude design --help)'];
+  // `comments` is a shared (prompt) verb, so `<verb> --help` can't ride on its own rule; its help text is
+  // the one the shim prints for a `--help` anywhere on the line before it reaches the studio (#171).
+  const HELP = [
+    'Bash(maude --help)',
+    'Bash(maude design --help)',
+    'Bash(maude design comments --help)',
+  ];
 
-  test('the generated allow list carries the two exact help rules, after the verb rules', () => {
+  test('the generated allow list carries the exact help rules, after the verb rules', () => {
     const rules = autoAllowRules();
     expect(rules.slice(-HELP.length)).toEqual(HELP);
     expect(MAUDE_DEFAULT_ALLOWED_TOOLS.filter((t) => HELP.includes(t))).toEqual(HELP);
