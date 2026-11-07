@@ -185,7 +185,13 @@ function CanvasView({ src, view, setView, label }) {
         >
           {/* A read-only preview: out of the tab order, so the modal's focus
               never falls into a document whose keys the shell cannot see. */}
-          <iframe className="dv-frame" src={src} title={label} tabIndex={-1} />
+          <iframe
+            className="dv-frame"
+            src={src}
+            sandbox="allow-scripts allow-same-origin"
+            title={label}
+            tabIndex={-1}
+          />
         </div>
       ) : (
         <div className="dv-thumb-note">No saved version of this canvas to compare yet.</div>
