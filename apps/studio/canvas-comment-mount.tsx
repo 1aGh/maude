@@ -41,7 +41,7 @@ import { createRoot } from 'react-dom/client';
 import { acceptFromShell } from './bridge/dgn-protocol.ts';
 import { annotationElement, annotationIdAt, clientToWorld } from './comment-anchor.ts';
 import { CommentsOverlay } from './comments-overlay.tsx';
-import { deriveFile, hoverTargetToSelection } from './dom-selection.ts';
+import { commentSelectionFor, deriveFile, hoverTargetToSelection } from './dom-selection.ts';
 import { frameCaf, frameRaf } from './frame-clock.ts';
 import {
   type HoverTarget,
@@ -500,9 +500,12 @@ function dropComment(
     return;
   }
 
-  const sel = hoverTargetToSelection(target, file);
-  selSet.replace(sel);
-  openComposer(sel, clientX, clientY);
+  // The comment's anchor, not the plain selection: a real element path when the element has no
+  // data-cd-id, and the click's world point so the pin follows pan and zoom (#151).
+  // The SELECTION stays what a plain pick makes (an uninstrumented element is a whole-artboard pick to
+  // the halo and Delete); only the composer carries the comment anchor.
+  selSet.replace(hoverTargetToSelection(target, file));
+  openComposer(commentSelectionFor(target, clientX, clientY, file), clientX, clientY);
 }
 
 function openComposer(selection: Selection, clientX: number, clientY: number): void {

@@ -10,6 +10,7 @@
  *             lite comment mount.
  */
 
+import { clientToWorld } from './comment-anchor.ts';
 import { parsePathD, pointCount } from './edit-ops/path-model.ts';
 import type { TextInfo } from './edit-ops/text-style.ts';
 import { type KidsSummary, summarizeKids } from './editing/kids-summary.ts';
@@ -119,22 +120,53 @@ export function cssPath(el: Element | null): string {
   return path.join(' > ');
 }
 
+/** One `domPath()` hop: the tag, plus the anchor attribute / id / first two authored classes. */
+function hopLabel(cur: Element): string {
+  let label = cur.nodeName.toLowerCase();
+  const dEl = cur.getAttribute?.('data-dc-element');
+  const dSc = cur.getAttribute?.('data-dc-screen');
+  if (dEl) label += `[data-dc-element="${dEl}"]`;
+  else if (dSc) label += `[data-dc-screen="${dSc}"]`;
+  else if (cur.id) label += `#${cur.id}`;
+  const cls = realClasses(cur).split(/\s+/).filter(Boolean).slice(0, 2);
+  if (cls.length && !dEl && !dSc) label += `.${cls.join('.')}`;
+  return label;
+}
+
 export function domPath(el: Element | null): string[] {
   const hops: string[] = [];
   let cur = el;
   while (cur && cur.nodeType === 1 && hops.length < 8) {
-    let label = cur.nodeName.toLowerCase();
-    const dEl = cur.getAttribute?.('data-dc-element');
-    const dSc = cur.getAttribute?.('data-dc-screen');
-    if (dEl) label += `[data-dc-element="${dEl}"]`;
-    else if (dSc) label += `[data-dc-screen="${dSc}"]`;
-    else if (cur.id) label += `#${cur.id}`;
-    const cls = realClasses(cur).split(/\s+/).filter(Boolean).slice(0, 2);
-    if (cls.length && !dEl && !dSc) label += `.${cls.join('.')}`;
-    hops.unshift(label);
+    hops.unshift(hopLabel(cur));
     cur = cur.parentElement;
   }
   return hops;
+}
+
+/**
+ * A real, unique selector for an element that carries no `data-cd-id`: the artboard, then one
+ * `:nth-child` step per ancestor down to the element (`[data-dc-screen="a"] > div:nth-child(2) > span:nth-child(1)`).
+ * Position is what identifies it, so identical siblings and a card repeated in a list each get their own
+ * path, and it re-resolves to the same element on reload (#151). No depth cap: a capped path would lose
+ * its artboard root and match elsewhere. Null when the element is the artboard itself or lies outside it.
+ */
+export function elementPathSelector(el: Element | null, artboardId: string | null): string | null {
+  if (!el || !artboardId) return null;
+  const steps: string[] = [];
+  let cur: Element | null = el;
+  while (cur && cur.nodeType === 1) {
+    if (cur.getAttribute?.('data-dc-screen') === artboardId) {
+      if (steps.length === 0) return null; // the artboard itself
+      return `[data-dc-screen="${artboardId}"] > ${steps.join(' > ')}`;
+    }
+    let pos = 1;
+    for (let n = cur.previousElementSibling; n; n = n.previousElementSibling) pos++;
+    // SVG names such as `foreignObject` are case-sensitive in a selector; `*` is always safe.
+    const name = cur.localName;
+    steps.unshift(`${name === name.toLowerCase() ? name : '*'}:nth-child(${pos})`);
+    cur = cur.parentElement;
+  }
+  return null; // not inside that artboard
 }
 
 export function cssEscape(s: string): string {
@@ -264,8 +296,12 @@ export function resolveByDomPath(
   const wantClasses = (opts.classes || '').split(/\s+/).filter(Boolean);
   let best: Element | null = null;
   let bestScore = 0;
-  for (const el of Array.from(scope.querySelectorAll('[data-cd-id]'))) {
-    if (el.tagName.toLowerCase() !== wantTag) continue;
+  // EVERY element of that tag, stamped or not (#151: an element with no `data-cd-id` was never found).
+  // A match needs the leaf hop to agree (suffix >= 1), so the cheap one-hop label rejects most
+  // candidates before the full ancestor walk; this runs per frame for an unresolved pin.
+  const leaf = storedPath[storedPath.length - 1];
+  for (const el of Array.from((scope as Document | Element).getElementsByTagName(wantTag))) {
+    if (hopLabel(el) !== leaf) continue;
     const suffix = matchingSuffixLength(domPath(el), storedPath);
     if (suffix === 0) continue;
     const liveClasses = realClasses(el).split(/\s+/).filter(Boolean);
@@ -672,6 +708,40 @@ function textInfoFor(el: Element | null): { textInfo?: TextInfo } {
 }
 
 /**
+ * The Selection a COMMENT anchors to for the element under a click (comment-tool click, right-click
+ * "Add comment"). `hoverTargetToSelection` plus the two things an element comment needs to stay put (#151):
+ *
+ *   - an element with no `data-cd-id` inside an artboard gets a real path selector
+ *     (`elementPathSelector`) instead of the artboard's own selector. The artboard selector resolves to the
+ *     artboard, the stored tag (`span`) then disagrees with it, and the anchor could never resolve.
+ *     Selection itself keeps the artboard-only selector: "no id + an artboard" means a whole-artboard
+ *     pick to the halo, Delete and copy, and a comment must not change that.
+ *   - the click's WORLD point, so a pin whose element is hard to find follows pan and zoom rather than
+ *     drifting with the screen `bounds` of the moment it was made.
+ */
+export function commentSelectionFor(
+  target: { el: Element | null; cdId?: string | null; artboardId?: string | null },
+  clientX: number,
+  clientY: number,
+  file?: string
+): Selection {
+  const sel = hoverTargetToSelection(
+    { el: target.el, cdId: target.cdId ?? null, artboardId: target.artboardId ?? null } as never,
+    file
+  );
+  const el = target.el;
+  if (el && !target.cdId && target.artboardId && !dsAnchorOf(el)) {
+    const path = elementPathSelector(el, target.artboardId);
+    if (path) {
+      sel.selector = path;
+      sel.index = 0;
+    }
+  }
+  const world = clientToWorld(clientX, clientY);
+  return world ? { ...sel, world } : sel;
+}
+
+/**
  * Build the comment-composer Selection for a right-click "Add comment"
  * (context-menu.tsx's `element` / `artboard-chrome` / `world` targets share
  * this one builder). When an element was under the cursor, delegates to
@@ -689,12 +759,8 @@ export function buildComposeSelection(
   clientY: number,
   file?: string
 ): Selection {
-  if (target.el) {
-    return hoverTargetToSelection(
-      { el: target.el, cdId: target.cdId ?? null, artboardId: target.artboardId ?? null },
-      file
-    );
-  }
+  if (target.el) return commentSelectionFor(target, clientX, clientY, file);
+  const world = clientToWorld(clientX, clientY);
   return {
     file: file ?? deriveFile(),
     selector: '',
@@ -706,6 +772,7 @@ export function buildComposeSelection(
     dom_path: [],
     bounds: { x: clientX - 12, y: clientY - 12, w: 24, h: 24 },
     html: '',
+    ...(world ? { world } : {}),
   };
 }
 
