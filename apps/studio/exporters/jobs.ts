@@ -32,6 +32,7 @@ import { readAllArtboardPrintProps } from '../canvas-edit.ts';
 
 import type { Bus } from '../context.ts';
 import { currentSession, normalizeSessionKey } from '../session-scope.ts';
+import { missingTranscriptsFor } from '../video/inject.ts';
 import { resolveRenderLane } from '../workspace-mode.ts';
 import {
   type ExportContext,
@@ -51,6 +52,7 @@ import {
   renderRemotely,
   resolveRenderService,
 } from './remote.ts';
+import { captionGap } from './degraded.ts';
 import { noteRenderMs } from './render-seconds.ts';
 import {
   enforceAnnotationsPolicy,
@@ -396,6 +398,19 @@ function readUnsupportedMediaFor(
   return abs ? scanUnsupportedMedia(abs) : [];
 }
 
+/** The captioned clips of the first element target's canvas that have no transcript sidecar. */
+function readMissingTranscriptsFor(
+  targets: Target[],
+  repoRoot: string | undefined,
+  designRoot: string | undefined
+): string[] {
+  const t = targets.find((x) => x.kind === 'element');
+  if (!t || t.kind !== 'element' || !designRoot) return [];
+  const abs = safeCanvasAbs(repoRoot, designRoot, t.file);
+  if (!abs || !abs.endsWith('.tsx')) return [];
+  return missingTranscriptsFor(readFileSync(abs, 'utf8'), abs, designRoot);
+}
+
 /**
  * `{ [repoRelativeCanvasFile]: { [artboardId]: print } }` for every canvas an
  * element target names — what exporters/pdf.ts reads as `options.printProps`
@@ -429,11 +444,13 @@ function mergeDegraded(
 ): ExportDegradation | undefined {
   if (!a || !b) return a ?? b;
   const fonts = [...new Set([...(a.fontsNotEmbedded ?? []), ...(b.fontsNotEmbedded ?? [])])];
+  const captions = [...new Set([...(a.captionsMissing ?? []), ...(b.captionsMissing ?? [])])];
   return {
     ...a,
     ...b,
     ...(a.audioDropped || b.audioDropped ? { audioDropped: true } : {}),
     ...(fonts.length ? { fontsNotEmbedded: fonts } : {}),
+    ...(captions.length ? { captionsMissing: captions } : {}),
     reason: [...new Set([a.reason, b.reason])].join(' '),
   };
 }
@@ -706,7 +723,25 @@ export function createExportJobQueue(
               },
             },
           });
-      return res;
+      // #128 §7 — captions over a clip with no transcript sidecar export silently empty. Checked
+      // here, around the render, so the local lane and the render-worker lane (which holds no
+      // tenant files) say the same thing. A failed check never fails an export.
+      if (u.format !== 'mp4' && u.format !== 'webm') return res;
+      try {
+        const targets = dispatchRemote
+          ? remoteTargets
+          : await resolveScope({ scope: args.scope, ...args.resolve, options: args.options });
+        const missing = readMissingTranscriptsFor(
+          targets,
+          args.resolve.repoRoot,
+          args.resolve.designRoot
+        );
+        return missing.length
+          ? { ...res, degraded: mergeDegraded(res.degraded, captionGap(missing)) }
+          : res;
+      } catch {
+        return res;
+      }
     };
   }
 

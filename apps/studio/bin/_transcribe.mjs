@@ -270,6 +270,17 @@ async function runCloud(args, repo, provider) {
       }
       // Chosen engine may only produce SRT; the shared reflow output is SRT. If a
       // VTT was asked for, note that the cloud path currently writes SRT only.
+      // #128 §7 — the server leaves `assets/<sha8>.transcript.json` (the words) beside the SRT for
+      // every engine. If it is not there, say so by name: word-by-word captions cannot be timed
+      // from the SRT, and a silent SRT-only result is how this went unnoticed.
+      const sidecar = args.source.replace(/\.[^./]+$/, '.transcript.json');
+      if (!existsSync(join(repo, '.design', sidecar))) {
+        process.stderr.write(
+          `transcribe: no word timings were saved for ${args.source} — ${provider} returned none or ` +
+            'the sidecar could not be written; word-by-word captions need them. Re-run with ' +
+            '--provider whisper for a local, word-timed transcript.\n'
+        );
+      }
       process.stdout.write(`${out.startsWith('/') ? out.slice(1) : out}\n`);
       return;
     }

@@ -78,3 +78,61 @@ describe('resolveProvider (Task 2.6 — explicit engine choice, no silent switch
     expect(resolveProvider(undefined, repo)).toEqual({ provider: 'whisper', defaulted: true });
   });
 });
+
+// #128 §7 — a cloud engine's job leaves `assets/<sha8>.transcript.json` (the server writes it);
+// the CLI checks and says so, naming the asset, instead of reporting captions that cannot be timed.
+describe('runCloud — the word-timing sidecar', () => {
+  async function runCloudCli({ withSidecar }) {
+    const root = tmpRepo();
+    mkdirSync(join(root, '.design', 'assets'), { recursive: true });
+    if (withSidecar)
+      writeFileSync(join(root, '.design', 'assets', 'deadbeef.transcript.json'), '{}');
+    const server = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      fetch: (req) =>
+        req.method === 'POST'
+          ? Response.json({ jobId: 'j1' })
+          : Response.json({
+              jobs: [{ id: 'j1', status: 'done', assets: ['assets/deadbeef.srt'] }],
+            }),
+    });
+    try {
+      writeFileSync(join(root, '.design', '_server.json'), JSON.stringify({ port: server.port }));
+      const proc = Bun.spawn(
+        [
+          'bun',
+          join(import.meta.dir, '_transcribe.mjs'),
+          '--source',
+          'assets/deadbeef.mp4',
+          '--provider',
+          'elevenlabs',
+          '--root',
+          root,
+        ],
+        { stdout: 'pipe', stderr: 'pipe', env: { ...process.env, NO_OPEN: '1' } }
+      );
+      const [out, err] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+      ]);
+      await proc.exited;
+      return { out, err };
+    } finally {
+      server.stop(true);
+    }
+  }
+
+  test('no transcript sidecar after a cloud job: stderr names the asset', async () => {
+    const { out, err } = await runCloudCli({ withSidecar: false });
+    expect(out.trim()).toBe('assets/deadbeef.srt');
+    expect(err).toContain('assets/deadbeef.mp4');
+    expect(err).toMatch(/no word timings/i);
+  });
+
+  test('with the sidecar present there is no warning', async () => {
+    const { out, err } = await runCloudCli({ withSidecar: true });
+    expect(out.trim()).toBe('assets/deadbeef.srt');
+    expect(err).not.toMatch(/no word timings/i);
+  });
+});

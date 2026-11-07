@@ -37,6 +37,11 @@ export interface ExportDegradation {
    * `AAAAAA+` subset prefixes; the count and the split live in `reason`.
    */
   fontsNotEmbedded?: string[];
+  /**
+   * Captioned clips (`assets/<sha8>.<ext>`) that have no `assets/<sha8>.transcript.json`, so the
+   * comp's <Captions> had no words to show (#128 §7). Names only; the sentence is in `reason`.
+   */
+  captionsMissing?: string[];
   /** Human-readable cause, already newline-collapsed by the shim (DDR-054). */
   reason: string;
   /** One-line remedy — present only when the cause is a fixable authoring mistake. */
@@ -105,4 +110,23 @@ export function remedyFor(reason: string): string | undefined {
     );
   }
   return undefined;
+}
+
+/** At most this many assets are listed by name in the sentence (the array keeps them all). */
+const CAPTION_GAP_NAMED = 5;
+
+/**
+ * The degradation for a video whose <Captions> sit over clips with no transcript sidecar (#128 §7).
+ * The export is real and downloadable; its captions are silently empty, which is what this says —
+ * with the asset names, because "some clip" gives a person nothing to act on.
+ */
+export function captionGap(assets: readonly string[]): ExportDegradation {
+  const named = assets.slice(0, CAPTION_GAP_NAMED).join(', ');
+  const more =
+    assets.length > CAPTION_GAP_NAMED ? ` and ${assets.length - CAPTION_GAP_NAMED} more` : '';
+  return {
+    captionsMissing: [...assets],
+    reason: `No captions for ${named}${more}: no transcript was saved for ${assets.length === 1 ? 'it' : 'them'}.`,
+    remedy: 'Make captions for the clip again (Transcript panel, or `maude design transcribe`).',
+  };
 }

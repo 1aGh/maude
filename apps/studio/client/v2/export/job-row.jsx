@@ -80,11 +80,15 @@ export function DegradedNote({ degraded, compact = false }) {
   // The font case names the fonts, because "reduced fidelity" is useless to someone about to send this
   // to a printer — what they need is which faces came out unprintable (issue #116).
   const fonts = degraded.fontsNotEmbedded ?? [];
+  // Captions over a clip with no transcript export empty — name the clip (#128 §7).
+  const noCaptions = degraded.captionsMissing ?? [];
   const headline = degraded.audioDropped
     ? 'Exported without audio.'
     : fonts.length
       ? `Fonts a print shop will reject: ${fonts.join(', ')}.`
-      : 'Exported with reduced fidelity.';
+      : noCaptions.length
+        ? `No captions for ${noCaptions.join(', ')}: no transcript was saved.`
+        : 'Exported with reduced fidelity.';
   return (
     <div className="ex-export-degraded" data-testid="export-degraded-note">
       <span aria-hidden="true">!</span> {compact ? summarizeNoticeText(headline) : headline}

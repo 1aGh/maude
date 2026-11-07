@@ -225,7 +225,14 @@ export function createGroqAdapter(ctx: AdapterContext): ProviderAdapter {
     const json = JSON.parse(text) as GroqVerbose;
     const words = groqVerboseToWords(json);
     const srt = wordsToSrt(words);
-    const asset: GenAsset = { kind: 'transcription', mime: 'application/x-subrip', text: srt };
+    const asset: GenAsset = {
+      kind: 'transcription',
+      mime: 'application/x-subrip',
+      text: srt,
+      words,
+      // no per-word granularity -> groqVerboseToWords fell back to segments: say so
+      wordTiming: Array.isArray(json.words) && json.words.length > 0 ? 'provider' : 'segment',
+    };
     return { assets: [asset], usage: { ms: Date.now() - started }, raw: { text: json.text } };
   }
 

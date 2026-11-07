@@ -312,6 +312,7 @@ import { thumbNotFound, thumbResponse, wantResponse } from './thumbs/routes.ts';
 import { BOOT_COVERS_DELAY_MS, createThumbService } from './thumbs/service.ts';
 import { normalizeTreeState } from './tree-state.ts';
 import { readUiPrefs, validateUiPrefsPatch, writeUiPrefs } from './ui-prefs.ts';
+import { persistCloudTranscript } from './video/provider-transcript.ts';
 import { loadWhatsNew, resolveMaudeVersion } from './whats-new.ts';
 import { isWorkspaceMode, resolveRenderLane } from './workspace-mode.ts';
 import { isLoopbackHost } from './ws.ts';
@@ -6579,6 +6580,24 @@ export function createHttp(
                 if (!saved.ok || !saved.path)
                   throw new Error(`caption sidecar write failed: ${saved.error ?? 'unknown'}`);
                 assets.push(saved.path);
+                // #128 §7 — the SRT is reflowed segments; the WORDS go to the same
+                // `assets/<sha8>.transcript.json` the local engine writes, so word-by-word
+                // captions and the Transcript panel work for every engine.
+                const lang = (genReq.params as Record<string, unknown> | undefined)?.language;
+                const kept = persistCloudTranscript(
+                  ctx.paths.designRoot,
+                  {
+                    provider: genReq.provider,
+                    model: genReq.model,
+                    sourceAsset: genReq.sourceAsset,
+                    lang: typeof lang === 'string' ? lang : undefined,
+                  },
+                  asset
+                );
+                if (!kept.path)
+                  console.error(
+                    `[transcribe] no word-timing sidecar for ${genReq.sourceAsset}: ${kept.skipped}`
+                  );
               } else {
                 assets.push(await localizeGenAsset(asset, { saveAsset: api.saveAsset }));
               }
