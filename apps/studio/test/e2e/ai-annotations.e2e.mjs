@@ -12,6 +12,8 @@
 //   15 an-ai-read      three stickies as the scope: the AI says it back in one line and offers ONE button
 //   15 an-ai-apply     "Make these changes": the canvas changes, the stickies stay, resolved; one undo
 //   15 an-ai-stickers  Done! / Flagged status stickers wear a spark badge
+//   15 an-ai-write     (offer) the review's closing block lists the notes it `wrote`: "Put them in a section" sends those
+//                      words with the notes as the scope, and the section holds them (T2.6c, issue #172)
 //
 // Evidence: a screenshot per state into $E2E_SHOTS.
 
@@ -369,5 +371,106 @@ describe('15 an-ai-read / an-ai-apply / an-ai-stickers - three stickies, one but
       !after.some((x) => x.id === 's1' && x.resolved),
       'the stickies are open again after the undo (both are undone together)'
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+describe('15 an-ai-write (offer) - "Put them in a section" gathers the notes the review wrote', () => {
+  let lane;
+  let ui;
+  const WROTE = ['ai_n1', 'ai_n2', 'ai_n3'];
+  const aiNote = (id, index, x, text) =>
+    sticky(id, index, x, 700, text, { author: { kind: 'ai' } });
+  const BOARD = [
+    aiNote('ai_n1', 'a0', 140, 'Yearly is easy to miss - make it the default?'),
+    aiNote('ai_n2', 'a1', 330, 'No price on Team reads as expensive'),
+    aiNote('ai_n3', 'a2', 520, 'Three plans look alike - let Studio stand out'),
+  ];
+  before(async () => {
+    lane = await startAiLane({ files: files(BOARD) });
+    ui = await lane.open('ui/Board.tsx');
+    await ui.ready(1);
+    await ui.fit();
+  });
+  after(async () => {
+    await lane?.stop();
+  });
+
+  test('the review ends on one block that lists the notes it wrote; the offer card gains the second button', async () => {
+    const offer = {
+      v: 1,
+      says: 'Three notes on Board, each pointing at what it means. The design stays as it is.',
+      answers: [],
+      leaves: [],
+      targets: [{ ref: 'ab:desktop', name: 'Desktop' }],
+      wrote: WROTE,
+    };
+    lane.script([
+      {
+        op: 'say',
+        text:
+          'Done - 3 notes on Board. The design did not change.\n\n```maude-offer\n' +
+          JSON.stringify(offer) +
+          '\n```',
+      },
+    ]);
+    await ui.ask('Review Board like someone seeing it for the first time');
+    await until(() => ui.tid('ai-offer').count(), 'the offer card', 40_000);
+    assert.equal((await ui.tid('ai-offer-make').first().innerText()).trim(), 'Make these changes');
+    assert.equal(
+      (await ui.tid('ai-offer-section').first().innerText()).trim(),
+      'Put them in a section',
+      'a review that wrote notes offers the second button'
+    );
+    assert.equal((await ui.tid('ai-offer-skip').first().innerText()).trim(), 'Not now');
+    // the block is the card, never text in the answer
+    assert.equal(
+      await ui.page.getByText('maude-offer').count(),
+      0,
+      'the block is not shown as text'
+    );
+    await ui.shot('15-an-ai-write.offer');
+  });
+
+  test('Put them in a section: the words go as the ask, the AI wraps those notes, the design is untouched', async () => {
+    const design = lane.read(CANVAS_FILE);
+    lane.script([
+      annotate(lane, [{ op: 'wrap-section', ids: WROTE, text: 'Pricing review' }]),
+      {
+        op: 'say',
+        text: 'The 3 notes are in a new section, "Pricing review". The design did not change.',
+      },
+    ]);
+    // A review is asked with nothing selected, so the ask carries no annotation scope: the button must still know the
+    // canvas the notes are on. A button that sends nothing leaves the card up and the thread without the words.
+    await ui.tid('ai-offer-section').first().click();
+    await until(
+      async () => (await ui.tid('ai-offer').count()) === 0,
+      'the offer card to fold (the button sent nothing: it needs the canvas file of an ask with no scope)',
+      15_000
+    );
+    // the card is gone, so these words are the person's message in the thread, sent by the button
+    await until(
+      () => ui.page.getByText('Put them in a section', { exact: true }).count(),
+      'the words as the ask in the thread',
+      15_000
+    );
+    await until(
+      () => diskBoard(lane).some((e) => e.type === 'section' && e.text === 'Pricing review'),
+      'the section on the board',
+      40_000
+    );
+    const board = diskBoard(lane);
+    const section = board.find((e) => e.type === 'section' && e.text === 'Pricing review');
+    for (const id of WROTE) {
+      assert.equal(board.find((e) => e.id === id)?.parent, section.id, `${id} is in the section`);
+    }
+    assert.equal(
+      lane.read(CANVAS_FILE),
+      design,
+      'the notes are gathered; the design did not change'
+    );
+    assert.equal(await ui.tid('ai-result').count(), 0, 'no result card: no artboard changed');
+    await ui.shot('15-an-ai-write.section');
   });
 });

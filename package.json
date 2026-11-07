@@ -61,6 +61,9 @@
     "test:e2e:desktop:ai-runs": "pnpm --filter @maude/desktop-e2e e2e:ai-runs",
     "test:e2e:desktop:team-cell": "pnpm --filter @maude/desktop-e2e e2e:team-cell",
     "test:e2e:desktop:team-cell-missing": "pnpm --filter @maude/desktop-e2e e2e:team-cell-missing",
+    "test:e2e:desktop:an-vote": "pnpm --filter @maude/desktop-e2e e2e:an-vote",
+    "test:e2e:desktop:co-mention-notify": "pnpm --filter @maude/desktop-e2e e2e:co-mention-notify",
+    "test:e2e:desktop:ve-footage": "pnpm --filter @maude/desktop-e2e e2e:ve-footage",
     "test:e2e:desktop:s20": "pnpm --filter @maude/desktop-e2e e2e:s20",
     "test:e2e:desktop:parity:cloud": "pnpm --filter @maude/desktop-e2e e2e:parity:cloud"
   },
