@@ -143,6 +143,11 @@ interface Slot {
    * the link glyph, the Timeline's shared count and Present's format switch read those registrations).
    */
   eager: boolean;
+  /**
+   * Mounted for the stills' warm-up (2.0.7, artboard-still-warmup.ts): far away, asleep, within the DOM budget, until
+   * its still is drawn. Never a prefetch past the budget, never mid-gesture (the drain's own rules).
+   */
+  warm: boolean;
   admitted: boolean;
   live: boolean;
   /** Its media may load: `admitted`, except on an eager artboard, where it is the ring's own answer. */
@@ -176,6 +181,7 @@ export class LiveRegistry {
   private sweepAt = 0;
   private lastDrainAt = 0;
   private lastGestureMountAt = Number.NEGATIVE_INFINITY;
+  private lastAnyMountAt = Number.NEGATIVE_INFINITY;
   readonly budget: number;
   readonly ceiling: number;
 
@@ -286,6 +292,56 @@ export class LiveRegistry {
     if (s.eager === eager) return;
     s.eager = eager;
     this.recompute();
+  }
+
+  /**
+   * The stills' warm-up mounts a far artboard (`on`) and releases it once its still is drawn. The release is at once
+   * (not the keep ring's grace) unless the artboard came near, on screen, or is pinned / eager meanwhile.
+   */
+  setWarm(id: string, on: boolean): void {
+    const s = this.slots.get(id);
+    if (!s || s.warm === on) return;
+    s.warm = on;
+    if (on) {
+      this.recompute();
+      return;
+    }
+    const stays = s.near || s.visible || s.pinned || s.eager || this.forceAll > 0;
+    if (s.admitted && !stays) {
+      s.admitted = false;
+      s.live = false;
+      s.media = false;
+      this.pending.delete(id);
+      this.notify(id, s);
+      this.emit();
+    } else if (!s.admitted) this.pending.delete(id);
+    this.kick();
+  }
+
+  /** Is this artboard's warm mount done (its children mounted)? */
+  isMounted(id: string): boolean {
+    return !!this.slots.get(id)?.admitted;
+  }
+
+  /**
+   * Artboards the warm-up may mount: a gate holds them, not mounted, not on screen nor near, not pinned nor eager (a
+   * video keeps its own media rule), and their first mount fits the DOM budget now. Nearest the viewport first.
+   */
+  warmCandidates(): Array<{ id: string; dist: number; fits: boolean }> {
+    if (this.mode !== 'sleep' || this.forceAll > 0) return [];
+    const mounted = this.mountedWeight();
+    const out: Array<{ id: string; dist: number; fits: boolean }> = [];
+    for (const [id, s] of this.slots) {
+      if (s.admitted || s.warm || s.visible || s.near || s.pinned || s.eager || s.subs.size === 0)
+        continue;
+      out.push({ id, dist: s.dist, fits: mounted + this.weightOf(s) <= this.budget });
+    }
+    return out;
+  }
+
+  /** When the queue last mounted or woke an artboard (ms) — the warm-up waits for the ring's own mounts. */
+  lastMountAt(): number {
+    return this.lastAnyMountAt;
   }
 
   /** The element count an artboard's children came to once mounted (the DOM budget's unit). */
@@ -420,6 +476,7 @@ export class LiveRegistry {
         weight: 0,
         pinned: false,
         eager: false,
+        warm: false,
         admitted: false,
         live: false,
         media: false,
@@ -453,6 +510,7 @@ export class LiveRegistry {
         : force ||
           s.near ||
           s.visible ||
+          (this.mode === 'sleep' && s.warm) ||
           (this.mode === 'sleep' && held && !this.releasable(s, held));
     const admitted = ring || (this.mode === 'sleep' && s.eager);
     return { live, admitted, media: ring };
@@ -596,6 +654,7 @@ export class LiveRegistry {
         this.pending.delete(id);
       }
       this.notify(id, s);
+      this.lastAnyMountAt = t;
       changed = true;
       n += 1;
     }

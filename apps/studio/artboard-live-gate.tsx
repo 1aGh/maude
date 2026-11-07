@@ -44,8 +44,14 @@ import {
   subscribeCanvasBackground,
   takePicture,
 } from './artboard-placeholder.ts';
-import { ARTBOARD_STILL_CSS, resolveStillMode, StillController } from './artboard-still.ts';
+import {
+  ARTBOARD_STILL_CSS,
+  inOverviewCut,
+  resolveStillMode,
+  StillController,
+} from './artboard-still.ts';
 import { rasterTimings, startStill } from './artboard-still-raster.ts';
+import { StillWarmup } from './artboard-still-warmup.ts';
 import { WebglBudget } from './artboard-webgl.ts';
 
 const ALL_LIVE: ArtboardLiveState = { live: true, seen: true, media: true };
@@ -86,6 +92,10 @@ interface Runtime {
   ids: WeakMap<Element, string>;
   /** 2.0.7 — the overview level: artboards under the cut show their still (WebKit). */
   stills: StillController | null;
+  /** 2.0.7 — draws the stills of artboards that never mounted, one at a time while nothing moves. */
+  warmup: StillWarmup | null;
+  /** the article of each observed artboard (the warm-up's distance and cut) */
+  articles: Map<string, HTMLElement>;
 }
 
 /**
@@ -95,7 +105,7 @@ interface Runtime {
  * reselected after `loaded` — the selected clip was gone (2.0.7 video regression). Bump `RUNTIME_SHAPE` when
  * `Runtime` or `LiveRegistry` changes shape (a canvas-lib change hard-reloads the frame anyway).
  */
-const RUNTIME_SHAPE = 3;
+const RUNTIME_SHAPE = 4;
 const RUNTIME_KEY = '__maudeArtboardLive';
 interface RuntimeSlot {
   shape: number;
@@ -202,7 +212,9 @@ function getRuntime(): Runtime | null {
       mountedNodes: Math.round(registry.mountedWeight()),
     });
   }
+  const articles = new Map<string, HTMLElement>();
   let stills: StillController | null = null;
+  let warmup: StillWarmup | null = null;
   if (
     resolveStillMode({ search: window.location.search, webkit: isWebkit(), liveMode: mode }) ===
     'on'
@@ -216,11 +228,81 @@ function getRuntime(): Runtime | null {
     w.__maudeStillHistory = (id?: string) => st.history(id);
     // the last drawings: slices, the longest one, when the walk / the decode / the drawing ended
     w.__maudeStillJobs = () => st.jobs();
+    if (mode === 'sleep') {
+      warmup = startWarmup(registry, st, articles);
+      const wu = warmup;
+      w.__maudeStillWarm = () => ({ ...wu.stats(), cache: st.cache.stats() });
+    }
   }
-  const runtime: Runtime = { registry, budget, near, visible, keep, ids, stills };
+  const runtime: Runtime = {
+    registry,
+    budget,
+    near,
+    visible,
+    keep,
+    ids,
+    stills,
+    warmup,
+    articles,
+  };
   const slot: RuntimeSlot = { shape: RUNTIME_SHAPE, search: window.location.search, runtime };
   (window as unknown as Record<string, unknown>)[RUNTIME_KEY] = slot;
   return runtime;
+}
+
+/** The ring's own mounts are done when it mounted nothing for this long (ms) — the warm-up waits for them. */
+const WARM_RING_QUIET_MS = 300;
+
+/** The stills' warm-up (artboard-still-warmup.ts) on this document's registry and still controller. */
+function startWarmup(
+  registry: LiveRegistry,
+  st: StillController,
+  articles: Map<string, HTMLElement>
+): StillWarmup {
+  const now = () => performance.now();
+  const W = () => (typeof innerWidth === 'number' ? innerWidth : 0);
+  const H = () => (typeof innerHeight === 'number' ? innerHeight : 0);
+  const wu = new StillWarmup({
+    now,
+    later: (fn, ms) => setTimeout(fn, ms),
+    cancel: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+    candidates: () =>
+      registry.warmCandidates().map((k) => {
+        const a = articles.get(k.id);
+        if (!a) return k;
+        const r = a.getBoundingClientRect();
+        return {
+          ...k,
+          dist: Math.hypot(r.left + r.width / 2 - W() / 2, r.top + r.height / 2 - H() / 2),
+        };
+      }),
+    wanted: (id) => {
+      const a = articles.get(id);
+      return !!a && inOverviewCut(a.offsetWidth, st.zoomNow());
+    },
+    hasStill: (id) => st.hasStill(id),
+    mount: (id) => registry.setWarm(id, true),
+    release: (id) => registry.setWarm(id, false),
+    mounted: (id) => registry.isMounted(id),
+    quiet: () =>
+      st.quiet(true) &&
+      !registry.isInteracting() &&
+      now() - registry.lastMountAt() >= WARM_RING_QUIET_MS,
+    lastActivity: () => st.lastActivity(),
+    cacheRoom: () => {
+      const c = st.cache.stats();
+      const each = c.n ? c.bytes / c.n : 0;
+      return c.bytes + 2 * each <= st.cache.max;
+    },
+  });
+  st.onStill((id, ok) => wu.stillDone(id, ok));
+  registry.onSettle(() => wu.wake());
+  // any input pauses it at once (capture: before the canvas's own handlers; passive: never delays them)
+  const onInput = () => wu.input();
+  for (const type of ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'])
+    window.addEventListener(type, onInput, { capture: true, passive: true });
+  wu.kick();
+  return wu;
 }
 
 /** The mode this canvas document runs in. */
@@ -257,6 +339,7 @@ export function ArtboardLiveFeed({ zoom, interacting }: { zoom: number; interact
     if (!rt || rt.registry.mode === 'off') return;
     rt.registry.setZoom(zoom);
     rt.stills?.setZoom(zoom);
+    rt.warmup?.wake();
   }, [zoom]);
   useEffect(() => {
     const rt = getRuntime();
@@ -368,6 +451,7 @@ export function ArtboardLiveGate({
       return;
     }
     rt.ids.set(el, id);
+    rt.articles.set(id, el);
     rt.near.observe(el);
     rt.visible.observe(el);
     rt.keep?.observe(el);
@@ -376,6 +460,7 @@ export function ArtboardLiveGate({
       rt.visible?.unobserve(el);
       rt.keep?.unobserve(el);
       rt.ids.delete(el);
+      if (rt.articles.get(id) === el) rt.articles.delete(id);
       // an edit's remount: the new gate already holds the id and its observers report on its own article —
       // clearing near/visible here would put the artboard to sleep (and pause its video) for a frame
       rt.registry.unobserve(id);
