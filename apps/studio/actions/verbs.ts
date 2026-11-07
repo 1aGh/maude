@@ -289,10 +289,13 @@ export function verbTier(v: VerbDef): VerbTier {
  * `maude design help:*`), and `maude design <verb> --help` rides on the verb's own rule — so a
  * prompt / human verb's `--help` still prompts. V2-8.16: `maude design --help` was denied while
  * `maude design help` was allowed, and the terminal agent took every `maude` command for gated.
+ * `comments` is a prompt verb (reply / resolve / add post where others see it), so its own help text
+ * gets the exact rule too (#171): the shim prints usage for a `--help` before any sub-verb runs.
  */
 export const HELP_ALLOW_RULES: readonly string[] = [
   'Bash(maude --help)',
   'Bash(maude design --help)',
+  'Bash(maude design comments --help)',
 ];
 
 /** The `Bash(…)` allow rules for every auto-tier verb, in table order, then the help flag forms. */

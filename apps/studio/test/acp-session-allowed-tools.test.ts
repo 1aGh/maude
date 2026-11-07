@@ -105,6 +105,8 @@ const TOP_LEVEL_READ_RULES = [
   // V2-8.16: the help FLAG forms, exact (no `:*`) — that one command line and nothing else
   'Bash(maude --help)',
   'Bash(maude design --help)',
+  // #171: `comments` is a prompt verb, so its own `--help` needs its own exact rule
+  'Bash(maude design comments --help)',
 ];
 
 // Prompt tier (external / shared / destructive) and human tier, contract V2-1.11 §5.3: each one
@@ -152,6 +154,10 @@ const NOT_AUTO = [
   'maude design curl-local --help',
   'maude --help design',
   'maude design --help && maude design curl-local http://127.0.0.1:4399/_api/sync/trash',
+  // #171: only `comments --help` itself is the exact rule — a write sub-verb still prompts
+  'maude design comments reply c_1 --text hi',
+  'maude design comments --help reply c_1 --text hi',
+  'maude design comments --help && maude design comments resolve c_1',
 ];
 
 const STILL_AUTO = [
@@ -184,6 +190,8 @@ const STILL_AUTO = [
   'maude --help',
   'maude design --help',
   'maude design screenshot --help',
+  // #171: the shared `comments` verb's own help text is read-only
+  'maude design comments --help',
 ];
 
 describe('MAUDE_DEFAULT_ALLOWED_TOOLS — source-of-truth guard (DDR-184 / DDR-062)', () => {
