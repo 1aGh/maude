@@ -69,6 +69,10 @@ Other notices and lines:
 | The format moved but the switch did not happen | *Updated for Maude 2, but it still saves the old way. Nothing is lost. A copy of the old files is in Version history, on this Mac only.* The switch then runs by itself as above. |
 | The switch did not happen on a Maude 2 project | *The project still saves the old way. Nothing in it changed.* with **Retry update** |
 | You own the project and opened it in a Maude Cloud tab | *View only — this project still saves the old way. Switch it in the dashboard, under Saving.* with **Open dashboard**. A Maude Cloud tab cannot run the switch itself. |
+| You own the project, it saves the old way, and this Mac is offline | *View only — this project still saves the old way. Waiting for the connection to the team server; it switches by itself once it is back.* |
+| It saves the old way and the team server isn't set up for accepted revisions (`store-not-durable`, `browser-not-paired`) | *View only — this project still saves the old way, and the team server isn't set up to save accepted revisions yet. Once it is, the project switches by itself.* |
+| It saves the old way and the team server turned this Mac's sign-in down | *This project still saves the old way. The team server turned down this Mac's sign-in.* with **Sign in**. If the switch itself was refused: *The project still saves the old way — the team server turned down this Mac's sign-in. Nothing in it changed.* After the format moved: *Updated for Maude 2, but it still saves the old way — the team server turned down this Mac's sign-in. Nothing is lost.* |
+| You own it, it saves the old way, and you opened it in a Maude Cloud tab of a self-hosted workspace (no dashboard to point to) | *View only — this project still saves the old way. Open it in the Maude app on your Mac, and it switches by itself.* |
 
 A project Maude 2 creates is a Maude 2 project from the start, and so is a brand-new team project that a Maude 2 app starts on a Maude 2 team server.
 
