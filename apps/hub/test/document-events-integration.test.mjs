@@ -7,14 +7,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 import { createHub } from '../src/server.mjs';
 import { addToken } from '../src/tokens.mjs';
-
-async function until(fn, ms = 8000) {
-  const end = Date.now() + ms;
-  while (!(await fn())) {
-    if (Date.now() >= end) throw new Error('Expected real control notification before deadline');
-    await new Promise((r) => setTimeout(r, 20));
-  }
-}
+import { until } from './_until.mjs';
 
 test('real persisted document and authorized delete/revive invalidate scoped discovery', {
   timeout: 25000,

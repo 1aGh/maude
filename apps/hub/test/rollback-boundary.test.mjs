@@ -24,6 +24,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 import { createHub } from '../src/server.mjs';
 import { addToken } from '../src/tokens.mjs';
+import { until } from './_until.mjs';
 
 const dirs = [];
 after(() => {
@@ -31,14 +32,6 @@ after(() => {
 });
 
 const src = (title) => `export default () => <h1 title="${title}">x</h1>;\n`;
-
-async function until(fn, ms = 10000, what = 'condition') {
-  const end = Date.now() + ms;
-  while (!(await fn())) {
-    if (Date.now() >= end) throw new Error(`${what} not reached before deadline`);
-    await new Promise((r) => setTimeout(r, 25));
-  }
-}
 
 let tx = 0;
 

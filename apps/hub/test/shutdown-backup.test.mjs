@@ -22,6 +22,7 @@ import * as Y from 'yjs';
 import { fileTarget, restoreLatest } from '../src/backup.mjs';
 import { createHub } from '../src/server.mjs';
 import { addToken } from '../src/tokens.mjs';
+import { until } from './_until.mjs';
 
 const Database = createRequire(import.meta.url)('better-sqlite3');
 const dirs = [];
@@ -41,14 +42,6 @@ after(() => {
   }
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
 });
-
-async function until(fn, ms, what) {
-  const end = Date.now() + ms;
-  while (!(await fn())) {
-    if (Date.now() >= end) throw new Error(`${what} not reached before deadline`);
-    await new Promise((r) => setTimeout(r, 25));
-  }
-}
 
 test('a document written just before a graceful stop is in the generation the next wake restores', {
   timeout: 60000,
