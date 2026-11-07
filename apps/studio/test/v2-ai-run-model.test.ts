@@ -202,6 +202,17 @@ describe('follow-ups and the steps fold', () => {
     expect(stepTitle({ toolName: 'Read', args: {} })).toBe('Read');
     expect(lastAssistantDigest([])).toEqual({ text: '', steps: [] });
   });
+  test('the last reply never carries the offer block: the live region would read it out', () => {
+    const block = '```maude-offer\n{"v":1,"says":"x","answers":[],"leaves":[],"targets":[]}\n```';
+    const d = lastAssistantDigest([
+      {
+        role: 'assistant',
+        content: [{ type: 'text', text: `Done - 3 notes on Board.\n\n${block}` }],
+      },
+    ]);
+    expect(d.text).toBe('Done - 3 notes on Board.');
+    expect(d.text).not.toContain('maude-offer');
+  });
 });
 
 describe('the live region announces each state once', () => {
