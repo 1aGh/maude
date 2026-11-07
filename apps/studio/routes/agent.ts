@@ -10,6 +10,7 @@
 // MAIN ORIGIN ONLY (DDR-088): never in `CANVAS_SAFE_API`, never in the `startCanvasServer` routes
 // map — test/agent-routes-origin.test.ts pins both lists.
 
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseSync } from 'oxc-parser';
@@ -59,7 +60,7 @@ export interface AgentRouteDeps {
   /** §5.4 edit/check `read-only`: this session may not write the project (role / format gate) */
   readOnly?: () => boolean;
   /** run lifecycle side effects (beginAiAction / ai-activity until V2-1.15) */
-  bracket?: RunBracket;
+  bracket?: RunBracket & SettleBracket;
   /** the run registry; one is created per table when absent */
   runs?: AgentRuns;
   /**
@@ -79,11 +80,27 @@ export interface AgentRouteDeps {
   ) => { runId: string } | null;
 }
 
+/**
+ * #164 — POST /_api/agent/bash/settle's side effect (ai/write-claim.ts `hookClaims.settle`): claim the
+ * call's post-call bytes the studio re-read (`changed`, design-root-relative; `text` null = deleted)
+ * for run `run`, then settle the call — its parked writes join the run or go out as outside.
+ */
+export interface SettleBracket {
+  settle?(
+    run: { run: string; label: string | null },
+    call: string,
+    changed: ReadonlyArray<{ rel: string; text: string | null }>,
+    /** false = the hook sends more batches of this call (`more: true`): claim and settle at the last */
+    final?: boolean
+  ): void;
+}
+
 /** POST /_api/agent/write/claim — at most this many files per call, this many bytes in all. */
 export const CLAIM_MAX_FILES = 32;
 export const CLAIM_MAX_BYTES = 16 * 1024 * 1024;
-/** The canvas lanes a claim may name: a canvas source, its sidecar, its board. */
-const CLAIM_LANE_RE = /\.(?:tsx|meta\.json|annotations\.json)$/i;
+/** The canvas lanes a claim may name: a canvas source (#164: `.jsx` too), its sidecar, its board. */
+const CLAIM_LANE_RE = /\.(?:tsx|jsx|meta\.json|annotations\.json)$/i;
+const SHA256_RE = /^[0-9a-f]{64}$/;
 
 const json = (status: number, body: unknown) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -459,6 +476,18 @@ function readDesignFile(deps: AgentRouteDeps, rel: string): string | null {
     const real = realpathSync(path.join(designRoot, rel));
     if (!real.startsWith(realpathSync(designRoot) + path.sep)) return null;
     return readFileSync(real, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+/** A design file's bytes (inside the design root, symlinks resolved), or null. */
+function readDesignBytes(deps: AgentRouteDeps, rel: string): Buffer | null {
+  const designRoot = path.join(deps.repoRoot, deps.designRel);
+  try {
+    const real = realpathSync(path.join(designRoot, rel));
+    if (!real.startsWith(realpathSync(designRoot) + path.sep)) return null;
+    return readFileSync(real);
   } catch {
     return null;
   }
@@ -916,7 +945,8 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
     }),
     // p8-a1-claims — a Bash call that cannot claim its writes (S7 interpreter, a terminal-lane verb)
     // opens / closes its window, for the canvases its command names (cli/lib/bash-guard.mjs
-    // `namedDesignFiles`). Only those canvases' unclaimed writes join the run while it is open.
+    // `namedDesignFiles`). #164 — the window only PARKS those canvases' unclaimed writes; they join
+    // the run only when the call's settle (bash/settle, below) claims their bytes.
     spec({ path: '/_api/agent/bash/window' }, (b) => {
       const session = key(b, 'session');
       const toolUseId = key(b, 'toolUseId');
@@ -937,7 +967,7 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       }
       if (b.all !== undefined && typeof b.all !== 'boolean') return bad('all is a boolean');
       // p8-sec2-attrib A1 — a call that may write but names no canvas (a glob, `find -exec`, a computed
-      // name): the run stage takes its outside writes on EVERY canvas while it runs. No hold — a person's
+      // name): its window parks outside writes on EVERY canvas while it runs (#164). No hold — a person’s
       // save lands at once as theirs, and the call's end binds only the bytes it changed.
       const all = b.all === true;
       const self = runs.get(session, chat);
@@ -952,6 +982,105 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       );
       deps.bracket?.window?.(self, toolUseId, b.open, files, all);
       return json(200, { window: true });
+    }),
+    // #164 T5.1 — a Bash call that could not claim ends: the design hook diffed its pre/post lane
+    // snapshot and sends what changed with the sha256 of the post-call bytes. The studio re-reads each
+    // file; bytes still on disk (sha equal) and not a person's landed save are CLAIMED for the session's
+    // run, then the call settles (sync/action-stage.ts `settleShellCall`): what its window parked joins
+    // the run when its bytes are claimed, everything else lands as outside. A hook route: non-browser
+    // only (`hookBody`), main origin only, never in a canvas allowlist. An older studio answers 404 and
+    // the hook falls back to `edit/touched {via:'bash'}`.
+    spec({ path: '/_api/agent/bash/settle' }, (b) => {
+      const session = key(b, 'session');
+      const toolUseId = key(b, 'toolUseId');
+      if (!session || !toolUseId) return bad('session and toolUseId are hook keys');
+      const chat = chatOf(b);
+      if (chat === undefined) return bad(BAD_CHAT);
+      if (!Array.isArray(b.changed))
+        return bad('changed is a list of {path, sha, created?, deleted?}');
+      if (b.changed.length > CLAIM_MAX_FILES)
+        return bad(`changed is at most ${CLAIM_MAX_FILES} files: send the rest in another batch`);
+      const entries: Array<{ rel: string; sha: string | null; deleted: boolean }> = [];
+      for (const raw of b.changed as unknown[]) {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+          return bad('changed is a list of {path, sha, created?, deleted?}');
+        const e = raw as Record<string, unknown>;
+        const rel = designPathRel(e.path);
+        if (!rel || !CLAIM_LANE_RE.test(rel) || isRuntimeRel(rel))
+          return bad(
+            'path is a canvas, its .meta.json or its .annotations.json in the design root'
+          );
+        if (e.sha !== null && (typeof e.sha !== 'string' || !SHA256_RE.test(e.sha)))
+          return bad('sha is the sha256 (hex) of the post-call bytes, or null');
+        for (const f of ['created', 'deleted'] as const)
+          if (e[f] !== undefined && typeof e[f] !== 'boolean') return bad(`${f} is a boolean`);
+        entries.push({ rel, sha: e.sha as string | null, deleted: e.deleted === true });
+      }
+      if (b.more !== undefined && typeof b.more !== 'boolean') return bad('more is a boolean');
+      // more than CLAIM_MAX_FILES changed: the hook sends batches, every one but the last with
+      // `more: true`; the call settles (and its window closes) on the last
+      const final = b.more !== true;
+      const self = runs.get(session, chat);
+      const out = {
+        bound: [] as string[],
+        person: [] as string[],
+        artboards: [] as string[],
+        lostIds: [] as string[],
+        trashed: [] as string[],
+      };
+      // No live run of this session (a foreign chat, an ended run): nothing is claimed, and the call's
+      // window is left to its own end (close + SETTLE_WAIT_MS, stale, the run's end) — all outside.
+      if (!self) return json(200, out);
+      const designRoot = path.join(deps.repoRoot, deps.designRel);
+      const changed: Array<{ rel: string; text: string | null }> = [];
+      for (const e of entries) {
+        if (e.deleted) {
+          if (!existsSync(path.join(designRoot, e.rel))) {
+            changed.push({ rel: e.rel, text: null });
+            out.bound.push(e.rel);
+          }
+          continue;
+        }
+        // past the hook's budget with no pre-hash: never a claim
+        if (e.sha === null) continue;
+        const bytes = readDesignBytes(deps, e.rel);
+        // a later save changed the file since the call: those bytes are not the call's
+        if (!bytes || createHash('sha256').update(bytes).digest('hex') !== e.sha) continue;
+        const text = bytes.toString('utf8');
+        // p8-a1-save-hold — the person's held save landed these bytes during the call: theirs
+        if (saveHold().landedByPerson(path.join(designRoot, e.rel), text)) {
+          out.person.push(e.rel);
+          continue;
+        }
+        changed.push({ rel: e.rel, text });
+        out.bound.push(e.rel);
+      }
+      deps.bracket?.settle?.(self, toolUseId, changed, final);
+      // the call's held saves (named files) land now as the person's, never in the run
+      if (final) saveHold().window(toolUseId, false, []);
+      // attribution of what the call changed (the artboards, lost ids, trashed artboards)
+      const mark = readDesignFile(deps, `_runs/${session}/bash/${toolUseId}.json`);
+      let snaps: Record<string, unknown> = {};
+      try {
+        const m = mark ? JSON.parse(mark) : null;
+        if (m && typeof m.snaps === 'object' && m.snaps) snaps = m.snaps;
+      } catch {
+        /* no snapshots: every artboard of a changed canvas */
+      }
+      for (const c of changed) {
+        if (c.text === null || !CANVAS_RE.test(c.rel)) continue;
+        const name = snaps[c.rel];
+        const snap =
+          typeof name === 'string' && /^[A-Za-z0-9_.-]{1,160}$/.test(name)
+            ? `_runs/${session}/snap/${name}`
+            : null;
+        const ch = canvasChange(c.rel, snap, session);
+        for (const a of ch.artboards) if (!out.artboards.includes(a)) out.artboards.push(a);
+        out.lostIds.push(...ch.lostIds);
+        out.trashed.push(...ch.trashed);
+        runs.touch(self.session || session, c.rel, ch.artboards, chat, ch.elements);
+      }
+      return json(200, out);
     }),
     // p8-a1-claims — a disk-writing verb (reel-place, canvas-edit, ds-check --fix, import-figma) claims
     // the bytes it is about to write for its chat's live run, BEFORE they land (bin/_write-claim.mjs).

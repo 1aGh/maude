@@ -241,6 +241,24 @@ function hooks(r: Rig) {
   };
 }
 
+/**
+ * #164 T5.1 — the design hook's post-bash settle of Maude-chat call `call` (chat c1): the post-call bytes
+ * of `files`, re-read and claimed by the studio. The ACP window alone only parks; this is what binds.
+ */
+async function hookSettle(r: Rig, call: string, files: string[]) {
+  const post = hooks(r);
+  await post('/_api/agent/run/begin', { session: 'h1', actor: 'maude-chat', chat: 'c1' });
+  const sha = (s: string) => new Bun.CryptoHasher('sha256').update(s).digest('hex');
+  const res = await post('/_api/agent/bash/settle', {
+    session: 'h1',
+    chat: 'c1',
+    toolUseId: call,
+    changed: files.map((f) => ({ path: f, sha: sha(r.read(f)) })),
+  });
+  await r.home.flush();
+  return res;
+}
+
 /** A Maude chat turn whose python heredoc names Home (the S7 window, acp/index.ts). */
 async function pythonTurn(r: Rig) {
   const runId = await r.ask('c1', 'Retitle');
@@ -282,6 +300,8 @@ describe('A1 hold — a person’s save inside an interpreter call’s window wa
     writeFileSync(r.abs(HOME), before.replace('>Home<', '>AI title<'));
     await r.deliver(HOME);
     end('completed');
+    // #164 — the hook's settle claims python's post-call bytes (the window itself only parked them)
+    expect((await hookSettle(r, 'p1', [HOME])).bound).toEqual([HOME]);
     await sleep(SHELL_SETTLE_MS / 2);
     expect(r.read(HOME)).not.toContain(RED); // the AI's last bytes settle first
     await sleep(SHELL_SETTLE_MS / 2 + 300);
@@ -803,6 +823,8 @@ describe('A1 — an AI write to a canvas the command does not name is the AI’s
       writeFileSync(r.abs(HOME), before.replace('>Home<', '>AI title<'));
       await r.deliver(HOME);
       end();
+      // #164 — the `all` window parked it; the hook's settle (by the post-call bytes) binds it
+      expect((await hookSettle(r, 's1', [HOME])).bound).toEqual([HOME]);
       expect(await r.publish(runId)).toMatchObject({ status: 'accepted' });
       await r.home.flush();
       expect(await kinds(r, HOME)).toEqual(['ai']);

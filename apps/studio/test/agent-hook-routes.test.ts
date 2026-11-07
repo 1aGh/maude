@@ -21,6 +21,9 @@ import { changedArtboards, createAgentRuns } from '../agent-runs.ts';
 import { agentRouteSpecs } from '../routes/agent.ts';
 import { mountRoutes } from '../routes/table.ts';
 
+// #164 — the design hook keeps its state outside the project: never under the real ~/.claude/maude-hook
+process.env.MAUDE_HOOK_STATE_HOME = mkdtempSync(join(tmpdir(), 'maude-hook-state-'));
+
 const CANVAS = `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
 export const tone = 'warm';
 export default function C() {

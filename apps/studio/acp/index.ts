@@ -462,7 +462,8 @@ export function createAgentActivityTracker(
 
   /**
    * Open the turn's project action (its run stage, always claim-only); `shell` = the window of one
-   * call that cannot claim, for the canvases its command names (A1, S7).
+   * call that cannot claim, for the canvases its command names (A1, S7) — a PARKING window (#164):
+   * nothing this tracker opens ever claims a write for the run.
    */
   function openAction(shell?: {
     call: string;
@@ -538,6 +539,10 @@ export function createAgentActivityTracker(
       // name) used to open nothing, so its writes landed as the person's: it now opens a window over
       // every canvas for the run stage (outside writes only; no hold), and the design hook's post-bash
       // binds exactly the bytes it changed.
+      // #164 T5.1 — this window only PARKS (sync/action-stage.ts): it can never claim. A parked write
+      // joins the run only when the design hook's settle (POST /_api/agent/bash/settle, keyed by the
+      // same tool call id) claims its post-call bytes; with no settle it is released as outside at
+      // close + SETTLE_WAIT_MS, at stale, or at the run's end.
       const opens = !shellSeen.has(id) && shellOpensWindow(command);
       const named = opens
         ? namedDesignFiles(ctx.paths.designRoot, command).map(

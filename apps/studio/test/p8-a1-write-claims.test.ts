@@ -54,6 +54,9 @@ export default function Home() {
 const HOME = 'ui/Home.tsx';
 const OTHER = 'ui/Other.tsx';
 const repo = (rel: string) => `.design/${rel}`;
+const sha256 = (s: string) => new Bun.CryptoHasher('sha256').update(s).digest('hex');
+// #164 — the design hook keeps its state outside the project: never under the real ~/.claude/maude-hook
+process.env.MAUDE_HOOK_STATE_HOME = mkdtempSync(path.join(tmpdir(), 'maude-hook-state-'));
 
 const paint: EditOp = {
   id: 'test.paint-red',
@@ -633,6 +636,18 @@ describe('A1 round 2 — a call that cannot claim gets a window for the files it
     writeFileSync(r.abs(OTHER), canvas('Other — mine'));
     await r.deliver(OTHER);
     done(t, 'p1');
+    // #164 T5.1 — the ACP window only parked Home; the design hook's settle claims the call's
+    // post-call bytes (same tool call id), which is what puts them in the run
+    const post = hooks(r);
+    await post('/_api/agent/run/begin', { session: 's1', actor: 'maude-chat', chat: 'c1' });
+    const settled = await post('/_api/agent/bash/settle', {
+      session: 's1',
+      chat: 'c1',
+      toolUseId: 'p1',
+      changed: [{ path: HOME, sha: sha256(r.read(HOME)) }],
+    });
+    expect(((await settled.json()) as { bound: string[] }).bound).toEqual([HOME]);
+    await r.home.flush();
     expect(await r.publish(runId)).toMatchObject({ status: 'accepted' });
     const rows = await r.rows();
     expect(rows.filter((x) => x.kind === 'ai').map((x) => x.canvases)).toEqual([[HOME]]);
@@ -654,6 +669,14 @@ describe('A1 round 2 — a call that cannot claim gets a window for the files it
     writeFileSync(r.abs(OTHER), canvas('Other — mine'));
     await r.deliver(OTHER);
     await win(false);
+    // #164 T5.1 — the window parked Home; the hook's settle claims its post-call bytes
+    const settled = await post('/_api/agent/bash/settle', {
+      session: 't1',
+      toolUseId: 'b1',
+      changed: [{ path: HOME, sha: sha256(r.read(HOME)) }],
+    });
+    expect(((await settled.json()) as { bound: string[] }).bound).toEqual([HOME]);
+    await r.home.flush();
     // a person's save to the same file AFTER the window settled is theirs too
     await new Promise((res) => setTimeout(res, 1_100));
     // (a different part of the canvas than the run's staged change: an overlap would be a conflict)

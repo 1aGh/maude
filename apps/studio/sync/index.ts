@@ -862,6 +862,11 @@ export interface SyncRuntime {
   } | null>;
   /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
   claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+  /**
+   * #164 — call `call`'s settle: its window closes; what it parked joins the run that claimed those
+   * bytes (`claimed`: the repo-relative files the settle claimed), the rest lands as outside.
+   */
+  settleShellCall?(call: string, claimed?: readonly string[]): void;
   /** p8-a1-claims (F17) — run `key` is about to delete canvas `repoRel`: the delete joins the run. */
   claimAiDelete?(key: string, repoRel: string): void;
   unclaimAiDelete?(key: string, repoRel: string): void;
@@ -6852,6 +6857,13 @@ export function createSyncRuntime(
     claimAiWrite: (key, repoRel, hash) => {
       const slug = slugForRepoRel(repoRel);
       if (slug && acceptedLink) acceptedLink.stage.claim(key, slug, hash ?? null);
+    },
+    settleShellCall: (call, claimed) => {
+      if (!acceptedLink) return;
+      const slugs = (claimed ?? [])
+        .map((f) => slugForRepoRel(String(f).replace(/\.(?:meta|annotations)\.json$/i, '.tsx')))
+        .filter((c): c is string => !!c);
+      acceptedLink.stage.settleShellCall(call, slugs);
     },
     claimAiDelete: (key, repoRel) => {
       const slug = slugForRepoRel(repoRel);

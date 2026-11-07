@@ -59,11 +59,15 @@ export interface ClaimControl {
     meta?: { runId?: string; chatId?: string; actor?: string; claimOnly?: boolean }
   ): void;
   claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+  /** p8-a1-claims (F17) — run `key` is about to delete canvas `repoRel`: the delete joins the run. */
+  claimAiDelete?(key: string, repoRel: string): void;
+  /** #164 — call `call` settled: its parked writes join the run that claimed them, or go outside. */
+  settleShellCall?(call: string, claimed?: readonly string[]): void;
 }
 
 /** The hash the stage keys a lane value by (`${slug}|${hashBytes(value)}`), from the file's bytes. */
 export function claimHashOf(repoRel: string, text: string): string | null {
-  if (/\.tsx$/i.test(repoRel)) return hashBytes(text);
+  if (/\.(?:tsx|jsx)$/i.test(repoRel)) return hashBytes(text);
   const lane = /\.meta\.json$/i.test(repoRel)
     ? 'meta'
     : /\.annotations\.json$/i.test(repoRel)
@@ -126,7 +130,45 @@ export function hookClaims(
   control: () => (ClaimControl & { beginAiAction?: ShellBegin }) | null | undefined,
   designRel: string
 ) {
+  /** call → the batches of its settle that said `more` (claimed only once the last one arrives) */
+  const pending = new Map<string, Array<{ rel: string; text: string | null }>>();
   return {
+    /**
+     * #164 — POST /_api/agent/bash/settle's server half: the call's post-call bytes the studio re-read
+     * from the disk (`changed`, design-root-relative; `text` null = deleted) are claimed for `r`, then the
+     * call settles — its parked writes join the run when their bytes are claimed, else go out as outside.
+     * No live run (`r` null): nothing is claimed, the call only settles. A batch with more to come
+     * (`final` false) only waits: a settle cut short claims nothing, and the window's own end releases.
+     */
+    settle(
+      r: { run: string; label: string | null } | null,
+      call: string,
+      batch: ReadonlyArray<{ rel: string; text: string | null }>,
+      final = true
+    ): void {
+      const changed = [...(pending.get(call) ?? []), ...batch];
+      if (!final) {
+        if (pending.size >= 64 && !pending.has(call))
+          pending.delete(pending.keys().next().value as string);
+        pending.set(call, changed);
+        return;
+      }
+      pending.delete(call);
+      const c = control();
+      const claimed: string[] = [];
+      if (r) {
+        const run = { runId: r.run, chatId: '', label: r.label || 'Claude Code' };
+        for (const w of changed) {
+          const repoRel = `${designRel}/${w.rel}`;
+          if (w.text === null) {
+            claimWrite(c, run, repoRel, null);
+            c?.claimAiDelete?.(r.run, repoRel);
+          } else claimWrite(c, run, repoRel, w.text);
+          claimed.push(repoRel);
+        }
+      }
+      c?.settleShellCall?.(call, claimed);
+    },
     claim(r: { run: string; label: string | null }, rel: string, after: string): void {
       claimWrite(
         control(),
