@@ -12519,6 +12519,19 @@
     "v2": "new"
   },
   {
+    "hook": "assets-details-media-warning",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Clip: a heads-up that it is HEVC, variable frame rate or has a second audio track, naming the codec and the `video-proxy` fix (#128 §1). Not drawn for a clip that is fine.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "assets-details-saw",
     "kind": "testid",
     "pattern": false,

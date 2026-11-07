@@ -142,6 +142,12 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('reel-place', 'project', {
     note: 'one shot per call onto one canvas; fast check before the write',
   }),
+  // #128 §1 (T3.4). Writes a transcoded copy of one clip into assets/ — CPU-heavy and a deliberate act, never
+  // automatic — so it asks (Claude Code's permission card) rather than running unprompted in the chat.
+  d('video-proxy', 'project', {
+    hold: 'writes a new H.264 copy of one clip into assets/ (minutes of CPU, a new file in the project) — an explicit action the user confirms, never automatic transcoding of their file',
+    note: 'the original is only read; the copy is assets/<sha8>.mp4',
+  }),
   d('export', 'project', {
     hold: '/design:export documents `--out ~/Downloads/…` — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)',
   }),

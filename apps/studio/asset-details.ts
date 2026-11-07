@@ -15,6 +15,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+import { describeMedia, probeMedia } from './bin/_media-probe.mjs';
 import { homeShort, readAssetOrigin } from './asset-origins.ts';
 import { sidecarsOf } from './asset-trash.ts';
 import { walkIdElements } from './element-ids.ts';
@@ -72,6 +73,11 @@ export interface AssetDetails {
   mtimeMs: number;
   madeByAi: MadeByAi | null;
   footage: FootageFacts | null;
+  /**
+   * A clip that plays but cannot be exported with sound — HEVC, variable frame rate, a second audio track
+   * (#128 §1): the sentence names the asset and the codec and the fix. Only present for such a clip.
+   */
+  mediaWarnings?: string[];
   /** "Added by <name>" — the display name this Mac's origin record keeps, only to a session that may hear the Original */
   addedBy?: string;
   uses: UseOfAsset[];
@@ -266,6 +272,33 @@ export interface AssetDetailsOptions {
   /** Tell this session the Original path? Only this Mac's own project session may hear it. */
   includeOriginal: boolean;
   home?: string;
+  /** Reads a clip with ffprobe (a seam for the tests); the studio passes none. */
+  probe?: typeof probeMedia;
+}
+
+/** One probe per file version: the sheet is opened often, ffprobe is a process spawn. */
+const probeCache = new Map<string, string | null>();
+const PROBE_CACHE_MAX = 200;
+
+function mediaWarningOf(
+  rel: string,
+  abs: string,
+  st: { size: number; mtimeMs: number },
+  probe: typeof probeMedia
+): string | null {
+  const key = `${abs}|${st.size}|${Math.round(st.mtimeMs)}`;
+  if (probe === probeMedia && probeCache.has(key)) return probeCache.get(key) ?? null;
+  let warning: string | null = null;
+  try {
+    warning = describeMedia(rel, probe(abs));
+  } catch {
+    warning = null;
+  }
+  if (probe === probeMedia) {
+    if (probeCache.size >= PROBE_CACHE_MAX) probeCache.clear();
+    probeCache.set(key, warning);
+  }
+  return warning;
 }
 
 /** Everything the details sheet draws, or null when `rel` is not an asset this project keeps. */
@@ -310,6 +343,10 @@ export function assetDetails(rel: string, o: AssetDetailsOptions): AssetDetails 
   }
 
   const origin = o.includeOriginal ? readAssetOrigin(o.designRoot, rel) : null;
+  const mediaWarning =
+    kind === 'video'
+      ? mediaWarningOf(rel, path.join(o.designRoot, ...rel.split('/')), st, o.probe ?? probeMedia)
+      : null;
   const advanced: AssetDetails['advanced'] = {
     storedAs: rel,
     edits,
@@ -332,6 +369,7 @@ export function assetDetails(rel: string, o: AssetDetailsOptions): AssetDetails 
     mtimeMs: Math.round(st.mtimeMs),
     madeByAi: madeByAiOf(o.designRoot, rel),
     footage: kind === 'video' ? footageOf(o.designRoot, rel) : null,
+    ...(mediaWarning ? { mediaWarnings: [mediaWarning] } : {}),
     ...(origin?.by ? { addedBy: origin.by } : {}),
     uses,
     advanced,

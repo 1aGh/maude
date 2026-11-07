@@ -331,6 +331,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `assets-details-added` | testid | When the file arrived (not drawn for Made by AI, which says when it was made). | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |
 | `assets-details-added-by` | testid | Who added the file ("Added by Tereza"), from this Mac's origin record; a display name, never an e-mail. Not drawn when nobody is named. | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |
 | `assets-details-edits` | testid | What was changed: every use, or how many uses have their own look. | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |
+| `assets-details-media-warning` | testid | Clip: a heads-up that it is HEVC, variable frame rate or has a second audio track, naming the codec and the `video-proxy` fix (#128 §1). Not drawn for a clip that is fine. | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |
 | `assets-details-saw` | testid | Footage: what AI saw, read from the clip's `.footage.json` (never written here). | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |
 | `assets-details-tags` | testid | Footage: AI's tags. | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |
 | `assets-details-moments` | testid | Footage: the good moments (0:01–0:04 run). | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |

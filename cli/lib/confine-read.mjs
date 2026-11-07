@@ -44,6 +44,7 @@ export const SOURCE_VERBS = new Set([
   'smart-frames',
   'transcribe-local',
   'probe-footage',
+  'video-proxy',
   'photo-adjust',
 ]);
 

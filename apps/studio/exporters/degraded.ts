@@ -230,3 +230,27 @@ export function captionGap(assets: readonly string[]): ExportDegradation {
     remedy: 'Make captions for the clip again (Transcript panel, or `maude design transcribe`).',
   };
 }
+
+/** At most this many clips are listed by name in the sentence. */
+const MEDIA_GAP_NAMED = 3;
+
+/**
+ * The degradation for a video export that fell back to frame-by-frame capture (so: no sound) while the comp
+ * holds clips the audio renderer is known to choke on — HEVC, variable frame rate, a second audio track
+ * (#128 §1, root cause of #127). The renderer's own message only says "the video could not be decoded";
+ * this names the clip and the codec and says what to do about it.
+ */
+export function undecodableMediaGap(
+  clips: readonly { asset: string; what: string }[]
+): ExportDegradation {
+  const named = clips
+    .slice(0, MEDIA_GAP_NAMED)
+    .map((c) => `${c.asset} (${c.what})`)
+    .join(', ');
+  const more = clips.length > MEDIA_GAP_NAMED ? ` and ${clips.length - MEDIA_GAP_NAMED} more` : '';
+  return {
+    audioDropped: true,
+    reason: `No sound in this file: the audio renderer could not use ${named}${more}, so it was captured frame by frame instead.`,
+    remedy: `Make an H.264 copy with \`maude design video-proxy ${clips[0]?.asset ?? 'assets/<clip>'}\`, then use that copy in the canvas.`,
+  };
+}
