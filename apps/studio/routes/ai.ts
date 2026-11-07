@@ -9,7 +9,8 @@
 //                                        beside it, re-scope the waiting ask to it, start it
 //   POST /_api/ai/runs/stop-all          {reason: quit | close-tab} → {stopped, published} ≤ 5 s
 //   GET  /_api/ai                        v1 banner entries, DERIVED from the registry (canvas-safe)
-//   POST /_api/ai/start|heartbeat|end    v1 `/design:edit`: begin (origin design-edit) / renew / end
+//   POST /_api/ai/start|heartbeat|end    RETIRED (T2.5b, #163): 410 Gone, pointing at the run registry
+//                                        (`/_api/agent/run/begin` … `/run/end`, the design plugin's hooks)
 //
 // `mine` is YOUR runs on this Mac (RunView: never the queued prompt); `others` is RunPublic, which
 // never carries prompt, question or doing.
@@ -23,6 +24,7 @@ import type { RunRegistry } from '../ai/runs.ts';
 import { claimHashOf } from '../ai/write-claim.ts';
 import { CanvasEditError, copyArtboard } from '../canvas-edit.ts';
 import { filterAiEntries } from '../collab/ai-activity.ts';
+import { e2eSwitch, IS_RELEASE_BUILD } from '../release-build.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -40,9 +42,13 @@ export interface AiRouteDeps {
   }>;
   /** S9.11 (V2-1.16 L13) — the request's seer; null = a project session (the identity) */
   seerFor?: (req: Request) => Seer | null;
-  /** T16: a v1 edit is ONE project action (sync runtime `beginAiAction` / `endAiAction`) */
-  beginAction?: (key: string, name: string) => void;
-  endAction?: (key: string, outcome: 'done' | 'failed') => Promise<unknown> | undefined;
+  /**
+   * T2.5b — the retired v1 bracket kept alive as a TEST seam: start/heartbeat/end plant, renew and end
+   * a lease-only `design-edit` run on the registry (no claim, no project action), so the ACL cell tests
+   * and the two-Mac lease e2e can put a run on a canvas. Default: `legacyBracketSeam()` — off in every
+   * release build whatever the environment holds.
+   */
+  legacyBracket?: boolean;
   /** `_active.json`'s selected artboard of a canvas, else null (lazy) — injectable for tests */
   selectedArtboard?: (canvasRel: string) => string | null;
   /**
@@ -87,6 +93,17 @@ async function body(req: Request): Promise<Record<string, unknown> | null> {
 }
 
 const CANVAS_RE = /\.(?:tsx|jsx)$/;
+
+/** T2.5b — the e2e switch that keeps the retired v1 bracket answering, as a test seam. */
+export const LEGACY_AI_BRACKET_SWITCH = 'MAUDE_E2E_LEGACY_AI_BRACKET';
+
+/** True only outside a release build and only for an explicit `1` (release-build.ts `e2eSwitch`). */
+export function legacyBracketSeam(
+  env: Record<string, string | undefined> = process.env,
+  release: boolean = IS_RELEASE_BUILD
+): boolean {
+  return e2eSwitch(env, LEGACY_AI_BRACKET_SWITCH, release) === '1';
+}
 
 export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
   const reg = deps.registry;
@@ -374,7 +391,6 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
             agent: author,
             ...(artboard ? {} : { lazy: true }),
           });
-          deps.beginAction?.(`edit:${file}`, `${author} edited ${name}`);
         } else {
           run = reg.hookEvent(run.runId, {}) ?? run;
         }
@@ -408,14 +424,10 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
         const file = typeof b?.file === 'string' ? b.file.trim() : '';
         if (!file) return new Response('body.file required', { status: 400 });
         const failed = b?.outcome === 'failed';
-        // T16 — close the action BEFORE the run clears: `done` publishes, `failed` holds
-        const action = await Promise.resolve(
-          deps.endAction?.(`edit:${file}`, failed ? 'failed' : 'done')
-        ).catch(() => null);
         const canvas = canvasOf(file);
         const run = canvas ? v1Run(canvas) : null;
         const cleared = !!run && isLive(run) && !!reg.endNow(run.runId, failed ? 'failed' : 'done');
-        return json(cleared ? 200 : 404, { cleared, ...(action ? { action } : {}) });
+        return json(cleared ? 200 : 404, { cleared });
       },
     },
   ];

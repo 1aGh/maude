@@ -2,6 +2,16 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "retire-v1-ai-bracket",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "AI edits from an old terminal plugin",
+      "summary": "A 1.x design plugin in a terminal announced its edits in an old way that could not mark them as the AI's, so they landed as yours. Maude now turns that old way down. Update the plugin (/plugin marketplace update maude) and its hooks mark every AI edit again.",
+      "learnMore": "https://maude.sh/docs/moving-from-1",
+      "surface": "design-ui"
+    },
+    {
       "id": "design-video-plugin",
       "version": null,
       "date": null,

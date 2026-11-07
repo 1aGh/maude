@@ -7203,15 +7203,52 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           p.name === 'native'
             ? `http://127.0.0.1:${JSON.parse(readFileSync(join(p.root, '.design/_server.json'), 'utf8')).port}`
             : `http://127.0.0.1:${run.peerPort}`;
-        const agent = async (p: Surface, route: 'start' | 'end', body: Record<string, unknown>) => {
-          const r = await fetch(`${studioUrl(p)}/_api/ai/${route}`, {
+        // T2.5b (#163) — the v1 `/_api/ai/start|end` bracket answers 410 Gone, and it could never claim a write
+        // (since p8-a1-claims an unclaimed write is the person's). The agent plays the v2 design hook instead:
+        // run/begin → per write a pre-edit snapshot + `edit/check` (which CLAIMS the bytes for the run) → the
+        // write → `edit/touched` → run/end {outcome}. A CLI request: no `origin` header (localClientRefusal).
+        let hookN = 0;
+        const hook = async (p: Surface, route: string, body: Record<string, unknown>) => {
+          const r = await fetch(`${studioUrl(p)}/_api/agent/${route}`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify(body),
           });
-          if (!r.ok) throw new Error(`ai/${route} at ${p.name}: HTTP ${r.status}`);
-          return r.json().catch(() => null);
+          if (!r.ok) throw new Error(`agent/${route} at ${p.name}: HTTP ${r.status}`);
+          return (await r.json().catch(() => null)) as Record<string, unknown> | null;
         };
+        const agentBegin = (
+          p: Surface,
+          session: string,
+          label: string,
+          scope?: { canvas: string }
+        ) =>
+          hook(p, 'run/begin', {
+            session,
+            actor: 'claude-code',
+            label,
+            ...(scope ? { scope } : {}),
+          });
+        const agentWrite = async (p: Surface, session: string, rel: string, text: string) => {
+          const toolUseId = `toolu_surface_${process.pid}_${++hookN}`;
+          const abs = join(p.root, '.design', rel);
+          const snap = join(p.root, '.design', '_runs', session, 'snap');
+          mkdirSync(snap, { recursive: true });
+          writeFileSync(join(snap, toolUseId), existsSync(abs) ? readFileSync(abs, 'utf8') : '');
+          const c = await hook(p, 'edit/check', {
+            session,
+            toolUseId,
+            tool: 'Write',
+            path: rel,
+            edit: { content: text },
+          });
+          if (c?.decision === 'deny')
+            throw new Error(`edit/check denied at ${p.name}: ${JSON.stringify(c)}`);
+          writeFileSync(abs, text);
+          await hook(p, 'edit/touched', { session, toolUseId, path: rel, via: 'tool' });
+        };
+        const agentEnd = (p: Surface, session: string, outcome: 'done' | 'failed') =>
+          hook(p, 'run/end', { session, outcome });
         const hubToken = () =>
           JSON.parse(readFileSync(run.identities['designer-a'], 'utf8')).hubs[
             `http://127.0.0.1:${run.port}`
@@ -7239,9 +7276,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             const author = `Surface agent ${from.name}`;
             const doneA = elementCanvas(`AI A done ${from.name}`);
             const doneB = elementCanvas(`AI B done ${from.name}`);
-            await agent(from, 'start', { file: `.design/${a}`, author });
-            writeFileSync(join(from.root, '.design', a), doneA);
-            writeFileSync(join(from.root, '.design', b), doneB);
+            const label = `${author} edited SurfaceAi-${from.name}-a`;
+            // two canvases in one run: no scope (a scoped run may change only its own canvas)
+            const session = `e2e-surface-ai-${from.name}-group`;
+            await agentBegin(from, session, label);
+            await agentWrite(from, session, a, doneA);
+            await agentWrite(from, session, b, doneB);
             // Mid-run: nothing of the agent's reaches the others.
             await sleep(2000);
             const early = all
@@ -7249,7 +7289,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               .filter((p) => src(p, a) === doneA || src(p, b) === doneB)
               .map((p) => p.name);
             const start = performance.now();
-            await agent(from, 'end', { file: `.design/${a}`, outcome: 'done' });
+            await agentEnd(from, session, 'done');
             const landed = await observeAll(
               all,
               `L18-ai-group-${from.name}`,
@@ -7257,7 +7297,6 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               async (p) => (await p.read('h1', true)) === `AI A done ${from.name}`,
               (p) => src(p, a) === doneA && src(p, b) === doneB
             );
-            const label = `${author} edited SurfaceAi-${from.name}-a`;
             const action = (await projectHistory()).find((h) => h.label === label);
             return {
               // `...landed` LAST would overwrite this verdict with its own —
@@ -7291,10 +7330,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 await openSeeded(c, title, `L21-ai-${choice}-${from.name}`);
                 const accepted = src(from, c);
                 const half = elementCanvas(`${title} half done`);
-                await agent(from, 'start', { file: `.design/${c}`, author: 'Surface agent' });
-                writeFileSync(join(from.root, '.design', c), half);
+                const session = `e2e-surface-ai-${from.name}-${choice}`;
+                await agentBegin(from, session, `Surface agent edited ${title}`, { canvas: c });
+                await agentWrite(from, session, c, half);
                 await sleep(800);
-                await agent(from, 'end', { file: `.design/${c}`, outcome: 'failed' });
+                await agentEnd(from, session, 'failed');
                 // A failed run is held: nothing reaches the others.
                 await sleep(3000);
                 const leaked = all

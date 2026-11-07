@@ -5,7 +5,10 @@
 // (Tereza) — both linked to ONE local hub (apps/hub/test/fixtures/serve-hub.mjs under Node 24; the Homebrew
 // default kills it). The agent is fake on both: the v1 `/design:edit` lane (`POST /_api/ai/start` → a fixed
 // edit written to the canvas → `POST /_api/ai/end`), so every run goes through the real registry, leases,
-// stage and publish. That lane claims nothing, and since p8-a1-claims every run is claim-only: its raw write is
+// stage and publish. Since T2.5b (#163) that bracket answers 410 Gone; this rig keeps it as a TEST SEAM
+// (`MAUDE_E2E_LEGACY_AI_BRACKET=1`, set in wdio.ai-runs.conf.ts, ignored by a release build) because only the
+// registry's ask gives a run that WAITS for Post (R1, R4) — a hook run is lazy and is denied instead (decision
+// maude/v2-p8-ai-runs-spec-plays-hook-claim). That lane claims nothing, and since p8-a1-claims every run is claim-only: its raw write is
 // the PERSON's (decision maude/v2-p8-a1-claims-bytes-not-time). It still drives the lease steps (R1, R4); a step
 // that reads the run's attribution (ed-edge-undo, Version history › Made by AI) plays the v2 design hook instead
 // (`hookRun`: run/begin → edit/check claims the Write's bytes → the write → run/end), as a real agent does. Mac 2 runs as its own process so R4 can SIGSTOP it for real. Tereza signs in with her own

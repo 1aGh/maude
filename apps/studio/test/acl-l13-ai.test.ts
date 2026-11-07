@@ -18,6 +18,7 @@ import {
   frameCap,
   get,
   hasCanary,
+  LEGACY_AI_BRACKET_ENV,
   OWNER,
   withFc,
 } from './_acl-cell.ts';
@@ -28,7 +29,8 @@ const B_FILE = `.design/${B_REL}`;
 describe('booted cell', () => {
   let cell: AclCell;
   beforeAll(async () => {
-    cell = await bootAclCell();
+    // T2.5b — the retired v1 bracket answers 410; its non-release test seam plants B's run
+    cell = await bootAclCell(LEGACY_AI_BRACKET_ENV);
     const r = await fetch(`${cell.base}/_api/ai/start`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: cell.base, ...OWNER },
@@ -79,6 +81,26 @@ describe('booted cell', () => {
     const view = JSON.parse(r.text);
     expect(view.mine).toEqual([]);
     expect(view.live).toBe(0);
+  });
+
+  test('T2.5b: the legacy-bracket seam is never reachable from the canvas origin', async () => {
+    const owner = asUser(OWNER, 'owner@example.com');
+    const fc = await frameCap(cell, owner, A_REL);
+    const before = JSON.parse((await get(`${cell.base}/_api/ai/runs`, OWNER)).text).mine.length;
+    for (const route of ['/_api/ai/start', '/_api/ai/heartbeat', '/_api/ai/end']) {
+      const r = await fetch(withFc(`${cell.canvasBase}${route}`, fc), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: cell.canvasBase, ...owner },
+        body: JSON.stringify({ file: `.design/${A_REL}`, author: 'Claude' }),
+      });
+      expect(r.status).not.toBe(200);
+    }
+    const after = JSON.parse((await get(`${cell.base}/_api/ai/runs`, OWNER)).text);
+    expect(after.mine.length).toBe(before);
+    const banner = JSON.parse((await get(`${cell.base}/_api/ai`, OWNER)).text).entries as Array<{
+      file: string;
+    }>;
+    expect(banner.map((e) => e.file)).not.toContain(`.design/${A_REL}`);
   });
 });
 

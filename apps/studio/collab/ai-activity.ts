@@ -1,11 +1,13 @@
 // Phase 8 Task 4 — AI activity tracking with heartbeat-based TTL.
 //
-// `/design:edit` (or any external slash command driving Claude work) POSTs to
-// /_api/ai/start when it begins editing a canvas, pings /_api/ai/heartbeat
-// every 10 seconds, and POSTs /_api/ai/end on normal completion. The server
-// maintains an in-memory map keyed by canvas file path, broadcasts changes
-// over the inspector WS bus so every open client renders a yellow "Claude is
-// editing this canvas" banner.
+// Today this map holds only the ACP chat's own entries (acp/index.ts), until S5.6
+// moves the chat turn onto the run registry; every other AI run's banner entry is
+// DERIVED from the registry (`RunRegistry.bannerEntries`). The v1 bracket that
+// used to fill it (`POST /_api/ai/start|heartbeat|end` from `/design:edit`) is
+// retired — 410 Gone since T2.5b (#163); the design plugin's hooks open and close
+// the run (`/_api/agent/run/begin` … `/run/end`). The server keeps an in-memory
+// map keyed by canvas file path and broadcasts changes over the inspector WS bus
+// so every open client renders the "Claude is editing this canvas" banner.
 //
 // Why not Awareness — Awareness is the y-protocols channel for connected
 // peers. The AI is not a connected peer (it lives in a slash command, not a
@@ -13,8 +15,8 @@
 // not just the per-canvas Y.Doc room. A separate bus event keeps the model
 // honest: AI activity is a server-managed projection, not a peer state.
 //
-// 30-second grace TTL — if the slash command crashes (no /end POST) the
-// banner auto-clears 30 s after the last heartbeat. A janitor runs every 5 s
+// 30-second grace TTL — if the chat turn dies without an end the banner
+// auto-clears 30 s after the last heartbeat. A janitor runs every 5 s
 // and broadcasts cleared state if the entry expired.
 
 import type { Context } from '../context.ts';

@@ -295,8 +295,8 @@ function parseScopeElements(
 }
 
 // RC5 (rca/issue-canvas-hmr-optimistic-update-consistency) — the ACP chat agent
-// edits canvases through its own tools, so unlike `/design:edit` (which curls
-// /_api/ai/start|heartbeat|end around the edit) nothing announced it: no yellow
+// edits canvases through its own tools, so unlike `/design:edit` (whose hooks
+// open and close a registry run; the v1 /_api/ai/start bracket is retired) nothing announced it: no yellow
 // banner, no DDR-078 agent presence, no colored rim. This tracker watches the
 // streamed `tool_call` / `tool_call_update` notifications for edit-kind tools
 // touching canvas files under <designRoot> and drives the same `ai-activity`

@@ -166,15 +166,30 @@ describe("the hub's {t:'runs', seq} on the control channel", () => {
 });
 
 describe('the run registry in a running studio (S5.3)', () => {
-  test('v1 /design:edit curl → a design-edit run on the registry, a derived banner, records on disk', async () => {
+  test('T2.5b (#163): the retired v1 bracket answers 410 Gone in a running studio and plants nothing', async () => {
     const { post, get } = await start();
-    const s = await post('/_api/ai/start', { file: '.design/ui/card.tsx', author: 'Claude' });
+    for (const route of ['/_api/ai/start', '/_api/ai/heartbeat', '/_api/ai/end']) {
+      const r = await post(route, { file: '.design/ui/card.tsx', author: 'Claude' });
+      expect(r.status).toBe(410);
+      expect(r.body).toMatchObject({ code: 'gone', use: '/_api/agent/run/begin' });
+    }
+    expect((await get('/_api/ai/runs')).live).toBe(0);
+    expect((await get('/_api/ai')).entries).toEqual([]);
+    expect(runFiles().length).toBe(0);
+  }, 60_000);
+
+  test('a hook run (run/begin with a scope) → a run on the registry, a derived banner, records on disk', async () => {
+    const { post, get } = await start();
+    const s = await post('/_api/agent/run/begin', {
+      session: 's-card',
+      actor: 'claude-code',
+      scope: { canvas: 'ui/card.tsx' },
+    });
     expect(s.status).toBe(200);
-    expect(s.body).toMatchObject({ file: '.design/ui/card.tsx', author: 'Claude' });
 
     const runs = await get('/_api/ai/runs');
     expect(runs.live).toBe(1);
-    expect(runs.mine[0]).toMatchObject({ origin: 'design-edit', scope: { canvas: 'ui/card.tsx' } });
+    expect(runs.mine[0]).toMatchObject({ origin: 'claude-code', scope: { canvas: 'ui/card.tsx' } });
     expect(runs.mine[0].prompt).toBeUndefined();
     expect(runs.diagnostics).toMatchObject({ leaseHome: 'local', line: null });
     expect((await get('/_api/ai')).entries.map((e: { file: string }) => e.file)).toEqual([
@@ -182,14 +197,13 @@ describe('the run registry in a running studio (S5.3)', () => {
     ]);
     expect(runFiles().length).toBe(1);
 
-    expect((await post('/_api/ai/heartbeat', { file: '.design/ui/card.tsx' })).status).toBe(200);
-    const e = await post('/_api/ai/end', { file: '.design/ui/card.tsx' });
-    expect(e).toMatchObject({ status: 200, body: { cleared: true } });
+    const e = await post('/_api/agent/run/end', { session: 's-card', outcome: 'done' });
+    expect(e.status).toBe(200);
     expect((await get('/_api/ai')).entries).toEqual([]);
     expect((await get('/_api/ai/runs')).live).toBe(0);
   }, 60_000);
 
-  test('the moved POSTs keep the CSRF guard: a cross-origin start is refused', async () => {
+  test('the retired POSTs keep the CSRF guard: a cross-origin start is refused before the 410', async () => {
     const { post, get } = await start();
     const r = await post(
       '/_api/ai/start',
@@ -202,7 +216,15 @@ describe('the run registry in a running studio (S5.3)', () => {
 
   test('R11 end to end: kill -9 mid-run → the next boot ends it interrupted', async () => {
     const first = await start();
-    expect((await first.post('/_api/ai/start', { file: '.design/ui/card.tsx' })).status).toBe(200);
+    expect(
+      (
+        await first.post('/_api/agent/run/begin', {
+          session: 's-crash',
+          actor: 'claude-code',
+          scope: { canvas: 'ui/card.tsx' },
+        })
+      ).status
+    ).toBe(200);
     const sandbox = box as Sandbox;
     proc?.kill(9);
     await proc?.exited;
@@ -240,7 +262,11 @@ describe('the run registry in a running studio (S5.3)', () => {
       ws.onopen = () => resolve();
       ws.onerror = () => reject(new Error('ws error'));
     });
-    await post('/_api/ai/start', { file: '.design/ui/card.tsx' });
+    await post('/_api/agent/run/begin', {
+      session: 's-ws',
+      actor: 'claude-code',
+      scope: { canvas: 'ui/card.tsx' },
+    });
     const deadline = Date.now() + 5_000;
     while (!frames.some((f) => f.type === 'ai:runs') && Date.now() < deadline)
       await new Promise((r) => setTimeout(r, 50));

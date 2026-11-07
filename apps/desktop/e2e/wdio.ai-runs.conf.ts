@@ -102,6 +102,11 @@ const hubsFile = (file: string, hub: string, token: string) =>
 
 // TSX sync is coupled to the canvas-origin split (DDR-060 / DDR-054 §F1); the base turns it off for frame access.
 process.env.MAUDE_CANVAS_ORIGIN_SPLIT = '1';
+// T2.5b (#163) — `/_api/ai/start|end` answer 410 Gone; R1/R4/ai-tereza need a run that WAITS for Post, which only the
+// registry's ask gives (a hook run is lazy and is denied instead), so both Macs keep the retired bracket as a test seam.
+// A release sidecar ignores it (release-build.ts `e2eSwitch`); the e2e sidecar (`--release --e2e`) and Mac 2 from
+// source honour it.
+process.env.MAUDE_E2E_LEGACY_AI_BRACKET = '1';
 
 // WDIO loads this file in the launcher AND in each worker; only the launcher sets up (the worker inherits the env).
 let scratch = '';

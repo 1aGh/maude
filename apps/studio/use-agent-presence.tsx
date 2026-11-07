@@ -111,8 +111,8 @@ export function agentFunnyName(seed: string): string {
 }
 
 /**
- * Strip control chars + length-cap the author. The /_api/ai/start endpoint
- * caps it server-side, but the postMessage relay path never round-trips the
+ * Strip control chars + length-cap the author. The run registry names the agent
+ * server-side, but the postMessage relay path never round-trips the
  * server, so we re-bound it here at the trust boundary (DDR-078 security
  * follow-up) — keeps a spoofed `author` from bloating the badge even if the
  * origin guard below ever regresses.

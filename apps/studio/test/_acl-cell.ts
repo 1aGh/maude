@@ -57,7 +57,11 @@ export interface AclCell {
   canvasBase: string;
 }
 
-export async function bootAclCell(): Promise<AclCell> {
+/**
+ * `env` adds to the cell's environment. T2.5b: a test that plants an AI run on B as the owner passes
+ * `LEGACY_AI_BRACKET_ENV` — the retired `/_api/ai/start` answers 410 unless that non-release switch is on.
+ */
+export async function bootAclCell(env: Record<string, string> = {}): Promise<AclCell> {
   const { root, designRoot } = makeSandbox();
   writeFileSync(join(designRoot, A_REL), A_SRC);
   writeFileSync(join(designRoot, 'ui', 'a.css'), '.a { color: red }\n');
@@ -72,6 +76,7 @@ export async function bootAclCell(): Promise<AclCell> {
     MAUDE_WORKSPACE_ALLOW_DEV_MODULES: '1',
     HUB_DASHBOARD_URL: 'https://cloud.maude.sh',
     MAUDE_PROJECT_NAME: 'Canary',
+    ...env,
   });
   const info = JSON.parse(readFileSync(join(designRoot, '_server.json'), 'utf8')) as {
     canvasPort?: number;
@@ -85,6 +90,9 @@ export async function bootAclCell(): Promise<AclCell> {
     canvasBase: `http://localhost:${info.canvasPort}`,
   };
 }
+
+/** T2.5b — the test seam that keeps the retired v1 bracket planting lease-only runs (routes/ai.ts). */
+export const LEGACY_AI_BRACKET_ENV: Record<string, string> = { MAUDE_E2E_LEGACY_AI_BRACKET: '1' };
 
 export async function get(url: string, headers: Record<string, string>) {
   const r = await fetch(url, { headers });
