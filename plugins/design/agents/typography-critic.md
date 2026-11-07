@@ -1,6 +1,6 @@
 ---
 name: typography-critic
-description: Pure typography review — pairings, scale ladder, leading / measure / tracking, vertical rhythm, hyphenation, widows/orphans, numerals (tabular vs. proportional), kerning hints, fallback chains. Spawned by /design:critic with a maude.agent-handoff/1 hand-off when the canvas is text-heavy (article, table, settings, long lists). Reads project tokens + applies typographic best practices. Writes only its report and its HandoffOut; never edits the canvas.
+description: "Typography review: pairings, scale, leading, measure, rhythm, numerals, fallback chains. Spawned by /design:critic for text-heavy canvases."
 tools: Read, Write, Bash, Glob, Grep
 model: sonnet
 ---

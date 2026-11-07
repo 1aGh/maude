@@ -1,6 +1,6 @@
 ---
 name: security-auditor
-description: Use proactively after any code change touching auth, input handling, data storage, network IO, dependencies, MCP wiring, or model prompts (during /flow:validate --fast, /flow:validate step 6.5, /flow:validate --security, /flow:validate --review). Defender pass — OWASP-class static + grep scan over changed files. Reports findings; does not edit code. Reads `security.severityFloor` from `.ai/workflows.config.json`.
+description: Use proactively after changes touching auth, input handling, storage, network IO, dependencies, MCP or prompts (/flow:validate). OWASP-class static scan; reports only.
 tools: Read, Bash, Grep, Glob
 ---
 

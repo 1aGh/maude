@@ -1,6 +1,6 @@
 ---
 name: media-generation-director
-description: "Read-only \"gap finder\" for AI media generation (feature-ai-media-generation Phase 4, DDR-164). Given a canvas, a reel EDL, or a social/marketing surface plus the brief, it spots where net-new media would genuinely help — an empty hero, a placeholder image, a reel beat with no clip, a reel with music but no captions — and emits a GENERATION PLAN (per slot: kind, prompt, aspect, placement, why). It NEVER edits a canvas, NEVER runs generation, and NEVER prompts the user — it only PROPOSES. The spawning command surfaces one AskUserQuestion and (on consent) executes the plan. Spawned by /design:reel and /design:edit when a proactive \"want me to generate this?\" check is warranted."
+description: "Read-only gap finder for AI media generation: proposes a plan of net-new media (empty heroes, reel beats without clips). Spawned by /design:reel and /design:edit; never generates."
 tools: Read, Glob, Grep
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: scout
-description: Read-only fact finding for a flow plan or run — where X is used, inventories, history mining, checking a hand-back's claims against the tree. Returns a compact cited table and never edits. Cheaper than a worker; use it instead of a general-purpose agent for research sweeps.
+description: "Read-only fact finding for a flow plan or run: where X is used, inventories, history mining, checking hand-back claims. Returns a cited table; never edits."
 model: sonnet
 effort: medium
 tools: Read, Grep, Glob, Bash

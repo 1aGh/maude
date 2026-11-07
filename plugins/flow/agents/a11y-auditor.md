@@ -1,6 +1,6 @@
 ---
 name: a11y-auditor
-description: Use proactively after UI changes (during /flow:validate --fast and /flow:validate) to audit accessibility — keyboard reach, ARIA, contrast, focus indicators, screen reader fluency. Uses agent-browser for live axe-core scans where possible. Reports findings without making changes unless asked.
+description: "Use proactively after UI changes (/flow:validate) to audit accessibility: keyboard, ARIA, contrast, focus, screen readers. Live axe-core via agent-browser. Reports only."
 tools: Read, Bash, Grep, Glob
 model: sonnet
 ---

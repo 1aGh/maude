@@ -1,6 +1,6 @@
 ---
 name: footage-director
-description: "The \"reziser\": reads every per-clip FootageAnalysis sidecar plus the brief and writes ONE new Edit Decision List (`<slug>.edl.json`): an ordered beat list that tells a story, with a bundled transition and an optional graphic overlay per beat and an optional music bed. A bounded writer that owns only that EDL; it never edits a canvas or writes the comp TSX. Spawned only by /design:reel, after every footage-analyst run; never auto-delegated."
+description: "Internal — spawned only by /design:reel; never auto-delegated. Writes one Edit Decision List from the footage analyses."
 tools: Read, Write, Bash, Glob, Grep
 ---
 

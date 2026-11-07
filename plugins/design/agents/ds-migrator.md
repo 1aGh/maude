@@ -1,6 +1,6 @@
 ---
 name: ds-migrator
-description: "Moves one system/<ds>/ folder onto its NEW Design system canvas through `maude design ds convert`: dry run, a review of the section mapping, the convert, then check-system. A bounded writer that owns only that new canvas and its review; never edits an existing canvas or the system's files. Spawned only by /design:system migrate; never auto-delegated."
+description: "Internal — spawned only by /design:system migrate; never auto-delegated. Moves one system/<ds>/ folder onto a Design system canvas."
 tools: Read, Write, Glob, Grep, Bash
 ---
 

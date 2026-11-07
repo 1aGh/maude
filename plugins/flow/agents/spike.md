@@ -1,6 +1,6 @@
 ---
 name: spike
-description: Resolves one open design or architecture question of a flow plan with prototypes and measurements, and writes the note workers code against. Spawned by /flow:execute and /flow:run for risky or undecided tasks. Runs on the deep tier because others build on its output.
+description: Resolves one open design or architecture question of a flow plan with prototypes and measurements; writes the note workers code against. Spawned by /flow:execute and /flow:run.
 model: opus
 effort: high
 ---

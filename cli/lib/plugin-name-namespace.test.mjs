@@ -275,7 +275,7 @@ test('bounded-writer descriptions say they are never auto-delegated', () => {
 // Every agent description sits in the main agent's context on every turn. Budget: today's
 // total + 10 %. New agents (asset-describer, ds-migrator) must pay for themselves by
 // shortening others; raise AGENT_DESCRIPTION_TOKENS_TODAY only with a recorded reason.
-const AGENT_DESCRIPTION_TOKENS_TODAY = 2858; // 2026-10-18, 20 agents, chars/4
+const AGENT_DESCRIPTION_TOKENS_TODAY = 920; // 2026-11-07, 22 agents, chars/4 (was 2858 before the #156 200-char cap)
 
 test('total design-agent description tokens stay within today + 10 %', () => {
   const tokens = agents.reduce((sum, a) => sum + Math.ceil(a.description.length / 4), 0);

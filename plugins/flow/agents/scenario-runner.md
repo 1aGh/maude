@@ -1,6 +1,6 @@
 ---
 name: scenario-runner
-description: Use when /flow:validate --fast, /flow:validate, or /flow:done need cross-platform UI verification of a feature. Orchestrates agent-browser (web variants) + agent-device (native iOS/Android) scenarios, captures screenshots per step, produces a markdown report with TL;DR, counter-delta parity, and per-step pivot table. Returns report path; does not edit code.
+description: "Use when /flow:validate or /flow:done need cross-platform UI verification: runs agent-browser and agent-device scenarios, writes a screenshot report. Does not edit code."
 tools: Bash, Read, Write, Glob
 model: sonnet
 ---

@@ -1,6 +1,6 @@
 ---
 name: design-system-guard
-description: Use during /flow:validate --fast and /flow:validate on UI changes to check compliance with the project's design system doc (e.g. `.ai/<project>-design-system.md`). Compares rendered screenshots from scenario reports (when available) plus static grep. Catches gradient/glass/pastel violations, wrong icons, hardcoded colors, typography drift. Reports only — does not edit.
+description: "Use during /flow:validate on UI changes to check compliance with the project design system: screenshots plus static grep for color, icon and type drift. Reports only."
 tools: Read, Bash, Grep, Glob
 model: sonnet
 ---

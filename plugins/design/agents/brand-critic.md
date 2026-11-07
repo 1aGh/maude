@@ -1,6 +1,6 @@
 ---
 name: brand-critic
-description: Brand-voice and asset review — canonical-mark identity vs the DS logo specimen (DDR-141), logo placement, mark integrity, asset ladder, photography/illustration style consistency, voice/tone alignment with brand POV. Spawned by /design:critic with a maude.agent-handoff/1 hand-off when the canvas contains logos / brand assets / hero imagery / marketing copy, and on /design:new initial generation whenever the DS ships brand specimens. Reads the mark from the Design system canvas's Brand section (assets/logos + logo specimens) and the project README for the POV. Writes only its report and its HandoffOut; never edits the canvas.
+description: "Brand review: canonical mark vs the DS logo specimen, placement, asset ladder, imagery style, voice. Spawned by /design:critic when a canvas has logos, brand assets or marketing copy."
 tools: Read, Write, Bash, Glob, Grep
 model: sonnet
 ---

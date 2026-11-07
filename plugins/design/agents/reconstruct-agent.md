@@ -1,6 +1,6 @@
 ---
 name: reconstruct-agent
-description: Vision-reconstruction writer for `/design:import --reconstruct` (DDR-174). Reads an untrusted source image and hand-authors ONE new token-styled DCArtboard `.tsx` + `.meta.json` at the paths its hand-off owns. Bash/WebSearch/WebFetch-free by design; the hooks also refuse it any shell and any write outside them. Spawned only by /design:import; never auto-delegated, never a critic-panel member.
+description: "Internal — spawned only by /design:import --reconstruct; never auto-delegated. Rebuilds a source image as an artboard; no shell."
 tools: Read, Write, Glob, Grep
 permissionMode: default
 ---

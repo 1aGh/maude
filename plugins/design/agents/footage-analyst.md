@@ -1,6 +1,6 @@
 ---
 name: footage-analyst
-description: "Vision characterization of ONE raw video clip for the footage pipeline. RECEIVES pre-extracted keyframe PNGs (scene-aware, from skill footage-keyframes) plus an OPTIONAL whisper transcript, WATCHES the frames, and RETURNS a `FootageAnalysis` JSON verdict — shots, good-moment time ranges, on-screen text, subject/motion/lighting/mood tags, a per-shot quality score + usable flag, a summary, and (when a transcript is given) a speech note. Read-only + egress-free by design (DDR-183 F2): it never runs a command, writes a file, or hits the network — the orchestrator (`/design:video-analyze`, `/design:reel`) does the extraction, transcription, and the sidecar write. Spawned per clip, fanned out."
+description: "Internal — spawned only by /design:video-analyze and /design:reel; never auto-delegated. Characterizes one raw clip from keyframes; read-only."
 tools: Read
 ---
 

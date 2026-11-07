@@ -1,6 +1,6 @@
 ---
 name: asset-describer
-description: "Describes a batch of project pictures so search can find what is in them (search in pictures, V2-1.17 §5.9). RECEIVES up to 10 downscaled JPEGs (≤ 1024 px) named `<sha256>.jpg` in its working directory — an OS temp dir that holds nothing else — LOOKS at each one, and RETURNS one `maude.agent-handoff/1` JSON object with a short caption, a few tags and the words visible in each picture. Read only and offline by design: it never runs a command, edits or creates a file, or reaches the network. Spawned only by the studio's describe service and `maude design describe`, headless, after the person said yes to describing their pictures. Never auto-delegated."
+description: "Internal — spawned only by the studio describe service and `maude design describe`; never auto-delegated. Captions pictures for search; read-only."
 tools: Read
 ---
 
