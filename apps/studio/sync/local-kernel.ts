@@ -30,6 +30,7 @@
 import { Database } from 'bun:sqlite';
 import { randomUUID } from 'node:crypto';
 import {
+  appendFileSync,
   closeSync,
   existsSync,
   mkdirSync,
@@ -39,6 +40,7 @@ import {
   renameSync,
   statSync,
   unlinkSync,
+  writeFileSync,
   writeSync,
 } from 'node:fs';
 import { homedir, hostname, uptime } from 'node:os';
@@ -55,6 +57,12 @@ import {
   boardTextSlots,
   changedTextSlots,
   createTextStepLedger,
+  decodeTextStepLog,
+  encodeTextStepLine,
+  MAX_TEXT_STEP_LOG_BYTES,
+  MAX_TEXT_STEPS,
+  TEXT_STEP_LOG,
+  textStepLogHeader,
 } from '../annotations/text-steps.ts';
 import { isDraftWriteId } from '../annotations/ui/text-session.ts';
 import { attributeArtboards } from '../attribute-artboards.ts';
@@ -1743,6 +1751,50 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   // p8-undo-collab-refuse — what each recorded stroke left in the text slots it changed, and the
   // texts a collaborator changed during it (annotations/text-steps.ts). Session scope, like ⌘Z.
   const textSteps = createTextStepLedger();
+  // T5.2 (#165) — the ledger outlives a restart, as the op log does (annotations/text-steps.ts
+  // TEXT_STEP_LOG): read back once per store (the writer's), appended to on every kept step,
+  // rewritten compacted on load and whenever the appends double the cap.
+  const textStepLog = path.join(stateDir, TEXT_STEP_LOG);
+  let textStepsFor = '';
+  let textStepLines = 0;
+  function rewriteTextSteps(): void {
+    const entries = textSteps.entries();
+    const lines = [
+      textStepLogHeader(projectId),
+      ...entries.map(([id, st]) => encodeTextStepLine(id, st)),
+    ];
+    const tmp = `${textStepLog}.${pid}.tmp`;
+    try {
+      writeFileSync(tmp, `${lines.join('\n')}\n`);
+      renameSync(tmp, textStepLog);
+      textStepLines = entries.length;
+    } catch (err) {
+      log.warn(`[local-kernel] could not write ${TEXT_STEP_LOG}:`, err);
+    }
+  }
+  function loadTextSteps(): void {
+    if (!lock || closed || !projectId || textStepsFor === projectId) return;
+    textStepsFor = projectId;
+    let text = '';
+    try {
+      if (statSync(textStepLog).size <= MAX_TEXT_STEP_LOG_BYTES)
+        text = readFileSync(textStepLog, 'utf8');
+    } catch {
+      /* no log yet */
+    }
+    for (const [id, step] of decodeTextStepLog(text, projectId)) textSteps.restore(id, step);
+    rewriteTextSteps();
+  }
+  textSteps.onNote((id, step) => {
+    if (textStepsFor !== projectId || closed) return;
+    if (textStepLines >= 2 * MAX_TEXT_STEPS) return rewriteTextSteps();
+    try {
+      appendFileSync(textStepLog, `${encodeTextStepLine(id, step)}\n`);
+      textStepLines++;
+    } catch (err) {
+      log.warn(`[local-kernel] could not append to ${TEXT_STEP_LOG}:`, err);
+    }
+  });
   /** The one dedupe key of a stroke — `proposeStroke` and `stageStroke` must agree on it. */
   const strokeKey = (text: string, baseText: string | undefined) =>
     `${baseText ?? '\u0000none'}\u0000${text}`;
@@ -1806,6 +1858,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
             { kind: 'edit', label: STUDIO_LANE_LABEL.annotations }
           );
           if (r.status === 'accepted' && r.actionId) {
+            loadTextSteps();
             textSteps.note(r.actionId, {
               slug,
               // an unknown base (null) records no slots: only the contest is known then
@@ -2265,6 +2318,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         );
         ids = found.ok ? found.actionIds : [];
       }
+      loadTextSteps();
       const ledger = textSteps.conflict(ids, (slug) => {
         if (!/^[a-z0-9][a-z0-9._-]*$/i.test(slug) || slug.includes('..')) return null;
         try {
