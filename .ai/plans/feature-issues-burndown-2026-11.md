@@ -319,10 +319,10 @@ W5 and W6 use Opus.
 - [ ] T9.2 Close every issue with an evidence comment.
 - [ ] T9.3 Report to Michal in Czech: what was closed and how, every D-default taken, and the release proposal (2.1.0). **Do not tag without his OK.**
 
-## Acceptance criteria
+## Acceptance Criteria
 
-- `gh issue list --state open` returns no issue from this plan's list.
-- Every closed issue carries a comment with the commit(s) and the evidence.
-- Every not-planned item has a recorded reason and was listed in the final report.
-- All quality gates pass on the merged tip of main (T9.1).
-- Every default from the D-list is recorded in kg and named in the final report.
+- [ ] `gh issue list --state open` returns no issue from this plan's list.
+- [ ] Every closed issue carries a comment with the commit(s) and the evidence.
+- [ ] Every not-planned item has a recorded reason and was listed in the final report.
+- [ ] All quality gates pass on the merged tip of main (T9.1).
+- [ ] Every default from the D-list is recorded in kg and named in the final report.
