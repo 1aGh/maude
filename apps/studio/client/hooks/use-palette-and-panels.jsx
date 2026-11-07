@@ -903,6 +903,8 @@ export function usePaletteAndPanels({
           // viewer's empty line names the people who see a comment right away
           onShare={viewerMode ? undefined : () => showShare()}
           viewer={viewerMode}
+          // #170: the empty line teaches the C key only where it leaves a comment (not view-only, not an observer)
+          canComment={viewerMode ? canCommentNow(cfg) : !cfg?.formatGate}
           // 10 co-comment-thread: the panel's own close (Hide Comments), beside its title
           onClose={() => togglePanel('comments')}
           artboardLabel={labelOfArtboard}
