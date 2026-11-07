@@ -13,7 +13,7 @@ import {
   paintFromCss,
   reduceMixed,
 } from '../../../../edit-ops/words-paint.ts';
-import { fillSlotFor, slotCss, slotPaint } from '../../../../edit-ops/slot-defaults.ts';
+import { fillSlotFor, NEUTRAL_MID_GREY, slotCss, slotPaint } from '../../../../edit-ops/slot-defaults.ts';
 import { useCssWrite } from '../css-write.js';
 import { BOXY_KINDS } from './size.jsx';
 import { targetOf } from '../kinds/multi.jsx';
@@ -77,11 +77,15 @@ export function FillBody({ el, selection, kind, ctx }) {
 
   // P6 T3 (IR-11, TD3): "+" starts from the slot's role token with a literal fallback — a shape's Fill is `--bg-3`,
   // a box's Background `--bg-1`, a gradient runs to `--bg-0` — never `currentColor` (which painted in the panel's own
-  // grey and read as code). With no system, the last colour used in this project comes first.
+  // grey and read as code). With no system, the last colour used in this project comes first, else a neutral mid grey.
   const slot = fillSlotFor(kind);
   const recent = useRecentColours(ctx);
   const startPaint = () =>
-    !fam.hasSystem && recent[0] ? paintFromCss(recent[0]) : slotPaint(slot);
+    fam.hasSystem
+      ? slotPaint(slot)
+      : recent[0]
+        ? paintFromCss(recent[0])
+        : { css: NEUTRAL_MID_GREY }; // IR-11: no system, nothing in Recent — a neutral mid grey, not a role token
   const base = fill ?? { color: null, layers: [] };
 
   // r4 #4: the colour popover's Solid · Gradient · Image tabs say what the fill IS and write the whole fill. A drag is
