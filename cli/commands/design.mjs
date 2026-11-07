@@ -37,7 +37,7 @@ import {
   V2_ONLY_FORMATS,
 } from '../lib/export-spec.mjs';
 import { writeGitignoreBlock } from '../lib/gitignore-block.mjs';
-import { isCompiledBinary } from '../lib/pkg-root.mjs';
+import { isCompiledBinary, resolveAppSidecar } from '../lib/pkg-root.mjs';
 import { subVerbArgs } from '../lib/sub-verbs.mjs';
 
 const SUBCOMMANDS = new Set([
@@ -456,9 +456,15 @@ function runBinDispatch(verb, { args, pkgRoot }) {
   // server.ts crashes at boot on `yjs`. server-up.sh prefers MAUDE_DEV_SERVER_BIN
   // when set; absent ⇒ dev tree ⇒ it falls back to `bun server.ts`. Helpers that
   // shell into server-up.sh (visual-sanity, smoke) inherit it. DDR-084.
+  // T1.10 (#206) — from the packaged app with no desktop parent (a terminal), the compiled server
+  // beside this CLI, with the env the desktop gives it (appSidecarEnv).
   if (BOOT_VERBS.has(verb) && !process.env.MAUDE_DEV_SERVER_BIN) {
-    const bin = resolveServerBinary({ pkgRoot });
-    if (bin) childEnv.MAUDE_DEV_SERVER_BIN = bin;
+    const app = appSidecar(pkgRoot);
+    if (app) Object.assign(childEnv, appSidecarEnv(app, process.env));
+    else {
+      const bin = resolveServerBinary({ pkgRoot });
+      if (bin) childEnv.MAUDE_DEV_SERVER_BIN = bin;
+    }
   }
   // RCA G3 — make `bun` resolvable to the helper from the bundled compiled binary
   // when no standalone `bun` is installed (desktop / npm). No-op in dev. The shim
@@ -641,11 +647,20 @@ async function runServe({ args, pkgRoot }) {
   //   4. Hard-fail with actionable hint.
   // Maintainers hacking on the dev-server source can force #3 with
   // MAUDE_FORCE_SOURCE=1.
+  //   0. The packaged app: the compiled server beside this CLI (T1.10) — the staged source in
+  //      Contents/Resources has no node_modules, so nothing below can boot it there.
   const forceSource = process.env.MAUDE_FORCE_SOURCE === '1';
   const sideChannel = resolve(pkgRoot, 'cli', '.platform-binary-path');
   let binPath = null;
+  let binEnv = process.env;
 
-  if (!forceSource) {
+  const app = appSidecar(pkgRoot);
+  if (app) {
+    binPath = app.bin;
+    binEnv = { ...process.env, ...appSidecarEnv(app, process.env) };
+  }
+
+  if (!forceSource && !binPath) {
     try {
       if (fs.existsSync(sideChannel)) {
         const candidate = fs.readFileSync(sideChannel, 'utf8').trim();
@@ -670,7 +685,7 @@ async function runServe({ args, pkgRoot }) {
   }
 
   if (binPath) {
-    const child = spawn(binPath, forwarded, { stdio: 'inherit', env: process.env });
+    const child = spawn(binPath, forwarded, { stdio: 'inherit', env: binEnv });
     child.on('exit', (code) => process.exit(code ?? 0));
     child.on('error', (err) => {
       process.stderr.write(`maude design serve (binary ${binPath}): ${err.message}\n`);
@@ -791,8 +806,29 @@ export function isPlausiblePlatformBinary(p) {
   return /^maude-[a-z0-9-]+$/.test(basename(dirname(p)));
 }
 
+/** The packaged app's compiled server beside this CLI (T1.10), or null; MAUDE_FORCE_SOURCE=1 wins. */
+function appSidecar(pkgRoot) {
+  if (process.env.MAUDE_FORCE_SOURCE === '1') return null;
+  return resolveAppSidecar({ pkgRoot, execPath: process.execPath });
+}
+
+/**
+ * The env the desktop starts the same server with (sidecar.rs): MAUDE_DEV_SERVER_BIN for the helper,
+ * and MAUDE_DEV_SERVER_ROOT / MAUDE_PKG_ROOT so the compiled server, alone in Contents/MacOS, finds
+ * the staged studio. A value the caller already has is kept.
+ */
+export function appSidecarEnv(app, env) {
+  return {
+    MAUDE_DEV_SERVER_BIN: app.bin,
+    MAUDE_DEV_SERVER_ROOT: env.MAUDE_DEV_SERVER_ROOT || app.devServerRoot,
+    MAUDE_PKG_ROOT: env.MAUDE_PKG_ROOT || app.pkgRoot,
+  };
+}
+
 export function resolveServerBinary({ pkgRoot }) {
   if (process.env.MAUDE_FORCE_SOURCE === '1') return null;
+  const app = appSidecar(pkgRoot);
+  if (app) return app.bin;
   // In the local source checkout, return null so server-up.sh boots
   // `bun server.ts` from source — the maintainer is editing the dev-server and
   // needs their working copy live, not a stale compiled binary that happens to

@@ -251,6 +251,9 @@ if [ "$RUNTIME" = "bun" ]; then
 fi
 
 # Step 2 — spawn.
+# T1.9 (#206) — agents and verbs boot the studio through here; that must never pop a browser window at the
+# person, whatever the caller's env says. /design:browse opens the window itself after server-up.
+export NO_OPEN=1
 mkdir -p "$DESIGN_ROOT"
 echo "→ starting dev server: $RUNTIME_CMD --root $REPO" >&2
 # Its own session, not the caller's process group: `nohup … &` alone keeps the caller's group, and an agent's shell

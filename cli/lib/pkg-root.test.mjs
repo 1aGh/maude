@@ -11,12 +11,17 @@
 // synthetic path), not by static review — worth a regression test.
 
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { isPkgRoot, resolvePkgRoot, resolveTauriResourcePkgRoot } from './pkg-root.mjs';
+import {
+  isPkgRoot,
+  resolveAppSidecar,
+  resolvePkgRoot,
+  resolveTauriResourcePkgRoot,
+} from './pkg-root.mjs';
 
 function makeRealRoot(base) {
   mkdirSync(join(base, 'apps', 'studio', 'bin'), { recursive: true });
@@ -107,5 +112,79 @@ test('resolvePkgRoot honors MAUDE_PKG_ROOT only when it actually satisfies both 
     else process.env.MAUDE_PKG_ROOT = prevOverride;
     rmSync(real, { recursive: true, force: true });
     rmSync(fake, { recursive: true, force: true });
+  }
+});
+
+// T1.10 (#206) — from the packaged app, `maude design server-up` / `serve` ran `bun server.ts` against the
+// staged studio source, which has no node_modules ("dev-server runtime deps not installed: yjs y-protocols
+// lib0"), while the compiled studio server sat right next to the CLI. resolveAppSidecar finds that server
+// from the running executable's own directory, and only when the package root is the app's Resources tree.
+function makeApp(base, { server = true } = {}) {
+  const contents = join(base, 'Maude.app', 'Contents');
+  mkdirSync(join(contents, 'MacOS'), { recursive: true });
+  writeFileSync(join(contents, 'MacOS', 'maude'), '#!/bin/sh\n', { mode: 0o755 });
+  if (server)
+    writeFileSync(join(contents, 'MacOS', 'maude-server'), '#!/bin/sh\n', { mode: 0o755 });
+  makeRealRoot(join(contents, 'Resources'));
+  return contents;
+}
+
+test('resolveAppSidecar: the app CLI finds the compiled server beside it and the staged studio', () => {
+  const tmp = realpathSync(mkdtempSync(join(tmpdir(), 'maude-appsidecar-')));
+  try {
+    const c = makeApp(tmp);
+    const r = resolveAppSidecar({
+      pkgRoot: join(c, 'Resources'),
+      execPath: join(c, 'MacOS', 'maude'),
+    });
+    assert.deepEqual(r, {
+      bin: join(c, 'MacOS', 'maude-server'),
+      devServerRoot: join(c, 'Resources', 'apps', 'studio'),
+      pkgRoot: join(c, 'Resources'),
+    });
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('resolveAppSidecar: a CLI reached through a symlink (a PATH link into the app) still resolves', () => {
+  const tmp = realpathSync(mkdtempSync(join(tmpdir(), 'maude-appsidecar-link-')));
+  try {
+    const c = makeApp(tmp);
+    mkdirSync(join(tmp, 'bin'));
+    symlinkSync(join(c, 'MacOS', 'maude'), join(tmp, 'bin', 'maude'));
+    const r = resolveAppSidecar({
+      pkgRoot: join(c, 'Resources'),
+      execPath: join(tmp, 'bin', 'maude'),
+    });
+    assert.equal(r?.bin, join(c, 'MacOS', 'maude-server'));
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('resolveAppSidecar: null for a repo / npm install, a missing server, or another package root', () => {
+  const tmp = realpathSync(mkdtempSync(join(tmpdir(), 'maude-appsidecar-no-')));
+  try {
+    // no compiled server beside the CLI
+    const bare = makeApp(join(tmp, 'a'), { server: false });
+    assert.equal(
+      resolveAppSidecar({
+        pkgRoot: join(bare, 'Resources'),
+        execPath: join(bare, 'MacOS', 'maude'),
+      }),
+      null
+    );
+    // a server beside the CLI, but the package root in use is NOT that app's Resources tree
+    const c = makeApp(join(tmp, 'b'));
+    const other = join(tmp, 'other');
+    makeRealRoot(other);
+    assert.equal(resolveAppSidecar({ pkgRoot: other, execPath: join(c, 'MacOS', 'maude') }), null);
+    // plain node running the repo CLI: nothing beside node
+    assert.equal(resolveAppSidecar({ pkgRoot: other, execPath: process.execPath }), null);
+    // an executable that does not exist
+    assert.equal(resolveAppSidecar({ pkgRoot: other, execPath: join(tmp, 'nope', 'maude') }), null);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
   }
 });
