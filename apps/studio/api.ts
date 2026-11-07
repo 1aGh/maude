@@ -6076,6 +6076,35 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       : null;
   }
 
+  /**
+   * #170 — the same lock lookup for the LEGACY artboard and clip routes (resize / set-artboard-* / delete-artboard,
+   * the *-sequence routes, toggle-hide): the 409 `locked` for a named artboard that carries the shared lock
+   * (`data-cd-locked` on its `DCArtboard`), else null. The dispatcher already refuses artboard-wide ops there; these
+   * routes never asked. An artboard that is not named (the legacy whole-file index path) is not asked, as in the
+   * dispatcher.
+   */
+  async function lockedBoard(
+    abs: string,
+    artboardId: string | undefined
+  ): Promise<{ ok: false; status: 409; error: string; code: 'locked' } | null> {
+    if (!artboardId) return null;
+    let source: string;
+    try {
+      source = await Bun.file(abs).text();
+    } catch {
+      return null;
+    }
+    const walk = walkIdElements(source, abs);
+    if (!walk.ok) return null;
+    const board = walk.elements.find((x) => x.tag === 'DCArtboard' && x.artboard === artboardId);
+    if (!board?.locked) return null;
+    // the artboard may carry no data-cd-id: ask the lookup under the artboard's own id
+    const lock = lockedRefusal([{ ...board, id: artboardId }], [artboardId]);
+    return lock && lock.code === 'locked'
+      ? { ok: false, status: 409, error: lock.message, code: 'locked' }
+      : null;
+  }
+
   async function editCss(input: {
     canvas?: unknown;
     id?: unknown;
@@ -6467,6 +6496,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (patch.durationInFrames == null && patch.from == null) {
       return { ok: false, status: 400, error: 'nothing to retime' };
     }
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -6513,6 +6544,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!stableId) return { ok: false, status: 400, error: 'stableId required' };
     const artboardId = typeof input.artboardId === 'string' ? input.artboardId : undefined;
     const contentHash = typeof input.contentHash === 'string' ? input.contentHash : undefined;
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -6582,6 +6615,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       ph && typeof ph === 'object' && typeof ph.prompt === 'string'
         ? { prompt: ph.prompt, kind: typeof ph.kind === 'string' ? ph.kind : 'veo' }
         : null;
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -7157,6 +7192,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (width == null && height == null) {
       return { ok: false, status: 400, error: 'width or height required' };
     }
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -7210,6 +7247,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const freezeHeight = Number.isFinite(Number(input.freezeHeight))
       ? Math.max(64, Math.min(8192, Math.round(Number(input.freezeHeight))))
       : undefined;
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -7265,6 +7304,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     } else {
       return { ok: false, status: 400, error: 'invalid kind' };
     }
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -7309,6 +7350,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: false, status: 400, error: 'name is required' };
     }
     const label = input.label;
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -7365,6 +7408,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     } else {
       return { ok: false, status: 400, error: 'invalid guides' };
     }
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -7454,6 +7499,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     } else {
       return { ok: false, status: 400, error: 'invalid print' };
     }
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -7547,6 +7594,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (Object.keys(patch).length === 0) {
       return { ok: false, status: 400, error: 'no style props given' };
     }
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -7639,6 +7688,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!/^[A-Za-z][\w-]{0,63}$/.test(artboardId)) {
       return { ok: false, status: 400, error: 'invalid artboard id' };
     }
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -7743,6 +7794,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!stableId) return { ok: false, status: 400, error: 'stableId required' };
     const artboardId = typeof input.artboardId === 'string' ? input.artboardId : undefined;
     const contentHash = typeof input.contentHash === 'string' ? input.contentHash : undefined;
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
@@ -7833,6 +7886,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const contentHash = typeof input.contentHash === 'string' ? input.contentHash : undefined;
     const refContentHash =
       typeof input.refContentHash === 'string' ? input.refContentHash : undefined;
+    const lockedBoardAnswer = await lockedBoard(r.abs, artboardId || undefined);
+    if (lockedBoardAnswer) return lockedBoardAnswer;
     const rel = path.relative(paths.designRoot, r.abs);
     ctx.bus.emit('activity:suppress', rel);
     try {
