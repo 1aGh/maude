@@ -91,7 +91,7 @@ W5 and W6 use Opus.
 
 ### W0 — Issue hygiene (lead, no code)
 
-- [ ] T0.1 Tick and comment the boxes the sweep found already done:
+- [x] T0.1 Tick and comment the boxes the sweep found already done:
   - #163, the port item (`app_state.rs:409-427`, p8-port-gc);
   - #128 §9 (`export-jobs?id=`, S8.5b-1) and the cloud comment item 1 (`2d3b5dc8`);
   - #164, the `curl-local` create, `trash move` and synced `history diff` items;
@@ -99,7 +99,7 @@ W5 and W6 use Opus.
   - #170, the Update-project toasts, the `cli.mdx` port wording and the README post-edit gate line;
   - #171, `local-cell.mjs` `v2Config`;
   - #156 §5.
-- [ ] T0.2 Confirm each issue's remaining list against this plan and comment the plan path on each issue.
+- [x] T0.2 Confirm each issue's remaining list against this plan and comment the plan path on each issue.
 
 ### W1 — Cheap wins (Sonnet builders, small slices)
 

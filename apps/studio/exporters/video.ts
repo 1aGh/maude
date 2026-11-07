@@ -94,7 +94,7 @@ const MAX_FRAMES_CEILING = 18000;
 const HEAVY_FRAMES_WARNING = 900; // 30 s @ 30 fps
 
 /** `--scale` for the capture shim: the user's 1–3× choice, or `auto` (the shim picks by artboard size). */
-export function resolveScaleArg(options: Pick<ExportOptions, 'scale'>): string {
+export function resolveScaleArg(options: { scale?: unknown }): string {
   const raw: unknown = options.scale;
   if (raw === undefined || raw === null || raw === '') return 'auto';
   const scale = clampInt(raw, 1, 3);
