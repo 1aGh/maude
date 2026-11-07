@@ -25,11 +25,20 @@ maude design history name ui/home.tsx r11 "Before the pricing change"   # a name
   artboard changed shape since; do what the line says.
 - A project that keeps its history in git answers `list` from the git log and says so for `restore`/`name`.
 - Do not copy an old file over the canvas: that bypasses the check and the new version.
-- **"Put it back to before the change"** — the change is a row in `list` (your own change in this conversation is
-  the newest `ai` row); the version from before it is the row just below. Restore that row, or take the change
-  back with `maude design history undo --action <id>` (the id: `history show <ref>`). A synced project's `diff`
-  is not available yet; you do not need it to pick the row. Never re-type the old text with Edit, even one line:
-  that is a new change, not a restore.
+- **"Put it back to before the change"** — your changes in this conversation are one run, and a run can be
+  several versions with a person's save between two of them. So never take "the row just below" yours: that row
+  can be the person's. Ask for the version before your run:
+
+  ```sh
+  maude design history diff ui/home.tsx --run @mine     # "from r6 to now", then what your run changed
+  maude design history restore ui/home.tsx r6           # the whole canvas back to that from-version
+  ```
+
+  `--run @mine` is this conversation's newest run on the canvas. Outside a Maude chat, pass the run's id
+  instead (`--run <runId>`; `maude design history list ui/home.tsx --json` shows each version's `runId`). The
+  versions made by an AI also say which one made them: "· AI (Maude chat)" or "· AI (Claude Code)". To take
+  one action back instead, use `maude design history undo --action <id>` (the id: `history show <ref>`). Never re-type the old text with Edit, even
+  one line: that is a new change, not a restore.
 
 ## The Trash
 

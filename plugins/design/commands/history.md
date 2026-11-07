@@ -19,7 +19,7 @@ Read [Versions and the Trash](../skills/design/_guide-versions-and-trash.md) fir
 |---|---|---|
 | `list [<canvas>] [--limit N]` | The versions, newest first (r12, r11, …) | `maude design history list` |
 | `show <ref> [<canvas>]` | Who, when and what a version was | `maude design history show` |
-| `diff [<canvas>] [--from <ref>]` | What changed since a version | `maude design history diff` |
+| `diff [<canvas>] [--from <ref> \| --run <id>\|@mine]` | What changed since a version, or since the version before a run (`--run @mine`: this chat's) | `maude design history diff` |
 | `restore <canvas> <ref>` | The whole canvas back to that version, as a new version | `maude design history restore` |
 | `restore <canvas> <ref> --artboard <id>` | Only that artboard | same, with `--artboard` |
 | `restore <canvas> <ref> --element <artboard>/<id>` | Only that object | same, with `--element` |

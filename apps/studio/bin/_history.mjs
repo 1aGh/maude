@@ -27,7 +27,7 @@ import {
 
 export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [--json] [--root <project>]
        maude design history show <ref> [<canvas>] [--json] [--root <project>]
-       maude design history diff [<canvas>] [--from <ref>] [--to <ref>|now] [--json] [--root <project>]
+       maude design history diff [<canvas>] [--from <ref> | --run <id>|@mine] [--to <ref>|now] [--json] [--root <project>]
        maude design history object <canvas> <artboard>/<id> | <annotation-id> [--json] [--root <project>]
        maude design history restore <canvas> <ref> [--artboard <id> | --element <artboard>/<id>] [--json] [--root <project>]
        maude design history undo --action <id> | --chat <id> [--redo] [--json] [--root <project>]
@@ -37,8 +37,9 @@ export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [-
   list      the versions, newest first
   show      one version: who, when, what it was, the canvases it touched
   diff      what changed since <ref>: a synced project names the canvas and says it in words, from
-            the version before its newest (or --from) to now (or --to); a git project diffs since
-            <ref> (default: the last commit)
+            the version before the newest AI run's first version on that canvas (or --from, or
+            --run <id>: that run's; --run @mine: this chat's newest run) to now (or --to); a git
+            project diffs since <ref> (default: the last commit)
   object    one object's versions, newest first (a canvas element by <artboard>/<id>, or a sticky /
             arrow / sticker by its annotation id); rows followed back by matching say so — synced
   restore   the whole canvas back to <ref>, as a NEW version (Now stays in the history) — synced;
@@ -80,10 +81,23 @@ const canvasesOf = (row) => (row.canvases ?? []).map((c) => field(c).replace(/^\
 // p8-fix-d F20 — the person by name (the studio's lookup, `actorName`), an AI run as "· AI"
 // (CONTRACT §3), and a prompt-less run's placeholder label ("Claude Code") is not printed as if it
 // were the prompt.
+/**
+ * #164 B3 — which agent made an AI version, from what the row carries: a Maude chat's run names its
+ * chat; a run with no chat is a terminal session's. A row with neither (older rows) names no agent —
+ * the placeholder label is never read as one.
+ */
+export function agentOf(row) {
+  if (row?.kind !== 'ai') return undefined;
+  if (row.chatId) return 'Maude chat';
+  if (row.runId) return 'Claude Code';
+  return undefined;
+}
+
 function syncedLine(row) {
   const ai = row.kind === 'ai';
   const person = row.actorName ?? row.actor ?? '?';
-  const who = `${field(person)}${row.mine ? ' (you)' : ''}${ai ? ' · AI' : ''}`;
+  const agent = agentOf(row);
+  const who = `${field(person)}${row.mine ? ' (you)' : ''}${ai ? ` · AI${agent ? ` (${agent})` : ''}` : ''}`;
   const label = ai ? (promptOfRun(row.label) ?? '') : (row.label ?? '');
   const where = canvasesOf(row).join(', ');
   return `r${field(row.revision)}  ${when(row.committedAt)}  ${who}  ${field(row.kind ?? '')}${label ? `  ${field(label)}` : ''}${where ? `  · ${where}` : ''}`;
@@ -109,7 +123,15 @@ async function list(words) {
   const repoRel = canvasArg(c.root, pos[0]);
   const v = await versions(c.studio, { repoRel, limit });
   if (v.kind === 'synced') {
-    if (flags['--json']) out({ kind: 'synced', canvas: repoRel, versions: v.rows });
+    if (flags['--json'])
+      out({
+        kind: 'synced',
+        canvas: repoRel,
+        versions: v.rows.map((row) => {
+          const agent = agentOf(row);
+          return agent ? { ...row, agent } : row;
+        }),
+      });
     else if (v.rows.length === 0) process.stdout.write('no versions yet\n');
     else writeUntrusted(v.rows.map((row) => `${syncedLine(row)}\n`).join(''));
     return 0;
@@ -157,14 +179,23 @@ async function show(words) {
 async function diff(words) {
   const { flags, pos } = parseWords(words, {
     bool: ['--json'],
-    value: ['--from', '--to', '--root'],
+    value: ['--from', '--to', '--run', '--root'],
   });
   if (pos.length > 1) throw new UsageError('diff takes at most one canvas');
+  const run = flags['--run'];
+  if (run !== undefined) {
+    if (flags['--from'] !== undefined) throw new UsageError('--run and --from name the same thing');
+    if (run !== '@mine' && !CHAT_ID.test(run))
+      throw new UsageError('--run takes a run id ([A-Za-z0-9_-], ≤ 64) or @mine');
+    if (run === '@mine' && !CHAT_ID.test(process.env.MAUDE_CHAT_ID ?? ''))
+      throw new UsageError('--run @mine needs a Maude chat (MAUDE_CHAT_ID is not set)');
+  }
   const c = await connect('history', flags['--root']);
   if (c.exit) return c.exit;
   const repoRel = canvasArg(c.root, pos[0]);
-  const v = await versions(c.studio, { repoRel, limit: 2 });
+  const v = await versions(c.studio, { repoRel, limit: 200 });
   if (v.kind === 'synced') return syncedDiff(c, repoRel, v.rows, flags);
+  if (run !== undefined) throw new UsageError('--run needs a synced project');
   if (flags['--to'] !== undefined) throw new UsageError('--to needs a synced project');
   const from = flags['--from'] ?? 'HEAD';
   if (from !== 'HEAD' && !SHA.test(from)) throw new UsageError('--from is a commit sha');
@@ -210,14 +241,48 @@ async function diff(words) {
  * the canvas's newest (what its latest version changed) or `--from`, to now or `--to`.
  */
 const REF = /^(r\d{1,12}|git:[0-9a-f]{7,40})$/i;
+
+/** The newest AI run in `rows` (newest first), of `chatId` when given. */
+export function newestRun(rows, chatId) {
+  const r = rows.find((x) => x.kind === 'ai' && x.runId && (!chatId || x.chatId === chatId));
+  return r?.runId;
+}
+
+/**
+ * Index of the OLDEST row of `runId`'s group in `rows` (newest first), or -1. A run's rows are not
+ * contiguous — a person's save, or another run, can land between its actions — so the version before
+ * the run is the row below this one, never the row below the run's newest (#164 §8).
+ */
+export function oldestOfRun(rows, runId) {
+  let at = -1;
+  rows.forEach((x, i) => {
+    if (x.kind === 'ai' && x.runId === runId) at = i;
+  });
+  return at;
+}
+
 async function syncedDiff(c, repoRel, rows, flags) {
   if (!repoRel) throw new UsageError('diff on a synced project takes a <canvas>');
   const to = flags['--to'] ?? 'now';
   if (to !== 'now' && !REF.test(to)) throw new UsageError('--to is r<n>, git:<sha> or now');
   let from = flags['--from'];
   if (from !== undefined && !REF.test(from)) throw new UsageError('--from is r<n> or git:<sha>');
+  const asked = flags['--run'];
+  const where = repoRel.replace(/^\.design\//, '');
+  let runId = asked;
+  if (asked === '@mine') runId = newestRun(rows, process.env.MAUDE_CHAT_ID);
+  else if (asked === undefined && from === undefined) runId = newestRun(rows);
   if (from === undefined) {
-    const before = rows[1];
+    // by run when the rows say which run made them; the row just below the canvas's newest otherwise
+    let at = 0;
+    if (runId !== undefined) at = oldestOfRun(rows, runId);
+    if (asked !== undefined && (runId === undefined || at < 0)) {
+      process.stderr.write(
+        `maude design history: no version by run ${clean(asked)} in ${where} — \`maude design history list --json\` shows each version's runId\n`
+      );
+      return 1;
+    }
+    const before = rows[at + 1];
     if (!before) {
       process.stdout.write(`${field(repoRel)} has no earlier version to compare with\n`);
       return 0;
@@ -248,6 +313,7 @@ async function syncedDiff(c, repoRel, rows, flags) {
     const where = (Array.isArray(ch.artboards) ? ch.artboards : []).map((a) => field(a)).join(', ');
     return `${where || 'canvas'}  ${field(ch.words ?? '')}\n`;
   };
+  process.stdout.write(`from ${from} to ${to}\n`);
   writeUntrusted(changes.map(line).join(''));
   return 0;
 }
