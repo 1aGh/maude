@@ -3,6 +3,16 @@
   "version": "2.0.8",
   "entries": [
     {
+      "id": "object-menu-add-comment",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Add comment, right in the object menu",
+      "summary": "Right-click an object and Add comment is now near the top, under Ask AI, instead of inside Advanced.",
+      "learnMore": "https://maude.sh/docs/desktop/window",
+      "surface": "design-ui"
+    },
+    {
       "id": "preview-bar-only-with-back",
       "version": null,
       "date": null,
