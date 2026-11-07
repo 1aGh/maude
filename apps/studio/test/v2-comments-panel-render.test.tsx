@@ -222,6 +222,26 @@ describe('the Comments panel', () => {
     expect(e?.querySelector('.es-spot')).not.toBeNull();
   });
 
+  // #170: under the view-only gate the C key leaves nothing, so the empty line must not teach it.
+  test('a session that cannot comment (view-only gate) is not told to press C', () => {
+    mount({ commentsByFile: {}, activePath: A, canComment: false });
+    const e = q('[data-testid="comments-empty"]');
+    expect(e).not.toBeNull();
+    expect(e?.querySelector('.es-sit')?.textContent).toBe('No comments on Combine kampan yet.');
+    expect(e?.textContent).not.toContain('Press C');
+    expect(e?.querySelector('.es-next kbd, .es-next .kbd')).toBeNull();
+    // the filtered-empty fallback ("Mine", "Resolved") must not teach it either
+    act(() => root?.unmount());
+    host?.remove();
+    mount({
+      commentsByFile: { [A]: [{ ...data[A][0] }] },
+      filter: 'mine',
+      me: 'Nobody',
+      canComment: false,
+    });
+    expect(q('[data-testid="comments-empty"]')?.textContent).not.toContain('Press C');
+  });
+
   test('"Share for feedback" is the one action, and only where the host can share', () => {
     const shared: number[] = [];
     mount({ commentsByFile: {}, activePath: A, onShare: () => shared.push(1) });

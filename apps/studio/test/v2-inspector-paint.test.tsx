@@ -552,12 +552,15 @@ const key = async (el: Element | null, k: string) => {
 const activeId = () => document.activeElement?.getAttribute('data-testid') ?? null;
 
 describe('IR-11 — a new paint starts from the slot’s role token, never currentColor', () => {
-  test('no design system: Fill › + on an empty fill writes the background role with its literal fallback', async () => {
+  // #170: IR-11 says it in full — with no system and nothing in Recent, "+" adds a neutral mid grey (not a role token
+  // a system could have supplied) and opens the picker at once.
+  test('no design system, empty Recent: Fill › + writes a neutral mid grey and opens the picker', async () => {
     const host = await one({ authored: {} }, NO_DS);
     await click(q(host, 'insp-add-fill'));
     const v = String(written().background);
     expect(v).not.toMatch(/currentcolor/i);
-    expect(v).toBe('var(--bg-1, #f4f4f5)');
+    expect(v).toBe('#808080');
+    expect(q(host, 'insp-kinds-fill')).not.toBeNull(); // the picker is open
   });
 
   test('no design system: + Gradient (the picker tab) never writes currentColor either', async () => {

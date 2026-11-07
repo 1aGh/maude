@@ -64,7 +64,7 @@ function useOthers(wanted, me) {
 }
 
 /** No thread is listed (05 · es-panels-canvas, es-viewer). `kind` is `emptyKind`. */
-function EmptyComments({ kind, active, canvas, names, onShare }) {
+function EmptyComments({ kind, active, canvas, names, onShare, canComment = true }) {
   if (kind === 'done') {
     return (
       <div className="cmp-party">
@@ -82,6 +82,19 @@ function EmptyComments({ kind, active, canvas, names, onShare }) {
   }
   if (kind === 'none') {
     const viewer = names.length > 0;
+    // #170: a session that cannot leave a comment is not taught the C key (the copy table mirrors the
+    // 05 board, which has no such line, so this one is local like FILTER_EMPTY).
+    if (!canComment) {
+      return (
+        <Empty
+          spot="comment"
+          spotW={168}
+          testid="comments-empty"
+          title={`No comments on ${canvas} yet.`}
+          next="This project is view-only here, so new comments wait for edit access."
+        />
+      );
+    }
     const id = viewer ? 'es-viewer.viewer-comments-none' : 'es-panels-canvas.comments-none';
     const vars = { canvas, names: namesLine(names) };
     return (
@@ -92,7 +105,7 @@ function EmptyComments({ kind, active, canvas, names, onShare }) {
         vars={vars}
         testid="comments-empty"
         actions={
-          !viewer && onShare ? (
+          !viewer && canComment && onShare ? (
             <button
               type="button"
               className="btn btn--ghost btn--sm"
@@ -112,7 +125,11 @@ function EmptyComments({ kind, active, canvas, names, onShare }) {
       glyph="comment"
       testid="comments-empty"
       title={FILTER_EMPTY[active] ?? FILTER_EMPTY.resolved}
-      next={active === 'resolved' ? undefined : 'Press [[C]], then click where it belongs.'}
+      next={
+        active === 'resolved' || !canComment
+          ? undefined
+          : 'Press [[C]], then click where it belongs.'
+      }
     />
   );
 }
@@ -229,6 +246,7 @@ export function CommentsPanel({
   onClose,
   onShare,
   viewer = false,
+  canComment = true,
   me: meProp,
   artboardLabel,
   now,
@@ -295,6 +313,7 @@ export function CommentsPanel({
             canvas={activePath ? canvasLabel(activePath) : 'this canvas'}
             names={others}
             onShare={onShare}
+            canComment={canComment}
           />
         ) : (
           groups.map((g) => (

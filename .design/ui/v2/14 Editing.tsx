@@ -1211,12 +1211,12 @@ export default function Editing() {
                   <Row k="Size · weight"><N v="140" w={56} /><InSelect value="Heavy" /></Row>
                   <Row k="Line · letter"><N l={<G n="dir-col" size={11} />} v="92 %" w={72} /><N l={<G n="dir-row" size={11} />} v="0" w={56} /></Row>
                   <Row k="Align"><ISeg icons={["ta-left", "ta-center", "ta-right", "ta-just"]} on="ta-left" /></Row>
+                  <Row k="Colour"><Tok n="Bílá" v="" sw="white" /></Row>
                   <Row k="Resizing"><InSeg options={["Width", "Height", "Fixed"]} value="Height" /></Row>
                   <Row k="Case"><InSeg options={["As typed", "AA"]} value="AA" /></Row>
                   <Row k="Language"><InSelect value="Čeština" /></Row>
                 </Sec>
                 <Line icon="text">Čeština: one-letter words stay with the next word (the ties under “v” and “s”), „quotes“ turn Czech.</Line>
-                <Sec t="Fill"><Row k="Colour"><Tok n="Bílá" v="" sw="white" /></Row></Sec>
               </Insp>
               <ZoomUndo zoom={62} />
               <Toolbar tool="select" />

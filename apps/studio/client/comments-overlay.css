@@ -116,6 +116,12 @@
 
 /* P8 C5 (04 md-comment `md-th--new`, 10 `co-th`): one island — lg radius, the island shadow and its hairline edge,
  * 12 px in, 12 px between its parts, 330 wide for a new comment, 320 for a thread. */
+/* #170: a card is placed by the anchor loop after it mounts; until then it is hidden, not drawn at (0, 0) */
+.cm-composer:not([data-placed]),
+.cm-thread:not([data-placed]) {
+  visibility: hidden;
+}
+
 .cm-composer {
   position: absolute;
   width: 330px;
@@ -791,4 +797,16 @@ button.cm-chip--seek:focus-visible {
 }
 .cm-glyph {
   flex: none;
+}
+
+/* #170 R29: the card's and pin's hover transitions are hand-rolled (this frame has no shell motion tokens), so reduced
+   motion collapses them here */
+@media (prefers-reduced-motion: reduce) {
+  .cm-pin,
+  .cm-composer,
+  .cm-composer *,
+  .cm-thread,
+  .cm-thread * {
+    transition-duration: 1ms !important;
+  }
 }

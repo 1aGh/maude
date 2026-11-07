@@ -160,6 +160,11 @@ async fn resolve_dev_server_url(webview: tauri::Webview) -> Result<serde_json::V
     // states"): from the app-local splash or Home itself, never a `p-*` label.
     if webview.label() == windows::HOME_LABEL {
         home::caller_home(&webview, true)?;
+        // #170: the shell is already sending Home to its server (`navigate_home`): a second navigate from
+        // the splash would replace the page that one loads. `{pending}`: ask again shortly.
+        if windows::SHELL_NAVS.pending(windows::HOME_LABEL, std::time::Instant::now()) {
+            return Ok(serde_json::json!({ "pending": true }));
+        }
         let url = home::wait_home_url(webview.app_handle(), std::time::Duration::from_millis(RECOVERY_WAIT_MS)).await?;
         // The splash is about to go there itself: the Home origin is the one
         // its navigations may reach (N-M2) — from app-owned state only.

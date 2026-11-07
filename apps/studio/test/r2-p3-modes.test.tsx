@@ -29,7 +29,6 @@ import { ALL_CAPS, toolKeyAction } from '../bridge/canvas-modes.ts';
 import { MODE_SHOWS } from '../bridge/mode-shows.ts';
 import { ModeSwitch } from '../client/v2/shell/mode-switch.jsx';
 import { zoomUndoForm } from '../client/v2/undo/zoom-undo.jsx';
-import { easeKind } from '../preview/preview-camera.tsx';
 
 const ROOT = join(import.meta.dir, '..');
 const read = (rel: string) => readFileSync(join(ROOT, rel), 'utf8');
@@ -65,10 +64,18 @@ describe('TD1d — a mode switch changes only the toolbar', () => {
     expect(zoomUndoForm('viewing', null, { edit: false })).toBe('zoom-only');
   });
 
-  test('Preview keeps the Edit camera: no transition eases it', () => {
-    expect(easeKind('edit', 'preview')).toBeNull();
-    expect(easeKind('preview', 'edit')).toBeNull();
-    expect(easeKind('viewing', 'preview')).toBeNull();
+  // #170 D3: the S3.9 camera ease (PREVIEW_EASES = false since TD1d) is removed, not parked behind a switch.
+  test('Preview keeps the Edit camera: the ease engine is gone, not switched off', () => {
+    const src = read('preview/preview-camera.tsx');
+    for (const gone of [
+      'PREVIEW_EASES',
+      'createPreviewEase',
+      'easeKind',
+      'cubicBezier',
+      'inViewArtboard',
+    ])
+      expect(src).not.toContain(gone);
+    expect(read('canvas-lib.tsx')).not.toContain('usePreviewCamera');
   });
 
   test('Preview chrome no longer draws its own zoom readout (the Undo · Redo · zoom island stays)', () => {

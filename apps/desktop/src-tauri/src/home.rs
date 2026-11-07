@@ -646,8 +646,16 @@ pub fn navigate_home(app: &AppHandle) {
         Ok(parsed) if crate::server_json::is_loopback_url(&parsed) => {
             stamp_home_origin(app, &url);
             log_line(&format!("[maude] Home navigate → {url}"));
-            if let Err(e) = window.navigate(parsed) {
-                log_line(&format!("[maude] Home navigate failed: {e}"));
+            // #170: the Home splash recovers through `resolve_dev_server_url` and navigates itself; while
+            // this navigate is in flight it answers `{pending}` instead (the same guard a project tab has),
+            // so the document one of them loads is not replaced by the other's.
+            let wait = windows::SHELL_NAVS.wait(HOME_LABEL);
+            match window.navigate(parsed) {
+                Ok(()) => wait.issued(Instant::now()),
+                Err(e) => {
+                    wait.abandoned();
+                    log_line(&format!("[maude] Home navigate failed: {e}"));
+                }
             }
         }
         _ => log_line(&format!(
@@ -1545,6 +1553,26 @@ pub async fn pick_project_location(
 
 #[cfg(test)]
 mod tests {
+    // #170: Home has the same double navigation the relaunch fix closed for project tabs: the shell's
+    // `navigate_home` and the Home splash's `resolve_dev_server_url` both send the tab to its server. The
+    // shell's navigate holds the splash back through `SHELL_NAVS` (`{pending}`), exactly as a project tab's does.
+    #[test]
+    fn home_navigate_holds_the_home_splash_back() {
+        let src = include_str!("home.rs");
+        let at = src.find("pub fn navigate_home(").unwrap();
+        let body = &src[at..at + src[at..].find("\n}\n").unwrap()];
+        for needle in ["SHELL_NAVS.wait(HOME_LABEL)", "wait.issued(", "wait.abandoned()"] {
+            assert!(body.contains(needle), "navigate_home lost {needle}");
+        }
+        let lib = include_str!("lib.rs");
+        let at = lib.find("async fn resolve_dev_server_url(").unwrap();
+        let home_branch = &lib[at..at + lib[at..].find("let caller = windows::caller_project").unwrap()];
+        assert!(
+            home_branch.contains("SHELL_NAVS.pending(windows::HOME_LABEL"),
+            "the Home splash must wait while the shell navigates Home"
+        );
+    }
+
     // r1 (img 6): "Choose another folder…" is a Home-only command, granted by Home's runtime
     // capability, gated like relink_project (Home caller, in front, one picker at a time).
     #[test]

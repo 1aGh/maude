@@ -550,7 +550,8 @@ describe('a past version or a design-system preview takes no drop', () => {
     expect(catcherReadOnly(base)).toBe(false);
     expect(catcherReadOnly({ ...base, viewing: { path: 'a.tsx' } })).toBe(true);
     expect(catcherReadOnly({ ...base, viewing: { path: 'b.tsx' } })).toBe(false);
-    expect(catcherReadOnly({ ...base, dsPreview: 'Studyfi' })).toBe(true);
+    // #170 D4: stepping through another system ("Preview in …") is the same live file under other tokens — a drop still places
+    expect(catcherReadOnly({ ...base, dsPreview: 'Studyfi' })).toBe(false);
     expect(catcherReadOnly({ ...base, role: 'viewer' })).toBe(true);
     expect(catcherReadOnly({ ...base, readOnly: true })).toBe(true);
   });

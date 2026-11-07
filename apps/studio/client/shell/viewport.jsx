@@ -312,7 +312,6 @@ export function Viewport({
             role,
             viewing,
             canvasTab,
-            dsPreview,
           })}
         />
       )}

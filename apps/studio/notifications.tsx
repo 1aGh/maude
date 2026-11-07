@@ -310,6 +310,12 @@ const NOTICE_CSS = `
 .maude-notifications [data-sonner-toast][data-expanded=false][data-front=false] {
   overflow: hidden; border-radius: var(--radius-md, 8px);
 }
+/* #170 R29: sonner's own 400 ms transform / opacity / height run on the shell's motion tokens instead (220 ms, no height
+   transition - a toast arrives and leaves, it does not grow), so reduced motion (which collapses the tokens) reaches them */
+.maude-notifications [data-sonner-toast] {
+  transition: transform var(--dur-panel, 220ms) var(--ease-out, ease-out),
+    opacity var(--dur-panel, 220ms) var(--ease-out, ease-out), box-shadow var(--dur-soft, 160ms);
+}
 .maude-notifications[data-paused=true] { visibility: hidden; pointer-events: none; }
 .maude-notice { box-sizing: border-box; position: relative; width: 100%; min-height: 40px;
   padding: var(--space-1, 4px) var(--space-2, 8px) var(--space-1, 4px) var(--space-4, 16px);

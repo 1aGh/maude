@@ -51,7 +51,7 @@
  * renders for `.html` mocks where this React overlay never mounts.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { canvasInsets } from './bridge/canvas-mode-store.ts';
 import { type Insets, visibleRect } from './bridge/occlusion.ts';
 import {
@@ -1474,7 +1474,7 @@ export function CommentComposer({
   // while typing keeps the card glued to its anchor. Writes directly to the
   // DOM so we don't re-render every frame. `placeNearPoint` picks whichever
   // side actually fits the viewport instead of always growing down-right.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const tick = () => {
       rafRef.current = null;
       const node = cardRef.current;
@@ -1483,9 +1483,12 @@ export function CommentComposer({
       const placed = placeNearPoint(anchor, { w: node.offsetWidth, h: node.offsetHeight });
       node.style.left = `${Math.round(placed.x)}px`;
       node.style.top = `${Math.round(placed.y)}px`;
+      // #170: the stylesheet keeps the card hidden until it is placed (no frame at the window's top-left)
+      node.dataset.placed = '1';
       rafRef.current = frameRaf(tick);
     };
-    rafRef.current = frameRaf(tick);
+    // placed before the first paint, then followed per frame
+    tick();
     return () => {
       if (rafRef.current != null) frameCaf(rafRef.current);
     };
@@ -1719,7 +1722,7 @@ export function CommentThread({
   // target through pan / zoom (FigJam parity). Writing to the dialog style
   // directly avoids re-rendering every frame. `placeNearPoint` picks whichever
   // side actually fits the viewport instead of always growing down-right.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const tick = () => {
       rafRef.current = null;
       const node = dialogRef.current;
@@ -1728,9 +1731,12 @@ export function CommentThread({
       const placed = placeNearPoint(anchor, { w: node.offsetWidth, h: node.offsetHeight });
       node.style.left = `${Math.round(placed.x)}px`;
       node.style.top = `${Math.round(placed.y)}px`;
+      // #170: the stylesheet keeps the card hidden until it is placed (no frame at the window's top-left)
+      node.dataset.placed = '1';
       rafRef.current = frameRaf(tick);
     };
-    rafRef.current = frameRaf(tick);
+    // placed before the first paint, then followed per frame
+    tick();
     return () => {
       if (rafRef.current != null) frameCaf(rafRef.current);
     };

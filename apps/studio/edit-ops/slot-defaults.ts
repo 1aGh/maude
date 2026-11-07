@@ -30,6 +30,9 @@ export const SLOT_DEFAULTS: Readonly<Record<Slot, { token: string; fallback: str
     gradientEnd: { token: '--bg-0', fallback: '#ffffff' },
   });
 
+/** IR-11: with no design system and nothing in Recent, "+" adds this — a neutral mid grey, then opens the picker. */
+export const NEUTRAL_MID_GREY = '#808080';
+
 /** The paint of a slot's default: `{ token: '--bg-3', fallback: '#d4d4d8' }`. */
 export function slotPaint(slot: Slot): Paint {
   const d = SLOT_DEFAULTS[slot];

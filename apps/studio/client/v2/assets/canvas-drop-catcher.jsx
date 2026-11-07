@@ -14,16 +14,18 @@ export const CATCHER_TESTID = 'canvas-asset-drop-catcher';
 
 /**
  * Nothing is placed by a person who may only look, nor while the canvas is shown at a past version (Version history's
- * Viewing) or through a design-system preview: the frame is not the live file, so a drop would write to a canvas the
- * person is not looking at.
+ * Viewing): the frame is not the live file, so a drop would write to a canvas the person is not looking at.
+ *
+ * A design-system preview ("Preview in …", `?dsPreview=`) is NOT in that list (#170 D4): it frames the live file under
+ * another system's tokens, so a drop places on the file the person is looking at. `dsPreview` stays in the signature
+ * for the caller; it no longer decides.
  */
-export function catcherReadOnly({ readOnly, role, viewing, canvasTab, dsPreview }) {
+export function catcherReadOnly({ readOnly, role, viewing, canvasTab }) {
   return (
     !!readOnly ||
     role === 'observer' ||
     role === 'viewer' ||
-    (!!viewing && viewing.path === canvasTab) ||
-    !!dsPreview
+    (!!viewing && viewing.path === canvasTab)
   );
 }
 
