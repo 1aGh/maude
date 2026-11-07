@@ -93,7 +93,7 @@ describe('#164 B4 — a hub project releases parked writes as the lane edits the
       { slug: 'ui-a', lane: 'html' },
     ]);
     expect(sent).toEqual([]); // parked: nothing out while the window is open
-    l.stage.settleShellCall('b1'); // the settle claimed nothing: released as outside
+    l.stage.settleShellCall('r_py', 'b1'); // the settle claimed nothing: released as outside
     expect(await first).toMatchObject({ status: 'accepted' });
     expect(await second).toMatchObject({ status: 'accepted' });
     expect(l.stage.summaryOf('r_py')?.canvases ?? []).toEqual([]);
@@ -146,7 +146,7 @@ describe('#164 B4 — a hub project releases parked writes as the lane edits the
       dependsOn: ['tx_a'],
       stageable: true,
     });
-    l.stage.releaseShellCall('b2', 'no-settle');
+    l.stage.releaseShellCall('r_sed', 'b2', 'no-settle');
     await Promise.all([a, b]);
     expect(sent.map((s) => [s.transactionId, s.operations[0].content, s.dependsOn])).toEqual([
       ['tx_a', 'one', undefined],

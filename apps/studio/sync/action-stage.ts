@@ -199,6 +199,12 @@ export interface ActionStageOptions {
    * the writes they were. Absent: one `edit` proposal per canvas through `propose`.
    */
   release?: (w: { slug: string; doc: string; writes: LaneProposal[] }) => Promise<ProposalOutcome>;
+  /**
+   * D1 — merge a canvas lane's parked writes into one (first base, last bytes). Only for a `release`
+   * that sends a canvas's writes as ONE change anyway (the default and the local home); a release
+   * that sends each write as its own edit (a hub link) keeps them apart. Default: no `release` given.
+   */
+  mergeParked?: boolean;
 }
 
 /** #164 — one call's window: what it covers, and (once closed) the wait for its settle. */
@@ -611,7 +617,13 @@ export function createActionStage(opts: ActionStageOptions) {
       let last: Parked | undefined;
       for (let i = parked.length - 1; i >= 0 && !last; i--)
         if (parked[i].slug === slug && parked[i].p.lane === p.lane) last = parked[i];
-      if (last && !last.joinRun && sameKeys(last.keys, keys) && sameKeys(last.wins, keys)) {
+      if (
+        mergeParked &&
+        last &&
+        !last.joinRun &&
+        sameKeys(last.keys, keys) &&
+        sameKeys(last.wins, keys)
+      ) {
         const prev = last.resolve;
         last.p = {
           ...p,
@@ -891,6 +903,7 @@ export function createActionStage(opts: ActionStageOptions) {
       }));
   }
   const release = opts.release ?? defaultRelease;
+  const mergeParked = opts.mergeParked ?? !opts.release;
 
   /** A tool reported writing `hash` (sha256 of the content) to canvas `slug`. */
   function claim(keyOrRun: string, slug: string, hash?: string | null): void {

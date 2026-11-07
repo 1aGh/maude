@@ -672,6 +672,7 @@ function bareStage() {
       return { status: 'accepted' };
     },
     log: { log() {}, warn: (m: string) => warned.push(String(m)) },
+    mergeParked: true,
   });
   let n = 0;
   const lane = (slug: string, base: string, content: string) =>

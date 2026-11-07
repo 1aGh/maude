@@ -839,6 +839,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     // #164 — writes a call's window parked and nobody claimed: recorded as outside, as the watcher
     // would have recorded them (one action per canvas; the disk already holds the bytes)
     release: (w) => serial(() => releaseOutside(w.slug, w.writes)),
+    // D1 — releaseOutside sends a canvas's parked writes as one change (first base, last bytes)
+    mergeParked: true,
   });
 
   async function releaseOutside(
