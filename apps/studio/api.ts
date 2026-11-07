@@ -34,6 +34,7 @@ import {
 import './annotations/ops-merge.ts';
 import { runTagOf } from './annotations/run-tag.ts';
 import { parseBoard, serializeBoard } from './annotations/schema.ts';
+import { mergedTextSlots } from './annotations/text-steps.ts';
 import type { AnnotationElement } from './annotations/types.ts';
 import { type BoardGuard, voteDoorOnly } from './annotations/vote-guard.ts';
 import { createAssetMirror, s3ConfigFromEnv } from './assets-s3.ts';
@@ -1146,13 +1147,16 @@ export interface ApiHooks {
    * base for accepted revisions). `recordedWithLanes`: the caller sends this board to the op log in the
    * same action as another lane (`proposer.send(lanes)` — the artboard move rider, a conversion), so the
    * hook must not record it a second time as a stroke of its own; the room bridge still runs.
+   * `contested` (T5.2, #165): ids whose text this write merged 3-way against a collaborator's change —
+   * the disk path's half of the room's contest (annotations/text-steps.ts); the home refuses its ⌘Z.
    */
   onAnnotationsChanged?: (
     file: string,
     text: string,
     writeId?: string,
     base?: string,
-    recordedWithLanes?: boolean
+    recordedWithLanes?: boolean,
+    contested?: readonly string[]
   ) => void;
   /**
    * Apply an op batch to the canvas's LIVE collab room, when one holds the
@@ -3095,7 +3099,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           return { ok: false, changed: false, rejected, error: 'board exceeds the size cap' };
         }
         await writeBoardFile(file, text);
-        if (withHooks) onAnnotationsChanged?.(file, text, actionId, beforeText);
+        if (withHooks) {
+          // T5.2 (#165) — the room records the same contest for a batch it takes (collab/registry.ts).
+          const contested = mergedTextSlots(beforeMap, ops);
+          onAnnotationsChanged?.(
+            file,
+            text,
+            actionId,
+            beforeText,
+            undefined,
+            contested.length ? contested : undefined
+          );
+        }
         return { ok: true, changed: true, rejected };
       });
     });

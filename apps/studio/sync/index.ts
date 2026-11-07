@@ -654,8 +654,17 @@ export interface SyncRuntime {
     slug: string,
     lane: 'comments' | 'annotations' | 'meta',
     text: string,
-    /** T-S4.5b — `stageable`: a run-tagged annotation batch joins its run's stage (claimed by hash). */
-    opts?: { baseText?: string; writeId?: string; stageable?: boolean }
+    /**
+     * T-S4.5b — `stageable`: a run-tagged annotation batch joins its run's stage (claimed by hash).
+     * `contested` (T5.2): texts a collaborator changed during this stroke — read by the local home
+     * only; a hub-linked runtime judges a ⌘Z from the hub's history instead.
+     */
+    opts?: {
+      baseText?: string;
+      writeId?: string;
+      stageable?: boolean;
+      contested?: readonly string[];
+    }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
   /**
    * S4.7 — several lanes of one synced canvas as ONE proposal (a sticky ↔
