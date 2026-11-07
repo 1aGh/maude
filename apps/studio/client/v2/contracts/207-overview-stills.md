@@ -1,5 +1,8 @@
 # 2.0.7 — small artboards show a still picture while a WebKit zoom runs
 
+> **Superseded by [`207-overview-level.md`](207-overview-level.md)** (Michal 2026-11-07): under the cut an artboard
+> shows only its still, settled or not. The raster and its rejected alternatives below still hold.
+
 Decision by Michal (2026-11-06, `decision:maude/v2-michal-207-overview-still-during-gesture`): on a heavy canvas at
 overview zoom, an artboard smaller than about 120 px on screen shows its stored still instead of its live content,
 only while a pan or zoom gesture runs; live content is back on the settle. Follows the spike
