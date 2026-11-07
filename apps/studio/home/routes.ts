@@ -428,15 +428,20 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
         };
         // r1 (img 6): a folder picked under Advanced › Location — re-checked, never trusted as sent
         let base = deps.projectsDir;
+        let recheck: (() => boolean) | undefined;
         if (body.location !== undefined && body.location !== null) {
           const picked = checkLocationReason(body.location, deps.homeDir);
           if (!picked.ok) return json(400, { ok: false, error: picked.error });
           base = picked.path;
+          // #168: a parent can gain a `.git` between this check and the create; asked again once claimed
+          const pickedPath = picked.path;
+          recheck = () => checkLocationReason(pickedPath, deps.homeDir).ok;
         }
         const r = createLocalProject(
           body.name ??
             (body.fromPrompt === undefined ? undefined : nameFromPrompt(body.fromPrompt).project),
-          base
+          base,
+          { recheck }
         );
         return r.ok ? json(200, r) : json(r.status, r);
       },

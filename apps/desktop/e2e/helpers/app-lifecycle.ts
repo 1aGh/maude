@@ -93,9 +93,13 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *     bin/`) and walks their children. Not TERM: bash would run the helper's exit trap, which opens a browser to park
  *     its page — the respawn this stops.
  *   - stops a browser agent-browser starts — under `browserRoots` (~/.agent-browser/browsers/) or a
- *     `chrome-headless-shell` — that launchd adopted (ppid 1) and that started after this lane began (`since`, the
- *     lane start wdio.conf.ts stamps in MAUDE_E2E_LANE_STARTED). Without a lane start, none. The person's own Chrome
- *     or Arc lives under /Applications and is never matched.
+ *     `chrome-headless-shell` — that launchd adopted (ppid 1) and whose own start environment carries this lane's
+ *     start marker (`since`, the lane start wdio.conf.ts stamps in MAUDE_E2E_LANE_STARTED). Without a lane start,
+ *     none. The person's own Chrome or Arc lives under /Applications and is never matched.
+ *
+ * #168: the path and a start time are not proof. Another session's agent-browser Chrome, orphaned during the lane,
+ * has both. Only the marker in the browser's own environment says the harness started it (the browser inherits it
+ * through the sidecar and the helper); an environment that cannot be read counts as no marker.
  * On the live table it repeats until a pass finds nothing, so a process started between the snapshot and the signal
  * is caught too.
  */
@@ -106,21 +110,23 @@ export async function reapE2eAgentBrowsers(
     table,
     since = laneStarted(),
     browserRoots = [`${join(homedir(), '.agent-browser', 'browsers')}/`],
+    startEnvs = readStartEnvs,
   }: {
     timeoutMs?: number;
     table?: ProcessRow[];
     since?: number | null;
     browserRoots?: string[];
+    /** the start environments of these pids; injectable for a test */
+    startEnvs?: (pids: number[]) => Map<number, StartEnv>;
   } = {}
 ): Promise<number[]> {
   const ab = join(dirname(appBinary), 'agent-browser');
   const helperBin = `${join(dirname(dirname(appBinary)), 'Resources', 'apps', 'studio', 'bin')}/`;
   const isAgentBrowser = (p: ProcessRow) => p.command === ab || p.command.startsWith(`${ab} `);
   const isHelper = (p: ProcessRow) => p.command.includes(helperBin);
-  const isOrphanBrowser = (p: ProcessRow) =>
+  const looksLikeOrphanBrowser = (p: ProcessRow) =>
     since != null &&
     p.ppid === 1 &&
-    p.started >= Math.floor(since / 1000) * 1000 &&
     (browserRoots.some((r) => p.command.startsWith(r)) ||
       /^\S*\/chrome-headless-shell(?:\s|$)/.test(p.command));
   const reaped: number[] = [];
@@ -128,7 +134,16 @@ export async function reapE2eAgentBrowsers(
   for (let pass = 0; pass < (table ? 1 : 3); pass++) {
     const rows = table ?? processTable();
     const helpers = rows.filter(isHelper).map((p) => p.pid);
-    const roots = rows.filter((p) => isAgentBrowser(p) || isOrphanBrowser(p)).map((p) => p.pid);
+    // only the candidates' environments are read, and only a browser stamped with THIS lane's marker is ours
+    const candidates = rows.filter(looksLikeOrphanBrowser).map((p) => p.pid);
+    const envs = candidates.length ? startEnvs(candidates) : new Map<number, StartEnv>();
+    const marked = new Set(
+      candidates.filter((pid) => {
+        const e = envs.get(pid);
+        return !!e?.readable && e.MAUDE_E2E_LANE_STARTED === String(since);
+      })
+    );
+    const roots = rows.filter((p) => isAgentBrowser(p) || marked.has(p.pid)).map((p) => p.pid);
     daemons += rows.filter(isAgentBrowser).length;
     const all = new Set<number>();
     const walk = (pid: number) => {
@@ -151,6 +166,40 @@ export async function reapE2eAgentBrowsers(
       `[app-lifecycle] reaped ${daemons} agent-browser daemon(s) of the e2e app, ${reaped.length} process(es)`
     );
   return reaped;
+}
+
+/** What the orphan reap reads from a process's start environment (`ps eww`). */
+export type StartEnv = { readable: boolean; MAUDE_E2E_LANE_STARTED?: string };
+
+/**
+ * The start environments (`ps eww`) of these pids. A pid that exited in between is simply absent. Kept here and not
+ * imported from prefs-guard.ts: the scripts/test suite loads this file under plain node, which needs a `.ts`
+ * extension on a sibling import that wdio's own loader rejects.
+ */
+function readStartEnvs(pids: number[]): Map<number, StartEnv> {
+  const out = new Map<number, StartEnv>();
+  if (pids.length === 0) return out;
+  let text = '';
+  try {
+    text = execFileSync('ps', ['eww', '-o', 'pid=,command=', '-p', pids.join(',')], {
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch (e) {
+    text = String((e as { stdout?: string }).stdout ?? ''); // ps exits 1 when a pid is gone
+  }
+  for (const l of text.split('\n')) {
+    const m = /^\s*(\d+)\s+(.*)$/.exec(l);
+    if (!m) continue;
+    const rest = m[2];
+    const stamp = /(?:^|\s)MAUDE_E2E_LANE_STARTED=(\S*)/.exec(rest)?.[1];
+    out.set(Number(m[1]), {
+      readable: /(?:^|\s)(?:PATH|HOME)=/.test(rest),
+      ...(stamp !== undefined ? { MAUDE_E2E_LANE_STARTED: stamp } : {}),
+    });
+  }
+  return out;
 }
 
 /** The lane's start (ms), stamped once by wdio.conf.ts; null when no lane stamped one. */

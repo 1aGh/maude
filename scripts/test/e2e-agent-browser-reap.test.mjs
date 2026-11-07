@@ -77,6 +77,10 @@ test('the e2e app agent-browser and its children go; another agent-browser stays
 // their exit trap, which opens a browser to park it — and (2) stops a browser agent-browser starts (under
 // ~/.agent-browser/browsers/, or a chrome-headless-shell) that launchd adopted after this lane began. The person's
 // own Chrome or Arc, and anything older than the lane, is never touched.
+//
+// #168: a start time and a path prove nothing (another session's agent-browser Chrome, orphaned mid-lane, matches
+// both). The orphan reap also needs the lane's start marker, `MAUDE_E2E_LANE_STARTED` equal to this lane's stamp,
+// in the browser's own start environment; no marker, an unreadable environment or another lane's stamp = not ours.
 test('the app’s helper scripts and the browsers orphaned during this lane go; the person’s browsers stay', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'maude-ab-reap-r11-'));
   const macos = join(dir, 'Maude.app', 'Contents', 'MacOS');
@@ -148,6 +152,25 @@ test('the app’s helper scripts and the browsers orphaned during this lane go; 
       { ppid: 1, started: since + 9000, command: '/Applications/Arc.app/Contents/MacOS/Arc' },
     ],
   ]);
+  // each process's start environment: the harness's browsers carry this lane's stamp; `foreign` is an orphan of the
+  // right shape (launchd's, under the browser root, born after the lane began) that another session started
+  const foreign = stand();
+  all.push(foreign);
+  rows.set(foreign.pid, {
+    ppid: 1,
+    started: since + 6000,
+    command: `${cftExe} --remote-debugging-port=0 --headless=new`,
+  });
+  const stamp = String(since);
+  const startEnvs = (pids) =>
+    new Map(
+      pids.map((pid) => [
+        pid,
+        pid === foreign.pid || pid === older.pid
+          ? { readable: true, MAUDE_E2E_LANE_STARTED: String(since - 1) }
+          : { readable: true, MAUDE_E2E_LANE_STARTED: stamp },
+      ])
+    );
   try {
     await new Promise((r) => setTimeout(r, 200));
     const { processTable } = await import(
@@ -162,12 +185,13 @@ test('the app’s helper scripts and the browsers orphaned during this lane go; 
       timeoutMs: 3000,
       since,
       browserRoots: [`${browsers}/`],
+      startEnvs,
     });
     assert.deepEqual([...pids].sort(), [helper.pid, cft.pid, cftHelper.pid, shell.pid].sort());
     await Promise.all([helper, cft, cftHelper, shell].map(exited));
     // no exit trap: the helper is killed outright
     assert.equal(helper.signalCode, 'SIGKILL');
-    for (const c of [older, adopted, chrome, arc]) assert.equal(alive(c.pid), true);
+    for (const c of [older, adopted, chrome, arc, foreign]) assert.equal(alive(c.pid), true);
     // without a lane start, nothing orphaned is touched
     const again = processTable().map((p) =>
       p.pid === older.pid ? { ...p, ppid: 1, started: Date.now(), command: `${cftExe} --x` } : p
@@ -177,11 +201,69 @@ test('the app’s helper scripts and the browsers orphaned during this lane go; 
         table: again,
         since: null,
         browserRoots: [`${browsers}/`],
+        startEnvs,
       }),
       []
     );
+    // an environment that cannot be read proves nothing: the orphan is left alone
+    const unreadable = processTable().map((p) =>
+      p.pid === foreign.pid ? { ...p, ppid: 1, started: since + 6000, command: `${cftExe} --x` } : p
+    );
+    assert.deepEqual(
+      await reapE2eAgentBrowsers(join(macos, 'maude-desktop'), {
+        table: unreadable,
+        since,
+        browserRoots: [`${browsers}/`],
+        startEnvs: (pids) => new Map(pids.map((pid) => [pid, { readable: false }])),
+      }),
+      []
+    );
+    assert.equal(alive(foreign.pid), true);
   } finally {
     for (const c of all) c.kill('SIGKILL');
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// #168: the default environment reader is the real `ps eww`. A browser that really carries the lane's stamp goes,
+// one that really does not stays.
+test('the real start environment decides: stamped browser goes, unstamped one stays', {
+  skip: NOT_MAC,
+}, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'maude-ab-reap-env-'));
+  const macos = join(dir, 'Maude.app', 'Contents', 'MacOS');
+  const browsers = join(dir, 'home', '.agent-browser', 'browsers');
+  mkdirSync(macos, { recursive: true });
+  mkdirSync(browsers, { recursive: true });
+  // not /bin/sleep: ps hides the environment of a system (SIP) binary, so the stamp would never be seen
+  symlinkSync(process.execPath, join(browsers, 'chrome'));
+  const since = Date.now() - 60_000;
+  const idle = ['-e', 'setTimeout(() => {}, 300000)'];
+  const base = { PATH: process.env.PATH, HOME: process.env.HOME };
+  const mine = spawn(join(browsers, 'chrome'), idle, {
+    stdio: 'ignore',
+    env: { ...base, MAUDE_E2E_LANE_STARTED: String(since) },
+  });
+  const theirs = spawn(join(browsers, 'chrome'), idle, { stdio: 'ignore', env: base });
+  try {
+    await new Promise((r) => setTimeout(r, 200));
+    const { processTable } = await import(
+      new URL('../../apps/desktop/e2e/helpers/app-lifecycle.ts', import.meta.url).href
+    );
+    const table = processTable().map((p) =>
+      p.pid === mine.pid || p.pid === theirs.pid ? { ...p, ppid: 1, started: since + 5000 } : p
+    );
+    const pids = await reapE2eAgentBrowsers(join(macos, 'maude-desktop'), {
+      table,
+      timeoutMs: 3000,
+      since,
+      browserRoots: [`${browsers}/`],
+    });
+    assert.deepEqual(pids, [mine.pid]);
+    await exited(mine);
+    assert.equal(alive(theirs.pid), true);
+  } finally {
+    for (const c of [mine, theirs]) c.kill('SIGKILL');
     rmSync(dir, { recursive: true, force: true });
   }
 });

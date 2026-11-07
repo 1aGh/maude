@@ -52,6 +52,11 @@ while [[ $# -gt 0 ]]; do
     *) break ;;
   esac
 done
+# --slot becomes part of a lock path, a checkout path and an rm -rf (here and on the mini): allowlist, never sanitise.
+case "$SLOT" in
+  1|2|3|auto) ;;
+  *) echo "remote-lane: --slot must be 1, 2, 3 or auto" >&2; exit 2 ;;
+esac
 if [[ $# -eq 0 ]]; then
   echo "usage: scripts/remote-lane.sh [--rev <rev>] [--slot 1|2|3|auto] [--max <s>] [--fetch <path>]… -- <command…>" >&2
   exit 2
@@ -74,6 +79,11 @@ ARGS="$(printf '%q ' "$SHA" "$SLOT" "$MAX" "$ID" "$CMD" ${FETCH[@]+"${FETCH[@]}"
 ssh -o BatchMode=yes "$HOST" "bash -s -- $ARGS" <<'REMOTE'
 set -uo pipefail
 SHA="$1"; SLOT="$2"; MAX="$3"; ID="$4"; CMD="$5"; shift 5
+# The same allowlist again: this half also runs from an older client, and the slot must never reach a path unchecked.
+case "$SLOT" in
+  1|2|3|auto) ;;
+  *) echo "remote-lane: --slot must be 1, 2, 3 or auto" >&2; exit 2 ;;
+esac
 R=/Volumes/D/maude-runner
 export PATH="$R/tools/bin:$R/tools/node24/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 export NO_OPEN=1 MAUDE_NO_AUTOBUILD=1

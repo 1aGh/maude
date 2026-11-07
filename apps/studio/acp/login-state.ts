@@ -10,6 +10,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { scrubAgentEnv } from './env.ts';
+import { e2eSwitch } from '../release-build.ts';
 import { isE2eEnv, resolveClaudePath, setTrustedClaudeBin } from './probe.ts';
 
 // getClaudeAuthStatus lives in probe.ts now (probeAcpAvailabilityAuthed needs
@@ -88,8 +89,17 @@ const NATIVE_INSTALL_CMD = 'curl -fsSL https://claude.ai/install.sh | bash';
 // clobber a genuine install). The e2e config points this at a disposable temp
 // path instead; unset in every normal launch, so real users always get the
 // real well-known path.
-const WELL_KNOWN_INSTALL_PATH =
-  process.env.MAUDE_E2E_CLAUDE_INSTALL_PATH || join(homedir(), '.local', 'bin', 'claude');
+export function wellKnownInstallPath(
+  env: Record<string, string | undefined> = process.env,
+  release?: boolean
+): string {
+  // #168 — a release build never redirects the install target.
+  return (
+    e2eSwitch(env, 'MAUDE_E2E_CLAUDE_INSTALL_PATH', release) ||
+    join(homedir(), '.local', 'bin', 'claude')
+  );
+}
+const WELL_KNOWN_INSTALL_PATH = wellKnownInstallPath();
 
 // Desktop-e2e stub (mirrors MAUDE_E2E_FAKE_GITHUB_LOGIN in oauth.rs) — running
 // the REAL `curl | bash` installer in a test harness is both slow/network-
@@ -99,7 +109,13 @@ const WELL_KNOWN_INSTALL_PATH =
 // e2e-overridden — see above) — through the EXACT SAME freshness + content-pin
 // verification path a real install goes through below, so that security-
 // critical code stays exercised, not bypassed. Never set in a normal launch.
-const E2E_FAKE_INSTALL = process.env.MAUDE_E2E_FAKE_CLAUDE_INSTALL === '1';
+export function fakeInstallEnabled(
+  env: Record<string, string | undefined> = process.env,
+  release?: boolean
+): boolean {
+  return e2eSwitch(env, 'MAUDE_E2E_FAKE_CLAUDE_INSTALL', release) === '1';
+}
+const E2E_FAKE_INSTALL = fakeInstallEnabled();
 const FAKE_CLAUDE_SCRIPT = `#!/bin/sh
 # Maude desktop-e2e fake claude binary (DDR-166) — only ever written when
 # MAUDE_E2E_FAKE_CLAUDE_INSTALL=1. Implements just enough of \`auth status\`/
@@ -176,9 +192,10 @@ let installChild: ReturnType<typeof Bun.spawn> | null = null;
  * person's real `~/.local/bin/claude` (MAUDE_E2E_CLAUDE_INSTALL_PATH redirects only the fake's target).
  */
 export function installRefusal(
-  env: Record<string, string | undefined> = process.env
+  env: Record<string, string | undefined> = process.env,
+  release?: boolean
 ): string | null {
-  if (isE2eEnv(env) && env.MAUDE_E2E_FAKE_CLAUDE_INSTALL !== '1')
+  if (isE2eEnv(env, release) && env.MAUDE_E2E_FAKE_CLAUDE_INSTALL !== '1')
     return 'An e2e lane never runs the real Claude Code installer (set MAUDE_E2E_FAKE_CLAUDE_INSTALL=1).';
   return null;
 }
