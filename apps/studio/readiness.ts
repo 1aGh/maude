@@ -17,9 +17,9 @@ import { join } from 'node:path';
 import { getClaudeAuthStatus } from './acp/login-state.ts';
 import { isNativePluginContext } from './acp/plugin-bootstrap.ts';
 import { isE2eEnv, resolveAdapterEntry, resolveClaudePath } from './acp/probe.ts';
-import { e2eSwitch } from './release-build.ts';
 import { resolveBrowser } from './bin/_ensure-browser.mjs';
 import { DESIGN_PLUGIN_DIR } from './paths.ts';
+import { e2eSwitch } from './release-build.ts';
 
 export type ReadinessStatus = 'present' | 'missing' | 'unknown';
 

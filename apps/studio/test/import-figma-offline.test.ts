@@ -8,8 +8,6 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
-import { normalizeDocument } from '../figma/types.ts';
 // @ts-expect-error — plain .mjs verb, no declaration file
 import {
   buildClusterSvg,
@@ -19,6 +17,7 @@ import {
   nodeErrorLines,
   selectFrames,
 } from '../bin/_import-figma.mjs';
+import { normalizeDocument } from '../figma/types.ts';
 
 const KEY = 'figTESTKEY0123456789';
 const REF = 'aabbccddeeff00112233445566778899aabbccdd';

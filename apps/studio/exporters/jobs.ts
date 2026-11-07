@@ -34,6 +34,7 @@ import type { Bus } from '../context.ts';
 import { currentSession, normalizeSessionKey } from '../session-scope.ts';
 import { missingTranscriptsFor } from '../video/inject.ts';
 import { resolveRenderLane } from '../workspace-mode.ts';
+import { captionGap } from './degraded.ts';
 import {
   type ExportContext,
   type ExportDegradation,
@@ -52,7 +53,6 @@ import {
   renderRemotely,
   resolveRenderService,
 } from './remote.ts';
-import { captionGap } from './degraded.ts';
 import { noteRenderMs } from './render-seconds.ts';
 import {
   enforceAnnotationsPolicy,

@@ -9,8 +9,8 @@ import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { scrubAgentEnv } from './env.ts';
 import { e2eSwitch } from '../release-build.ts';
+import { scrubAgentEnv } from './env.ts';
 import { isE2eEnv, resolveClaudePath, setTrustedClaudeBin } from './probe.ts';
 
 // getClaudeAuthStatus lives in probe.ts now (probeAcpAvailabilityAuthed needs

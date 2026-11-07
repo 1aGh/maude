@@ -13,7 +13,12 @@ import {
   paintFromCss,
   reduceMixed,
 } from '../../../../edit-ops/words-paint.ts';
-import { fillSlotFor, NEUTRAL_MID_GREY, slotCss, slotPaint } from '../../../../edit-ops/slot-defaults.ts';
+import {
+  fillSlotFor,
+  NEUTRAL_MID_GREY,
+  slotCss,
+  slotPaint,
+} from '../../../../edit-ops/slot-defaults.ts';
 import { useCssWrite } from '../css-write.js';
 import { BOXY_KINDS } from './size.jsx';
 import { targetOf } from '../kinds/multi.jsx';

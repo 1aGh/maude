@@ -14,12 +14,12 @@ import {
   toggleTheme,
 } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
+import { hubProcess } from '../helpers/hub-process';
 import {
   capturedSignInUrl,
   captureTeamServerSignIn,
   signInOnHubPage,
 } from '../helpers/hub-signin-page';
-import { hubProcess } from '../helpers/hub-process';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
 import { openSwitcher } from '../helpers/switcher';
