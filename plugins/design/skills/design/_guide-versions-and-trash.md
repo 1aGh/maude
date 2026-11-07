@@ -26,19 +26,26 @@ maude design history name ui/home.tsx r11 "Before the pricing change"   # a name
 - A project that keeps its history in git answers `list` from the git log and says so for `restore`/`name`.
 - Do not copy an old file over the canvas: that bypasses the check and the new version.
 - **"Put it back to before the change"** — your changes in this conversation are one run, and a run can be
-  several versions with a person's save between two of them. So never take "the row just below" yours: that row
-  can be the person's. Ask for the version before your run:
+  several versions with a person's save between two of them. A whole-canvas restore to the version before the
+  run would wipe that save, so you never restore the whole canvas for this. Take back what the run did instead:
 
   ```sh
-  maude design history diff ui/home.tsx --run @mine     # "from r6 to now", then what your run changed
-  maude design history restore ui/home.tsx r6           # the whole canvas back to that from-version
+  maude design history undo --chat "$MAUDE_CHAT_ID"   # every action of this conversation, as ONE new version; the person's saves stay
+  maude design history undo --action <id>             # one action (the id: `history show <ref>`)
   ```
 
-  `--run @mine` is this conversation's newest run on the canvas. Outside a Maude chat, pass the run's id
-  instead (`--run <runId>`; `maude design history list ui/home.tsx --json` shows each version's `runId`). The
-  versions made by an AI also say which one made them: "· AI (Maude chat)" or "· AI (Claude Code)". To take
-  one action back instead, use `maude design history undo --action <id>` (the id: `history show <ref>`). Never re-type the old text with Edit, even
-  one line: that is a new change, not a restore.
+  Outside a Maude chat there is no `$MAUDE_CHAT_ID`: read what the run changed, then undo its actions one by one.
+
+  ```sh
+  maude design history diff ui/home.tsx --run <runId>   # "from r6 to now", then what the run changed
+  maude design history list ui/home.tsx --json          # each version's runId and actionId
+  ```
+
+  `--run @mine` is this conversation's newest run on the canvas (only runs of this Mac count; a teammate's AI run
+  is never picked for you). The versions made by an AI also say which one made them: "· AI (Maude chat)" or
+  "· AI (Claude Code)". If a person's save sits between two versions of the run, **ask the person before any
+  whole-canvas restore**: say that the restore would also take back that person's save, and let them choose. Never
+  re-type the old text with Edit, even one line: that is a new change, not a restore.
 
 ## The Trash
 

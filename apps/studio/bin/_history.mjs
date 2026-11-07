@@ -242,9 +242,14 @@ async function diff(words) {
  */
 const REF = /^(r\d{1,12}|git:[0-9a-f]{7,40})$/i;
 
-/** The newest AI run in `rows` (newest first), of `chatId` when given. */
+/**
+ * The newest AI run in `rows` (newest first), of `chatId` when given. Only this Mac's own runs
+ * (`row.mine`) are a target: the default diff must never point at a teammate's run (#164 F3).
+ */
 export function newestRun(rows, chatId) {
-  const r = rows.find((x) => x.kind === 'ai' && x.runId && (!chatId || x.chatId === chatId));
+  const r = rows.find(
+    (x) => x.kind === 'ai' && x.runId && x.mine && (!chatId || x.chatId === chatId)
+  );
   return r?.runId;
 }
 
