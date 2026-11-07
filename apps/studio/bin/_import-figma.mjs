@@ -423,6 +423,22 @@ export function formatSummary(report, extra = {}) {
 }
 
 /**
+ * The decode-time half of the report (#155 §5): nodes the `.fig` decoder could
+ * not read cleanly and degraded instead of failing the file. Ids and code-owned
+ * messages only, like `formatSummary` — this is read by an agent. Empty string
+ * when there is nothing to say.
+ */
+export function nodeErrorLines(decodeReport) {
+  const errors = decodeReport?.nodeErrors ?? [];
+  if (errors.length === 0) return '';
+  const total = decodeReport.nodeErrorCount ?? errors.length;
+  const lines = [`  ${total} node(s) could not be read cleanly (the import continued):`];
+  for (const e of errors) lines.push(`  node ${e.nodeId} ${e.type}: ${e.message}`);
+  if (total > errors.length) lines.push(`  … and ${total - errors.length} more`);
+  return lines.join('\n');
+}
+
+/**
  * Phase 2 — import a FigJam board into the whiteboard annotation layer.
  *
  * Writes `<designRoot>/<slug>.annotations.json` as registry-validated v2
@@ -460,7 +476,7 @@ export function formatSummary(report, extra = {}) {
  * boxes the decoder already composed. Returns null when nothing in the subtree
  * has geometry, so the caller can report the absence honestly.
  */
-function buildClusterSvg(local, nodeId) {
+export function buildClusterSvg(local, nodeId) {
   let cluster = null;
   walkNodes(local.document.root, (n) => {
     if (n.id === nodeId) cluster = n;
@@ -581,6 +597,53 @@ export function decodeLocalFig(path, fileKeyOverride = null) {
   }
 }
 
+/**
+ * Resolve a board's pending pictures. REST for a linked file; the archive's own
+ * `images/<imageRef>` for an offline `.jam` (#155 §1) — the content-derived
+ * file key means a REST call can only ever answer "no such file". A loose
+ * vector (no image handle) is a server-side render a local export does not
+ * carry, and an `<image>` on a board takes a raster href only, so it is
+ * reported unavailable rather than composed into an SVG the sanitizer would
+ * strip.
+ */
+async function resolveBoardImages({
+  local,
+  fileKey,
+  pendingImages,
+  report,
+  root,
+  designRootRel,
+  stagingDir,
+}) {
+  if (!local) {
+    return resolveAssets(
+      fileKey,
+      pendingImages.map((p) => ({ nodeId: p.nodeId, format: 'png', placeholder: p.strokeId })),
+      makeAssetDeps({ root, designRootRel, stagingDir }),
+      report
+    );
+  }
+  const pictures = [];
+  for (const p of pendingImages) {
+    if (p.imageRef) {
+      pictures.push({
+        nodeId: p.nodeId,
+        format: 'png',
+        placeholder: p.strokeId,
+        imageRef: p.imageRef,
+      });
+    } else {
+      report.add(
+        p.nodeId,
+        'VECTOR',
+        'asset-unavailable-offline',
+        'a loose vector has no picture in the archive'
+      );
+    }
+  }
+  return resolveArchiveAssets(local, pictures, report, { root, designRootRel, stagingDir });
+}
+
 export async function importBoard({
   url,
   root,
@@ -698,16 +761,15 @@ export async function importBoard({
     // Resolve image fills BEFORE serializing — an ImageStroke's href must be a
     // real `assets/<sha8>` path by the time the SVG is written, and the model's
     // own href allowlist only admits that shape.
-    const assets = await resolveAssets(
-      target.fileKey,
-      pendingImages.map((p) => ({
-        nodeId: p.nodeId,
-        format: 'png',
-        placeholder: p.strokeId,
-      })),
-      makeAssetDeps({ root, designRootRel, stagingDir: staging }),
-      report
-    );
+    const assets = await resolveBoardImages({
+      local,
+      fileKey: target.fileKey,
+      pendingImages,
+      report,
+      root,
+      designRootRel,
+      stagingDir: staging,
+    });
     for (const stroke of strokes) {
       const ref = assets.rewrites.get(stroke.id);
       // `href` is the RELATIVE form (`assets/<sha8>.png`) — `ref` comes back as
@@ -867,12 +929,15 @@ export async function planBoardInto({
 
   const staging = makeStagingDir();
   try {
-    const assets = await resolveAssets(
-      target.fileKey,
-      pendingImages.map((p) => ({ nodeId: p.nodeId, format: 'png', placeholder: p.strokeId })),
-      makeAssetDeps({ root, designRootRel, stagingDir: staging }),
-      report
-    );
+    const assets = await resolveBoardImages({
+      local,
+      fileKey: target.fileKey,
+      pendingImages,
+      report,
+      root,
+      designRootRel,
+      stagingDir: staging,
+    });
     for (const stroke of strokes) {
       const ref = assets.rewrites.get(stroke.id);
       if (ref) stroke.href = ref.replace(/^\//, '');
@@ -1589,8 +1654,21 @@ export async function importPages({
   };
 }
 
-/** Pick the frames a `--frames` run should translate. */
-function selectFrames(doc, nodeId) {
+/** Wrapper depth `selectFrames` will descend through — a hostile tree cannot recurse unbounded. */
+const MAX_SELECT_DEPTH = 8;
+
+/**
+ * Pick the frames a `--frames` run should translate.
+ *
+ * A page's frames are not always its direct children: designers put them in
+ * SECTIONs and GROUPs, and a file made only of groups has no FRAME at all
+ * (#155 §3, §8). So: take a page's top-level FRAME/COMPONENTs, and descend
+ * through SECTION/GROUP wrappers to find the rest, in document order. A
+ * hidden wrapper hides everything inside it. A nested frame inside a FRAME is
+ * part of its parent's composition and is NOT a canvas of its own (DDR-216 D5).
+ * Only when no frame exists anywhere do the page's top-level GROUPs stand in.
+ */
+export function selectFrames(doc, nodeId) {
   const wanted = new Set(['FRAME', 'COMPONENT']);
   // An explicit node-id means "this subtree" — the root IS the selection.
   if (nodeId && doc.root.id === nodeId) return [doc.root];
@@ -1604,10 +1682,22 @@ function selectFrames(doc, nodeId) {
     doc.root.type === 'DOCUMENT'
       ? ((doc.root.children ?? []).find((n) => n.type === 'CANVAS') ?? doc.root)
       : doc.root;
-  // Otherwise take the page's top-level frames. Deliberately NOT a deep walk:
-  // whole-file import is not a viable default (DDR-216 D5) and a nested frame
-  // is part of its parent's composition, not a canvas of its own.
-  return (root.children ?? []).filter((n) => wanted.has(n.type) && n.visible);
+
+  const found = [];
+  const collect = (nodes, depth) => {
+    for (const n of nodes) {
+      if (!n.visible) continue;
+      if (wanted.has(n.type)) found.push(n);
+      else if ((n.type === 'SECTION' || n.type === 'GROUP') && depth < MAX_SELECT_DEPTH) {
+        collect(n.children ?? [], depth + 1);
+      }
+    }
+  };
+  collect(root.children ?? [], 0);
+  if (found.length > 0) return found;
+
+  // No frame anywhere: a groups-only file. Each top-level group is a design.
+  return (root.children ?? []).filter((n) => n.type === 'GROUP' && n.visible);
 }
 
 /**
@@ -2768,6 +2858,8 @@ async function main() {
             unmappedTypes: local.report.unmappedTypes,
             lossyFields: local.report.lossyFields,
             internalNodesSkipped: local.report.internalNodesSkipped,
+            nodeErrors: local.report.nodeErrors,
+            nodeErrorCount: local.report.nodeErrorCount,
             ...(isBoard ? { slug: r.slug, strokes: r.strokeCount } : { written: r.written }),
             dispositions: merged.entries,
           })}\n`
@@ -2787,7 +2879,7 @@ async function main() {
             `  offline: container v${provenance.containerVersion} · schema ${provenance.schemaSha256.slice(0, 8)}` +
             `${provenance.exportedAt ? ` · exported ${provenance.exportedAt}` : ''}\n` +
             `  file key: ${provenance.fileKey}${provenance.derivedFileKey ? ' (content-derived — pass --file-key for the real one)' : ''}\n` +
-            `${[unmapped, lossy].filter(Boolean).join('\n')}${unmapped || lossy ? '\n' : ''}` +
+            `${[unmapped, lossy, nodeErrorLines(local.report)].filter(Boolean).join('\n')}${unmapped || lossy || local.report.nodeErrors?.length ? '\n' : ''}` +
             `${formatSummary(merged)}\n`
         );
       }

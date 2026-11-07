@@ -115,17 +115,30 @@ class Reader {
     return v & 1 ? ~(v >>> 1) : v >>> 1;
   }
 
+  /**
+   * Kiwi's 64-bit varuint: 7 bits per byte with a continuation flag for the
+   * first EIGHT bytes, then a NINTH byte that carries a full 8 bits (it has no
+   * continuation flag — 8 x 7 + 8 = 64). Reading it as plain LEB128 treated that
+   * last byte's top bit as "more follows" and walked into the next field, which
+   * surfaced as `malformed varuint64: more than 10 bytes` on any value >= 2^63
+   * (#155 §10).
+   */
   varuint64(): bigint {
     let value = 0n;
     let shift = 0n;
-    for (;;) {
+    for (let i = 0; i < 8; i++) {
       const b = this.byte();
       value |= BigInt(b & 0x7f) << shift;
+      if ((b & 0x80) === 0) return value;
       shift += 7n;
-      if ((b & 0x80) === 0) break;
-      if (shift > 63n) throw new FigKiwiError('malformed varuint64: more than 10 bytes');
     }
-    return value;
+    return value | (BigInt(this.byte()) << 56n);
+  }
+
+  /** Zig-zag signed form of `varuint64`, same as `varint()` is of `varuint()`. */
+  varint64(): bigint {
+    const v = this.varuint64();
+    return v & 1n ? ~(v >> 1n) : v >> 1n;
   }
 
   /**
@@ -336,6 +349,7 @@ function readValue(
       case TYPE_STRING:
         return r.string();
       case TYPE_INT64:
+        return r.varint64();
       case TYPE_UINT64:
         return r.varuint64();
       default:

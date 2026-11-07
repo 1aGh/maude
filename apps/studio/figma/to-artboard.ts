@@ -140,6 +140,14 @@ export function isStylelessWrapper(node: FigmaNode): boolean {
 export function flattenWrappers(nodes: readonly FigmaNode[], report: ImportReport): FigmaNode[] {
   const out: FigmaNode[] = [];
   for (const node of nodes) {
+    // A hidden wrapper takes its whole subtree with it. Hoisting the children
+    // of a `visible:false` group made them render as if nothing had hidden
+    // them (#155 §2). Only a styleless wrapper is decided here — a hidden node
+    // that carries style is skipped later, by the same rule, at translation.
+    if (node.visible === false && isStylelessWrapper(node)) {
+      report.add(node.id, node.type, 'hidden-node-skipped', 'visible:false');
+      continue;
+    }
     if (isVectorCluster(node)) {
       out.push(node);
       continue;
