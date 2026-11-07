@@ -322,3 +322,34 @@ export function videoDepsFor(source: string, canvasAbs: string, designRoot: stri
 
 // The closure's freshness deps reach this parser only through the registration (access/closure.ts).
 registerVideoDeps(videoDepsFor);
+
+const SPEECH_MEDIA_EXT_RE = /\.(?:mp4|m4v|mov|webm|mkv)$/i;
+
+/**
+ * The clips under a canvas-lib `<Captions>` that have no usable `assets/<sha8>.transcript.json`
+ * (absent, unreadable or invalid) — `assets/<sha8>.<ext>` paths, sorted. Only what the captions
+ * read: unmuted video clips on the video tracks (the music bed and stills are not speech to caption).
+ * Empty when the canvas has no canvas-lib `<Captions>`. Never throws.
+ */
+export function missingTranscriptsFor(
+  source: string,
+  canvasAbs: string,
+  designRoot: string
+): string[] {
+  const plan = planOf(canvasAbs, source);
+  if (!plan) return [];
+  const out = new Set<string>();
+  const comps = new Set(plan.sites.filter((s) => s.kind === 'captions').map((s) => s.comp));
+  for (const comp of comps) {
+    const c = clipsOf(canvasAbs, source, plan, comp);
+    if (!c) continue;
+    for (const span of c.clips) {
+      if (span.muted || (span.track !== 'video' && span.track !== 'video2')) continue;
+      if (!SPEECH_MEDIA_EXT_RE.test(span.src)) continue;
+      const at = transcriptAbs(designRoot, span.src);
+      if (!at) continue;
+      if (!readTranscriptAt(at.abs, at.rel)) out.add(span.src);
+    }
+  }
+  return [...out].sort();
+}

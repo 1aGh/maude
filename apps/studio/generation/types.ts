@@ -126,6 +126,18 @@ export interface GenAsset {
   bytes?: Uint8Array;
   /** Text payload (SRT/VTT captions from a transcription provider). */
   text?: string;
+  /** Transcription only: the provider's words, `{text,start,end}[]` in seconds — the input of
+   *  the `assets/<sha8>.transcript.json` sidecar every engine leaves (#128 §7). */
+  words?: GenWord[];
+  /** Transcription only: were `words` timed per word (`provider`) or per segment (`segment`)? */
+  wordTiming?: 'provider' | 'segment';
+}
+
+/** One timed word as a transcription provider reports it (seconds in the source). */
+export interface GenWord {
+  text: string;
+  start: number;
+  end: number;
 }
 
 /** The normalized result once a Job is `done`. */

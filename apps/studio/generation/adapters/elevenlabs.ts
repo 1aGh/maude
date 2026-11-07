@@ -312,7 +312,13 @@ export function createElevenLabsAdapter(ctx: AdapterContext): ProviderAdapter {
       .filter((w) => (w.type ?? 'word') === 'word' && typeof w.text === 'string')
       .map((w) => ({ text: String(w.text), start: Number(w.start) || 0, end: Number(w.end) || 0 }));
     const srt = wordsToSrt(words);
-    const asset: GenAsset = { kind: 'transcription', mime: 'application/x-subrip', text: srt };
+    const asset: GenAsset = {
+      kind: 'transcription',
+      mime: 'application/x-subrip',
+      text: srt,
+      words,
+      wordTiming: 'provider',
+    };
     return { assets: [asset], usage: { ms: Date.now() - started }, raw: { text: json.text } };
   }
 
