@@ -143,8 +143,8 @@ W5 and W6 use Opus.
   - the e2e orphan-browser reap checks the start marker;
   - prune the `local-kernel.ts` source copies;
   - the new-project location check (parent instruction files, late `.git`).
-- [ ] T1.9 **#206 quick part:** `server-up.sh` spawns with `NO_OPEN=1`, and `/design:browse` opens the window explicitly.
-- [ ] T1.10 **Packaged `maude design server-up` cannot start the studio** (bug 13 of the 2.0.4 report; still open on 2.0.8; overlaps #206; added 2026-11-07 via the keeper):
+- [x] T1.9 **#206 quick part:** `server-up.sh` spawns with `NO_OPEN=1`, and `/design:browse` opens the window explicitly.
+- [x] T1.10 **Packaged `maude design server-up` cannot start the studio** (bug 13 of the 2.0.4 report; still open on 2.0.8; overlaps #206; added 2026-11-07 via the keeper):
   - from the `.app`, `server-up`/`serve` runs `bun server.ts` against the staged source, which has no deps (`yjs y-protocols lib0`), so without a desktop tab the CLI has no `sync status/resync`, `history`, `trash`, `ds-upgrade --apply`;
   - fix: when the compiled `maude-server` sidecar sits next to the CLI, spawn it (with `MAUDE_PKG_ROOT`/`MAUDE_DEV_SERVER_ROOT`, `NO_OPEN=1`);
   - pin with a stripped-PATH `server-up` in `check-bundle-completeness --smoke`;
@@ -341,3 +341,4 @@ W5 and W6 use Opus.
   - T1.5 open: `.deck` slide nodes (SLIDE/SLIDE_ROW type names) need a real Slides sample → folded into T4.1.
   - T1.6 open: scripted browser proof (pan/zoom/reload, pin stays) → verifier after W1.
 - 2026-11-07 merged T4.2 1a60c11fe (agent descriptions ≤200 chars: flow 4279→2168, design 11497→3611) and T1.7 (5b3fe9320 54503ef4b 9c9be068d 370d61ee0 d6e022d9d). T1.7 put `check-v2-nothing-deleted.mjs` in `qualityChain`; it was already red (17 of 1587 v1 entry points unmapped) → mapping task running.
+- 2026-11-07 merged T1.9 7ce10935f + T1.10 f663d5844 (packaged CLI spawns the adjacent maude-server; --smoke server-up step — run once on the next real desktop build). Bug 1 (ds-upgrade --prove) already fixed in 2.0.5 7369d3a0b.
