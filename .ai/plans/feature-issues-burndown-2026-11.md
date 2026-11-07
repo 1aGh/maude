@@ -247,7 +247,7 @@ W5 and W6 use Opus.
   - group draft writes into the commit step;
   - the `applyAnnotationOps` contest is recorded when there is no live room, and the ledger is persisted;
   - presence relayed through a hub is role-stamped.
-- [ ] T5.3 **#167, all nine items:**
+- [x] T5.3 **#167, all nine items:**
   - a persisted overflow flag that fails closed;
   - an owner-only "Adopt as code";
   - replay removes pruned holds;
@@ -369,3 +369,4 @@ W5 and W6 use Opus.
 - 2026-11-07 merged T2.6c (9c69fa73d 3af143b97 be2e6dc93: CONTRACT ai-other-tab line; e2e an-vote, co-mention-notify, ve-footage (split off), ia-more-ways, ai-annotations wrote scenario — written, run each alone). Bug found: putInSection has no file when the ask had no selection → fix builder running. Merged 164-sec hook side (d41228cc6 fe7fc5183 2322f1a99).
 - 2026-11-07 merged T5.2 (8f9ec88be af765e580 c1c822d4b 4dacd3484): no-room contest recorded, ledger persisted in _state/text-steps.ndjson, kernel refuses an overlapping text revert as undo-conflict (whole undo), hub advertises presence-role-v1. Drafts-into-commit already shipped (p8-fix-d F13, p8-hub-drafts). D9 + commitStrokes refusal: lead chose (a) — removed by p8-v1-drop (legacy save mode is view-only in v2; canvas undo stack gone; refusal lives in the project-undo route + kernel); supersedes the 2026-10-29 decision. Sync lane still owed before the push.
 - 2026-11-07 merged ab3720a26 07251dd68 e1e5ee965: Put them in a section scopes to the sent-from canvas; the live region and continued messages strip the maude-offer block; ai-annotations e2e 6/6.
+- 2026-11-07 merged T5.3 part 2 (2763a90ec c70b291b8 a77df003e b6511430d): owner-only POST /api/journal/adopt + /_api/sync/adopt-held, held-row actions via registry (humanMax 186→188, lead confirmed), heldOverflow shown, item 6 option A. Adopt is a new owner door → in the T9.1 security pair.
