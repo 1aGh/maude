@@ -16,6 +16,7 @@ import {
   importFrames,
   instanceLines,
   nodeErrorLines,
+  selectFramePages,
   selectFrames,
 } from '../bin/_import-figma.mjs';
 import { normalizeDocument } from '../figma/types.ts';
@@ -213,6 +214,60 @@ describe('#155 §5 — the import report names the nodes that could not be read'
 
   test('a clean decode prints nothing', () => {
     expect(nodeErrorLines({ nodeErrors: [], nodeErrorCount: 0 })).toBe('');
+  });
+});
+
+describe('#155 §7 (T4.1) — a multi-page design file keeps every page', () => {
+  const frame = (id: string) => ({
+    id,
+    name: `Frame ${id}`,
+    type: 'FRAME',
+    absoluteBoundingBox: box(0, 0, 100, 100),
+    fills: solid,
+  });
+  const twoPages = (extra: Record<string, unknown> = {}) =>
+    normalizeDocument(
+      {
+        id: '0:0',
+        name: 'Doc',
+        type: 'DOCUMENT',
+        children: [
+          { id: '0:1', name: 'One', type: 'CANVAS', children: [frame('1:1'), frame('1:2')] },
+          { id: '0:2', name: 'Two', type: 'CANVAS', children: [frame('2:1')], ...extra },
+          { id: '0:3', name: 'Three', type: 'CANVAS', children: [frame('3:1')] },
+        ],
+      },
+      { fileKey: KEY, surface: 'design', origin: 'fig' }
+    );
+  const ids = (nodes: Array<{ id: string }>) => nodes.map((n) => n.id);
+
+  test('frames from every page are selected, in page order', () => {
+    expect(ids(selectFrames(twoPages(), null))).toEqual(['1:1', '1:2', '2:1', '3:1']);
+  });
+
+  test('a hidden page contributes nothing', () => {
+    expect(ids(selectFrames(twoPages({ visible: false }), null))).toEqual(['1:1', '1:2', '3:1']);
+  });
+
+  test('selectFramePages keeps the page each frame came from', () => {
+    const pages = selectFramePages(twoPages(), null);
+    expect(
+      pages.map((p: { page: { id: string }; frames: unknown[] }) => [p.page.id, p.frames.length])
+    ).toEqual([
+      ['0:1', 2],
+      ['0:2', 1],
+      ['0:3', 1],
+    ]);
+  });
+
+  test('importFrames imports them all, not only the first page', async () => {
+    const r = await importFrames({
+      root: sandbox,
+      slug: 'multi',
+      dryRun: true,
+      local: localOf(twoPages()),
+    });
+    expect(r.frameCount).toBe(4);
   });
 });
 

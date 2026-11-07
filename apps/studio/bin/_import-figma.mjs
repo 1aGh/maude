@@ -1693,35 +1693,53 @@ const MAX_SELECT_DEPTH = 8;
  * Only when no frame exists anywhere do the page's top-level GROUPs stand in.
  */
 export function selectFrames(doc, nodeId) {
+  return selectFramePages(doc, nodeId).flatMap((p) => p.frames);
+}
+
+/**
+ * `selectFrames`, grouped by the page each frame came from, in page order (#155
+ * §7). A design file has several pages and they were all but the first dropped
+ * (one real file: 1 frame imported instead of 115). A hidden page is skipped;
+ * a page with no frame contributes nothing. When NO page has a frame, the
+ * groups-only fallback applies to every page.
+ */
+export function selectFramePages(doc, nodeId) {
   const wanted = new Set(['FRAME', 'COMPONENT']);
   // An explicit node-id means "this subtree" — the root IS the selection.
-  if (nodeId && doc.root.id === nodeId) return [doc.root];
-  if (wanted.has(doc.root.type)) return [doc.root];
+  if (nodeId && doc.root.id === nodeId) return [{ page: doc.root, frames: [doc.root] }];
+  if (wanted.has(doc.root.type)) return [{ page: doc.root, frames: [doc.root] }];
   // A DOCUMENT root means the caller handed us a whole file rather than a page
   // or a frame — always the case for the local `.fig` door, which has no
-  // node-id to scope with. Descend to the first CANVAS. Previously this fell
-  // through to "no FRAME or COMPONENT found", so this turns a hard error into
-  // the obvious behaviour; the node/depth caps still apply either way.
-  const root =
+  // node-id to scope with. Every visible CANVAS is a page; with none, the root
+  // itself stands in. The node/depth caps still apply either way.
+  let pages =
     doc.root.type === 'DOCUMENT'
-      ? ((doc.root.children ?? []).find((n) => n.type === 'CANVAS') ?? doc.root)
-      : doc.root;
+      ? (doc.root.children ?? []).filter((n) => n.type === 'CANVAS' && n.visible)
+      : [doc.root];
+  if (pages.length === 0) pages = [doc.root];
 
-  const found = [];
-  const collect = (nodes, depth) => {
+  const collect = (nodes, depth, found) => {
     for (const n of nodes) {
       if (!n.visible) continue;
       if (wanted.has(n.type)) found.push(n);
       else if ((n.type === 'SECTION' || n.type === 'GROUP') && depth < MAX_SELECT_DEPTH) {
-        collect(n.children ?? [], depth + 1);
+        collect(n.children ?? [], depth + 1, found);
       }
     }
+    return found;
   };
-  collect(root.children ?? [], 0);
-  if (found.length > 0) return found;
+  const withFrames = pages
+    .map((page) => ({ page, frames: collect(page.children ?? [], 0, []) }))
+    .filter((p) => p.frames.length > 0);
+  if (withFrames.length > 0) return withFrames;
 
   // No frame anywhere: a groups-only file. Each top-level group is a design.
-  return (root.children ?? []).filter((n) => n.type === 'GROUP' && n.visible);
+  return pages
+    .map((page) => ({
+      page,
+      frames: (page.children ?? []).filter((n) => n.type === 'GROUP' && n.visible),
+    }))
+    .filter((p) => p.frames.length > 0);
 }
 
 /**

@@ -226,6 +226,9 @@ function documentBounds(root: FigmaNode): Bounds {
   return { minX, minY, maxX, maxY };
 }
 
+/** Space between two pages laid out side by side, in board units. */
+const PAGE_GAP = 400;
+
 let idCounter = 0;
 /** Deterministic per-run stroke ids — derived from the NODE ID, never text. */
 function strokeId(nodeId: string, suffix = ''): string {
@@ -306,13 +309,35 @@ export function toStrokes(doc: NormalizedDocument, opts: ToStrokesOptions = {}):
   const pendingImages: PendingImage[] = [];
   const bounds = documentBounds(doc.root);
   const origin = opts.originOverride ?? { x: bounds.minX, y: bounds.minY };
+
+  // PAGES (#155 §7). Every FigJam page lives in its own coordinate space, and
+  // they overlap freely — a second page drawn at (100, 100) is NOT next to the
+  // first. Translating the whole document by one origin stacked them on top of
+  // each other. With two or more visible pages each is normalised to its own
+  // corner and laid out in a row, left to right, in page order. A caller that
+  // pins an origin (a design page's annotation layer) keeps the single shift.
+  const pages = (doc.root.type === 'DOCUMENT' ? (doc.root.children ?? []) : []).filter(
+    (n) => n.type === 'CANVAS' && n.visible
+  );
+  const pageDeltas = new Map<FigmaNode, { dx: number; dy: number }>();
+  let layoutW = bounds.maxX - bounds.minX;
+  let layoutH = bounds.maxY - bounds.minY;
+  if (pages.length >= 2 && !opts.originOverride) {
+    let cursor = 0;
+    layoutH = 0;
+    for (const pg of pages) {
+      const pb = documentBounds(pg);
+      pageDeltas.set(pg, { dx: cursor - pb.minX, dy: -pb.minY });
+      cursor += pb.maxX - pb.minX + PAGE_GAP;
+      layoutH = Math.max(layoutH, pb.maxY - pb.minY);
+    }
+    layoutW = cursor - PAGE_GAP;
+  }
+  /** The shift of the page being visited. */
+  let delta = { dx: -origin.x, dy: -origin.y };
+
   // Post-shift bounds, for D6b's geometry clamp.
-  const shifted: Bounds = {
-    minX: 0,
-    minY: 0,
-    maxX: bounds.maxX - bounds.minX,
-    maxY: bounds.maxY - bounds.minY,
-  };
+  const shifted: Bounds = { minX: 0, minY: 0, maxX: layoutW, maxY: layoutH };
 
   const strokes: Stroke[] = [];
   /** Figma node id → the stroke id it produced, for connector binding. */
@@ -320,9 +345,13 @@ export function toStrokes(doc: NormalizedDocument, opts: ToStrokesOptions = {}):
   /** Figma node id → its shifted bbox, for the group-endpoint fallback. */
   const nodeBBox = new Map<string, { x: number; y: number; w: number; h: number }>();
   /** Connectors are resolved in a second pass — their hosts must exist first. */
-  const connectors: Array<{ node: FigmaNode; groupIds: string[] }> = [];
+  const connectors: Array<{
+    node: FigmaNode;
+    groupIds: string[];
+    delta: { dx: number; dy: number };
+  }> = [];
 
-  const shift = (x: number, y: number) => ({ x: x - origin.x, y: y - origin.y });
+  const shift = (x: number, y: number) => ({ x: x + delta.dx, y: y + delta.dy });
 
   const emitText = (
     node: FigmaNode,
@@ -406,9 +435,12 @@ export function toStrokes(doc: NormalizedDocument, opts: ToStrokesOptions = {}):
 
     switch (node.type) {
       case 'DOCUMENT':
-      case 'CANVAS':
+      case 'CANVAS': {
+        const pageDelta = pageDeltas.get(node);
+        if (pageDelta) delta = pageDelta;
         for (const c of node.children ?? []) visit(c, groupIds, silent);
         return;
+      }
 
       case 'GROUP':
       case 'FRAME': {
@@ -555,7 +587,7 @@ export function toStrokes(doc: NormalizedDocument, opts: ToStrokesOptions = {}):
 
       case 'CONNECTOR':
         // Deferred — hosts must exist before endpoints can bind.
-        connectors.push({ node, groupIds });
+        connectors.push({ node, groupIds, delta });
         return;
 
       case 'VECTOR':
@@ -733,7 +765,8 @@ export function toStrokes(doc: NormalizedDocument, opts: ToStrokesOptions = {}):
 
   // ── Connector pass ────────────────────────────────────────────────────────
   const strokeById = new Map(strokes.map((s) => [s.id, s]));
-  for (const { node, groupIds } of connectors) {
+  for (const { node, groupIds, delta: connectorDelta } of connectors) {
+    delta = connectorDelta;
     const startNode = node.connectorStart;
     const endNode = node.connectorEnd;
 
