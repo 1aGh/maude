@@ -21,7 +21,8 @@
 //     (on macOS universal the CI lipos the two per-triple files into this name)
 //   apps/desktop/.kg-staging/plugins/                ← the kgai Claude Code plugin
 //   → stage-resources.mjs copies all of it into src-tauri/resources/{kgai,plugins/kgai}
-//   src-tauri/resources/kgai/libkuzu.<ext>           ← native lib (reached via KGAI_LIB→DYLD/LD_LIBRARY_PATH)
+//   src-tauri/resources/kgai/libkuzu.<ext>           ← native lib (macOS: kg's `@loader_path` rpath,
+//                                                       added below; Linux: KGAI_LIB→LD_LIBRARY_PATH)
 //   src-tauri/resources/plugins/kgai/                ← the Claude Code plugin (Stop-hook autocapture)
 //
 // Opt out with MAUDE_SKIP_KG_SYNC=1 (the build then ships without kgai; every
@@ -39,6 +40,8 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { ensureLoaderPathRpath } from './kg-rpath.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const BIN_DIR = resolve(SCRIPT_DIR, '..', 'src-tauri', 'binaries');
@@ -278,6 +281,14 @@ async function main() {
   await download(`${relBase}/${asset.kg}`, kgDest, kgSize);
   await download(`${relBase}/${asset.lib}`, libDest, libSize);
   if (!exe) chmodSync(kgDest, 0o755);
+  // macOS: upstream's rpaths are kgai's CI path + `@loader_path/../lib`, but libkuzu ships NEXT
+  // to kg (`Resources/kgai/`), and the hardened runtime strips DYLD_LIBRARY_PATH — so without
+  // `@loader_path` every bundled `kg` call dies in dyld (#128 §10). Patched here, per triple and
+  // before the CI lipo + codesign: a load-command edit invalidates a signature. Throws on failure.
+  if (slug.startsWith('darwin')) {
+    const r = ensureLoaderPathRpath(kgDest);
+    console.log(`[sync-kg] rpath @loader_path ${r === 'added' ? 'added to' : 'already on'} kg`);
+  }
   // Host-native build: also publish the plain `kg` the resolver looks for. A
   // cross-arch staging run (MAUDE_SIDECAR_SLUG set for a universal build) skips
   // this — CI lipos the per-triple files into `kg` itself.

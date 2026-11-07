@@ -465,6 +465,47 @@ function reelPlaceSmoke(binary, strippedPath) {
   }
 }
 
+// The bundled engine must LOAD on its own: run `kg --version` with nothing but a stripped PATH and
+// a throwaway HOME — no DYLD_LIBRARY_PATH/KGAI_LIB, which the hardened runtime strips anyway. A kg
+// whose rpaths miss `@loader_path` dies in dyld here instead of on every `maude kg` call in the
+// shipped app (#128 §10; sync-kg.mjs adds the rpath). The reported version must match the pin.
+function kgVersionSmoke(kgExe, versionFile) {
+  const home = mkdtempSync(join(tmpdir(), 'maude-smoke-kg-'));
+  let output = '';
+  let status = 0;
+  try {
+    output = execFileSync(kgExe, ['--version'], {
+      env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', HOME: home },
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 20000,
+    });
+  } catch (e) {
+    status = e.status ?? (e.signal ? `signal ${e.signal}` : 'spawn error');
+    output = `${e.stderr || ''}${e.stdout || ''}` || e.message;
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+  if (status !== 0) {
+    fail('smoke kg --version', `exit ${status} — ${output.trim().split('\n')[0].slice(0, 240)}`);
+    return;
+  }
+  let version = null;
+  try {
+    version = JSON.parse(output).version ?? null;
+  } catch {
+    version = /\d+\.\d+\.\d+/.exec(output)?.[0] ?? null;
+  }
+  const pin = existsSync(versionFile)
+    ? readFileSync(versionFile, 'utf8').split('\n')[0].trim().replace(/^v/, '')
+    : null;
+  if (pin && version && version !== pin) {
+    fail('smoke kg --version', `engine reports ${version}, the staged pin is ${pin}`);
+  } else {
+    ok('smoke kg --version', `engine loads with no library path set (${version ?? 'version ?'})`);
+  }
+}
+
 // === Check 5 — kgai engine + plugin (feature-kgai-ecosystem-integration Ph. 8) ==
 // Without these the packaged app records NOTHING to the knowledge graph: the ACP
 // session is settingSources:['user'] (DDR-144) and the terminal-less DDR-177 user
@@ -513,6 +554,7 @@ console.log('\n[5] kgai engine + plugin (autonomous capture in the shipped app)'
           /* lipo unavailable — skip */
         }
       }
+      if (doSmoke) kgVersionSmoke(kgExe, join(kgaiRes, 'VERSION'));
     }
 
     const ver = join(kgaiRes, 'VERSION');
