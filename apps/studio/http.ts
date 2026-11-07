@@ -388,26 +388,28 @@ export function rootIdentity(root: string): string {
 }
 
 /**
- * DDR-247 — the studio page's CSP. Always `frame-ancestors`; in the `?embed=1`
- * view also `frame-src 'self' <canvas origin>`: the embed frames exactly one
- * canvas, and a hostile canvas must not be able to navigate its own frame to a
- * foreign origin (a look-alike sign-in page) inside someone else's app.
+ * DDR-247 — the studio page's CSP. Always `frame-ancestors`, and always `frame-src 'self' <canvas
+ * origin>`: every iframe the studio creates is a canvas shell (the canvas, Compare, the design-system
+ * grid, Present, Diff), so a hostile canvas must not be able to navigate its own frame to a foreign
+ * origin — a look-alike sign-in page inside Maude or inside an embedding app, and the one way left to
+ * carry out what its code could read (localhost cookies of other local servers, canvas text), since
+ * the canvas CSP already closes every fetch/img/media sink. The sandbox has no allow-top-navigation
+ * or allow-popups, so this closes the last navigation lane (decision v2-207-studio-frame-src-always;
+ * it was embed-only before).
  */
 export function studioPageCsp(
   mainOrigin: string | undefined,
   embedOrigins: readonly string[],
-  { embed = false, canvasOrigin }: { embed?: boolean; canvasOrigin?: string } = {}
+  { canvasOrigin }: { embed?: boolean; canvasOrigin?: string } = {}
 ): string {
   const directives = [`frame-ancestors ${frameAncestors(mainOrigin, embedOrigins)}`];
-  if (embed) {
-    let canvas = '';
-    try {
-      canvas = canvasOrigin ? new URL(canvasOrigin).origin : '';
-    } catch {
-      /* unparseable — 'self' alone, the canvas then fails closed */
-    }
-    directives.push(`frame-src ${["'self'", canvas].filter(Boolean).join(' ')}`);
+  let canvas = '';
+  try {
+    canvas = canvasOrigin ? new URL(canvasOrigin).origin : '';
+  } catch {
+    /* unparseable — 'self' alone, the canvas then fails closed */
   }
+  directives.push(`frame-src ${["'self'", canvas].filter(Boolean).join(' ')}`);
   return directives.join('; ');
 }
 
