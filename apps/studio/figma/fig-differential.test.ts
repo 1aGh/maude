@@ -40,15 +40,13 @@ import { type FigmaNode, type NormalizedDocument, walkNodes } from './types.ts';
 const FIXTURES = new URL('../../../.ai/fixtures/figma/2026-08-03/', import.meta.url).pathname;
 
 /**
- * The ONE documented lossy delta, asserted AS lossy rather than tolerated.
- *
  * REST expands an INSTANCE's children and mints synthetic ids for them
- * (`I<instance>;<child>`). A `.fig` stores an instance by reference — only its
- * overrides — so those nodes genuinely do not exist in the local file. This is
- * a property of the two formats, not a decoder defect, and it is the reason the
- * gate compares SHARED nodes plus an explicit allowlist rather than raw counts.
+ * (`I<instance>;<child>`). A `.fig` stores an instance by reference, so until
+ * #155 §6 those nodes were the one known delta between the doors. The local door
+ * now expands them under REST's own ids, so the two trees are compared node for
+ * node and nothing is allowlisted.
  */
-const REST_ONLY_ID = /^I[0-9]+:[0-9]+;/;
+const INSTANCE_CHILD_ID = /^I[0-9]+:[0-9]+;/;
 
 /** Sub-pixel float noise would be acceptable; we have never needed the slack. */
 const GEOMETRY_EPSILON = 0.5;
@@ -89,11 +87,11 @@ async function load(c: Case) {
 }
 
 describe.each(CASES)('tier 2 — $label through both doors', (c) => {
-  test('the .fig door sees every REST node except the documented instance children', async () => {
+  test('the .fig door sees every REST node, instance children included', async () => {
     const { rest, fig } = await load(c);
     const missing = [...rest.keys()].filter((id) => !fig.has(id));
-    // Every absence must be explained by the ONE known delta.
-    expect(missing.filter((id) => !REST_ONLY_ID.test(id))).toEqual([]);
+    // Instance children are expanded locally (#155 §6): nothing is missing.
+    expect(missing).toEqual([]);
     // And nothing may exist locally that REST does not know about.
     expect([...fig.keys()].filter((id) => !rest.has(id))).toEqual([]);
   });
@@ -158,15 +156,13 @@ describe.each(CASES)('tier 2 — $label through both doors', (c) => {
   });
 });
 
-describe('tier 2 — the lossy delta is asserted, not assumed', () => {
-  test('the design file really does carry instance children only REST expands', async () => {
+describe('tier 2 — instances are expanded locally (#155 §6)', () => {
+  test('the design file carries instance children, and the .fig door draws them under REST ids', async () => {
     const { rest, fig } = await load(CASES[0]);
-    const restOnly = [...rest.keys()].filter((id) => !fig.has(id));
-    // If this ever becomes empty, either the fixture changed or REST stopped
-    // expanding instances — both mean the allowlist above needs re-deriving
-    // rather than silently covering nothing.
-    expect(restOnly.length).toBeGreaterThan(0);
-    expect(restOnly.every((id) => REST_ONLY_ID.test(id))).toBe(true);
+    const instanceChildren = [...rest.keys()].filter((id) => INSTANCE_CHILD_ID.test(id));
+    // If this ever becomes empty the fixture changed and the test covers nothing.
+    expect(instanceChildren.length).toBeGreaterThan(0);
+    expect(instanceChildren.every((id) => fig.has(id))).toBe(true);
   });
 
   test('connector endpoints resolve to the same host ids through both doors', async () => {

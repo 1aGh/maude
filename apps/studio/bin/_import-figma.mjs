@@ -439,6 +439,29 @@ export function nodeErrorLines(decodeReport) {
 }
 
 /**
+ * Component instances (#155 §6): how many were drawn from their component and
+ * why any were not. Counts only. Empty string when the file has no instances.
+ */
+export function instanceLines(decodeReport) {
+  const i = decodeReport?.instances;
+  if (!i) return '';
+  const skipped = [
+    i.cycle ? `${i.cycle} in a component cycle` : '',
+    i.budget ? `${i.budget} past the node cap` : '',
+    i.missing ? `${i.missing} with no component in the file` : '',
+  ].filter(Boolean);
+  if (!i.expanded && skipped.length === 0) return '';
+  const lines = [`  instances: ${i.expanded} drawn from their component`];
+  if (skipped.length > 0) lines.push(`  instances left empty: ${skipped.join(', ')}`);
+  if (i.resized) {
+    lines.push(
+      `  ${i.resized} instance(s) differ in size from their component (component layout kept)`
+    );
+  }
+  return lines.join('\n');
+}
+
+/**
  * Phase 2 — import a FigJam board into the whiteboard annotation layer.
  *
  * Writes `<designRoot>/<slug>.annotations.json` as registry-validated v2
@@ -2862,6 +2885,7 @@ async function main() {
             internalNodesSkipped: local.report.internalNodesSkipped,
             nodeErrors: local.report.nodeErrors,
             nodeErrorCount: local.report.nodeErrorCount,
+            instances: local.report.instances,
             ...(isBoard ? { slug: r.slug, strokes: r.strokeCount } : { written: r.written }),
             dispositions: merged.entries,
           })}\n`
@@ -2881,7 +2905,7 @@ async function main() {
             `  offline: container v${provenance.containerVersion} · schema ${provenance.schemaSha256.slice(0, 8)}` +
             `${provenance.exportedAt ? ` · exported ${provenance.exportedAt}` : ''}\n` +
             `  file key: ${provenance.fileKey}${provenance.derivedFileKey ? ' (content-derived — pass --file-key for the real one)' : ''}\n` +
-            `${[unmapped, lossy, nodeErrorLines(local.report)].filter(Boolean).join('\n')}${unmapped || lossy || local.report.nodeErrors?.length ? '\n' : ''}` +
+            `${[unmapped, lossy, nodeErrorLines(local.report), instanceLines(local.report)].filter(Boolean).join('\n')}${unmapped || lossy || local.report.nodeErrors?.length || instanceLines(local.report) ? '\n' : ''}` +
             `${formatSummary(merged)}\n`
         );
       }

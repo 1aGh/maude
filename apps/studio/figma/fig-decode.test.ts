@@ -785,7 +785,8 @@ describe('tier 2 — the normalized tree is stable enough to diff against REST',
 
   test('node ids are REST-shaped, which is what makes a differential possible', async () => {
     const { document } = decodeFigArchive(await fixture('design.fig'), { fileKey: KEY });
-    walkNodes(document.root, (n) => expect(n.id).toMatch(/^[0-9]+:[0-9]+$/));
+    // An instance's children carry REST's `I<instance>;<child>` ids (#155 §6).
+    walkNodes(document.root, (n) => expect(n.id).toMatch(/^I?[0-9]+:[0-9]+(;[0-9:;]+)?$/));
   });
 });
 

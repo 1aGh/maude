@@ -14,6 +14,7 @@ import {
   decodeLocalFig,
   importBoard,
   importFrames,
+  instanceLines,
   nodeErrorLines,
   selectFrames,
 } from '../bin/_import-figma.mjs';
@@ -212,6 +213,26 @@ describe('#155 §5 — the import report names the nodes that could not be read'
 
   test('a clean decode prints nothing', () => {
     expect(nodeErrorLines({ nodeErrors: [], nodeErrorCount: 0 })).toBe('');
+  });
+});
+
+describe('#155 §6 (T4.1) — the import says how instances were handled', () => {
+  test('counts only: drawn, left empty and why, resized', () => {
+    const lines = instanceLines({
+      instances: { expanded: 12, cycle: 1, budget: 3, missing: 2, resized: 4 },
+    });
+    expect(lines).toContain('12 drawn from their component');
+    expect(lines).toContain('1 in a component cycle');
+    expect(lines).toContain('3 past the node cap');
+    expect(lines).toContain('2 with no component in the file');
+    expect(lines).toContain('4 instance(s) differ in size');
+  });
+
+  test('a file with no instances prints nothing', () => {
+    expect(
+      instanceLines({ instances: { expanded: 0, cycle: 0, budget: 0, missing: 0, resized: 0 } })
+    ).toBe('');
+    expect(instanceLines({})).toBe('');
   });
 });
 

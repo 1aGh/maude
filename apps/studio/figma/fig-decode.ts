@@ -35,6 +35,7 @@ import { reportToken } from './sanitize.ts';
 import {
   KNOWN_NODE_TYPES,
   MAX_NODE_COUNT,
+  MAX_TREE_DEPTH,
   type NormalizedDocument,
   normalizeDocument,
 } from './types.ts';
@@ -137,6 +138,24 @@ export interface FigDecodeReport {
    */
   nodeErrors: Array<{ nodeId: string; type: string; message: string }>;
   nodeErrorCount: number;
+  /** Component instances expanded to their component's children (#155 §6), and why any were not. */
+  instances: InstanceReport;
+}
+
+export interface InstanceReport {
+  expanded: number;
+  /** Skipped: the component (transitively) contains an instance of itself. */
+  cycle: number;
+  /** Skipped or cut short: expanding would pass the node or depth cap. */
+  budget: number;
+  /** Skipped: the component the instance names is not in the file. */
+  missing: number;
+  /**
+   * Expanded, but the instance is a different size from its component: the
+   * children keep the component's own layout (the file's per-instance layout
+   * pass is not replayed), so they may not fill or fit the instance.
+   */
+  resized: number;
 }
 
 /** Cap on the itemised node-error list — a hostile file cannot grow the report. */
@@ -723,7 +742,7 @@ function gradientOf(
   return { kind, stops, matrix };
 }
 
-interface RebuildResult {
+export interface RebuildResult {
   root: Record<string, unknown>;
   unmapped: Map<string, number>;
   internalSkipped: number;
@@ -732,6 +751,7 @@ interface RebuildResult {
   vectors: Map<string, VectorPath>;
   nodeErrors: Array<{ nodeId: string; type: string; message: string }>;
   nodeErrorCount: number;
+  instances: InstanceReport;
 }
 
 /**
@@ -740,7 +760,7 @@ interface RebuildResult {
  * that the Kiwi decode-depth cap does not bound (A8/F4) — hence the explicit
  * cycle, duplicate, orphan and single-root controls here.
  */
-function rebuildTree(changes: unknown[], blobs: readonly unknown[]): RebuildResult {
+export function rebuildTree(changes: unknown[], blobs: readonly unknown[]): RebuildResult {
   if (changes.length > MAX_NODE_COUNT) {
     throw new FigDecodeError(
       `file carries ${changes.length} nodes, over the ${MAX_NODE_COUNT} limit. Import a specific frame instead.`
@@ -818,12 +838,119 @@ function rebuildTree(changes: unknown[], blobs: readonly unknown[]): RebuildResu
     return n;
   };
 
-  const build = (id: string, parentAbsolute: Matrix, depth: number): Record<string, unknown> => {
-    // Cycle detection. A→B→A would otherwise recurse until the stack dies.
-    if (onStack.has(id)) throw new FigDecodeError(`node parentage forms a cycle at ${id}`);
-    onStack.add(id);
+  // ── INSTANCE expansion (#155 §6) ──
+  //
+  // An INSTANCE has no children in the file: it names a SYMBOL, and the symbol's
+  // children are what it draws. They are rebuilt under the instance with ids
+  // `I<instance>;<child>` (REST's own convention for a node inside an instance).
+  // Three controls bound it: a symbol already being expanded is a CYCLE and is
+  // skipped (A contains B contains A would otherwise recurse forever); the whole
+  // tree stays under the node cap, so a file with thousands of instances
+  // degrades instead of failing; and every skip is counted for the report.
+  const instances = { expanded: 0, cycle: 0, budget: 0, missing: 0, resized: 0 };
+  const expanding: string[] = [];
+  /**
+   * Headroom below the cap: the normalizer counts the same nodes and refuses
+   * past MAX_NODE_COUNT. Every ORIGINAL node is reserved up front (`changes`),
+   * so an early instance cannot starve the nodes still to come into a refusal.
+   */
+  const NODE_BUDGET = MAX_NODE_COUNT - 16;
+  let expandedNodes = 0;
+  const descendantMemo = new Map<string, number>();
+  /** Nodes under a component, nested instances not counted (they check their own budget). */
+  const descendantsOf = (symbolId: string): number => {
+    const known = descendantMemo.get(symbolId);
+    if (known !== undefined) return known;
+    let n = 0;
+    const stack = [...(childIds.get(symbolId) ?? [])];
+    const seen = new Set<string>();
+    while (stack.length > 0) {
+      const next = stack.pop() as string;
+      if (seen.has(next)) continue;
+      seen.add(next);
+      n++;
+      stack.push(...(childIds.get(next) ?? []));
+    }
+    descendantMemo.set(symbolId, n);
+    return n;
+  };
+  const DEPTH_BUDGET = MAX_TREE_DEPTH - 2;
 
-    const change = byId.get(id) as Record<string, unknown>;
+  interface Expansion {
+    /** The id a child gets before its own: `I2:14`, then `I2:14;5:5` for a nested instance. */
+    prefix: string;
+    /** Original-id path from the outermost instance down to the node being built. */
+    path: string[];
+    /** Overrides by path from the outermost instance. */
+    overrides: Map<string, Record<string, unknown>>;
+  }
+
+  /**
+   * The fields an instance override may change — a HARDCODED list (A8/F5): the
+   * override object is the file's, so its keys never choose what they touch.
+   */
+  const OVERRIDE_FIELDS = [
+    'textData',
+    'fillPaints',
+    'strokePaints',
+    'effects',
+    'visible',
+    'opacity',
+    'fontSize',
+    'fontName',
+    'lineHeight',
+    'textAlignHorizontal',
+  ] as const;
+
+  const pathKey = (path: readonly string[]) => path.join('/');
+
+  const overridesOf = (
+    change: Record<string, unknown>,
+    base: readonly string[],
+    into: Map<string, Record<string, unknown>>
+  ) => {
+    const list = obj(change.symbolData)?.symbolOverrides;
+    if (!Array.isArray(list)) return;
+    for (const entry of list.slice(0, 5000)) {
+      const o = obj(entry);
+      const guids = obj(o?.guidPath)?.guids;
+      if (!o || !Array.isArray(guids) || guids.length === 0 || guids.length > 16) continue;
+      const rel = guids.map(guidOf);
+      if (rel.some((x) => x === undefined)) continue;
+      const key = pathKey([...base, ...(rel as string[])]);
+      // The outer instance's override beats the inner one's own.
+      if (!into.has(key)) into.set(key, o);
+    }
+  };
+
+  const withOverride = (
+    change: Record<string, unknown>,
+    override: Record<string, unknown> | undefined
+  ): Record<string, unknown> => {
+    if (!override) return change;
+    const merged = { ...change };
+    for (const field of OVERRIDE_FIELDS) {
+      if (override[field] !== undefined) merged[field] = override[field];
+    }
+    return merged;
+  };
+
+  const build = (
+    id: string,
+    parentAbsolute: Matrix,
+    depth: number,
+    x?: Expansion
+  ): Record<string, unknown> => {
+    // The id this node carries in the output: inside an instance it is the
+    // instance's path. Cycle detection keys on it, because the SAME original
+    // node is legitimately built once per instance.
+    const outId = x ? `${x.prefix};${id}` : id;
+    // Cycle detection. A→B→A would otherwise recurse until the stack dies.
+    if (onStack.has(outId)) throw new FigDecodeError(`node parentage forms a cycle at ${id}`);
+    onStack.add(outId);
+
+    const original = byId.get(id) as Record<string, unknown>;
+    const change = x ? withOverride(original, x.overrides.get(pathKey(x.path))) : original;
     // ONE bad node must not fail the file (#155 §5). An unreadable transform
     // places the node at its parent's origin (the identity) — and says so in
     // `report.nodeErrors`, so it is never the silent plausible-but-wrong
@@ -844,6 +971,10 @@ function rebuildTree(changes: unknown[], blobs: readonly unknown[]): RebuildResu
     }
     const absolute = compose(parentAbsolute, local);
     const node = toRestNode(change, absolute, lossy);
+    if (x) {
+      node.id = outId;
+      expandedNodes++;
+    }
     nodeCount++;
 
     const art = vectorOf(change, blobs);
@@ -864,22 +995,78 @@ function rebuildTree(changes: unknown[], blobs: readonly unknown[]): RebuildResu
       unmapped.set(label, (unmapped.get(label) ?? 0) + 1);
     }
 
-    const kids = childIds.get(id);
-    if (kids?.length) {
+    // A component being built in place is "being expanded" too: an instance of
+    // it inside itself is a cycle.
+    const isSymbol = str(original.type) === 'SYMBOL';
+    if (isSymbol && !x) expanding.push(id);
+
+    const buildKids = (parentId: string, ex?: Expansion) => {
       const kept: Array<Record<string, unknown>> = [];
-      for (const kid of kids) {
+      for (const kid of childIds.get(parentId) ?? []) {
         // Prune Figma's internal-only nodes as WHOLE SUBTREES here, where the
         // parentage is already resolved, rather than dropping them up front.
         if (byId.get(kid)?.internalOnly === true) {
           internalSkipped += countSubtree(kid, new Set());
           continue;
         }
-        kept.push(build(kid, absolute, depth + 1));
+        if (ex) {
+          // Expansions respect the budget at every node, so a deep or wide
+          // component cannot run past the cap the normalizer enforces.
+          if (expandedNodes + changes.length >= NODE_BUDGET || depth + 1 > DEPTH_BUDGET) {
+            instances.budget++;
+            continue;
+          }
+          kept.push(build(kid, absolute, depth + 1, { ...ex, path: [...ex.path, kid] }));
+        } else {
+          kept.push(build(kid, absolute, depth + 1));
+        }
       }
+      return kept;
+    };
+
+    const kids = childIds.get(id);
+    if (kids?.length) {
+      const kept = buildKids(id, x ? { ...x } : undefined);
       if (kept.length > 0) node.children = kept;
+    } else if (str(original.type) === 'INSTANCE') {
+      const symbolId = guidOf(obj(original.symbolData)?.symbolID);
+      const symbol = symbolId === undefined ? undefined : byId.get(symbolId);
+      if (symbolId === undefined || !symbol) {
+        instances.missing++;
+      } else if (expanding.includes(symbolId)) {
+        instances.cycle++;
+      } else if (
+        depth + 1 > DEPTH_BUDGET ||
+        expandedNodes + descendantsOf(symbolId) + changes.length > NODE_BUDGET
+      ) {
+        instances.budget++;
+      } else {
+        const overrides = new Map(x?.overrides ?? []);
+        const here = x ? [...x.path] : [];
+        overridesOf(change, here, overrides);
+        expanding.push(symbolId);
+        const kept = buildKids(symbolId, {
+          // REST's spelling: `I<instance>;<child>`, and nested instances extend it.
+          prefix: x ? outId : `I${outId}`,
+          path: here,
+          overrides,
+        });
+        expanding.pop();
+        instances.expanded++;
+        const isz = obj(original.size);
+        const ssz = obj(symbol.size);
+        if (
+          Math.abs((num(isz?.x) ?? 0) - (num(ssz?.x) ?? 0)) > 0.5 ||
+          Math.abs((num(isz?.y) ?? 0) - (num(ssz?.y) ?? 0)) > 0.5
+        ) {
+          instances.resized++;
+        }
+        if (kept.length > 0) node.children = kept;
+      }
     }
 
-    onStack.delete(id);
+    if (isSymbol && !x) expanding.pop();
+    onStack.delete(outId);
     return node;
   };
 
@@ -896,6 +1083,7 @@ function rebuildTree(changes: unknown[], blobs: readonly unknown[]): RebuildResu
     vectors,
     nodeErrors,
     nodeErrorCount,
+    instances,
   };
 }
 
@@ -953,6 +1141,7 @@ export function decodeFigArchive(archive: Uint8Array, opts: DecodeFigOptions): F
     vectors,
     nodeErrors,
     nodeErrorCount,
+    instances,
   } = rebuildTree(changes, blobs);
 
   const document = normalizeDocument(root, {
@@ -977,6 +1166,7 @@ export function decodeFigArchive(archive: Uint8Array, opts: DecodeFigOptions): F
       lossyFields: lossyLineHeights > 0 ? [{ ...LOSSY_LINE_HEIGHT, count: lossyLineHeights }] : [],
       nodeErrors,
       nodeErrorCount,
+      instances,
     },
   };
 }
