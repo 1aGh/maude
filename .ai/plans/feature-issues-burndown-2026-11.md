@@ -270,7 +270,7 @@ W5 and W6 use Opus.
 
 ### W6 — #206 CLI reuses Maude Desktop, plus #208 Linux (Opus, native)
 
-- [ ] T6.1 Spike:
+- [x] T6.1 Spike:
   - measure a doubled server (RSS, startup);
   - measure what two servers on one root do to the store lock, the watcher and sync;
   - finish the inventory from the 2026-11-07 sweep.
@@ -371,3 +371,4 @@ W5 and W6 use Opus.
 - 2026-11-07 merged ab3720a26 07251dd68 e1e5ee965: Put them in a section scopes to the sent-from canvas; the live region and continued messages strip the maude-offer block; ai-annotations e2e 6/6.
 - 2026-11-07 merged T5.3 part 2 (2763a90ec c70b291b8 a77df003e b6511430d): owner-only POST /api/journal/adopt + /_api/sync/adopt-held, held-row actions via registry (humanMax 186→188, lead confirmed), heldOverflow shown, item 6 option A. Adopt is a new owner door → in the T9.1 security pair.
 - 2026-11-07 merged 164-sec studio side (64a0e8092 4f631c927 20485dbf1 6119cd63e 5c6b9b148). Re-review next, then mini full suite + push.
+- 2026-11-07 merged T6.1 spike + T6.2 draft ad0225002 (contract 206-cli-reuses-desktop.md, DDR-250 Proposed: app-owned servers.json + per-spawn attest, cli.sock, CLI server yields, worktree tab never links; measured: doubled server 116–360 MB, store-lock 409 on undo, _server.json delete race reproduced both ways). Waiting on Michal: first-open trust (A/B/C, lead recommends A).
