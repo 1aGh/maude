@@ -735,6 +735,10 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
           begin: (r) => bracket.push(`begin ${r.session}`, `actor ${r.session} ${r.actor}`),
           touch: (r, p) => bracket.push(`touch ${r.session} ${p}`),
           end: (r, o) => bracket.push(`end ${r.session} ${o}`),
+          // #164 — a real studio's window + settle (ai/write-claim.ts `hookClaims`); without them every
+          // settle is refused (409: no window), as it is for a call the studio never parked
+          scope: () => ({ all: true, covers: () => true, left: () => false }),
+          settle: () => ({ ok: true }),
         },
       })
     );
@@ -2331,6 +2335,11 @@ for (const lane of ['no studio (local check)', 'with a studio (warm validator)']
             begin: () => {},
             touch: () => {},
             end: (r, o) => ended.push(`${r.session} ${o}`),
+            // #164 — a real studio parks a windowed call and settles it (ai/write-claim.ts
+            // `hookClaims`); a stub with no window refuses every settle (409), so the call's bytes
+            // would never bind to the run
+            scope: () => ({ all: true, covers: () => true, left: () => false }),
+            settle: () => ({ ok: true }),
           },
         })
       );
@@ -2444,6 +2453,8 @@ for (const lane of ['no studio (local check)', 'with a studio (warm validator)']
     test('F4 — a Bash-planted finding is never laundered into the run base by a later edit', async () => {
       const pPath = join(project, '.design', 'ui', 'P.tsx');
       writeFileSync(pPath, MAPPED.replace(MAP_BLOCK, '')); // clean: no finding
+      // the turn starts as a real one does: UserPromptSubmit begins the studio's run for the session
+      await hook('prompt', { session_id: 'f4', cwd: project, prompt: 'tidy P' });
       const sh = {
         ...bash(project, 'f4', 'f4b', "cd .design/ui && python3 - <<'EOF'\nopen('P.tsx','w')\nEOF"),
       };
