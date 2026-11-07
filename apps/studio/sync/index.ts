@@ -7075,6 +7075,16 @@ export function filePlaneHeld(
       detail: codeHeldDetail(result.codeHeld.count, { overflow }),
     });
   }
+  // #167 T5.3 item 6 — this Mac's canvases outside its canvas folders, held while none are declared.
+  const outside = result.canvasOutsideFolders ?? [];
+  if (outside.length > 0) {
+    held.push({
+      kind: 'canvas-outside-folders',
+      count: outside.length,
+      paths: outside,
+      detail: canvasOutsideFoldersDetail(outside.length),
+    });
+  }
   // Issue #175 — files the project's server will not take. Counted already under
   // `progress.blocked` (class `refused`), so these rows are the per-file WHY, not a second count.
   const refused = result.hubRefused ?? [];
@@ -7136,6 +7146,16 @@ export function hubRefusedDetail(reasons: readonly string[]): string {
   return count === 1
     ? `1 file wasn’t taken by the project’s server${answered}. It stays on this Mac, and sync tries again when it changes.`
     : `${count} files weren’t taken by the project’s server${answered}. They stay on this Mac, and sync tries again when one changes.`;
+}
+
+/**
+ * #167 T5.3 item 6 — the Sync details sentence for canvases outside the canvas folders, held on this
+ * Mac while the project declares none (CONTRACT §4: what happened · what is safe · one verb).
+ */
+export function canvasOutsideFoldersDetail(count: number): string {
+  return count === 1
+    ? '1 file is a canvas outside your canvas folders, so it doesn’t sync. Nothing was removed. Open canvas folders and add its folder to sync it as a canvas.'
+    : `${count} files are canvases outside your canvas folders, so they don’t sync. Nothing was removed. Open canvas folders and add their folders to sync them as canvases.`;
 }
 
 /**
