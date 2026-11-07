@@ -137,12 +137,13 @@ W5 and W6 use Opus.
   - `offline-conflict` goes through `hubProcess()`;
   - `comments --help` in the auto tier (`actions/verbs.ts`, then regenerate);
   - the freeze list runs `check-v2-nothing-deleted.mjs` and checks `styles.css` freshness.
-- [ ] T1.8 **#168 small items:**
+- [x] T1.8 **#168 small items:**
   - TS e2e switches gated on a release constant (`acp/probe.ts`, readiness, login-state);
   - `remote-lane.sh --slot` validation;
   - the e2e orphan-browser reap checks the start marker;
   - prune the `local-kernel.ts` source copies;
   - the new-project location check (parent instruction files, late `.git`).
+  - (moved to T5.4) `local-kernel.ts` "source copies" = the unbounded `seen` Map of full lane texts; build option 1, an idle sweep that drops an entry only when lane hash == store head == disk, with a test proving no merge result changes.
 - [x] T1.9 **#206 quick part:** `server-up.sh` spawns with `NO_OPEN=1`, and `/design:browse` opens the window explicitly.
 - [x] T1.10 **Packaged `maude design server-up` cannot start the studio** (bug 13 of the 2.0.4 report; still open on 2.0.8; overlaps #206; added 2026-11-07 via the keeper):
   - from the `.app`, `server-up`/`serve` runs `bun server.ts` against the staged source, which has no deps (`yjs y-protocols lib0`), so without a desktop tab the CLI has no `sync status/resync`, `history`, `trash`, `ds-upgrade --apply`;
@@ -344,3 +345,4 @@ W5 and W6 use Opus.
 - 2026-11-07 merged T1.9 7ce10935f + T1.10 f663d5844 (packaged CLI spawns the adjacent maude-server; --smoke server-up step — run once on the next real desktop build). Bug 1 (ds-upgrade --prove) already fixed in 2.0.5 7369d3a0b.
 - 2026-11-07 merged adfaf86d9: nothing-deleted back to 100 % (17 post-freeze hooks: 7 mapped to existing rows, 10 excluded as v2 code; none deleted).
 - 2026-11-07 merged T4.3 86ef5ea38: 41 Codex mirrors moved to plugins/*/codex-skills/ (Claude loads design 43→12, flow 24→14 skills); Codex manifests list [skills, codex-skills] (tested on codex-cli 0.154.0). Plugin tests 79/79, surfaces in sync.
+- 2026-11-07 merged T1.8 (28fe65ffd e0ee2e7ac 9ec0002e7 d7e626353). TS e2e switches are now ignored by every `--release` build: local desktop e2e lanes must build the sidecar with `build.ts --release --e2e` (desktop-e2e skill updated) — W8/T9.1 lanes must do so. Item 4 moved to T5.4 (idle sweep of the local kernel's `seen` map).
