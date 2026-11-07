@@ -9,6 +9,8 @@ Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 Motion must be a deterministic function of frame and fps. Use bundled imports, local assets and editable timeline metadata; audio/video elements use the documented media components. Preserve export checks, reduced-motion handling where applicable, licensing and verification across time. A still frame is insufficient proof of animation.
 
+**Iron rule: fit a clip with the `objectFit` prop, never `style.objectFit`.** `<Video>` from `@remotion/media` reads `objectFit` as a prop (default `"contain"`), so `style={{ objectFit: "cover" }}` leaves a 16:9 clip letterboxed in a 9:16 video. Write `<Video objectFit="cover" … />`; `maude design check` warns on the style form.
+
 ## Read only the relevant procedure
 
 The references below retain the complete procedure. Read the entry for the stage

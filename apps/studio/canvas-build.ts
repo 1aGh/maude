@@ -35,6 +35,7 @@ import { isUnderOrEqual } from './path-containment.ts';
 import { DEV_SERVER_ROOT } from './paths.ts';
 import { RUNTIME_PACKAGES } from './runtime-bundle.ts';
 import { injectCompMedia } from './video/inject.ts';
+import { mapVideoObjectFit } from './video/object-fit.ts';
 
 // Sanity-check the dev-server-bundled canvas-lib once per process boot. If the
 // install is corrupt (file missing), surface that before the first canvas build
@@ -337,9 +338,11 @@ export async function buildCanvasModule(
   // S7.5 (V2-1.10 §5.3) — the comp vocabulary's derived data (`__words` on <Captions>, `__speech`
   // on <Duck>), computed from the comp's clips on disk × their transcripts. Never written to the
   // file; the transcripts are freshness deps (`videoDepsFor`, access/closure.ts).
-  const withMedia = injectCompMedia(canvasAbsPath, source, pass1.withIds, {
+  const injected = injectCompMedia(canvasAbsPath, source, pass1.withIds, {
     designRoot: options.restrictImportsTo ?? options.designRoot,
   }).code;
+  // #128 §3 — <Video> reads the `objectFit` PROP and drops `style.objectFit`; map the style to the prop.
+  const withMedia = mapVideoObjectFit(canvasAbsPath, injected);
   // What Bun.build will parse as the entry (pass 1 + the injected comp data), held to the same rule.
   if (hasMacroImport(withMedia)) throw macroRefused(macroCtx, canvasAbsPath);
 
