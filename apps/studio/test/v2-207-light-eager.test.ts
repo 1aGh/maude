@@ -218,3 +218,20 @@ describe("a video artboard's media still follows the ring on a light canvas", ()
     expect(k.r.get('late')).toEqual({ live: false, seen: true, media: false });
   });
 });
+
+// 2.0.7 — the crowded cutoff (LAYER_MAX_VISIBLE, `v2-207-webkit-crowded-no-layers`) protects HEAVY canvases only: on
+// a light one every artboard keeps its compositing layer at any count (Safari, math fit cycle), so a fit-all zoom
+// moves layers instead of repainting the mounted DOM at each scale step.
+describe('a light canvas keeps its per-artboard layers however many are on screen', () => {
+  test('light, 30 on screen: not crowded; heavy, 30 on screen: crowded', () => {
+    const light = rig();
+    canvas(light, 40, 65, 30);
+    expect(light.r.isLight()).toBe(true);
+    expect(light.r.visibleCount()).toBe(30);
+    expect(light.r.crowded()).toBe(false);
+    const heavy = rig();
+    canvas(heavy, 88, 500, 30);
+    expect(heavy.r.isLight()).toBe(false);
+    expect(heavy.r.crowded()).toBe(true);
+  });
+});

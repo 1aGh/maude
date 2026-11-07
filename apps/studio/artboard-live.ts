@@ -514,9 +514,12 @@ export class LiveRegistry {
     return this.mode !== 'off' && inOverview(this.zoom, this.visibleCount());
   }
 
-  /** So many artboards on screen that a compositing layer each costs more than it saves (WebKit, 2.0.7). */
+  /**
+   * So many artboards on screen that a compositing layer each costs more than it saves (WebKit, 2.0.7). Never on a
+   * light canvas (`isLight`): its layers are cheap, and they are what keeps its fit-all zoom smooth.
+   */
   crowded(): boolean {
-    return this.mode !== 'off' && this.visibleCount() > LAYER_MAX_VISIBLE;
+    return this.mode !== 'off' && !this.light && this.visibleCount() > LAYER_MAX_VISIBLE;
   }
 
   /** A gesture is in flight (the gate defers its picture-taking past it). */
