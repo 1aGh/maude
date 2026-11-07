@@ -798,3 +798,15 @@ button.cm-chip--seek:focus-visible {
 .cm-glyph {
   flex: none;
 }
+
+/* #170 R29: the card's and pin's hover transitions are hand-rolled (this frame has no shell motion tokens), so reduced
+   motion collapses them here */
+@media (prefers-reduced-motion: reduce) {
+  .cm-pin,
+  .cm-composer,
+  .cm-composer *,
+  .cm-thread,
+  .cm-thread * {
+    transition-duration: 1ms !important;
+  }
+}
