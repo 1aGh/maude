@@ -17,6 +17,7 @@ import { Kbd, StIcon } from '../../shell/icons.jsx';
 import { SWITCHER_TRIGGER_TESTID } from '../../panels/RepoBranchSwitcher.jsx';
 import { reasonProps } from '../access/disabled-reason.js';
 import { onCanvasPointer } from './canvas-pointer.js';
+import { AIM_DELAY_MS, aimingAtSub } from './menu-aim.js';
 import { buildProjectMenu } from './project-menu-model.js';
 
 const slug = (s) =>
@@ -232,6 +233,7 @@ export function ProjectPill({
       setOpen(false);
       setOpenPath([]);
       setCur(null);
+      clearTimeout(aim.current.timer);
       if (focusPill) btnRef.current?.focus();
     },
     [btnRef]
@@ -299,12 +301,56 @@ export function ProjectPill({
     else run(n.id);
   };
 
+  // #170 F34 — a submenu forgives the diagonal. The pointer's last two points (menu-aim.js); a hover on another row
+  // while the pointer is heading for the open submenu waits a moment instead of switching it.
+  const aim = useRef({ prev: null, cur: null, timer: null });
+  const openRef = useRef(openPath);
+  openRef.current = openPath;
+  const cancelAim = useCallback(() => {
+    clearTimeout(aim.current.timer);
+    aim.current.timer = null;
+  }, []);
+  useEffect(() => cancelAim, [cancelAim]);
+  const onMenuMove = (e) => {
+    const a = aim.current;
+    if (a.cur && (a.cur.x !== e.clientX || a.cur.y !== e.clientY)) a.prev = a.cur;
+    a.cur = { x: e.clientX, y: e.clientY };
+  };
+
   const onHover = (depth, subLabel, el) => {
-    setOpenPath((p) => {
-      const next = subLabel ? [...p.slice(0, depth), subLabel] : p.slice(0, depth);
-      return next.length === p.length && next.every((x, i) => x === p[i]) ? p : next;
-    });
-    if (document.activeElement !== el) el.focus({ preventScroll: true });
+    const apply = () => {
+      setOpenPath((p) => {
+        const next = subLabel ? [...p.slice(0, depth), subLabel] : p.slice(0, depth);
+        return next.length === p.length && next.every((x, i) => x === p[i]) ? p : next;
+      });
+      if (document.activeElement !== el) el.focus({ preventScroll: true });
+    };
+    cancelAim();
+    const level = el.closest?.('[role=menu]');
+    const openSub = openRef.current[depth]
+      ? level?.querySelector(':scope > .sh-pm-li > [role=menu]')
+      : null;
+    if (openSub && openRef.current[depth] !== subLabel) {
+      const waiting = () =>
+        aimingAtSub(
+          aim.current.prev,
+          aim.current.cur,
+          openSub.getBoundingClientRect(),
+          level.getBoundingClientRect().right
+        );
+      if (waiting()) {
+        aim.current.timer = setTimeout(() => {
+          aim.current.timer = null;
+          // the pointer came to rest on this row (not in the submenu, not on another row): the switch it asked for
+          const pt = aim.current.cur;
+          const r = el.isConnected ? el.getBoundingClientRect() : null;
+          if (r && pt && pt.x >= r.left && pt.x <= r.right && pt.y >= r.top && pt.y <= r.bottom)
+            apply();
+        }, AIM_DELAY_MS);
+        return;
+      }
+    }
+    apply();
   };
 
   const onMenuKey = (e) => {
@@ -439,7 +485,7 @@ export function ProjectPill({
       </button>
       {open ? (
         // biome-ignore lint/a11y/noStaticElementInteractions: key events bubble from the menu's rows
-        <div ref={menuRef} className="sh-pm-root" onKeyDown={onMenuKey}>
+        <div ref={menuRef} className="sh-pm-root" onKeyDown={onMenuKey} onMouseMove={onMenuMove}>
           <Level
             nodes={model}
             depth={0}
