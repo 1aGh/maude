@@ -30,6 +30,13 @@
  *             placeholder. Mounting goes on DURING a gesture (on-screen artboards only, one per frame; the React
  *             side renders it as an interruptible transition), so a pan never waits for the canvas to load.
  *             Live wakes (WebGL, video) still wait for the settle.
+ *
+ *             2.0.7 — a LIGHT canvas has no ring (decision `v2-207-light-canvas-mounts-all`): when the whole canvas's
+ *             estimated element count fits the budget (`isLight`), every artboard mounts — far ones too, through the
+ *             same queue, never mid-gesture — and none is released, as in 1.x: no churn and no stand-in blocks. The
+ *             estimate follows the weights as artboards mount, so a canvas that grows past the budget falls back to
+ *             the ring (its far artboards are released after their grace, at a settle). Live wakes and a video
+ *             artboard's media still follow the ring, as on any canvas.
  */
 
 import { LOD_ZOOM } from './annotations/ui/lod.tsx';
@@ -72,6 +79,13 @@ export const GESTURE_MOUNT_GAP_MS = 350;
  * moodboard keeps them (they are why its fit-all zoom is smooth — RCA issue-canvas-pan-zoom-jank-large-moodboard).
  */
 export const LAYER_MAX_VISIBLE = 24;
+/**
+ * A light canvas mounts every artboard and keeps it (2.0.7, decision `v2-207-light-canvas-mounts-all`): when the
+ * canvas's estimated element count — the measured artboards plus their average for each one not measured yet — fits
+ * `MOUNT_NODE_BUDGET`. The estimate is trusted once this many artboards are measured (or all of a smaller canvas);
+ * before that the ring decides, and `DEFAULT_WEIGHT` is never an estimate.
+ */
+export const LIGHT_MIN_MEASURED = 4;
 
 /**
  * `off`   — every artboard live, every child mounted (captures, exports, headless, tests): the pre-2.0.5 behaviour.
@@ -184,6 +198,8 @@ export class LiveRegistry {
   private lastAnyMountAt = Number.NEGATIVE_INFINITY;
   /** First mounts made during the current gesture (2.0.7: the settle frees what they took past the budget). */
   private gestureMounts = 0;
+  /** The canvas fits the budget whole (`isLight`): every artboard mounted and kept. Kept current by `recompute`. */
+  private light = false;
   readonly budget: number;
   readonly ceiling: number;
 
@@ -367,6 +383,35 @@ export class LiveRegistry {
     const s = this.slots.get(id);
     if (!s || !Number.isFinite(nodes) || nodes < 0) return;
     s.weight = Math.max(1, Math.round(nodes));
+    if (this.computeLight() !== this.light) this.recompute();
+  }
+
+  /** The whole canvas fits the DOM budget: every artboard is mounted and kept (2.0.7, `LIGHT_MIN_MEASURED`). */
+  isLight(): boolean {
+    return this.light;
+  }
+
+  /** The estimated element count of the whole canvas (every artboard a gate holds), or -1 before it is known. */
+  estimatedWeight(): number {
+    let held = 0;
+    let measured = 0;
+    let sum = 0;
+    for (const s of this.slots.values()) {
+      if (s.subs.size === 0) continue;
+      held += 1;
+      if (s.weight) {
+        measured += 1;
+        sum += s.weight;
+      }
+    }
+    if (held === 0 || measured < Math.min(LIGHT_MIN_MEASURED, held)) return -1;
+    return sum + ((held - measured) * sum) / measured;
+  }
+
+  private computeLight(): boolean {
+    if (this.mode !== 'sleep') return false;
+    const est = this.estimatedWeight();
+    return est >= 0 && est <= this.budget;
   }
 
   /** Elements mounted now (measured, or estimated for one not measured yet). */
@@ -411,8 +456,11 @@ export class LiveRegistry {
       this.recompute();
       // the ones whose grace has not run out yet (they left later) get their own sweep
       let next = Number.POSITIVE_INFINITY;
+      // (one whose grace ran out and is still held waits for what holds it — a settle, an unpin, a light canvas
+      // growing — and each of those recomputes: rescheduling it here was a sweep every 16 ms meanwhile)
+      const now = this.now();
       for (const s of this.slots.values())
-        if (s.admitted && !s.keep && s.farSince)
+        if ((s.admitted || s.media) && !s.keep && s.farSince && s.farSince + RELEASE_AFTER_MS > now)
           next = Math.min(next, s.farSince + RELEASE_AFTER_MS);
       if (Number.isFinite(next)) this.sweepLater(Math.max(16, next - this.now()));
     }, ms);
@@ -528,7 +576,10 @@ export class LiveRegistry {
     // is the queue's call (drain).
     // The ring's answer is the same for an eager artboard (a video), but there it decides its MEDIA only: the
     // artboard itself is mounted wherever it is (its comp registers), its Player and <video> load in the ring.
-    const held = s.eager ? s.media : s.admitted;
+    // On a light canvas (2.0.7) every artboard a gate holds is mounted and kept, like an eager one: the ring then
+    // decides its media only (a non-video artboard has none — its children are mounted, asleep).
+    const kept = this.mode === 'sleep' && (s.eager || (this.light && s.subs.size > 0));
+    const held = kept ? s.media : s.admitted;
     const ring =
       this.mode === 'light'
         ? live
@@ -537,7 +588,7 @@ export class LiveRegistry {
           s.visible ||
           (this.mode === 'sleep' && s.warm) ||
           (this.mode === 'sleep' && held && !this.releasable(s, held));
-    const admitted = ring || (this.mode === 'sleep' && s.eager);
+    const admitted = ring || kept;
     return { live, admitted, media: ring };
   }
 
@@ -561,6 +612,7 @@ export class LiveRegistry {
     // 2.0.7 — nothing goes down mid-gesture (no sleep, no media release, no unmount): the frame freeze already
     // stops the artboards' own work while the camera moves, and each change is a render. The settle applies them.
     const hold = this.interacting && !force;
+    this.light = this.computeLight();
     let changed = false;
     for (const [id, s] of this.slots) {
       const t = this.target(s);

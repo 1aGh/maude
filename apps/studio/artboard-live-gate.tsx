@@ -224,6 +224,9 @@ function getRuntime(): Runtime | null {
       visible: registry.visibleCount(),
       mounted: registry.mountedCount(),
       mountedNodes: Math.round(registry.mountedWeight()),
+      // 2.0.7 — a light canvas mounts every artboard (v2-207-light-canvas-mounts-all); -1 = not known yet
+      light: registry.isLight(),
+      estimatedNodes: Math.round(registry.estimatedWeight()),
       churn: registry.churnStats(),
     });
   }

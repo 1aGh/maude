@@ -69,11 +69,18 @@ describe('the mount ring never drops what the shell is working in', () => {
     });
 
   const mounts: Record<string, number> = {};
+  /** Artboards whose body weighs this many elements (a heavy canvas keeps the ring — a light one mounts all, 2.0.7). */
+  const heavy = new Map<string, number>();
   function Probe({ id }: { id: string }) {
     useEffect(() => {
       mounts[id] = (mounts[id] ?? 0) + 1;
     }, [id]);
-    return createElement('div', { 'data-body': id });
+    const n = heavy.get(id) ?? 0;
+    return createElement(
+      'div',
+      { 'data-body': id },
+      n ? Array.from({ length: n }, (_, i) => createElement('i', { key: i })) : null
+    );
   }
 
   let pick: ((s: { selector: string; artboardId: string }) => void) | null = null;
@@ -138,6 +145,8 @@ describe('the mount ring never drops what the shell is working in', () => {
   });
 
   test('the artboard holding the selection is never released; the others are', async () => {
+    // a heavy canvas (13k elements against the 12k budget): a light one would keep every artboard mounted
+    heavy.set('a1', 6500).set('a2', 6500);
     const m = await mount(['a0', 'a1', 'a2']);
     await act(async () => pick?.({ selector: '[data-dc-screen="a2"] video', artboardId: 'a2' }));
     await wait(30);
@@ -149,6 +158,7 @@ describe('the mount ring never drops what the shell is working in', () => {
     await wait(2900);
     expect(m.bodies()).toEqual(['a0', 'a2']);
     await m.done();
+    heavy.clear();
   });
 
   // The real soft reload: each canvas module bundles its OWN copy of canvas-lib (Bun.build inlines
