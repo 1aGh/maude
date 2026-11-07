@@ -105,8 +105,23 @@ export function legacyBracketSeam(
   return e2eSwitch(env, LEGACY_AI_BRACKET_SWITCH, release) === '1';
 }
 
+/**
+ * T2.5b (#163) — the v1 bracket's answer: 410 Gone for one release, then the routes go. Since p8-a1-claims
+ * every run is claim-only and this bracket has no way to claim, so a write made under it landed as the
+ * person's; no v2 agent path uses it (S12.9), and a 1.x plugin in a terminal is told where the run lives now.
+ */
+const gone = () =>
+  json(410, {
+    error:
+      "The v1 AI bracket is retired. The design plugin's hooks open and close the run on the run registry; update the Maude plugin (/plugin marketplace update maude).",
+    code: 'gone',
+    use: '/_api/agent/run/begin',
+    runs: '/_api/ai/runs',
+  });
+
 export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
   const reg = deps.registry;
+  const legacy = deps.legacyBracket ?? legacyBracketSeam();
   const designRoot = () => path.join(deps.repoRoot, deps.designRel);
 
   /** v1 `file` (`.design/x.tsx`) → the designRoot-relative canvas, or null when outside it. */
@@ -348,7 +363,9 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
       },
     },
 
-    // ── v1 (Phase 8 Task 4): `/design:edit` curls these; the banner is derived ──────────────
+    // ── v1 (Phase 8 Task 4): the banner is derived; the POST bracket is retired (T2.5b) ─────
+    // The routes stay in the table (writer-registry, hub manifest, CSRF and canvas-origin parity
+    // classify them) and answer 410; `legacyBracket` keeps them as a lease-only test seam.
     {
       method: 'GET',
       path: '/_api/ai',
@@ -370,6 +387,7 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
       origin: 'main',
       readOnly: 'refused',
       async handle(req) {
+        if (!legacy) return gone();
         const b = await body(req);
         const file = typeof b?.file === 'string' ? b.file.trim() : '';
         if (!file) return new Response('body.file required', { status: 400 });
@@ -403,6 +421,7 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
       origin: 'main',
       readOnly: 'refused',
       async handle(req) {
+        if (!legacy) return gone();
         const b = await body(req);
         const file = typeof b?.file === 'string' ? b.file.trim() : '';
         if (!file) return new Response('body.file required', { status: 400 });
@@ -420,6 +439,7 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
       origin: 'main',
       readOnly: 'refused',
       async handle(req) {
+        if (!legacy) return gone();
         const b = await body(req);
         const file = typeof b?.file === 'string' ? b.file.trim() : '';
         if (!file) return new Response('body.file required', { status: 400 });
