@@ -54,6 +54,20 @@ export const SYNC_ACTIONS: ActionDef[] = [
   // one confirmed batch, or keep the files on the hub (`POST /_api/sync/held-deletes { answer }`).
   pick('sync.delete-held-on-hub', 'Move to the hub’s trash too…'),
   pick('sync.keep-held-on-hub', 'Keep on the hub'),
+  // #167 T5.3 — Sync details › a file the hub holds back from the code lane (the owner's held list):
+  // keep it as code (`POST /_api/sync/adopt-held { path }` → the hub's owner-only adopt door), or open
+  // the canvas folders (config.json `canvasGroups`) to keep it as a canvas. The second is the Mac
+  // app's native editor door, like Open in editor.
+  pick('sync.adopt-as-code', 'Adopt as code'),
+  {
+    id: 'sync.open-canvas-folders',
+    label: 'Open canvas folders',
+    kind: 'command',
+    icon: 'folder',
+    exec: 'native',
+    visible: { shell: ['desktop'], facts: ['native'], minRole: 'edit' },
+    search: ROW,
+  },
   // Get latest (moved here from Version history) and Sign in again: every role keeps them
   { id: 'sync.get-latest', label: 'Get latest', kind: 'command', exec: 'shell', search: ROW },
   { id: 'sync.sign-in-again', label: 'Sign in again', kind: 'command', exec: 'shell', search: ROW },

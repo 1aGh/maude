@@ -183,6 +183,7 @@ import { HISTORY_FILE_PATH, HISTORY_PATH, handleHistoryRoutes } from './history.
 import {
   createJournalTail,
   handleJournalRoutes,
+  JOURNAL_ADOPT_PATH,
   JOURNAL_PATH,
   JOURNAL_REPORT_PATH,
   OWNER_DELETE_SOURCE,
@@ -2039,7 +2040,10 @@ export function createHub(config = {}) {
       // content and has no business reading a project's write history, let
       // alone asking the hub to stat paths.
       if (
-        (authPath === JOURNAL_PATH || authPath === JOURNAL_REPORT_PATH) &&
+        (authPath === JOURNAL_PATH ||
+          authPath === JOURNAL_REPORT_PATH ||
+          // #167 T5.3 — the owner's "Adopt as code" for one held file.
+          authPath === JOURNAL_ADOPT_PATH) &&
         // Never from the canvas origin, structurally — not merely because that
         // origin holds a render capability rather than a peer token. DDR-088's
         // rule is that a privileged route is reachable from NEITHER allowlist,
@@ -2048,7 +2052,10 @@ export function createHub(config = {}) {
         !(studioProxy && isCanvasHost(request))
       ) {
         let journalBody = null;
-        if (authPath === JOURNAL_REPORT_PATH && method === 'POST') {
+        if (
+          (authPath === JOURNAL_REPORT_PATH || authPath === JOURNAL_ADOPT_PATH) &&
+          method === 'POST'
+        ) {
           try {
             journalBody = await readJsonBody(request);
           } catch {

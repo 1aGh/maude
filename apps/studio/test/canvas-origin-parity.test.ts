@@ -70,6 +70,8 @@ const PRIVILEGED = [
   '/_api/sync/code-consent/set',
   // 2.0.7 #7b — deleting a batch of files on the hub: a canvas must never send it
   '/_api/sync/held-deletes',
+  // #167 T5.3 — adopting a held file as code on the hub: a canvas must never send it
+  '/_api/sync/adopt-held',
 ];
 
 describe('CANVAS_SAFE_API ↔ the canvas server routes map (V2-2.5)', () => {

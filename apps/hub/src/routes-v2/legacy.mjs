@@ -62,6 +62,8 @@ export const LEGACY_ROWS = Object.freeze([
   },
   // The studio child's loopback nudge.
   { path: '/api/journal/report', cap: { safe: null, unsafe: 'edit' }, scope: 'none' },
+  // #167 T5.3 — "Adopt as code": the route keeps its own owner-only gate (isProjectOwnerMatch).
+  { path: '/api/journal/adopt', cap: { safe: null, unsafe: 'edit' }, scope: 'none' },
   {
     path: '/api/files',
     cap: { safe: 'read', unsafe: 'edit' },

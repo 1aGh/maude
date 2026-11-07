@@ -112,6 +112,7 @@ import {
   withFormatParam,
 } from './format-sync.ts';
 import { createFsReader, type FsReader } from './fs-mirror.ts';
+import { type AdoptHeldControl, createAdoptHeld } from './adopt-held.ts';
 import { createHeldDeletes, type HeldDeletesControl, heldDeleteDetail } from './held-deletes.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
@@ -608,6 +609,8 @@ export interface SyncRuntime {
   codeConsent?(): CodeConsentControl | null;
   /** Issue #207 (7b) — the held local deletes and the person's answer (Sync details). */
   heldDeletes?(): HeldDeletesControl | null;
+  /** #167 T5.3 — Adopt as code for one file the hub holds back (Sync details, the owner). */
+  adoptHeld?(): AdoptHeldControl | null;
   /** Number of active per-canvas agents. */
   size(): number;
   /** Test inspection — get the agent for a slug if one was created. */
@@ -1990,6 +1993,8 @@ export function createSyncRuntime(
   let heldReporter: ReturnType<typeof createHeldReporter> | null = null;
   /** Issue #207 (7b) — Delete on the hub too / Keep on the hub, for the held local deletes. */
   let heldDeletesControl: HeldDeletesControl | null = null;
+  /** #167 T5.3 — Adopt as code: the owner's answer to a file the hub holds back. */
+  let adoptHeldControl: AdoptHeldControl | null = null;
   /** Cumulative files sent up this boot — the doručenka's push half. */
   let filePushed = 0;
   /** Debounce for a plane pass triggered by a local write. */
@@ -6116,6 +6121,13 @@ export function createSyncRuntime(
                   runPass: () => schedulePlanePass(),
                 });
               }
+              // #167 T5.3 — Adopt as code: the hub's own owner gate decides; this only carries it.
+              adoptHeldControl = createAdoptHeld({
+                hubUrl: linkedHub.url,
+                token: () => token,
+                fetchImpl: hubFetch,
+                runPass: () => schedulePlanePass(),
+              });
               console.log(
                 '[sync/files] journal file plane active — one lane, both directions, per-file delivery state in the Sync panel.'
               );
@@ -6195,6 +6207,7 @@ export function createSyncRuntime(
     filePlane = null;
     heldReporter = null;
     heldDeletesControl = null;
+    adoptHeldControl = null;
     // The control channel is a doorbell into this runtime; it goes with it.
     // Reported on the way out so the poke-miss question is answerable from a
     // session's log rather than from a hunch (DDR-226 §10).
@@ -6385,6 +6398,7 @@ export function createSyncRuntime(
     pullRemoteNow: () => remotePull?.() ?? Promise.resolve(),
     codeConsent: () => codeConsent,
     heldDeletes: () => heldDeletesControl,
+    adoptHeld: () => adoptHeldControl,
     // Under sharedDoc the per-canvas handler is a projection, not an agent;
     // count both so size() reflects the synced-canvas count in either mode.
     size: () => agents.size + projections.size,
@@ -7075,12 +7089,25 @@ export function filePlaneHeld(
   }
   // p8-held-surface — what the HUB holds back from the code lane (owner reads only). Without
   // this row a held file was not synced, not committed, and nobody was told.
-  if (result.codeHeld && result.codeHeld.count > 0) {
+  // #167 T5.3 — an overflowed hold list is a row even when it names nothing: files are held unlisted.
+  if (result.codeHeld && (result.codeHeld.count > 0 || result.codeHeld.overflow === true)) {
+    const overflow = result.codeHeld.overflow === true;
     held.push({
       kind: 'code-held',
       count: result.codeHeld.count,
       paths: result.codeHeld.paths.map((h) => h.path),
-      detail: codeHeldDetail(result.codeHeld.count),
+      ...(overflow ? { overflow: true as const } : {}),
+      detail: codeHeldDetail(result.codeHeld.count, { overflow }),
+    });
+  }
+  // #167 T5.3 item 6 — this Mac's canvases outside its canvas folders, held while none are declared.
+  const outside = result.canvasOutsideFolders ?? [];
+  if (outside.length > 0) {
+    held.push({
+      kind: 'canvas-outside-folders',
+      count: outside.length,
+      paths: outside,
+      detail: canvasOutsideFoldersDetail(outside.length),
     });
   }
   // Issue #175 — files the project's server will not take. Counted already under
@@ -7147,11 +7174,29 @@ export function hubRefusedDetail(reasons: readonly string[]): string {
 }
 
 /**
+ * #167 T5.3 item 6 — the Sync details sentence for canvases outside the canvas folders, held on this
+ * Mac while the project declares none (CONTRACT §4: what happened · what is safe · one verb).
+ */
+export function canvasOutsideFoldersDetail(count: number): string {
+  return count === 1
+    ? '1 file is a canvas outside your canvas folders, so it doesn’t sync. Nothing was removed. Open canvas folders and add its folder to sync it as a canvas.'
+    : `${count} files are canvases outside your canvas folders, so they don’t sync. Nothing was removed. Open canvas folders and add their folders to sync them as canvases.`;
+}
+
+/**
  * p8-held-surface — the Sync details sentence for files the hub holds back from the code lane
  * (CONTRACT §4: what happened · what is safe · one verb). Only the owner reads it, and only the
  * owner sets the canvas folders, so the verb is theirs to take.
  */
-export function codeHeldDetail(count: number): string {
+export function codeHeldDetail(count: number, { overflow = false } = {}): string {
+  // #167 T5.3 — the hub's hold list overflowed (its cap or a cut walk): files it could not name are
+  // held back from the code lane too, so the row says so — even when it lists none.
+  if (overflow && count === 0) {
+    return 'Files made as canvases before the canvas folders were set may be held back: the project’s server couldn’t keep track of every one, so those outside the canvas folders don’t sync. Nothing was removed. Add their folders to the canvas folders to keep them as canvases.';
+  }
+  if (overflow) {
+    return `${codeHeldDetail(count)} The project’s server couldn’t keep track of every one, so more may be held than are listed.`;
+  }
   return count === 1
     ? '1 file was made or changed as a canvas before the canvas folders were set, and is outside them now, so it doesn’t sync. Nothing was removed. Add its folder to the canvas folders to keep it as a canvas.'
     : `${count} files were made or changed as canvases before the canvas folders were set, and are outside them now, so they don’t sync. Nothing was removed. Add their folders to the canvas folders to keep them as canvases.`;

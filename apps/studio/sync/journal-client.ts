@@ -63,7 +63,12 @@ export interface JournalPage {
    * project OWNER only. Absent for everyone else (and from an older hub); an
    * empty list from the hub is "nothing is held".
    */
-  held?: { count: number; paths: { path: string; reason: HeldReason }[] };
+  held?: {
+    count: number;
+    paths: { path: string; reason: HeldReason }[];
+    /** #167 T5.3 — the hub's list may be short (its hold cap or a cut walk): more are held. */
+    overflow?: true;
+  };
 }
 
 export type HeldReason = 'canvas-before-folders' | 'changed-as-canvas';
@@ -96,7 +101,8 @@ function parseHeld(body: Record<string, unknown>): JournalPage['held'] | undefin
     typeof rawCount === 'number' && Number.isInteger(rawCount) && rawCount >= paths.length
       ? Math.min(rawCount, 1_000_000)
       : paths.length;
-  return { count, paths };
+  // #167 T5.3 — additive (`heldOverflow`, owner reads only); anything but a strict true is absent.
+  return body.heldOverflow === true ? { count, paths, overflow: true } : { count, paths };
 }
 
 // A designRoot-relative path a peer will turn into a real file: the SAME shape
