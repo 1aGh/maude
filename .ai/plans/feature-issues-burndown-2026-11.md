@@ -184,7 +184,7 @@ W5 and W6 use Opus.
 
 ### W3 — Export and video
 
-- [ ] T3.1 **#150 §1:** reproduce first to settle the cause (the capture page CSP vs the Image load); then draw inline SVG via a blob or `createImageBitmap`, and surface `onerror` as an export warning.
+- [x] T3.1 **#150 §1:** reproduce first to settle the cause (the capture page CSP vs the Image load); then draw inline SVG via a blob or `createImageBitmap`, and surface `onerror` as an export warning.
 - [ ] T3.2 **#150 §2, §3:** a capture pre-pass, in the capture page or as a patch under DDR-176 registered in both package roots:
   - an SVG `<img>` with `naturalWidth 0` uses its layout size;
   - transformed static parents with absolute children get pinned to their containing block.
@@ -346,3 +346,4 @@ W5 and W6 use Opus.
 - 2026-11-07 merged adfaf86d9: nothing-deleted back to 100 % (17 post-freeze hooks: 7 mapped to existing rows, 10 excluded as v2 code; none deleted).
 - 2026-11-07 merged T4.3 86ef5ea38: 41 Codex mirrors moved to plugins/*/codex-skills/ (Claude loads design 43→12, flow 24→14 skills); Codex manifests list [skills, codex-skills] (tested on codex-cli 0.154.0). Plugin tests 79/79, surfaces in sync.
 - 2026-11-07 merged T1.8 (28fe65ffd e0ee2e7ac 9ec0002e7 d7e626353). TS e2e switches are now ignored by every `--release` build: local desktop e2e lanes must build the sidecar with `build.ts --release --e2e` (desktop-e2e skill updated) — W8/T9.1 lanes must do so. Item 4 moved to T5.4 (idle sweep of the local kernel's `seen` map).
+- 2026-11-07 merged T3.1 f8656c9c6: #150 §1 cause was not the CSP — web-renderer serializes an inline <svg> with its own position/offsets into a standalone image, pushing the art out of its viewport; fixed by a one-render XMLSerializer guard (svg-inline.ts), live before/after export proves it.
