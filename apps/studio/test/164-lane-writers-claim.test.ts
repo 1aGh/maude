@@ -126,6 +126,25 @@ describe('R — the verb writes through a claiming route', () => {
   test('every table route is wrapped by claimingTableRoute', () => {
     expect(read('http.ts')).toMatch(/tableSpecs\.map\(\(s\) => claimingTableRoute\(s, runs\)\)/);
   });
+
+  // #164 B4 — the legacy literal too: an AI curl-local write naming its chat claims into its run
+  // (behaviour: test/164-legacy-route-claims.test.ts)
+  test('the legacy routes literal is mounted through claimingLegacyRoutes', () => {
+    expect(read('http.ts')).toMatch(
+      /const routes = \{ \.\.\.laneRoutes\.exact, \.\.\.claimingLegacyRoutes\(legacyRoutes, runs\) \};/
+    );
+  });
+
+  test('the legacy artboard / array writers say their bytes (source-writing + source-written)', () => {
+    const api = read('api.ts');
+    for (const fn of ['insertArtboardOp', 'setArtboardLabelOp', 'editArraySrcOp']) {
+      const body = after(api, `async function ${fn}(`);
+      const end = body.indexOf('\n  async function ', 10);
+      const own = end > 0 ? body.slice(0, end) : body;
+      expect(own, fn).toMatch(/await sayingWrites\(before, '/);
+      expect(own, fn).toMatch(/noteSourceWritten\(rel, after, '/);
+    }
+  });
 });
 
 describe('T — annotate tags its run', () => {

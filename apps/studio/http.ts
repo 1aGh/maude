@@ -670,6 +670,41 @@ export function claimingTableRoute(
   };
 }
 
+/**
+ * #164 B4 — the legacy `routes` literal's writes answer inside the run's claim the same way
+ * (`claimingTableRoute`): an AI `curl-local` POST naming its chat to `/_api/insert-artboard`,
+ * `/_api/set-artboard-label`, `/_api/edit-array-src`, … then claims its bytes into the run instead of
+ * landing as the person's edit. Never wrapped: a canvas-safe path (the canvas origins mount the SAME
+ * handler, and the untrusted frame can set any header on its own origin), `/_api/canvas` (create and
+ * delete claim inside their own handler), and the hook / flush paths `claimingTableRoute` leaves alone.
+ * A read is passed straight through.
+ */
+export function claimingLegacyRoutes<
+  T extends Record<string, (req: Request) => Response | Promise<Response>>,
+>(routes: T, runs: Parameters<typeof routeWriteClaim>[1]): T {
+  const exempt = (p: string) =>
+    CANVAS_SAFE_API.has(p) ||
+    p === '/_api/canvas' ||
+    p.startsWith('/_api/agent/') ||
+    p === '/_api/diagnostics/save-hold-flush';
+  const out: Record<string, (req: Request) => Response | Promise<Response>> = {};
+  for (const [p, handler] of Object.entries(routes)) {
+    out[p] =
+      exempt(p) || typeof handler !== 'function'
+        ? handler
+        : (req: Request) =>
+            req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS'
+              ? handler(req)
+              : withWriteClaim(
+                  sameOriginWrite(req) && isTrustedRequestHost(req)
+                    ? routeWriteClaim(req, runs)
+                    : null,
+                  () => handler(req)
+                );
+  }
+  return out as T;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Cloud Phase 25 C2 — the local half of the read-only gate.
 //
@@ -7199,7 +7234,8 @@ export function createHttp(
   });
   if (routeProblems.length > 0)
     throw new Error(`[studio] the route table is unsound:\n  ${routeProblems.join('\n  ')}`);
-  const routes = { ...laneRoutes.exact, ...legacyRoutes };
+  // #164 B4 — the legacy writes claim like the table's (claimingLegacyRoutes); the keys are unchanged
+  const routes = { ...laneRoutes.exact, ...claimingLegacyRoutes(legacyRoutes, runs) };
 
   // Named `handleFallthrough`, not `fetch` — a same-named local function shadows
   // the global `fetch` for every call site in this module's scope, which is how

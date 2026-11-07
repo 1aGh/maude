@@ -267,6 +267,8 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     newTransactionId: client.newTransactionId,
     onChange: opts.onStage,
     ...(opts.attribute ? { attribute: opts.attribute } : {}),
+    // #164 B4 — an unclaimed parked write goes out as the lane edit it was, not a per-canvas default
+    release: (w) => releaseOutside(w),
     log,
   });
   stage.restore();
@@ -358,6 +360,68 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     return answer;
   }
 
+  /** One lane edit as the hub takes it: an `edit` under the write's own transaction, label and write id. */
+  function sendLane(
+    slug: string,
+    doc: string,
+    p: LaneProposal,
+    dependsOn: string[] | undefined,
+    madeAt?: number
+  ): Promise<ProposalOutcome> {
+    return propose({
+      kind: 'edit',
+      label: LANE_LABEL[p.lane],
+      transactionId: p.transactionId,
+      dependsOn,
+      ...(madeAt ? { origin: { madeAt } } : {}),
+      operations: [
+        {
+          op: 'lane.replace',
+          doc,
+          lane: p.lane,
+          content: p.content,
+          baseContent: p.baseContent,
+          ...(p.writeId ? { writeId: p.writeId } : {}),
+          // S9.24 — an element both sides changed is held, never char-merged into a third
+          // text nobody wrote (sync/object-conflict.ts). A v1 hub ignores the field.
+          ...(p.lane === 'annotations' ? { objects: 'hold' } : {}),
+        },
+      ],
+    }).then((r) => {
+      const o = outcome(r);
+      // S9.24 — the answer's own producer of the card (the onResult one covers a replay).
+      if (o.status === 'accepted' && o.objectConflicts)
+        recordConflicts(opts.designRoot, slug, o.objectConflicts, {
+          ...(o.actionId ? { actionId: o.actionId } : {}),
+        });
+      return o;
+    });
+  }
+
+  /**
+   * #164 B4 — writes a call's window parked and no settle claimed go out as OUTSIDE edits, exactly as
+   * `laneLink` would have sent them with no window open: one `edit` per write, in arrival order (the
+   * client's one serialized queue keeps it). Their answer is the first refusal, else the last
+   * acceptance. A create (only the local home makes one today) goes out as the watcher's `doc.create`.
+   */
+  function releaseOutside(w: {
+    slug: string;
+    doc: string;
+    writes: LaneProposal[];
+  }): Promise<ProposalOutcome> {
+    const create = w.writes.find((x) => x.create)?.create;
+    if (create) {
+      const lanes: Record<string, string> = {};
+      for (const x of w.writes) lanes[x.lane] = x.content;
+      for (const k of Object.keys(lanes)) if (lanes[k] === '') delete lanes[k];
+      return queueCreate({ op: 'doc.create', doc: w.doc, path: create, lanes });
+    }
+    const sent = w.writes.map((x) => sendLane(w.slug, w.doc, x, stage.mapDeps(x.dependsOn)));
+    return Promise.all(sent).then(
+      (all) => all.find((o) => o.status !== 'accepted') ?? (all.at(-1) as ProposalOutcome)
+    );
+  }
+
   function laneLink(slug: string): AcceptedLaneLink {
     return {
       on,
@@ -367,34 +431,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         if (stage.captures(slug, p.stageable === true, p.content))
           return stage.capture(slug, doc, p);
         const send = (dependsOn: string[] | undefined, madeAt?: number) =>
-          propose({
-            kind: 'edit',
-            label: LANE_LABEL[p.lane],
-            transactionId: p.transactionId,
-            dependsOn,
-            ...(madeAt ? { origin: { madeAt } } : {}),
-            operations: [
-              {
-                op: 'lane.replace',
-                doc,
-                lane: p.lane,
-                content: p.content,
-                baseContent: p.baseContent,
-                ...(p.writeId ? { writeId: p.writeId } : {}),
-                // S9.24 — an element both sides changed is held, never char-merged into a third
-                // text nobody wrote (sync/object-conflict.ts). A v1 hub ignores the field.
-                ...(p.lane === 'annotations' ? { objects: 'hold' } : {}),
-              },
-            ],
-          }).then((r) => {
-            const o = outcome(r);
-            // S9.24 — the answer's own producer of the card (the onResult one covers a replay).
-            if (o.status === 'accepted' && o.objectConflicts)
-              recordConflicts(opts.designRoot, slug, o.objectConflicts, {
-                ...(o.actionId ? { actionId: o.actionId } : {}),
-              });
-            return o;
-          });
+          sendLane(slug, doc, p, dependsOn, madeAt);
         if (p.undoes) {
           // S2.20c — ⌘Z on a waiting edit: its inverse waits behind the same run, right after it
           // (decision v2-lead-pending-inverse-via-stage), and lands as THAT edit's undo once the

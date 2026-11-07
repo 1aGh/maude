@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +20,9 @@ import { canvasRow } from '../helpers/tree';
  *            each call inside the window the plugin hook opens for it (`POST /_api/agent/bash/window`,
  *            PreToolUse open / PostToolUse close): a terminal verb names no chat, so it cannot claim its
  *            bytes, and since p8-a1-claims every run is claim-only — an unclaimed write outside such a
- *            window is the person's (decision `maude/v2-p8-a1-claims-bytes-not-time`)
+ *            window is the person's (decision `maude/v2-p8-a1-claims-bytes-not-time`). Since #164 the
+ *            window only PARKS the call's writes: the hook's `POST /_api/agent/bash/settle` (the changed
+ *            file + the sha256 of its post-call bytes) claims them for the run
  *            → each shot lands live: the ring reads "AI is cutting · N of 14", the timeline chip "AI is cutting",
  *            the AI edge moves while YOUR playhead stays where you scrubbed it
  *   stop     Stop → ONE published action holding 7 shots; the chip reads "Placed 7 of 14 shots." + Keep going
@@ -29,6 +32,7 @@ import { canvasRow } from '../helpers/tree';
  * count. The artboard is inside the canvas iframe, so it is clicked BY COORDINATES (video-music's helpers).
  *
  * WRITTEN, NOT RUN in the S7.14 hand-back (the lead runs the desktop lane: an unlocked screen and the e2e lock).
+ * The #164 B4 settle step is written, not run, too.
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -98,13 +102,40 @@ const placeNextRaw = () =>
     ],
     { encoding: 'utf8', env: { ...process.env, NO_OPEN: '1' } }
   );
-/** One agent Bash call: the hook's PreToolUse window, the verb, the hook's PostToolUse close. */
+const sha256 = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
+/**
+ * #164 — what the design hook sends when the call returns (cli/lib/design-hook.mjs `settleCall`): the lane
+ * files whose bytes changed, each with the full sha256 of its post-call bytes, in one batch (no `more`).
+ * The window only PARKS the verb's writes; the settle is what claims them for the run. Without it they are
+ * released as outside at close + SETTLE_WAIT_MS, never the run's.
+ */
+const bashSettle = async (call: number, changed: string[]) => {
+  const r = await post('/_api/agent/bash/settle', {
+    session: 'e2e-ai-cut',
+    toolUseId: `toolu_e2e_cut_${call}`,
+    changed: changed.map((rel) => ({
+      path: rel,
+      sha: sha256(readFileSync(join(DESIGN, rel), 'utf8')),
+      created: false,
+      deleted: false,
+    })),
+  });
+  expect(r.status).toBe(200);
+  expect(r.body?.bound).toEqual(changed);
+  expect(r.body?.person).toEqual([]);
+};
+/** One agent Bash call: the hook's PreToolUse window, the verb, the PostToolUse close + settle. */
 const placeNext = async (call: number) => {
   await bashWindow(call, true);
+  const before = onDisk();
+  let r: ReturnType<typeof placeNextRaw> | null = null;
   try {
-    return placeNextRaw();
+    r = placeNextRaw();
+    return r;
   } finally {
     await bashWindow(call, false);
+    // the hook's post-call diff: the canvas changed only if the verb wrote it
+    if (r?.status === 0 && onDisk() !== before) await bashSettle(call, ['ui/VideoAiCut.tsx']);
   }
 };
 
