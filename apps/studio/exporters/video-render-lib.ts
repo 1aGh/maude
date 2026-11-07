@@ -27,6 +27,14 @@
 import { renderMediaOnWeb } from '@remotion/web-renderer';
 import type { ComponentType } from 'react';
 
+import { installCapturePrepass } from './capture-prepass.ts';
+import {
+  mergeFindings,
+  type ParityFinding,
+  type ParityScan,
+  sampleFrames,
+  scanParity,
+} from './parity-check.ts';
 import { installSvgSerializeGuard } from './svg-inline.ts';
 
 interface RenderVideoOpts {
@@ -78,6 +86,9 @@ async function renderVideo(opts: RenderVideoOpts): Promise<RenderVideoResult> {
   // Issue #150 §1 — an inline <svg> with its own `position`/`left`/`top` rendered
   // as an empty bitmap. The guard is scoped to this one render (see svg-inline.ts).
   const restoreSerializer = installSvgSerializeGuard();
+  // Issue #150 §2 + §3 — a size-less svg <img> drawn cropped / not at all, and absolute children
+  // of a transformed static parent jumping to the frame. Scoped to this one render too.
+  const restorePrepass = installCapturePrepass();
   let result: Awaited<ReturnType<typeof renderMediaOnWeb>>;
   try {
     result = await renderMediaOnWeb({
@@ -107,6 +118,7 @@ async function renderVideo(opts: RenderVideoOpts): Promise<RenderVideoResult> {
       pageResponsiveness: 'disabled',
     });
   } finally {
+    restorePrepass();
     restoreSerializer();
   }
   const blob = await result.getBlob();
@@ -122,3 +134,43 @@ async function renderVideo(opts: RenderVideoOpts): Promise<RenderVideoResult> {
 
 (globalThis as unknown as { __maudeRenderVideo__: typeof renderVideo }).__maudeRenderVideo__ =
   renderVideo;
+
+interface SeekWindow {
+  __maude_seek__?: (frame: number) => Promise<void>;
+  __maude_comps__?: () => Array<{ id: string; durationInFrames: number }>;
+}
+
+/**
+ * #150 §4 / #128 §8 — what the renderer will not draw the way the Player does, found BEFORE the
+ * render starts, by reading the Player's own DOM at a few frames (an element can appear mid-comp).
+ * Never throws and never blocks: a failed seek or an unreadable page just means fewer findings.
+ */
+async function parityCheck(compId: string): Promise<ParityScan> {
+  const w = globalThis as unknown as SeekWindow;
+  const rootOf = (): Element | undefined =>
+    [...document.querySelectorAll('[data-comp-id]')].find(
+      (e) => e.getAttribute('data-comp-id') === compId
+    );
+  const first = rootOf();
+  const artboard = first?.closest('[data-dc-screen]')?.getAttribute('data-dc-screen') ?? null;
+  const duration = w.__maude_comps__?.().find((c) => c.id === compId)?.durationInFrames ?? 1;
+  let findings: ParityFinding[] = [];
+  for (const frame of sampleFrames(duration)) {
+    try {
+      await w.__maude_seek__?.(frame);
+    } catch {
+      /* the comp stays on the frame it had */
+    }
+    const root = rootOf();
+    if (root) findings = mergeFindings(findings, scanParity(root));
+  }
+  try {
+    await w.__maude_seek__?.(0);
+  } catch {
+    /* as above */
+  }
+  return { artboard, findings };
+}
+
+(globalThis as unknown as { __maudeParityCheck__: typeof parityCheck }).__maudeParityCheck__ =
+  parityCheck;

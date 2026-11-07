@@ -21,7 +21,13 @@ import path from 'node:path';
 
 import { getEncodeLibBundle, getWebRendererBundle } from './_browser-bundles.ts';
 import { exportShimPath, runShim } from './_runtime.ts';
-import { type ExportDegradation, hasAudioStream, remedyFor } from './degraded.ts';
+import {
+  type ExportDegradation,
+  hasAudioStream,
+  mergeDegraded,
+  parityGap,
+  remedyFor,
+} from './degraded.ts';
 import {
   canvasShellUrl,
   type ExportContext,
@@ -280,6 +286,9 @@ async function runVideo(
     // A pre-flight finding stands unless the shim reports its own, more specific
     // cause below — never let a clean-looking summary erase a known defect.
     let degraded: ExportDegradation | undefined = preStamped;
+    // The pre-render parity warning is applied LAST: it must not make `degraded` truthy before the
+    // audio backstop below, which only speaks when nothing else has.
+    let parityNote: ExportDegradation | undefined;
     try {
       const lastLine = stdoutLines.at(-1) ?? '{}';
       const summary = JSON.parse(lastLine) as {
@@ -287,8 +296,12 @@ async function runVideo(
         degraded?: boolean;
         audioDropped?: boolean;
         fallbackReason?: string;
+        /** #150 §4 — the pre-render parity scan (only when the one-pass renderer drew the file) */
+        parity?: unknown;
       };
       if (summary.container) ext = summary.container;
+      parityNote = parityGap(summary.parity);
+      if (parityNote) console.error(`⚠ ${format} export: ${parityNote.reason}`);
       if (summary.degraded) {
         const reason = summary.fallbackReason ?? 'unknown';
         console.error(
@@ -322,6 +335,8 @@ async function runVideo(
       };
       console.error(`⚠ ${format} export produced no audio track despite audio being requested.`);
     }
+
+    degraded = mergeDegraded(degraded, parityNote);
 
     return {
       filename: `${el.canvasSlug}.${ext}`,

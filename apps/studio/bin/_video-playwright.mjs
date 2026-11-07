@@ -349,6 +349,27 @@ try {
       const frameRange =
         Number.isFinite(explicitFrames) && explicitFrames > 0 ? [0, explicitFrames - 1] : null;
 
+      // #150 §4 / #128 §8 — before the render starts, list what the renderer will not draw the
+      // way the Player does (the parity scan, exporters/parity-check.ts). A warning only: any
+      // failure here costs the warning, never the export.
+      let parity = null;
+      try {
+        if ((await page.evaluate(() => typeof window.__maudeParityCheck__)) === 'function') {
+          const scan = await evalWithTimeout(
+            page,
+            (id) => window.__maudeParityCheck__(id),
+            compId,
+            15_000,
+            'parity check'
+          );
+          if (scan && Array.isArray(scan.findings) && scan.findings.length > 0) parity = scan;
+        }
+      } catch (e) {
+        console.error(
+          `_video-playwright: parity check skipped: ${e instanceof Error ? e.message : e}`
+        );
+      }
+
       // Bound the whole-comp render: @remotion/web-renderer drives WebCodecs,
       // which on headless Linux without a working encoder never resolves — a
       // hang, not a throw, so the graceful frame-step fallback below never
@@ -407,6 +428,9 @@ try {
         container: rendered.container,
         codec: rendered.videoCodec,
         audioCodec: rendered.audioCodec,
+        // only when the one-pass renderer drew this file: the frame-step path is Chromium's own
+        // compositor and has none of these gaps
+        ...(parity ? { parity } : {}),
       };
       const ms = Date.now() - t0;
       // Same shape as the frame-step line, so the two paths are directly

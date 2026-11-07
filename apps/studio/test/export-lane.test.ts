@@ -150,6 +150,12 @@ describe('lane remote', () => {
               remedy: 'm',
               fontsNotEmbedded: ['Ok-Font', 42, { evil: true }, 'x'.repeat(500)],
               audioDropped: 'yes-please',
+              // #150 §4 — the worker's pre-render parity warning: strings only, clamped
+              unsupportedFeatures: [
+                'a background-image url() is not drawn - div.camo',
+                7,
+                'y'.repeat(900),
+              ],
               extra: 'dropped',
             }),
           },
@@ -174,6 +180,10 @@ describe('lane remote', () => {
       expect(res.degraded?.remedy).toBe('m');
       expect(res.degraded?.fontsNotEmbedded).toEqual(['Ok-Font', 'x'.repeat(200)]);
       expect(res.degraded?.audioDropped).toBeUndefined();
+      expect(res.degraded?.unsupportedFeatures).toEqual([
+        'a background-image url() is not drawn - div.camo',
+        'y'.repeat(400),
+      ]);
       expect(Object.keys(res.degraded ?? {})).not.toContain('extra');
 
       // The wire contract: bearer ingress, resolved targets (pure data), the

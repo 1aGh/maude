@@ -6,6 +6,8 @@
 //
 // RCA `issue-mp4-audio-export-html5audio-silent-degrade`.
 
+import { PARITY_FEATURES, type ParityFeature } from './parity-check.ts';
+
 /**
  * The file is real and the job is `done` — but it is NOT clean, and saying so
  * is the whole point.
@@ -42,6 +44,12 @@ export interface ExportDegradation {
    * comp's <Captions> had no words to show (#128 §7). Names only; the sentence is in `reason`.
    */
   captionsMissing?: string[];
+  /**
+   * What the video exporter cannot draw the way the preview does (#150 §4, #128 §8): one entry per
+   * feature, naming the elements (`a background-image url() is not drawn — div.hero, div.camo`).
+   * A warning found BEFORE the render started; the file is otherwise complete.
+   */
+  unsupportedFeatures?: string[];
   /** Human-readable cause, already newline-collapsed by the shim (DDR-054). */
   reason: string;
   /** One-line remedy — present only when the cause is a fixable authoring mistake. */
@@ -121,6 +129,87 @@ export function remedyFor(reason: string): string | undefined {
     );
   }
   return undefined;
+}
+
+/** Two degradations of one job (the first run's and a retry's, or a render's and a parity note) as one: reasons joined, flags kept. */
+export function mergeDegraded(
+  a: ExportDegradation | undefined,
+  b: ExportDegradation | undefined
+): ExportDegradation | undefined {
+  if (!a || !b) return a ?? b;
+  const union = (x?: string[], y?: string[]): string[] => [
+    ...new Set([...(x ?? []), ...(y ?? [])]),
+  ];
+  const fonts = union(a.fontsNotEmbedded, b.fontsNotEmbedded);
+  const captions = union(a.captionsMissing, b.captionsMissing);
+  const features = union(a.unsupportedFeatures, b.unsupportedFeatures);
+  return {
+    ...a,
+    ...b,
+    ...(a.audioDropped || b.audioDropped ? { audioDropped: true } : {}),
+    ...(fonts.length ? { fontsNotEmbedded: fonts } : {}),
+    ...(captions.length ? { captionsMissing: captions } : {}),
+    ...(features.length ? { unsupportedFeatures: features } : {}),
+    // a remedy is a fixable cause's one-liner: keep the first one anybody had
+    ...(a.remedy || b.remedy ? { remedy: a.remedy ?? b.remedy } : {}),
+    reason: [...new Set([a.reason, b.reason])].join(' '),
+  };
+}
+
+const PARITY_NAMED_FEATURES = 8;
+const PARITY_NAMED_ELEMENTS = 5;
+
+/** A name that came out of the canvas page (untrusted, DDR-054): one line, no control characters, short. */
+const cleanName = (v: unknown, max: number): string | null => {
+  if (typeof v !== 'string') return null;
+  let plain = '';
+  for (const ch of v) {
+    const code = ch.charCodeAt(0);
+    plain += code < 32 || code === 127 ? ' ' : ch;
+  }
+  const line = plain.replace(/\s+/g, ' ').trim();
+  return line ? line.slice(0, max) : null;
+};
+
+/**
+ * The degradation for a comp that uses CSS the video exporter cannot draw (#150 §4, #128 §8), from the
+ * scan the capture page ran before the render. The page is the canvas author's code, so the report is
+ * untrusted: only features this module knows are accepted, and every name is cleaned and capped before
+ * it reaches a sentence. Never blocks — it rides the same channel as a muted file, as a warning.
+ * Returns undefined when there is nothing (usable) to say.
+ */
+export function parityGap(raw: unknown): ExportDegradation | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const scan = raw as { artboard?: unknown; findings?: unknown };
+  if (!Array.isArray(scan.findings)) return undefined;
+  const entries: string[] = [];
+  const hints: string[] = [];
+  for (const f of scan.findings.slice(0, PARITY_NAMED_FEATURES)) {
+    if (!f || typeof f !== 'object') continue;
+    const feature = (f as { feature?: unknown }).feature;
+    if (typeof feature !== 'string' || !Object.hasOwn(PARITY_FEATURES, feature)) continue;
+    const known = PARITY_FEATURES[feature as ParityFeature];
+    const names = Array.isArray((f as { elements?: unknown }).elements)
+      ? ((f as { elements: unknown[] }).elements
+          .slice(0, PARITY_NAMED_ELEMENTS)
+          .map((n) => cleanName(n, 48))
+          .filter((n) => n !== null) as string[])
+      : [];
+    const count = Number((f as { count?: unknown }).count);
+    const more =
+      Number.isFinite(count) && count > names.length
+        ? ` and ${Math.floor(count) - names.length} more`
+        : '';
+    entries.push(names.length ? `${known.label} — ${names.join(', ')}${more}` : known.label);
+    hints.push(known.hint);
+  }
+  if (!entries.length) return undefined;
+  const board = cleanName(scan.artboard, 60);
+  return {
+    unsupportedFeatures: entries,
+    reason: `${board ? `Artboard "${board}": the` : 'The'} video exporter cannot draw everything in this comp, so the file may differ from the preview: ${entries.join('; ')}.`,
+    remedy: `To match the preview, ${[...new Set(hints)].slice(0, 3).join('; ')}. Or check the exported frames before you send it.`,
+  };
 }
 
 /** At most this many assets are listed by name in the sentence (the array keeps them all). */
