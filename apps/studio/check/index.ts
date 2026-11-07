@@ -287,7 +287,8 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
   }
   // S7.5 — the comp vocabulary's rules (V2-1.10 §5.7): one <Captions>, <Duck> wraps one <Audio>,
   // <Reframe> keys sorted / in range / no follow, `fixes` a JSON literal, no derived props.
-  for (const f of videoVocabFindings(rel, text, parsed.program)) r.errors.push(f);
+  for (const { severity, ...f } of videoVocabFindings(rel, text, parsed.program))
+    (severity === 'warning' ? r.warnings : r.errors).push(f);
   const ids = checkIdsAdapter(text, {
     against: opts.against ?? undefined,
     path: rel,

@@ -10,10 +10,12 @@
 //   video-title-motion     <TitleMotion preset frames>: preset is one of the six, frames a whole number (S7.10)
 //   video-captions-fixes   `fixes` is a JSON literal of { src, at, text }
 //   video-derived-prop     `__words` / `__speech` are the build's — never in the file
+//   video-object-fit-style (warning) <Video style={{ objectFit }}>: write the objectFit PROP (#128 §3)
 //
 // Only components imported from `@maude/canvas-lib` are judged (aliases followed): a comp's own
 // local `Captions` (today's CUES pattern) is the author's business.
 
+import { objectFitSites } from '../video/object-fit.ts';
 import { isTitleMotion } from '../video/title-motion.ts';
 
 // biome-ignore lint/suspicious/noExplicitAny: oxc's ESTree nodes are walked structurally
@@ -25,6 +27,8 @@ export interface VideoFinding {
   what: string;
   fix: string;
   line: number;
+  /** absent = an error; the build already copes with a warning's pattern, so it never blocks a write */
+  severity?: 'warning';
 }
 
 const LIB = '@maude/canvas-lib';
@@ -178,9 +182,21 @@ function compSpans(program: Node): Array<{ name: string; start: number; end: num
 }
 
 export function videoVocabFindings(rel: string, text: string, program: Node): VideoFinding[] {
-  const names = imports(program);
-  if (names.size === 0) return [];
   const out: VideoFinding[] = [];
+  // #128 §3 — judged on @remotion/media's <Video>, whether or not the canvas uses the vocabulary
+  for (const site of objectFitSites(program, text)) {
+    const line = lineAt(text, site.el.start as number);
+    out.push({
+      code: 'video-object-fit-style',
+      where: `${rel}:${line}`,
+      what: '<Video> reads the objectFit prop, so objectFit in its style does nothing there (the clip stays letterboxed)',
+      fix: 'write objectFit="cover" (or "contain" / "fill") as a prop on <Video>, not inside style',
+      line,
+      severity: 'warning',
+    });
+  }
+  const names = imports(program);
+  if (names.size === 0) return out;
   const push = (code: string, at: number, what: string, fix: string) => {
     const line = lineAt(text, at);
     out.push({ code, where: `${rel}:${line}`, what, fix, line });
