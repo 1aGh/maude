@@ -147,9 +147,14 @@ export function seenTargetsFor(offer) {
 // annotation scope of each send here (acp-runtime.js, one line). An offer is validated against it: a block that
 // names ids the ask never carried loses them.
 let asked = null;
+// The canvas the latest send was FROZEN on. A review asked with no selection carries no annotation ids (so
+// `asked` stays null), yet its offer can still write notes ("Put them in a section"), and those need a file.
+let sentFrom = null;
 
-/** @param {{ annotations?: { file: string, ids: string[] } } | null | undefined} frozen the context a send froze */
+/** @param {{ canvas?: string, runScope?: { canvas?: string }, annotations?: { file: string, ids: string[] } } | null | undefined} frozen the context a send froze */
 export function noteAskedAnnotations(frozen) {
+  const c = frozen?.canvas ?? frozen?.runScope?.canvas;
+  sentFrom = typeof c === 'string' && c ? c : null;
   const a = frozen?.annotations;
   asked = a
     ? {
@@ -163,6 +168,9 @@ export function noteAskedAnnotations(frozen) {
 
 /** The stickies / arrows the latest send was about (`null`: it was not about annotations). */
 export const askedAnnotations = () => asked;
+
+/** The canvas the latest send was frozen on (`null`: that send had no canvas context). */
+export const askedCanvas = () => sentFrom;
 
 /**
  * sec-a C2 — exactly what "Make these changes" sends, in words, shown on the card before the press: the

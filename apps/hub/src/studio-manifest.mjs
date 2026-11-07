@@ -531,6 +531,8 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/sync/code-consent/set': REFUSED,
   // 2.0.7 #7b — a PERSON's answer to their Mac's held deletes; a cell has no local deletes to hold
   '/_api/sync/held-deletes': REFUSED,
+  // #167 T5.3 — Adopt as code: the desktop owner's answer to its own hub, never a member's in a cell.
+  '/_api/sync/adopt-held': REFUSED,
   '/_api/sync/cancel-assets': REFUSED,
   // feature-before-first-external-users Task 2/3 — the sync Settings toggles,
   // ownership (adopt/detach) and the _trash restore/prune. Same reasoning as

@@ -103,6 +103,35 @@ describe('history diff — the version before a run', () => {
   });
 });
 
+describe('history diff — only this Mac’s own runs are a default target (#164 F3)', () => {
+  const teammate = row(11, {
+    kind: 'ai',
+    label: 'Claude Code',
+    runId: 'runT',
+    chatId: 'cT',
+    actor: 'u_tereza',
+    actorName: 'Tereza',
+    mine: false,
+  });
+
+  test('the default never targets a teammate’s newer AI run', async () => {
+    const s = serve([teammate, ...rows]);
+    const r = await s.run('history', ['diff', 'ui/home.tsx']);
+    expect(r.code).toBe(0);
+    // runY (r10, mine) is the newest of this Mac's runs: its from-version is r9
+    expect(fromOf(s)).toBe('r9');
+  });
+
+  test('--run @mine skips a teammate’s run even in the same chat id', async () => {
+    const s = serve([{ ...teammate, chatId: 'c1' }, ...rows]);
+    const r = await s.run('history', ['diff', 'ui/home.tsx', '--run', '@mine'], {
+      MAUDE_CHAT_ID: 'c1',
+    });
+    expect(r.code).toBe(0);
+    expect(fromOf(s)).toBe('r6');
+  });
+});
+
 describe('history list — which agent made an AI version', () => {
   test('names Maude chat or Claude Code from the row, and --json exposes runId', async () => {
     const s = serve();

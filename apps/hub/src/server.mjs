@@ -66,6 +66,7 @@ import {
   DOC_REFUSAL_REASON,
   docContextFields,
   docDoor,
+  PRESENCE_ROLE_CAPABILITY,
   peerAccess,
   stampHubRole,
   stripSummon,
@@ -182,6 +183,7 @@ import { HISTORY_FILE_PATH, HISTORY_PATH, handleHistoryRoutes } from './history.
 import {
   createJournalTail,
   handleJournalRoutes,
+  JOURNAL_ADOPT_PATH,
   JOURNAL_PATH,
   JOURNAL_REPORT_PATH,
   OWNER_DELETE_SOURCE,
@@ -1383,6 +1385,8 @@ export function createHub(config = {}) {
               FILE_CLASSES_V2_CAPABILITY,
               // fix/205: the doors take paths up to 32 segments (an older one stops at 8).
               FILE_DEPTH_V2_CAPABILITY,
+              // T5.2 (#165): presence roles are stamped here (stampHubRole) — a studio trusts a relayed role only then.
+              PRESENCE_ROLE_CAPABILITY,
               // Issue #204: `/studio/signin?client=desktop` + `/auth/desktop/exchange`. The
               // desktop request rides a cookie signed with HUB_SECRET — none, no word.
               ...(secret ? [DESKTOP_SIGNIN_CAPABILITY] : []),
@@ -2036,7 +2040,10 @@ export function createHub(config = {}) {
       // content and has no business reading a project's write history, let
       // alone asking the hub to stat paths.
       if (
-        (authPath === JOURNAL_PATH || authPath === JOURNAL_REPORT_PATH) &&
+        (authPath === JOURNAL_PATH ||
+          authPath === JOURNAL_REPORT_PATH ||
+          // #167 T5.3 — the owner's "Adopt as code" for one held file.
+          authPath === JOURNAL_ADOPT_PATH) &&
         // Never from the canvas origin, structurally — not merely because that
         // origin holds a render capability rather than a peer token. DDR-088's
         // rule is that a privileged route is reachable from NEITHER allowlist,
@@ -2045,7 +2052,10 @@ export function createHub(config = {}) {
         !(studioProxy && isCanvasHost(request))
       ) {
         let journalBody = null;
-        if (authPath === JOURNAL_REPORT_PATH && method === 'POST') {
+        if (
+          (authPath === JOURNAL_REPORT_PATH || authPath === JOURNAL_ADOPT_PATH) &&
+          method === 'POST'
+        ) {
           try {
             journalBody = await readJsonBody(request);
           } catch {

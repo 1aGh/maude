@@ -16,6 +16,7 @@
 
 import { createHash, randomUUID } from 'node:crypto';
 
+import { textSlotsCollide } from '../../../studio/annotations/text-steps.ts';
 import { canvasSlugFromRel } from '../../../studio/canvas-slug.ts';
 import { validateCanvasPath } from '../../../studio/sync/canvas-path.ts';
 import { checkLane, LANE_NAMES, laneHash, mergeLane } from './lanes.mjs';
@@ -872,13 +873,15 @@ export function createKernel({
       const chain = await ownHistory.withoutRoundTrips(later.filter((x) => !own.has(x.actionId)));
       let x = before;
       for (const step of chain) {
-        const m = mergeLane(
-          first.lane,
-          await work.content(step.beforeHash),
-          x,
-          await work.content(step.afterHash)
-        );
-        if (!m.ok) {
+        const stepBefore = await work.content(step.beforeHash);
+        const stepAfter = await work.content(step.afterHash);
+        const m = mergeLane(first.lane, stepBefore, x, stepAfter);
+        // T5.2 (#165) — the annotations merge lets the revert win an overlapping text ("ours"): that
+        // later step's words would be lost. The same check a v2 studio makes before it asks
+        // (sync/hub-text-undo.ts), here for every desktop; it refuses the whole undo (opUndo).
+        const textOverlap =
+          m.ok && first.lane === 'annotations' && textSlotsCollide(stepBefore, x, stepAfter);
+        if (!m.ok || textOverlap) {
           return {
             skipped: {
               doc: st.doc,
@@ -887,6 +890,7 @@ export function createKernel({
               // Multi-target only, so a v1 single undo answers byte for byte as before.
               ...(many ? { conflictWith: step.actionId } : {}),
             },
+            ...(textOverlap ? { textOverlap: true } : {}),
           };
         }
         x = m.content;
@@ -1042,6 +1046,8 @@ export function createKernel({
       reverted.add(k);
       if (e.entry && deletedHere.has(e.entry)) continue;
       const r = await revertLane(work, firstOn.get(k) ?? e, targetIds, many, ownHistory);
+      // T5.2 — reverting over somebody's text is never half done: the whole undo is refused.
+      if (r.textOverlap) throw new Reject('undo-conflict', { skipped: [r.skipped] });
       if (r.skipped) skipped.push(r.skipped);
       else if (r.applied) applied++;
     }

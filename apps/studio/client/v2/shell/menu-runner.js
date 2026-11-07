@@ -56,7 +56,7 @@ import { runTokenAction } from '../ds/token-write.js';
 import { runUndoKey } from '../undo/use-undo-projection.jsx';
 import { runPreviewBack } from '../preview/preview-back.js';
 import { requestShareFocus } from '../share/share-model.js';
-import { nativeDoors } from './native-doors.js';
+import { nativeDoors, projectRel } from './native-doors.js';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
 import { clearFollowedLoop, loopAt } from '../timeline/playhead.js';
@@ -221,6 +221,9 @@ export function createMenuHandlers(d) {
     // path of the open canvas (the tab's path; Rust refuses anything else); a browser tab has no door and says so.
     'canvas.reveal-in-finder': () => runDoor(d, 'canvas.reveal-in-finder'),
     'canvas.open-in-editor': (p) => runDoor(d, 'canvas.open-in-editor', p?.path),
+    // #167 T5.3 — Sync details' held row: the canvas folders are config.json's canvasGroups
+    'sync.open-canvas-folders': () =>
+      runDoor(d, 'canvas.open-in-editor', projectRel(d.designRel ?? '.design', 'config.json')),
     'canvas.copy-file-path': async () => {
       if (!d.activePath) return;
       d.toast(

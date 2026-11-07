@@ -109,6 +109,7 @@ function Frame({ src, title, label, fref, testid }) {
         ref={fref}
         className="cmp-frame"
         src={src}
+        sandbox="allow-scripts allow-same-origin"
         title={title}
         tabIndex={-1}
         data-testid={testid}

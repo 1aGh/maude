@@ -14,7 +14,7 @@ import { DOCUMENT_PATH_PREFIX, DOCUMENTS_PATH } from '../src/documents.mjs';
 import { FILE_DOOR_PREFIX, FILE_LIMITS_PATH } from '../src/file-door.mjs';
 import { FILES_PATH, PROJECT_FILE_PREFIX } from '../src/file-manifest.mjs';
 import { HISTORY_FILE_PATH, HISTORY_PATH } from '../src/history.mjs';
-import { JOURNAL_PATH, JOURNAL_REPORT_PATH } from '../src/journal.mjs';
+import { JOURNAL_ADOPT_PATH, JOURNAL_PATH, JOURNAL_REPORT_PATH } from '../src/journal.mjs';
 import { MATERIALIZE_PATH } from '../src/materializer.mjs';
 import { PROJECT_CONFIG_PATH } from '../src/project-config-door.mjs';
 import { FORMAT_ROUTE } from '../src/project-transactions/hub-integration.mjs';
@@ -39,6 +39,7 @@ const CONSTANTS = {
   HISTORY_PATH,
   JOURNAL_PATH,
   JOURNAL_REPORT_PATH,
+  JOURNAL_ADOPT_PATH,
   MATERIALIZE_PATH,
   PROJECT_CONFIG_PATH,
   FORMAT_ROUTE,

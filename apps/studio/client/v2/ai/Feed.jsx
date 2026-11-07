@@ -504,7 +504,7 @@ export function ContinuationBubble({ parts: rawParts, viewMode }) {
             verbose={forceExpand}
           />
         ) : g.part?.type === 'text' ? (
-          <ChatText key={`t-${i}`} text={g.part.text} />
+          <ChatText key={`t-${i}`} text={stripOffer(g.part.text)} />
         ) : g.part?.type === 'reasoning' ? (
           <ChatReasoning key={`r-${i}`} text={g.part.text} />
         ) : g.part?.type === 'tool-call' ? (

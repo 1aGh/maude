@@ -265,6 +265,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/sync/settings', refused: ['view', 'comment'] },
   // 2.0.7 #7b — the answer to held deletes: an edit (`readOnly: 'refused'`)
   { method: 'POST', route: '/_api/sync/held-deletes', refused: ['view', 'comment'] },
+  // #167 T5.3 — Adopt as code: an edit (`readOnly: 'refused'`); the hub's own gate is owner-only
+  { method: 'POST', route: '/_api/sync/adopt-held', refused: ['view', 'comment'] },
   // S11.17 — `save.retry-held`: Retry writes the canvas files a full disk held (`readOnly: 'refused'`).
   { method: 'POST', route: '/_api/diagnostics/disk-retry', refused: ['view', 'comment'] },
   // p8-a1-save-hold — the closing page lands its held saves (canvas files): an edit

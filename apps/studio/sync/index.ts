@@ -112,6 +112,7 @@ import {
   withFormatParam,
 } from './format-sync.ts';
 import { createFsReader, type FsReader } from './fs-mirror.ts';
+import { type AdoptHeldControl, createAdoptHeld } from './adopt-held.ts';
 import { createHeldDeletes, type HeldDeletesControl, heldDeleteDetail } from './held-deletes.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
@@ -123,6 +124,7 @@ import {
   hasFileClassesV2,
   hasFileDepthV2,
   hasLedger,
+  hasPresenceRoleV1,
   probeFileLane,
 } from './journal-client.ts';
 import type { RestoreOptions } from './local-kernel.ts';
@@ -519,7 +521,12 @@ const AUTH_CLASS_HINT: Record<AuthFailureClass, string> = {
  * module cycle — the real `Registry` satisfies it.
  */
 export interface AwarenessRegistry {
-  attachHubAwareness(slug: string, awareness: Awareness): () => void;
+  /** T5.2 — `rolesVouched`: does the hub stamp presence roles (collab/awareness-bridge.ts). */
+  attachHubAwareness(
+    slug: string,
+    awareness: Awareness,
+    opts?: { rolesVouched?: () => boolean }
+  ): () => void;
   /** Phase 9.1 — relay a hub-pushed comment/annotation snapshot into a live
    *  room (wholesale, in-process) so the peer's canvas reflects it immediately
    *  and the room's own debounced persist can't clobber the synced state back.
@@ -602,6 +609,8 @@ export interface SyncRuntime {
   codeConsent?(): CodeConsentControl | null;
   /** Issue #207 (7b) — the held local deletes and the person's answer (Sync details). */
   heldDeletes?(): HeldDeletesControl | null;
+  /** #167 T5.3 — Adopt as code for one file the hub holds back (Sync details, the owner). */
+  adoptHeld?(): AdoptHeldControl | null;
   /** Number of active per-canvas agents. */
   size(): number;
   /** Test inspection — get the agent for a slug if one was created. */
@@ -654,8 +663,17 @@ export interface SyncRuntime {
     slug: string,
     lane: 'comments' | 'annotations' | 'meta',
     text: string,
-    /** T-S4.5b — `stageable`: a run-tagged annotation batch joins its run's stage (claimed by hash). */
-    opts?: { baseText?: string; writeId?: string; stageable?: boolean }
+    /**
+     * T-S4.5b — `stageable`: a run-tagged annotation batch joins its run's stage (claimed by hash).
+     * `contested` (T5.2): texts a collaborator changed during this stroke — read by the local home
+     * only; a hub-linked runtime judges a ⌘Z from the hub's history instead.
+     */
+    opts?: {
+      baseText?: string;
+      writeId?: string;
+      stageable?: boolean;
+      contested?: readonly string[];
+    }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
   /**
    * S4.7 — several lanes of one synced canvas as ONE proposal (a sticky ↔
@@ -1134,6 +1152,11 @@ export function createSyncRuntime(
     : ctx.cfg.linkedHub;
   if (!linked) return null;
   const linkedHub = linked;
+  /**
+   * T5.2 (#165) — the hub's /health `capabilities` from the file-lane probe (null until it answers).
+   * The awareness bridge keeps a hub-relayed presence role only while it says `presence-role-v1`.
+   */
+  let hubHealthCaps: string[] | null = null;
   /**
    * Issue #207 — folders this project does not sync, read from the project config per pass (a
    * choice made mid-upload applies at the next pass; cleaned, so a committed `..` entry is dropped).
@@ -1976,6 +1999,8 @@ export function createSyncRuntime(
   let heldReporter: ReturnType<typeof createHeldReporter> | null = null;
   /** Issue #207 (7b) — Delete on the hub too / Keep on the hub, for the held local deletes. */
   let heldDeletesControl: HeldDeletesControl | null = null;
+  /** #167 T5.3 — Adopt as code: the owner's answer to a file the hub holds back. */
+  let adoptHeldControl: AdoptHeldControl | null = null;
   /** Cumulative files sent up this boot — the doručenka's push half. */
   let filePushed = 0;
   /** Debounce for a plane pass triggered by a local write. */
@@ -4545,7 +4570,11 @@ export function createSyncRuntime(
         noteDetach(
           awarenessDetaches,
           canvas.slug,
-          opts.registry.attachHubAwareness(canvas.slug, provider.awareness)
+          // T5.2 (#165) — a hub-relayed presence role is kept only from a hub that stamps roles: a
+          // cell pairing dials its own hub (the same image), anything else must say so in /health.
+          opts.registry.attachHubAwareness(canvas.slug, provider.awareness, {
+            rolesVouched: () => cellPairing !== null || hasPresenceRoleV1(hubHealthCaps),
+          })
         );
       }
       // Cold-start reconcile fires once the provider has hub state.
@@ -5973,6 +6002,7 @@ export function createSyncRuntime(
         void probeFileLane({ hubUrl: linkedHub.url, signal: fileEventsProbe.signal })
           .then(({ lane, capabilities: caps, formatVersion: hubFormat }) => {
             if (stopped) return;
+            if (caps) hubHealthCaps = caps;
             if (lane === 'unknown') {
               if (!laneUnansweredSaid) {
                 laneUnansweredSaid = true;
@@ -6097,6 +6127,13 @@ export function createSyncRuntime(
                   runPass: () => schedulePlanePass(),
                 });
               }
+              // #167 T5.3 — Adopt as code: the hub's own owner gate decides; this only carries it.
+              adoptHeldControl = createAdoptHeld({
+                hubUrl: linkedHub.url,
+                token: () => token,
+                fetchImpl: hubFetch,
+                runPass: () => schedulePlanePass(),
+              });
               console.log(
                 '[sync/files] journal file plane active — one lane, both directions, per-file delivery state in the Sync panel.'
               );
@@ -6176,6 +6213,7 @@ export function createSyncRuntime(
     filePlane = null;
     heldReporter = null;
     heldDeletesControl = null;
+    adoptHeldControl = null;
     // The control channel is a doorbell into this runtime; it goes with it.
     // Reported on the way out so the poke-miss question is answerable from a
     // session's log rather than from a hunch (DDR-226 §10).
@@ -6366,6 +6404,7 @@ export function createSyncRuntime(
     pullRemoteNow: () => remotePull?.() ?? Promise.resolve(),
     codeConsent: () => codeConsent,
     heldDeletes: () => heldDeletesControl,
+    adoptHeld: () => adoptHeldControl,
     // Under sharedDoc the per-canvas handler is a projection, not an agent;
     // count both so size() reflects the synced-canvas count in either mode.
     size: () => agents.size + projections.size,
@@ -7073,12 +7112,25 @@ export function filePlaneHeld(
   }
   // p8-held-surface — what the HUB holds back from the code lane (owner reads only). Without
   // this row a held file was not synced, not committed, and nobody was told.
-  if (result.codeHeld && result.codeHeld.count > 0) {
+  // #167 T5.3 — an overflowed hold list is a row even when it names nothing: files are held unlisted.
+  if (result.codeHeld && (result.codeHeld.count > 0 || result.codeHeld.overflow === true)) {
+    const overflow = result.codeHeld.overflow === true;
     held.push({
       kind: 'code-held',
       count: result.codeHeld.count,
       paths: result.codeHeld.paths.map((h) => h.path),
-      detail: codeHeldDetail(result.codeHeld.count),
+      ...(overflow ? { overflow: true as const } : {}),
+      detail: codeHeldDetail(result.codeHeld.count, { overflow }),
+    });
+  }
+  // #167 T5.3 item 6 — this Mac's canvases outside its canvas folders, held while none are declared.
+  const outside = result.canvasOutsideFolders ?? [];
+  if (outside.length > 0) {
+    held.push({
+      kind: 'canvas-outside-folders',
+      count: outside.length,
+      paths: outside,
+      detail: canvasOutsideFoldersDetail(outside.length),
     });
   }
   // Issue #175 — files the project's server will not take. Counted already under
@@ -7145,11 +7197,29 @@ export function hubRefusedDetail(reasons: readonly string[]): string {
 }
 
 /**
+ * #167 T5.3 item 6 — the Sync details sentence for canvases outside the canvas folders, held on this
+ * Mac while the project declares none (CONTRACT §4: what happened · what is safe · one verb).
+ */
+export function canvasOutsideFoldersDetail(count: number): string {
+  return count === 1
+    ? '1 file is a canvas outside your canvas folders, so it doesn’t sync. Nothing was removed. Open canvas folders and add its folder to sync it as a canvas.'
+    : `${count} files are canvases outside your canvas folders, so they don’t sync. Nothing was removed. Open canvas folders and add their folders to sync them as canvases.`;
+}
+
+/**
  * p8-held-surface — the Sync details sentence for files the hub holds back from the code lane
  * (CONTRACT §4: what happened · what is safe · one verb). Only the owner reads it, and only the
  * owner sets the canvas folders, so the verb is theirs to take.
  */
-export function codeHeldDetail(count: number): string {
+export function codeHeldDetail(count: number, { overflow = false } = {}): string {
+  // #167 T5.3 — the hub's hold list overflowed (its cap or a cut walk): files it could not name are
+  // held back from the code lane too, so the row says so — even when it lists none.
+  if (overflow && count === 0) {
+    return 'Files made as canvases before the canvas folders were set may be held back: the project’s server couldn’t keep track of every one, so those outside the canvas folders don’t sync. Nothing was removed. Add their folders to the canvas folders to keep them as canvases.';
+  }
+  if (overflow) {
+    return `${codeHeldDetail(count)} The project’s server couldn’t keep track of every one, so more may be held than are listed.`;
+  }
   return count === 1
     ? '1 file was made or changed as a canvas before the canvas folders were set, and is outside them now, so it doesn’t sync. Nothing was removed. Add its folder to the canvas folders to keep it as a canvas.'
     : `${count} files were made or changed as canvases before the canvas folders were set, and are outside them now, so they don’t sync. Nothing was removed. Add their folders to the canvas folders to keep them as canvases.`;

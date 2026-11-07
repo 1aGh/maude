@@ -64,6 +64,8 @@ import {
 import { open as openAsync } from 'node:fs/promises';
 import path from 'node:path';
 
+import { isCanvasSource } from '../skip-dirs.ts';
+import { declaredCanvasGroups } from './canvas-path.ts';
 import { conflictCopyName, decideFile, type FileState } from './decide-file.ts';
 import type { DeliveryState, FileLedger, LedgerRow } from './file-ledger.ts';
 import {
@@ -488,7 +490,7 @@ export interface FilePlaneResult {
    * canvases before the owner set the canvas folders). Only an owner's journal
    * read carries it; absent otherwise. A count of 0 means nothing is held.
    */
-  codeHeld?: { count: number; paths: { path: string; reason: HeldReason }[] };
+  codeHeld?: { count: number; paths: { path: string; reason: HeldReason }[]; overflow?: true };
   /**
    * Issue #175 — files the hub's door will not take, from the LEDGER (so a pass
    * that skipped them still reports them). `older` = held before asking, because
@@ -496,10 +498,36 @@ export interface FilePlaneResult {
    * and `reason` carries its words. Bounded; absent when there are none.
    */
   hubRefused?: { rel: string; reason: string; older?: true }[];
+  /**
+   * #167 T5.3 item 6 — `.tsx` canvases (they render `DesignCanvas`) outside this Mac's canvas
+   * folders, NOT offered to the hub while the project declares no canvas folders: the hub is the
+   * folder boundary then, takes them as canvases and refuses them as code. Held here. Bounded.
+   */
+  canvasOutsideFolders?: string[];
 }
 
 /** Statuses that are a door's FINAL word on a file push (issue #175). 408/429 are not: they retry. */
 const PERMANENT_PUSH_REFUSALS = new Set([400, 404, 413, 422]);
+
+/** #167 T5.3 — whether `<designRoot>/config.json` names canvas folders (the hub's own predicate). */
+function projectDeclaresCanvasFolders(designRoot: string): boolean {
+  try {
+    const parsed = JSON.parse(readFileSync(path.join(designRoot, 'config.json'), 'utf8'));
+    return declaredCanvasGroups(parsed?.canvasGroups) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/** A small text file's contents, or null (missing, unreadable, or past 2 MB). */
+function readTextOrNull(abs: string): string | null {
+  try {
+    if (statSync(abs).size > 2 * 1024 * 1024) return null;
+    return readFileSync(abs, 'utf8');
+  } catch {
+    return null;
+  }
+}
 
 /** How many `hubRefused` rows one result carries. */
 export const MAX_HUB_REFUSED_ROWS = 200;
@@ -2193,6 +2221,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       synced: 0,
       reanchored: false,
     };
+    // #167 T5.3 item 6 — read once per pass: does the project declare its canvas folders?
+    const foldersDeclared = projectDeclaresCanvasFolders(designRoot);
 
     // ── 0. Is the door shut? ─────────────────────────────────────────────
     //
@@ -2564,6 +2594,28 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           });
           continue;
         }
+      }
+
+      // A CANVAS OUTSIDE YOUR CANVAS FOLDERS IS NOT OFFERED AS CODE (#167 T5.3 item 6, lead option A).
+      // While the project declares no canvas folders the hub is the folder boundary: a `.tsx` that
+      // renders DesignCanvas is a canvas there wherever it sits, and its file door refuses it as code.
+      // This Mac's default folders make it code here, so it was offered and refused. Held instead,
+      // with the way out (Open canvas folders); the file stays as it is.
+      if (
+        here &&
+        remoteHash === null &&
+        !foldersDeclared &&
+        rel.endsWith('.tsx') &&
+        classifyProjectFile(rel, {
+          canvasGroups: opts.canvasGroups,
+          hasFile: (r) => local.has(r) || existsSync(path.join(designRoot, r)),
+        }) === 'code-module' &&
+        isCanvasSource(readTextOrNull(path.join(designRoot, rel)))
+      ) {
+        const list = out.canvasOutsideFolders ?? [];
+        if (list.length < MAX_HUB_REFUSED_ROWS) list.push(rel);
+        out.canvasOutsideFolders = list;
+        continue;
       }
 
       // A HUB THAT CANNOT TAKE IT IS NOT OFFERED IT (issue #175). A 1.x door

@@ -169,11 +169,15 @@ export interface FilePlaneStatus {
       /** 2.0.5: files the legacy (v1) pull could not save here; retried later, less often. */
       | 'pull-failed'
       /** fix/207: shared code this Mac holds until the person allows it (Allow shared code…). */
-      | 'code-consent';
+      | 'code-consent'
+      /** #167 T5.3: canvases outside the canvas folders, not offered while none are declared. */
+      | 'canvas-outside-folders';
     count: number;
     paths: string[];
     /** Issue #207 (7b) — `delete-out`: the folders the held deletes sit in, largest first. */
     folders?: { folder: string; count: number }[];
+    /** #167 T5.3 — `code-held`: the hub could not name every held file (more are held than listed). */
+    overflow?: true;
     /** One sentence, in the user's terms, about what is waiting and why. */
     detail: string;
   }[];
