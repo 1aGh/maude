@@ -131,7 +131,7 @@ W5 and W6 use Opus.
   - a real nth-child selector, or a consistent tag, when there is no `data-cd-id` (`dom-selection.ts:566-579`);
   - `dom_path` searches every element in the artboard.
   - E2E: comment on an un-instrumented element, pan and zoom, the pin follows.
-- [ ] T1.7 **#171 small items:**
+- [x] T1.7 **#171 small items:**
   - `draw-proof-harness` gets a `killSignal` and piped stdio;
   - move the 6–7 hub tests onto the run-time `until()`;
   - `offline-conflict` goes through `hubProcess()`;
@@ -206,7 +206,7 @@ W5 and W6 use Opus.
   - multi-page frames and boards laid out side by side;
   - one browser for all SVG asset promotions;
   - an option for one canvas per file with one artboard per frame, plus a target folder.
-- [ ] T4.2 **#156 §2, §3:**
+- [x] T4.2 **#156 §2, §3:**
   - cap agent descriptions at about 200 characters, with a test that enforces it;
   - one-line descriptions for the internal agents;
   - regenerate the plugin surfaces.
@@ -340,3 +340,4 @@ W5 and W6 use Opus.
 - 2026-11-07 W1 merged on local main (not pushed): T1.1 015225fe7, T1.2 388997a2a, T1.3 f8fd71b5f, T1.4 dde3e8c72, T1.5 1dd236fcb+affde426b, T1.6 223d1d9ef; tsc fix bfb31bb13; client rebuild 2e7ee8bf9. Merged tip: tsc 0, source boot check OK, 205+10+9 affected tests green. Decisions in kg (plan:maude/issues-burndown-2026-11).
   - T1.5 open: `.deck` slide nodes (SLIDE/SLIDE_ROW type names) need a real Slides sample → folded into T4.1.
   - T1.6 open: scripted browser proof (pan/zoom/reload, pin stays) → verifier after W1.
+- 2026-11-07 merged T4.2 1a60c11fe (agent descriptions ≤200 chars: flow 4279→2168, design 11497→3611) and T1.7 (5b3fe9320 54503ef4b 9c9be068d 370d61ee0 d6e022d9d). T1.7 put `check-v2-nothing-deleted.mjs` in `qualityChain`; it was already red (17 of 1587 v1 entry points unmapped) → mapping task running.
