@@ -72,7 +72,7 @@ bytes, stores them, and answers with that canvas's stills only.
 
 | message | dir | payload | caps |
 | --- | --- | --- | --- |
-| `stills-want` | c→s | `{ file }` | once per canvas document |
+| `stills-want` | c→s | `{ file }` | sent once per canvas document; the shell answers once per frame window |
 | `still-put` | c→s | `{ file, artboard, sig, bytes: ArrayBuffer }` | `bytes` a still WebP (below); `sig`, `artboard` ≤ 200 |
 | `stills` | s→c | `{ file, items: [{ artboard, sig, bytes }] }` | ≤ 2000 items, each checked again by the canvas |
 
@@ -85,14 +85,24 @@ bytes, stores them, and answers with that canvas's stills only.
 3. the shell's own iframe `src` is a plain open: no `sha` (a version), `embed`, `follow`, `hide-chrome` or
    `thumbnail` — a still of another version never stands for today's;
 4. the project index has a row for that canvas (`GET /_api/index`, the snapshot the Canvases panel already reads).
-   No index (a cell, an older server) = no persistence; nothing is stored blind.
+   No index (a cell, an older server) = no persistence; nothing is stored blind;
+5. for a WRITE (`still-put`) only: the frame is the only frame of the canvas origin mounted in the shell, and no two
+   were mounted at once at any point of this session (`createSiblingGuard`, below: Named gap). Reads are not held to
+   this — a sibling could read the active frame's DOM anyway.
+
+**Answers.** One `stills` answer per frame window (`contentWindow`): a second `stills-want` from it gets nothing —
+also after the frame reloads in place, which then draws its stills as before. The answer's buffers go in the
+transfer list (no copy). A read refreshes a record's place in the eviction order only when its last refresh is
+older than 10 minutes, all of an answer's refreshes in one write.
 
 **Key — chosen by the shell, never by the frame.** One record per (project, canvas scope, artboard):
 
 - project = the index `pid`;
-- canvas scope = the frame's per-frame capability `frameCapFor(cfg.frameKey, rel)` (C4: a MAC over the canvas path
-  under the opener's per-subject key), so another person on the same browser profile, or a session with other access,
-  never reads these stills; without a key (the origin split off) the plain `rel`;
+- canvas scope = a SHA-256 of the frame's per-frame capability `frameCapFor(cfg.frameKey, rel)` (C4: a MAC over the
+  canvas path under the opener's per-subject key; `stillScopeOf`), so another person on the same browser profile, or a
+  session with other access, never reads these stills, and the store holds neither the capability nor the path;
+  without a key (the origin split off) a SHA-256 of the plain `rel`. Records of the first shape (keyed on the plain
+  capability) are deleted when the store opens (`STILL_RECORD_V`);
 - source = the index row's `srcHash`, `metaHash` and `depsHash` (computed by the server; the canvas cannot name them).
   A record whose source differs from the row's is never returned, and is deleted when its canvas asks;
 - `artboard` is the one part the frame names, and only inside the scope above.
@@ -102,9 +112,11 @@ size equal to the buffer's, a first chunk `VP8 ` (key frame, start code `9d 01 2
 (no animation flag), width ≤ 401 and height ≤ 1601 read from the bitstream header. ≤ 256 kB per still (measured:
 ~18 kB). The shell never decodes it; the canvas does, in its own origin.
 
-**Caps and eviction** (`client/v2/shell/still-store.js`): 256 kB per still; 32 MB per project; 96 MB per store; 2000
-stills per canvas; 300 writes a minute per canvas (a planted canvas cannot churn the disk). Over a cap, the record
-used longest ago goes first (a read refreshes it).
+**Caps and eviction** (`client/v2/shell/still-store.js`): 256 kB per still; per canvas 2000 stills and 8 MB (its
+share of the project); 32 MB per project; 96 MB per store; per canvas 300 writes and 2 MB a minute (a planted canvas
+cannot churn the disk). Over a cap a canvas pays for its own write first: its own records go, used longest ago
+first. Another canvas's records go only when the project (or store) cap still holds after that, oldest first — so
+one canvas's burst never flushes another canvas, and what it loses tells it nothing about another canvas's use.
 
 **Where it lives.** The shell's own IndexedDB (`maude-stills`) on the main origin — in the desktop app the project
 webview's app-owned data store, in a browser the profile's. Never inside the design root: not synced, not committed,
@@ -124,10 +136,27 @@ no DDR-115 list entry. No storage (a private window, a blocked store) = no persi
 (waiting ≤ 4 s for the index). Artboards that mount under the cut adopt their seed and are restored from it —
 decoded, not drawn (`takes` unchanged). The canvas writes back only stills it drew itself (`onEncoded`), never a seed.
 
-**Named gap.** Every canvas frame mounted at once shares the one canvas origin (CLAUDE.md, C4 named gap): a sibling
-frame can run code in the active frame's realm and post `still-put` as it. It can then change only the stills of the
-canvas on screen, to pictures it could already draw into that canvas's DOM. `framesIsolated` (canvas-only sessions)
-mounts only the active frame.
+**Named gap — and the rule that keeps it out of the store.** Every canvas frame mounted at once shares the one canvas
+origin (CLAUDE.md, C4 named gap): a sibling frame can run code in the active frame's realm and post `still-put` as it.
+In memory that changes only the stills of the canvas on screen, to pictures it could already draw into that canvas's
+DOM, and ends with the frame. Persisted, it would outlive the sibling: a forged still shown for the other canvas in
+later sessions, seen by no headless check. So the shell stores a still only while its frame is the one frame of the
+canvas origin mounted, and nothing for the rest of the session once two were mounted at once — kept-alive tabs, the
+System gallery, a version view or a compare pane all count (`createSiblingGuard`, a `MutationObserver` over the
+shell's own iframes, started when the shell loads, latched per origin). A sibling that left may have changed the
+active frame's realm or its origin's own state before it went, so a frame mounted alone afterwards is not trusted
+either. A release build also keeps the still runtime's `__maudeStill*` globals off the window (`stillDiagnosticsOn`;
+the canvas build gets the server's `__MAUDE_RELEASE_BUILD__` through `canvasDefines`) — hygiene, not the fix: a
+same-origin sibling reaches every object in the realm anyway.
+
+**Cost and residual risk.** With two or more canvas frames ever mounted in a session (the common case: kept-alive
+tabs), that session writes no stills; it still reads and shows the ones written in single-frame sessions. Not
+covered: a sibling that plants something in the canvas origin's own storage while it is the only frame — that
+storage lasts one server run (the canvas origin listens on a new port each run), and nothing on the still path reads
+it; and a frame the shell does not mount (a popup a canvas opens) is outside the count. Records are not flagged after
+the fact: what a single-frame session stored stays; the shell cannot tell a forged still from a real one, so the rule
+is about when to store, not what. Closing the gap for good needs a distinct origin per canvas.
+`framesIsolated` (canvas-only sessions) mounts only the active frame.
 
 **Why not on disk next to the thumbnails** (`~/.maude/index/v1/projects/<pid>/`): the same scope and checks would need a
 new main-origin route (the route table, the writer registry, the hub manifest — all lead-owned) for no gain in trust:
@@ -137,4 +166,7 @@ port changes starts with an empty store (the old one stays capped at 32 MB).
 **Tests** — `test/v2-212-still-persist.test.ts`: a frame cannot read or write another canvas's stills; an oversized,
 non-WebP, animated or too-large-in-pixels payload is refused (bridge and store); a record of another source is not
 returned and is deleted; a reload shows the persisted still before any drawing (restored from the seed, no take), and
-a seed whose signature differs is not shown.
+a seed whose signature differs is not shown. `test/v2-212-still-persist-guard.test.ts`: no still is stored beside a
+sibling canvas frame or after one came and went; release builds expose no still globals; one answer per frame window,
+buffers transferred, refreshes batched; 2 MB a minute and 8 MB per canvas; a canvas's writes evict its own records
+first; the key is a SHA-256 of the capability and records of the first shape are deleted.

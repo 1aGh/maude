@@ -40,3 +40,12 @@ export function releaseDefines(opts: {
   const shipped = opts.cloud || (opts.release && !opts.e2e);
   return shipped ? { __MAUDE_RELEASE_BUILD__: 'true' } : {};
 }
+
+/**
+ * The defines a CANVAS build (canvas-build.ts, run by this server) carries: a release server tells the canvas it is a
+ * shipped build, so canvas-lib code that reads `IS_RELEASE_BUILD` gets the server's answer (#212 §5: no still
+ * globals on a shipped canvas). `{}` from source and in the e2e sidecar.
+ */
+export function canvasDefines(release: boolean = IS_RELEASE_BUILD): Record<string, string> {
+  return release ? { __MAUDE_RELEASE_BUILD__: 'true' } : {};
+}

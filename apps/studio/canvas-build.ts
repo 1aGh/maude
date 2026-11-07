@@ -37,6 +37,7 @@ import type { LocatorMap } from './locator.ts';
 import { hasMacroImport, macroImportRefusal } from './macro-guard.ts';
 import { isUnderOrEqual } from './path-containment.ts';
 import { DEV_SERVER_ROOT } from './paths.ts';
+import { canvasDefines } from './release-build.ts';
 import { RUNTIME_PACKAGES } from './runtime-bundle.ts';
 import { injectCompMedia } from './video/inject.ts';
 import { mapVideoObjectFit } from './video/object-fit.ts';
@@ -416,6 +417,8 @@ export async function buildCanvasModule(
       // dev variant. Both halves of the system MUST agree on the JSX runtime
       // flavour.
       'process.env.NODE_ENV': '"production"',
+      // #212 §5 — a release server builds release canvases (no still globals on the window)
+      ...canvasDefines(),
     },
     plugins: [
       // gate-b-c4n — FIRST, so it reads every file the bundle loads before any other loader

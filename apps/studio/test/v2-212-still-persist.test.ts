@@ -11,7 +11,7 @@ import { StillCache, StillController } from '../artboard-still.ts';
 import { DGN_TABLE } from '../bridge/dgn-protocol.ts';
 import { checkStillWebp, STILL_PERSIST_MAX_BYTES } from '../bridge/still-webp.ts';
 import { frameCapFor } from '../client/frame-cap.js';
-import { handleStillBridge, stillKeyFor } from '../client/v2/shell/still-bridge.js';
+import { handleStillBridge, stillKeyFor, stillScopeOf } from '../client/v2/shell/still-bridge.js';
 import {
   createStillStore,
   memoryStillBackend,
@@ -133,9 +133,10 @@ describe('store: caps, staleness, eviction', () => {
     expect(await store.list({ ...key, src: 'h2:-:d1' })).toEqual([]);
     expect(backend._keys()).toEqual([]);
   });
-  test('over the project cap the record used longest ago goes first', async () => {
+  test("over a cap the canvas's own record used longest ago goes first", async () => {
     let t = 0;
-    const store = createStillStore({ backend: memoryStillBackend(), now: () => (t += 1) });
+    // a minute between writes: the per-canvas write rate is pinned in v2-212-still-persist-guard.test.ts
+    const store = createStillStore({ backend: memoryStillBackend(), now: () => (t += 61_000) });
     const big = STILL_PERSIST_MAX_BYTES - 64;
     const n = Math.ceil(STILL_PROJECT_MAX_BYTES / big) + 1;
     for (let i = 0; i < n; i++)
@@ -195,6 +196,8 @@ describe('shell bridge: a frame reaches only the stills of the canvas it shows',
     store,
     index: indexOf(rows),
     waitMs: 0,
+    // no sibling frame here; the sibling guard is pinned in v2-212-still-persist-guard.test.ts
+    guard: { mayWrite: () => true },
   });
   const put = (file: string) => ({
     dgn: 'still-put',
@@ -267,7 +270,7 @@ describe('shell bridge: a frame reaches only the stills of the canvas it shows',
     const k = stillKeyFor(rows, { activePath: A, designRel: '.design', frameKey: FRAME_KEY });
     expect(k).toEqual({
       pid: 'pid-1',
-      scope: frameCapFor(FRAME_KEY, 'ui/a.tsx') as string,
+      scope: stillScopeOf(frameCapFor(FRAME_KEY, 'ui/a.tsx') as string),
       src: 'ha:-:d',
     });
     // another person's key → another scope

@@ -58,6 +58,21 @@ import { rasterTimings, startStill } from './artboard-still-raster.ts';
 import { StillWarmup, WARM_ENABLED } from './artboard-still-warmup.ts';
 import { WebglBudget } from './artboard-webgl.ts';
 import { frameFreezeApi, frameFrozen, frameRaf, onFrameFreeze } from './frame-clock.ts';
+import { IS_RELEASE_BUILD } from './release-build.ts';
+
+/** The still runtime's window globals (tests and measurements read them). */
+export const STILL_DIAGNOSTICS = Object.freeze([
+  '__maudeStillStats',
+  '__maudeStillCache',
+  '__maudeStillHistory',
+  '__maudeStillJobs',
+  '__maudeStillWarm',
+]);
+/**
+ * #212 §5 — a release build puts none of them on the window: they hand the still cache to any code on the canvas
+ * origin, a sibling frame included. The canvas build learns it is a release one from `canvasDefines` (release-build.ts).
+ */
+export const stillDiagnosticsOn = (release: boolean = IS_RELEASE_BUILD): boolean => !release;
 
 const ALL_LIVE: ArtboardLiveState = { live: true, seen: true, media: true };
 const LiveContext = createContext<ArtboardLiveState>(ALL_LIVE);
@@ -260,7 +275,8 @@ function getRuntime(): Runtime | null {
     stills = st;
     // #212 §5 — the stills persist across sessions, through the shell (it picks the key; the frame only offers)
     startStillPersist(st);
-    const w = window as unknown as Record<string, unknown>;
+    // a release build keeps them off the window (stillDiagnosticsOn); tests and measurements run from source
+    const w = (stillDiagnosticsOn() ? window : {}) as unknown as Record<string, unknown>;
     w.__maudeStillStats = () => ({ ...st.stats(), raster: { ...rasterTimings } });
     // the two-tier cache (#212): tests and measurements read its tiers
     w.__maudeStillCache = () => st.cache;
