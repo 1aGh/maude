@@ -49,7 +49,7 @@ function fixture() {
   scratch.push(root);
   for (const plugin of ['design', 'flow']) {
     mkdirSync(join(root, 'plugins', plugin, 'commands'), { recursive: true });
-    mkdirSync(join(root, 'plugins', plugin, 'skills'), { recursive: true });
+    mkdirSync(join(root, 'plugins', plugin, 'codex-skills'), { recursive: true });
     writeFileSync(
       join(root, 'plugins', plugin, 'commands', 'go.md'),
       '---\nname: go\ndescription: "Go somewhere."\nargument-hint: "[--fast]"\n---\n\nBody.\n'
@@ -70,11 +70,11 @@ test('--check is green on the committed tree', () => {
 
 test('--check goes red on a stale mirror', () => {
   const root = fixture();
-  const skill = join(root, 'plugins/design/skills/source-command-go/SKILL.md');
+  const skill = join(root, 'plugins/design/codex-skills/source-command-go/SKILL.md');
   writeFileSync(skill, readFileSync(skill, 'utf8').replace('Go somewhere.', 'Go elsewhere.'));
   const r = run(root, '--check');
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /stale: plugins\/design\/skills\/source-command-go\/SKILL\.md/);
+  assert.match(r.stderr, /stale: plugins\/design\/codex-skills\/source-command-go\/SKILL\.md/);
 });
 
 test('--check goes red on a stale slash list', () => {
@@ -103,7 +103,7 @@ test('--check goes red on an orphan mirror whose command is gone, and a plain ru
   rmSync(join(root, 'plugins/flow/commands/go.md'));
   const r = run(root, '--check');
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /orphan .*plugins\/flow\/skills\/source-command-go/);
+  assert.match(r.stderr, /orphan .*plugins\/flow\/codex-skills\/source-command-go/);
   assert.equal(run(root).status, 0);
   assert.equal(run(root, '--check').status, 0);
 });
@@ -131,7 +131,7 @@ test('the slash list holds every design command, and nothing else', () => {
 
 test('every command has a mirror and every mirror has a command (design and flow)', () => {
   for (const plugin of ['design', 'flow']) {
-    const mirrors = readdirSync(join(REPO, 'plugins', plugin, 'skills'))
+    const mirrors = readdirSync(join(REPO, 'plugins', plugin, 'codex-skills'))
       .filter((d) => d.startsWith('source-command-'))
       .map((d) => d.slice('source-command-'.length))
       .sort();
@@ -152,4 +152,23 @@ test('the contract-voice body is CONTRACT §3–§4, verbatim', () => {
   assert.ok(body, 'the skill carries the begin/end markers');
   assert.equal(body[1], want);
   assert.match(skill, /^name: contract-voice$/m);
+});
+
+// #156 §1: Claude Code scans plugins/<p>/skills/ unconditionally (a manifest `skills` key only adds
+// to it), so a Codex-only mirror there is loaded, and paid for, in every Claude session. The
+// mirrors live in codex-skills/ and only the Codex manifest lists that folder.
+test('no Codex mirror sits under skills/ (Claude Code would load it)', () => {
+  for (const plugin of ['design', 'flow']) {
+    const leaked = readdirSync(join(REPO, 'plugins', plugin, 'skills')).filter((d) =>
+      d.startsWith('source-command-')
+    );
+    assert.deepEqual(leaked, [], `${plugin}: mirrors under skills/`);
+  }
+});
+
+test('each Codex manifest lists skills/ and codex-skills/ (Codex replaces its default when skills is set)', () => {
+  for (const plugin of ['design', 'flow']) {
+    const manifest = JSON.parse(read(`plugins/${plugin}/.codex-plugin/plugin.json`));
+    assert.deepEqual(manifest.skills, ['./skills/', './codex-skills/'], `${plugin} manifest`);
+  }
 });
