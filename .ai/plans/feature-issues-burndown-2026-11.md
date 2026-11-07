@@ -342,3 +342,4 @@ W5 and W6 use Opus.
   - T1.6 open: scripted browser proof (pan/zoom/reload, pin stays) → verifier after W1.
 - 2026-11-07 merged T4.2 1a60c11fe (agent descriptions ≤200 chars: flow 4279→2168, design 11497→3611) and T1.7 (5b3fe9320 54503ef4b 9c9be068d 370d61ee0 d6e022d9d). T1.7 put `check-v2-nothing-deleted.mjs` in `qualityChain`; it was already red (17 of 1587 v1 entry points unmapped) → mapping task running.
 - 2026-11-07 merged T1.9 7ce10935f + T1.10 f663d5844 (packaged CLI spawns the adjacent maude-server; --smoke server-up step — run once on the next real desktop build). Bug 1 (ds-upgrade --prove) already fixed in 2.0.5 7369d3a0b.
+- 2026-11-07 merged adfaf86d9: nothing-deleted back to 100 % (17 post-freeze hooks: 7 mapped to existing rows, 10 excluded as v2 code; none deleted).
