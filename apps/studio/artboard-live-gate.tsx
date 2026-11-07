@@ -251,12 +251,9 @@ function getRuntime(): Runtime | null {
   ) {
     const st = new StillController({ job: startStill, info: (id) => registry.slotInfo(id) });
     registry.onSettle(() => st.settle());
-    // 2.0.7 — mid-gesture an artboard under the cut waits for the settle to mount: its placeholder shows its colour
-    // or its kept still, and a mount would show no more than that until it is drawn
-    registry.setMayWait((id) => {
-      const a = articles.get(id);
-      return !!a && inOverviewCut(a.offsetWidth, st.zoomNow());
-    });
+    // 2.0.7 — no mid-gesture wait for artboards under the cut (decision v2-207-drop-undercut-midgesture-wait): in Safari
+    // the wait alone put the 10 % sweep's tail over base (p99 ~80 -> ~120 ms, worst second 52 -> 31 frames), since the
+    // waiting artboards stayed on screen as placeholders through the pan; the ring's mid-gesture hold stays
     stills = st;
     const w = window as unknown as Record<string, unknown>;
     w.__maudeStillStats = () => ({ ...st.stats(), raster: { ...rasterTimings } });

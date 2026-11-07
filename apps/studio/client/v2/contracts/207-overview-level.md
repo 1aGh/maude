@@ -222,9 +222,10 @@ active artboard) an awake artboard kept running its own rAF loops, motion, Remot
    paused and connected. Remotion's Player is frozen through its rAF loop (its audio plays on).
 5. **The ring changes nothing mid-gesture** (`artboard-live.ts`): no sleep, no media release, no unmount, no
    eviction (a mid-gesture on-screen mount goes past the budget up to the ceiling; the settle frees the excess from
-   the off-screen ones, farthest first). On screen, only what would otherwise show a block mounts: an artboard
-   under the cut waits (`setMayWait`, the gate's `inOverviewCut` at the live zoom); the active and video ones
-   never wait. `churnStats()` (in `__maudeWebglStats().churn`) counts mounts, releases and mid-gesture changes.
+   the off-screen ones, farthest first). On-screen artboards mount mid-gesture as before: the gate no longer makes an
+   artboard under the cut wait for the settle (`setMayWait` stays in the registry, unused by the gate) — measured in
+   Safari, that wait alone caused the 10 % sweep's tail regression (decision `v2-207-drop-undercut-midgesture-wait`).
+   `churnStats()` (in `__maudeWebglStats().churn`) counts mounts, releases and mid-gesture changes.
 6. **Timers are not held** (documented): canvas-lib's own gesture end, settle and publish run on `setTimeout`,
    React's scheduler and every library share them; deferring them would delay the gesture's end and Maude's own
    React work. A canvas opts in with `useArtboardGesture()` (re-renders only its caller) to skip a tick.
