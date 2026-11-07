@@ -18,7 +18,7 @@ import {
   OBSERVED_CONTAINER_VERSIONS,
   readFigContainer,
 } from './fig-decode.ts';
-import { findRootDefinition, parseKiwiSchema } from './fig-kiwi.ts';
+import { decodeKiwi, findRootDefinition, parseKiwiSchema } from './fig-kiwi.ts';
 import { readFigZip } from './fig-zip.ts';
 import { walkNodes } from './types.ts';
 
@@ -579,7 +579,7 @@ describe('A8/F5 — the schema cannot choose which REST field a value lands in',
 });
 
 describe('silent-wrongness sweep — a hostile file must not produce a plausible tree', () => {
-  test('a non-finite transform component REFUSES instead of defaulting to the identity', () => {
+  test('a non-finite transform component is REPORTED, never silently defaulted (#155 §5)', () => {
     const defs = baseDefs();
     defs.push({
       name: 'Matrix',
@@ -615,10 +615,12 @@ describe('silent-wrongness sweep — a hostile file must not produce a plausible
     for (const v of [Number.NaN, 0, 0, 0, 1, 0]) for (const b of enc(v)) w.byte(b);
     w.varuint(0).varuint(0);
 
-    // Defaulting NaN to 1 would place the node plausibly and silently.
-    expect(() => decodeFigArchive(hostileArchive(defs, w.out), { fileKey: KEY })).toThrow(
-      /not a finite number/
-    );
+    // Defaulting NaN to 1 would place the node plausibly and silently — so the
+    // node is placed at the identity AND named in `report.nodeErrors`, and the
+    // file no longer fails whole for one bad node.
+    const { report } = decodeFigArchive(hostileArchive(defs, w.out), { fileKey: KEY });
+    expect(report.nodeErrors).toHaveLength(1);
+    expect(report.nodeErrors[0].message).toMatch(/not a finite number/);
   });
 
   test('an internal-only node with children prunes the subtree, it does not orphan them', () => {
@@ -784,5 +786,180 @@ describe('tier 2 — the normalized tree is stable enough to diff against REST',
   test('node ids are REST-shaped, which is what makes a differential possible', async () => {
     const { document } = decodeFigArchive(await fixture('design.fig'), { fileKey: KEY });
     walkNodes(document.root, (n) => expect(n.id).toMatch(/^[0-9]+:[0-9]+$/));
+  });
+});
+
+// ── #155 §10 / §9 / §5 — the offline door's robustness fixes ────────────────
+
+/** Kiwi's own writeVarUint64: 7 bits x 8 bytes with a continuation bit, then ONE full 8-bit byte. */
+function kiwiVarUint64(value: bigint): number[] {
+  const out: number[] = [];
+  let v = value;
+  for (let i = 0; i < 8 && v > 127n; i++) {
+    out.push(Number(v & 127n) | 128);
+    v >>= 7n;
+  }
+  out.push(Number(v));
+  return out;
+}
+
+function kiwiVarInt64(value: bigint): number[] {
+  return kiwiVarUint64(value < 0n ? (~value << 1n) | 1n : value << 1n);
+}
+
+describe('#155 §10 — 64-bit values (the "malformed varuint64" import failure)', () => {
+  const schema = () =>
+    parseKiwiSchema(
+      schemaBytes([
+        {
+          name: 'M',
+          kind: 2,
+          fields: [
+            ['u', -8, false, 1],
+            ['i', -7, false, 2],
+          ],
+        },
+      ])
+    );
+  const decodeU = (value: bigint) => {
+    const w = new W().varuint(1);
+    for (const b of kiwiVarUint64(value)) w.byte(b);
+    w.varuint(0);
+    return (decodeKiwi(w.out, schema(), 0) as { u: bigint }).u;
+  };
+  const decodeI = (value: bigint) => {
+    const w = new W().varuint(2);
+    for (const b of kiwiVarInt64(value)) w.byte(b);
+    w.varuint(0);
+    return (decodeKiwi(w.out, schema(), 0) as { i: bigint }).i;
+  };
+
+  test('unsigned values across the 2^32, 2^53, 2^56 and 2^63 edges round-trip', () => {
+    for (const v of [
+      0n,
+      127n,
+      128n,
+      2n ** 32n + 1n,
+      2n ** 53n + 1n,
+      2n ** 56n - 1n,
+      2n ** 56n,
+      2n ** 63n + 5n,
+      2n ** 64n - 1n,
+    ]) {
+      expect(decodeU(v)).toBe(v);
+    }
+  });
+
+  test('a signed 64-bit value is zig-zag decoded, not read as unsigned', () => {
+    for (const v of [0n, 1n, -1n, 2n ** 40n, -(2n ** 40n), 2n ** 62n, -(2n ** 62n)]) {
+      expect(decodeI(v)).toBe(v);
+    }
+  });
+});
+
+describe('#155 §10 — a gradient fill reaches the vector geometry', () => {
+  test('the fixture gradient card carries a linear gradient, not a null fill', async () => {
+    const { vectors } = decodeFigArchive(await fixture('design.fig'), { fileKey: KEY });
+    const card = vectors.get('2:18');
+    expect(card?.fill).toBeNull();
+    expect(card?.gradient?.kind).toBe('linear');
+    expect(card?.gradient?.stops.map((s) => s.color)).toEqual(['#e32412', '#1c1c1c']);
+    // Identity transform on a 240x120 box: gradient space spans the box.
+    expect(card?.gradient?.matrix).toEqual([240, 0, 0, 120, 0, 0]);
+  });
+});
+
+describe('#155 §9 — a Figma Slides archive (.deck prelude)', () => {
+  test('the fig-deck prelude is accepted and reads as a design file', () => {
+    const bytes = containerBytes(schemaBytes(baseDefs()), baseData(), 106, 'fig-deck');
+    const container = readFigContainer(bytes);
+    expect(container.prelude).toBe('fig-deck');
+    expect(container.surface).toBe('design');
+  });
+
+  test('a whole .deck archive decodes like a .fig', () => {
+    const archive = zipOf([
+      {
+        name: 'canvas.fig',
+        data: containerBytes(schemaBytes(baseDefs()), baseData(), 106, 'fig-deck'),
+      },
+    ]);
+    const { document } = decodeFigArchive(archive, { fileKey: KEY });
+    expect(document.surface).toBe('design');
+    expect(document.root.type).toBe('DOCUMENT');
+  });
+});
+
+describe('#155 §5 — one bad node does not abort the import', () => {
+  // DOCUMENT 0:0 > FRAME 0:1 (non-finite transform) + FRAME 0:2 (fine).
+  function archiveWithBadTransform() {
+    const defs = baseDefs();
+    defs.unshift({
+      name: 'ParentIndex',
+      kind: 2,
+      fields: [
+        ['guid', 1, false, 1],
+        ['position', -6, false, 2],
+      ],
+    });
+    defs[1].fields = [
+      ['sessionID', -4, false, 0],
+      ['localID', -4, false, 0],
+    ];
+    defs[3].fields = [
+      ['guid', 1, false, 1],
+      ['parentIndex', 0, false, 3],
+      ['type', 2, false, 4],
+      ['name', -6, false, 5],
+      ['transform', 5, false, 12],
+    ];
+    defs[4].fields = [['nodeChanges', 3, true, 6]];
+    defs.push({
+      name: 'Matrix',
+      kind: 1,
+      fields: ['m00', 'm01', 'm02', 'm10', 'm11', 'm12'].map(
+        (n) => [n, -5, false, 0] as [string, number, boolean, number]
+      ),
+    });
+    const enc = (f: number) => {
+      const dv = new DataView(new ArrayBuffer(4));
+      dv.setFloat32(0, f, true);
+      let bits = dv.getUint32(0, true);
+      bits = ((bits >>> 23) | (bits << 9)) >>> 0;
+      if ((bits & 0xff) === 0) return [0];
+      return [bits & 0xff, (bits >>> 8) & 0xff, (bits >>> 16) & 0xff, (bits >>> 24) & 0xff];
+    };
+    const w = new W();
+    w.varuint(6).varuint(3);
+    w.varuint(1).varuint(0).varuint(0).varuint(4).varuint(1).varuint(5).str('Document').varuint(0);
+    const child = (local: number, name: string, m00: number) => {
+      w.varuint(1).varuint(0).varuint(local);
+      w.varuint(3).varuint(1).varuint(0).varuint(0).varuint(2).str('a').varuint(0);
+      w.varuint(4).varuint(4).varuint(5).str(name).varuint(12);
+      for (const v of [m00, 0, 5, 0, 1, 7]) for (const b of enc(v)) w.byte(b);
+      w.varuint(0);
+    };
+    child(1, 'Broken', Number.NaN);
+    child(2, 'Fine', 1);
+    w.varuint(0);
+    return hostileArchive(defs, w.out);
+  }
+
+  test('the file still decodes, the bad node is reported by id, and its sibling is intact', () => {
+    const { document, report } = decodeFigArchive(archiveWithBadTransform(), { fileKey: KEY });
+    const names: string[] = [];
+    walkNodes(document.root, (n) => names.push(n.name));
+    expect(names).toEqual(['Document', 'Broken', 'Fine']);
+    expect(report.nodeErrors).toHaveLength(1);
+    expect(report.nodeErrors[0].nodeId).toBe('0:1');
+    expect(report.nodeErrors[0].message).toMatch(/not a finite number/);
+    // The healthy sibling keeps its real placement.
+    const fine = document.root.children?.find((n) => n.name === 'Fine');
+    expect(fine?.absoluteBoundingBox?.x).toBe(5);
+  });
+
+  test('a clean file reports no node errors', async () => {
+    const { report } = decodeFigArchive(await fixture('design.fig'), { fileKey: KEY });
+    expect(report.nodeErrors).toEqual([]);
   });
 });

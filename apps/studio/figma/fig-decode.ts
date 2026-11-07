@@ -29,7 +29,7 @@ import { inflateRawSync, zstdDecompressSync } from 'node:zlib';
 
 import { styleToWeight } from './codegen-fonts.ts';
 import { decodeKiwi, findRootDefinition, type KiwiSchema, parseKiwiSchema } from './fig-kiwi.ts';
-import { pathFromBlob, type VectorPath } from './fig-vector.ts';
+import { pathFromBlob, type VectorGradient, type VectorPath } from './fig-vector.ts';
 import { FigZipError, readFigZip } from './fig-zip.ts';
 import { reportToken } from './sanitize.ts';
 import {
@@ -44,6 +44,9 @@ import {
 /** The 8-byte ASCII prelude is the ONLY editor discriminator. */
 const PRELUDES: Record<string, 'design' | 'board'> = {
   'fig-kiwi': 'design',
+  // Figma Slides. Same container, same schema; only the prelude differs
+  // (#155 §9). Its slides sit under Presentation > Row and read as a design.
+  'fig-deck': 'design',
   'fig-jam.': 'board',
 };
 
@@ -126,7 +129,18 @@ export interface FigDecodeReport {
    * known-lossy fields are named, never silently degraded.
    */
   lossyFields: Array<{ field: string; count: number; why: string }>;
+  /**
+   * Nodes that could not be read cleanly. One bad node no longer fails the
+   * whole file (#155 §5): it is degraded where there is a safe degradation and
+   * named here so the importer can print it. Bounded to `MAX_NODE_ERRORS`
+   * entries; `nodeErrorCount` is the true total.
+   */
+  nodeErrors: Array<{ nodeId: string; type: string; message: string }>;
+  nodeErrorCount: number;
 }
+
+/** Cap on the itemised node-error list — a hostile file cannot grow the report. */
+export const MAX_NODE_ERRORS = 100;
 
 export interface FigDecodeResult {
   document: NormalizedDocument;
@@ -554,16 +568,20 @@ function vectorOf(change: Record<string, unknown>, blobs: readonly unknown[]): V
     return null;
   }
 
-  const paint = (Array.isArray(change.fillPaints) ? change.fillPaints : []).find(
-    (p) => obj(p)?.type === 'SOLID' && obj(p)?.visible !== false
-  );
+  // The first visible SOLID or GRADIENT fill. A gradient used to be skipped, so
+  // a gradient blob collapsed to no fill at all (#155 §10).
+  const paint = (Array.isArray(change.fillPaints) ? change.fillPaints : []).find((p) => {
+    const t = str(obj(p)?.type);
+    return (t === 'SOLID' || (t?.startsWith('GRADIENT_') ?? false)) && obj(p)?.visible !== false;
+  });
+  const gradient = gradientOf(obj(paint), obj(change.size));
   const colour = obj(obj(paint)?.color);
-  const hex =
-    colour === undefined
+  const hex = (c: Record<string, unknown> | undefined): string | null =>
+    c === undefined
       ? null
       : `#${(['r', 'g', 'b'] as const)
           .map((k) => {
-            const v = num(colour[k]) ?? 0;
+            const v = num(c[k]) ?? 0;
             return Math.max(0, Math.min(255, Math.round(v * 255)))
               .toString(16)
               .padStart(2, '0');
@@ -572,12 +590,89 @@ function vectorOf(change: Record<string, unknown>, blobs: readonly unknown[]): V
 
   return {
     d,
-    fill: hex,
+    // A gradient owns the fill; an ANGULAR one (no SVG equivalent) falls back
+    // to its first stop rather than to nothing.
+    fill: gradient
+      ? null
+      : str(obj(paint)?.type) === 'SOLID'
+        ? hex(colour)
+        : hex(obj(obj((obj(paint)?.stops as unknown[] | undefined)?.[0])?.color)),
+    ...(gradient ? { gradient } : {}),
     fillOpacity: num(obj(paint)?.opacity) ?? 1,
     fillRule: str(first?.windingRule) === 'EVENODD' ? 'evenodd' : 'nonzero',
     x: 0,
     y: 0,
   };
+}
+
+/**
+ * A `.fig` gradient paint -> `VectorGradient`. `stops` (REST: `gradientStops`)
+ * and `transform` are the file's own names; `transform` maps the node's
+ * normalised box into gradient space, so `diag(size) * inverse(transform)`
+ * carries gradient space back to the node. LINEAR and RADIAL map exactly;
+ * DIAMOND is drawn as a radial one (the nearest SVG has); ANGULAR has no SVG
+ * equivalent and returns null. A singular transform also returns null, since
+ * guessing an orientation would draw a plausible wrong gradient.
+ */
+function gradientOf(
+  paint: Record<string, unknown> | undefined,
+  size: Record<string, unknown> | undefined
+): VectorGradient | null {
+  const type = str(paint?.type);
+  const kind =
+    type === 'GRADIENT_LINEAR'
+      ? 'linear'
+      : type === 'GRADIENT_RADIAL' || type === 'GRADIENT_DIAMOND'
+        ? 'radial'
+        : null;
+  if (!kind || !Array.isArray(paint?.stops)) return null;
+
+  const stops: VectorGradient['stops'] = [];
+  for (const raw of (paint.stops as unknown[]).slice(0, 32)) {
+    const st = obj(raw);
+    const c = obj(st?.color);
+    const position = num(st?.position);
+    if (!c || position === undefined) continue;
+    const channel = (k: string) =>
+      Math.max(0, Math.min(255, Math.round((num(c[k]) ?? 0) * 255)))
+        .toString(16)
+        .padStart(2, '0');
+    stops.push({
+      offset: Math.max(0, Math.min(1, position)),
+      color: `#${channel('r')}${channel('g')}${channel('b')}`,
+      opacity: Math.max(0, Math.min(1, num(c.a) ?? 1)),
+    });
+  }
+  if (stops.length < 2) return null;
+
+  const t = obj(paint?.transform);
+  const m = {
+    m00: num(t?.m00) ?? 1,
+    m01: num(t?.m01) ?? 0,
+    m02: num(t?.m02) ?? 0,
+    m10: num(t?.m10) ?? 0,
+    m11: num(t?.m11) ?? 1,
+    m12: num(t?.m12) ?? 0,
+  };
+  const det = m.m00 * m.m11 - m.m01 * m.m10;
+  if (!Number.isFinite(det) || Math.abs(det) < 1e-9) return null;
+  // inverse(transform): gradient space -> normalised box.
+  const ia = m.m11 / det;
+  const ic = -m.m01 / det;
+  const ib = -m.m10 / det;
+  const id = m.m00 / det;
+  const ie = (m.m01 * m.m12 - m.m11 * m.m02) / det;
+  const iff = (m.m10 * m.m02 - m.m00 * m.m12) / det;
+  const w = num(size?.x) ?? 0;
+  const h = num(size?.y) ?? 0;
+  if (w <= 0 || h <= 0) return null;
+  // diag(size) * that: normalised box -> node space.
+  // `+ 0` folds a -0 (from negating a zero) into 0.
+  const matrix = [ia * w, ib * h, ic * w, id * h, ie * w, iff * h].map(
+    (v) => v + 0
+  ) as VectorGradient['matrix'];
+  if (!matrix.every(Number.isFinite)) return null;
+  return { kind, stops, matrix };
 }
 
 interface RebuildResult {
@@ -587,6 +682,8 @@ interface RebuildResult {
   nodeCount: number;
   lossyLineHeights: number;
   vectors: Map<string, VectorPath>;
+  nodeErrors: Array<{ nodeId: string; type: string; message: string }>;
+  nodeErrorCount: number;
 }
 
 /**
@@ -659,6 +756,8 @@ function rebuildTree(changes: unknown[], blobs: readonly unknown[]): RebuildResu
   const onStack = new Set<string>();
   const vectors = new Map<string, VectorPath>();
   const lossy = { lineHeights: 0 };
+  const nodeErrors: RebuildResult['nodeErrors'] = [];
+  let nodeErrorCount = 0;
   let nodeCount = 0;
   let internalSkipped = 0;
 
@@ -677,7 +776,25 @@ function rebuildTree(changes: unknown[], blobs: readonly unknown[]): RebuildResu
     onStack.add(id);
 
     const change = byId.get(id) as Record<string, unknown>;
-    const absolute = compose(parentAbsolute, matrixOf(change.transform));
+    // ONE bad node must not fail the file (#155 §5). An unreadable transform
+    // places the node at its parent's origin (the identity) — and says so in
+    // `report.nodeErrors`, so it is never the silent plausible-but-wrong
+    // placement the old hard refusal existed to prevent.
+    let local: Matrix;
+    try {
+      local = matrixOf(change.transform);
+    } catch (err) {
+      local = IDENTITY;
+      nodeErrorCount++;
+      if (nodeErrors.length < MAX_NODE_ERRORS) {
+        nodeErrors.push({
+          nodeId: id,
+          type: reportToken(str(change.type) ?? ''),
+          message: String((err as Error).message).slice(0, 200),
+        });
+      }
+    }
+    const absolute = compose(parentAbsolute, local);
     const node = toRestNode(change, absolute, lossy);
     nodeCount++;
 
@@ -729,6 +846,8 @@ function rebuildTree(changes: unknown[], blobs: readonly unknown[]): RebuildResu
     nodeCount,
     lossyLineHeights: lossy.lineHeights,
     vectors,
+    nodeErrors,
+    nodeErrorCount,
   };
 }
 
@@ -777,10 +896,16 @@ export function decodeFigArchive(archive: Uint8Array, opts: DecodeFigOptions): F
   }
 
   const blobs = Array.isArray(message?.blobs) ? message.blobs : [];
-  const { root, unmapped, internalSkipped, nodeCount, lossyLineHeights, vectors } = rebuildTree(
-    changes,
-    blobs
-  );
+  const {
+    root,
+    unmapped,
+    internalSkipped,
+    nodeCount,
+    lossyLineHeights,
+    vectors,
+    nodeErrors,
+    nodeErrorCount,
+  } = rebuildTree(changes, blobs);
 
   const document = normalizeDocument(root, {
     fileKey: opts.fileKey,
@@ -802,6 +927,8 @@ export function decodeFigArchive(archive: Uint8Array, opts: DecodeFigOptions): F
         .sort((a, b) => b.count - a.count),
       internalNodesSkipped: internalSkipped,
       lossyFields: lossyLineHeights > 0 ? [{ ...LOSSY_LINE_HEIGHT, count: lossyLineHeights }] : [],
+      nodeErrors,
+      nodeErrorCount,
     },
   };
 }

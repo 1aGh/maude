@@ -102,6 +102,76 @@ describe('SVG serialization', () => {
     }
   });
 
+  describe('gradient fills (#155 §10)', () => {
+    const linear = {
+      kind: 'linear' as const,
+      stops: [
+        { offset: 0, color: '#e32412', opacity: 1 },
+        { offset: 1, color: '#1c1c1c', opacity: 0.5 },
+      ],
+      // node-local: gradient space -> node space
+      matrix: [240, 0, 0, 120, 0, 0] as [number, number, number, number, number, number],
+    };
+
+    test('a linear gradient is emitted as a <linearGradient> the path fills with', () => {
+      const svg = artToSvg({
+        width: 240,
+        height: 120,
+        paths: [
+          {
+            d: 'M0 0 L240 0 L240 120 Z',
+            fill: null,
+            fillOpacity: 1,
+            fillRule: 'nonzero',
+            x: 0,
+            y: 0,
+            gradient: linear,
+          },
+        ],
+      });
+      expect(svg).toContain('<linearGradient id="g0"');
+      expect(svg).toContain('gradientUnits="userSpaceOnUse"');
+      expect(svg).toContain('stop-color="#e32412"');
+      expect(svg).toContain('stop-color="#1c1c1c"');
+      expect(svg).toContain('stop-opacity="0.5"');
+      expect(svg).toContain('fill="url(#g0)"');
+      expect(svg).toContain('gradientTransform="matrix(');
+      expect(svg).not.toContain('Z" fill="none"');
+    });
+
+    test('a radial gradient is a <radialGradient>; each path gets its own id', () => {
+      const svg = artToSvg({
+        width: 10,
+        height: 10,
+        paths: [
+          { d: 'M0 0 Z', fill: '#000000', fillOpacity: 1, fillRule: 'nonzero', x: 0, y: 0 },
+          {
+            d: 'M1 1 Z',
+            fill: null,
+            fillOpacity: 1,
+            fillRule: 'nonzero',
+            x: 0,
+            y: 0,
+            gradient: { ...linear, kind: 'radial' },
+          },
+          {
+            d: 'M2 2 Z',
+            fill: null,
+            fillOpacity: 1,
+            fillRule: 'nonzero',
+            x: 0,
+            y: 0,
+            gradient: linear,
+          },
+        ],
+      });
+      expect(svg).toContain('<radialGradient id="g1"');
+      expect(svg).toContain('<linearGradient id="g2"');
+      expect(svg).toContain('fill="url(#g1)"');
+      expect(svg).toContain('fill="url(#g2)"');
+    });
+  });
+
   test('a path with no fill is explicit about it rather than inheriting', () => {
     const svg = artToSvg({
       width: 10,

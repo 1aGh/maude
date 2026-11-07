@@ -101,6 +101,40 @@ describe('flatten styleless GROUP wrappers (mandatory, DDR-216 D8)', () => {
     expect(report.entries.filter((e) => e.detail === 'styleless wrapper flattened').length).toBe(2);
   });
 
+  test('a HIDDEN styleless wrapper is skipped whole, not hoisted (#155 §2)', () => {
+    // A hidden "glass card" group used to resurface: flattening hoisted its
+    // (visible) children into the parent and they rendered as opaque boxes.
+    const kid = {
+      id: '2:6',
+      name: 'Card',
+      type: 'RECTANGLE',
+      absoluteBoundingBox: box(0, 0, 90, 72),
+      fills: solid(1, 1, 1),
+    };
+    const { doc } = frameDoc({ ...bare('2:8', [kid]), visible: false });
+    const report = new ImportReport();
+    const flat = flattenWrappers(doc.root.children ?? [], report);
+    expect(flat).toEqual([]);
+    expect(
+      report.entries.some((e) => e.nodeId === '2:8' && e.disposition === 'hidden-node-skipped')
+    ).toBe(true);
+  });
+
+  test('a hidden wrapper nested inside a visible one drops only its own subtree', () => {
+    const rect = (id: string) => ({
+      id,
+      name: id,
+      type: 'RECTANGLE',
+      absoluteBoundingBox: box(0, 0, 10, 10),
+      fills: solid(1, 0, 0),
+    });
+    const { doc } = frameDoc(
+      bare('2:1', [{ ...bare('2:2', [rect('2:3')]), visible: false }, rect('2:4')])
+    );
+    const flat = flattenWrappers(doc.root.children ?? [], new ImportReport());
+    expect(flat.map((n) => n.id)).toEqual(['2:4']);
+  });
+
   test('flattening is depth-agnostic (the shallower 2:11 → 2:10 → 2:9 case)', () => {
     const leaf = {
       id: '2:9',
