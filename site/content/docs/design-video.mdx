@@ -1,0 +1,42 @@
+---
+title: Design video plugin
+description: Video moved out of the design plugin into its own opt-in plugin, design-video. What moved, the new names, and how to install it in a terminal. The desktop app needs nothing.
+---
+
+The design plugin used to carry everything video: cutting footage into a reel, analyzing a clip, Remotion video canvases and Lottie export. A terminal session pays for every command, skill and agent a plugin lists, even when you never touch video. So video is now its own plugin, **`design-video`**, and you install it only when you want it.
+
+## In the desktop app: nothing to do
+
+The Maude app's AI chat loads `design` and `design-video` together. Reels, footage analysis, video canvases and Lottie handoff work as before.
+
+## In a terminal: install it next to design
+
+```
+/plugin marketplace update maude
+/plugin install design-video@maude
+/reload-plugins
+```
+
+`design-video` adds to the design plugin and needs it: keep `design@maude` installed. Codex: `codex plugin add design-video@maude`.
+
+## What moved (old to new)
+
+| Old | New |
+| --- | --- |
+| `/design:reel` | `/design-video:reel` |
+| `/design:video-analyze` | `/design-video:video-analyze` |
+| `/design:to-lottie` | `/design-video:to-lottie` |
+| skill `design:video-comp` | `design-video:video-comp` |
+| skill `design:footage-director` | `design-video:footage-director` |
+| skill `design:footage-keyframes` | `design-video:footage-keyframes` |
+| video generation (part of `design:ai-generation`) | skill `design-video:video-generation` |
+| agent `design:footage-analyst` | `design-video:footage-analyst` |
+| agent `design:footage-director` | `design-video:footage-director` |
+
+## What stays in design
+
+- `/design:generate` and the `ai-generation` skill keep images and sound. `--modality video` is still the same `maude design generate` verb; for a video clip the AI loads `design-video:video-generation` first.
+- `/design:export` still exports a video canvas to MP4 or GIF, and `/design:to-rn` stays.
+- Every `maude design` verb (transcribe, smart-frames, captions, beats, reel-place …) is unchanged: the verbs ship with the `maude` CLI, not with a plugin.
+
+The old `/design:reel`, `/design:video-analyze` and `/design:to-lottie` names no longer resolve. See [Design commands](/docs/commands-design) and [Design video commands](/docs/commands-design-video).

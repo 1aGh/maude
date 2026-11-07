@@ -3,6 +3,16 @@
   "version": "2.0.8",
   "entries": [
     {
+      "id": "design-video-plugin",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Video is its own plugin in a terminal",
+      "summary": "Reels, clip analysis, video canvases and Lottie export now live in a separate design-video plugin, so a terminal session without video stays lighter. In Maude nothing changes. From a terminal, install design-video@maude next to design; the commands are now /design-video:reel, /design-video:video-analyze and /design-video:to-lottie.",
+      "learnMore": "https://maude.sh/docs/design-video",
+      "surface": "design-ui"
+    },
+    {
       "id": "canvas-pages-view",
       "version": "2.0.7",
       "date": "2026-11-06",

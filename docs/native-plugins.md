@@ -15,6 +15,7 @@ with the native Codex CLI:
 codex plugin marketplace add /absolute/path/to/maude
 codex plugin add flow@maude
 codex plugin add design@maude
+codex plugin add design-video@maude   # optional: video (reel, footage, Lottie)
 ```
 
 Start a fresh Codex session. The marketplace is
