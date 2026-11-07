@@ -863,10 +863,16 @@ export interface SyncRuntime {
   /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
   claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
   /**
-   * #164 — call `call`'s settle: its window closes; what it parked joins the run that claimed those
-   * bytes (`claimed`: the repo-relative files the settle claimed), the rest lands as outside.
+   * #164 — run `key`'s call `call` settles: its window closes; what it parked joins that run when its
+   * bytes are claimed (`claimed`: the repo-relative files the settle claimed), the rest lands as
+   * outside. F5 — false when that run has no window for the call.
    */
-  settleShellCall?(call: string, claimed?: readonly string[]): void;
+  settleShellCall?(key: string, call: string, claimed?: readonly string[]): boolean;
+  /** F5/F6 — run `key`'s window for call `call` (local-kernel.ts `shellCall`), or null. */
+  shellCall?(
+    key: string,
+    call: string
+  ): { all: boolean; covers(repoRel: string): boolean; left(repoRel: string): boolean } | null;
   /** p8-a1-claims (F17) — run `key` is about to delete canvas `repoRel`: the delete joins the run. */
   claimAiDelete?(key: string, repoRel: string): void;
   unclaimAiDelete?(key: string, repoRel: string): void;
@@ -6858,12 +6864,29 @@ export function createSyncRuntime(
       const slug = slugForRepoRel(repoRel);
       if (slug && acceptedLink) acceptedLink.stage.claim(key, slug, hash ?? null);
     },
-    settleShellCall: (call, claimed) => {
-      if (!acceptedLink) return;
+    settleShellCall: (key, call, claimed) => {
+      if (!acceptedLink) return false;
       const slugs = (claimed ?? [])
         .map((f) => slugForRepoRel(String(f).replace(/\.(?:meta|annotations)\.json$/i, '.tsx')))
         .filter((c): c is string => !!c);
-      acceptedLink.stage.settleShellCall(call, slugs);
+      return acceptedLink.stage.settleShellCall(key, call, slugs);
+    },
+    shellCall: (key, call) => {
+      const w = acceptedLink?.stage.shellCall(key, call);
+      if (!w) return null;
+      const slugOf = (f: string) =>
+        slugForRepoRel(String(f).replace(/\.(?:meta|annotations)\.json$/i, '.tsx'));
+      return {
+        all: w.all,
+        covers: (repoRel) => {
+          const s = slugOf(repoRel);
+          return !!s && w.covers(s);
+        },
+        left: (repoRel) => {
+          const s = slugOf(repoRel);
+          return !!s && w.left(s);
+        },
+      };
     },
     claimAiDelete: (key, repoRel) => {
       const slug = slugForRepoRel(repoRel);

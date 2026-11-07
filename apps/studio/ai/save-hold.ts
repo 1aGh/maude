@@ -402,7 +402,8 @@ export function createSaveHold(opts: SaveHoldOptions = {}) {
         return;
       }
       const w = windows.get(call);
-      if (!w) return;
+      // F5 — a close that names its owner ends only that owner's window (never another run's)
+      if (!w || (owner !== undefined && w.owner !== owner)) return;
       windows.delete(call);
       const t = now();
       for (const f of w.files) closedAt.set(f, t);
