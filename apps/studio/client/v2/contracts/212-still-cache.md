@@ -60,3 +60,81 @@ server; a serpentine pan over the world plus three fit-all zoom cycles, then the
   needs admin — and a debug `.app` build was out of this task's budget). The "no artboard that had a still shows
   blank" acceptance needs those two runs; the per-frame blank counter in the harness read 0 in BOTH arms, so it did not
   reproduce the flicker either (too few frames to catch it). The fail-first test is what pins §4.
+
+## §5 — the stills persist across sessions (T2.2, decision D2)
+
+The encoded tier (§2) is kept between sessions, so a canvas opened again shows its stills at once instead of drawing
+them. The canvas runs on the untrusted origin (DDR-054): it never gets a storage handle or a key of its own. It only
+says "artboard X of the canvas you opened has this still" over the typed bridge; the SHELL picks the key, checks the
+bytes, stores them, and answers with that canvas's stills only.
+
+**Messages** (`bridge/dgn-protocol.ts`; gate `active` on the shell, `parent` on the canvas):
+
+| message | dir | payload | caps |
+| --- | --- | --- | --- |
+| `stills-want` | c→s | `{ file }` | once per canvas document |
+| `still-put` | c→s | `{ file, artboard, sig, bytes: ArrayBuffer }` | `bytes` a still WebP (below); `sig`, `artboard` ≤ 200 |
+| `stills` | s→c | `{ file, items: [{ artboard, sig, bytes }] }` | ≤ 2000 items, each checked again by the canvas |
+
+**Scope — what the shell checks before it reads or writes** (`client/v2/shell/still-bridge.js`):
+
+1. the origin, then the `active` gate: `e.source` is the window of the shell's own iframe for `activePath`;
+2. `file === activePath` — the frame's word and the shell's own state must agree, so a message a document posted
+   just before its frame showed another canvas never lands on the new one (the target comes from the shell, as in
+   gate-b-c4b; the frame's word can only narrow it);
+3. the shell's own iframe `src` is a plain open: no `sha` (a version), `embed`, `follow`, `hide-chrome` or
+   `thumbnail` — a still of another version never stands for today's;
+4. the project index has a row for that canvas (`GET /_api/index`, the snapshot the Canvases panel already reads).
+   No index (a cell, an older server) = no persistence; nothing is stored blind.
+
+**Key — chosen by the shell, never by the frame.** One record per (project, canvas scope, artboard):
+
+- project = the index `pid`;
+- canvas scope = the frame's per-frame capability `frameCapFor(cfg.frameKey, rel)` (C4: a MAC over the canvas path
+  under the opener's per-subject key), so another person on the same browser profile, or a session with other access,
+  never reads these stills; without a key (the origin split off) the plain `rel`;
+- source = the index row's `srcHash`, `metaHash` and `depsHash` (computed by the server; the canvas cannot name them).
+  A record whose source differs from the row's is never returned, and is deleted when its canvas asks;
+- `artboard` is the one part the frame names, and only inside the scope above.
+
+**Bytes.** Accepted only as a real still WebP (`bridge/still-webp.ts` `checkStillWebp`): `RIFF`…`WEBP` with a RIFF
+size equal to the buffer's, a first chunk `VP8 ` (key frame, start code `9d 01 2a`), `VP8L` (signature `2f`) or `VP8X`
+(no animation flag), width ≤ 401 and height ≤ 1601 read from the bitstream header. ≤ 256 kB per still (measured:
+~18 kB). The shell never decodes it; the canvas does, in its own origin.
+
+**Caps and eviction** (`client/v2/shell/still-store.js`): 256 kB per still; 32 MB per project; 96 MB per store; 2000
+stills per canvas; 300 writes a minute per canvas (a planted canvas cannot churn the disk). Over a cap, the record
+used longest ago goes first (a read refreshes it).
+
+**Where it lives.** The shell's own IndexedDB (`maude-stills`) on the main origin — in the desktop app the project
+webview's app-owned data store, in a browser the profile's. Never inside the design root: not synced, not committed,
+no DDR-115 list entry. No storage (a private window, a blocked store) = no persistence; nothing else changes.
+
+**Never a stale still.** Two checks:
+
+- the shell's source key above (the TSX, its meta or its imports changed → the record is gone);
+- the canvas checks what the key cannot see. `sig` = the body's content signature (`contentSignature`) + `~` + a
+  style signature of the document's linked stylesheets (`documentStyleSignature`: a DS tokens or components change).
+  A persisted still waits in `StillCache` as a SEED (`seed`, outside the cache's map — no placeholder, `hasStill` or
+  warm-up sees it). It stands in only once its artboard has mounted and the body's signature equals the seed's
+  (`adopt`, from `StillController.register`, or `adoptSeeds` when the answer comes later). A seed that does not match
+  is dropped, and the artboard is drawn as before.
+
+**Reload.** The canvas asks once (`stills-want`) when its overview runtime starts; the shell answers from IndexedDB
+(waiting ≤ 4 s for the index). Artboards that mount under the cut adopt their seed and are restored from it —
+decoded, not drawn (`takes` unchanged). The canvas writes back only stills it drew itself (`onEncoded`), never a seed.
+
+**Named gap.** Every canvas frame mounted at once shares the one canvas origin (CLAUDE.md, C4 named gap): a sibling
+frame can run code in the active frame's realm and post `still-put` as it. It can then change only the stills of the
+canvas on screen, to pictures it could already draw into that canvas's DOM. `framesIsolated` (canvas-only sessions)
+mounts only the active frame.
+
+**Why not on disk next to the thumbnails** (`~/.maude/index/v1/projects/<pid>/`): the same scope and checks would need a
+new main-origin route (the route table, the writer registry, the hub manifest — all lead-owned) for no gain in trust:
+the shell that checks the bytes is already the trusted side. One cost: IndexedDB is per origin, so a project whose
+port changes starts with an empty store (the old one stays capped at 32 MB).
+
+**Tests** — `test/v2-212-still-persist.test.ts`: a frame cannot read or write another canvas's stills; an oversized,
+non-WebP, animated or too-large-in-pixels payload is refused (bridge and store); a record of another source is not
+returned and is deleted; a reload shows the persisted still before any drawing (restored from the seed, no take), and
+a seed whose signature differs is not shown.
