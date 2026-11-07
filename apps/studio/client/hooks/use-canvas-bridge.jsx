@@ -20,6 +20,7 @@ import { settleDuplicateAtWidth } from '../v2/create/duplicate-done.js';
 import { menuRunner } from '../v2/shell/menu-runner.js';
 import { announceCanvasPointer } from '../v2/shell/canvas-pointer.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
+import { handleStillBridge } from '../v2/shell/still-bridge.js';
 
 // 01 cf-duplicate-done / 08 ak-web-widths: a copy made is told with the copy glyph, not a success tick
 const DUPLICATE_TOAST = { kind: 'info', icon: 'duplicate' };
@@ -264,6 +265,19 @@ export function useCanvasBridge({
               /* detached */
             }
           },
+        });
+        return;
+      }
+      // #212 §5 (T2.2) — the persisted overview stills (client/v2/shell/still-bridge.js). Already through the
+      // `active` gate above; the bridge also pins `file` to activePath, checks the frame's own src, and picks the key.
+      if (m.dgn === 'stills-want' || m.dgn === 'still-put') {
+        const onCanvas = !!activePath && activePath !== SYSTEM_TAB;
+        void handleStillBridge(e, {
+          canvasOrigin: expectedOrigin,
+          activePath: onCanvas ? activePath : null,
+          frame: onCanvas ? iframesRef.current.get(activePath) : null,
+          designRel: cfg?.designRel,
+          frameKey: cfg?.frameKey,
         });
         return;
       }

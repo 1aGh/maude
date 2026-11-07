@@ -289,6 +289,10 @@ export class StillCache {
   private encRunning = false;
   private restoring = new Map<string, Promise<HTMLElement | null>>();
   private evictListeners = new Set<(id: string) => void>();
+  /** #212 §5 — persisted stills not yet checked against their artboard (outside `map`: nothing shows them) */
+  private seeds = new Map<string, { blob: Blob; sig: string }>();
+  private seedBytes = 0;
+  private encodedListeners = new Set<(id: string, blob: Blob, sig: string) => void>();
   constructor(
     readonly max = STILL_CACHE_MAX_BYTES,
     o: StillCacheOptions = {}
@@ -314,6 +318,7 @@ export class StillCache {
     bytes: number,
     inUse: (id: string) => boolean
   ): void {
+    this.dropSeed(id); // a fresh drawing wins over a persisted one
     const old = this.map.get(id);
     if (old) {
       if (old.el) this.bytes -= old.bytes;
@@ -377,6 +382,13 @@ export class StillCache {
           e.order = ++this.order;
           this.encBytes += blob.size;
           this.trimEncoded(id);
+          // #212 §5 — a still this document drew of its current content: it may be kept across sessions
+          if (e.sig && this.map.get(id) === e)
+            for (const fn of this.encodedListeners) {
+              try {
+                fn(id, blob, e.sig);
+              } catch {}
+            }
         }
       })
       .finally(() => {
@@ -435,6 +447,8 @@ export class StillCache {
         }
         e.el = el;
         e.used = ++this.tick;
+        // a still adopted from a seed never had a decoded size: the bitmap's (canvas width × height × 4)
+        if (!e.bytes) e.bytes = elementBytes(el);
         this.bytes += e.bytes;
         this.trim(id, inUse);
         return el;
@@ -473,6 +487,66 @@ export class StillCache {
   ids(): string[] {
     return [...this.map.keys()];
   }
+  /**
+   * #212 §5 — a persisted still of `id` (the shell's answer), with the content signature it was drawn from. Kept
+   * OUTSIDE the cache until `adopt` checks it against the artboard's own body: no placeholder, `hasStill` or warm-up
+   * sees a seed. Refused when the artboard already has a still, the signature is empty, or the seeds would pass the
+   * encoded tier's cap.
+   */
+  seed(id: string, blob: Blob, sig: string): boolean {
+    if (!sig || this.map.has(id) || !(blob?.size > 0)) return false;
+    this.dropSeed(id);
+    if (this.seedBytes + blob.size > this.encodedMax) return false;
+    this.seeds.set(id, { blob, sig });
+    this.seedBytes += blob.size;
+    return true;
+  }
+  hasSeed(id: string): boolean {
+    return this.seeds.has(id);
+  }
+  /**
+   * The seed of `id` becomes its kept still (encoded only; `restore` decodes it) iff it was drawn from the same
+   * content: `sig` = the artboard body's signature now. The seed is used up either way — a stale one is dropped.
+   */
+  adopt(id: string, sig: string): boolean {
+    const s = this.seeds.get(id);
+    if (!s) return false;
+    this.dropSeed(id);
+    if (!sig || s.sig !== sig || this.map.has(id)) return false;
+    this.map.set(id, {
+      el: null,
+      blob: s.blob,
+      sig,
+      bytes: 0,
+      used: ++this.tick,
+      order: ++this.order,
+      encoding: false,
+      url: null,
+    });
+    this.encBytes += s.blob.size;
+    this.trimEncoded(id);
+    return this.map.has(id);
+  }
+  private dropSeed(id: string): void {
+    const s = this.seeds.get(id);
+    if (!s) return;
+    this.seedBytes -= s.blob.size;
+    this.seeds.delete(id);
+  }
+  seedIds(): string[] {
+    return [...this.seeds.keys()];
+  }
+  /** #212 §5 — a still this document drew got its encoded copy (`sig` non-empty: drawn from the current content). */
+  onEncoded(fn: (id: string, blob: Blob, sig: string) => void): () => void {
+    this.encodedListeners.add(fn);
+    return () => this.encodedListeners.delete(fn);
+  }
+}
+
+/** The bytes a decoded still holds (a canvas: width × height × 4; anything else: 0). */
+function elementBytes(el: HTMLElement): number {
+  const c = el as HTMLCanvasElement;
+  return typeof c.width === 'number' && typeof c.height === 'number' ? c.width * c.height * 4 : 0;
 }
 
 /** What the controller needs from one artboard's DOM (an adapter, so tests need no canvas). */
@@ -733,6 +807,8 @@ export class StillController {
     };
     e.observer = this.observe ? this.observe(target.body, (why) => this.markDirty(id, why)) : null;
     this.entries.set(id, e);
+    // #212 §5 — a persisted still (a seed) stands in only for the very content it was drawn from
+    if (this.cache.hasSeed(id)) this.cache.adopt(id, this.sigOf(target.body));
     // A fresh mount: it has painted nothing yet. Under the cut it starts as its kept still (or the cover) with the
     // body hidden before its first paint; over the cut it starts as a hand-over from that stand-in.
     const kept = this.cache.get(id);
@@ -748,6 +824,28 @@ export class StillController {
     return () => {
       if (this.entries.get(id) === e) this.unregister(id);
     };
+  }
+
+  /**
+   * #212 §5 — the persisted stills came in after their artboards mounted: each mounted artboard with no still on
+   * screen adopts its seed when the signatures match (a drawing in flight for it is dropped) and is restored from it.
+   */
+  adoptSeeds(): void {
+    for (const e of this.entries.values()) {
+      if (e.shown || !this.cache.hasSeed(e.id)) continue;
+      if (!this.cache.adopt(e.id, this.sigOf(e.target.body))) continue;
+      if (e.job) this.dropJob(e.job);
+      if (this.small(e, this.zoom) && !e.pinned && !e.eager) this.restoreFor(e);
+    }
+    this.schedulePump();
+  }
+
+  private sigOf(body: HTMLElement): string {
+    try {
+      return this.signature(body);
+    } catch {
+      return '';
+    }
   }
 
   private unregister(id: string): void {

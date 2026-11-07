@@ -53,6 +53,7 @@ import {
   type StillCache,
   StillController,
 } from './artboard-still.ts';
+import { startStillPersist } from './artboard-still-persist.ts';
 import { rasterTimings, startStill } from './artboard-still-raster.ts';
 import { StillWarmup, WARM_ENABLED } from './artboard-still-warmup.ts';
 import { WebglBudget } from './artboard-webgl.ts';
@@ -257,6 +258,8 @@ function getRuntime(): Runtime | null {
     // the wait alone put the 10 % sweep's tail over base (p99 ~80 -> ~120 ms, worst second 52 -> 31 frames), since the
     // waiting artboards stayed on screen as placeholders through the pan; the ring's mid-gesture hold stays
     stills = st;
+    // #212 §5 — the stills persist across sessions, through the shell (it picks the key; the frame only offers)
+    startStillPersist(st);
     const w = window as unknown as Record<string, unknown>;
     w.__maudeStillStats = () => ({ ...st.stats(), raster: { ...rasterTimings } });
     // the two-tier cache (#212): tests and measurements read its tiers

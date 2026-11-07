@@ -34,6 +34,7 @@ import {
 } from './canvas-modes.ts';
 import { clampInsets, type Insets } from './occlusion.ts';
 import { parsePasteData } from './paste-data.ts';
+import { stillWebpBytes } from './still-webp.ts';
 
 export const DGN_V = 2;
 type Id = string;
@@ -452,6 +453,11 @@ export interface CanvasToShell {
   // shell checks it against its own asset-state answer (`lfs-pointer`) and builds the prompt itself.
   'asset-lfs-fix-request': { rel: string };
   'asset-lfs-copy-request': { rel: string };
+  // #212 §5 (T2.2) — the overview stills persist across sessions. The canvas only NAMES an artboard of the canvas
+  // its frame shows; the shell picks the key (project, the frame's capability, the index's source hashes) and checks
+  // the bytes (bridge/still-webp.ts). `file` must equal the shell's own active canvas (contract 212-still-cache §5).
+  'stills-want': { file: string };
+  'still-put': { file: string; artboard: string; sig: string; bytes: ArrayBuffer };
 }
 
 /** S8.19 — one picture's state, as the shell tells the canvas (contract S8-S9-asset-presence §5.5). */
@@ -772,6 +778,9 @@ export interface ShellToCanvas {
   // selected, ← → are `take-step`, not a nudge. State, not an event: the whole set each time. ≤ 256 items,
   // each an asset path; a planted or oversized list is refused whole.
   'gen-takes': { assets: string[] };
+  // #212 §5 (T2.2) — the persisted stills of THIS canvas (the shell's answer to `stills-want`): seeds, shown only once
+  // the artboard's own content signature matches `sig` (artboard-still.ts `adopt`). ≤ STILLS_MAX items.
+  stills: { file: string; items: Array<{ artboard: string; sig: string; bytes: ArrayBuffer }> };
 }
 
 /** r3 — what an Assets drop lands on: a picture or frame (by ref) or the artboard itself (placed loose). */
@@ -1226,6 +1235,18 @@ const genTakeAssets: V = (v) =>
   v.every((x) => typeof x === 'string' && GEN_TAKE_ASSET_RE.test(x))
     ? v.slice()
     : BAD;
+
+/** #212 §5 — a persisted still: a real still WebP (bridge/still-webp.ts), copied, else the whole message is junk. */
+const stillBytesV: V = (v) => stillWebpBytes(v) ?? BAD;
+/** #212 §5 — an artboard id as the canvas names it (no control characters), and a still's signature. */
+const stillArtboardV: V = (v) =>
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: the point is to refuse them
+  typeof v === 'string' && v.length >= 1 && v.length <= 200 && !/[\u0000-\u001f\u007f]/.test(v)
+    ? v
+    : BAD;
+export const STILL_SIG_MAX = 200;
+/** #212 §5 — the most stills one answer carries (the store's per-canvas cap). */
+export const STILLS_MAX = 2000;
 
 /** A top-level parser over exactly the interface's keys (the type pins the key set). */
 function p<T>(
@@ -1998,6 +2019,24 @@ const c2s: C2S = {
     owner: 'client/v2/assets/asset-state-lane (2.0.3 LFS placeholder)',
     parse: p({ rel: shortStr(512) }),
   },
+  // #212 §5 — the shell also requires `file === activePath` and a plain open (client/v2/shell/still-bridge.js).
+  'stills-want': {
+    gate: 'active',
+    status: 'live',
+    owner: 'client/v2/shell/still-bridge (#212 §5)',
+    parse: p({ file: shortStr(1024) }),
+  },
+  'still-put': {
+    gate: 'active',
+    status: 'live',
+    owner: 'client/v2/shell/still-bridge (#212 §5)',
+    parse: p({
+      file: shortStr(1024),
+      artboard: stillArtboardV,
+      sig: shortStr(STILL_SIG_MAX),
+      bytes: stillBytesV,
+    }),
+  },
 };
 
 const s2c: S2C = {
@@ -2637,6 +2676,18 @@ const s2c: S2C = {
     status: 'live',
     owner: 'editing/take-keys (S8.16, L1)',
     parse: p({ assets: genTakeAssets }),
+  },
+  stills: {
+    gate: 'parent',
+    status: 'live',
+    owner: 'artboard-still-persist (#212 §5)',
+    parse: p({
+      file: shortStr(1024),
+      items: capped(
+        STILLS_MAX,
+        arrOf(shape({ artboard: stillArtboardV, sig: shortStr(STILL_SIG_MAX), bytes: stillBytesV }))
+      ),
+    }),
   },
 };
 
