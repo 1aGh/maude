@@ -221,7 +221,11 @@ export interface StillCacheOptions {
   objectUrl?: { make(blob: Blob): string; revoke(url: string): void };
 }
 
-/** The default encoder: WebP at 0.8 off a canvas (a missing `toBlob`, or one that never answers, is "no copy"). */
+/**
+ * The default encoder: WebP at 0.8 off a canvas (a missing `toBlob`, or one that never answers, is "no copy").
+ * WebKit (Safari, the desktop app) has no WebP encoder and answers `image/png`: the blob keeps that type, and the
+ * persist lane checks and labels the bytes by what they are (bridge/still-webp.ts `checkStillImage`).
+ */
 function defaultEncode(el: HTMLElement): Promise<Blob | null> {
   const c = el as HTMLCanvasElement;
   if (typeof c.toBlob !== 'function') return Promise.resolve(null);

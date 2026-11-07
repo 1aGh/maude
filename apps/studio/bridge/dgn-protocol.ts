@@ -34,7 +34,7 @@ import {
 } from './canvas-modes.ts';
 import { clampInsets, type Insets } from './occlusion.ts';
 import { parsePasteData } from './paste-data.ts';
-import { stillWebpBytes } from './still-webp.ts';
+import { stillImageBytes } from './still-webp.ts';
 
 export const DGN_V = 2;
 type Id = string;
@@ -455,7 +455,8 @@ export interface CanvasToShell {
   'asset-lfs-copy-request': { rel: string };
   // #212 §5 (T2.2) — the overview stills persist across sessions. The canvas only NAMES an artboard of the canvas
   // its frame shows; the shell picks the key (project, the frame's capability, the index's source hashes) and checks
-  // the bytes (bridge/still-webp.ts). `file` must equal the shell's own active canvas (contract 212-still-cache §5).
+  // the bytes (bridge/still-webp.ts: a still WebP, or a PNG where the browser encodes no WebP). `file` must equal
+  // the shell's own active canvas (contract 212-still-cache §5).
   'stills-want': { file: string };
   'still-put': { file: string; artboard: string; sig: string; bytes: ArrayBuffer };
 }
@@ -1236,8 +1237,8 @@ const genTakeAssets: V = (v) =>
     ? v.slice()
     : BAD;
 
-/** #212 §5 — a persisted still: a real still WebP (bridge/still-webp.ts), copied, else the whole message is junk. */
-const stillBytesV: V = (v) => stillWebpBytes(v) ?? BAD;
+/** #212 §5 — a persisted still: a real still WebP or single-image PNG (bridge/still-webp.ts), copied, else junk. */
+const stillBytesV: V = (v) => stillImageBytes(v) ?? BAD;
 /** #212 §5 — an artboard id as the canvas names it (no control characters), and a still's signature. */
 const stillArtboardV: V = (v) =>
   // biome-ignore lint/suspicious/noControlCharactersInRegex: the point is to refuse them

@@ -14,7 +14,7 @@ still (outside the budget).
    screen, so this is its own size. Width, not the long side, is what is capped (as in the issue's byte estimates:
    0.35–1.4 MB decoded, ×0.44); the 1600 px height cap stays. *If Michal meant the long side, it is one line.*
 2. **Two tiers** (`artboard-still.ts` `StillCache`):
-   - **encoded**: every still as a WebP blob (0.8) made right after it is drawn (one at a time, a macrotask apart),
+   - **encoded**: every still as a WebP blob (0.8; PNG on WebKit, which encodes no WebP — §5) made right after it is drawn (one at a time, a macrotask apart),
      kept for every artboard and never touched by the decoded LRU; its own cap `STILL_ENCODED_MAX_BYTES` (64 MB),
      oldest copy first beyond it;
    - **decoded**: the bitmaps, an LRU by bytes (`STILL_CACHE_MAX_BYTES`, 48 MB — stills are ~2.2× smaller), never
@@ -73,7 +73,7 @@ bytes, stores them, and answers with that canvas's stills only.
 | message | dir | payload | caps |
 | --- | --- | --- | --- |
 | `stills-want` | c→s | `{ file }` | sent once per canvas document; the shell answers once per frame window |
-| `still-put` | c→s | `{ file, artboard, sig, bytes: ArrayBuffer }` | `bytes` a still WebP (below); `sig`, `artboard` ≤ 200 |
+| `still-put` | c→s | `{ file, artboard, sig, bytes: ArrayBuffer }` | `bytes` a still WebP or PNG (below); `sig`, `artboard` ≤ 200 |
 | `stills` | s→c | `{ file, items: [{ artboard, sig, bytes }] }` | ≤ 2000 items, each checked again by the canvas |
 
 **Scope — what the shell checks before it reads or writes** (`client/v2/shell/still-bridge.js`):
@@ -107,10 +107,25 @@ older than 10 minutes, all of an answer's refreshes in one write.
   A record whose source differs from the row's is never returned, and is deleted when its canvas asks;
 - `artboard` is the one part the frame names, and only inside the scope above.
 
-**Bytes.** Accepted only as a real still WebP (`bridge/still-webp.ts` `checkStillWebp`): `RIFF`…`WEBP` with a RIFF
-size equal to the buffer's, a first chunk `VP8 ` (key frame, start code `9d 01 2a`), `VP8L` (signature `2f`) or `VP8X`
-(no animation flag), width ≤ 401 and height ≤ 1601 read from the bitstream header. ≤ 256 kB per still (measured:
-~18 kB). The shell never decodes it; the canvas does, in its own origin.
+**Bytes.** Accepted only as a real still WebP **or a single-image PNG** (`bridge/still-webp.ts` `checkStillImage`, which
+names the format from the first bytes). WebKit — Safari and the desktop app, the main target — has no WebP encoder:
+`toBlob(cb, 'image/webp')` answers `image/png` there (measured in WebKit: IHDR, sRGB, eXIf, IDAT…, IEND; ~114 kB for a
+text-heavy 400 × 900 still), so a WebP-only check stored nothing on Safari. Both are checked by what they are; the
+shell never decodes either, the canvas does, in its own origin.
+
+- **WebP** (`checkStillWebp`): `RIFF`…`WEBP` with a RIFF size equal to the buffer's, a first chunk `VP8 ` (key frame,
+  start code `9d 01 2a`), `VP8L` (signature `2f`) or `VP8X` (no animation flag), width ≤ 401 and height ≤ 1601 read
+  from the bitstream header.
+- **PNG** (`checkStillPng`, a structural walk, CRC-free): the 8-byte signature; `IHDR` first, 13 bytes, width ≤ 401
+  and height ≤ 1601 (neither 0), a bit depth valid for its colour type, compression 0, filter 0, interlace 0 or 1;
+  every chunk's length within the bytes left after it (compared against the remainder, never summed); only the chunks
+  a canvas encoder writes (`PLTE IDAT IEND` + `sRGB gAMA cHRM iCCP pHYs sBIT bKGD tRNS eXIf`) — a second `IHDR`, text
+  or any other chunk refuses it; the `IDAT`s one run; no APNG chunk (`acTL fcTL fdAT` → animated); a palette image has
+  its `PLTE`; `IEND` empty and the last bytes of the buffer (nothing trails the image).
+
+≤ 256 kB per still for either (measured: ~18 kB WebP, ~114 kB PNG). The format is not a field on the wire or in the
+store: it is read from the checked bytes each time (`stillMime`), so the frame cannot name a MIME the bytes do not
+have, and the canvas seeds its cache with a blob of that MIME.
 
 **Caps and eviction** (`client/v2/shell/still-store.js`): 256 kB per still; per canvas 2000 stills and 8 MB (its
 share of the project); 32 MB per project; 96 MB per store; per canvas 300 writes and 2 MB a minute (a planted canvas
@@ -164,9 +179,13 @@ the shell that checks the bytes is already the trusted side. One cost: IndexedDB
 port changes starts with an empty store (the old one stays capped at 32 MB).
 
 **Tests** — `test/v2-212-still-persist.test.ts`: a frame cannot read or write another canvas's stills; an oversized,
-non-WebP, animated or too-large-in-pixels payload is refused (bridge and store); a record of another source is not
+non-WebP/PNG, animated or too-large-in-pixels payload is refused (bridge and store); a record of another source is not
 returned and is deleted; a reload shows the persisted still before any drawing (restored from the seed, no take), and
 a seed whose signature differs is not shown. `test/v2-212-still-persist-guard.test.ts`: no still is stored beside a
 sibling canvas frame or after one came and went; release builds expose no still globals; one answer per frame window,
 buffers transferred, refreshes batched; 2 MB a minute and 8 MB per canvas; a canvas's writes evict its own records
-first; the key is a SHA-256 of the capability and records of the first shape are deleted.
+first; the key is a SHA-256 of the capability and records of the first shape are deleted. `test/v2-212-still-png.test.ts`:
+a real PNG (WebKit's chunk layout) passes, a bad or misplaced IHDR, oversize dimensions, APNG, a chunk length past
+the buffer, trailing bytes, a missing IDAT/IEND or an unknown chunk is refused (bridge and store); on a canvas whose
+`toBlob` answers PNG to a WebP request the still is offered, kept and, after a reload, restored as `image/png` with
+no drawing.

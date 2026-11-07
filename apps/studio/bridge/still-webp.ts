@@ -1,8 +1,9 @@
-// apps/studio/bridge/still-webp.ts — #212 §5 (T2.2): is this buffer a still WebP of an overview still?
+// apps/studio/bridge/still-webp.ts — #212 §5 (T2.2): is this buffer a still (WebP or PNG) of an overview still?
 //
 // The bytes come from the untrusted canvas origin (DDR-054) and are stored by the shell across sessions
 // (client/v2/shell/still-store.js), so they are checked by what they ARE, never by what the frame says:
-// the RIFF container, the first chunk's bitstream header, and the size it encodes. Nothing is decoded.
+// for WebP the RIFF container, the first chunk's bitstream header and the size it encodes; for PNG (WebKit encodes
+// no WebP) a structural chunk walk and the IHDR size. Nothing is decoded.
 // Leaf module (no imports): the dgn table (both documents) and the shell store share it.
 //
 // Contract: client/v2/contracts/212-still-cache.md §5 "Bytes".
@@ -80,7 +81,159 @@ export function checkStillWebp(v: unknown): StillWebpCheck {
   return { ok: true, w, h };
 }
 
-/** The buffer when it is a still WebP (a fresh copy, so a later write to the sender's view cannot change it), else null. */
+// ─── PNG (WebKit has no WebP encoder: `toBlob(cb, 'image/webp')` answers `image/png` on Safari / Tauri) ───────
+
+export type StillPngCheck =
+  | { ok: true; w: number; h: number }
+  | {
+      ok: false;
+      reason:
+        | 'not-bytes'
+        | 'empty'
+        | 'too-large'
+        | 'not-png'
+        | 'bad-size'
+        | 'bad-chunk'
+        | 'animated'
+        | 'too-big';
+    };
+
+const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const be32 = (b: Uint8Array, i: number) =>
+  ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
+/** The chunks a canvas encoder writes (WebKit: IHDR sRGB eXIf IDAT… IEND); any other chunk refuses the still. */
+const PNG_ANCILLARY = new Set([
+  'sRGB',
+  'gAMA',
+  'cHRM',
+  'iCCP',
+  'pHYs',
+  'sBIT',
+  'bKGD',
+  'tRNS',
+  'eXIf',
+]);
+/** APNG: a still is one image. */
+const PNG_ANIMATION = new Set(['acTL', 'fcTL', 'fdAT']);
+/** Bit depths allowed per colour type (PNG spec, table 11.1). */
+const PNG_DEPTHS: Record<number, number[]> = {
+  0: [1, 2, 4, 8, 16],
+  2: [8, 16],
+  3: [1, 2, 4, 8],
+  4: [8, 16],
+  6: [8, 16],
+};
+
+/**
+ * Check a candidate still: a single-image PNG no bigger than the overview ever draws. A structural walk, CRC-free
+ * (nothing here decodes, the canvas does in its own origin): the signature; IHDR first, 13 bytes, its size within the
+ * caps and a valid depth / colour type / method triple; every chunk's length within what is left of the buffer (an
+ * integer compare against the remaining bytes, never `off + len`); only the chunks a canvas encoder writes, one IDAT
+ * run; no APNG chunk; IEND empty and the very last bytes — nothing trails the image.
+ */
+export function checkStillPng(v: unknown): StillPngCheck {
+  const b = u8(v);
+  if (!b) return { ok: false, reason: 'not-bytes' };
+  if (b.length === 0) return { ok: false, reason: 'empty' };
+  if (b.length > STILL_PERSIST_MAX_BYTES) return { ok: false, reason: 'too-large' };
+  // signature + IHDR (12 + 13) + IEND (12)
+  if (b.length < 8 + 25 + 12 || PNG_SIG.some((x, i) => b[i] !== x))
+    return { ok: false, reason: 'not-png' };
+  let off = 8;
+  let first = true;
+  let w = 0;
+  let h = 0;
+  let palette = false;
+  let plte = false;
+  let idat: 'none' | 'in' | 'done' = 'none';
+  for (;;) {
+    const left = b.length - off;
+    if (left < 12) return { ok: false, reason: 'bad-chunk' }; // a chunk is at least length + type + CRC
+    const len = be32(b, off);
+    if (len > left - 12) return { ok: false, reason: 'bad-chunk' };
+    const type = tag(b, off + 4);
+    const d = off + 8;
+    if (!/^[A-Za-z]{4}$/.test(type)) return { ok: false, reason: 'bad-chunk' };
+    if (first) {
+      if (type !== 'IHDR' || len !== 13) return { ok: false, reason: 'bad-chunk' };
+      w = be32(b, d);
+      h = be32(b, d + 4);
+      const depth = b[d + 8];
+      const color = b[d + 9];
+      if (!(PNG_DEPTHS[color] ?? []).includes(depth)) return { ok: false, reason: 'bad-chunk' };
+      // compression 0, filter 0, interlace 0 (none) or 1 (Adam7)
+      if (b[d + 10] !== 0 || b[d + 11] !== 0 || b[d + 12] > 1)
+        return { ok: false, reason: 'bad-chunk' };
+      if (!(w > 0 && h > 0)) return { ok: false, reason: 'bad-chunk' };
+      if (w > STILL_PERSIST_MAX_W || h > STILL_PERSIST_MAX_H)
+        return { ok: false, reason: 'too-big' };
+      palette = color === 3;
+      first = false;
+    } else if (type === 'IEND') {
+      if (len !== 0 || idat === 'none' || (palette && !plte))
+        return { ok: false, reason: 'bad-chunk' };
+      if (d + 4 !== b.length) return { ok: false, reason: 'bad-size' };
+      return { ok: true, w, h };
+    } else if (type === 'IDAT') {
+      if (idat === 'done') return { ok: false, reason: 'bad-chunk' };
+      idat = 'in';
+    } else if (PNG_ANIMATION.has(type)) {
+      return { ok: false, reason: 'animated' };
+    } else if (type === 'PLTE' || PNG_ANCILLARY.has(type)) {
+      if (idat === 'in') idat = 'done';
+      if (type === 'PLTE') {
+        if (plte || idat !== 'none' || len === 0 || len > 768 || len % 3 !== 0)
+          return { ok: false, reason: 'bad-chunk' };
+        plte = true;
+      }
+    } else return { ok: false, reason: 'bad-chunk' }; // a second IHDR, text, an unknown or private chunk
+    off = d + len + 4;
+  }
+}
+// ─── either format ─────────────────────────────────────────────────────────────────────────────────────────────
+
+export type StillFormat = 'webp' | 'png';
+export type StillImageCheck =
+  | { ok: true; format: StillFormat; w: number; h: number }
+  | {
+      ok: false;
+      reason: Exclude<StillWebpCheck, { ok: true }>['reason'] | 'not-image' | 'not-png';
+    };
+
+/**
+ * Check a candidate still in the format its first bytes name — WebP (Chromium, Firefox) or PNG (WebKit) — and
+ * report that format, so the canvas decodes it with the right MIME. Bytes that are neither are `not-image`.
+ */
+export function checkStillImage(v: unknown): StillImageCheck {
+  const b = u8(v);
+  if (b && b.length >= 8 && PNG_SIG.every((x, i) => b[i] === x)) {
+    const r = checkStillPng(b);
+    return r.ok ? { ok: true, format: 'png', w: r.w, h: r.h } : r;
+  }
+  if (b && b.length >= 12 && tag(b, 0) === 'RIFF' && tag(b, 8) === 'WEBP') {
+    const r = checkStillWebp(b);
+    return r.ok ? { ok: true, format: 'webp', w: r.w, h: r.h } : r;
+  }
+  if (!b) return { ok: false, reason: 'not-bytes' };
+  if (b.length === 0) return { ok: false, reason: 'empty' };
+  if (b.length > STILL_PERSIST_MAX_BYTES) return { ok: false, reason: 'too-large' };
+  return { ok: false, reason: 'not-image' };
+}
+
+/** The MIME of a still's bytes (`image/webp` | `image/png`), or null when they are not a still. */
+export function stillMime(v: unknown): 'image/webp' | 'image/png' | null {
+  const r = checkStillImage(v);
+  return r.ok ? (r.format === 'png' ? 'image/png' : 'image/webp') : null;
+}
+
+/** The buffer when it is a still (WebP or PNG; a fresh copy, so a later write to the sender's view cannot change it), else null. */
+export function stillImageBytes(v: unknown): ArrayBuffer | null {
+  if (!checkStillImage(v).ok) return null;
+  const b = u8(v) as Uint8Array;
+  return b.slice().buffer;
+}
+
+/** The buffer when it is a still WebP (a fresh copy), else null. WebP only; the bridge uses `stillImageBytes`. */
 export function stillWebpBytes(v: unknown): ArrayBuffer | null {
   if (!checkStillWebp(v).ok) return null;
   const b = u8(v) as Uint8Array;

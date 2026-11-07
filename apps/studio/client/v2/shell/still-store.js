@@ -7,7 +7,7 @@
 //          by the shell (the capability itself is never written down)
 //   src  = the index's srcHash:metaHash:depsHash at write time; `list` returns only records of the CURRENT src and
 //          deletes the others (a changed canvas never shows a stale still)
-//   caps = 256 kB a still (and a real still WebP, bridge/still-webp.ts) · 8 MB and 2000 stills a canvas · 32 MB a
+//   caps = 256 kB a still (and a real still WebP or single-image PNG, bridge/still-webp.ts) · 8 MB and 2000 stills a canvas · 32 MB a
 //          project · 96 MB the store · 300 writes and 2 MB a minute a canvas
 //   eviction: a canvas pays for its own writes first (its own records used longest ago); another canvas's records go
 //          only when the project or store cap still holds after that, oldest first — so one canvas's writes neither
@@ -17,7 +17,7 @@
 // browser profile's otherwise; never the design root (not synced, not committed). No IndexedDB, or one that
 // fails: the store answers nothing and keeps nothing. Contract: client/v2/contracts/212-still-cache.md §5.
 
-import { checkStillWebp, STILL_PERSIST_MAX_BYTES } from '../../../bridge/still-webp.ts';
+import { checkStillImage, STILL_PERSIST_MAX_BYTES } from '../../../bridge/still-webp.ts';
 
 export const STILL_PROJECT_MAX_BYTES = 32 * 1024 * 1024;
 export const STILL_STORE_MAX_BYTES = 96 * 1024 * 1024;
@@ -217,12 +217,12 @@ export function createStillStore({ backend = idbStillBackend(), now = () => Date
     return true;
   };
   return {
-    /** Keep one still. False when it is refused (not a still WebP, too big, over the write rate, no store). */
+    /** Keep one still. False when it is refused (not a still WebP / PNG, too big, over the write rate, no store). */
     async put({ pid, scope, src, artboard, sig, bytes }) {
       if (!backend) return false;
       if (![pid, scope, src, artboard].every(okPart) || typeof sig !== 'string' || sig.length > 200)
         return false;
-      const check = checkStillWebp(bytes);
+      const check = checkStillImage(bytes);
       if (!check.ok) return false;
       const size = bytes.byteLength;
       if (size > STILL_PERSIST_MAX_BYTES) return false;
@@ -282,7 +282,7 @@ export function createStillStore({ backend = idbStillBackend(), now = () => Date
         } catch {
           bytes = null;
         }
-        if (!checkStillWebp(bytes).ok) {
+        if (!checkStillImage(bytes).ok) {
           bad.push(r.k);
           continue;
         }
