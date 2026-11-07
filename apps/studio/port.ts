@@ -36,7 +36,8 @@ export const E2E_PORT_BASE = 47399;
 
 export function resolvePort(
   argv: string[] = process.argv,
-  env: Record<string, string | undefined> = process.env
+  env: Record<string, string | undefined> = process.env,
+  release?: boolean
 ): { port: number; explicit: boolean } {
   const i = argv.indexOf('--port');
   if (i !== -1 && argv[i + 1]) return { port: Number(argv[i + 1]), explicit: true };
@@ -45,7 +46,7 @@ export function resolvePort(
   const base = Number(env.MAUDE_PORT_BASE);
   if (Number.isInteger(base) && base > 0 && base < 65536 - PORT_LADDER)
     return { port: base, explicit: false };
-  if (isE2eEnv(env)) return { port: E2E_PORT_BASE, explicit: false };
+  if (isE2eEnv(env, release)) return { port: E2E_PORT_BASE, explicit: false };
   if (env[APP_SIDECAR_ENV] === '1') return { port: APP_PORT_BASE, explicit: false };
   return { port: CLI_DEFAULT_PORT, explicit: false };
 }

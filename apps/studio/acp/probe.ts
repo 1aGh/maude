@@ -11,6 +11,7 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, win32 } from 'node:path';
 
 import { DEV_SERVER_ROOT, IS_COMPILED_BINARY } from '../paths.ts';
+import { e2eSwitch, IS_RELEASE_BUILD } from '../release-build.ts';
 import { scrubAgentEnv } from './env.ts';
 
 /** Adapter npm package — the renamed continuation of `@zed-industries/claude-code-acp`. */
@@ -133,7 +134,8 @@ function contentStillTrusted(path: string): boolean {
  */
 export function resolveClaudePath(
   env: Record<string, string | undefined> = process.env,
-  which: (bin: string) => string | null = (bin) => Bun.which(bin)
+  which: (bin: string) => string | null = (bin) => Bun.which(bin),
+  release: boolean = IS_RELEASE_BUILD
 ): string | null {
   // An explicit, content-pinned `MAUDE_CLAUDE_BIN` override is checked FIRST
   // and always wins — including over the E2E force-missing stub below. This
@@ -153,17 +155,22 @@ export function resolveClaudePath(
   // DDR-166 — deterministic E2E stub (mirrors MAUDE_E2E_FAKE_GITHUB_LOGIN in
   // oauth.rs), simulating a machine where `claude` is absent from PATH.
   // Never set in a normal launch.
-  if (env.MAUDE_E2E_FORCE_CLAUDE_STATUS === 'missing') return null;
+  if (e2eSwitch(env, 'MAUDE_E2E_FORCE_CLAUDE_STATUS', release) === 'missing') return null;
   // p8-e2e-isolation-r13 — an e2e lane gets ONLY the stub it names in MAUDE_CLAUDE_BIN (above). A PATH lookup is
   // what found the person's real `~/.local/bin/claude` in the 2026-10-27 V2-8.3 record: the sidecar's PATH is the
   // person's login-shell PATH (sidecar.rs), and that claude reads the real keychain. Normal launches never set a
   // MAUDE_E2E_* variable, so their resolution is unchanged.
-  if (isE2eEnv(env)) return null;
+  if (isE2eEnv(env, release)) return null;
   return which('claude');
 }
 
 /** p8-e2e-isolation-r13 — true when any `MAUDE_E2E_*` variable is set non-empty (a desktop e2e lane / harness). */
-export function isE2eEnv(env: Record<string, string | undefined> = process.env): boolean {
+export function isE2eEnv(
+  env: Record<string, string | undefined> = process.env,
+  release: boolean = IS_RELEASE_BUILD
+): boolean {
+  // #168 — a shipped build ignores every e2e switch (release-build.ts).
+  if (release) return false;
   for (const [k, v] of Object.entries(env)) if (k.startsWith('MAUDE_E2E_') && v) return true;
   return false;
 }

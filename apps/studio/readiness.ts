@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import { getClaudeAuthStatus } from './acp/login-state.ts';
 import { isNativePluginContext } from './acp/plugin-bootstrap.ts';
 import { isE2eEnv, resolveAdapterEntry, resolveClaudePath } from './acp/probe.ts';
+import { e2eSwitch } from './release-build.ts';
 import { resolveBrowser } from './bin/_ensure-browser.mjs';
 import { DESIGN_PLUGIN_DIR } from './paths.ts';
 
@@ -192,6 +193,14 @@ export function scanPlugins(): PluginScan {
  * trip, not three sequential ones. The backing route gates cross-origin callers
  * (DDR-128 hardening) so this can't be turned into a spawn-storm from a drive-by page.
  */
+/** #168 — the forced claude status an e2e lane asked for; a release build ignores the switch. */
+export function e2eForcedClaudeStatus(
+  env: Record<string, string | undefined> = process.env,
+  release?: boolean
+): string | undefined {
+  return e2eSwitch(env, 'MAUDE_E2E_FORCE_CLAUDE_STATUS', release);
+}
+
 export async function probeReadiness(): Promise<ReadinessReport> {
   let [claude, maude, agentBrowser] = await Promise.all([
     resolveClaudeOnPathForReadiness(),
@@ -206,7 +215,7 @@ export async function probeReadiness(): Promise<ReadinessReport> {
   // to occur naturally gets a narrow, explicitly-named override instead of a
   // hand-rolled sandbox that fights the OS's own PATH resolution). Never
   // affects real users — unset in every normal launch.
-  const e2eForce = process.env.MAUDE_E2E_FORCE_CLAUDE_STATUS;
+  const e2eForce = e2eForcedClaudeStatus();
   // A verified, explicitly-provisioned MAUDE_CLAUDE_BIN override (T0c's
   // install flow, once its freshness+hash check passes) must never be
   // clobbered back to "missing"/"signed-out" by this coarser stub — mirrors

@@ -36,6 +36,8 @@ Requires the macOS/Windows toolchain (cargo + tauri-cli). The `tauri build` `bef
 
 > **Studio client changes need a bundle rebuild first.** The test app serves the committed `apps/studio/dist/client.bundle.js`. If you added/changed `data-testid`s in `apps/studio/client/`, rebuild release-minified before `test:e2e:desktop:build`: `cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release` and commit `dist/client.bundle.js` + `dist/styles.css` (CLAUDE.md rule).
 
+> **The e2e sidecar is built with `--e2e`.** A plain `--release` server binary ignores every `MAUDE_E2E_*` switch (`apps/studio/release-build.ts`, #168), so the lanes that force a claude status, fake the installer or use the e2e port ladder need the sidecar from `cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release --e2e` before `test:e2e:desktop:build`. CI never passes `--e2e`.
+
 ## The `data-testid` convention
 
 Scenarios target `data-testid`, never CSS classes (classes churn with the DS). Format: `data-testid="<area>-<thing>[-<id>]"`, kebab-case, slug-derived for list items. Established hooks in `apps/studio/client/app.jsx`:

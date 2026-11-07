@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { browserslistToTargets, bundle as lcssBundle } from 'lightningcss';
 
 import { cloudStubPlugin } from './cloud-build.ts';
+import { releaseDefines } from './release-build.ts';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 
@@ -64,6 +65,21 @@ const WATCH = ARGS.has('--watch');
 /** Cloud Phase 27 D1 — build the CELL's variant (secret-bearing surfaces
  *  removed from the binary, not merely un-routed). `--cloud` with `--release`. */
 const CLOUD = ARGS.has('--cloud');
+/** #168 — the desktop e2e lane's sidecar: a `--release` binary that keeps the `MAUDE_E2E_*` switches. Every other
+ *  `--release` build (CI, the npm platform packages, the cell) bakes `__MAUDE_RELEASE_BUILD__` and ignores them
+ *  (release-build.ts). Never passed by a workflow; the cloud variant refuses it. */
+const E2E_SIDECAR = ARGS.has('--e2e');
+if (E2E_SIDECAR && (CLOUD || MODE !== 'release')) {
+  console.error(
+    '[build] --e2e only applies to a plain --release server binary (not --cloud, not dev).'
+  );
+  process.exit(2);
+}
+const RELEASE_DEFINES = releaseDefines({
+  release: MODE === 'release',
+  e2e: E2E_SIDECAR,
+  cloud: CLOUD,
+});
 
 const PLATFORM_MATRIX = [
   'bun-darwin-arm64',
@@ -442,6 +458,7 @@ async function buildServerBinary(
       entrypoints: [entry],
       target: 'bun',
       minify: true,
+      define: RELEASE_DEFINES,
       plugins: [cloudStubPlugin(ROOT)],
       compile: { target, outfile: outPath },
     } as Parameters<typeof Bun.build>[0]);
@@ -460,6 +477,7 @@ async function buildServerBinary(
       '--minify',
       '--sourcemap',
       '--smol',
+      ...Object.entries(RELEASE_DEFINES).map(([k, v]) => `--define=${k}=${v}`),
       `--outfile=${outPath}`,
       entry,
     ],
