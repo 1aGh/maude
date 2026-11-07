@@ -103,8 +103,8 @@ describe('T + a click on an artboard', () => {
     expect(selected).toEqual([{ artboard: 'mobile', element: 'text' }]);
     expect(ed.opened).toHaveLength(1);
     expect(ed.opened[0]?.selectAll).toBe(true);
-    // esc keeps the typed words of a text just made (restoring would put back the placeholder)
-    expect((ed.opened[0] as { escKeeps?: boolean }).escKeeps).toBe(true);
+    // esc keeps the typed words of every text now (#163, test/t25-text-esc-keeps.test.ts) — no per-open switch
+    expect((ed.opened[0] as { escKeeps?: boolean }).escKeeps).toBeUndefined();
     expect(ed.opened[0]?.el.getAttribute('data-cd-id')).toBe('text');
   });
 
