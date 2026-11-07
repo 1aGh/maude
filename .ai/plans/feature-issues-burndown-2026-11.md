@@ -127,7 +127,7 @@ W5 and W6 use Opus.
   - per-node decode errors become a report, not an abort;
   - the varuint64 repro;
   - gradients in `buildClusterSvg`.
-- [ ] T1.6 **#151 causes 1–3:**
+- [x] T1.6 **#151 causes 1–3:**
   - `world` coordinates on element comments (`canvas-comment-mount.tsx` element path);
   - a real nth-child selector, or a consistent tag, when there is no `data-cd-id` (`dom-selection.ts:566-579`);
   - `dom_path` searches every element in the artboard.
@@ -163,7 +163,7 @@ W5 and W6 use Opus.
   - one still element is reused on release;
   - measure a full-canvas pan in Safari and Tauri, against the 2.0.7 p95 (memory `maude-perf-measure-full-canvas-sweep`).
 - [ ] T2.2 **#212 §5** (D2, security risk class, Opus): persistence across sessions over the typed bridge, keyed by project, canvas, source hash and artboard. Run the security pair.
-- [ ] T2.3 **#151 §4–§6:**
+- [x] T2.3 **#151 §4–§6:**
   - why the `.ldm-hifi` components get no `data-cd-id` (stamping gap), and fix it;
   - D5 "Re-attach to element", with PATCH accepting the anchor;
   - a shared-cdId index survives edits, or is re-resolved.
@@ -192,7 +192,7 @@ W5 and W6 use Opus.
   - an SVG `<img>` with `naturalWidth 0` uses its layout size;
   - transformed static parents with absolute children get pinned to their containing block.
 - [x] T3.3 **#150 §4 + #128 §8:** an export-time parity check listing unsupported features before the render (inline svg, 0-size svg img, skew, clip-path with background-image, …).
-- [ ] T3.4 **#128 §1 + #127:**
+- [x] T3.4 **#128 §1 + #127:**
   - an HEVC / VFR / extra-audio-track warning at probe time;
   - an optional H.264 / CFR / single-AAC proxy next to the original;
   - before the frame-step fallback, a "no audio" warning that names the asset and codec.
@@ -355,3 +355,6 @@ W5 and W6 use Opus.
 - 2026-11-07 merged T2.1 (e7cca90b7 21e1095f4: two-tier still cache; decoded tier ~99→43 MB; Safari/Tauri full-canvas sweep still owed — safaridriver needs `--enable` (admin, Michal) and a Tauri debug build), T4.4 (5c2c30897 d666d23b7 00dccd5e5: `plugins/design-video`, DDR-249, 239 reference rewrites), T2.5 (six of seven #163 items; create/paste keep adopting — lead chose (a); `/_api/ai/start` → T2.5b), T3.2+T3.3 (3f1647b2b e1acb7754: capture pre-pass, measured parity list). CLAUDE.md names design-video; biome skips generated `commands-*/meta.json`. Lint, tsc, drift gates, boot check, site-content green.
 - 2026-11-07 B1 (#164 hook side) done on worktree-agent-ad3436a81a5fd7c8d (6d5344588) — held until B2 lands so they merge together.
 - 2026-11-07 merged T2.5b (b19b259c3 5b120b172): ai/start|heartbeat|end → 410; test seam = MAUDE_E2E_LEGACY_AI_BRACKET on the retired routes, ignored by release builds; R1/R4 keep the seam (waiting-ring). Owed: run ai-runs.e2e + surface L18/L21 once alone; old runner .ai/scenarios/reliable-project-multiplayer/runners/f3/s07-desktop.mjs now gets 410.
+- 2026-11-07 merged #164 B1 6d5344588 + B2 5aa88e806 + B3 45c80a782 (park-then-settle, settle route, history by run, writer pin); B4 follow-ups running (accepted-link release, video-ai-cut-stop settle, legacy-route claims).
+- 2026-11-07 merged T2.3 (8861f8be9 9bc472a45: imported-module stamping, D5 Re-attach, shared-id re-resolve; browser proof pan/zoom/reload OK — closes the T1.6 proof too); lead patch: `reattach` in dgn-protocol COMMENT_OPS + parity test (red without). T2.3b opened for imported-module edit read-only.
+- 2026-11-07 merged T3.4 e6222f962 (HEVC/VFR/multi-audio probe warnings, `maude design video-proxy` prompt-tier verb, no-audio notice names asset+codec). Lead: writer-registry I11, What's New entry.
