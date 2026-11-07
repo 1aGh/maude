@@ -81,6 +81,30 @@ export function textRevertCollides(
 }
 
 /**
+ * T5.2 (#165) — the kernel's half: would the annotations lane merge `base → ours` onto `theirs` drop
+ * somebody's text? Per text slot `base` and `theirs` both hold: ours ('' when ours removes the element —
+ * the text goes with it) against theirs, 3-way, the merge the board runs. Overlapping hunks → true. The
+ * hub kernel runs it while it rebases an undo through later work (project-transactions/kernel.mjs
+ * `revertLane`), so an undo from a desktop that does not ask first is refused the same way.
+ */
+export function textSlotsCollide(
+  base: string | null | undefined,
+  ours: string | null | undefined,
+  theirs: string | null | undefined
+): boolean {
+  const b = boardTextSlots(base);
+  if (!b.size) return false;
+  const o = boardTextSlots(ours);
+  const t = boardTextSlots(theirs);
+  for (const [id, was] of b) {
+    const now = t.get(id);
+    if (now === undefined) continue;
+    if (textMergeCollides(was, o.get(id) ?? '', now) === true) return true;
+  }
+  return false;
+}
+
+/**
  * p8-fix-d F12 — the same question for several steps undone as ONE action (Undo history, Undo this
  * chat, an action with several effects on one board). `steps` newest first; each is reverted onto
  * what the newer reverts left, slot by slot, with the merge the board runs — so a collaborator's
