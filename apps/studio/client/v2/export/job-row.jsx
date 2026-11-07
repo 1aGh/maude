@@ -82,13 +82,18 @@ export function DegradedNote({ degraded, compact = false }) {
   const fonts = degraded.fontsNotEmbedded ?? [];
   // Captions over a clip with no transcript export empty — name the clip (#128 §7).
   const noCaptions = degraded.captionsMissing ?? [];
+  // CSS the video exporter cannot draw, found before the render (#150 §4) — the file is complete,
+  // so this is the quietest headline and yields to every real loss above it.
+  const unsupported = degraded.unsupportedFeatures ?? [];
   const headline = degraded.audioDropped
     ? 'Exported without audio.'
     : fonts.length
       ? `Fonts a print shop will reject: ${fonts.join(', ')}.`
       : noCaptions.length
         ? `No captions for ${noCaptions.join(', ')}: no transcript was saved.`
-        : 'Exported with reduced fidelity.';
+        : unsupported.length
+          ? `May not match the preview: ${unsupported.join('; ')}.`
+          : 'Exported with reduced fidelity.';
   return (
     <div className="ex-export-degraded" data-testid="export-degraded-note">
       <span aria-hidden="true">!</span> {compact ? summarizeNoticeText(headline) : headline}

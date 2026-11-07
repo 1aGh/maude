@@ -86,10 +86,15 @@ function safeDegradation(raw: unknown): ExportDegradation | undefined {
   const fonts = Array.isArray(o.fontsNotEmbedded)
     ? o.fontsNotEmbedded.flatMap((f) => text(f, 200) ?? []).slice(0, 50)
     : undefined;
+  // #150 §4 — the render worker's pre-render parity warning (names come from canvas code: capped)
+  const features = Array.isArray(o.unsupportedFeatures)
+    ? o.unsupportedFeatures.flatMap((f) => text(f, 400) ?? []).slice(0, 12)
+    : undefined;
   return {
     reason,
     ...(o.audioDropped === true ? { audioDropped: true } : {}),
     ...(fonts?.length ? { fontsNotEmbedded: fonts } : {}),
+    ...(features?.length ? { unsupportedFeatures: features } : {}),
     ...(text(o.remedy, 2000) ? { remedy: text(o.remedy, 2000) } : {}),
   };
 }

@@ -52,7 +52,7 @@ import {
   renderRemotely,
   resolveRenderService,
 } from './remote.ts';
-import { captionGap } from './degraded.ts';
+import { captionGap, mergeDegraded } from './degraded.ts';
 import { noteRenderMs } from './render-seconds.ts';
 import {
   enforceAnnotationsPolicy,
@@ -435,24 +435,6 @@ function readPrintPropsFor(
     }
   }
   return out;
-}
-
-/** Two degradations of one job (the first run's and a retry's) as one: reasons joined, flags kept. */
-function mergeDegraded(
-  a: ExportDegradation | undefined,
-  b: ExportDegradation | undefined
-): ExportDegradation | undefined {
-  if (!a || !b) return a ?? b;
-  const fonts = [...new Set([...(a.fontsNotEmbedded ?? []), ...(b.fontsNotEmbedded ?? [])])];
-  const captions = [...new Set([...(a.captionsMissing ?? []), ...(b.captionsMissing ?? [])])];
-  return {
-    ...a,
-    ...b,
-    ...(a.audioDropped || b.audioDropped ? { audioDropped: true } : {}),
-    ...(fonts.length ? { fontsNotEmbedded: fonts } : {}),
-    ...(captions.length ? { captionsMissing: captions } : {}),
-    reason: [...new Set([a.reason, b.reason])].join(' '),
-  };
 }
 
 /** Seams a test replaces (the engine call); production passes nothing. */

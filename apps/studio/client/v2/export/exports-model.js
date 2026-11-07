@@ -253,6 +253,7 @@ export function stateWord(job) {
   if (job?.degraded?.audioDropped) return 'Ready · no audio';
   if (job?.degraded?.fontsNotEmbedded?.length) return 'Ready · font warning';
   if (job?.degraded?.captionsMissing?.length) return 'Ready · no captions';
+  if (job?.degraded?.unsupportedFeatures?.length) return 'Ready · check preview';
   if (job?.degraded) return 'Ready · degraded';
   if (isPartial(job)) return '';
   return 'Ready';
