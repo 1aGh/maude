@@ -41,6 +41,12 @@ import { createRoot } from 'react-dom/client';
 import { acceptFromShell } from './bridge/dgn-protocol.ts';
 import { annotationElement, annotationIdAt, clientToWorld } from './comment-anchor.ts';
 import { CommentsOverlay } from './comments-overlay.tsx';
+import {
+  cancelReattach,
+  listenForReattach,
+  pendingReattach,
+  pickForReattach,
+} from './comment-reattach.ts';
 import { commentSelectionFor, deriveFile, hoverTargetToSelection } from './dom-selection.ts';
 import { frameCaf, frameRaf } from './frame-clock.ts';
 import {
@@ -162,6 +168,25 @@ function CommentHost({ children, file }: { children: ReactNode; file: string | u
     if (tool !== 'comment') setHoverEl(null);
   }, [tool]);
 
+  // #151 D5 — "Re-attach to element": the thread card asks, the next comment-tool click names the
+  // element (dropComment hands it to the overlay instead of opening a composer). The tool is armed
+  // for that one click and put back after it; Esc or a closed thread ends the wait.
+  const armedForReattach = useRef(false);
+  useEffect(
+    () =>
+      listenForReattach(
+        () => {
+          armedForReattach.current = toolRef.current !== 'comment';
+          setTool('comment');
+        },
+        () => {
+          if (armedForReattach.current) setTool('move');
+          armedForReattach.current = false;
+        }
+      ),
+    [setTool]
+  );
+
   // feature-element-editing-robustness Stage E — element SELECT on a bare
   // specimen. `selectedEl` drives the selection halo; `isSpecimen` gates the
   // resize overlay so it mounts on specimens ONLY (a UI canvas already mounts
@@ -260,8 +285,9 @@ function CommentHost({ children, file }: { children: ReactNode; file: string | u
         setHoverEl((prev) => (prev === el ? prev : el));
       },
       onTool: ({ tool: t }) => setTool(t),
-      onEscape: () =>
-        commentMountEscape(isBareSpecimen(), () => {
+      onEscape: () => {
+        if (pendingReattach() !== null) cancelReattach();
+        return commentMountEscape(isBareSpecimen(), () => {
           if (toolRef.current !== 'move') setTool('move');
           setHoverEl(null);
           selSet.clear();
@@ -272,8 +298,17 @@ function CommentHost({ children, file }: { children: ReactNode; file: string | u
               /* parent detached */
             }
           }
-        }),
-      onDropComment: ({ clientX, clientY }) => dropComment(clientX, clientY, selSet, file),
+        });
+      },
+      onDropComment: ({ clientX, clientY }) => {
+        const waiting = pendingReattach() !== null;
+        dropComment(clientX, clientY, selSet, file);
+        // The one click was taken as the new anchor: the tool we armed for it goes back.
+        if (waiting && pendingReattach() === null && armedForReattach.current) {
+          armedForReattach.current = false;
+          setTool('move');
+        }
+      },
     },
   });
 
@@ -423,6 +458,8 @@ function dropComment(
   // artboards, so what the user clicked is the annotation, not the element
   // underneath it.
   const annotationId = annotationIdAt(clientX, clientY);
+  // A re-attach waits for an ELEMENT: a click on a board object names none, so it is not taken.
+  if (annotationId && pendingReattach() !== null) return;
   if (annotationId) {
     const el = annotationElement(annotationId);
     const r = el?.getBoundingClientRect();
@@ -478,6 +515,8 @@ function dropComment(
     if (el) target = { el, cdId: el.getAttribute('data-cd-id'), artboardId: null };
   }
 
+  if (!target && pendingReattach() !== null) return; // dead space is no element — keep waiting
+
   if (!target) {
     // Floating comment — no element anchor, just the click point (e.g. a click
     // on empty canvas/specimen dead space). The overlay renders the pin at the
@@ -504,8 +543,11 @@ function dropComment(
   // data-cd-id, and the click's world point so the pin follows pan and zoom (#151).
   // The SELECTION stays what a plain pick makes (an uninstrumented element is a whole-artboard pick to
   // the halo and Delete); only the composer carries the comment anchor.
+  const anchor = commentSelectionFor(target, clientX, clientY, file);
+  // "Re-attach to element" is waiting for this click: it names the element, there is no new comment.
+  if (pickForReattach(anchor, clientX, clientY)) return;
   selSet.replace(hoverTargetToSelection(target, file));
-  openComposer(commentSelectionFor(target, clientX, clientY, file), clientX, clientY);
+  openComposer(anchor, clientX, clientY);
 }
 
 function openComposer(selection: Selection, clientX: number, clientY: number): void {

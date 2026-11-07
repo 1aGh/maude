@@ -95,6 +95,42 @@ export function transpileCanvasSource(canvasAbsPath: string, source: string): Tr
   return { js, locator, etag, withIds };
 }
 
+/**
+ * #151 §3 (T2.3) — stamp a LOCAL MODULE a canvas imports (a shared hi-fi component file), so a
+ * comment, a selection or an arrow aimed at one of its elements has a `data-cd-id` to hold. Pass 1
+ * only ever saw the canvas's own source; every element rendered by an imported component had none.
+ *
+ * Differences from the canvas pass, all on purpose:
+ *   - the computed id is scoped to the MODULE (`scope`, its design-root-relative path), so two
+ *     modules' `Card:0` cannot collide with each other or with the canvas's own ids;
+ *   - no locator entry — the locator is the canvas file's map (the inspector and the text patch
+ *     match it by the canvas source's line/column), and an imported element is not in that file;
+ *   - no `data-cd-editable` marker — the edit engine reads the canvas source, so offering an inline
+ *     edit there would only fail at commit.
+ * An element is rendered once per use of its component, so instances share an id exactly like
+ * `.map()` rows do; the occurrence index tells them apart (ElementRef.occurrence).
+ *
+ * Returns the stamped source, or null when the file does not parse / has nothing to stamp (the
+ * bundler then reads the original and reports its own error).
+ */
+export function stampImportedModule(
+  moduleAbsPath: string,
+  source: string,
+  scope: string
+): string | null {
+  if (hasMacroImport(source)) return null;
+  let parsed: ReturnType<typeof parseSync>;
+  try {
+    parsed = parseSync(moduleAbsPath, source, { sourceType: 'module' });
+  } catch {
+    return null;
+  }
+  if (parsed.errors && parsed.errors.length > 0) return null;
+  const s = new MagicString(source);
+  walkInjectIds(parsed.program, source, moduleAbsPath, s, {}, { idScope: scope });
+  return s.hasChanged() ? s.toString() : null;
+}
+
 export class TranspileError extends Error {
   readonly canvas: string;
   readonly byte: number;
@@ -255,7 +291,9 @@ function walkInjectIds(
   source: string,
   canvasAbsPath: string,
   s: MagicString,
-  locator: LocatorMap
+  locator: LocatorMap,
+  // Set for an IMPORTED module (stampImportedModule): ids scoped to it, no inline-edit marker.
+  imported?: { idScope: string }
 ): void {
   // Stack of enclosing components. JSX outside any component (e.g. a top-level
   // `const x = <div/>;` constant) attributes to "" -- still gets an ID, just
@@ -296,7 +334,10 @@ function walkInjectIds(
         };
       };
       if (!hasJsxAttr(opening, 'data-cd-id')) {
-        const id = computeId(frame.componentName, idx);
+        const id = computeId(
+          imported ? `${imported.idScope}\0${frame.componentName}` : frame.componentName,
+          idx
+        );
         // Insert " data-cd-id=\"<id>\"" right after the tag name. magic-string's
         // appendLeft puts the new text before any subsequent attribute. JSX
         // attribute order is irrelevant at runtime; visually the new attr lands
@@ -304,14 +345,14 @@ function walkInjectIds(
         const insertAt: number | undefined = opening?.name?.end;
         if (typeof insertAt === 'number') {
           s.appendLeft(insertAt, ` data-cd-id="${id}"`);
-          locator[id] = locate();
+          if (!imported) locator[id] = locate();
         }
       } else {
         // V2-2.19 (contract V2-1.4 §5.2): an AUTHORED id is the stable identity, so it
         // gets a locator entry too (the first element wins on a duplicate — the id
         // check reports the duplicate itself).
         const authored = authoredIdLiteral(opening);
-        if (authored && !locator[authored]) locator[authored] = locate();
+        if (authored && !imported && !locator[authored]) locator[authored] = locate();
       }
 
       // Phase 6 (unified-text-editing) — build-time editability marker, so
@@ -321,7 +362,7 @@ function walkInjectIds(
       // source string at commit (canvas-edit.ts). Independent of the id
       // injection above: hand-authored data-cd-id elements still get it.
       const editKind = inlineEditableKind(node);
-      if (editKind && !hasJsxAttr(opening, 'data-cd-editable')) {
+      if (editKind && !imported && !hasJsxAttr(opening, 'data-cd-editable')) {
         const insertAt: number | undefined = opening?.name?.end;
         if (typeof insertAt === 'number') {
           s.appendLeft(insertAt, ` data-cd-editable="${editKind}"`);

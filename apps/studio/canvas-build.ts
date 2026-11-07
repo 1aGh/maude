@@ -26,7 +26,7 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
 import { canvasLibPath, canvasLibResolver } from './canvas-lib-resolver.ts';
-import { transpileCanvasSource } from './canvas-pipeline.ts';
+import { stampImportedModule, transpileCanvasSource } from './canvas-pipeline.ts';
 import { CanvasBuildError, errorAt, fromBuildLogs, scrubPaths } from './canvas-source/errors.ts';
 import { dsResolver, usesDs } from './ds/ds-resolver.ts';
 import type { LocatorMap } from './locator.ts';
@@ -468,7 +468,9 @@ export async function buildCanvasModule(
       // After the allowlist: only an override whose file is gone today, already judged above.
       ...(overrides ? [overrides.resolveMissing] : []),
       // p8-c4 — LAST: answers every remaining file load with the bytes it checked (no re-read).
-      macroPinnedLoad(macroRefusals, macroCtx.designRoot),
+      macroPinnedLoad(macroRefusals, macroCtx.designRoot, {
+        stampImportedUnder: macroCtx.designRoot,
+      }),
     ],
   });
 
@@ -845,7 +847,18 @@ const BINARY_LOADERS = new Set(['file', 'dataurl', 'base64']);
  * for whatever is left it reads the file ONCE, checks those bytes and hands Bun exactly those bytes
  * with the loader Bun chose. What Bun parses is what was checked. Exported for the unit test.
  */
-export function macroPinnedLoad(refusals: string[], designRoot: string): import('bun').BunPlugin {
+export function macroPinnedLoad(
+  refusals: string[],
+  designRoot: string,
+  /**
+   * #151 §3 — also stamp the JSX of the local modules a canvas imports (canvas-pipeline.ts
+   * `stampImportedModule`): the files under this root, but not the design system's (`system/` is
+   * selected as an instance) nor runtime state (`_*`) nor anything vendored. The stamp is made on
+   * the very bytes that were just checked.
+   */
+  options: { stampImportedUnder?: string } = {}
+): import('bun').BunPlugin {
+  const stampRoot = options.stampImportedUnder ? realRoot(options.stampImportedUnder) : null;
   return {
     name: 'maude-macro-pinned-load',
     setup(builder) {
@@ -867,14 +880,43 @@ export function macroPinnedLoad(refusals: string[], designRoot: string): import(
             refusals.push(reason);
             throw new Error(reason);
           }
+          const stamped =
+            stampRoot && (loader === 'tsx' || loader === 'jsx')
+              ? stampScope(args.path, stampRoot)
+              : null;
+          const contents = stamped ? stampImportedModule(args.path, text, stamped) : null;
           return {
-            contents: BINARY_LOADERS.has(loader) ? bytes : text,
+            contents: contents ?? (BINARY_LOADERS.has(loader) ? bytes : text),
             loader: loader as import('bun').Loader,
           };
         }
       );
     },
   };
+}
+
+/** `root` as Bun reports file paths (macOS `/tmp` is `/private/tmp`). */
+function realRoot(root: string): string {
+  try {
+    return realpathSync(root);
+  } catch {
+    return path.resolve(root);
+  }
+}
+
+/**
+ * The scope (design-root-relative posix path) an imported module's ids are made under, or null when
+ * the file is not one to stamp: outside the root, the design system folder, runtime state (`_*`),
+ * or vendored code.
+ */
+function stampScope(file: string, root: string): string | null {
+  const rel = path.relative(root, file);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null;
+  const parts = rel.split(path.sep);
+  const first = parts[0] as string;
+  if (first === 'system' || first.startsWith('_') || first.startsWith('.')) return null;
+  if (parts.includes('node_modules')) return null;
+  return parts.join('/');
 }
 
 function loaderForExt(file: string): string | null {

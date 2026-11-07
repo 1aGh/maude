@@ -12,7 +12,7 @@
 // Erasable TypeScript only (the hub imports it under Node).
 
 import type { Comment, Reply } from '../api.ts';
-import { readAnchors } from './anchors.ts';
+import { ANCHOR_KEYS, readAnchors } from './anchors.ts';
 import { addedMentions, mentionsOf } from './mentions.ts';
 
 /** Same bound as a top-level comment and a reply today (`api.ts`). */
@@ -29,6 +29,7 @@ export const OP_NAMES = Object.freeze([
   'reopen',
   'edit-own',
   'delete-own',
+  'reattach',
 ] as const);
 export type OpName = (typeof OP_NAMES)[number];
 
@@ -95,7 +96,10 @@ export type CommentOp =
   | ({ op: 'add' } & AddPayload)
   | { op: 'reply'; id: string; body: string }
   | { op: 'resolve' | 'reopen' | 'delete-own'; id: string }
-  | { op: 'edit-own'; id: string; text: string };
+  | { op: 'edit-own'; id: string; text: string }
+  // #151 D5 — "Re-attach to element": the thread's anchor moves onto another element. An element
+  // anchor (`AddPayload`'s, validated by `elementAnchorFields`) with a thread id instead of a text.
+  | ({ op: 'reattach'; id: string } & Omit<AddPayload, 'file' | 'text'>);
 
 /** A stored record as these ops see it: today's Comment plus the Maude 2 authorship keys. */
 export type CommentRecord = Comment & {
@@ -185,6 +189,11 @@ export function parseCommentOp(raw: unknown): CommentOp | null {
     return { ...raw, op, file: raw.file, text: body } as CommentOp;
   }
   if (typeof raw.id !== 'string' || !ID_RE.test(raw.id)) return null;
+  if (op === 'reattach') {
+    // An element anchor needs its selector: a thread cannot be re-attached to nothing.
+    if (typeof raw.selector !== 'string' || !raw.selector) return null;
+    return { ...raw, op, id: raw.id, selector: raw.selector } as CommentOp;
+  }
   if (op === 'reply') {
     const body = text(raw.body);
     return body ? { op, id: raw.id, body } : null;
@@ -207,13 +216,19 @@ const authorship = (actor: OpActor): Pick<CommentRecord, 'authorId' | 'authorKin
   ...(actor.kind === 'ai' ? { authorKind: 'ai' as const } : {}),
 });
 
-/** A new record from an add op: the shape `api.ts commentsAdd` writes, plus the Maude 2 keys. */
-function recordFrom(p: AddPayload, ctx: OpContext): CommentRecord {
-  const c: CommentRecord = {
-    id: ctx.newId(),
-    file: p.file,
+/**
+ * The element-anchor fields of a record, from a create / re-attach payload: the same bounds either
+ * way, so a re-attach cannot store what an add would have cut. No `index: undefined` key — the
+ * record must equal its own JSON round trip.
+ */
+function elementAnchorFields(
+  p: Omit<AddPayload, 'file' | 'text'>
+): Pick<
+  CommentRecord,
+  'selector' | 'index' | 'dom_path' | 'tag' | 'classes' | 'bounds' | 'html_excerpt'
+> {
+  return {
     selector: typeof p.selector === 'string' ? p.selector.slice(0, 2000) : '',
-    // No `index: undefined` key: the record must equal its own JSON round trip.
     ...(typeof p.index === 'number' && Number.isInteger(p.index) && p.index >= 0
       ? { index: p.index }
       : {}),
@@ -224,6 +239,15 @@ function recordFrom(p: AddPayload, ctx: OpContext): CommentRecord {
     classes: typeof p.classes === 'string' ? p.classes.slice(0, 2000) : '',
     bounds: bounds(p.bounds),
     html_excerpt: typeof p.html_excerpt === 'string' ? p.html_excerpt.slice(0, 2000) : '',
+  };
+}
+
+/** A new record from an add op: the shape `api.ts commentsAdd` writes, plus the Maude 2 keys. */
+function recordFrom(p: AddPayload, ctx: OpContext): CommentRecord {
+  const c: CommentRecord = {
+    id: ctx.newId(),
+    file: p.file,
+    ...elementAnchorFields(p),
     text: p.text,
     status: 'open',
     created: ctx.now,
@@ -238,6 +262,24 @@ function recordFrom(p: AddPayload, ctx: OpContext): CommentRecord {
   if (from) c.from = from;
   c.mentions = mentionsOf(c);
   return c;
+}
+
+/**
+ * #151 D5 — move a thread onto a new element. The old element anchor goes (an `index` the new
+ * element lacks must not survive; so must not a world point, annotation, video moment or print
+ * point that belonged to the old place), the new one is read with the add op's own validators.
+ * Words, author, status and replies are not touched.
+ */
+function reattach(c: CommentRecord, p: Omit<AddPayload, 'file' | 'text'>): void {
+  const keep = readAnchors(p);
+  const rec = c as Record<string, unknown>;
+  // The keys must be ABSENT, not undefined: a record equals its own JSON round trip.
+  // biome-ignore lint/performance/noDelete: see above
+  delete rec.index;
+  for (const key of ANCHOR_KEYS) delete rec[key];
+  Object.assign(c, elementAnchorFields(p));
+  if (keep.world) c.world = keep.world;
+  if (keep.artboard) c.artboard = keep.artboard;
 }
 
 /**
@@ -282,6 +324,8 @@ export function applyCommentOp(
       c.resolved_at = op.op === 'resolve' ? ctx.now : null;
     } else if (op.op === 'edit-own') {
       c.text = op.text;
+    } else if (op.op === 'reattach') {
+      reattach(c, op);
     }
     c.mentions = mentionsOf(c);
   }

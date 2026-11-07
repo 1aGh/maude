@@ -1176,7 +1176,7 @@ const aiSeenList: V = (v) =>
     : BAD;
 
 /** S9.22 — the comment bridge. The op names the door takes (comments/ops.ts `parseCommentOp`). */
-export const COMMENT_OPS = ['add', 'reply', 'resolve', 'reopen', 'edit-own', 'delete-own'] as const;
+export const COMMENT_OPS = ['add', 'reply', 'resolve', 'reopen', 'edit-own', 'delete-own', 'reattach'] as const;
 /** S4.V4 G5 — the sticky ↔ comment conversion asks the thread makes; the SHELL answers them (S4.7 routes,
  *  its own session conversion map), never the comment door. `{ op, commentId }` only. */
 export const COMMENT_CONVERT_OPS = ['to-sticky', 'convert-undo', 'convert-undoable'] as const;
