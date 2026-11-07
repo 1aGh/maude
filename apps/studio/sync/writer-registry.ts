@@ -545,6 +545,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/sync/code-consent/set': { class: 'local', rows: 'X16' },
   // 2.0.7 #7b — the answer to held local deletes: this Mac's ledger (Keep) or the hub's own doors (Delete)
   '/_api/sync/held-deletes': { class: 'local', rows: 'X16' },
+  // #167 T5.3 — Adopt as code: the hub's own owner door journals its bytes; nothing written here
+  '/_api/sync/adopt-held': { class: 'local', rows: 'X16' },
   // S11.17 — Retry lands the canvas writes a full disk held; each then travels like any studio write
   '/_api/diagnostics/disk-retry': { class: 'local' },
   // p8-a1-save-hold — the closing page lands the saves held behind an AI call; each then travels like any studio write

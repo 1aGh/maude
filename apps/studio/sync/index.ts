@@ -112,6 +112,7 @@ import {
   withFormatParam,
 } from './format-sync.ts';
 import { createFsReader, type FsReader } from './fs-mirror.ts';
+import { type AdoptHeldControl, createAdoptHeld } from './adopt-held.ts';
 import { createHeldDeletes, type HeldDeletesControl, heldDeleteDetail } from './held-deletes.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
@@ -602,6 +603,8 @@ export interface SyncRuntime {
   codeConsent?(): CodeConsentControl | null;
   /** Issue #207 (7b) — the held local deletes and the person's answer (Sync details). */
   heldDeletes?(): HeldDeletesControl | null;
+  /** #167 T5.3 — Adopt as code for one file the hub holds back (Sync details, the owner). */
+  adoptHeld?(): AdoptHeldControl | null;
   /** Number of active per-canvas agents. */
   size(): number;
   /** Test inspection — get the agent for a slug if one was created. */
@@ -1970,6 +1973,8 @@ export function createSyncRuntime(
   let heldReporter: ReturnType<typeof createHeldReporter> | null = null;
   /** Issue #207 (7b) — Delete on the hub too / Keep on the hub, for the held local deletes. */
   let heldDeletesControl: HeldDeletesControl | null = null;
+  /** #167 T5.3 — Adopt as code: the owner's answer to a file the hub holds back. */
+  let adoptHeldControl: AdoptHeldControl | null = null;
   /** Cumulative files sent up this boot — the doručenka's push half. */
   let filePushed = 0;
   /** Debounce for a plane pass triggered by a local write. */
@@ -6091,6 +6096,13 @@ export function createSyncRuntime(
                   runPass: () => schedulePlanePass(),
                 });
               }
+              // #167 T5.3 — Adopt as code: the hub's own owner gate decides; this only carries it.
+              adoptHeldControl = createAdoptHeld({
+                hubUrl: linkedHub.url,
+                token: () => token,
+                fetchImpl: hubFetch,
+                runPass: () => schedulePlanePass(),
+              });
               console.log(
                 '[sync/files] journal file plane active — one lane, both directions, per-file delivery state in the Sync panel.'
               );
@@ -6170,6 +6182,7 @@ export function createSyncRuntime(
     filePlane = null;
     heldReporter = null;
     heldDeletesControl = null;
+    adoptHeldControl = null;
     // The control channel is a doorbell into this runtime; it goes with it.
     // Reported on the way out so the poke-miss question is answerable from a
     // session's log rather than from a hunch (DDR-226 §10).
@@ -6360,6 +6373,7 @@ export function createSyncRuntime(
     pullRemoteNow: () => remotePull?.() ?? Promise.resolve(),
     codeConsent: () => codeConsent,
     heldDeletes: () => heldDeletesControl,
+    adoptHeld: () => adoptHeldControl,
     // Under sharedDoc the per-canvas handler is a projection, not an agent;
     // count both so size() reflects the synced-canvas count in either mode.
     size: () => agents.size + projections.size,

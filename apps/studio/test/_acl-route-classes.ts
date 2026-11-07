@@ -353,6 +353,8 @@ const PROJECT = [
   '/_api/sync/code-consent/set',
   // 2.0.7 #7b — the answer to this Mac's held deletes: about the whole project
   '/_api/sync/held-deletes',
+  // #167 T5.3 — the owner's Adopt as code for one held file: about the whole project
+  '/_api/sync/adopt-held',
   '/_api/diagnostics/disk-retry',
   // p8-a1-save-hold — the closing page lands its held saves (canvas files): a project write
   '/_api/diagnostics/save-hold-flush',

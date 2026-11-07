@@ -92,6 +92,7 @@ export const JOURNAL_SOURCES = Object.freeze([
   'tail-replay', // reconstructed from the R2 tail after a rehydrate
   'disk-lost', // a live row whose bytes neither the checkout nor the bucket has
   'flat-twin-quarantine', // the hub parked its own flat canvas twin (2.0.4, quarantineFlatCanvasTwins)
+  'owner-adopt', // #167 T5.3 — the project owner adopted a held file as code (POST /api/journal/adopt)
 ]);
 
 /**
@@ -1164,6 +1165,9 @@ export const JOURNAL_PATH = '/api/journal';
 /** `POST /api/journal/report` — the loopback NUDGE (never data). */
 export const JOURNAL_REPORT_PATH = '/api/journal/report';
 
+/** `POST /api/journal/adopt` — the owner's "Adopt as code" for one held file (#167 T5.3). */
+export const JOURNAL_ADOPT_PATH = '/api/journal/adopt';
+
 /** How many paths one nudge may name. A nudge is a hint, not a work queue. */
 const MAX_NUDGE_PATHS = 64;
 
@@ -1302,6 +1306,11 @@ export function handleJournalRoutes({
     return true;
   }
 
+  if (path === JOURNAL_ADOPT_PATH) {
+    adoptAsCode({ method, bearer, verify, designRoot, journal, body, respondJson });
+    return true;
+  }
+
   if (path === JOURNAL_REPORT_PATH) {
     if (method !== 'POST') {
       respondJson(405, { error: 'method not allowed' });
@@ -1359,6 +1368,78 @@ export function handleJournalRoutes({
   }
 
   return false;
+}
+
+/**
+ * #167 T5.3 — "Adopt as code": the owner's explicit way out of a class hold (final-4 recheck L2).
+ *
+ * A hold with no owner code sha never lifts while its file exists, and implicit adoption by an owner
+ * write was rejected on purpose (decision v2-p8-holds-fix-no-implicit-owner-adoption): the owner's
+ * door write at a held path still lands nowhere. This is the explicit door. Owner only — the same
+ * bar as the held list and the project-config door (`isProjectOwnerMatch`: owner role, project-wide,
+ * writable); every other token is 403 before the path is even looked at.
+ *
+ * Only a path that is held NOW is adopted: folders declared, the path code under them, a regular
+ * file on this disk, and a hold, a ghost, or the overflow flag in force. It drops the hold (no ghost
+ * — the file is there), clears a ghost, and journals the bytes on THIS disk as the owner's code
+ * (`owner-adopt`): the caller names a path, never content. Anything else is one 404, so the answer
+ * is the same for "not held" and "not there".
+ *
+ * Not wake-durable by design: the release rides the tail as a plain `released` path, and a tail is
+ * never trusted to lift a hold whose file exists — a wake from a generation taken before the adopt
+ * holds the file again (fails closed; the owner adopts again).
+ */
+function adoptAsCode({ method, bearer, verify, designRoot, journal, body, respondJson }) {
+  if (method !== 'POST') {
+    respondJson(405, { error: 'method not allowed' });
+    return;
+  }
+  const match = bearer ? verify(bearer) : null;
+  if (!match) {
+    respondJson(401, { error: 'a project token is required' });
+    return;
+  }
+  if (!isProjectOwnerMatch(match)) {
+    respondJson(403, { error: 'only the project owner can adopt a file as code' });
+    return;
+  }
+  const rel = body?.path;
+  const notHeld = () => respondJson(404, { error: 'that file is not held' });
+  if (!journal || !designRoot || typeof rel !== 'string' || !isProjectFileShape(rel)) {
+    notHeld();
+    return;
+  }
+  const canvasGroups = readCanvasGroups(designRoot);
+  if (canvasGroups === null) {
+    notHeld();
+    return;
+  }
+  const hasFile = (r) => existsSync(join(designRoot, r));
+  if (classifyProjectFile(rel, { canvasGroups, hasFile }) !== 'code-module') {
+    notHeld();
+    return;
+  }
+  if (!isRegularFile(join(designRoot, rel))) {
+    notHeld();
+    return;
+  }
+  const held =
+    journal.heldCodeSha(rel) !== undefined ||
+    journal.isGhost(rel) ||
+    journal.holdsOverflowed() === true;
+  if (!held) {
+    notHeld();
+    return;
+  }
+  journal.releaseHold(rel);
+  journal.clearGhost(rel);
+  const row = journal.recordWrite({ designRoot, path: rel, source: 'owner-adopt' });
+  if (row === null) {
+    // Unreadable or implausible bytes: the hold is gone, the file has no row (the walk retries).
+    respondJson(409, { error: 'the file could not be read' });
+    return;
+  }
+  respondJson(200, { adopted: true, seq: row.seq });
 }
 
 /* ------------------------------------------------------- the R2 tail ----- */

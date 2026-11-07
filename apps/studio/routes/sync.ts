@@ -7,6 +7,8 @@
 //                              409 not-linked / not-signed-in / cell
 //   POST /_api/sync/held-deletes  { answer: delete|keep, folder? } → { ok, how, count } · 403
 //                              window-only / read-only / not-owner · 409 not-linked / nothing-held / busy
+//   POST /_api/sync/adopt-held  { path } → { ok } · 403 window-only / read-only / not-owner ·
+//                              409 not-linked / not-held / unreachable (#167 T5.3, the hub decides)
 //
 // MAIN ORIGIN ONLY (never `origin: 'canvas'`): resync re-handshakes every document against the
 // person's own hub and re-runs a whole-project comparison — an amplification primitive a canvas must
@@ -27,6 +29,7 @@
 import { currentAccess, notInScopeResponse } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
 import type { CodeConsentControl } from '../sync/code-module-consent.ts';
+import type { AdoptHeldControl } from '../sync/adopt-held.ts';
 import type { HeldDeletesControl } from '../sync/held-deletes.ts';
 import type { LinkGate } from '../sync/link-consent.ts';
 import type { ResyncTrace } from '../sync/resync-trace.ts';
@@ -44,6 +47,7 @@ export interface SyncControlLike {
 interface ConsentRuntime {
   codeConsent?(): CodeConsentControl | null;
   heldDeletes?(): HeldDeletesControl | null;
+  adoptHeld?(): AdoptHeldControl | null;
   pullRemoteNow?(): Promise<void>;
 }
 const consentRuntime = (c: SyncControlLike | null | undefined): ConsentRuntime | null => {
@@ -311,6 +315,67 @@ export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
         }
         const r = await control.answer(answer, folder as string | null);
         if (r.ok) return json(200, r);
+        return json(r.reason === 'not-owner' ? 403 : 409, r);
+      },
+    },
+    // #167 T5.3 — Sync details › a file the hub holds back from the code lane: "Adopt as code"
+    // (`sync.adopt-as-code`). The owner's explicit act, so the held-deletes posture: window-only,
+    // Can edit, never canvas-safe, refused in a cell. The hub's own owner gate decides; this route
+    // only carries the path (the hub journals the bytes on its own disk).
+    {
+      method: 'POST',
+      path: '/_api/sync/adopt-held',
+      origin: 'main',
+      readOnly: 'refused',
+      refuse: (reason) => {
+        (deps.warn ?? ((m: string) => console.warn(m)))(
+          `[sync] ${reason} request to the adopt-held route — refused.`
+        );
+        return json(403, {
+          ok: false,
+          reason,
+          detail:
+            reason === 'cross-origin'
+              ? 'Answer this from Maude itself, not from inside a canvas.'
+              : "Answer this from the Maude app or this machine's own browser tab.",
+        });
+      },
+      async handle(req) {
+        if (req.headers.get('sec-fetch-site') !== 'same-origin') {
+          return json(403, {
+            ok: false,
+            reason: 'window-only',
+            detail: 'Answer this in Sync details in the Maude window.',
+          });
+        }
+        if (!access().can('edit', null)) {
+          return json(403, {
+            error: 'read-only',
+            reason: 'not-allowed',
+            message: 'Ask the owner to change this.',
+          });
+        }
+        let body: unknown = null;
+        try {
+          body = await req.json();
+        } catch {
+          body = null;
+        }
+        const path = (body as { path?: unknown } | null)?.path;
+        if (typeof path !== 'string' || path.length === 0 || path.length > 1024) {
+          return json(400, { ok: false, reason: 'bad-request', detail: 'Name one held file.' });
+        }
+        const control = consentRuntime(deps.control())?.adoptHeld?.() ?? null;
+        if (!control) {
+          return json(409, {
+            ok: false,
+            reason: 'not-linked',
+            detail: 'This project isn’t syncing with a hub right now.',
+          });
+        }
+        const r = await control.adopt(path);
+        if (r.ok) return json(200, r);
+        if (r.reason === 'bad-request') return json(400, r);
         return json(r.reason === 'not-owner' ? 403 : 409, r);
       },
     },

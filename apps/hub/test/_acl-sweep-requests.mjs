@@ -89,6 +89,7 @@ export const SWEEP_REQUESTS = {
     ['POST', '/api/journal', json({ path: tg.path })],
   ],
   '/api/journal/report': (tg) => [['POST', '/api/journal/report', json({ paths: [tg.path] })]],
+  '/api/journal/adopt': (tg) => [['POST', '/api/journal/adopt', json({ path: tg.path })]],
   '/api/files': (tg) => [
     ['GET', `/api/files${q(tg)}`],
     ['GET', `/api/files?prefix=${enc(tg.path)}`],
