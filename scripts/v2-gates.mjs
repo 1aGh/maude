@@ -3,6 +3,7 @@
 //
 //   node scripts/v2-gates.mjs                  check: every gate green (live checks run, recorded ones verified)
 //   node scripts/v2-gates.mjs --list           print the gates and how each is proven
+//   node scripts/v2-gates.mjs --cmd <id>       print a command gate's shell command (what --record runs)
 //   node scripts/v2-gates.mjs --record <id>    run a command gate now and write its evidence
 //   node scripts/v2-gates.mjs --attest <id> --report <path>[,<path>…] [--note "<text>"]
 //                                              record an agent/human gate (critic, auditor, manual smoke)
@@ -131,6 +132,10 @@ const qualityChain = [
   quality.tokens,
   quality['site-content'],
   'bash scripts/check-import-coherence.sh',
+  // #171: the rest of what a freeze needs and the chain did not run — the v1 nothing-deleted audit, and the
+  // committed dist/styles.css still being what client/styles builds (a CSS edit without the release rebuild).
+  'node scripts/check-v2-nothing-deleted.mjs',
+  'node scripts/check-v2-styles-fresh.mjs',
 ]
   // each gate in its own subshell from the repo root: quality.tests ends with `cd apps/studio`, which leaked into the next step
   .map((c) => `(${c})`)
@@ -284,6 +289,20 @@ function judge(g) {
 // ── modes ─────────────────────────────────────────────────────────────────────────────
 if (args.includes('--list')) {
   for (const g of GATES) console.log(`${g.id.padEnd(8)} ${g.kind.padEnd(8)} ${g.title}`);
+  process.exit(0);
+}
+
+if (opt('--cmd')) {
+  const g = GATES.find((x) => x.id === opt('--cmd'));
+  if (!g || g.kind !== 'command') {
+    console.error(
+      `--cmd takes a command gate: ${GATES.filter((x) => x.kind === 'command')
+        .map((x) => x.id)
+        .join(', ')}`
+    );
+    process.exit(2);
+  }
+  console.log(g.cmd);
   process.exit(0);
 }
 
