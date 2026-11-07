@@ -103,19 +103,19 @@ W5 and W6 use Opus.
 
 ### W1 — Cheap wins (Sonnet builders, small slices)
 
-- [ ] T1.1 **#128 §2a/2b/2c, §6:**
+- [x] T1.1 **#128 §2a/2b/2c, §6:**
   - the hard-kill budget scales with the frame count, or drops once frames progress;
   - the timeout message is platform-aware;
   - D6 default scale;
   - `maude design screenshot --frame <N>` (strict seek through `__maude_seek__`, wait for paint, viewport sized to the target).
-- [ ] T1.2 **#128 §3:**
+- [x] T1.2 **#128 §3:**
   - map `style.objectFit` to the `objectFit` prop in the canvas-lib video vocabulary (`video-vocab.tsx`);
   - add the iron rule to the `video-comp` skill;
   - show a diagnostic in the canvas problems panel.
-- [ ] T1.3 **#128 §7:**
+- [x] T1.3 **#128 §7:**
   - check for a `.words.json` sidecar on the cloud path;
   - if it is missing, persist `{text,start,end}[]` for every engine (`generation/adapters/elevenlabs.ts`, `bin/_transcribe.mjs`).
-- [ ] T1.4 **#128 §10** (native-rust, Opus):
+- [x] T1.4 **#128 §10** (native-rust, Opus):
   - `install_name_tool -add_rpath @loader_path` on the staged `kg` in `sync-kg.mjs`, before codesign;
   - a `kg --version` smoke in `check-bundle-completeness.mjs`.
 - [ ] T1.5 **#155 §1, §2, §8, §9, §10 (small items):**
@@ -333,3 +333,10 @@ W5 and W6 use Opus.
 - [ ] Every not-planned item has a recorded reason and was listed in the final report.
 - [ ] All quality gates pass on the merged tip of main (T9.1).
 - [ ] Every default from the D-list is recorded in kg and named in the final report.
+
+## Progress log
+
+- 2026-11-07 W0 done: body boxes ticked on #163/#164/#168, status comment on all 21 issues (Michal's OK in the lead session). Run armed (run.hooks on, a89960d87); run-hook symlink-entry bug fixed (710113a0f).
+- 2026-11-07 W1 merged on local main (not pushed): T1.1 015225fe7, T1.2 388997a2a, T1.3 f8fd71b5f, T1.4 dde3e8c72, T1.5 1dd236fcb+affde426b, T1.6 223d1d9ef; tsc fix bfb31bb13; client rebuild 2e7ee8bf9. Merged tip: tsc 0, source boot check OK, 205+10+9 affected tests green. Decisions in kg (plan:maude/issues-burndown-2026-11).
+  - T1.5 open: `.deck` slide nodes (SLIDE/SLIDE_ROW type names) need a real Slides sample → folded into T4.1.
+  - T1.6 open: scripted browser proof (pan/zoom/reload, pin stays) → verifier after W1.
