@@ -201,6 +201,25 @@ describe('file-membership — an undeclared hub checkout (canvasGroups: null)', 
     }
   });
 
+  // #167 T5.3 — the boundary makes a teammate's top folder a canvas group, never a design-system
+  // home: `<folder>/<ds>/tokens.json` is DS data only under a group the owner declared (or the
+  // default system/ui), so an undeclared folder's manifests stay default-closed.
+  test('a DS manifest counts only under a declared (or default) group', () => {
+    for (const rel of [
+      'brand/acme/tokens.json',
+      'brand/acme/components.json',
+      'brand/acme/revisions/head.json',
+      `brand/acme/revisions/${'ab'.repeat(32)}.json`,
+    ]) {
+      expect(`${rel} → ${classifyProjectFile(rel, undeclared)}`).toBe(`${rel} → never`);
+      expect(`${rel} → ${hub.classifyProjectFile(rel, undeclared)}`).toBe(`${rel} → never`);
+    }
+    expect(classifyProjectFile('system/acme/tokens.json', undeclared)).toBe('companion-text');
+    expect(
+      classifyProjectFile('brand/acme/tokens.json', { canvasGroups: [{ path: 'brand' }] })
+    ).toBe('companion-text');
+  });
+
   test('declared groups still rule; absent groups (a desktop copy) are not undeclared', () => {
     const declared: ClassifyOptions = { canvasGroups: [{ path: 'screens' }] };
     expect(classifyProjectFile('screens/home.tsx', declared)).toBe('canvas-owned');

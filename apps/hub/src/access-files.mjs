@@ -116,9 +116,17 @@ function knownCanvasesOf(designRoot, explicit) {
 function walkDesignRoot(designRoot) {
   const found = new Map();
   const skipped = [];
+  // #167 T5.3 — the depth cap is per SUBTREE: a folder past it is cut on its own (named in
+  // `cut`), so one deep folder no longer marks the whole project truncated. The closure keeps
+  // refusing only the owners whose slug a cut folder could hide (closure.ts `cutFolders`).
+  const cut = [];
   let truncated = false;
   const walk = (dir, rel, depth) => {
-    if (depth > MAX_WALK_DEPTH || found.size >= MAX_WALK_FILES) {
+    if (depth > MAX_WALK_DEPTH) {
+      cut.push(rel);
+      return;
+    }
+    if (found.size >= MAX_WALK_FILES) {
       truncated = true;
       return;
     }
@@ -161,7 +169,7 @@ function walkDesignRoot(designRoot) {
     }
   };
   if (designRoot) walk(designRoot, '', 1);
-  return { found, skipped, truncated };
+  return { found, skipped, cut, truncated };
 }
 
 /** `presentIn`'s marker for a parent folder whose real path leaves the design root. */
@@ -236,10 +244,17 @@ function parentInsideReal(dir, root) {
  * change what it references without the journal moving.
  */
 export function projectReader({ designRoot, journal }) {
-  const { found: disk, skipped, truncated } = walkDesignRoot(designRoot);
+  const { found: disk, skipped, cut, truncated } = walkDesignRoot(designRoot);
   const journalPaths = [];
+  // #167 T5.3 — a tombstoned path the disk no longer holds stays listed (an import of it still
+  // reaches the closure, so its deletion row is seen) but is GONE for the same-name owner rule:
+  // a vanished canvas is no slug twin. The studio's disk reader never lists one at all.
+  const gone = new Set();
   try {
-    for (const row of journal?.compaction?.() ?? []) journalPaths.push(row.path);
+    for (const row of journal?.compaction?.() ?? []) {
+      journalPaths.push(row.path);
+      if (row.deleted && !disk.has(row.path)) gone.add(row.path);
+    }
   } catch {
     /* a journal that cannot answer adds nothing */
   }
@@ -253,6 +268,7 @@ export function projectReader({ designRoot, journal }) {
   // granted same-name stylesheet into a refused one; the cached closure must not outlive it.
   sig.update(`\u0002${truncated ? 1 : 0}\u0002`);
   for (const rel of [...skipped].sort()) sig.update(`${rel}\u0003`);
+  for (const rel of [...cut].sort()) sig.update(`${rel}\u0004`);
   const head = sig.digest('hex');
   const all = new Set([...disk.keys(), ...journalPaths]);
   let names = new Map();
@@ -265,6 +281,8 @@ export function projectReader({ designRoot, journal }) {
     // the closure's same-name owner rule fails closed.
     listTruncated: () => truncated,
     unlisted: () => skipped,
+    cutFolders: () => cut,
+    gone: (rel) => gone.has(rel),
     present: (rel) => presentIn(designRoot, rel, names),
     text(rel) {
       const f = disk.get(rel);
