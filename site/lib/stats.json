@@ -2,14 +2,14 @@
   "version": "v2.0.8",
   "nodeRange": ">=20",
   "publishedDate": "2026-11-07",
-  "releases": 149,
+  "releases": 150,
   "firstReleaseDate": "2026-05-11",
   "contributors": 1,
   "plugins": {
     "design": {
-      "commands": 31,
-      "skills": 12,
-      "agents": 22
+      "commands": 28,
+      "skills": 9,
+      "agents": 20
     },
     "flow": {
       "commands": 10,
@@ -45,17 +45,14 @@
     "commands-design/open.mdx": "2026-11-02",
     "commands-design/photo.mdx": "2026-09-13",
     "commands-design/present.mdx": "2026-11-02",
-    "commands-design/reel.mdx": "2026-09-13",
     "commands-design/rollback.mdx": "2026-11-02",
     "commands-design/screenshot.mdx": "2026-11-02",
     "commands-design/setup-docs.mdx": "2026-09-13",
     "commands-design/setup-ds.mdx": "2026-11-02",
     "commands-design/smoke.mdx": "2026-09-13",
     "commands-design/system.mdx": "2026-11-02",
-    "commands-design/to-lottie.mdx": "2026-09-13",
     "commands-design/to-rn.mdx": "2026-09-13",
     "commands-design/trash.mdx": "2026-11-02",
-    "commands-design/video-analyze.mdx": "2026-09-13",
     "commands-flow/bug-fix.mdx": "2026-09-13",
     "commands-flow/bug-rca.mdx": "2026-09-13",
     "commands-flow/done.mdx": "2026-09-13",

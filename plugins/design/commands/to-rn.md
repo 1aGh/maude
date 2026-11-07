@@ -13,7 +13,7 @@ The **fallback** motion handoff for **light / occasional** animation where you w
 a native `react-native-svg` + Reanimated component instead of a Lottie runtime
 ([DDR-094](../../../.ai/archive/decisions/DDR-094-draw-animation-keyframe-ir-native-authoring-lottie-export.md)).
 
-> **Prefer `/design:to-lottie` for anything rich.** The POC proved native fidelity
+> **Prefer `/design-video:to-lottie` for anything rich.** The POC proved native fidelity
 > is *possible* but hit three real walls (DDR-094 Update): **(1)** `feTurbulence`/
 > `feDisplacementMap` have **no native impl** in react-native-svg 15.x (procedural
 > texture can't render natively — pre-bake it); **(2)** continuous multi-layer
@@ -33,7 +33,7 @@ a native `react-native-svg` + Reanimated component instead of a Lottie runtime
 
 ## When to use which
 
-| | `/design:to-lottie` (primary) | `/design:to-rn` (this — fallback) |
+| | `/design-video:to-lottie` (primary) | `/design:to-rn` (this — fallback) |
 |---|---|---|
 | Rich / continuous morph | ✅ | ❌ perf ceiling |
 | `feTurbulence` / procedural texture | ✅ (baked in the comp) | ❌ no native impl (pre-bake) |
@@ -41,7 +41,7 @@ a native `react-native-svg` + Reanimated component instead of a Lottie runtime
 | Web + mobile from ONE artifact | ✅ 1:1 | ❌ RN only |
 | Theme-aware colors at runtime | host color override | ✅ colors as props (native) |
 
-If the brief is a continuous rich animation, **stop and use `/design:to-lottie`** —
+If the brief is a continuous rich animation, **stop and use `/design-video:to-lottie`** —
 don't ship a frozen app.
 
 ## Flow
@@ -51,7 +51,7 @@ don't ship a frozen app.
 Read the keyframe `Timeline`: vertex-array `d` morphs (fixed vertex count — the
 interpolability constraint), transform/opacity tracks, the per-track easing handles.
 **Confirm it's light** (a small number of animated nodes, no continuous multi-layer
-morph, no procedural texture). If not → `/design:to-lottie`.
+morph, no procedural texture). If not → `/design-video:to-lottie`.
 
 ### 2. Generate the component (from the IR, through the engine discipline)
 
@@ -82,13 +82,13 @@ import { Mascot } from './<Slug>';
 ```
 📱 /design:to-rn — <slug>  (FALLBACK — light animation)
 Output:     <Component.tsx>
-Scope:      light animation only (rich morph → /design:to-lottie)
+Scope:      light animation only (rich morph → /design-video:to-lottie)
 RM:         useReducedMotion() → rest pose
 ```
 
 ## Notes
 
 - This is the **fallback** path. The primary production delivery (web + mobile, 1:1)
-  is `/design:to-lottie`. Reach for `to-rn` only when a native rn-svg component is
+  is `/design-video:to-lottie`. Reach for `to-rn` only when a native rn-svg component is
   specifically wanted AND the animation is light.
 - Authoring stays native in maude (the keyframe IR) — this emits; you don't author here.

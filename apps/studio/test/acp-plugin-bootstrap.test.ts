@@ -11,12 +11,47 @@
 // in acp-session-plugins.test.ts.
 
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { computeSessionPlugins } from '../acp/plugin-bootstrap.ts';
 
 const DESIGN = '/bundle/plugins/design';
 const FLOW = '/bundle/plugins/flow';
 const KGAI = '/bundle/plugins/kgai';
+const VIDEO = '/bundle/plugins/design-video';
+
+// #156 §4 (DDR-249): video is its own plugin, opt-in in a terminal — but the app ships its video
+// features, so the in-app chat loads design-video right after design.
+describe('computeSessionPlugins — design-video', () => {
+  test('native, design + design-video bundled ⇒ both, design first', () => {
+    const out = computeSessionPlugins({
+      native: true,
+      designDir: DESIGN,
+      designVideoDir: VIDEO,
+      flowDir: FLOW,
+      kgaiDir: KGAI,
+    });
+    expect(out.map((c) => c.path)).toEqual([DESIGN, VIDEO, KGAI]);
+  });
+  test('design-video never loads without design (its agents run under design’s hooks)', () => {
+    const out = computeSessionPlugins({
+      native: true,
+      designDir: null,
+      designVideoDir: VIDEO,
+      flowDir: null,
+    });
+    expect(out).toEqual([]);
+  });
+  test('an older bundle without design-video ⇒ design alone, no crash', () => {
+    const out = computeSessionPlugins({ native: true, designDir: DESIGN, flowDir: null });
+    expect(out.map((c) => c.path)).toEqual([DESIGN]);
+  });
+  test('the real wiring passes the bundled design-video dir', () => {
+    const src = readFileSync(join(import.meta.dir, '..', 'acp', 'plugin-bootstrap.ts'), 'utf8');
+    expect(src).toContain('designVideoDir: DESIGN_VIDEO_PLUGIN_DIR');
+  });
+});
 
 describe('computeSessionPlugins — gates', () => {
   // `/flow` auto-load is intentionally OFF for now (2026-07-03) — only `design`

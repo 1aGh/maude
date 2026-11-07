@@ -158,7 +158,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Create it with `maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header \"Content-Type: application/json\" --data '{\"kind\":\"video-comp\",\"name\":\"<name>\",\"clips\":[]}'` (port: .design/_server.json; the answer's rel is the file), then Edit that video-comp .tsx"
       }
     },
@@ -364,7 +364,7 @@
       "agent": {
         "path": "file",
         "format": "edl",
-        "skill": "design:footage-director",
+        "skill": "design-video:footage-director",
         "how": "Write the <slug>.edl.json cut, then the comp"
       }
     },
@@ -3070,7 +3070,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Split the clip into two sequences at the frame"
       }
     },
@@ -3201,7 +3201,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-meta",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "artboardMeta.<id>.markers: a list of { frame, name } in the canvas .meta.json (an integer frame ≥ 0, a plain-text name up to 60 characters, one per frame, at most 200)"
       }
     },
@@ -3215,7 +3215,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-meta",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Remove the entry from artboardMeta.<id>.markers in the canvas .meta.json (an empty list takes them all away)"
       }
     },
@@ -3257,7 +3257,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Set the clip’s durationInFrames (later beats close up; the comp’s total follows the last clip)"
       }
     },
@@ -3276,7 +3276,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Move a series beat before or after another (with its transition), or set a layer’s from"
       }
     },
@@ -3295,7 +3295,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Add a <Sequence> with the media at the end (or between two beats); the total grows by its length"
       }
     },
@@ -3338,7 +3338,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Set the clip’s playbackRate, volume, crop (<Reframe>) or filter props directly"
       }
     },
@@ -3357,7 +3357,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Gate the clip’s body behind {false && …}; the tag and its time slot stay"
       }
     },
@@ -3376,7 +3376,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Remove the {false && …} gate from the clip’s body"
       }
     },
@@ -3395,7 +3395,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Delete the clip’s <Sequence>; a series beat also shortens the comp’s total"
       }
     },
@@ -3414,7 +3414,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Change the clip’s media src to a contained asset path"
       }
     },
@@ -3433,7 +3433,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Add muted to the clip’s <Video>"
       }
     },
@@ -3452,7 +3452,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Remove muted (and volume={0}) from the clip’s <Video>"
       }
     },
@@ -3471,7 +3471,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Mute the <Video> and add an <Audio> Sequence with the same src and timing"
       }
     },
@@ -3490,7 +3490,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Move the beat out of the series into a standalone <Sequence from> at the same frames"
       }
     },
@@ -3509,7 +3509,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Move the standalone <Sequence> into the series as a beat"
       }
     },
@@ -3528,7 +3528,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Reorder the standalone <Sequence>s: document order is the stacking order"
       }
     },
@@ -3547,7 +3547,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Reorder the standalone <Sequence>s: document order is the stacking order"
       }
     },
@@ -3566,7 +3566,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Swap the beat with the one before it (with its transition); a layer moves up the stack"
       }
     },
@@ -3585,7 +3585,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Swap the beat with the one after it (with its transition); a layer moves down the stack"
       }
     },
@@ -3604,7 +3604,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Change that layer’s media src"
       }
     },
@@ -3652,7 +3652,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Set words / position / font / highlight / maxChars on the comp’s one <Captions>"
       }
     },
@@ -3671,7 +3671,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Add { src, at, text } to <Captions fixes> as a JSON literal (text null hides the word)"
       }
     },
@@ -3751,7 +3751,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Wrap the one music <Audio> in <Duck db attackMs releaseMs>; unwrap to turn it off"
       }
     },
@@ -3770,7 +3770,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Set the literal volume (0..1) of the music <Audio>; 1 removes the prop"
       }
     },
@@ -3801,7 +3801,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-meta",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "artboardMeta.<id>.snap: \"beat\" | \"off\" in the canvas .meta.json"
       }
     },
@@ -3820,7 +3820,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Wrap the clip’s media in <Reframe focus zoom formats> (source-second keyframes, sorted)"
       }
     },
@@ -3834,7 +3834,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-meta",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "artboardMeta.<id>.poster: a comp frame, in the canvas .meta.json"
       }
     },
@@ -3853,7 +3853,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Copy the video DCArtboard with a new id and size; its <VideoComp> keeps component={X} (linked)"
       }
     },
@@ -3872,7 +3872,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Copy the comp under a new name and point this artboard’s <VideoComp component> at it"
       }
     },
@@ -3886,7 +3886,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-meta",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "artboardMeta.<id>.maxFrames: an integer up to 18000 in the canvas .meta.json (3600 without it)"
       }
     },
@@ -3905,7 +3905,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Add { easing: Easing.bezier(a, b, c, d) } as the options of the k-th interpolate(frame, …) in the clip’s component; import Easing from remotion"
       }
     },
@@ -3924,7 +3924,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Set the clip media’s trimBefore (output frames) to the other take; keep durationInFrames"
       }
     },
@@ -3943,7 +3943,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Set fit=\"fit\" | \"blur\" on the clip’s <Reframe> (fill is the default)"
       }
     },
@@ -3962,7 +3962,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Wrap the title’s content in <Place at={[x, y]} formats={{ \"16:9\": [x, y] }}> (centre anchor, fractions of the output frame)"
       }
     },
@@ -3981,7 +3981,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Wrap the title’s content in <TitleMotion preset=\"none|fade|slide-up|pop|type-on|per-word\" frames={12}> (inside its <Place> when it has one); none takes the wrapper off"
       }
     },
@@ -4000,7 +4000,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Set fontFamily \"var(--font-…)\" (a design-system font token) and color (a token or one plain CSS colour) in the style object literal of the element holding the title’s words; remove the property to take it off"
       }
     },
@@ -4019,7 +4019,7 @@
       "agent": {
         "path": "file",
         "format": "canvas-tsx",
-        "skill": "design:video-comp",
+        "skill": "design-video:video-comp",
         "how": "Set presentation={fade() | slide() | wipe() | flip() | clockWipe(…) | none()} and the timing frames on the <TransitionSeries.Transition> at the join (Cut is none())"
       }
     },
@@ -7914,7 +7914,7 @@
       "schema": "apps/studio/schema/edl.v1.schema.json",
       "id": "https://maude.sh/schema/edl/v1",
       "source": "hand",
-      "skill": "design:footage-director"
+      "skill": "design-video:footage-director"
     },
     {
       "format": "gen",
@@ -7928,14 +7928,14 @@
       "schema": "apps/studio/schema/transcript.v1.schema.json",
       "id": "https://maude.sh/schema/transcript/v1",
       "source": "generated",
-      "skill": "design:video-comp"
+      "skill": "design-video:video-comp"
     },
     {
       "format": "beats",
       "schema": "apps/studio/schema/beats.v1.schema.json",
       "id": "https://maude.sh/schema/beats/v1",
       "source": "generated",
-      "skill": "design:video-comp"
+      "skill": "design-video:video-comp"
     },
     {
       "format": "tokens",

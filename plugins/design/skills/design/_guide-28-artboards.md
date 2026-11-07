@@ -50,7 +50,7 @@ What the rows leave out, on purpose:
 
 - **A Web page has no `fixed`.** Its height is a floor the content grows past; every other kind but Video is exact.
 - **Print px = trim + 2 × bleed.** A6 is 105 × 148 mm, plus a 3 mm bleed each side, which is 419 × 581 px. Always write the paper from the table; the px follow it. A **custom size** is `print={{ paper: "<nearest larger preset>", orientation, sizeMm: [w, h], bleedMm }}`: the `paper` is the closest preset that is at least as large (never `"custom"`), `sizeMm` is the trim in millimetres (10–5000 a side), `bleedMm` is always written, and the width and height are the trim + 2 × bleed in px (`print/units.ts` `resolvePrintArtboard`).
-- **A Video artboard hosts a `<VideoComp>`** with `const VideoCut = () => (<AbsoluteFill …/>)` beside it and the `VideoComp` / `AbsoluteFill` imports. The comp's length and frames are the video skill's (`design:video-comp`).
+- **A Video artboard hosts a `<VideoComp>`** with `const VideoCut = () => (<AbsoluteFill …/>)` beside it and the `VideoComp` / `AbsoluteFill` imports. The comp's length and frames are the video skill's (`design-video:video-comp`).
 - **Ids and labels.** The id is a readable slug of the label (`fb-event-cover`, then `fb-event-cover-2` when taken), starting with a letter; a repeated label gets " 2", " 3". Every artboard in a canvas has its own id, and an id never changes once it exists.
 
 ### Adding artboards to a canvas, in this order

@@ -1,7 +1,7 @@
 // client/v2/handoff/ready-card.jsx — S8.10 (09 ex-handoff-ready): Ready means ONE thing to copy.
 // The web result is one command; the app and the animation give code. Advanced keeps the file on
 // this Mac, the Claude Code command and the terminal verb — today's /design:handoff, /design:to-rn and
-// /design:to-lottie, unchanged. Mono lives only inside Advanced.
+// /design-video:to-lottie, unchanged. Mono lives only inside Advanced.
 
 import { useState } from 'react';
 import { ADVANCED_COUNT, readyBody, readyTitle } from './targets.js';

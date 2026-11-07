@@ -73,7 +73,7 @@ export const FORMAT_SCHEMAS: readonly FormatSchema[] = [
     id: 'https://maude.sh/schema/edl/v1',
     source: 'hand',
     check: 'validateEdl (footage/schema.ts); the schema mirrors it',
-    skill: 'design:footage-director',
+    skill: 'design-video:footage-director',
   },
   {
     // S8 asset sidecars §5.2 / §5.5: one provenance file per AI take; lenient (keeps unknown keys).
@@ -94,7 +94,7 @@ export const FORMAT_SCHEMAS: readonly FormatSchema[] = [
     generator: 'video/format-ids.ts#transcriptJsonSchema',
     check:
       'validateTranscript(doc, {strict:true, rel}) (video/schema.ts) — preserving: unknown keys are kept',
-    skill: 'design:video-comp',
+    skill: 'design-video:video-comp',
   },
   {
     format: 'beats',
@@ -105,7 +105,7 @@ export const FORMAT_SCHEMAS: readonly FormatSchema[] = [
     generator: 'video/format-ids.ts#beatsJsonSchema',
     check:
       'validateBeats(doc, {strict:true, rel}) (video/schema.ts) — preserving: unknown keys are kept',
-    skill: 'design:video-comp',
+    skill: 'design-video:video-comp',
   },
   {
     format: 'tokens',

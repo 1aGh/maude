@@ -16,7 +16,7 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
   echo "usage: maude design handoff <canvas-abs-path> [designRoot] [--target web|rn|lottie|tokens]"
   echo "  Emit <Slug>.registry.json (a shadcn registry handoff) next to the canvas."
   echo "  --target web (default) is this verb; rn, lottie and tokens are drafted by AI:"
-  echo "  Handoff to production (Shift-Cmd-H) in Maude, or /design:to-rn and /design:to-lottie."
+  echo "  Handoff to production (Shift-Cmd-H) in Maude, or /design:to-rn and /design-video:to-lottie."
   exit 0
 fi
 # S8.10 — the target arg (any position). `web` is the shadcn registry item this verb emits; the others
@@ -34,7 +34,7 @@ set -- "${ARGS[@]+"${ARGS[@]}"}"
 case "$TARGET" in
   web) ;;
   rn) echo "handoff: a React Native component is drafted by AI — run /design:to-rn \"<canvas>\" --out <file>, or Handoff to production in Maude" >&2; exit 2 ;;
-  lottie) echo "handoff: a Lottie animation is drafted by AI — run /design:to-lottie \"<canvas>\" --verify, or Handoff to production in Maude" >&2; exit 2 ;;
+  lottie) echo "handoff: a Lottie animation is drafted by AI — run /design-video:to-lottie \"<canvas>\" --verify, or Handoff to production in Maude" >&2; exit 2 ;;
   tokens) echo "handoff: design tokens are drafted by AI — use Handoff to production in Maude (Design system › Hand off tokens)" >&2; exit 2 ;;
   *) echo "handoff: unknown --target $TARGET (web, rn, lottie or tokens)" >&2; exit 2 ;;
 esac

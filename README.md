@@ -34,9 +34,10 @@ Plus the **`maude`** CLI — `maude init` scaffolds a fresh `.ai/` workspace fro
 ```
 /plugin install design@maude
 /plugin install flow@maude
+/plugin install design-video@maude   # optional: video — reels, footage analysis, Lottie export
 ```
 
-Then `/reload-plugins` and you should see `/design:edit`, `/design:*`, `/flow:plan`, `/flow:execute`, etc.
+`design-video` is opt-in and needs `design` ([what moved](docs/MIGRATING-DESIGN-VIDEO.md)). Then `/reload-plugins` and you should see `/design:edit`, `/design:*`, `/flow:plan`, `/flow:execute`, etc.
 
 ### 3. Install the CLI
 

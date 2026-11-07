@@ -2,7 +2,8 @@
 //
 // Counts the banned v1 strings (CONTRACT §3 "Not" column where it means UI, plus
 // the stale shell/tooling words the S12 inventory found) per file under
-// plugins/design/**, and compares them with plugins/design/v2-words.ratchet.json.
+// plugins/design/** and plugins/design-video/** (the video split, DDR-249), and compares them
+// with each plugin's own v2-words.ratchet.json.
 //
 //   - a file's count going UP fails;
 //   - a file with hits that is not in the ratchet fails (a new file, or a copied one);
@@ -22,7 +23,13 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DESIGN = join(ROOT, 'plugins', 'design');
-const RATCHET = join(DESIGN, 'v2-words.ratchet.json');
+/** Every plugin whose copy speaks the v2 words, each with its own ratchet (closed at 0). */
+const PLUGIN_ROOTS = ['design', 'design-video'].map((name) => ({
+  name,
+  dir: join(ROOT, 'plugins', name),
+  ratchet: join(ROOT, 'plugins', name, 'v2-words.ratchet.json'),
+}));
+const RATCHETS = new Set(PLUGIN_ROOTS.map((r) => r.ratchet));
 
 // Each pattern: id, regex (global), optional `window` (lines after the match line the
 // regex may also look at — multi-line shell commands). Case-sensitive unless it says `i`.
@@ -76,7 +83,7 @@ function walk(dir, out = []) {
     else if (
       TEXT_EXT.has(name.slice(name.lastIndexOf('.'))) &&
       !name.endsWith('.test.mjs') &&
-      p !== RATCHET &&
+      !RATCHETS.has(p) &&
       !LISTS_BANNED_WORDS.has(p)
     ) {
       out.push(p);
@@ -105,11 +112,11 @@ export function countFile(text) {
   return total;
 }
 
-function measure() {
+function measure(root) {
   const counts = {};
-  for (const abs of walk(DESIGN)) {
+  for (const abs of walk(root.dir)) {
     const n = countFile(readFileSync(abs, 'utf8'));
-    if (n > 0) counts[relative(DESIGN, abs).split(sep).join('/')] = n;
+    if (n > 0) counts[relative(root.dir, abs).split(sep).join('/')] = n;
   }
   return counts;
 }
@@ -124,72 +131,77 @@ const patternsHash = () =>
     .digest('hex')
     .slice(0, 12);
 
-function writeRatchet(files) {
+function writeRatchet(root, files) {
   const sorted = Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b)));
   const total = Object.values(sorted).reduce((a, b) => a + b, 0);
   const doc = {
-    $comment:
-      'Per-file counts of banned v1 strings under plugins/design (cli/lib/plugin-v2-words.test.mjs). Closed at 0 by S12.16: any banned string in a file fails. Re-baseline only deliberately (MAUDE_RATCHET_REBASE=1).',
+    $comment: `Per-file counts of banned v1 strings under plugins/${root.name} (cli/lib/plugin-v2-words.test.mjs). Closed at 0: any banned string in a file fails. Re-baseline only deliberately (MAUDE_RATCHET_REBASE=1).`,
     patternsHash: patternsHash(),
     total,
     files: sorted,
   };
-  writeFileSync(RATCHET, `${JSON.stringify(doc, null, 2)}\n`);
+  writeFileSync(root.ratchet, `${JSON.stringify(doc, null, 2)}\n`);
 }
 
-if (process.env.MAUDE_RATCHET_REBASE === '1') writeRatchet(measure());
+for (const root of PLUGIN_ROOTS) {
+  if (process.env.MAUDE_RATCHET_REBASE === '1') writeRatchet(root, measure(root));
 
-const committed = JSON.parse(readFileSync(RATCHET, 'utf8'));
+  const committed = JSON.parse(readFileSync(root.ratchet, 'utf8'));
 
-test('the ratchet was measured with the current pattern list', () => {
-  assert.equal(
-    committed.patternsHash,
-    patternsHash(),
-    'PATTERNS changed: re-baseline on purpose with MAUDE_RATCHET_REBASE=1 and say why in the commit'
-  );
-});
-
-test('no file under plugins/design has more banned v1 strings than the ratchet allows', () => {
-  const now = measure();
-  const raised = [];
-  for (const [file, n] of Object.entries(now)) {
-    const allowed = committed.files[file] ?? 0;
-    if (n > allowed) {
-      raised.push(`${file}: ${n} (allowed ${allowed}${allowed === 0 ? ', new hits' : ''})`);
-    }
-  }
-  assert.deepEqual(
-    raised,
-    [],
-    `Banned v1 strings went up. Use the v2 words (CONTRACT §3–§4):\n  ${raised.join('\n  ')}`
-  );
-
-  // Counts only go down: a lowered file must be written back, and a deleted/clean file dropped.
-  const lowered = Object.entries(committed.files)
-    .filter(([file, allowed]) => (now[file] ?? 0) < allowed)
-    .map(([file, allowed]) => `${file}: ${allowed} -> ${now[file] ?? 0}`);
-  if (process.env.MAUDE_RATCHET_WRITE === '1' && lowered.length) {
-    const next = { ...committed.files };
-    for (const [file] of Object.entries(committed.files)) {
-      if ((now[file] ?? 0) === 0) delete next[file];
-      else next[file] = Math.min(next[file], now[file]);
-    }
-    writeRatchet(next);
-  } else {
-    assert.deepEqual(
-      lowered,
-      [],
-      `Good: these files improved. Write the lower counts back with MAUDE_RATCHET_WRITE=1 so they cannot creep up again:\n  ${lowered.join('\n  ')}`
+  test(`${root.name}: the ratchet was measured with the current pattern list`, () => {
+    assert.equal(
+      committed.patternsHash,
+      patternsHash(),
+      'PATTERNS changed: re-baseline on purpose with MAUDE_RATCHET_REBASE=1 and say why in the commit'
     );
-  }
-});
+  });
 
-test('S12.16: the ratchet is closed — no file may hold a banned v1 string', () => {
-  assert.equal(committed.total, 0);
-  assert.deepEqual(committed.files, {});
-});
+  test(`no file under plugins/${root.name} has more banned v1 strings than the ratchet allows`, () => {
+    const now = measure(root);
+    const raised = [];
+    for (const [file, n] of Object.entries(now)) {
+      const allowed = committed.files[file] ?? 0;
+      if (n > allowed) {
+        raised.push(`${file}: ${n} (allowed ${allowed}${allowed === 0 ? ', new hits' : ''})`);
+      }
+    }
+    assert.deepEqual(
+      raised,
+      [],
+      `Banned v1 strings went up. Use the v2 words (CONTRACT §3–§4):\n  ${raised.join('\n  ')}`
+    );
 
-test('the ratchet total matches its files', () => {
-  const sum = Object.values(committed.files).reduce((a, b) => a + b, 0);
-  assert.equal(committed.total, sum);
+    // Counts only go down: a lowered file must be written back, and a deleted/clean file dropped.
+    const lowered = Object.entries(committed.files)
+      .filter(([file, allowed]) => (now[file] ?? 0) < allowed)
+      .map(([file, allowed]) => `${file}: ${allowed} -> ${now[file] ?? 0}`);
+    if (process.env.MAUDE_RATCHET_WRITE === '1' && lowered.length) {
+      const next = { ...committed.files };
+      for (const [file] of Object.entries(committed.files)) {
+        if ((now[file] ?? 0) === 0) delete next[file];
+        else next[file] = Math.min(next[file], now[file]);
+      }
+      writeRatchet(root, next);
+    } else {
+      assert.deepEqual(
+        lowered,
+        [],
+        `Good: these files improved. Write the lower counts back with MAUDE_RATCHET_WRITE=1 so they cannot creep up again:\n  ${lowered.join('\n  ')}`
+      );
+    }
+  });
+
+  test(`${root.name}: the ratchet is closed — no file may hold a banned v1 string`, () => {
+    assert.equal(committed.total, 0);
+    assert.deepEqual(committed.files, {});
+  });
+
+  test(`${root.name}: the ratchet total matches its files`, () => {
+    const sum = Object.values(committed.files).reduce((a, b) => a + b, 0);
+    assert.equal(committed.total, sum);
+  });
+}
+
+test('the video plugin is measured (guards against a missing root)', () => {
+  assert.ok(walk(PLUGIN_ROOTS[1].dir).length >= 10);
 });

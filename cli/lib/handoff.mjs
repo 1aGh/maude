@@ -33,7 +33,7 @@ const FIX = 'match maude.agent-handoff/1 (cli/lib/handoff.schema.json)';
 /** V2-1.18 §5.5: writers of NEW files, spawned with a hand-off naming that file in `owns`. */
 const BOUNDED_WRITERS = new Set([
   'design:draw-agent',
-  'design:footage-director',
+  'design-video:footage-director',
   'design:reconstruct-agent',
   'design:ds-migrator',
   'ds-migrator',

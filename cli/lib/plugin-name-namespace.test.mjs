@@ -30,14 +30,14 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function grep(pattern, extraArgs = '') {
   const out = execSync(
-    `grep -rn ${extraArgs} '${pattern}' plugins/design plugins/flow --include='*.md' || true`,
+    `grep -rn ${extraArgs} '${pattern}' plugins/design plugins/design-video plugins/flow --include='*.md' || true`,
     { encoding: 'utf8' }
   );
   return out.trim().split('\n').filter(Boolean);
 }
 
 test('no plugin name: frontmatter carries a redundant design:/flow: prefix', () => {
-  const offenders = grep('^name: \\(design\\|flow\\):');
+  const offenders = grep('^name: \\(design\\|design-video\\|flow\\):');
   assert.deepEqual(
     offenders,
     [],
@@ -46,7 +46,7 @@ test('no plugin name: frontmatter carries a redundant design:/flow: prefix', () 
 });
 
 test('no doubled design:design: / flow:flow: namespace anywhere in plugin markdown', () => {
-  const offenders = grep('design:design:\\|flow:flow:');
+  const offenders = grep('design:design:\\|design-video:design-video:\\|flow:flow:');
   assert.deepEqual(
     offenders,
     [],
@@ -62,14 +62,16 @@ test('subagent_type references to our own plugin agents carry exactly one <plugi
   // and the `"<critic-name>"` template placeholder.
   const bareOffenders = grep(
     'subagent_type:.*"\\?[a-z][a-z0-9-]*\\(-critic\\|-agent\\|-auditor\\|-hacker\\|-keeper\\|-director\\|-analyst\\)"\\?'
-  ).filter((line) => !/design:|flow:|<critic-name>|code-simplifier/.test(line));
+  ).filter((line) => !/design:|design-video:|flow:|<critic-name>|code-simplifier/.test(line));
   assert.deepEqual(
     bareOffenders,
     [],
     `These subagent_type references to a plugin-owned agent are missing the <plugin>: prefix and will fail to resolve against the namespaced registry:\n  ${bareOffenders.join('\n  ')}`
   );
 
-  const doubledOffenders = grep('subagent_type:.*\\(design:design:\\|flow:flow:\\)');
+  const doubledOffenders = grep(
+    'subagent_type:.*\\(design:design:\\|design-video:design-video:\\|flow:flow:\\)'
+  );
   assert.deepEqual(
     doubledOffenders,
     [],
@@ -79,18 +81,23 @@ test('subagent_type references to our own plugin agents carry exactly one <plugi
 
 // ── Agent hygiene (S12.1 · V2-1.18 §7, S12-slices D2) ──────────────────────────
 //
-// Structural rules for plugins/design/agents/. Some are red today on purpose: each known
+// Structural rules for plugins/design/agents/ and plugins/design-video/agents/ (the video split,
+// DDR-249 — the design plugin's hooks still hold the video agents, so the rules do too). Some are red today on purpose: each known
 // offender sits in a known-list with the slice that fixes it. The test fails when a NEW
 // offender appears, and also when a listed offender is already fixed (delete the entry —
 // the lists only shrink).
 
-const AGENTS_DIR = join(ROOT, 'plugins', 'design', 'agents');
+const AGENTS_DIRS = ['design', 'design-video'].map((p) => join(ROOT, 'plugins', p, 'agents'));
 
 function loadAgents() {
   const out = [];
-  for (const file of readdirSync(AGENTS_DIR).sort()) {
+  for (const [dir, file] of AGENTS_DIRS.flatMap((d) =>
+    readdirSync(d)
+      .sort()
+      .map((f) => [d, f])
+  )) {
     if (!file.endsWith('.md')) continue;
-    const text = readFileSync(join(AGENTS_DIR, file), 'utf8');
+    const text = readFileSync(join(dir, file), 'utf8');
     const fm = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
     if (!fm) {
       out.push({
@@ -142,7 +149,9 @@ function assertWithKnown(label, offenders, known) {
 const agents = loadAgents();
 
 test('agents/ holds no _*.md (rule files are not agents)', () => {
-  const offenders = readdirSync(AGENTS_DIR).filter((f) => f.startsWith('_') && f.endsWith('.md'));
+  const offenders = AGENTS_DIRS.flatMap((d) => readdirSync(d)).filter(
+    (f) => f.startsWith('_') && f.endsWith('.md')
+  );
   // S12.7 moved the draw rubrics to references/draw/ (D3): the list is empty and stays empty.
   assertWithKnown('Underscore rule files registered as agents', offenders, {});
   // …and the rubrics the draw agents read are where their pointers say.

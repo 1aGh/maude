@@ -451,8 +451,8 @@ export function checkFile(rel: string, text: string, opts: CheckOptions = {}): C
               `${rel} › ${fileText(e.split(':')[0])}`,
               cleanText(e, 200),
               kind === 'edl'
-                ? 'write the EDL in the documented shape (apps/studio/schema/edl.v1.schema.json, skill design:footage-director)'
-                : 'write the analysis in the documented shape (skill design:footage-director)'
+                ? 'write the EDL in the documented shape (apps/studio/schema/edl.v1.schema.json, skill design-video:footage-director)'
+                : 'write the analysis in the documented shape (skill design-video:footage-director)'
             )
           );
     } else if (kind === 'gen' && opts.strict) {
@@ -477,7 +477,7 @@ export function checkFile(rel: string, text: string, opts: CheckOptions = {}): C
               kind,
               `${rel} › ${fileText(e.split(':')[0])}`,
               cleanText(e, 200),
-              `write the ${kind} in the documented shape (apps/studio/schema/${kind}.v1.schema.json, skill design:video-comp)`
+              `write the ${kind} in the documented shape (apps/studio/schema/${kind}.v1.schema.json, skill design-video:video-comp)`
             )
           );
     } else if (kind === 'ds-managed')

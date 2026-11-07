@@ -18,7 +18,7 @@ export const HANDOFF_CHAT_RE = /^handoff-[a-z0-9]{6,40}$/;
 
 /**
  * gate-b-sec2 finding 3 — the `maude design` verbs a Handoff to production run runs (handoffPrompt:
- * `handoff` for web, /design:to-lottie's `to-lottie` + `bootstrap-check`, and `check`). The bridge
+ * `handoff` for web, /design-video:to-lottie's `to-lottie` + `bootstrap-check`, and `check`). The bridge
  * auto-approves only these in the run (acp/bridge.ts scopedAllowedTools); the design plugin's
  * pre-bash hook denies every other maude verb (cli/lib/design-hook.mjs HANDOFF_RUN_VERBS, which a
  * test keeps equal to this list).

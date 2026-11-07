@@ -187,7 +187,7 @@ export type FormatId =
   | 'transcript' // S7.1: assets/<sha8>.transcript.json (video/format-ids.ts)
   | 'beats' // S7.1: assets/<sha8>.beats.json
   | 'design-config';
-export type SkillRef = `${'design' | 'flow'}:${string}`;
+export type SkillRef = `${'design' | 'design-video' | 'flow'}:${string}`;
 /** Closed: a new value needs a lead-owned change + a decision id (§5.7 rule 4). */
 export type HumanReason =
   | 'invite'

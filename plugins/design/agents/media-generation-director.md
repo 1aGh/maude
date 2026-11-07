@@ -1,6 +1,6 @@
 ---
 name: media-generation-director
-description: "Read-only gap finder for AI media generation: proposes a plan of net-new media (empty heroes, reel beats without clips). Spawned by /design:reel and /design:edit; never generates."
+description: "Read-only gap finder for AI media generation: proposes a plan of net-new media (empty heroes, reel beats without clips). Spawned by /design-video:reel and /design:edit; never generates."
 tools: Read, Glob, Grep
 ---
 

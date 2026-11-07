@@ -172,9 +172,13 @@ test('a critic verdict → HandoffOut.findings[] round-trips (S12 critics adopt 
 // The samples are read out of the plugin markdown, so a doc that drifts from the schema is red.
 
 const PLUGIN = fileURLToPath(new URL('../../plugins/design/', import.meta.url));
+// The footage agents live in the opt-in video plugin (#156 §4, DDR-249).
+const VIDEO_PLUGIN = fileURLToPath(new URL('../../plugins/design-video/', import.meta.url));
+const pluginOf = (rel) => (/^agents\/footage-/.test(rel) ? VIDEO_PLUGIN : PLUGIN);
+const namespaceOf = (agent) => (agent.startsWith('footage-') ? 'design-video' : 'design');
 /** The first ```json fence after the heading that matches `heading`, parsed. */
 function sampleAfter(rel, heading) {
-  const text = readFileSync(join(PLUGIN, rel), 'utf8');
+  const text = readFileSync(join(pluginOf(rel), rel), 'utf8');
   const at = text.search(heading);
   assert.ok(at >= 0, `${rel}: no heading matching ${heading}`);
   const m = /```json\n([\s\S]*?)\n```/.exec(text.slice(at));
@@ -337,7 +341,7 @@ for (const [agent, newFile] of Object.entries(WRITER_OWNS)) {
     const RUN_DIR = '.design/_runs/<session>/';
     const doc = sampleAfter(`agents/${agent}.md`, /^#+ Sample hand-off/m);
     assert.deepEqual(validateHandoff(doc, { role: 'in', runDir: RUN_DIR }).errors, []);
-    assert.equal(doc.agent, `design:${agent}`);
+    assert.equal(doc.agent, `${namespaceOf(agent)}:${agent}`);
     assert.ok(ownsPath(doc, doc.output), 'it owns its own result');
     const outside = doc.owns.filter((g) => !g.startsWith(RUN_DIR));
     assert.ok(outside.length >= 1, 'it owns at least one new file outside its run folder');

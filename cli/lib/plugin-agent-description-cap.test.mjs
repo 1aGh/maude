@@ -21,11 +21,11 @@ const INTERNAL_AGENTS = {
     'asset-describer',
     'draw-agent',
     'ds-migrator',
-    'footage-analyst',
-    'footage-director',
     'reconstruct-agent',
     'reconstruct-critic',
   ],
+  // The opt-in video plugin (#156 §4, DDR-249).
+  'design-video': ['footage-analyst', 'footage-director'],
 };
 const INTERNAL_CAP = 170;
 
@@ -49,11 +49,12 @@ function loadAgents(plugin) {
   return out;
 }
 
-const agents = [...loadAgents('flow'), ...loadAgents('design')];
+const agents = [...loadAgents('flow'), ...loadAgents('design'), ...loadAgents('design-video')];
 
 test('the agent lists were read (guards against an empty glob)', () => {
   assert.ok(agents.filter((a) => a.plugin === 'flow').length >= 14);
-  assert.ok(agents.filter((a) => a.plugin === 'design').length >= 21);
+  assert.ok(agents.filter((a) => a.plugin === 'design').length >= 19);
+  assert.ok(agents.filter((a) => a.plugin === 'design-video').length >= 2);
 });
 
 test(`every agent description is at most ${DESCRIPTION_CAP} characters`, () => {

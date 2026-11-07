@@ -39,7 +39,7 @@
 # --modality video (provider gemini / Veo 3.1): ASYNC — the clip takes ~1–10 min;
 # the poll timeout defaults to 600s for video (180s otherwise). Produces
 # assets/<sha8>.mp4 + a provenance assets/<sha8>.footage.json stub so the clip is
-# reel-ready (see /design:reel Step 1.5).
+# reel-ready (see /design-video:reel Step 1.5).
 #
 # The key is NEVER passed here — it lives server-side. Add it in Settings
 # (⌘,) or drop it into ~/.config/maude/keys.json (mode 0600).

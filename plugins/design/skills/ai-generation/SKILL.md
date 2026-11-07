@@ -1,6 +1,6 @@
 ---
 name: ai-generation
-description: "Generate or edit Maude images, audio and video through configured BYOK providers; localize assets and preserve consent."
+description: "Generate or edit Maude images and audio through configured BYOK providers; localize assets and preserve consent."
 ---
 
 # ai-generation

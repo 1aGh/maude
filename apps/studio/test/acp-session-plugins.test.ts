@@ -281,15 +281,19 @@ describe('suppressionFor — derived from the injection set', () => {
     expect(suppressionFor([])).toEqual({});
   });
 
-  test('the real bundle: computeSessionPlugins over this tree suppresses design@maude', () => {
+  test('the real bundle: computeSessionPlugins over this tree suppresses design@maude and design-video@maude', () => {
     const repo = join(import.meta.dir, '..', '..', '..');
     const plugins = computeSessionPlugins({
       native: true,
       designDir: join(repo, 'plugins', 'design'),
+      designVideoDir: join(repo, 'plugins', 'design-video'),
       flowDir: null,
       kgaiDir: null,
     });
-    expect(suppressionFor(plugins)).toEqual({ 'design@maude': false });
+    expect(suppressionFor(plugins)).toEqual({
+      'design@maude': false,
+      'design-video@maude': false,
+    });
   });
 
   test('bridge.ts carries no hand-maintained suppression literal any more', () => {

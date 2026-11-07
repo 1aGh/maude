@@ -7,7 +7,7 @@
 // route (routes/handoff.ts) reads the config and the canvas; the sheet reads what the route answers.
 //
 // The commands under Advanced are today's, unchanged: `/design:handoff`, `/design:to-rn`,
-// `/design:to-lottie`, and the `maude design handoff` verb.
+// `/design-video:to-lottie`, and the `maude design handoff` verb.
 
 export type HandoffKind = 'web' | 'rn' | 'lottie' | 'tokens';
 export const HANDOFF_KINDS: readonly HandoffKind[] = ['web', 'rn', 'lottie', 'tokens'];
@@ -314,7 +314,7 @@ export function readyFacts(
         copy: snippet,
         writes: o.outRel,
         snippet,
-        lines: [{ note: 'Claude Code', text: `/design:to-lottie "${canvas}" --verify` }],
+        lines: [{ note: 'Claude Code', text: `/design-video:to-lottie "${canvas}" --verify` }],
       };
     }
     default:

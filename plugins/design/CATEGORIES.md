@@ -22,7 +22,7 @@ Default verbs. No prefix. Members:
 | `/design:edit` | Iterate on the active canvas with auto-critic loop |
 | `/design:new` | Scaffold a new multi-artboard canvas project (or, with `--blank`, an annotation-only **brief canvas**; ingests its notes when run on an annotated brief-board canvas) |
 | `/design:draw` | Generate a verified SVG mark (logo / icon / illustration / diagram / spot) via the geometry engine + visual self-verify loop |
-| `/design:generate` | Generate an image, a sound or a video clip from your own AI provider key (BYOK) and land it on the canvas, marked Made by AI — the key stays with Maude, skill `ai-generation` |
+| `/design:generate` | Generate an image or a sound (a video clip with the design-video plugin) from your own AI provider key (BYOK) and land it on the canvas, marked Made by AI — the key stays with Maude, skill `ai-generation` |
 | `/design:photo` | Edit a photo headlessly, for every use of it — adjustments / duotone / grain / pattern / mask (parametric, no browser) + background removal on this Mac, via the non-destructive PhotoEdit sidecar; one use only is a per-use edit |
 | `/design:critic` | Spawn the critic panel (or single agent / all critics) |
 | `/design:browse` | Boot the local dev server |
@@ -36,13 +36,12 @@ Default verbs. No prefix. Members:
 | `/design:assets` | List the project's assets, where each is used and which are not; with `describe`, search in pictures (only after the person said yes) |
 | `/design:screenshot` | Capture a screenshot of the active canvas (`--full`/`--screen <id>`/`--element <id>`/`--all-screens`/`--selector <css>`) |
 | `/design:handoff` | Hand the active canvas off to production: a shadcn registry item (the web target); the other targets are drafted by AI from Handoff to production |
-| `/design:to-lottie` | Productionize a maude animation → ONE `.lottie` from code (web + mobile, 1:1; emitter, not converter) |
-| `/design:to-rn` | FALLBACK — native react-native-svg + Reanimated component from the IR (light animation only) |
+| `/design:to-rn` | FALLBACK — native react-native-svg + Reanimated component from the IR (light animation only); the primary path is `/design-video:to-lottie` |
 | `/design:board` | Read the whiteboard with artboard + ELEMENT context, and/or author a whole tidy template (retro / kanban / social calendar / roadmap / brainstorm / checklist / user-flow) onto it — skill `whiteboard` |
-| `/design:reel` | From a folder of raw clips (or the active canvas's clips) to a directed, graphics-laden video cut in one prompt — ingest → SHARED analysis step (same as `/design:video-analyze`: smart-frames → optional transcribe → Read-only footage-analyst → orchestrator persists) → footage-director (EDL) → `<TransitionSeries>` codegen → critics; skills `footage-keyframes` + `footage-director` + `video-comp` |
-| `/design:video-analyze` | Analyze ONE clip (or folder / active canvas) end to end — picture AND sound — in one prompt: scene-aware keyframes (skill `footage-keyframes`) + `transcribe` → footage-analyst → FootageAnalysis sidecar (incl. `speech`) + human report. Analysis-only (vs `/design:reel`, which cuts) |
 | `/design:import` | Bring an existing design into Maude. `--reconstruct <image>` (experimental) turns a Figma-frame PNG into a token-styled canvas via a Bash-free vision-authoring + reality-check loop — see [DDR-174](../../.ai/archive/decisions/DDR-174-vision-reconstruction-trust-boundary-and-experimental-posture.md). Token/brand ingestion have their own dedicated entry points (`maude design import-tokens`, `/design:setup-ds --from-brand`), not this command. |
 | `/design:help` | Print this grouped index |
+
+**Video lives in its own plugin.** `/design-video:reel`, `/design-video:video-analyze` and `/design-video:to-lottie`, the skills `video-comp`, `footage-director`, `footage-keyframes` and `video-generation`, and the agents `footage-analyst` and `footage-director` moved to the opt-in `design-video` plugin in 2.1 (#156 §4, DDR-249; catalog: `plugins/design-video/CATEGORIES.md`). `/design:generate` keeps images and sound; a video clip loads `design-video:video-generation`.
 
 The bare `/design` form was a one-version compat stub in v0.8 that redirected to `/design:edit`. **Removed in v0.9** — only `/design:edit` resolves now.
 
@@ -120,6 +119,7 @@ This makes autocomplete predictable — typing `/design:setup-` shows only the t
 | `/design:docs` | `/design:setup-docs` | v0.8 | Categorization to `setup-*` group |
 | `/design` (compat stub) | removed | v0.9 | One-version compat retired per the v0.8 contract |
 | `/design:setup-onboard` | `/design:init` | post-v0.9 | Bare-verb alias mirroring Claude Code's built-in `/init`; namespaced via `name: design:init` frontmatter |
+| `/design:reel`, `/design:video-analyze`, `/design:to-lottie` | `/design-video:reel`, `/design-video:video-analyze`, `/design-video:to-lottie` | 2.1 | Video split into the opt-in design-video plugin so a terminal session without video stops paying for it (#156 §4, DDR-249) |
 | `/design:screenshot` flags expanded | `--full` only → `+ --screen/--element/--all-screens/--selector` | Phase 13 | Stable element IDs (`data-dc-screen`/`data-dc-element`) plus canonical helper `dev-server/bin/screenshot.sh` (agent-browser primary, playwright fallback). Inline `agent-browser navigate + screenshot` bash blocks removed across commands/agents/skills. |
 
 ## Adding a new command

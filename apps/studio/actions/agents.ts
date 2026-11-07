@@ -32,7 +32,10 @@ const NAV = (note: string): ActionDefAI => ({
   agent: cli(`maude design open ${note}`),
 });
 const PREF = (note?: string): ActionDefAI => ({ effect: 'none', agent: human('view-pref', note) });
-const TSX = (how: string, skill: `design:${string}` = 'design:design'): ActionDefAI => ({
+const TSX = (
+  how: string,
+  skill: `design:${string}` | `design-video:${string}` = 'design:design'
+): ActionDefAI => ({
   effect: 'project',
   agent: file('canvas-tsx', skill, how),
 });
@@ -86,7 +89,7 @@ const VIDEO_OP = (agent: AgentPath): ActionDefAI => ({
 });
 
 const CLIP_MENU_TSX = (how: string): ActionDefAI =>
-  VIDEO_OP(file('canvas-tsx', 'design:video-comp', how));
+  VIDEO_OP(file('canvas-tsx', 'design-video:video-comp', how));
 
 export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── diagnostics (V2-4.7b) ──
@@ -360,12 +363,16 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvas.reload': PREF('reloads the user’s view; the studio reloads on every file change'),
   'canvas.new-video': TSX(
     `Create it with \`maude design curl-local http://127.0.0.1:<port>/_api/canvas --method POST --header "Content-Type: application/json" --data '{"kind":"video-comp","name":"<name>","clips":[]}'\` (port: .design/_server.json; the answer's rel is the file), then Edit that video-comp .tsx`,
-    'design:video-comp'
+    'design-video:video-comp'
   ),
   'canvas.close': PREF('closes the user’s tab'),
   'video.assemble': {
     effect: 'project',
-    agent: file('edl', 'design:footage-director', 'Write the <slug>.edl.json cut, then the comp'),
+    agent: file(
+      'edl',
+      'design-video:footage-director',
+      'Write the <slug>.edl.json cut, then the comp'
+    ),
   },
   // ── video tools (S7.6c, V2-1.10 §5.7): the UI's writes are edit ops (`POST /_api/edit-op`, minRole
   // edit — the server refuses below it); an agent runs the verb that ends in the same op, or writes
@@ -374,14 +381,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'video.captions.style': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Set words / position / font / highlight / maxChars on the comp’s one <Captions>'
     )
   ),
   'video.captions.fix-word': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Add { src, at, text } to <Captions fixes> as a JSON literal (text null hides the word)'
     )
   ),
@@ -411,14 +418,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'video.music.duck': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Wrap the one music <Audio> in <Duck db attackMs releaseMs>; unwrap to turn it off'
     )
   ),
   'video.music.volume': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Set the literal volume (0..1) of the music <Audio>; 1 removes the prop'
     )
   ),
@@ -428,14 +435,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'edit',
     agent: file(
       'canvas-meta',
-      'design:video-comp',
+      'design-video:video-comp',
       'artboardMeta.<id>.snap: "beat" | "off" in the canvas .meta.json'
     ),
   },
   'video.reframe': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Wrap the clip’s media in <Reframe focus zoom formats> (source-second keyframes, sorted)'
     )
   ),
@@ -444,7 +451,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'video.easing.set': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Add { easing: Easing.bezier(a, b, c, d) } as the options of the k-th interpolate(frame, …) in the clip’s component; import Easing from remotion'
     )
   ),
@@ -454,7 +461,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'edit',
     agent: file(
       'canvas-meta',
-      'design:video-comp',
+      'design-video:video-comp',
       'artboardMeta.<id>.maxFrames: an integer up to 18000 in the canvas .meta.json (3600 without it)'
     ),
   },
@@ -464,7 +471,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'edit',
     agent: file(
       'canvas-meta',
-      'design:video-comp',
+      'design-video:video-comp',
       'artboardMeta.<id>.markers: a list of { frame, name } in the canvas .meta.json (an integer frame ≥ 0, a plain-text name up to 60 characters, one per frame, at most 200)'
     ),
   },
@@ -473,7 +480,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'edit',
     agent: file(
       'canvas-meta',
-      'design:video-comp',
+      'design-video:video-comp',
       'Remove the entry from artboardMeta.<id>.markers in the canvas .meta.json (an empty list takes them all away)'
     ),
   },
@@ -486,49 +493,49 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'edit',
     agent: file(
       'canvas-meta',
-      'design:video-comp',
+      'design-video:video-comp',
       'artboardMeta.<id>.poster: a comp frame, in the canvas .meta.json'
     ),
   },
   'video.format.add': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Copy the video DCArtboard with a new id and size; its <VideoComp> keeps component={X} (linked)'
     )
   ),
   'video.format.unlink': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Copy the comp under a new name and point this artboard’s <VideoComp component> at it'
     )
   ),
   'video.take.swap': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Set the clip media’s trimBefore (output frames) to the other take; keep durationInFrames'
     )
   ),
   'video.fit': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Set fit="fit" | "blur" on the clip’s <Reframe> (fill is the default)'
     )
   ),
   'video.place': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Wrap the title’s content in <Place at={[x, y]} formats={{ "16:9": [x, y] }}> (centre anchor, fractions of the output frame)'
     )
   ),
   'video.title.motion': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Wrap the title’s content in <TitleMotion preset="none|fade|slide-up|pop|type-on|per-word" frames={12}> (inside its <Place> when it has one); none takes the wrapper off'
     )
   ),
@@ -536,14 +543,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'video.title.style': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Set fontFamily "var(--font-…)" (a design-system font token) and color (a token or one plain CSS colour) in the style object literal of the element holding the title’s words; remove the property to take it off'
     )
   ),
   'video.transition.set': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Set presentation={fade() | slide() | wipe() | flip() | clockWipe(…) | none()} and the timing frames on the <TransitionSeries.Transition> at the join (Cut is none())'
     )
   ),
@@ -1304,21 +1311,21 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.trim': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Set the clip’s durationInFrames (later beats close up; the comp’s total follows the last clip)'
     )
   ),
   'timeline.move-clip': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Move a series beat before or after another (with its transition), or set a layer’s from'
     )
   ),
   'timeline.add-clips': VIDEO_OP(
     file(
       'canvas-tsx',
-      'design:video-comp',
+      'design-video:video-comp',
       'Add a <Sequence> with the media at the end (or between two beats); the total grows by its length'
     )
   ),
@@ -1371,7 +1378,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     'Swap the beat with the one after it (with its transition); a layer moves down the stack'
   ),
   'timeline.clip-menu.replace-layer': CLIP_MENU_TSX('Change that layer’s media src'),
-  'timeline.split': TSX('Split the clip into two sequences at the frame', 'design:video-comp'),
+  'timeline.split': TSX(
+    'Split the clip into two sequences at the frame',
+    'design-video:video-comp'
+  ),
   'timeline.zoom-in': PREF(),
   'timeline.zoom-out': PREF(),
   'timeline.zoom-fit': PREF(),
@@ -1401,7 +1411,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     agent: cli('maude design export <format> --scope selection|canvas|folder|project'),
   },
   // S8.10 — Handoff to production writes code into the project (one AI run, its target file only; the server
-  // refuses below Can edit). An agent runs the same verb (`--target web`), or /design:to-rn and /design:to-lottie.
+  // refuses below Can edit). An agent runs the same verb (`--target web`), or /design:to-rn and /design-video:to-lottie.
   // Opening the sheet changes nothing (fromCanvas ⇒ effect none, V2-1.3 inv. 3); the sheet's Hand off is the write (POST /_api/handoff, Can edit).
   'handoff.open': { effect: 'none', agent: cli('maude design handoff') },
   'export.rerun-last': {

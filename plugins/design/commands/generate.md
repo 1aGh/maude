@@ -23,7 +23,7 @@ Project-specific values (designRoot, active canvas) come from `<repo>/.design/co
 |---|---|---|
 | `"<prompt>"` | — | **Required.** The image subject, verbatim — the provider wants the subject, not an imperative ("a misty pine forest at dawn", not "generate a forest"). |
 | `--source <asset>` | — | An `assets/<sha8>.<ext>` image to **edit** (maskless Nano Banana edit): the prompt describes the change; a NEW asset is produced, the original is never mutated. |
-| `--modality <m>` | `image` | `image` (Nano Banana), `audio` (provider `elevenlabs`: `--kind music` default, `sfx` or `tts`; `tts` needs `--voice <id>`, music and sfx take `--duration <seconds>`), or `video` (Veo, provider `gemini`; `--source` seeds image-to-video). |
+| `--modality <m>` | `image` | `image` (Nano Banana), `audio` (provider `elevenlabs`: `--kind music` default, `sfx` or `tts`; `tts` needs `--voice <id>`, music and sfx take `--duration <seconds>`), or `video` (Veo, provider `gemini`; `--source` seeds image-to-video) — video needs the opt-in design-video plugin: load `Skill design-video:video-generation` first. |
 | `--provider <id>` | `gemini` | The BYOK provider: `gemini` (image, video) or `elevenlabs` (audio). |
 | `--model <id>` | provider default | e.g. `gemini-2.5-flash-image` (default) / `gemini-3-pro-image-preview`. |
 | `--aspect <W:H>` | `1:1` | `1:1` avatar/tile · `16:9` hero · `9:16` story · `4:3`/`3:4`/`4:5` … Match the placement. |

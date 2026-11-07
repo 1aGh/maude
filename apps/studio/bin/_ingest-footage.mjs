@@ -3,7 +3,7 @@
 // content-addressed asset store, behind `maude design ingest-footage` (DDR-062
 // dispatch). The folder-scale counterpart to `_fetch-asset.mjs` (single URL).
 //
-// feature-footage-analysis-director, Task 3. WHY THIS EXISTS: the `/design:reel`
+// feature-footage-analysis-director, Task 3. WHY THIS EXISTS: the `/design-video:reel`
 // director pipeline wants to start from a folder of client clips
 // (`/…/podklady/video`). This verb copies each recognised video (and any image/
 // audio) into `<designRoot>/assets/<sha8>.<ext>` — the SAME content-addressed
