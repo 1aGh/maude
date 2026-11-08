@@ -22,8 +22,8 @@
 // body — `from` enters the record only through the trusted `OpContext.from`.
 
 import { randomBytes } from 'node:crypto';
-import { arrivalLine, guardFigjamOps, parseFigjamBody } from '../annotations/figjam-into.ts';
 import { itemsByList, toTaskLines } from '../annotations/elements/checkitem.model.ts';
+import { arrivalLine, guardFigjamOps, parseFigjamBody } from '../annotations/figjam-into.ts';
 import { keyBetween } from '../annotations/fractional-index.ts';
 import type { Op as AnnotationOp } from '../annotations/ops.ts';
 import { parseBoard } from '../annotations/schema.ts';

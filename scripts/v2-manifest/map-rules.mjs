@@ -78,6 +78,7 @@ export const V2_CODE_IDS = new Set([
   'testid:studio/annotations/ui/checklist.tsx#canvas iframe/checklist-add', // #113 checklist rows in a sticky
   'testid:studio/annotations/ui/checklist.tsx#canvas iframe/checklist-listid', // #113 checklist rows in a sticky
   'testid:studio/annotations/ui/checklist.tsx#canvas iframe/checklist-progress-listid', // #113 checklist progress line
+  'testid:studio/annotations/ui/checklist.tsx#canvas iframe/checklist-more-listid', // #113 checklist '+N more' fade (113-C)
   'testid:studio/annotations/ui/checklist.tsx#canvas iframe/checklist-row-id', // #113 one checklist row
   'testid:studio/context-menu.tsx#canvas iframe chrome/canvas-menu-item-copy-artboard', // #122 artboard Copy (v1 menu had only a Paste artboard row)
   'testid:studio/context-menu.tsx#canvas iframe chrome/canvas-menu-item-cut-artboard', // #122 artboard Cut
