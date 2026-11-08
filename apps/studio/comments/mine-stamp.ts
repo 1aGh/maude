@@ -26,30 +26,38 @@ function sameAuthor(x: Signed, me: string): boolean {
   return a !== '' && a === me;
 }
 
-function stamp<T extends Signed>(x: T, mine: boolean): T & { mine?: true } {
+/** #168 G2: what a record of yours is signed with on its way to the canvas — never your author string. */
+export const MINE_AUTHOR = 'You';
+
+function stamp<T extends Signed>(x: T, mine: boolean, project = false): T & { mine?: true } {
   const { mine: _old, ...rest } = x;
-  return (mine ? { ...rest, mine: true } : rest) as T & { mine?: true };
+  if (!mine) return rest as T & { mine?: true };
+  return (project ? { ...rest, author: MINE_AUTHOR, mine: true } : { ...rest, mine: true }) as T & {
+    mine?: true;
+  };
 }
 
 function eachWithReplies<T extends Signed>(
   list: readonly WithThread<T>[],
-  isMine: (x: Signed) => boolean
+  isMine: (x: Signed) => boolean,
+  project = false
 ): Array<WithThread<T> & { mine?: true; thread?: Array<Signed & { mine?: true }> }> {
   return (Array.isArray(list) ? list : []).map((c) => {
-    const out = stamp(c, isMine(c)) as WithThread<T> & { mine?: true };
+    const out = stamp(c, isMine(c), project) as WithThread<T> & { mine?: true };
     if (Array.isArray(c.thread)) {
       (out as { thread?: unknown }).thread = c.thread.map((r: Signed) =>
-        r && typeof r === 'object' ? stamp(r, isMine(r)) : r
+        r && typeof r === 'object' ? stamp(r, isMine(r), project) : r
       );
     }
     return out as WithThread<T> & { mine?: true; thread?: Array<Signed & { mine?: true }> };
   });
 }
 
-/** The shell side: a copy of `list` with `mine: true` on each comment / reply signed with `me`. */
+/** The shell side: a copy of `list` with `mine: true` on each comment / reply signed with `me` — and that
+ *  record's author projected to "You" (#168 G2), so the stamp never tells the canvas which name is the viewer's. */
 export function markMine<T extends Signed>(list: readonly WithThread<T>[], me: unknown) {
   const name = nameOf(me);
-  return eachWithReplies(list, (x) => name !== '' && sameAuthor(x, name));
+  return eachWithReplies(list, (x) => name !== '' && sameAuthor(x, name), true);
 }
 
 /** The ids a stamped list marks as mine (comments and replies), kept for a list that arrives unstamped. */

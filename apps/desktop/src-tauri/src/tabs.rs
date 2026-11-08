@@ -401,22 +401,40 @@ pub fn set_overview(app: &AppHandle, open: bool) {
         .try_state::<SidecarState>()
         .and_then(|s| s.windows.lock().unwrap_or_else(|e| e.into_inner()).focused().map(str::to_string))
         .unwrap_or_else(|| HOME_LABEL.to_string());
-    if let Some(wv) = app.get_webview(&active) {
-        set_tab_shown(&wv, !open);
-        if !open && was {
-            let _ = wv.set_focus();
-        }
-    }
-    if open {
-        if let Some(strip) = app.get_webview(STRIP_LABEL) {
-            // r4+r5 security (low): the hidden active tab still sat above the full-window strip, so a Finder drop on
-            // the overview grid went to the hidden project's page. Raise the strip while the overview is open
-            // (closing it re-shows — and so raises — the active tab).
-            set_tab_shown(&strip, true);
-            let _ = strip.set_focus();
+    for (label, shown) in overview_plan(&active, open) {
+        if let Some(wv) = app.get_webview(&label) {
+            set_tab_shown(&wv, shown);
+            if shown && (label == STRIP_LABEL || was) {
+                let _ = wv.set_focus();
+            }
         }
     }
     changed(app);
+}
+
+/// #168 F7 — what the overview does to visibility, as data (the ordered `set_tab_shown` calls; a show also raises).
+/// r4+r5 security (low): the hidden active tab still sat above the full-window strip, so a Finder drop on the
+/// overview grid went to the hidden project's page. The strip is raised while the overview is open; closing it
+/// re-shows — and so raises — the active tab.
+fn overview_plan(active: &str, open: bool) -> Vec<(String, bool)> {
+    let mut plan = vec![(active.to_string(), !open)];
+    if open {
+        plan.push((STRIP_LABEL.to_string(), true));
+    }
+    plan
+}
+
+/// #168 F7 — what `activate` does to visibility, as data: show `label` first (no frame without a tab, contract
+/// §10 q1), then hide every other tab of `webviews`; the strip is never touched.
+fn activate_plan(webviews: &[&str], label: &str) -> Vec<(String, bool)> {
+    let mut plan = vec![(label.to_string(), true)];
+    plan.extend(
+        webviews
+            .iter()
+            .filter(|l| **l != label && **l != STRIP_LABEL)
+            .map(|l| (l.to_string(), false)),
+    );
+    plan
 }
 
 /// The shell's logical inner size.
@@ -694,14 +712,17 @@ pub fn activate(app: &AppHandle, label: &str) -> Result<(), String> {
     // The book first (never held across a webview call: those wait on the
     // main thread, which takes the book lock in the navigation guard).
     windows::on_focused(app, label);
-    // Show before hide: no frame without a tab (contract §10 q1).
-    set_tab_shown(&target, true);
-    if let Some(shell) = app.get_window(SHELL_LABEL) {
-        for wv in shell.webviews() {
-            if wv.label() != label && wv.label() != STRIP_LABEL {
-                set_tab_shown(&wv, false);
-            }
+    // Show before hide: no frame without a tab (contract §10 q1) — `activate_plan`, #168 F7.
+    let shell = app.get_window(SHELL_LABEL);
+    let webviews = shell.as_ref().map(|s| s.webviews()).unwrap_or_default();
+    let labels: Vec<&str> = webviews.iter().map(|w| w.label()).collect();
+    for (l, shown) in activate_plan(&labels, label) {
+        let wv = if l == label { Some(&target) } else { webviews.iter().find(|w| w.label() == l) };
+        if let Some(wv) = wv {
+            set_tab_shown(wv, shown);
         }
+    }
+    if let Some(shell) = shell {
         let _ = shell.set_title(&title_of(app, label));
     }
     let _ = target.set_focus();
@@ -2207,5 +2228,57 @@ mod tests {
         }
         assert_eq!(cell_tab_name("https://x"), "x");
         assert_eq!(cell_tab_name("garbage"), "Cloud");
+    }
+
+    /// #168 F7: the call-site pin above proves every visibility change goes through `set_tab_shown`, not that the
+    /// tab on screen ends up on TOP — the r4 #2 drag bug is about stacking order. A model of the shell's subviews
+    /// (a show raises to the top, as `set_tab_shown` does; a hide leaves the order) runs the exact plans
+    /// `activate` and `set_overview` execute, and the shown tab must be the topmost subview after each.
+    fn stack_after<S: AsRef<str>>(start: &[S], plan: &[(String, bool)]) -> Vec<String> {
+        let mut order: Vec<String> = start.iter().map(|s| s.as_ref().to_string()).collect();
+        for (label, shown) in plan {
+            if *shown {
+                order.retain(|l| l != label);
+                order.push(label.clone());
+            }
+        }
+        order
+    }
+
+    #[test]
+    fn the_shown_tab_is_the_topmost_subview_after_activate_and_the_overview() {
+        // creation order: a tab added later sits above the ones before it
+        let start = ["home", STRIP_LABEL, "p-a", "p-b", "p-c"];
+        for label in ["home", "p-a", "p-b", "p-c"] {
+            let plan = activate_plan(&start, label);
+            assert_eq!(plan.first(), Some(&(label.to_string(), true)), "show before hide");
+            assert!(plan.iter().all(|(l, _)| l != STRIP_LABEL), "activate never touches the strip");
+            assert_eq!(plan.iter().filter(|(_, s)| *s).count(), 1, "exactly one tab shown");
+            let order = stack_after(&start, &plan);
+            assert_eq!(order.last().map(String::as_str), Some(label), "{label} is on top after activate");
+            // overview open: the strip is raised above the (now hidden) active tab
+            let open = overview_plan(label, true);
+            assert!(open.contains(&(label.to_string(), false)));
+            let opened = stack_after(&order, &open);
+            assert_eq!(opened.last().map(String::as_str), Some(STRIP_LABEL), "the strip is on top");
+            // overview closed: the active tab is shown again, and so raised above the strip
+            let closed = stack_after(&opened, &overview_plan(label, false));
+            assert_eq!(closed.last().map(String::as_str), Some(label), "{label} is on top again");
+        }
+    }
+
+    #[test]
+    fn activate_and_set_overview_execute_the_plans() {
+        let src = include_str!("tabs.rs");
+        let body = |name: &str| {
+            let i = src.find(&format!("pub fn {name}(")).unwrap();
+            let rest = &src[i..];
+            &rest[..rest.find("\n}\n").unwrap()]
+        };
+        assert!(body("activate").contains("activate_plan("), "activate runs activate_plan");
+        assert!(body("set_overview").contains("overview_plan("), "set_overview runs overview_plan");
+        for name in ["activate", "set_overview"] {
+            assert_eq!(body(name).matches("set_tab_shown(").count(), 1, "{name}: one call, in the plan loop");
+        }
     }
 }

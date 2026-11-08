@@ -11,17 +11,26 @@
 // person gets the platform's dialog: the native one in the app (`pickMediaFiles`, as Add files… does — it needs no
 // page activation), the input's own in a browser.
 //
+// #168 F1 — the canvas decides when it asks, so it never opens the dialog itself: an ask (`ask(canvas)`) shows the
+// shell's own chip, "Choose a picture for <canvas>" + Choose…, and only a click on that chip opens the dialog. Two
+// cancelled dialogs in a row and the shell stops offering the chip for PICK_BACKOFF_MS; a placed picture resets it.
+//
 // The pure half (`placeFiles`) takes everything it touches as a function so a test drives it.
 
 import { uploadAsset } from '../../../asset-upload.ts';
 import { isVideoFile, isVideoName, videoNaturalOf } from '../../../video-natural.ts';
 import { isNativeApp, pickedMediaSource, pickMediaFiles } from '../../github.js';
-import { shellToast } from '../../shell/util.js';
+import { notifyCanvasTriggered } from '../../../notifications.tsx';
+import { basename, displayName, shellToast } from '../../shell/util.js';
 
 export const IMAGE_INPUT_TESTID = 'image-tool-input';
 export const NOT_A_PICTURE_LINE =
   'That is not a picture or a video. Pick a PNG, JPEG, GIF, WebP, SVG or HEIC picture, or an MP4, MOV, M4V or WebM video.';
 export const NOT_ADDED_LINE = 'That picture or video couldn’t be added, so nothing was placed.';
+/** #168 F1: the one id the chip is shown under (a repeat ask replaces it) and the back-off after two cancels. */
+export const PICK_CHIP_ID = 'canvas-image-pick';
+export const PICK_BACKOFF_MS = 60_000;
+const CANCELS_BEFORE_BACKOFF = 2;
 
 const IMAGE_NAME = /\.(avif|gif|heic|heif|jpe?g|png|svg|tiff?|webp)$/i;
 // r3 (Michal: "nemůžu vkládat videa"): a video (mp4 · mov · m4v · webm) is placed like a picture. Sound stays out — there is
@@ -60,14 +69,30 @@ const mimeOf = (name) => {
  * @param deps.videoNatural (file) => Promise<{w,h} | null> — a video's size, fitted (default: read from its metadata)
  * @param deps.toast (line) => void
  * @param deps.activePath () => string | null — the canvas a file handed to the input (no dialog) is placed on
+ * @param deps.notify (notice) => string | null — the chip (default `notifyCanvasTriggered`: one id, rate-limited)
+ * @param deps.nameOf (path) => string — the canvas name the chip says
+ * @param deps.now () => number — ms clock (the back-off)
+ * @param deps.isNative / deps.pickNative / deps.nativeSource — the app's own dialog (default: github.js)
  */
 export function createImagePick(deps) {
   const upload = deps.upload ?? ((f) => uploadAsset(f, { name: f.name }));
   const natural = deps.natural ?? naturalSizeOf;
   const videoNatural = deps.videoNatural ?? videoNaturalOf;
   const toast = deps.toast ?? ((line) => shellToast(line, false));
+  const notify = deps.notify ?? notifyCanvasTriggered;
+  const nameOf = deps.nameOf ?? ((p) => displayName(basename(p)));
+  const now = deps.now ?? (() => Date.now());
+  const isNative = deps.isNative ?? isNativeApp;
+  const pickNative = deps.pickNative ?? pickMediaFiles;
+  const nativeSource = deps.nativeSource ?? pickedMediaSource;
   let input = null;
   let forCanvas = null;
+  let cancels = 0;
+  let lastCancel = -Infinity;
+  const cancelled = () => {
+    cancels++;
+    lastCancel = now();
+  };
 
   /** The pick for `canvas`: the first picture or video of `files` into Assets, then `place-image` to that canvas. */
   async function placeFiles(canvas, files) {
@@ -87,6 +112,7 @@ export function createImagePick(deps) {
       return;
     }
     const size = await (isVideo(f) ? videoNatural(f) : natural(f));
+    cancels = 0;
     deps.post(canvas, { dgn: 'place-image', asset: r.path, natural: size, label: f.name });
   }
 
@@ -109,22 +135,32 @@ export function createImagePick(deps) {
       input.value = '';
       if (canvas) void placeFiles(canvas, files);
     });
+    // the browser's own dialog closed with nothing picked
+    input.addEventListener('cancel', () => {
+      forCanvas = null;
+      cancelled();
+    });
     doc.body.appendChild(input);
     return input;
   }
 
-  /** Image (I) for `canvas`: the platform's dialog now. */
+  /** The platform's dialog for `canvas` — only ever from the chip's click (a person in the shell), never a canvas. */
   async function open(canvas) {
     forCanvas = canvas;
-    if (isNativeApp()) {
-      const picked = await pickMediaFiles();
-      const first = (picked || []).find((p) => IMAGE_NAME.test(p.name) || isVideoName(p.name));
+    if (isNative()) {
+      const picked = await pickNative();
+      if (!picked?.length) {
+        forCanvas = null;
+        cancelled();
+        return;
+      }
+      const first = picked.find((p) => IMAGE_NAME.test(p.name) || isVideoName(p.name));
       if (!first) {
-        if (picked?.length) toast(NOT_A_PICTURE_LINE);
+        toast(NOT_A_PICTURE_LINE);
         return;
       }
       // a picked source is not a Blob (it reads through the app), so its size comes from the place op, not here
-      const src = pickedMediaSource(first, mimeOf(first.name));
+      const src = nativeSource(first, mimeOf(first.name));
       try {
         await placeFiles(canvas, [src]);
       } finally {
@@ -136,5 +172,22 @@ export function createImagePick(deps) {
     mount(document).click();
   }
 
-  return { placeFiles, mount, open };
+  /**
+   * Image (I) asked by `canvas`: the shell's chip, never the dialog. False when backing off (two cancels in a row,
+   * less than PICK_BACKOFF_MS ago) — the ask is ignored and nothing is shown.
+   */
+  function ask(canvas) {
+    if (cancels >= CANCELS_BEFORE_BACKOFF && now() - lastCancel < PICK_BACKOFF_MS) return false;
+    if (cancels >= CANCELS_BEFORE_BACKOFF) cancels = 0;
+    notify({
+      id: PICK_CHIP_ID,
+      title: `Choose a picture for ${nameOf(canvas)}`,
+      kind: 'info',
+      icon: 'image',
+      action: { label: 'Choose…', onClick: () => void open(canvas) },
+    });
+    return true;
+  }
+
+  return { placeFiles, mount, open, ask };
 }

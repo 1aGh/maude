@@ -437,6 +437,33 @@ function readRaw(path: string): RawPrefs {
 }
 
 /** Current UI prefs merged over the defaults (defaults when missing/unreadable). */
+/**
+ * #168 G3 — Recent colours are keyed by the SERVER's own root identity (`rootIdentity(repoRoot)`, http.ts), never a
+ * name the client sends: the page only ever writes and reads "this project" (`RECENT_HERE`). Two projects with one
+ * name no longer share a list, and no page reads or writes another project's.
+ */
+export const RECENT_HERE = 'here';
+const recentKeyOf = (rootId: string) => `root:${rootId}`;
+
+/** POST: re-key the page's `RECENT_HERE` list by `rootId`, in place. Returns an error for any other key. */
+export function scopeRecentColoursWrite(patch: Partial<UiPrefs>, rootId: string): string | null {
+  const rc = patch.recentColours;
+  if (rc === undefined) return null;
+  const keys = Object.keys(rc);
+  if (keys.length !== 1 || keys[0] !== RECENT_HERE)
+    return 'recentColours takes only this project’s list';
+  patch.recentColours = { [recentKeyOf(rootId)]: rc[RECENT_HERE] as string[] };
+  return null;
+}
+
+/** GET: serve only `rootId`'s list, as `RECENT_HERE`, in place — never another project's. */
+export function scopeRecentColoursRead(prefs: Record<string, unknown>, rootId: string): void {
+  if (!('recentColours' in prefs)) return;
+  const map = plain(prefs.recentColours);
+  const mine = map[recentKeyOf(rootId)];
+  prefs.recentColours = Array.isArray(mine) ? { [RECENT_HERE]: mine } : {};
+}
+
 export function readUiPrefs(): UiPrefs {
   const raw = readRaw(uiPrefsPath());
   return raw.kind === 'ok' ? coerce(raw.value) : { ...UI_PREFS_DEFAULTS };

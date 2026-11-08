@@ -18,7 +18,7 @@ afterAll(() => {
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { markMine, mineIdsOf, restampMine } from '../comments/mine-stamp.ts';
+import { markMine, mineIdsOf, restampMine, viewerFor } from '../comments/mine-stamp.ts';
 import { CommentsOverlay, type OverlayComment } from '../comments-overlay.tsx';
 
 const FILE = '.design/ui/Board.tsx';
@@ -58,6 +58,31 @@ describe('markMine (the shell side)', () => {
     expect(out[2].mine).toBeUndefined(); // an AI-written comment is never a person's
     // the shell's own list is not touched
     expect((list[0] as { mine?: boolean }).mine).toBeUndefined();
+  });
+
+  // #168 G2 — a stamped record still carried the viewer's own author string to the canvas, so `mine: true` told
+  // canvas code which name is this viewer's. A record that is the viewer's crosses as "You"; others keep theirs.
+  test('a record that is yours crosses to the canvas as "You", never your author string', () => {
+    const out = markMine(
+      [
+        {
+          id: 'a',
+          author: 'iagh',
+          thread: [
+            { id: 'r1', author: 'iagh' },
+            { id: 'r2', author: 'Jonas' },
+          ],
+        },
+        { id: 'b', author: 'Jonas' },
+      ],
+      'iagh'
+    );
+    expect(JSON.stringify(out)).not.toContain('iagh');
+    expect(out[0].author).toBe('You');
+    expect(out[0].thread?.map((r) => r.author)).toEqual(['You', 'Jonas']);
+    expect(out[1].author).toBe('Jonas');
+    // the canvas still reads a stamped record as yours
+    expect(viewerFor(out[0], 'You')).toBe('You');
   });
 
   test('no viewer name: nothing is stamped (and a stamp the list already carried is dropped)', () => {

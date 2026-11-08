@@ -194,7 +194,8 @@ export function useToolPanels({
       now: () => Date.now(),
       openAssets: () => live.current.openAssets(),
       // TD10 — the picture picker posts its pick to the canvas that asked, on the canvas origin only
-      pickImage: (canvas) => void imagePick().open(canvas),
+      // #168 F1: the shell's chip first; only its click opens the dialog
+      pickImage: (canvas) => void imagePick().ask(canvas),
       openGenerate: () => menuRunner.run('assets.generate'),
     });
   const lane = laneRef.current;
