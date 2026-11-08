@@ -211,7 +211,10 @@ describe('an-vote (native-desktop) — a vote between two people, secret until t
 
     // what End vote's request got back: a bar that stays names the answer, not just the wait
     await browser.execute(() => {
-      const w = window as unknown as { __e2eEnd?: string[]; fetch: typeof fetch };
+      const w = window as unknown as {
+        __e2eEnd?: string[];
+        fetch: (...a: Parameters<typeof fetch>) => Promise<Response>;
+      };
       if (w.__e2eEnd) return;
       w.__e2eEnd = [];
       const real = w.fetch.bind(w);

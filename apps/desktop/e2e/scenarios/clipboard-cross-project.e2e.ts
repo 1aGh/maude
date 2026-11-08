@@ -4,13 +4,13 @@ import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
 
 import {
-  enterCanvasFrame,
-  exitToTop,
   focusCanvasFrame,
+  waitForArtboard,
   waitForCanvasOpened,
   waitForCanvasRects,
 } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
+import { artboardLabelPoint, pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 import { focusTab, labels, openTab } from '../helpers/windows';
@@ -46,25 +46,90 @@ async function openCanvas(row: string): Promise<void> {
   await waitForCanvasRects(); // the card going is not the first layout: wait for elements + a settled, full-size frame
 }
 
-/** Click an artboard's name strip inside the canvas frame (selects the artboard), keyboard focus in the frame. */
+/**
+ * Select an artboard by its name strip and leave the person's focus in the canvas frame. The embedded WebDriver's
+ * own clicks and element lookups never reach into the canvas frame (helpers/pointer.ts), so the click is synthesised at
+ * the label's window point, and the frame then takes real focus — the shell honours a canvas ⌘V as the person's paste
+ * only while the frame holds the focus of a focused window (use-canvas-bridge.jsx).
+ */
 async function selectArtboard(id: string): Promise<void> {
-  // the frame can reload under us once (a rebuild after the open): a stale frame handle is retried from the top
-  for (let attempt = 1; ; attempt++) {
-    try {
-      await focusCanvasFrame();
-      await enterCanvasFrame();
-      const label = await $(`[data-dc-screen="${id}"] .dc-artboard-label`);
-      await label.waitForDisplayed({ timeout: 30_000 });
-      await label.click();
-      await browser.pause(300);
-      return;
-    } catch (error) {
-      if (attempt >= 3) throw error;
-      await exitToTop().catch(() => {});
-      await browser.pause(1_000);
-    }
-  }
+  await waitForArtboard(id);
+  const at = await artboardLabelPoint(id);
+  expect(at).not.toBeNull();
+  await pointerClick((at as { x: number }).x, (at as { y: number }).y);
+  await browser.pause(300);
+  await focusCanvasFrame();
 }
+
+/** A chord pressed in the canvas (its document gets the keydown, as the canvas keymap reads it). */
+async function canvasChord(key: string): Promise<void> {
+  await browser.execute((k: string) => {
+    const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+    const doc = frame.contentDocument as Document;
+    (doc.activeElement ?? doc.body).dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: k,
+        code: `Key${k.toUpperCase()}`,
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+  }, key);
+}
+
+/**
+ * ⌘V in the canvas. The canvas takes a paste from WebKit's own `paste` event (the system clipboard still holding the
+ * marker its copy left — editing/index.tsx); a keydown alone pastes nothing, and the embedded WebDriver cannot press
+ * the real key. So: the keydown (the canvas tells the shell — the paste intent the shell's ask follows), then the paste
+ * event WebKit would fire, carrying the marker text the copy put on the clipboard.
+ */
+async function canvasPaste(): Promise<void> {
+  await browser.execute((mark: string) => {
+    const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+    const doc = frame.contentDocument as Document;
+    const win = frame.contentWindow as Window & typeof globalThis;
+    const at = doc.activeElement ?? doc.body;
+    at.dispatchEvent(
+      new win.KeyboardEvent('keydown', {
+        key: 'v',
+        code: 'KeyV',
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+    const data = new win.DataTransfer();
+    data.setData('text/plain', mark);
+    at.dispatchEvent(
+      new win.ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })
+    );
+  }, 'Maude · 1 artboard · paste on a canvas (maude-clip)');
+}
+
+/** The latest copy on this Mac, as the desktop shell holds it (#122 `clip_latest`, caller-checked). */
+const latestClip = () =>
+  browser.execute(async () => {
+    const t = (
+      window as unknown as { __TAURI__?: { core?: { invoke?: (cmd: string) => Promise<unknown> } } }
+    ).__TAURI__;
+    return t?.core?.invoke ? await t.core.invoke('clip_latest') : null;
+  }) as Promise<{ from?: string; kind?: string; mine?: boolean } | null>;
+
+/** The shell's notices, for a failure message. */
+const notices = () =>
+  browser.execute(() =>
+    Array.from(document.querySelectorAll('.maude-notice-title')).map((n) => n.textContent ?? '')
+  ) as Promise<string[]>;
+
+/** The text the open canvas shows (the frame is same-origin in this lane). */
+const canvasText = () =>
+  browser.execute(() => {
+    const frame = document.querySelector(
+      '[data-testid="canvas-frame"]'
+    ) as HTMLIFrameElement | null;
+    return frame?.contentDocument?.body?.innerText ?? '';
+  }) as Promise<string>;
 
 describe('#122 122-C — paste between two project tabs', () => {
   let report: ReturnType<typeof startReport>;
@@ -85,9 +150,12 @@ describe('#122 122-C — paste between two project tabs', () => {
     await openCanvas('canvas-row-ui-home');
     const before = src(SOURCE, 'ui/Home.tsx');
     await selectArtboard('hero');
-    await browser.keys(['Meta', 'c']);
-    await browser.pause(800);
-    await exitToTop();
+    await canvasChord('c');
+    // the copy is the latest on this Mac: the shell told the desktop its handle
+    await browser.waitUntil(async () => (await latestClip())?.from === 'ui/Home.tsx', {
+      timeout: 15_000,
+      timeoutMsg: 'the copy never reached the desktop shell (clip_latest)',
+    });
     expect(src(SOURCE, 'ui/Home.tsx')).toBe(before);
     await capture(report, 'copied-in-source');
   });
@@ -96,10 +164,13 @@ describe('#122 122-C — paste between two project tabs', () => {
     await focusTab(targetTab);
     await openCanvas('canvas-row-ui-about');
     await selectArtboard('about');
-    await browser.keys(['Meta', 'v']);
-    await exitToTop();
+    await canvasPaste();
     const ask = await $('//*[contains(normalize-space(.), "Paste the artboard copied in Home")]');
-    await ask.waitForDisplayed({ timeout: 15_000 });
+    await ask.waitForDisplayed({ timeout: 15_000 }).catch(async (e: unknown) => {
+      throw new Error(
+        `no confirm toast; notices ${JSON.stringify(await notices())}; latest ${JSON.stringify(await latestClip())}; ${String(e)}`
+      );
+    });
     // nothing crosses before the click: no paste, no picture
     expect(boards(src(TARGET, 'ui/About.tsx'))).toBe(1);
     expect(pictureIn(TARGET)).toEqual([]);
@@ -122,17 +193,17 @@ describe('#122 122-C — paste between two project tabs', () => {
     expect(pictureIn(TARGET)).toEqual([name]);
     expect(readFileSync(join(TARGET, '.design', 'assets', name)).equals(sent)).toBe(true);
     // it renders: the pasted card's text is on the canvas and no error card replaced it
-    await enterCanvasFrame();
-    await $('//*[normalize-space(.)="Carried across"]').waitForDisplayed({ timeout: 30_000 });
-    await exitToTop();
+    await browser.waitUntil(async () => (await canvasText()).includes('Carried across'), {
+      timeout: 30_000,
+      timeoutMsg: 'the pasted card never rendered in About',
+    });
     expect(await $('[data-testid="canvas-error-card"]').isExisting()).toBe(false);
     await capture(report, 'pasted-in-target');
   });
 
   it('⌘Z on About takes the paste back; the picture stays', async () => {
     await selectArtboard('about');
-    await browser.keys(['Meta', 'z']);
-    await exitToTop();
+    await canvasChord('z');
     await browser.waitUntil(() => boards(src(TARGET, 'ui/About.tsx')) === 1, {
       timeout: 20_000,
       timeoutMsg: 'the paste was not undone',
