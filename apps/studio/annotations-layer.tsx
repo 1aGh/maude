@@ -1567,7 +1567,14 @@ export function AnnotationsLayer() {
    * stays pending (re-applied over replica snapshots) until its echo arrives.
    */
   const sendOps = useCallback(
-    (ops: readonly AnnotationOp[], local = false, draft = false, sid?: string): Promise<void> => {
+    (
+      ops: readonly AnnotationOp[],
+      local = false,
+      draft = false,
+      sid?: string,
+      /** T7.3b (#113) — the gesture in words ("Ticked “…”"): the row ⌘Z names. Text only. */
+      label?: string
+    ): Promise<void> => {
       const file = fileRef.current;
       if (!file || !ops.length) return putChainRef.current;
       // p8-fix-d F13 — a draft's id says so: the home records it with the session's commit, one step.
@@ -1586,7 +1593,7 @@ export function AnnotationsLayer() {
         fetch('/_api/annotations/ops', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ file, actionId, ops }),
+          body: JSON.stringify({ file, actionId, ops, ...(label ? { label } : {}) }),
         })
           .then(async (r) => {
             // A refused save (403 read-only, 405 at a proxy door) previously
@@ -1624,11 +1631,11 @@ export function AnnotationsLayer() {
 
   /** Apply a batch here (optimistic) and send it. Returns what undoes it. */
   const applyOpsLocal = useCallback(
-    (ops: readonly AnnotationOp[], sid?: string): AnnotationOp[] => {
+    (ops: readonly AnnotationOp[], sid?: string, label?: string): AnnotationOp[] => {
       if (!ops.length) return [];
       annotationsChangedRef.current = true;
       const r = board.apply(ops);
-      void sendOps(ops, true, false, sid);
+      void sendOps(ops, true, false, sid, label);
       return r.inverse;
     },
     [board, sendOps]
@@ -4961,7 +4968,8 @@ export function AnnotationsLayer() {
       const ops = checklistCommitOps(board.committed, res.ops);
       if (!ops.length) return true;
       setPreview(null);
-      const inverse = applyOpsLocal(ops);
+      // T7.3b (#113) — the batch says its gesture ("Ticked “Write the post”"): ⌘Z's toast names it
+      const inverse = applyOpsLocal(ops, undefined, res.label);
       undoStackRef.current.record(
         buildAnnotationOpsRecord({ ops, inverse, label: res.label, file: fileRef.current })
       );

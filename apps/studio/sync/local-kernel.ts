@@ -64,6 +64,7 @@ import {
   TEXT_STEP_LOG,
   textStepLogHeader,
 } from '../annotations/text-steps.ts';
+import { cleanGestureLabel } from '../annotations/ops.ts';
 import { isDraftWriteId } from '../annotations/ui/text-session.ts';
 import { attributeArtboards } from '../attribute-artboards.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
@@ -624,6 +625,11 @@ export interface LocalRuntime {
        * that board, as one step.
        */
       draft?: boolean;
+      /**
+       * T7.3b (#113) — the person's gesture in words ("Ticked “Write the post”"): the stroke's row
+       * label, so ⌘Z names it. Untrusted canvas text, cleaned here again; none → the lane label.
+       */
+      label?: string;
     }
   ): null;
   /**
@@ -1898,7 +1904,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     text: string,
     baseText: string | undefined,
     contested: readonly string[] = [],
-    draft = false
+    draft = false,
+    label?: string
   ): void {
     const held = draftsHeld.get(slug);
     if (draft) {
@@ -1918,6 +1925,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     const key = strokeKey(text, baseText);
     if (lastStroke.get(slug) === key) return;
     lastStroke.set(slug, key);
+    // T7.3b — the gesture's words name the row (a session's drafts carry none: its commit's words do)
+    const said = cleanGestureLabel(label) ?? STUDIO_LANE_LABEL.annotations;
     const run: Promise<unknown> = readyP
       .then(() =>
         serial(async () => {
@@ -1928,7 +1937,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           const r = await proposeLanesNow(
             slug,
             [{ lane: 'annotations', text, baseText: baseText ?? null }],
-            { kind: 'edit', label: STUDIO_LANE_LABEL.annotations }
+            { kind: 'edit', label: said }
           );
           if (r.status === 'accepted' && r.actionId) {
             loadTextSteps();
@@ -2601,7 +2610,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         // p8-fix-d F13 — the person's held typing is their step, never part of an AI run's stage.
         if (!draft && o?.stageable === true && draftsHeld.has(slug)) releaseDrafts(slug);
         if (!(!draft && o?.stageable === true && stageStroke(slug, text, o.baseText, o.writeId)))
-          proposeStroke(slug, text, o?.baseText, o?.contested, draft);
+          proposeStroke(slug, text, o?.baseText, o?.contested, draft, o?.label);
       } else noteLane(slug, lane, text);
       return null;
     },
@@ -2926,7 +2935,15 @@ export function attachLocalHome<S extends SupervisorLike>(
   // S2.20b (U20) — a collab room projecting its board (collab/index.ts): the person's strokes.
   ctx.bus.on(
     'annotations-projected',
-    (p: { slug?: unknown; board?: unknown; contested?: unknown; draft?: unknown } | null) => {
+    (
+      p: {
+        slug?: unknown;
+        board?: unknown;
+        contested?: unknown;
+        draft?: unknown;
+        label?: unknown;
+      } | null
+    ) => {
       if (!isLocal() || typeof p?.slug !== 'string' || typeof p.board !== 'string') return;
       // Emitted BEFORE the room's flush writes: the file still holds the board this stroke replaces.
       const safe = /^[a-z0-9][a-z0-9._-]*$/i.test(p.slug) && !p.slug.includes('..');
@@ -2944,6 +2961,8 @@ export function attachLocalHome<S extends SupervisorLike>(
       get()?.runtime.proposeLane(p.slug, 'annotations', p.board, {
         ...(before === undefined ? {} : { baseText: before }),
         ...(p.draft === true ? { draft: true } : {}),
+        // T7.3b — the one gesture this projection flushes, in words (collab registry `takeFlushLabel`)
+        ...(typeof p.label === 'string' ? { label: p.label } : {}),
         ...(Array.isArray(p.contested)
           ? {
               contested: p.contested

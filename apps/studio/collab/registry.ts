@@ -73,8 +73,16 @@ export interface Registry {
     slug: string,
     ops: readonly Op[],
     actionId?: string,
-    guard?: BoardGuard
+    guard?: BoardGuard,
+    /** T7.3b (#113) — the gesture in words (untrusted; the local home cleans it). */
+    label?: string
   ): ApplyResult | 'too-large' | 'refused' | null;
+  /**
+   * T7.3b (#113) — the gesture in words of the ONE person's batch since the room last projected its
+   * board; `undefined` when there was none, or several that did not say the same words, or a file
+   * import (the lane label stands then). Drafts do not count — a session's commit names it. Clears.
+   */
+  takeFlushLabel(slug: string): string | undefined;
   /**
    * S4.V4 G4 — the board a live room holds (canonical text), ahead of its debounced flush: a reader that
    * must see its own `applyOpsToRoom` write reads this first. `null` when no room (or a never-populated
@@ -198,11 +206,17 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
   const textContest = createTextContest();
   // p8-fix-d F13 — per slug since its last projection: did a draft batch land, did anything else.
   const flushKinds = new Map<string, { draft: boolean; other: boolean }>();
-  const noteFlushKind = (slug: string, draft: boolean) => {
+  // T7.3b — per slug since its last projection: the words of its non-draft batches (`null` = none,
+  // or they disagree). A file import counts as a batch with no words.
+  const flushLabels = new Map<string, string | null>();
+  const noteFlushKind = (slug: string, draft: boolean, label?: string) => {
     const k = flushKinds.get(slug) ?? { draft: false, other: false };
     if (draft) k.draft = true;
     else k.other = true;
     flushKinds.set(slug, k);
+    if (draft) return;
+    const said = typeof label === 'string' && label ? label.slice(0, 1024) : null;
+    flushLabels.set(slug, flushLabels.has(slug) && flushLabels.get(slug) !== said ? null : said);
   };
 
   function wireBridge(slug: string, room: Room): void {
@@ -297,7 +311,8 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     slug: string,
     ops: readonly Op[],
     actionId?: string,
-    guard?: BoardGuard
+    guard?: BoardGuard,
+    label?: string
   ): ApplyResult | 'too-large' | 'refused' | null {
     const room = rooms.get(slug);
     // A replica that was never populated is not the board's truth — the
@@ -311,7 +326,7 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     const next = [...r.state.values()];
     if (serializeBoard(next).length > MAX_ANNOTATIONS_BYTES) return 'too-large';
     textContest.record(slug, before, ops);
-    noteFlushKind(slug, isDraftWriteId(actionId));
+    noteFlushKind(slug, isDraftWriteId(actionId), label);
     // One transaction with the lane's newest-wins stamp, so peers get ONE
     // update and the room's persistence projects it to disk.
     room.doc.transact(() => {
@@ -407,6 +422,11 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
       const k = flushKinds.get(slug);
       flushKinds.delete(slug);
       return !!k && k.draft && !k.other;
+    },
+    takeFlushLabel: (slug) => {
+      const said = flushLabels.get(slug);
+      flushLabels.delete(slug);
+      return said ?? undefined;
     },
     setAgentEditing,
     attachHubAwareness,

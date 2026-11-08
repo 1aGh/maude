@@ -24,6 +24,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 
+import { cleanGestureLabel } from '../annotations/ops.ts';
 import type { TrashListing } from '../history/trash.ts';
 import { type ActionStageOptions, createActionStage, type StageSummary } from './action-stage.ts';
 import { recordConflicts, recordFromResult } from './conflict-record.ts';
@@ -97,6 +98,15 @@ const LANE_LABEL: Record<LaneProposal['lane'], string> = {
   annotations: 'Edit annotations',
   comments: 'Edit comments',
 };
+
+/**
+ * T7.3b (#113) — an annotations edit goes out under the person's gesture in words when the canvas
+ * said it ("Ticked “Write the post”"), cleaned (untrusted canvas text); else the lane's label. The
+ * hub stores `label` as it stores any label, so a v1 hub needs nothing new.
+ */
+function laneLabel(p: LaneProposal): string {
+  return (p.lane === 'annotations' && cleanGestureLabel(p.label)) || LANE_LABEL[p.lane];
+}
 
 /**
  * S9.24 — the elements the kernel held at the head's version (`merged[].conflicts`), shape-checked:
@@ -370,7 +380,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
   ): Promise<ProposalOutcome> {
     return propose({
       kind: 'edit',
-      label: LANE_LABEL[p.lane],
+      label: laneLabel(p),
       transactionId: p.transactionId,
       dependsOn,
       ...(madeAt ? { origin: { madeAt } } : {}),
@@ -463,7 +473,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
           // with it). It is the person's edit, made NOW: `origin.madeAt` keeps
           // its place in their ⌘Z stack when it lands behind the run (V2-1.5 U2).
           const madeAt = Date.now();
-          return waitBehind(p, slug, LANE_LABEL[p.lane], madeAt, p.dependsOn ?? [], () =>
+          return waitBehind(p, slug, laneLabel(p), madeAt, p.dependsOn ?? [], () =>
             send(stage.mapDeps(p.dependsOn), madeAt)
           );
         }

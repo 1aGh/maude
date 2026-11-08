@@ -29,6 +29,7 @@ import {
   type Op as AnnotationOp,
   type ApplyResult,
   applyOps as applyAnnotationOpsPure,
+  cleanGestureLabel,
   diffToOps,
 } from './annotations/ops.ts';
 import './annotations/ops-merge.ts';
@@ -741,6 +742,12 @@ export interface Api {
       /** sec-a M1 — refuse the WHOLE batch when the guard names a change (HTTP writers pass
        *  `voteDoorOnly`; the in-process vote door passes none). `refused` in the result. */
       guard?: BoardGuard;
+      /**
+       * T7.3b (#113) — the gesture in words the canvas said ("Ticked “Write the post”"): untrusted,
+       * cleaned here; the row (and the ⌘Z toast) reads it in place of "Edit annotations". A
+       * run-tagged batch never carries it — the run names its own action.
+       */
+      label?: unknown;
     }
   ): Promise<AnnotationOpsResult>;
   /** Materialize a document snapshot without publishing it as another user edit. */
@@ -1156,7 +1163,9 @@ export interface ApiHooks {
     writeId?: string,
     base?: string,
     recordedWithLanes?: boolean,
-    contested?: readonly string[]
+    contested?: readonly string[],
+    /** T7.3b (#113) — the person's op batch said what gesture it was ("Ticked …"; cleaned). */
+    label?: string
   ) => void;
   /**
    * Apply an op batch to the canvas's LIVE collab room, when one holds the
@@ -1170,7 +1179,9 @@ export interface ApiHooks {
     ops: readonly AnnotationOp[],
     actionId?: string,
     /** sec-a M1 — checked against the ROOM's before/after; a hit writes nothing (`'refused'`). */
-    guard?: BoardGuard
+    guard?: BoardGuard,
+    /** T7.3b — the gesture in words, for the room's projection (`takeFlushLabel`). */
+    label?: string
   ) => ApplyResult | 'too-large' | 'refused' | null;
   /**
    * Accepted-revisions mode (DDR-241): propose a folder operation as ONE
@@ -3053,10 +3064,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     file: string,
     ops: readonly AnnotationOp[],
     actionId?: string,
-    opts?: { hooks?: boolean; guard?: BoardGuard }
+    opts?: { hooks?: boolean; guard?: BoardGuard; label?: unknown }
   ): Promise<AnnotationOpsResult> {
     const withHooks = opts?.hooks !== false;
     const guard = opts?.guard;
+    // T7.3b — a person's gesture in words; a run's batch is named by its run, never by the canvas.
+    const label = runTagOf(actionId) === null ? cleanGestureLabel(opts?.label) : undefined;
     const refusedResult = (id: string): AnnotationOpsResult => ({
       ok: false,
       changed: false,
@@ -3078,7 +3091,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // stage, and ⌘Z / "Undo this chat" would miss it (contract S4-S5-ai-annotations §2; S4.20).
       const live =
         withHooks && runTagOf(actionId) === null
-          ? (hooks.applyAnnotationOpsLive?.(file, ops, actionId, guard) ?? null)
+          ? (hooks.applyAnnotationOpsLive?.(file, ops, actionId, guard, label) ?? null)
           : null;
       if (live === 'refused') return refusedResult('?');
       if (live === 'too-large') {
@@ -3112,7 +3125,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
             actionId,
             beforeText,
             undefined,
-            contested.length ? contested : undefined
+            contested.length ? contested : undefined,
+            label
           );
         }
         return { ok: true, changed: true, rejected };

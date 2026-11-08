@@ -673,6 +673,8 @@ export interface SyncRuntime {
       writeId?: string;
       stageable?: boolean;
       contested?: readonly string[];
+      /** T7.3b (#113) — the person's gesture in words (untrusted; the receiver cleans it). Annotations only. */
+      label?: string;
     }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
   /**
@@ -6471,6 +6473,7 @@ export function createSyncRuntime(
         ...(base !== undefined && base !== null ? { baseContent: base } : {}),
         ...(o?.writeId ? { writeId: o.writeId } : {}),
         ...(o?.stageable === true ? { stageable: true } : {}),
+        ...(lane === 'annotations' && o?.label ? { label: o.label } : {}),
       });
     },
     proposeLanes: (slug, lanes, o) => {

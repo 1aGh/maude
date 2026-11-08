@@ -89,11 +89,14 @@ export function createCollab(ctx: Context, api: Api): Collab {
       // `draft` (p8-fix-d F13): only a text session's idle-typing drafts — the home records them
       // with that session's commit, as one step.
       const draft = registryRef?.takeDraftOnly(slug) === true;
+      // T7.3b (#113) — the one gesture this projection flushes, in words: the row ⌘Z names.
+      const label = registryRef?.takeFlushLabel(slug);
       ctx.bus.emit('annotations-projected', {
         slug,
         board,
         contested,
         ...(draft ? { draft } : {}),
+        ...(label ? { label } : {}),
       });
     },
     onAnnotationsSeeded: (slug, board) => {

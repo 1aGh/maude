@@ -487,6 +487,36 @@ export function diffToOps(
   return ops;
 }
 
+/** T7.3b — the longest gesture label an op batch may carry (code points). */
+export const MAX_GESTURE_LABEL = 80;
+// C0/C1 controls, zero-width and bidi/format characters, line/paragraph separators, BOM, and
+// interlinear annotation marks; plus lone surrogates.
+const LABEL_STRIP =
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this strips
+  /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff\ufff9-\ufffb]|[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g;
+
+/**
+ * T7.3b (#113) — the words a person's op batch says it was ("Ticked “Write the post”"), from the
+ * canvas: untrusted text. Control and format characters become a space, blanks collapse, at most
+ * `MAX_GESTURE_LABEL` code points (an ellipsis marks a cut). Text only — every reader renders it as
+ * text, never HTML. `undefined` when there is nothing left (the lane's own label stands).
+ */
+export function cleanGestureLabel(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const s = v
+    .slice(0, 4 * MAX_GESTURE_LABEL)
+    .replace(LABEL_STRIP, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!s) return undefined;
+  const cps = [...s];
+  if (cps.length <= MAX_GESTURE_LABEL) return s;
+  return `${cps
+    .slice(0, MAX_GESTURE_LABEL - 1)
+    .join('')
+    .trimEnd()}…`;
+}
+
 /** Validate an untrusted op list (from a peer / the wire) into typed ops; bad ops are dropped. */
 export function parseOps(raw: unknown, max = 5000): { ops: Op[]; dropped: number } {
   if (!Array.isArray(raw)) return { ops: [], dropped: 0 };
