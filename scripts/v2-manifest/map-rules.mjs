@@ -74,6 +74,15 @@ export const V2_CODE_IDS = new Set([
   'button:studio/comments-overlay.tsx#CommentsOverlay/cancel-re-attach', // #151 D5 cancel a pending re-attach
   'testid:studio/comments-overlay.tsx#canvas iframe chrome/comment-reattach-hint', // #151 D5 the line shown while a re-attach waits for its click
   'testid:studio/comments-overlay.tsx#canvas iframe chrome/comment-reattach-id', // #151 D5 Re-attach in a thread header
+  'testid:studio/annotations-context-toolbar.tsx#canvas iframe chrome/annot-ctx-make-checklist', // #113 checklist rows in a sticky (v1 stickies had no checklist)
+  'testid:studio/annotations/ui/checklist.tsx#canvas iframe/checklist-add', // #113 checklist rows in a sticky
+  'testid:studio/annotations/ui/checklist.tsx#canvas iframe/checklist-listid', // #113 checklist rows in a sticky
+  'testid:studio/annotations/ui/checklist.tsx#canvas iframe/checklist-progress-listid', // #113 checklist progress line
+  'testid:studio/annotations/ui/checklist.tsx#canvas iframe/checklist-row-id', // #113 one checklist row
+  'testid:studio/context-menu.tsx#canvas iframe chrome/canvas-menu-item-copy-artboard', // #122 artboard Copy (v1 menu had only a Paste artboard row)
+  'testid:studio/context-menu.tsx#canvas iframe chrome/canvas-menu-item-cut-artboard', // #122 artboard Cut
+  'testid:studio/context-menu.tsx#canvas iframe chrome/canvas-menu-item-paste-artboard', // #122 artboard Paste row in the artboard menu
+  'testid:studio/notifications.tsx#notifications/notice-canvas-clip-confirm', // #122 ask before pasting an artboard copied in another canvas
 ]);
 
 /** Entries that are infrastructure, not features (lead decision, V2-4.gate-b): id → reason. Excluded
