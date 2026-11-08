@@ -77,6 +77,7 @@ import {
   yieldIntervalFrom,
   yieldRefusal,
 } from './shell/cli-yield.ts';
+import { mainOriginKeyRefusal } from './shell/api-key.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
 import { exitWithParent } from './shell/parent-watch.ts';
 import { removeServerJsonIfOurs, writeServerJson } from './shell/server-json.ts';
@@ -513,7 +514,9 @@ function withSession<T extends unknown[]>(
   // p8-a1-save-hold — and WHO saves: a write from the studio page (a browser) is a person's save, which
   // waits while a running interpreter call names its file (ai/save-hold.ts); a terminal verb never does.
   // #206 — a CLI server stepping down for the app's sidecar refuses new writes (shell/cli-yield.ts)
+  // sec-loopback-bearer §7 — a desktop-started server needs its key from every main-origin caller
   return (req, ...rest) =>
+    mainOriginKeyRefusal(req) ??
     yieldRefusal(req) ??
     runWithAccess(http.accessOf(req), () =>
       runInSession(WORKSPACE ? normalizeSessionKey(req.headers.get(SESSION_HEADER)) : '', () =>
@@ -596,6 +599,10 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
     maxRequestBodySize: MAX_REQUEST_BODY,
     routes: SERVER_ROUTES,
     async fetch(req, srv) {
+      // sec-loopback-bearer §7 — first, before any WebSocket upgrade below (main listener only:
+      // the canvas and capture listeners keep their own frame-capability model)
+      const keyRefused = mainOriginKeyRefusal(req);
+      if (keyRefused) return keyRefused;
       const pathname = new URL(req.url).pathname;
       // #206 — the fall-through half of the yield refusal (`withSession` covers the routes map)
       const yielded = yieldRefusal(req);
