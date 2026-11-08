@@ -198,6 +198,8 @@ export const WS_FRAME_CLASSES = Object.freeze({
   'thumb-ready': 'project',
   'ai:runs': 'project',
   'generate:job': 'project',
+  // Spend cap: a paid job waiting for the person's OK (id, kind, estimate) — project-wide like the job itself.
+  'generate:approval': 'project',
 } as const satisfies Record<string, 'none' | 'canvas' | 'filtered' | 'project'>);
 
 type Frame = Record<string, unknown>;
