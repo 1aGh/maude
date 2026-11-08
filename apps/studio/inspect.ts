@@ -736,6 +736,8 @@ const INSPECTOR_SCRIPT = `
   }, true);
 
   window.addEventListener('message', function(e) {
+    // #168 F3: only the shell (this frame's parent) sets the pins or focuses one; any other window is ignored
+    if (e.source !== window.parent) return;
     var m = e.data;
     if (!m || typeof m !== 'object' || !m.dgn) return;
     if (m.dgn === 'comments-set' && Array.isArray(m.comments)) {
