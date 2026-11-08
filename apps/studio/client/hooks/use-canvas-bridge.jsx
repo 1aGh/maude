@@ -598,7 +598,11 @@ export function useCanvasBridge({
                   const done = settleDuplicateAtWidth(body, result, () =>
                     menuRunner.run('edit.undo')
                   );
-                  if (done) shellToast(done.message, true, done.action, DUPLICATE_TOAST);
+                  if (done)
+                    shellToast(done.message, true, done.action, {
+                      ...DUPLICATE_TOAST,
+                      id: done.id,
+                    });
                 }
                 // S2.24 G1 — a write to the selected text changes what the inspector measured (the style it wears,
                 // what differs from it, the size): put the selection back so the canvas probes it again.

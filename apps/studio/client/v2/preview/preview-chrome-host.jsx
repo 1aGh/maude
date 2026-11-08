@@ -13,7 +13,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
 import { modeCell } from '../../../bridge/mode-shows.ts';
-import { notify } from '../../../notifications.tsx';
+import { notifyCanvasTriggered } from '../../../notifications.tsx';
 import { normalizeOpenPath } from '../../share-link.js';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { basename, displayName } from '../../shell/util.js';
@@ -157,7 +157,7 @@ function useLinkFollow({ live, previewing, cfg }) {
       openCanvas: (canvas, artboard) =>
         open(tabPathFor(live.current.activePath, designRel, canvas), artboard),
       openTab: open,
-      toast: (title) => notify({ title, kind: 'info' }),
+      toast: (title, id) => notifyCanvasTriggered({ id, title, kind: 'info' }),
       // S3.10b: a website goes to the shell's own confirmation; it opens from a human click only.
       external: (url) => externalLinks.request(url),
       history: previewHistory,

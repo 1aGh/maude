@@ -18,6 +18,9 @@ import { WIDTH_PRESETS } from '../../../editing/artboard-resize.ts';
 
 const PRESET_NAME = new Map(WIDTH_PRESETS.map((p) => [p.w, p.label]));
 
+/** #168 F2: the one id this notice is raised under — the canvas asked for it, so a repeat replaces, never stacks. */
+export const DUPLICATE_NOTICE_ID = 'canvas-duplicate-at-width';
+
 /** A width a board could honestly have (api.ts `dim`: 64 … 8192 world px). */
 const honest = (w) => typeof w === 'number' && Number.isFinite(w) && w >= 64 && w <= 8192;
 
@@ -31,7 +34,7 @@ export function duplicatedAtWords(width) {
  * @param {{ op?: string, params?: { items?: Array<{ width?: number }> } } | undefined} body
  * @param {{ ok?: boolean } | undefined} result
  * @param {(() => void) | undefined} [undo]
- * @returns {{ message: string, action?: { label: string, onClick: () => void } } | null}
+ * @returns {{ id: string, message: string, action?: { label: string, onClick: () => void } } | null}
  */
 export function settleDuplicateAtWidth(body, result, undo) {
   if (body?.op !== 'artboard.duplicate-at-width' || !result?.ok) return null;
@@ -41,5 +44,6 @@ export function settleDuplicateAtWidth(body, result, undo) {
   // one sentence needs one width: "Tablet and Mobile" (two widths) is the inspector's toast, not this one
   if (!honest(width) || !items.every((i) => i?.width === width)) return null;
   const message = duplicatedAtWords(width);
-  return undo ? { message, action: { label: 'Undo', onClick: () => undo() } } : { message };
+  const id = DUPLICATE_NOTICE_ID;
+  return undo ? { id, message, action: { label: 'Undo', onClick: () => undo() } } : { id, message };
 }
