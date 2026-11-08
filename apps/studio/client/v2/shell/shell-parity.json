@@ -442,6 +442,10 @@
               "section": "general"
             },
             {
+              "testid": "settings-terminal-opens",
+              "section": "general"
+            },
+            {
               "testid": "cloud-account",
               "section": "connections"
             },

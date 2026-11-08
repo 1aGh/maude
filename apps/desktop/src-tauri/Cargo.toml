@@ -79,6 +79,9 @@ tauri-plugin-notification = "2"
 # windows 0.61 and fails to compile against Tauri 2.12 (webview2-com 0.39) —
 # the v1.7.0 Windows .msi build. Desktop E2E runs on macOS only (WKWebView).
 [target.'cfg(not(target_os = "windows"))'.dependencies]
+# #206 (DDR-250): the terminal channel (`cli_channel.rs`) checks every connection's peer uid
+# (`getpeereid` / `SO_PEERCRED`). Already in the lock via tauri/tokio, so no new crate is downloaded.
+libc = "0.2"
 # V2-3.7: resolved to the vendored, patched copy ([patch.crates-io] at the end
 # of this file). `=1.2.0` so a lock refresh cannot drift off the version the
 # patch was written against.

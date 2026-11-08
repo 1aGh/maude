@@ -301,3 +301,10 @@ export const setCrashReporting = (enabled) => invoke('prefs_set_crash_reporting'
 export const getClaudeAutoSetup = () => invoke('prefs_get_claude_auto_setup');
 /** Set the opt-in state. Takes effect on the next sidecar spawn (app launch / project switch). */
 export const setClaudeAutoSetup = (enabled) => invoke('prefs_set_claude_auto_setup', { enabled });
+
+// ── Tauri shell: the terminal may open projects in Maude (#206, DDR-250) ─────────
+// Local-file-only, DEFAULT ON. Off: a terminal design run never opens a folder in Maude.
+/** Current state (boolean). */
+export const getTerminalOpens = () => invoke('prefs_get_terminal_opens');
+/** Set it. Takes effect on the terminal's next request. */
+export const setTerminalOpens = (enabled) => invoke('prefs_set_terminal_opens', { enabled });

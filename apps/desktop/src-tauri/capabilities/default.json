@@ -55,6 +55,8 @@
     "allow-prefs-set-crash-reporting",
     "allow-prefs-get-claude-auto-setup",
     "allow-prefs-set-claude-auto-setup",
+    "allow-prefs-get-terminal-opens",
+    "allow-prefs-set-terminal-opens",
     "allow-list-crash-logs",
     "allow-read-crash-log",
     "allow-take-pending-deep-link",

@@ -77,6 +77,15 @@ export const SETTINGS_ROWS = Object.freeze([
     testid: 'settings-single-keys',
     where: 'Settings › General › Keyboard › Single-key shortcuts',
   },
+  {
+    // #206 (DDR-250): may Claude Code in the terminal open projects in this Maude — a Tauri pref.
+    nd: null,
+    section: 'general',
+    testid: 'settings-terminal-opens',
+    // General is about the person, not the Mac (no `local`); `native`: only the desktop app has the switch.
+    where: 'Settings › General › Terminal › Let the terminal open projects in Maude',
+    native: true,
+  },
   // ── Connections ──────────────────────────────────────────────────────────────────────────────
   {
     nd: 'A-cloud-account-email-and-sign-out',

@@ -3,15 +3,19 @@
 // Account (S9.20, account.jsx) · Look (Theme: Light · Dark · Auto, gate-b-polish2) · Canvas and view · Keyboard · Search (S8.20, search in pictures) · Layout. Everything here is a preference of the person, in every
 // shell. Look is 02 ob-settings' one Theme row; the Inspector words left General (06: the inspector's
 // Advanced fold is the raw editor, Designer is the only default — the v2 inspector ignores the old switch).
+// Terminal (#206): may Claude Code in the terminal open projects in this Maude (a Tauri pref; the desktop app only).
 // The rest are today's controls (panels/SettingsPanel.jsx): the four canvas switches, the left/right panel positions and the Layers mode — same props, same
 // handlers, same stores. Nothing is stored differently.
 
+import { useEffect, useState } from 'react';
+
+import { getTerminalOpens, isNativeApp, setTerminalOpens } from '../../github.js';
 import { LayoutTab, PrefToggleRow } from '../../panels/SettingsPanel.jsx';
 import { DescribeSettingsRow } from '../assets/describe-consent.jsx';
 import { getPaletteEnv } from '../search/search-env.js';
 import { useSingleKeys } from '../shell/use-single-keys.js';
 import { AccountBlock } from './account.jsx';
-import { Group, Row } from './parts.jsx';
+import { Group, Row, SwitchRow } from './parts.jsx';
 import {
   pickTheme,
   systemTheme,
@@ -57,6 +61,32 @@ export function ThemeSegment({ theme, onSetTheme }) {
         </label>
       ))}
     </div>
+  );
+}
+
+/** #206 (DDR-250): a terminal design run may open projects in Maude. DEFAULT ON; the desktop app only. */
+function TerminalOpensRow() {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    getTerminalOpens()
+      .then((v) => alive && setOn(v !== false))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return (
+    <SwitchRow
+      testid="settings-terminal-opens"
+      label="Let the terminal open projects in Maude"
+      note="Claude Code in the terminal shows its work here. A folder Maude has not opened before asks you first. Off, the terminal uses its own hidden server."
+      checked={on}
+      onChange={(next) => {
+        setOn(next);
+        setTerminalOpens(next).catch(() => setOn(!next));
+      }}
+    />
   );
 }
 
@@ -124,6 +154,12 @@ export default function GeneralSection({
           onChange={() => onToggleAutoOpenInspector?.()}
         />
       </Group>
+
+      {cloud === null && !readOnly && isNativeApp() ? (
+        <Group title="Terminal" testid="settings-terminal">
+          <TerminalOpensRow />
+        </Group>
+      ) : null}
 
       <Group title="Keyboard" testid="settings-keyboard">
         <div data-testid="settings-single-keys">

@@ -1446,6 +1446,10 @@ async fn enforce_cap(app: &AppHandle) {
             if c.label.is_some() && c.label == focused {
                 continue;
             }
+            // #206: a live terminal lease keeps it (an unknown status is never rested).
+            if crate::cli_channel::leased(&c.root) {
+                continue;
+            }
             // No address in its info file yet = still booting (L2).
             c.booting = shell_origin(app, &c.root).is_none();
             if !c.booting {
