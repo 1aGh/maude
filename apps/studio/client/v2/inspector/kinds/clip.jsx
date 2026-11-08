@@ -18,6 +18,7 @@ import { AdvancedFold } from '../../fold/advanced-fold.jsx';
 import { Quiet, Row } from '../sections/row.jsx';
 import { FootageRows, footageAdvanced, useClipFootage } from '../../timeline/footage-rows.jsx';
 import { otherTakesUi } from '../../timeline/other-takes.jsx';
+import { frameHandleUi } from '../../timeline/frame-handle-model.js';
 import { reframeUi } from '../../timeline/reframe-island.jsx';
 import { registerKind, singleOf } from './index.js';
 import { registerSlot } from '../slots.js';
@@ -167,6 +168,19 @@ function FramingRow({ t, ctx }) {
             }
           >
             Re-frame…
+          </button>
+          {/* #128 §5 (T3.6b): drag the picture and its corners on the canvas itself; the same link leaves it */}
+          <button
+            type="button"
+            className="insp-quietlink"
+            data-testid="insp-clip-frame-handle"
+            onClick={() =>
+              typeof ctx?.onShellAction === 'function'
+                ? ctx.onShellAction('video.frame-handle')
+                : frameHandleUi.toggle()
+            }
+          >
+            Move on canvas
           </button>
           {/* S7.15 (07 · ve-ai-adjust): the clip's other good moments, swapped in at the same length */}
           {['Video', 'OffthreadVideo', 'MaudeVideo'].includes(t.seq.mediaTag ?? '') &&

@@ -362,6 +362,18 @@ export interface CanvasToShell {
     }>;
   };
   /**
+   * #128 §5 (T3.6b) — the on-canvas pan / zoom handle let go: where the person left the picture of the clip the shell
+   * named (`video-frame-handle`). `zoom` 1–8, `focus` the picture point under the frame's centre (fractions). The shell
+   * turns it into ONE `video.reframe` through the Timeline's clip pipe — the inspector's Zoom / Focus write.
+   */
+  'video-frame-commit': {
+    v: 1;
+    artboardId: Id;
+    stableId: string;
+    zoom: number;
+    focus: [number, number];
+  };
+  /**
    * S2.19 (14 `ed-edge-ask`) — ⌘/ with elements selected: which (`refs`, with the canvas's locators for the
    * prompt's `[selected: …]` lines) and where (`rect`, iframe viewport px). The SHELL draws the bubble and owns
    * the words: a canvas never carries a prompt to the shell. `-rect`: the live AI outline over the asked
@@ -614,6 +626,18 @@ export interface ShellToCanvas {
   // S7.17 (07 ve-together): the caption word this person is fixing in the shell (the Transcript panel's field) — the
   // canvas publishes it on awareness as a soft lock; `{ artboardId: null }` = they left it.
   'timeline-word': { artboardId: Id | null; wordKey?: string };
+  // #128 §5 (T3.6b): the clip the Timeline has selected, for the on-canvas pan / zoom handle over its artboard's video —
+  // the source size (null = not known yet), the zoom and the focus the renderer shows at the playhead. `artboardId: null`
+  // takes the handle down.
+  'video-frame-handle': {
+    v: 1;
+    artboardId: Id | null;
+    stableId?: string;
+    label?: string;
+    src?: { w: number; h: number } | null;
+    zoom?: number;
+    focus?: [number, number];
+  };
   // S7.24b (08 ak-mixed-fit): the kind filter — the artboards OUTSIDE the chosen kind, for the canvas to draw
   // quiet ("19 other artboards are dimmed"). The shell counts (the index knows each canvas's artboard kinds); the
   // canvas only draws. `null` = dim nothing. ≤ DIM_IDS_MAX ids; a longer list is refused whole.
@@ -973,6 +997,35 @@ const wordKeyV: V = (v) => {
   if (/[\u0000-\u001f\u007f]/.test(v) || v.split('|').length < 3) return BAD;
   return v;
 };
+/** #128 §5 (T3.6b) — a clip's `stableId` (`name:…`, `mclip:…`, `Comp#3`): bounded, no control characters. */
+export const CLIP_ID_MAX = 200;
+const clipIdV: V = (v) =>
+  typeof v === 'string' &&
+  v.length > 0 &&
+  v.length <= CLIP_ID_MAX &&
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: the point is to refuse them
+  !/[\u0000-\u001f\u007f]/.test(v)
+    ? v
+    : BAD;
+/** The handle's zoom: the `<Reframe zoom>` range the op takes (1–8). */
+const frameZoomV: V = (v) =>
+  typeof v === 'number' && Number.isFinite(v) && v >= 1 && v <= 8 ? v : BAD;
+/** A focus point: exactly two fractions of the picture. */
+const unitPairV: V = (v) =>
+  Array.isArray(v) && v.length === 2 && unit(v[0]) !== BAD && unit(v[1]) !== BAD
+    ? [v[0], v[1]]
+    : BAD;
+/** A picture's own size in px (a source frame), never 0 or past 64k. */
+const picSizeV: V = (v) =>
+  isPlain(v) &&
+  typeof v.w === 'number' &&
+  typeof v.h === 'number' &&
+  v.w > 0 &&
+  v.h > 0 &&
+  v.w <= 65536 &&
+  v.h <= 65536
+    ? { w: v.w, h: v.h }
+    : BAD;
 /** `timeline-peers` (S7.17): a planted or oversized list is REJECTED whole, never trimmed. */
 const timelinePeerList: V = (v) => {
   if (!Array.isArray(v) || v.length > PEERS_MAX) return BAD;
@@ -1835,6 +1888,19 @@ const c2s: C2S = {
     owner: 'v2/timeline/peers (S7.17)',
     parse: p({ peers: timelinePeerList }),
   },
+  // #128 §5 (T3.6b) — the active canvas's pan / zoom handle let go; the shell writes it as one video.reframe.
+  'video-frame-commit': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/timeline/frame-handle (T3.6b)',
+    parse: p({
+      v: lit(1),
+      artboardId: linkArtboardIdV,
+      stableId: clipIdV,
+      zoom: frameZoomV,
+      focus: unitPairV,
+    }),
+  },
   'ask-selection': {
     gate: 'active',
     status: 'live',
@@ -2384,6 +2450,21 @@ const s2c: S2C = {
     status: 'live',
     owner: 'collab/timeline-presence (S7.17)',
     parse: p({ artboardId: nul(linkArtboardIdV), wordKey: opt(wordKeyV) }),
+  },
+  // #128 §5 (T3.6b) — the selected clip for the on-canvas pan / zoom handle (editing/video-frame-handle). Parent only.
+  'video-frame-handle': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/video-frame-handle (T3.6b)',
+    parse: p({
+      v: lit(1),
+      artboardId: nul(linkArtboardIdV),
+      stableId: opt(clipIdV),
+      label: opt(shortStr(120)),
+      src: opt(nul(picSizeV)),
+      zoom: opt(frameZoomV),
+      focus: opt(unitPairV),
+    }),
   },
   // S7.24b — the kind filter's dimming: ids of the artboards outside the kind, or null. Parent only; capped.
   'dim-artboards': {

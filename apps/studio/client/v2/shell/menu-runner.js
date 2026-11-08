@@ -74,6 +74,7 @@ import { timelineStore } from '../timeline/timeline-store.js';
 import { addCaptionsFromSpeech, transcriptUi } from '../transcript/captions-api.js';
 import { formatsUi } from '../inspector/formats-ui.js';
 import { otherTakesUi } from '../timeline/other-takes.jsx';
+import { frameHandleUi } from '../timeline/frame-handle-model.js';
 import { reframeUi } from '../timeline/reframe-island.jsx';
 import { openHistory } from '../history/object-filter.js';
 
@@ -500,6 +501,8 @@ export function createMenuHandlers(d) {
     'video.transcript.open': () => transcriptUi.toggle(),
     // S7.13 — the Re-frame island (on the selected clip) and the Video inspector's Formats rows (07 ve-reframe, ve-formats)
     'video.reframe': () => reframeUi.open(),
+    // #128 §5 (T3.6b) — move and zoom the selected clip's picture on the canvas; the same action leaves it
+    'video.frame-handle': () => frameHandleUi.toggle(),
     // S7.15 — Other takes on the selected clip (07 ve-ai-adjust); the swap itself is the clip pipe's `video.take.swap`
     'video.take.swap': () => otherTakesUi.open(),
     'video.format.add': () => {

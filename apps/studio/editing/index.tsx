@@ -90,6 +90,7 @@ import { TextInPlace } from './text-in-place.tsx';
 import { TidyPreview } from './tidy-preview.tsx';
 import { TokenRuler } from './token-ruler.tsx';
 import { UndoPreview } from './undo-preview.tsx';
+import { VideoFrameHandle } from './video-frame-handle.tsx';
 
 /** Registry ids this layer runs when the shell asks (`dgn:'run-action'`). */
 export const EDITING_ACTIONS = [
@@ -374,6 +375,8 @@ export function EditingLayer() {
       {/* S8.14 — photos dragged from Finder onto an artboard: the hint, the import, ONE image.place, selected at once */}
       <FinderDrop readOnly={ro} />
       <CropMode readOnly={ro} />
+      {/* #128 §5 (T3.6b) — the selected video clip's pan / zoom handle, named by the shell's Timeline */}
+      <VideoFrameHandle readOnly={ro} />
       {/* S2.20 — an Undo history row lights what it would undo */}
       <UndoPreview />
       {/* S2.10 — ⌘D, ⌥-drag copy, Duplicate at another width, Custom width…, Rename, Reset position */}
