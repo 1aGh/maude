@@ -136,12 +136,28 @@ Everything else, every method, needs §7.2. `/_api/shell/session` (below) needs 
   `Set-Cookie`. A used, expired or forged token → 401 page. Anyone holding the key can mint one
   (the server at boot, `maude design browse`); the server remembers used nonces (bounded).
 
-### 7.5 Terminal-started servers (phase 2b — next slice)
+### 7.5 Terminal-started servers (phase 2b)
 
-The server mints its own key and writes `{ v:1, port, pid, rootId, apiKey }` to a 0600 file in a
-0700 user-owned state dir outside the project (`<state>/maude/servers/<rootId>.json`); only the
-CLI reads it. Its opening URL carries a launch token (§7.4). Until 2b lands such a server keeps
-phase 1 (credential routes only) and writes no file.
+A server started by a terminal starter — role `cli` (`MAUDE_SERVER_ROLE=cli`, set by
+`maude design serve` and `maude design server-up`; `shell/cli-yield.ts` `isCliRole`) — that was
+handed no key mints its own and is in required mode (`api-key.ts` `terminalKeyMode`). Before it
+writes `_server.json` it writes `{ v:1, port, pid, rootId, apiKey }` to a 0600 file in a 0700
+directory outside the project, `<state>/maude/servers/<rootId>.json` (`<state>` = `$XDG_STATE_HOME`
+when absolute, else `~/.local/state`; `shell/key-file.ts`), and removes it on shutdown while it still
+names its pid. Only the CLI reads it (`desktop-locate.mjs` `terminalKeyFor`): a regular file of this
+user with nothing for group or others, naming the port being called and a live pid, and only for a
+port whose `/_health` names the project. The AI chat agent's Read tool is denied the folder
+(`credentialDenyRules`).
+
+Its opening URL carries a launch token (§7.4): the server opens the browser with one, and prints one
+only to a terminal (a nohup'd `server-up` log keeps the plain address). `maude design server-up --url`
+and `desktop-locate.mjs launch-url` mint a fresh one for `/design:browse` and the helpers that drive
+the studio page. A page that already holds the session and opens a launch link again (a reload, a
+helper navigating twice) gets a 303 without the parameter; its token is not spent.
+
+**A server started with neither a key nor role `cli`** (a bare `bun server.ts`, `npm run start`, the
+test harnesses) keeps phase 1: credential routes only, no key file. That is the starter's choice —
+every starter a person uses (the app, `serve`, `server-up`) asks for required mode.
 
 ### 7.6 Callers
 
@@ -149,8 +165,13 @@ phase 1 (credential routes only) and writes no file.
   spawn's key as `x-maude-api-key`; the shell-token routes stay as they are.
 - **CLI** (`desktop-locate.mjs`, `studio-locate.mjs`, the in-process verbs, the design hook,
   `_studio-verb.mjs`, the bash helpers through `_desktop-locate.sh`) sends the key of the
-  registry entry it attested (`apiKey` in `servers.json`), never a key from any project file.
-  A key is passed to `curl` through a config on stdin, never argv.
+  registry entry it attested (`apiKey` in `servers.json`), else a terminal server's key file
+  (§7.5) — never a key from any project file. A key is passed to `curl` through a config on stdin,
+  never argv (`studio_curl`); a JS helper builds its headers with `studioHeaders` /
+  `studioHeadersFor`. `cli/lib/helper-studio-key.test.mjs` fails on a helper that calls the studio
+  any other way. A browser a helper drives opens the page through `studio_launch_url`.
+- **Present audience window** (`present.rs`) — its own webview and cookie jar: Rust opens the
+  follower root with a launch token minted from the tab's server key.
 - **AI chat agent.** Its env never carries the key (`scrubAgentEnv` drops `MAUDE_SHELL_*`); it
   reaches the server only through `maude design` verbs, which read the registry like any CLI
   caller. `credentialDenyRules` keep its Read tool off the registry.

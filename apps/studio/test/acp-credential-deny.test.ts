@@ -63,6 +63,21 @@ describe('credentialPathsFor — every credential store, for every profile', () 
     const win = credentialPathsFor({ ...ENV, APPDATA: '/w/AppData/Roaming' }, HOME, 'win32');
     expect(win.files.includes('/w/AppData/Roaming/com.maude.app/servers.json')).toBe(true);
   });
+  // sec-loopback-bearer §7.5 — a terminal-started server's API key file is a credential like the
+  // app's registry: the agent reaches the studio through maude verbs, never with the key itself
+  test('the terminal servers key folder, under XDG_STATE_HOME or ~/.local/state', () => {
+    expect(p.dirs).toContain(`${HOME}/.local/state/maude/servers`);
+    const xs = credentialPathsFor({ ...ENV, XDG_STATE_HOME: '/x/state' }, HOME);
+    expect(xs.dirs).toContain('/x/state/maude/servers');
+    expect(
+      credentialRefusal(
+        { rawInput: { file_path: '/x/state/maude/servers/abcdef012345.json' } },
+        xs,
+        '/repo',
+        HOME
+      )
+    ).toBe('credentials');
+  });
   test('the deny rules are absolute Read rules', () => {
     const rules = credentialDenyRules(p);
     expect(rules).toContain(`Read(/${HOME}/.config/maude/**)`);
