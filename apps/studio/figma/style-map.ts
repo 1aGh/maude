@@ -22,10 +22,17 @@
  *             in the canvas iframe.
  *
  * @invariant  DEPENDENCY-FREE beyond `draw/palette.ts` (the colorspace helpers
- *             `import-tokens` already reuses). No fs, no network.
+ *             `import-tokens` already reuses) and `codegen-fonts.ts` (the
+ *             font-class allowlist, pure string work). No fs, no network.
  */
 
 import { parseColor, rgbToOklch } from '../draw/palette.ts';
+import {
+  type FontResolution,
+  type FontToken,
+  isDsFontValue,
+  resolveDsFontStack,
+} from './codegen-fonts.ts';
 import type { FigmaColor, FigmaEffect, FigmaNode, FigmaPaint, FigmaTypeStyle } from './types.ts';
 
 /** Default perceptual distance under which a paint snaps to a DS token. */
@@ -51,6 +58,12 @@ const PRINTABLE_ASCII_RE = /^[\x20-\x7E]*$/;
 const HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 const RGBA_RE = /^rgba?\( ?[\d.]+[ ,]+[\d.]+[ ,]+[\d.]+(?: ?[,/] ?[\d.]+%?)? ?\)$/;
 const VAR_RE = /^var\(--[a-z0-9-]{1,64}\)$/;
+// A token at partial strength: the ONE function-shaped colour the grammar admits,
+// closed to `var(--token)` + a percentage + the keyword `transparent` (#155 §4).
+const COLOR_MIX_RE =
+  /^color-mix\(in srgb, var\(--[a-z0-9-]{1,64}\) (?:100|[0-9]{1,2}(?:\.[0-9])?)%, transparent\)$/;
+// A built gradient: only the characters the builders below can produce.
+const GRADIENT_RE = /^(?:linear|radial|conic)-gradient\([A-Za-z0-9 .,%()#-]{1,1800}\)$/;
 const DIM_MAX = 4096;
 const FONT_SIZE_MAX = 512;
 
@@ -64,7 +77,12 @@ function printableAscii(v: string): boolean {
 
 export function isValidColorValue(v: string): boolean {
   if (!printableAscii(v)) return false;
-  return HEX_RE.test(v) || RGBA_RE.test(v) || VAR_RE.test(v);
+  return HEX_RE.test(v) || RGBA_RE.test(v) || VAR_RE.test(v) || COLOR_MIX_RE.test(v);
+}
+
+/** A gradient this file built (checked again at the end: belt and braces). */
+export function isValidGradient(v: string): boolean {
+  return printableAscii(v) && GRADIENT_RE.test(v) && !/url\(|expression|;|\{|\}/i.test(v);
 }
 
 export function isValidDimension(v: string, max = DIM_MAX): boolean {
@@ -141,6 +159,8 @@ export function resolveColor(
 export interface StyleMapOptions {
   tokens: readonly DsToken[];
   threshold?: number;
+  /** The DS's `--font*` tokens, so a TEXT node's family lands on the project's own stack (D8). */
+  fontTokens?: readonly FontToken[];
 }
 
 export interface MappedStyle {
@@ -150,10 +170,14 @@ export interface MappedStyle {
   rejected: string[];
   /** Properties that shipped a literal because no token was near (reported). */
   unTokenized: string[];
+  /** Constructs CSS has no exact equivalent for, drawn by the nearest one (reported). */
+  approximated: string[];
+  /** How a TEXT node's font family was resolved (carried so the caller can report it once per family). */
+  font?: FontResolution;
 }
 
 function emptyStyle(): MappedStyle {
-  return { declarations: {}, rejected: [], unTokenized: [] };
+  return { declarations: {}, rejected: [], unTokenized: [], approximated: [] };
 }
 
 function firstVisible<T extends { visible: boolean }>(list: readonly T[] | undefined): T | null {
@@ -161,47 +185,200 @@ function firstVisible<T extends { visible: boolean }>(list: readonly T[] | undef
   return null;
 }
 
-/** A linear gradient → the CSS equivalent. Angle is derived from the handles. */
-function gradientCss(paint: FigmaPaint, opts: StyleMapOptions, out: MappedStyle): string | null {
+/** Alpha as the shortest decimal CSS accepts (`0.1`, not `0.100000001`). */
+function alphaText(a: number): string {
+  return String(Number(a.toFixed(3)));
+}
+
+/**
+ * A colour at an alpha: the token (mixed down to the alpha) when one is near,
+ * else a literal. `mark` controls whether an un-snapped literal is flagged —
+ * fills are audited, shadows never were and stay quiet.
+ */
+function colorAt(
+  c: FigmaColor,
+  alpha: number,
+  opts: StyleMapOptions,
+  out: MappedStyle,
+  prop: string,
+  mark: boolean
+): string | null {
+  const hex = figmaColorToHex(c);
+  const resolved = resolveColor(hex, opts.tokens, opts.threshold);
+  if (mark && resolved.marker) out.unTokenized.push(prop);
+  const a = Math.max(0, Math.min(1, alpha));
+  if (a >= 0.9995) return isValidColorValue(resolved.value) ? resolved.value : null;
+  let value: string;
+  if (resolved.token) {
+    value = `color-mix(in srgb, ${resolved.value} ${Number((a * 100).toFixed(1))}%, transparent)`;
+  } else {
+    const to = (v: number) => Math.max(0, Math.min(255, Math.round(v * 255)));
+    value = `rgba(${to(c.r)}, ${to(c.g)}, ${to(c.b)}, ${alphaText(a)})`;
+  }
+  return isValidColorValue(value) ? value : null;
+}
+
+/** The paint's own alpha: colour alpha × paint opacity. */
+function paintAlpha(paint: FigmaPaint): number {
+  return (paint.color?.a ?? 1) * (paint.opacity ?? 1);
+}
+
+const pct = (v: number) => `${Number(v.toFixed(1))}%`;
+
+/**
+ * A gradient paint → the CSS equivalent.
+ *
+ * LINEAR is placed exactly: the handles are projected onto CSS's gradient line
+ * (whose length depends on the angle and the box), so the stop positions move
+ * rather than the angle drifting. RADIAL takes centre and radii from the
+ * handles; ANGULAR becomes `conic-gradient` starting where the first handle
+ * points. DIAMOND has no CSS form and is drawn as the radial one (reported).
+ * Rotation of a skewed radial is not carried.
+ */
+function gradientCss(
+  paint: FigmaPaint,
+  box: { width: number; height: number } | undefined,
+  opts: StyleMapOptions,
+  out: MappedStyle
+): string | null {
   const stops = paint.gradientStops;
   if (!stops || stops.length < 2) return null;
-  const parts: string[] = [];
-  for (const s of stops) {
-    const resolved = resolveColor(figmaColorToHex(s.color), opts.tokens, opts.threshold);
-    if (!isValidColorValue(resolved.value)) return null;
-    if (resolved.marker) out.unTokenized.push('background-image');
-    const pct = Math.max(0, Math.min(100, Math.round(s.position * 100)));
-    parts.push(`${resolved.value} ${pct}%`);
-  }
   const handles = paint.gradientHandlePositions;
-  let angle = 180;
-  if (handles && handles.length >= 2) {
-    const dx = handles[1].x - handles[0].x;
-    const dy = handles[1].y - handles[0].y;
-    angle = Math.round((Math.atan2(dy, dx) * 180) / Math.PI + 90);
+  const W = box && box.width > 0 ? box.width : 0;
+  const H = box && box.height > 0 ? box.height : 0;
+  const sized = W > 0 && H > 0;
+  const kind = paint.type;
+  const opacity = paint.opacity ?? 1;
+
+  const colorStops = (project: (position: number) => number): string | null => {
+    const parts: string[] = [];
+    for (const s of stops) {
+      const value = colorAt(s.color, s.color.a * opacity, opts, out, 'background-image', true);
+      if (value === null) return null;
+      const at = Math.max(-500, Math.min(500, project(Math.max(0, Math.min(1, s.position)))));
+      parts.push(`${value} ${pct(at * 100)}`);
+    }
+    return parts.join(', ');
+  };
+
+  let css: string | null = null;
+  if (kind === 'GRADIENT_LINEAR') {
+    let angle = 180;
+    let project = (t: number) => t;
+    if (handles && handles.length >= 2) {
+      const dx = (handles[1].x - handles[0].x) * (sized ? W : 1);
+      const dy = (handles[1].y - handles[0].y) * (sized ? H : 1);
+      const rad = Math.atan2(dy, dx) + Math.PI / 2;
+      angle = Math.round((rad * 180) / Math.PI);
+      if (sized) {
+        // CSS's gradient line: length |W sinθ| + |H cosθ|, through the box centre.
+        const sin = Math.sin(rad);
+        const cos = Math.cos(rad);
+        const len = Math.abs(W * sin) + Math.abs(H * cos);
+        if (len > 1e-6) {
+          const along = (hx: number, hy: number) =>
+            ((hx * W - W / 2) * sin + (hy * H - H / 2) * -cos) / len + 0.5;
+          const t0 = along(handles[0].x, handles[0].y);
+          const t1 = along(handles[1].x, handles[1].y);
+          project = (t) => t0 + t * (t1 - t0);
+        }
+      }
+    }
+    const list = colorStops(project);
+    if (list) css = `linear-gradient(${((angle % 360) + 360) % 360}deg, ${list})`;
+  } else if (kind === 'GRADIENT_RADIAL' || kind === 'GRADIENT_DIAMOND') {
+    if (kind === 'GRADIENT_DIAMOND') out.approximated.push('diamond gradient');
+    const list = colorStops((t) => t);
+    if (list) {
+      let shape = 'ellipse closest-side at 50% 50%';
+      if (handles && handles.length >= 2 && sized) {
+        const rx = Math.hypot((handles[1].x - handles[0].x) * W, (handles[1].y - handles[0].y) * H);
+        const third = handles[2] ?? { x: handles[0].x, y: handles[0].y + 0.5 };
+        const ry = Math.hypot((third.x - handles[0].x) * W, (third.y - handles[0].y) * H);
+        if (rx >= 1 && ry >= 1 && rx <= 8192 && ry <= 8192) {
+          shape = `${Math.round(rx)}px ${Math.round(ry)}px at ${pct(handles[0].x * 100)} ${pct(handles[0].y * 100)}`;
+        }
+      }
+      css = `radial-gradient(${shape}, ${list})`;
+    }
+  } else if (kind === 'GRADIENT_ANGULAR') {
+    const list = colorStops((t) => t);
+    if (list) {
+      let from = 90;
+      let at = '50% 50%';
+      if (handles && handles.length >= 2) {
+        const dx = (handles[1].x - handles[0].x) * (sized ? W : 1);
+        const dy = (handles[1].y - handles[0].y) * (sized ? H : 1);
+        from = Math.round((Math.atan2(dy, dx) * 180) / Math.PI + 90);
+        from = ((from % 360) + 360) % 360;
+        at = `${pct(handles[0].x * 100)} ${pct(handles[0].y * 100)}`;
+      }
+      css = `conic-gradient(from ${from}deg at ${at}, ${list})`;
+    }
   }
-  return `linear-gradient(${angle}deg, ${parts.join(', ')})`;
+  return css !== null && isValidGradient(css) ? css : null;
 }
 
 /** Effects → `box-shadow`. Every layer is strict-numeric; no free-text capture. */
-function shadowCss(effects: readonly FigmaEffect[], opts: StyleMapOptions): string | null {
+function shadowCss(
+  effects: readonly FigmaEffect[],
+  opts: StyleMapOptions,
+  out: MappedStyle
+): string | null {
   const layers: string[] = [];
   for (const e of effects) {
     if (!e.visible) continue;
     if (e.type !== 'DROP_SHADOW' && e.type !== 'INNER_SHADOW') continue;
-    const c = e.color ? figmaColorToHex(e.color) : '#000000';
-    const resolved = resolveColor(c, opts.tokens, opts.threshold);
-    if (!isValidColorValue(resolved.value)) continue;
+    const c = e.color ?? { r: 0, g: 0, b: 0, a: 1 };
+    const colour = colorAt(c, c.a, opts, out, 'box-shadow', false);
+    if (colour === null) continue;
     const x = Math.round(e.offset?.x ?? 0);
     const y = Math.round(e.offset?.y ?? 0);
     const blur = Math.round(e.radius ?? 0);
     const spread = Math.round(e.spread ?? 0);
     if ([x, y, blur, spread].some((n) => !Number.isFinite(n) || Math.abs(n) > 512)) continue;
     const inset = e.type === 'INNER_SHADOW' ? 'inset ' : '';
-    layers.push(`${inset}${x}px ${y}px ${blur}px ${spread}px ${resolved.value}`);
+    layers.push(`${inset}${x}px ${y}px ${blur}px ${spread}px ${colour}`);
   }
   return layers.length ? layers.join(', ') : null;
 }
+
+/**
+ * Figma's blur radius is twice CSS's `blur()` sigma (Dev Mode itself emits
+ * `blur(5px)` for a blur of 10), so the value is halved.
+ */
+function blurPx(radius: number | undefined): string | null {
+  if (radius === undefined || !Number.isFinite(radius) || radius < 0) return null;
+  const v = `${Number((radius / 2).toFixed(1))}px`;
+  return isValidDimension(v, 256) ? v : null;
+}
+
+/**
+ * Figma blend modes → `mix-blend-mode`. A closed table (own-property, null
+ * prototype): the mode name is document text, so it is looked up, never copied.
+ * `exact` modes have a CSS twin; the rest are drawn by the nearest one.
+ */
+const BLEND_EXACT: Record<string, string> = Object.assign(Object.create(null), {
+  DARKEN: 'darken',
+  MULTIPLY: 'multiply',
+  COLOR_BURN: 'color-burn',
+  LIGHTEN: 'lighten',
+  SCREEN: 'screen',
+  LINEAR_DODGE: 'plus-lighter',
+  COLOR_DODGE: 'color-dodge',
+  OVERLAY: 'overlay',
+  SOFT_LIGHT: 'soft-light',
+  HARD_LIGHT: 'hard-light',
+  DIFFERENCE: 'difference',
+  EXCLUSION: 'exclusion',
+  HUE: 'hue',
+  SATURATION: 'saturation',
+  COLOR: 'color',
+  LUMINOSITY: 'luminosity',
+});
+const BLEND_NEAREST: Record<string, string> = Object.assign(Object.create(null), {
+  LINEAR_BURN: 'color-burn',
+});
 
 /** A node's fills/strokes/effects/corner radius → CSS declarations. */
 export function mapNodeStyle(node: FigmaNode, opts: StyleMapOptions): MappedStyle {
@@ -214,32 +391,65 @@ export function mapNodeStyle(node: FigmaNode, opts: StyleMapOptions): MappedStyl
     out.declarations[prop] = value;
   };
 
-  const fill = firstVisible(node.fills);
-  if (fill) {
-    if (fill.type === 'SOLID' && fill.color) {
-      const resolved = resolveColor(figmaColorToHex(fill.color), opts.tokens, opts.threshold);
-      if (resolved.marker) out.unTokenized.push('background');
-      set('background', resolved.value, isValidColorValue);
-    } else if (fill.type.startsWith('GRADIENT')) {
-      const css = gradientCss(fill, opts, out);
-      // A gradient is not a colour value — it has its own (bounded) shape,
-      // built entirely from already-validated colour values plus integers.
-      // camelCase, NOT `background-image`: these declarations are emitted into
-      // a JSX style OBJECT, where a hyphenated key is a syntax error that takes
+  // Figma lists fills bottom → top. IMAGE fills are pictures, handled by the
+  // emitter before it ever asks for a colour.
+  const paints = (node.fills ?? []).filter((p) => p.visible && p.type !== 'IMAGE');
+  if (node.type === 'TEXT') {
+    // A TEXT node's fill is its FOREGROUND — one colour, the topmost solid.
+    for (let i = paints.length - 1; i >= 0; i--) {
+      const p = paints[i];
+      if (p.type !== 'SOLID' || !p.color) continue;
+      const value = colorAt(p.color, paintAlpha(p), opts, out, 'background', true);
+      if (value === null) out.rejected.push('background');
+      else out.declarations.background = value;
+      break;
+    }
+  } else if (paints.length > 0) {
+    // CSS lists background layers top → bottom.
+    const layers: Array<{ solid: boolean; css: string }> = [];
+    let blended = false;
+    for (let i = paints.length - 1; i >= 0; i--) {
+      const p = paints[i];
+      if (p.blendMode && p.blendMode !== 'NORMAL' && p.blendMode !== 'PASS_THROUGH') blended = true;
+      if (p.type === 'SOLID' && p.color) {
+        const alpha = paintAlpha(p);
+        if (alpha <= 0.003) continue; // fully transparent: paints nothing
+        const value = colorAt(p.color, alpha, opts, out, 'background', true);
+        if (value === null) out.rejected.push('background');
+        else layers.push({ solid: true, css: value });
+      } else if (p.type.startsWith('GRADIENT')) {
+        const css = gradientCss(p, node.absoluteBoundingBox, opts, out);
+        if (css) layers.push({ solid: false, css });
+        else out.rejected.push('background-image');
+      }
+    }
+    if (blended) out.approximated.push('fill blend mode');
+    if (layers.length === 1 && layers[0].solid) {
+      out.declarations.background = layers[0].css;
+    } else if (layers.length > 0) {
+      // The bottom solid becomes the background COLOUR; every other solid is a
+      // one-colour gradient layer, since `background-color` has only one slot.
+      // camelCase, NOT `background-image`: these declarations are emitted into a
+      // JSX style OBJECT, where a hyphenated key is a syntax error that takes
       // the whole canvas down. One gradient anywhere on a page was enough to
       // make the file unparseable.
-      if (css) out.declarations.backgroundImage = css;
-      else out.rejected.push('background-image');
+      const bottom = layers[layers.length - 1];
+      const images = bottom.solid ? layers.slice(0, -1) : layers;
+      if (bottom.solid) out.declarations.backgroundColor = bottom.css;
+      if (images.length > 0) {
+        out.declarations.backgroundImage = images
+          .map((l) => (l.solid ? `linear-gradient(${l.css}, ${l.css})` : l.css))
+          .join(', ');
+      }
     }
   }
 
   const stroke = firstVisible(node.strokes);
   if (stroke?.type === 'SOLID' && stroke.color) {
-    const resolved = resolveColor(figmaColorToHex(stroke.color), opts.tokens, opts.threshold);
-    if (resolved.marker) out.unTokenized.push('border-color');
+    const colour = colorAt(stroke.color, paintAlpha(stroke), opts, out, 'border-color', true);
     const w = Math.round(node.strokeWeight ?? 1);
-    if (Number.isFinite(w) && w > 0 && w <= 64 && isValidColorValue(resolved.value)) {
-      out.declarations.border = `${w}px solid ${resolved.value}`;
+    if (Number.isFinite(w) && w > 0 && w <= 64 && colour !== null) {
+      out.declarations.border = `${w}px solid ${colour}`;
     } else {
       out.rejected.push('border');
     }
@@ -250,8 +460,34 @@ export function mapNodeStyle(node: FigmaNode, opts: StyleMapOptions): MappedStyl
   }
 
   if (node.effects?.length) {
-    const css = shadowCss(node.effects, opts);
+    const css = shadowCss(node.effects, opts, out);
     if (css) out.declarations.boxShadow = css;
+    const layerBlur = node.effects.find(
+      (e) => e.visible && (e.type === 'LAYER_BLUR' || e.type === 'FOREGROUND_BLUR')
+    );
+    if (layerBlur) {
+      const px = blurPx(layerBlur.radius);
+      if (px) out.declarations.filter = `blur(${px})`;
+      else out.rejected.push('filter');
+    }
+    const backBlur = node.effects.find((e) => e.visible && e.type === 'BACKGROUND_BLUR');
+    if (backBlur) {
+      const px = blurPx(backBlur.radius);
+      if (px) {
+        out.declarations.backdropFilter = `blur(${px})`;
+        out.declarations.WebkitBackdropFilter = `blur(${px})`;
+      } else out.rejected.push('backdrop-filter');
+    }
+  }
+
+  if (node.blendMode && node.blendMode !== 'NORMAL' && node.blendMode !== 'PASS_THROUGH') {
+    const exact = BLEND_EXACT[node.blendMode];
+    const near = exact ? undefined : BLEND_NEAREST[node.blendMode];
+    if (exact) out.declarations.mixBlendMode = exact;
+    else if (near) {
+      out.declarations.mixBlendMode = near;
+      out.approximated.push(`blend mode ${node.blendMode}`);
+    } else out.rejected.push('mix-blend-mode');
   }
 
   // Node opacity is carried ONLY when it is not a hiding mechanism. D6b makes
@@ -304,11 +540,20 @@ export function mapTypeStyle(
   if (style.textDecoration === 'UNDERLINE') out.declarations.textDecoration = 'underline';
   if (style.textDecoration === 'STRIKETHROUGH') out.declarations.textDecoration = 'line-through';
 
-  // FONT FAMILY IS DELIBERATELY NOT CARRIED. A Figma font name is free text
-  // from the document, and DDR-172 Decision 4's font grammar exists precisely
-  // because a family value reaches a live stylesheet. An imported canvas
-  // inherits the DS's own type stack instead — which is also the editability
-  // choice: an imported frame should look like it belongs to the project.
+  // FONT FAMILY (#155 §3, D8). A Figma font name is free text from the document
+  // and the canvas CSP is `font-src 'self'`, so the literal can neither be
+  // loaded nor safely written into a stylesheet. It is therefore NEVER carried:
+  // the family is classified against a closed allowlist (sans / serif / mono)
+  // and mapped onto the project's own DS stack of that class — or onto a fixed
+  // system stack when the DS has none. Without this every imported artboard
+  // rendered in the browser's serif default.
+  if (style.fontFamily) {
+    const res = resolveDsFontStack(style.fontFamily, opts.fontTokens ?? []);
+    if (isDsFontValue(res.css)) {
+      out.declarations.fontFamily = res.css;
+      out.font = res;
+    } else out.rejected.push('fontFamily');
+  }
 
   return out;
 }

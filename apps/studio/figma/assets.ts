@@ -95,6 +95,59 @@ export const MAX_CONCURRENT_DOWNLOADS = 4;
  */
 export const MAX_SVG_PROMOTE_CHUNK = 24;
 
+/**
+ * Promote many staged SVGs through the shared lane, CHUNKED and with one retry,
+ * failing closed per chunk. One `promoteBatch` call is one browser session, so
+ * the chunk size trades browser launches against blast radius — see
+ * `MAX_SVG_PROMOTE_CHUNK`. Returns one ref (or null) per input, in order.
+ *
+ * CHUNKED, because "fail closed for the whole batch" and "one batch for the
+ * whole import" together turn a single browser timeout into total asset loss.
+ * Measured on a live 6-page import: the DDR-167 execution canary spawns
+ * `agent-browser` with a fixed 20 s budget (`_import-asset.mjs`), one session
+ * for the whole array — at 272 frame renders it blew that budget, the promote
+ * threw, and every one of the 272 became `asset-skipped`. The import still
+ * exited 0, so it reported success while producing a folder of broken images.
+ * Reproduced at 60 SVGs, and it reproduces WITHOUT any of the Figma-lane
+ * changes, so this is the shared lane's shape, not the caller's. Fail-closed is
+ * KEPT (the DDR-177 rule); what changes is the blast radius: a timeout costs
+ * its own chunk, and the rest of the artwork still lands.
+ *
+ * ONE RETRY, because the canary's failure is measurably TRANSIENT rather than a
+ * property of the input (the same lane promoted 4/4 and 24/24 but threw on 12).
+ * A chunk lost to a coin-flip is a permanently broken image in a versioned
+ * artifact, and a second attempt is one browser launch. Bounded at one: a lane
+ * that is genuinely down must fail fast rather than retry a dozen chunks into a
+ * multi-minute stall.
+ */
+export async function promoteSvgInChunks(
+  promoteBatch: (stagedPaths: string[]) => Promise<Array<string | null>>,
+  stagedPaths: readonly string[]
+): Promise<Array<string | null>> {
+  const refs: Array<string | null> = [];
+  for (let start = 0; start < stagedPaths.length; start += MAX_SVG_PROMOTE_CHUNK) {
+    const chunk = stagedPaths.slice(start, start + MAX_SVG_PROMOTE_CHUNK);
+    let got: Array<string | null> | null = null;
+    for (let attempt = 0; attempt < 2 && got === null; attempt += 1) {
+      try {
+        got = await promoteBatch(chunk);
+      } catch {
+        got = null;
+      }
+    }
+    if (got === null) {
+      // FAIL CLOSED: the bun-side lane being unavailable must never become
+      // "we already have the bytes" (DDR-177's packaged-app failure mode).
+      for (let i = 0; i < chunk.length; i += 1) refs.push(null);
+      continue;
+    }
+    // A short return would silently shift every later ref onto the wrong
+    // node — pad rather than trust the length.
+    for (let i = 0; i < chunk.length; i += 1) refs.push(got[i] ?? null);
+  }
+  return refs;
+}
+
 export interface AssetRequest {
   nodeId: string;
   format: 'svg' | 'png';
@@ -366,49 +419,11 @@ export async function resolveAssets(
   });
 
   if (stagedSvgs.length > 0 && deps.promoteSvgBatch) {
-    const refs: Array<string | null> = [];
-    // CHUNKED, because "fail closed for the whole batch" and "one batch for the
-    // whole import" together turn a single browser timeout into total asset
-    // loss. Measured on a live 6-page import: the DDR-167 execution canary
-    // spawns `agent-browser` with a fixed 20 s budget (`_import-asset.mjs`), one
-    // session for the whole array — at 272 frame renders it blew that budget,
-    // the promote threw, and every one of the 272 became `asset-skipped`. The
-    // import still exited 0, so it reported success while producing a folder of
-    // broken images. Reproduced at 60 SVGs, and it reproduces WITHOUT any of the
-    // Figma-lane changes, so this is the shared lane's shape, not the caller's.
-    //
-    // Fail-closed is KEPT — it is the DDR-177 rule and it is right. What changes
-    // is the blast radius: a timeout now costs its own chunk, and the rest of
-    // the artwork still lands.
-    for (let start = 0; start < stagedSvgs.length; start += MAX_SVG_PROMOTE_CHUNK) {
-      const chunk = stagedSvgs.slice(start, start + MAX_SVG_PROMOTE_CHUNK);
-      let got: Array<string | null> | null = null;
-      // ONE RETRY, because the canary's failure is measurably TRANSIENT rather
-      // than a property of the input. Measured on a cleaned machine: the same
-      // lane promoted 4/4 (30.7 s) and 24/24 (42.3 s) but threw on 12 (24.3 s) —
-      // the budget is per `agent-browser` invocation, and a big frame render
-      // flirts with it. A chunk lost to a coin-flip is a permanently broken
-      // image in a versioned artifact, and a second attempt is one browser
-      // launch. Bounded at one: a lane that is genuinely down must still fail
-      // fast rather than retry 12 chunks into a multi-minute stall.
-      for (let attempt = 0; attempt < 2 && got === null; attempt += 1) {
-        try {
-          got = await deps.promoteSvgBatch(chunk.map((x) => x.staged));
-        } catch {
-          got = null;
-        }
-      }
-      if (got === null) {
-        // FAIL CLOSED, same rule as the per-file path: the bun-side lane being
-        // unavailable must never become "we already have the bytes"
-        // (DDR-177's packaged-app failure mode).
-        for (let i = 0; i < chunk.length; i += 1) refs.push(null);
-        continue;
-      }
-      // A short return would silently shift every later ref onto the wrong
-      // node — pad rather than trust the length.
-      for (let i = 0; i < chunk.length; i += 1) refs.push(got[i] ?? null);
-    }
+    const promoteBatch = deps.promoteSvgBatch.bind(deps);
+    const refs = await promoteSvgInChunks(
+      promoteBatch,
+      stagedSvgs.map((x) => x.staged)
+    );
     for (let i = 0; i < stagedSvgs.length; i += 1) {
       const { req, staged } = stagedSvgs[i];
       const ref = refs[i];

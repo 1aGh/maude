@@ -148,6 +148,99 @@ export function resolveFontFamily(
   return { css: SYSTEM_STACK, substituted: true, requested };
 }
 
+// ── The tree lane (#155 §3, D8) ─────────────────────────────────────────────
+//
+// `resolveFontFamily` above serves the codegen lane, which may quote a
+// ubiquitous family. The tree lane (`style-map.ts`) is stricter: the document's
+// family name NEVER reaches the stylesheet. It is classified against a closed
+// allowlist into sans / serif / mono and mapped onto the DS stack of that class.
+
+export type FontClass = 'sans' | 'serif' | 'mono';
+
+/** Fixed fallbacks when the DS has no stack of the class — code-owned constants, never document text. */
+export const SERIF_STACK = "Georgia, 'Times New Roman', Times, serif";
+export const MONO_STACK =
+  "ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace";
+const FALLBACK_STACK: Record<FontClass, string> = Object.assign(Object.create(null), {
+  sans: SYSTEM_STACK,
+  serif: SERIF_STACK,
+  mono: MONO_STACK,
+});
+
+const MONO_RE =
+  /\bmono\b|monospace|\bcode\b|courier|consolas|menlo|monaco|jetbrains|inconsolata|iosevka|\bhack\b|\bterminal\b/;
+const SERIF_RE =
+  /\bserif\b|georgia|times|garamond|playfair|merriweather|\blora\b|baskerville|crimson|cormorant|bodoni|didot|palatino|cambria|charter|fraunces|spectral|newsreader|\bcaslon\b|domine|literata|gelasio/;
+
+/** Which DS stack a requested family belongs on. Sans is the default: when unsure, the neutral UI face. */
+export function classifyFamily(rawFamily: string): FontClass {
+  const f = splitFamilyAndStyle(rawFamily).family.toLowerCase().replace(/[_-]+/g, ' ');
+  if (MONO_RE.test(f)) return 'mono';
+  if (/\bsans\b/.test(f)) return 'sans';
+  if (SERIF_RE.test(f)) return 'serif';
+  return 'sans';
+}
+
+const CLASS_TOKEN: Record<FontClass, RegExp> = Object.assign(Object.create(null), {
+  mono: /mono|code/,
+  serif: /serif/,
+  sans: /sans|body|text|base|ui/,
+});
+
+/** A token's declared families, quotes and case stripped, for an exact-name match. */
+function declaredFamilies(value: string): string[] {
+  return value
+    .split(',')
+    .map((x) => x.replace(/['"]/g, '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function resolveDsFontStack(
+  rawFamily: string,
+  tokens: readonly FontToken[] = []
+): FontResolution & { fontClass: FontClass } {
+  const { family } = splitFamilyAndStyle(rawFamily);
+  const requested = attrValue(family, MAX_FAMILY_DETAIL);
+  const needle = family.toLowerCase().replace(/['"]/g, '').trim();
+  const fontClass = classifyFamily(family);
+
+  // The DS declares this very family: same typeface, reached through its variable.
+  if (needle.length > 0) {
+    for (const t of tokens) {
+      if (declaredFamilies(t.value).includes(needle)) {
+        return { css: `var(${t.name})`, substituted: false, requested, token: t.name, fontClass };
+      }
+    }
+  }
+  // Otherwise the DS stack of the same CLASS: a serif heading stays a serif.
+  const pattern = CLASS_TOKEN[fontClass];
+  const byClass = tokens.find((t) => {
+    if (!pattern.test(t.name)) return false;
+    if (fontClass === 'sans') return !/mono|code|serif/.test(t.name);
+    return true;
+  });
+  if (byClass) {
+    return {
+      css: `var(${byClass.name})`,
+      substituted: true,
+      requested,
+      token: byClass.name,
+      fontClass,
+    };
+  }
+  return { css: FALLBACK_STACK[fontClass], substituted: true, requested, fontClass };
+}
+
+/** True for exactly what `resolveDsFontStack` can return — a DS variable or one of the fixed stacks. */
+export function isDsFontValue(v: string): boolean {
+  return (
+    /^var\(--[a-z0-9-]{1,64}\)$/.test(v) ||
+    v === SYSTEM_STACK ||
+    v === SERIF_STACK ||
+    v === MONO_STACK
+  );
+}
+
 /**
  * Quote a family name for a CSS value position. Charset-allowlisted first, so a
  * family carrying a quote, a semicolon or a brace cannot terminate the
@@ -176,6 +269,13 @@ export class FontSubstitutions {
     if (!resolution.substituted) return;
     const key = resolution.requested || 'unnamed';
     this.counts.set(key, (this.counts.get(key) ?? 0) + 1);
+  }
+
+  /** Fold another tally in, so a canvas of many frames reports each family once. */
+  absorb(other: FontSubstitutions): void {
+    for (const [family, n] of other.counts) {
+      this.counts.set(family, (this.counts.get(family) ?? 0) + n);
+    }
   }
 
   get size(): number {

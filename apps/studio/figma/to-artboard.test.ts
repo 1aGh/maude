@@ -531,9 +531,10 @@ describe('style-map value grammars (DDR-172 Decision 4, reused)', () => {
     expect(out.rejected).toContain('borderRadius');
   });
 
-  test('a font family is deliberately NOT carried — the DS type stack wins', () => {
+  test('a font family is never written verbatim — it maps onto a fixed stack (#155 §3, D8)', () => {
     const out = mapTypeStyle({ fontFamily: 'Evil"); }', fontSize: 16 }, { tokens: TOKENS });
-    expect(out.declarations.fontFamily).toBeUndefined();
+    expect(out.declarations.fontFamily).not.toContain('Evil');
+    expect(out.declarations.fontFamily).not.toContain(';');
     expect(out.declarations.fontSize).toBe('16px');
   });
 
@@ -614,7 +615,8 @@ describe('style-map value grammars (DDR-172 Decision 4, reused)', () => {
       ],
     });
     const out = mapNodeStyle(frame!, { tokens: TOKENS });
-    expect(out.declarations.boxShadow).toBe('0px 4px 16px 0px #000000');
+    // The 25 % alpha is carried (#155 §4): a dim shadow is not a black one.
+    expect(out.declarations.boxShadow).toBe('0px 4px 16px 0px rgba(0, 0, 0, 0.25)');
   });
 
   test('a hiding opacity is dropped rather than reproduced (D6b)', () => {

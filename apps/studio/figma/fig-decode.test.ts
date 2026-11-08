@@ -785,7 +785,8 @@ describe('tier 2 — the normalized tree is stable enough to diff against REST',
 
   test('node ids are REST-shaped, which is what makes a differential possible', async () => {
     const { document } = decodeFigArchive(await fixture('design.fig'), { fileKey: KEY });
-    walkNodes(document.root, (n) => expect(n.id).toMatch(/^[0-9]+:[0-9]+$/));
+    // An instance's children carry REST's `I<instance>;<child>` ids (#155 §6).
+    walkNodes(document.root, (n) => expect(n.id).toMatch(/^I?[0-9]+:[0-9]+(;[0-9:;]+)?$/));
   });
 });
 
@@ -961,5 +962,24 @@ describe('#155 §5 — one bad node does not abort the import', () => {
   test('a clean file reports no node errors', async () => {
     const { report } = decodeFigArchive(await fixture('design.fig'), { fileKey: KEY });
     expect(report.nodeErrors).toEqual([]);
+  });
+});
+
+describe('#155 §4 — the .fig paint reaches the CSS lane as a REST gradient', () => {
+  test('a gradient paint carries stops and handles, not only the vector geometry', async () => {
+    const { document } = decodeFigArchive(await fixture('design.fig'), { fileKey: KEY });
+    let swatch: { fills?: Array<Record<string, unknown>> } | undefined;
+    walkNodes(document.root, (n) => {
+      if (n.id === '2:18') swatch = n as typeof swatch;
+    });
+    const fill = swatch?.fills?.[0];
+    expect(fill?.type).toBe('GRADIENT_LINEAR');
+    expect(fill?.gradientStops).toHaveLength(2);
+    // Identity transform: start (0, .5) -> end (1, .5) in the node's own box.
+    expect(fill?.gradientHandlePositions).toEqual([
+      { x: 0, y: 0.5 },
+      { x: 1, y: 0.5 },
+      { x: 0, y: 1 },
+    ]);
   });
 });

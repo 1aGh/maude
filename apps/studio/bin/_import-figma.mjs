@@ -68,6 +68,7 @@ import {
   FIGMA_ASSET_HOSTS,
   FIGMA_RENDER_MAX_BYTES,
   makeAssetBudget,
+  promoteSvgInChunks,
   resolveAssets,
 } from '../figma/assets.ts';
 import {
@@ -88,7 +89,7 @@ import { artToSvg } from '../figma/fig-vector.ts';
 import { readFigZip } from '../figma/fig-zip.ts';
 import { strokesIntoOps } from '../figma/into-board.ts';
 import { attrValue, ImportReport } from '../figma/sanitize.ts';
-import { JsxTooLargeError, toArtboard, toCanvas } from '../figma/to-artboard.ts';
+import { JsxTooLargeError, toArtboard, toCanvas, toFramesCanvases } from '../figma/to-artboard.ts';
 import { classifyPageChildren, toRenderCanvas } from '../figma/to-render.ts';
 import { BoardTooLargeError, toBoardElements, toStrokes } from '../figma/to-strokes.ts';
 import { stylesToTokens, variablesToTokens } from '../figma/to-tokens.ts';
@@ -439,6 +440,29 @@ export function nodeErrorLines(decodeReport) {
 }
 
 /**
+ * Component instances (#155 §6): how many were drawn from their component and
+ * why any were not. Counts only. Empty string when the file has no instances.
+ */
+export function instanceLines(decodeReport) {
+  const i = decodeReport?.instances;
+  if (!i) return '';
+  const skipped = [
+    i.cycle ? `${i.cycle} in a component cycle` : '',
+    i.budget ? `${i.budget} past the node cap` : '',
+    i.missing ? `${i.missing} with no component in the file` : '',
+  ].filter(Boolean);
+  if (!i.expanded && skipped.length === 0) return '';
+  const lines = [`  instances: ${i.expanded} drawn from their component`];
+  if (skipped.length > 0) lines.push(`  instances left empty: ${skipped.join(', ')}`);
+  if (i.resized) {
+    lines.push(
+      `  ${i.resized} instance(s) differ in size from their component (component layout kept)`
+    );
+  }
+  return lines.join('\n');
+}
+
+/**
  * Phase 2 — import a FigJam board into the whiteboard annotation layer.
  *
  * Writes `<designRoot>/<slug>.annotations.json` as registry-validated v2
@@ -499,69 +523,127 @@ export function buildClusterSvg(local, nodeId) {
   return artToSvg({ width: origin.width, height: origin.height, paths });
 }
 
+/**
+ * Resolve pending assets from the archive for ONE frame. The many-frame import
+ * uses `resolveArchiveAssetsMany` directly so every frame's SVGs share browser
+ * sessions; this is the single-entry spelling of the same thing.
+ */
 async function resolveArchiveAssets(
   local,
   pendingExports,
   report,
   { root, designRootRel, stagingDir }
 ) {
-  const deps = makeAssetDeps({ root, designRootRel, stagingDir });
-  const rewrites = new Map();
-  const resolved = [];
-  let totalBytes = 0;
+  const [out] = await resolveArchiveAssetsMany(local, [{ pendingExports, report }], {
+    root,
+    designRootRel,
+    stagingDir,
+  });
+  return out;
+}
 
-  for (const p of pendingExports) {
-    if (!p.imageRef) {
-      // NOT unavailable after all: a `.fig` carries the path geometry itself
-      // (fillGeometry -> commandsBlob -> blobs[]), so the icon is rebuilt here
-      // rather than requested from Figma. Corrects the claim DDR-221 A9/A10
-      // shipped. It still goes through the DDR-167 SVG lane on promote — this
-      // is a third party's file, and we authored the string from their bytes.
-      const svg = buildClusterSvg(local, p.nodeId);
-      if (!svg) {
-        report.add(
-          p.nodeId,
-          'VECTOR',
-          'asset-unavailable-offline',
-          'no path geometry in the archive for this node'
-        );
+/**
+ * Resolve the pending assets of MANY frames from the archive, with ONE browser
+ * session per `MAX_SVG_PROMOTE_CHUNK` SVGs across the whole import (#155 §10).
+ *
+ * Promoting an SVG runs the DDR-167 execution canary, which launches a browser.
+ * Doing it per asset made a 648-vector file an ~80-minute import (~8 assets a
+ * minute); the vector clusters of every frame are therefore collected first and
+ * promoted together, chunked and retried by `promoteSvgInChunks` (a timeout costs
+ * its own chunk, never the import — fail-closed stays). Rasters are written
+ * straight through and need no browser.
+ *
+ * `entries` is `[{ pendingExports, report }]` — one per frame, each reporting
+ * into its own `report`. Returns one `{ resolved, rewrites, totalBytes }` per
+ * entry, in order. `deps` is injectable for tests.
+ */
+export async function resolveArchiveAssetsMany(
+  local,
+  entries,
+  { root, designRootRel, stagingDir, deps = makeAssetDeps({ root, designRootRel, stagingDir }) }
+) {
+  const outs = entries.map(() => ({ resolved: [], rewrites: new Map(), totalBytes: 0 }));
+  /** SVG jobs awaiting the shared browser session. */
+  const svgJobs = [];
+
+  for (const [index, { pendingExports, report }] of entries.entries()) {
+    const out = outs[index];
+    for (const p of pendingExports) {
+      if (!p.imageRef) {
+        // NOT unavailable after all: a `.fig` carries the path geometry itself
+        // (fillGeometry -> commandsBlob -> blobs[]), so the icon is rebuilt here
+        // rather than requested from Figma. Corrects the claim DDR-221 A9/A10
+        // shipped. It still goes through the DDR-167 SVG lane on promote — this
+        // is a third party's file, and we authored the string from their bytes.
+        const svg = buildClusterSvg(local, p.nodeId);
+        if (!svg) {
+          report.add(
+            p.nodeId,
+            'VECTOR',
+            'asset-unavailable-offline',
+            'no path geometry in the archive for this node'
+          );
+          continue;
+        }
+        const stagedSvgPath = deps.stagingPath(p.nodeId, 'svg');
+        writeFileSync(stagedSvgPath, svg, 'utf8');
+        svgJobs.push({ index, p, staged: stagedSvgPath, bytes: Buffer.byteLength(svg) });
         continue;
       }
-      const stagedSvgPath = deps.stagingPath(p.nodeId, 'svg');
-      writeFileSync(stagedSvgPath, svg, 'utf8');
-      try {
-        const { ref } = await deps.promote(stagedSvgPath, 'svg');
-        rewrites.set(p.placeholder, ref);
-        resolved.push({ nodeId: p.nodeId, ref });
-        totalBytes += Buffer.byteLength(svg);
-      } catch (err) {
-        report.add(p.nodeId, 'VECTOR', 'asset-skipped', `promote failed: ${err.code ?? 'error'}`);
+      // Charset-checked before it is used as a lookup key, so a crafted ref can
+      // never be read as a path even though we only ever compare it to entries.
+      if (!/^[0-9a-f]{8,128}$/.test(p.imageRef)) {
+        report.add(p.nodeId, 'IMAGE', 'asset-skipped', 'malformed image reference');
+        continue;
       }
-      continue;
-    }
-    // Charset-checked before it is used as a lookup key, so a crafted ref can
-    // never be read as a path even though we only ever compare it to entries.
-    if (!/^[0-9a-f]{8,128}$/.test(p.imageRef)) {
-      report.add(p.nodeId, 'IMAGE', 'asset-skipped', 'malformed image reference');
-      continue;
-    }
-    const bytes = local.zip.get(`images/${p.imageRef}`);
-    if (!bytes) {
-      report.add(p.nodeId, 'IMAGE', 'asset-skipped', 'not present in the archive');
-      continue;
-    }
-    const staged = deps.stagingPath(p.nodeId, 'png');
-    writeFileSync(staged, bytes);
-    try {
-      const { ref } = await deps.promote(staged, 'png');
-      rewrites.set(p.placeholder, ref);
-      resolved.push({ nodeId: p.nodeId, ref });
-      totalBytes += bytes.length;
-    } catch (err) {
-      report.add(p.nodeId, 'IMAGE', 'asset-skipped', `promote failed: ${err.code ?? 'error'}`);
+      const bytes = local.zip.get(`images/${p.imageRef}`);
+      if (!bytes) {
+        report.add(p.nodeId, 'IMAGE', 'asset-skipped', 'not present in the archive');
+        continue;
+      }
+      const staged = deps.stagingPath(p.nodeId, 'png');
+      writeFileSync(staged, bytes);
+      try {
+        const { ref } = await deps.promote(staged, 'png');
+        out.rewrites.set(p.placeholder, ref);
+        out.resolved.push({ nodeId: p.nodeId, ref });
+        out.totalBytes += bytes.length;
+      } catch (err) {
+        report.add(p.nodeId, 'IMAGE', 'asset-skipped', `promote failed: ${err.code ?? 'error'}`);
+      }
     }
   }
-  return { resolved, rewrites, totalBytes };
+
+  if (svgJobs.length > 0) {
+    const refs = deps.promoteSvgBatch
+      ? await promoteSvgInChunks(
+          (paths) => deps.promoteSvgBatch(paths),
+          svgJobs.map((j) => j.staged)
+        )
+      : // A caller whose deps have no batch lane keeps the per-file promote.
+        await Promise.all(
+          svgJobs.map((j) =>
+            deps.promote(j.staged, 'svg').then(
+              (r) => r.ref,
+              () => null
+            )
+          )
+        );
+    for (const [i, job] of svgJobs.entries()) {
+      const ref = refs[i];
+      const { report } = entries[job.index];
+      if (!ref) {
+        deps.discard(job.staged);
+        report.add(job.p.nodeId, 'VECTOR', 'asset-skipped', 'promote failed: sanitize refused');
+        continue;
+      }
+      const out = outs[job.index];
+      out.rewrites.set(job.p.placeholder, ref);
+      out.resolved.push({ nodeId: job.p.nodeId, ref });
+      out.totalBytes += job.bytes;
+    }
+  }
+  return outs;
 }
 
 export function decodeLocalFig(path, fileKeyOverride = null) {
@@ -1363,6 +1445,7 @@ export async function importPages({
   }
 
   const tokens = readDsTokens(root, designRootRel);
+  const fontTokens = readDsFontTokens(root, designRootRel);
   const budget = makeAssetBudget();
   const written = [];
   const reports = [];
@@ -1450,7 +1533,7 @@ export async function importPages({
         try {
           result =
             mode === 'jsx'
-              ? toCanvas(doc, pageNode, { kind, tokens })
+              ? toCanvas(doc, pageNode, { kind, tokens, fontTokens })
               : toRenderCanvas(doc, pageNode, { kind });
         } catch (err) {
           if (!(err instanceof JsxTooLargeError)) throw err;
@@ -1669,35 +1752,81 @@ const MAX_SELECT_DEPTH = 8;
  * Only when no frame exists anywhere do the page's top-level GROUPs stand in.
  */
 export function selectFrames(doc, nodeId) {
+  return selectFramePages(doc, nodeId).flatMap((p) => p.frames);
+}
+
+/**
+ * `selectFrames`, grouped by the page each frame came from, in page order (#155
+ * §7). A design file has several pages and they were all but the first dropped
+ * (one real file: 1 frame imported instead of 115). A hidden page is skipped;
+ * a page with no frame contributes nothing. When NO page has a frame, the
+ * groups-only fallback applies to every page.
+ */
+export function selectFramePages(doc, nodeId) {
   const wanted = new Set(['FRAME', 'COMPONENT']);
   // An explicit node-id means "this subtree" — the root IS the selection.
-  if (nodeId && doc.root.id === nodeId) return [doc.root];
-  if (wanted.has(doc.root.type)) return [doc.root];
+  if (nodeId && doc.root.id === nodeId) return [{ page: doc.root, frames: [doc.root] }];
+  if (wanted.has(doc.root.type)) return [{ page: doc.root, frames: [doc.root] }];
   // A DOCUMENT root means the caller handed us a whole file rather than a page
   // or a frame — always the case for the local `.fig` door, which has no
-  // node-id to scope with. Descend to the first CANVAS. Previously this fell
-  // through to "no FRAME or COMPONENT found", so this turns a hard error into
-  // the obvious behaviour; the node/depth caps still apply either way.
-  const root =
+  // node-id to scope with. Every visible CANVAS is a page; with none, the root
+  // itself stands in. The node/depth caps still apply either way.
+  let pages =
     doc.root.type === 'DOCUMENT'
-      ? ((doc.root.children ?? []).find((n) => n.type === 'CANVAS') ?? doc.root)
-      : doc.root;
+      ? (doc.root.children ?? []).filter((n) => n.type === 'CANVAS' && n.visible)
+      : [doc.root];
+  if (pages.length === 0) pages = [doc.root];
 
-  const found = [];
-  const collect = (nodes, depth) => {
+  const collect = (nodes, depth, found) => {
     for (const n of nodes) {
       if (!n.visible) continue;
       if (wanted.has(n.type)) found.push(n);
       else if ((n.type === 'SECTION' || n.type === 'GROUP') && depth < MAX_SELECT_DEPTH) {
-        collect(n.children ?? [], depth + 1);
+        collect(n.children ?? [], depth + 1, found);
       }
     }
+    return found;
   };
-  collect(root.children ?? [], 0);
-  if (found.length > 0) return found;
+  const withFrames = pages
+    .map((page) => ({ page, frames: collect(page.children ?? [], 0, []) }))
+    .filter((p) => p.frames.length > 0);
+  if (withFrames.length > 0) return withFrames;
+
+  // No real frame: a Figma Slides deck (#155 §9). Its slides live under
+  // Presentation > Row as nodes whose type this normalizer does not know, and
+  // the type NAMES are unconfirmed (no real Slides file to read them from) — so
+  // the rule is geometric, not nominal. An UNKNOWN node that holds other UNKNOWN
+  // nodes is a wrapper (Presentation, Row) and is descended; an UNKNOWN node
+  // with a real size and no UNKNOWN children is a slide and is a frame. Only
+  // reached when there are no FRAME/COMPONENTs at all, so no existing file's
+  // selection changes.
+  const sized = (n) =>
+    n.visible &&
+    n.type === 'UNKNOWN' &&
+    n.absoluteBoundingBox &&
+    n.absoluteBoundingBox.width > 0 &&
+    n.absoluteBoundingBox.height > 0;
+  const collectUnknown = (nodes, depth, found) => {
+    for (const n of nodes) {
+      if (!n.visible || n.type !== 'UNKNOWN') continue;
+      const wrapper = (n.children ?? []).some((c) => sized(c) || c.type === 'UNKNOWN');
+      if (wrapper && depth < MAX_SELECT_DEPTH) collectUnknown(n.children ?? [], depth + 1, found);
+      else if (sized(n)) found.push(n);
+    }
+    return found;
+  };
+  const withUnknown = pages
+    .map((page) => ({ page, frames: collectUnknown(page.children ?? [], 0, []) }))
+    .filter((p) => p.frames.length > 0);
+  if (withUnknown.length > 0) return withUnknown;
 
   // No frame anywhere: a groups-only file. Each top-level group is a design.
-  return (root.children ?? []).filter((n) => n.type === 'GROUP' && n.visible);
+  return pages
+    .map((page) => ({
+      page,
+      frames: (page.children ?? []).filter((n) => n.type === 'GROUP' && n.visible),
+    }))
+    .filter((p) => p.frames.length > 0);
 }
 
 /**
@@ -1715,6 +1844,11 @@ export async function importFrames({
   dryRun = false,
   kind = 'digital',
   local = null,
+  // `--one-canvas`: the file as ONE canvas (one artboard per frame) in
+  // `<folder>/<name>.tsx`, instead of one canvas per frame flat in `ui/`.
+  oneCanvas = false,
+  folder = '',
+  name = null,
 }) {
   const target = local ? { fileKey: local.fileKey, nodeId: null } : parseFigmaTarget(url, 'design');
   const doc =
@@ -1724,6 +1858,21 @@ export async function importFrames({
       surface: 'design',
       ...(target.nodeId ? { nodeId: target.nodeId } : {}),
     }));
+
+  if (oneCanvas) {
+    return importFramesAsCanvas({
+      target,
+      doc,
+      root,
+      designRootRel,
+      folder,
+      name,
+      slug,
+      dryRun,
+      kind,
+      local,
+    });
+  }
 
   const frames = selectFrames(doc, target.nodeId);
   if (frames.length === 0) {
@@ -1736,20 +1885,43 @@ export async function importFrames({
   let resolvedAssets = 0;
   const budget = makeAssetBudget();
   const tokens = readDsTokens(root, designRootRel);
+  const fontTokens = readDsFontTokens(root, designRootRel);
 
   const staging = dryRun ? null : makeStagingDir();
   try {
-    for (const [i, frame] of frames.entries()) {
-      const result = toArtboard(doc, frame, { kind, tokens });
-      reports.push(result.report);
-      pendingExports += result.pendingExports.length;
-
+    // Translate every frame BEFORE any asset work or write: a frame that is too
+    // large refuses the import cleanly instead of after earlier frames landed,
+    // and the offline door can promote all frames' SVGs through shared browser
+    // sessions (#155 §10) rather than one session per frame.
+    const built = frames.map((frame, i) => {
+      const result = toArtboard(doc, frame, { kind, tokens, fontTokens });
       const base = slug
         ? frames.length > 1
           ? `${slug}-${i + 1}`
           : slug
         : `figma-${frame.id.replace(/[^0-9]+/g, '-')}`;
       if (!SLUG_RE.test(base)) throw new ImportFigmaError(2, 'invalid --slug');
+      return { frame, result, base };
+    });
+    // OFFLINE DOOR: `/v1/images` renders are produced by Figma's servers and
+    // simply do not exist in a local export, so there is nothing to fetch and no
+    // network call to make. Vector clusters are rebuilt from the archive's own
+    // path geometry; image fills come out of `images/<imageRef>` (DDR-221 D6).
+    const archiveAssets =
+      local && !dryRun
+        ? await resolveArchiveAssetsMany(
+            local,
+            built.map((b) => ({
+              pendingExports: b.result.pendingExports,
+              report: b.result.report,
+            })),
+            { root, designRootRel, stagingDir: staging }
+          )
+        : null;
+
+    for (const [i, { result, base }] of built.entries()) {
+      reports.push(result.report);
+      pendingExports += result.pendingExports.length;
 
       if (dryRun) {
         written.push({ slug: base, bytes: result.metrics.bytes, metrics: result.metrics });
@@ -1764,14 +1936,9 @@ export async function importFrames({
       // simply do not exist in a local export, so there is nothing to resolve
       // and no network call to make. The placeholders stay in place — a
       // visibly broken image beats a silently missing element — and every one
-      // is named in the summary rather than quietly dropped (DDR-221 D6: the
-      // archive covers image FILLS, never server-side vector renders).
-      const assets = local
-        ? await resolveArchiveAssets(local, result.pendingExports, result.report, {
-            root,
-            designRootRel,
-            stagingDir: staging,
-          })
+      // is named in the summary rather than quietly dropped.
+      const assets = archiveAssets
+        ? archiveAssets[i]
         : await resolveAssets(
             target.fileKey,
             result.pendingExports.map((p) => ({
@@ -1819,6 +1986,137 @@ export async function importFrames({
   }
 
   return { written, reports, pendingExports, resolvedAssets, frameCount: frames.length };
+}
+
+/**
+ * `--one-canvas`: a file's frames as ONE canvas with one artboard per frame (#155
+ * §10), in `<folder>/<name>.tsx`, instead of one canvas per frame flat in `ui/`.
+ * Pages sit side by side. A file too large for one canvas continues on
+ * `<name> (2)` and so on (`toFramesCanvases`), so nothing is dropped.
+ *
+ * The caller names a FOLDER (checked segment by segment — never a runtime `_*`
+ * dir, never `system/` or `assets/`) and a canvas NAME (a filename charset, no
+ * separators); it never picks a path. Staged outside the design root and
+ * promoted only on success, realpath-contained, like every other write here.
+ */
+async function importFramesAsCanvas({
+  target,
+  doc,
+  root,
+  designRootRel,
+  folder,
+  name,
+  slug,
+  dryRun,
+  kind,
+  local,
+}) {
+  const folderRel = safeCanvasFolder(folder === '' || folder == null ? 'ui' : folder);
+  if (folderRel === null) throw new ImportFigmaError(2, 'invalid --folder');
+  const canvasName = safeCanvasName(name ?? slug ?? 'Figma import');
+  if (canvasName === null) throw new ImportFigmaError(2, 'invalid --name');
+
+  const groups = selectFramePages(doc, target.nodeId);
+  const frameCount = groups.reduce((n, g) => n + g.frames.length, 0);
+  if (frameCount === 0) {
+    throw new ImportFigmaError(3, 'no FRAME or COMPONENT found — link a specific frame');
+  }
+  const tokens = readDsTokens(root, designRootRel);
+  const fontTokens = readDsFontTokens(root, designRootRel);
+  // Translated first, so a frame that is too large refuses before anything lands.
+  const canvases = toFramesCanvases(doc, groups, { kind, tokens, fontTokens });
+
+  const designRoot = join(root, designRootRel);
+  const nameOf = (i) => (i === 0 ? canvasName : `${canvasName} (${i + 1})`);
+  const reports = canvases.map((c) => c.report);
+  const pendingExports = canvases.reduce((n, c) => n + c.pendingExports.length, 0);
+
+  if (dryRun) {
+    const written = canvases.map((c, i) => ({
+      slug: nameOf(i),
+      bytes: c.metrics.bytes,
+      artboards: c.artboardCount,
+      metrics: c.metrics,
+    }));
+    return {
+      written,
+      reports,
+      pendingExports,
+      resolvedAssets: 0,
+      frameCount,
+      canvasCount: written.length,
+    };
+  }
+
+  const staging = makeStagingDir();
+  try {
+    const budget = makeAssetBudget();
+    const assetsAll = local
+      ? await resolveArchiveAssetsMany(
+          local,
+          canvases.map((c) => ({ pendingExports: c.pendingExports, report: c.report })),
+          { root, designRootRel, stagingDir: staging }
+        )
+      : null;
+    const written = [];
+    let resolvedAssets = 0;
+    for (const [i, c] of canvases.entries()) {
+      const assets =
+        assetsAll?.[i] ??
+        (await resolveAssets(
+          target.fileKey,
+          c.pendingExports.map((p) => ({
+            nodeId: p.nodeId,
+            format: p.format,
+            placeholder: p.placeholder,
+          })),
+          makeAssetDeps({ root, designRootRel, stagingDir: staging }),
+          c.report,
+          budget
+        ));
+      resolvedAssets += assets.resolved.length;
+      const tsx = applyRewrites(c.tsx, assets.rewrites);
+      const meta = {
+        ...c.meta,
+        source: { ...c.meta.source, importedAt: new Date().toISOString() },
+      };
+
+      const rel = freeCanvasRel(designRoot, folderRel, nameOf(i));
+      const base = rel.slice(rel.lastIndexOf('/') + 1).replace(/\.tsx$/, '');
+      const stagedTsx = join(staging, `canvas-${i}.tsx`);
+      const stagedMeta = join(staging, `canvas-${i}.meta.json`);
+      writeFileSync(stagedTsx, tsx, 'utf8');
+      writeFileSync(stagedMeta, `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
+
+      assertNoSlugTwin(designRoot, rel);
+      mkdirSync(join(designRoot, folderRel), { recursive: true });
+      const finalTsx = assertContained(root, designRootRel, join(designRoot, rel));
+      const finalMeta = assertContained(
+        root,
+        designRootRel,
+        join(designRoot, folderRel, `${base}.meta.json`)
+      );
+      promoteFile(stagedTsx, finalTsx);
+      promoteFile(stagedMeta, finalMeta);
+      written.push({
+        slug: base,
+        path: finalTsx,
+        bytes: c.metrics.bytes,
+        artboards: c.artboardCount,
+        metrics: c.metrics,
+      });
+    }
+    return {
+      written,
+      reports,
+      pendingExports,
+      resolvedAssets,
+      frameCount,
+      canvasCount: written.length,
+    };
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
 }
 
 // ── S8.17 — the Import from Figma sheet: list a page's frames, bring the picked ones in as pictures ──
@@ -2506,6 +2804,7 @@ export function parseArgv(argv) {
     name: null,
     comments: true,
     styles: false,
+    oneCanvas: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
@@ -2622,6 +2921,10 @@ export function parseArgv(argv) {
       case '--styles':
         out.styles = true;
         break;
+      // #155 §10 — a file as ONE canvas, one artboard per frame (target: --folder, --name).
+      case '--one-canvas':
+        out.oneCanvas = true;
+        break;
       case '--json':
         out.json = true;
         break;
@@ -2652,7 +2955,8 @@ Usage:
   maude design import-figma --editable <artboard-id> --canvas <dir>/<Canvas>.tsx --root <repo>
   maude design import-figma --tokens <figma-url>  --root <repo>
   maude design import-figma --fig    <path.fig>   --root <repo> [--slug <name>]
-                            [--file-key <key>] [--dry-run] [--json]
+                            [--file-key <key>] [--one-canvas [--folder <dir>] [--name <canvas>]]
+                            [--dry-run] [--json]
   maude design import-figma --explode <artboard-id> --canvas ui/<folder>/<Page>.tsx
                             --root <repo> [--confirm-document] [--dry-run] [--json]
 
@@ -2702,6 +3006,13 @@ or container version REFUSES rather than decoding approximately. Images travel
 inside the archive, so nothing expires and nothing is rate-limited. A local file
 carries no REST file key, so provenance is content-addressed unless you pass
 \`--file-key\`; the summary says which you got.
+
+A design file imports every page, and by default one canvas per frame, flat in \`ui/\`.
+\`--one-canvas\` brings the whole file in as ONE canvas with one artboard per frame instead
+(\`<folder>/<name>.tsx\`, folder default \`ui\`, name default \`--slug\` or "Figma import"; a name
+already taken becomes "<name> (Figma)"). Pages sit side by side, and a file too large for one
+canvas continues on "<name> (2)". SVG artwork is promoted in shared browser sessions, not one
+launch per asset.
 
 The file's REVIEW COMMENTS come across as comment pins, where they sit: a thread
 with its replies, resolved ones resolved. Whoever wrote one in Figma shows as
@@ -2838,6 +3149,9 @@ async function main() {
             slug: opts.slug,
             dryRun: opts.dryRun,
             local,
+            oneCanvas: opts.oneCanvas,
+            folder: opts.folder ?? '',
+            name: opts.name,
           });
       const merged = new ImportReport();
       if (isBoard) merged.entries.push(...r.report.entries);
@@ -2860,6 +3174,7 @@ async function main() {
             internalNodesSkipped: local.report.internalNodesSkipped,
             nodeErrors: local.report.nodeErrors,
             nodeErrorCount: local.report.nodeErrorCount,
+            instances: local.report.instances,
             ...(isBoard ? { slug: r.slug, strokes: r.strokeCount } : { written: r.written }),
             dispositions: merged.entries,
           })}\n`
@@ -2873,13 +3188,15 @@ async function main() {
           .join('\n');
         const head = isBoard
           ? `import-figma: board -> ${r.slug} (${r.strokeCount} strokes)${opts.dryRun ? ' (dry run)' : ''}`
-          : `import-figma: ${r.written.length} frame(s)${opts.dryRun ? ' (dry run)' : ''}`;
+          : opts.oneCanvas
+            ? `import-figma: ${r.frameCount} frame(s) -> ${r.canvasCount} canvas(es)${opts.dryRun ? ' (dry run)' : ''}`
+            : `import-figma: ${r.written.length} frame(s)${opts.dryRun ? ' (dry run)' : ''}`;
         process.stdout.write(
           `${head}\n` +
             `  offline: container v${provenance.containerVersion} · schema ${provenance.schemaSha256.slice(0, 8)}` +
             `${provenance.exportedAt ? ` · exported ${provenance.exportedAt}` : ''}\n` +
             `  file key: ${provenance.fileKey}${provenance.derivedFileKey ? ' (content-derived — pass --file-key for the real one)' : ''}\n` +
-            `${[unmapped, lossy, nodeErrorLines(local.report)].filter(Boolean).join('\n')}${unmapped || lossy || local.report.nodeErrors?.length ? '\n' : ''}` +
+            `${[unmapped, lossy, nodeErrorLines(local.report), instanceLines(local.report)].filter(Boolean).join('\n')}${unmapped || lossy || local.report.nodeErrors?.length || instanceLines(local.report) ? '\n' : ''}` +
             `${formatSummary(merged)}\n`
         );
       }
@@ -2950,6 +3267,9 @@ async function main() {
         designRootRel: opts.designRoot,
         slug: opts.slug,
         dryRun: opts.dryRun,
+        oneCanvas: opts.oneCanvas,
+        folder: opts.folder ?? '',
+        name: opts.name,
       });
       // One report across every frame, so the summary is a single accounting.
       const merged = new ImportReport();

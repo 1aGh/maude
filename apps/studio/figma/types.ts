@@ -142,7 +142,9 @@ export interface FigmaPaint {
   /** Present on IMAGE paints — the handle `/v1/images` resolves. */
   imageRef?: string;
   gradientStops?: Array<{ position: number; color: FigmaColor }>;
+  /** REST: three handles in the node's normalised box — start/centre, end/x-radius, width/y-radius. */
   gradientHandlePositions?: Array<{ x: number; y: number }>;
+  blendMode?: string;
 }
 
 export interface FigmaEffect {
@@ -312,6 +314,17 @@ function paints(v: unknown): FigmaPaint[] | undefined {
     if (col) entry.color = col;
     const ref = str(p.imageRef);
     if (ref) entry.imageRef = ref;
+    const blend = str(p.blendMode);
+    if (blend) entry.blendMode = blend;
+    if (Array.isArray(p.gradientHandlePositions)) {
+      const hs: Array<{ x: number; y: number }> = [];
+      for (const h of p.gradientHandlePositions.slice(0, 3)) {
+        const hx = num((h as Record<string, unknown> | null)?.x);
+        const hy = num((h as Record<string, unknown> | null)?.y);
+        if (hx !== undefined && hy !== undefined) hs.push({ x: hx, y: hy });
+      }
+      if (hs.length >= 2) entry.gradientHandlePositions = hs;
+    }
     if (Array.isArray(p.gradientStops)) {
       const stops: Array<{ position: number; color: FigmaColor }> = [];
       for (const s of p.gradientStops.slice(0, 32)) {
