@@ -5,7 +5,11 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { duplicatedAtWords, settleDuplicateAtWidth } from '../client/v2/create/duplicate-done.js';
+import {
+  DUPLICATE_NOTICE_ID,
+  duplicatedAtWords,
+  settleDuplicateAtWidth,
+} from '../client/v2/create/duplicate-done.js';
 
 const STUDIO = join(import.meta.dir, '..');
 const dup = (
@@ -95,9 +99,26 @@ describe('settleDuplicateAtWidth', () => {
     expect(toast?.message).toBe('Duplicated at Laptop — 1280 wide.');
     expect(toast?.action).toBeUndefined();
   });
+
+  // #168 F2 — the request came from a canvas, so the notice has one fixed id: a repeat replaces it, never stacks
+  test('every duplicate-at-width notice carries the same fixed id', () => {
+    const a = settleDuplicateAtWidth(dup([{ artboard: 'a', width: 1280 }]), { ok: true });
+    const b = settleDuplicateAtWidth(dup([{ artboard: 'b', width: 390 }]), { ok: true }, () => {});
+    expect(a?.id).toBe(DUPLICATE_NOTICE_ID);
+    expect(b?.id).toBe(DUPLICATE_NOTICE_ID);
+    expect(typeof DUPLICATE_NOTICE_ID).toBe('string');
+  });
 });
 
 describe('the bridge settles it', () => {
+  test('#168 F2: the bridge raises it under that fixed id', () => {
+    const bridge = readFileSync(join(STUDIO, 'client/hooks/use-canvas-bridge.jsx'), 'utf8')
+      .replace(/\s+/g, ' ')
+      .replace(/, \}/g, ' }');
+    expect(bridge).toContain(
+      'shellToast(done.message, true, done.action, { ...DUPLICATE_TOAST, id: done.id })'
+    );
+  });
   const bridge = readFileSync(join(STUDIO, 'client/hooks/use-canvas-bridge.jsx'), 'utf8');
   test('after the inspector’s own S7.21 toast had its turn, with the shell’s own edit.undo', () => {
     expect(bridge).toContain("from '../v2/create/duplicate-done.js'");

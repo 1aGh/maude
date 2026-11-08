@@ -810,6 +810,8 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `settings-canvas-view` | testid | General › Canvas and view group (minimap, zoom controls, annotations, auto-open Inspector). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
 | `settings-keyboard` | testid | General › Keyboard group (the Single-key shortcuts switch). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
 | `settings-single-keys` | testid | General › Keyboard › the Single-key shortcuts switch: off, only shortcuts with ⌘ or ⌥ fire (V, H, N, /, ? go quiet). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
+| `settings-terminal` | testid | General › Terminal group (desktop app only). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | new |
+| `settings-terminal-opens` | testid | General › Terminal › Let the terminal open projects in Maude (Tauri pref `terminal_opens`, default on; desktop app only — #206). | `client/v2/settings/general-section.jsx` · `TerminalOpensRow` | — | new |
 | `settings-layout` | testid | General › Layout group (panel positions, Layers mode). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
 | `settings-cloud` | testid | Connections › Maude Cloud group. | `client/v2/settings/connections-section.jsx` · `ConnectionsSection` | — | stable |
 | `settings-cloud-projects` | testid | Connections › Maude Cloud › the cloud projects on this Mac (Connect · Disconnect · View in the browser rows). | `client/v2/settings/connections-section.jsx` · `ConnectionsSection`<br>`client/panels/CloudBar.jsx` · `CloudBar` | — | stable |

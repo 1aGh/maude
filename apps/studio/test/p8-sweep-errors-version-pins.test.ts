@@ -45,7 +45,10 @@ const COMMENTS = [
 ];
 
 /** Run the injected inspector script in a document at `search`, then send it today's comments. */
-async function pinsAt(search: string): Promise<HTMLButtonElement[]> {
+async function pinsAt(
+  search: string,
+  from: 'parent' | 'other' = 'parent'
+): Promise<HTMLButtonElement[]> {
   (window as unknown as { happyDOM: { setURL(u: string): void } }).happyDOM.setURL(
     `http://localhost:4400/_canvas-shell.html${search}`
   );
@@ -53,11 +56,13 @@ async function pinsAt(search: string): Promise<HTMLButtonElement[]> {
   const inspect = createInspect(mkCtx(root, designRoot), async () => []);
   const html = inspect.injectInspector('<html><body><h1>Hello</h1></body></html>');
   const bodies = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1] as string);
-  Object.defineProperty(window, 'parent', { value: { postMessage() {} }, configurable: true });
+  const parent = { postMessage() {} };
+  Object.defineProperty(window, 'parent', { value: parent, configurable: true });
   document.body.innerHTML = '<h1>Hello</h1>';
   for (const b of bodies) new Function(b)();
+  const source = (from === 'parent' ? parent : { postMessage() {} }) as unknown as Window;
   window.dispatchEvent(
-    new MessageEvent('message', { data: { dgn: 'comments-set', comments: COMMENTS } })
+    new MessageEvent('message', { data: { dgn: 'comments-set', comments: COMMENTS }, source })
   );
   await new Promise((r) => setTimeout(r, 10));
   return [...document.querySelectorAll<HTMLButtonElement>('.dgn-pin')];
@@ -71,6 +76,15 @@ describe('the injected pin layer honours comments=0', () => {
 
   test('a past version (sha=…&ro=1&comments=0) draws none, though today’s comments are sent to it', async () => {
     const pins = await pinsAt('?canvas=ui%2FLanding.tsx&designRel=.design&sha=r4&ro=1&comments=0');
+    expect(pins).toEqual([]);
+  });
+});
+
+// #168 F3 — the pin layer takes its comments from the shell only: a `comments-set` posted by any other window
+// (a sibling frame, a popup) is ignored, so nothing but the shell can draw pins or point a pin at a thread
+describe('the injected pin layer takes comments from the shell only', () => {
+  test('a comments-set from a window that is not the parent draws no pin', async () => {
+    const pins = await pinsAt('?canvas=ui%2FLanding.tsx&designRel=.design', 'other');
     expect(pins).toEqual([]);
   });
 });

@@ -6,6 +6,8 @@
 // (input-router `linkFollowOf`: Preview only, plain left click, element needs a data-cd-id).
 
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Window } from 'happy-dom';
 
 import { acceptFromCanvas, c2sSpec } from '../bridge/dgn-protocol.ts';
@@ -14,6 +16,7 @@ import {
   DANGLING_ARTBOARD,
   DANGLING_CANVAS,
   entryFor,
+  LINK_NOTICE_ID,
 } from '../client/v2/preview/link-follow.js';
 import { BACK_MAX, createPreviewHistory } from '../client/v2/preview/preview-history.js';
 import { linkFollowOf } from '../input-router.tsx';
@@ -216,6 +219,27 @@ describe('the shell plays it', () => {
       ['toast', DANGLING_CANVAS],
     ]);
     expect(r.history.size()).toBe(0);
+  });
+
+  // #168 F2 — a canvas decides when a follow happens, so its notice has ONE fixed id: a repeat replaces it, a
+  // click flood never stacks notices, and the shell raises it as a canvas-triggered notice (rate limit, ranked low)
+  test('the dangling notice has one fixed id, whichever link and however often', async () => {
+    const ids: unknown[] = [];
+    const r = rig({ toast: (_s: string, id: unknown) => ids.push(id) });
+    await r.lf.follow({ elementId: 'gone', artboardId: 'desktop' });
+    r.tick(1000);
+    await r.lf.follow({ elementId: 'old', artboardId: 'desktop' });
+    r.tick(1000);
+    await r.lf.follow({ elementId: 'gone', artboardId: 'desktop' });
+    expect(ids).toEqual([LINK_NOTICE_ID, LINK_NOTICE_ID, LINK_NOTICE_ID]);
+    expect(typeof LINK_NOTICE_ID).toBe('string');
+    const host = readFileSync(
+      join(import.meta.dir, '..', 'client/v2/preview/preview-chrome-host.jsx'),
+      'utf8'
+    );
+    expect(host).toMatch(
+      /toast: \(title, id\) => notifyCanvasTriggered\(\{ id, title, kind: 'info' \}\)/
+    );
   });
 
   test('external: handed to the shell confirmation (S3.10b), no back entry', async () => {

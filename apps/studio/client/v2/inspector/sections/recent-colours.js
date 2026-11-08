@@ -1,7 +1,7 @@
 // client/v2/inspector/sections/recent-colours.js — P6 T2 (inspector-ux-rules IR-8): the colour picker's "Recent" row.
 //
 // The last 8 colours used in this project — tokens (`var(--accent)`) and raw colours alike — newest first. Per Mac, keyed
-// by project, in prefs.json `recentColours` (the V2-4.10 fold-store pattern: `POST /_api/ui-prefs`, merged per project by
+// by the server's own root identity (#168 G3; the page sends only RECENT_HERE), in prefs.json `recentColours` (the V2-4.10 fold-store pattern: `POST /_api/ui-prefs`, merged per project by
 // the server's `writeUiPrefs`), so no new runtime path and no DDR-115 list changes. The store reads the prefs once, on
 // first use; a page that cannot reach the server keeps Recent for the page only.
 
@@ -25,10 +25,13 @@ export function pushRecent(list, css) {
   return [t, ...rest].slice(0, RECENT_MAX);
 }
 
-/** The prefs map key for this project: its name, made a safe id (`MAP_KEY` on the server). */
-export function projectKeyOf(ctx) {
-  const raw = String(ctx?.cfg?.name || ctx?.cfg?.designRel || 'project');
-  return raw.replace(/[^A-Za-z0-9._:/-]/g, '-').slice(0, 128) || 'project';
+/** #168 G3: the one key the page uses — "this project". The server keys the list by its OWN root identity (ui-prefs.ts
+ *  `scopeRecentColoursWrite` / `Read`, the same string as its `RECENT_HERE`), so the page never names the project. */
+export const RECENT_HERE = 'here';
+
+/** The prefs map key for this project: always RECENT_HERE (`ctx` is kept for the callers' shape). */
+export function projectKeyOf(_ctx) {
+  return RECENT_HERE;
 }
 
 /** A store of Recent lists by project. `persist(patch)` writes; `load()` resolves to the prefs object (or null). */

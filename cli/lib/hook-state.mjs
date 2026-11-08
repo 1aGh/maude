@@ -7,7 +7,11 @@
 //
 //   $MAUDE_HOOK_STATE_HOME || ~/.claude/maude-hook   /<rootIdentity(root)>/
 //     lanes.json                      the root's hash cache (non-authoritative)
+//     shots.jsonl                     captures made with no hook session (#168 E3)
 //     <session>/bash/<toolUseId>.json one call's {v, at, mode, files, bg?, verbOnly?, snaps, manifest}
+//     <session>/snaps/{snap,base}/<name>.json   the sha256 of each run snapshot / base (#168 E1)
+//     <session>/shots.jsonl           `maude design screenshot` captures under the session (#168 E3,
+//                                     written by apps/studio/bin/_record-shot.sh, read by Stop)
 //
 // Directories 0700, files 0600, written tmp + rename (a torn file reads as "no state"). The precedent
 // is `~/.claude/flow-runs`. A test MUST set MAUDE_HOOK_STATE_HOME to a temp dir.
@@ -53,6 +57,63 @@ export function bashStatePath(root, session, toolUseId, env = process.env) {
 /** The root's non-authoritative hash cache. */
 export const lanesCachePath = (root, env = process.env) =>
   join(hookStateDir(root, env), 'lanes.json');
+
+/** A snapshot name: a hook key, optionally with dotted parts (`<toolUseId>.<sha16>`, `<sha16>.bash`). */
+const NAME_RE = /^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,159}$/;
+
+/**
+ * #168 E1 — the record of one run snapshot: `{v:1, existed:true, sha}` (the sha256 of the bytes the
+ * hook saved under `<designRoot>/_runs/<session>/<kind>/<name>`), `{v:1, existed:false}` (the file did
+ * not exist) or, for a base, `{v:1, shell:true}` (an AI shell call wrote the file first: no base).
+ * The bytes stay in the design root, where the studio reads them; they count only while they hash to
+ * this record. Null for an unsafe segment.
+ *
+ *   <hookStateDir>/<session>/snaps/{snap|base}/<name>.json
+ */
+export function snapshotRecordPath(root, session, kind, name, env = process.env) {
+  if (!SEG_RE.test(session ?? '') || (kind !== 'snap' && kind !== 'base')) return null;
+  if (!NAME_RE.test(name ?? '') || name.includes('..')) return null;
+  return join(hookStateDir(root, env), session, 'snaps', kind, `${name}.json`);
+}
+
+/**
+ * #168 E3 — the screenshot record (`_record-shot.sh` appends, the Stop gate reads): one session's, or
+ * the root's for a capture made with no hook session. Null for an unsafe session.
+ */
+export function shotsPath(root, session, env = process.env) {
+  if (session === null) return join(hookStateDir(root, env), 'shots.jsonl');
+  return SEG_RE.test(session ?? '') ? join(hookStateDir(root, env), session, 'shots.jsonl') : null;
+}
+
+/**
+ * #168 E1 — a private copy of `text` (bytes the hook verified) for one local check to read: 0600,
+ * created exclusively under the session's state folder. The path, or null when it cannot be written.
+ * The caller removes it.
+ */
+export function writePrivateCopy(root, session, text, env = process.env) {
+  if (!SEG_RE.test(session ?? '')) return null;
+  const abs = join(
+    hookStateDir(root, env),
+    session,
+    `against.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.txt`
+  );
+  try {
+    mkdirSync(dirname(abs), { recursive: true, mode: 0o700 });
+    tighten(abs, env);
+    writeFileSync(abs, text, { mode: 0o600, flag: 'wx' });
+    return abs;
+  } catch {
+    return null;
+  }
+}
+
+/** A passing Stop ends the run: its snapshot records and its screenshot record go with it. */
+export function dropRunState(root, session, env = process.env) {
+  if (!SEG_RE.test(session ?? '')) return;
+  const dir = join(hookStateDir(root, env), session);
+  rmSync(join(dir, 'snaps'), { recursive: true, force: true });
+  rmSync(join(dir, 'shots.jsonl'), { force: true });
+}
 
 /**
  * Tighten the folders the state lives in to 0700 on every open: `mkdir -p`'s mode only applies to a
@@ -162,6 +223,48 @@ export function pruneStates(root, maxAgeMs = 24 * 3_600_000, env = process.env) 
           /* refilled, or gone */
         }
       }
+      // #168 E1/E3 — an edit's snapshot record is needed until its post-edit (pruned like a call
+      // state); a run base and the screenshot record last as long as a run may (a week of idling)
+      const runAge = maxAgeMs * 7;
+      const snaps = join(sessionDir, 'snaps');
+      for (const [d, age] of [
+        [join(snaps, 'snap'), maxAgeMs],
+        [join(snaps, 'base'), runAge],
+      ]) {
+        let files = [];
+        try {
+          files = readdirSync(d);
+        } catch {
+          continue;
+        }
+        for (const n of files) {
+          try {
+            if (now - statSync(join(d, n)).mtimeMs > age) rmSync(join(d, n), { force: true });
+          } catch {
+            /* gone */
+          }
+        }
+        if (idle(d)) {
+          try {
+            rmdirSync(d);
+          } catch {
+            /* not empty */
+          }
+        }
+      }
+      if (idle(snaps)) {
+        try {
+          rmdirSync(snaps);
+        } catch {
+          /* not empty */
+        }
+      }
+      try {
+        const shots = join(sessionDir, 'shots.jsonl');
+        if (now - statSync(shots).mtimeMs > runAge) rmSync(shots, { force: true });
+      } catch {
+        /* no record */
+      }
       if (sessionIdle) {
         try {
           rmdirSync(sessionDir);
@@ -175,6 +278,12 @@ export function pruneStates(root, maxAgeMs = 24 * 3_600_000, env = process.env) 
       if (now - statSync(lanes).mtimeMs > maxAgeMs) rmSync(lanes, { force: true });
     } catch {
       /* no cache */
+    }
+    try {
+      const shots = shotsPath(root, null, env);
+      if (now - statSync(shots).mtimeMs > maxAgeMs * 7) rmSync(shots, { force: true });
+    } catch {
+      /* no session-less record */
     }
   } catch {
     /* nothing to prune */

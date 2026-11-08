@@ -913,6 +913,41 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
     expect(r.ms).toBeLessThan(1500);
     expect(bracket).toContain('touch sc ui/C.tsx');
   });
+
+  // #168 E3 — `_runs/<s>/shots.jsonl` sat in the project, so a planted line (a synced or cloned
+  // project, a script) passed the screenshot gate. The recorder writes the hook state outside the
+  // project, and Stop reads only that.
+  test('#168 E3 — a planted shot line never passes the screenshot gate', async () => {
+    const other = join(project, '.design', 'ui', 'S.tsx');
+    writeFileSync(other, CANVAS);
+    const e = {
+      ...edit(project, 'sq', 'q1', 'Hi', 'Hello'),
+      tool_input: { file_path: other, old_string: 'Hi', new_string: 'Hello' },
+    };
+    await hook('prompt', { session_id: 'sq', cwd: project, prompt: 'q' });
+    await hook('pre-edit', e);
+    writeFileSync(other, CANVAS.replace('Hi', 'Hello'));
+    expect(await hook('post-edit', e)).toMatchObject({ status: 0, stdout: '' });
+    const line = `${JSON.stringify({ at: Date.now() + 60_000, canvas: 'ui/S.tsx', artboard: 'hero', all: true, session: 'sq' })}\n`;
+    mkdirSync(join(project, '.design', '_runs', 'sq'), { recursive: true });
+    writeFileSync(join(project, '.design', '_runs', 'sq', 'shots.jsonl'), line);
+    writeFileSync(join(project, '.design', '_runs', 'shots.jsonl'), line);
+    const stop = { session_id: 'sq', cwd: project, stop_hook_active: false };
+    const blocked = await hook('stop', stop);
+    expect(blocked.json?.decision).toBe('block');
+    expect(blocked.json.reason).toContain('ui/S.tsx › hero');
+    // a real capture lands in the hook state, outside the project, and passes
+    const rec = Bun.spawnSync(
+      ['bash', RECORD_SHOT, '--root', project, '--canvas', 'ui/S.tsx', '--artboard', 'hero'],
+      { env: { ...process.env, MAUDE_HOOK_SESSION: 'sq' } }
+    );
+    expect(rec.exitCode).toBe(0);
+    expect(existsSync(join(HOOK_STATE_HOME, rootIdentity(project), 'sq', 'shots.jsonl'))).toBe(
+      true
+    );
+    expect(await hook('stop', stop)).toMatchObject({ stdout: '' });
+    rmSync(join(project, '.design', '_runs', 'shots.jsonl'), { force: true });
+  });
 });
 
 describe('S5.4 — MAUDE_CHAT_ID binds a chat’s hooks to its run (V2-1.15 §5.4, H5)', () => {
@@ -1650,7 +1685,9 @@ describe('session-start + the screenshot record (§5.4 step 2 evidence)', () => 
     }
   });
 
-  test('_record-shot.sh appends {at, canvas, artboard, all, session}; no session → _runs/shots.jsonl', () => {
+  // #168 E3 — into the hook state outside the project (MAUDE_HOOK_STATE_HOME here), never _runs/
+  test('_record-shot.sh appends {at, canvas, artboard, all, session} to the hook state; no session → its root file', () => {
+    const state = join(HOOK_STATE_HOME, rootIdentity(project));
     const run = (args, env = {}) =>
       Bun.spawnSync(['bash', RECORD_SHOT, '--root', project, ...args], {
         env: { ...process.env, MAUDE_HOOK_SESSION: '', ...env },
@@ -1661,7 +1698,7 @@ describe('session-start + the screenshot record (§5.4 step 2 evidence)', () => 
         .exitCode
     ).toBe(0);
     expect(run(['--canvas', 'ui/C.tsx', '--all']).exitCode).toBe(0);
-    const mine = readFileSync(join(project, '.design', '_runs', 'sx', 'shots.jsonl'), 'utf8')
+    const mine = readFileSync(join(state, 'sx', 'shots.jsonl'), 'utf8')
       .trim()
       .split('\n')
       .map((l) => JSON.parse(l));
@@ -1673,13 +1710,24 @@ describe('session-start + the screenshot record (§5.4 step 2 evidence)', () => 
       session: 'sx',
     });
     expect(mine[0].at).toBeGreaterThanOrEqual(t0 - 1);
-    const loose = JSON.parse(
-      readFileSync(join(project, '.design', '_runs', 'shots.jsonl'), 'utf8').trim()
-    );
+    const loose = JSON.parse(readFileSync(join(state, 'shots.jsonl'), 'utf8').trim());
     expect(loose).toMatchObject({ canvas: 'ui/C.tsx', artboard: null, all: true, session: null });
+    // nothing lands in the project; files 0600 in 0700 folders
+    expect(existsSync(join(project, '.design', '_runs', 'shots.jsonl'))).toBe(false);
+    expect(existsSync(join(project, '.design', '_runs', 'sx'))).toBe(false);
+    expect(statSync(join(state, 'sx', 'shots.jsonl')).mode & 0o777).toBe(0o600);
+    expect(statSync(join(state, 'sx')).mode & 0o777).toBe(0o700);
     // a session id that is not a hook key is not used as a path
     expect(run(['--canvas', 'ui/C.tsx', '--all'], { MAUDE_HOOK_SESSION: '../x' }).exitCode).toBe(0);
     expect(existsSync(join(project, '.design', 'x'))).toBe(false);
+    expect(existsSync(join(HOOK_STATE_HOME, 'x'))).toBe(false);
+    // a symlink planted at the record is not followed
+    const victim = join(project, 'victim.txt');
+    writeFileSync(victim, '');
+    mkdirSync(join(state, 'sy'), { recursive: true });
+    symlinkSync(victim, join(state, 'sy', 'shots.jsonl'));
+    expect(run(['--canvas', 'ui/C.tsx', '--all'], { MAUDE_HOOK_SESSION: 'sy' }).exitCode).toBe(0);
+    expect(readFileSync(victim, 'utf8')).toBe('');
   });
 });
 
@@ -3036,5 +3084,104 @@ describe('#164 B1 — the manifest lives outside the project, and the settle fai
     } finally {
       rmSync(p, { recursive: true, force: true });
     }
+  });
+});
+
+// #168 E1 — the run base and the per-edit snapshots sit in the design root (the studio reads them), at
+// paths anyone can compute. A copy planted there, or rewritten by a process the hooks never saw (a sync
+// peer, a detached script), made the run's own errors read as pre-existing. Each one now counts only
+// when its sha256 matches the record the hook keeps OUTSIDE the project (hook-state.mjs); a recorded
+// base whose bytes changed is no base, and is never re-taken from the file.
+describe('#168 E1 — a base or snapshot counts only with its hash in the hook state', () => {
+  let project;
+  beforeAll(() => {
+    project = makeProject('maude-hook-168e1-');
+  });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+  const runIn = (s) => join(project, '.design', '_runs', s);
+  const baseAt = (s) =>
+    join(
+      runIn(s),
+      'base',
+      createHash('sha256').update('ui/C.tsx', 'utf8').digest('hex').slice(0, 16)
+    );
+  const stopOf = (s) => hook('stop', { session_id: s, cwd: project, stop_hook_active: false });
+  const edited = CANVAS.replace('<p>x</p>', '<p>y</p>');
+  const broken = edited.replace('id="pricing"', 'id="hero"');
+
+  test('a base rewritten to equal the broken file never makes its errors pre-existing', async () => {
+    writeFileSync(canvasPath(project), CANVAS);
+    const e = edit(project, 'e1a', 'x1', '<p>x</p>', '<p>y</p>');
+    await hook('pre-edit', e);
+    writeFileSync(canvasPath(project), edited);
+    expect(await hook('post-edit', e)).toMatchObject({ status: 0, stdout: '' });
+    expect(readFileSync(baseAt('e1a'), 'utf8')).toBe(CANVAS);
+    // broken out of the hooks' sight, and the base rewritten to match
+    writeFileSync(canvasPath(project), broken);
+    writeFileSync(baseAt('e1a'), broken);
+    // a later edit does not take the base again from the file
+    const e2 = edit(project, 'e1a', 'x2', 'Hi', 'Hey');
+    await hook('pre-edit', e2);
+    writeFileSync(canvasPath(project), broken.replace('Hi', 'Hey'));
+    await hook('post-edit', e2);
+    const r = await stopOf('e1a');
+    expect(r.json?.decision).toBe('block');
+    expect(r.json.reason).toContain('[artboard-duplicate]');
+  });
+
+  test('a base planted before the run first saw the file is not the base', async () => {
+    writeFileSync(canvasPath(project), CANVAS);
+    mkdirSync(join(runIn('e1b'), 'base'), { recursive: true });
+    writeFileSync(baseAt('e1b'), broken); // a synced or cloned project carries it
+    const e = edit(project, 'e1b', 'x3', '<p>x</p>', '<p>y</p>');
+    await hook('pre-edit', e);
+    writeFileSync(canvasPath(project), edited);
+    await hook('post-edit', e);
+    writeFileSync(canvasPath(project), broken);
+    const r = await stopOf('e1b');
+    expect(r.json?.decision).toBe('block');
+    expect(r.json.reason).toContain('[artboard-duplicate]');
+  });
+
+  test('a snapshot rewritten after pre-edit is no snapshot: the edit is judged whole', async () => {
+    writeFileSync(canvasPath(project), CANVAS);
+    const e = edit(project, 'e1c', 'x4', 'id="pricing"', 'id="hero"');
+    await hook('pre-edit', e);
+    writeFileSync(join(runIn('e1c'), 'snap', 'x4'), DUP); // planted equal to what the edit wrote
+    writeFileSync(canvasPath(project), DUP);
+    const r = await hook('post-edit', e);
+    expect(r.json?.decision).toBe('block');
+    expect(r.json.reason).toContain('artboard-duplicate');
+    writeFileSync(canvasPath(project), CANVAS);
+  });
+
+  test('the hook state holds each hash, never the canvas bytes; a passing Stop drops them', async () => {
+    writeFileSync(canvasPath(project), CANVAS);
+    const e = edit(project, 'e1d', 'x5', '<p>x</p>', '<p>y</p>');
+    await hook('pre-edit', e);
+    const dir = join(HOOK_STATE_HOME, rootIdentity(project), 'e1d', 'snaps');
+    const names = readdirSync(dir, { recursive: true }).filter((n) =>
+      statSync(join(dir, n)).isFile()
+    );
+    expect(names.length).toBe(2); // this edit's snapshot + the run base
+    for (const n of names) expect(readFileSync(join(dir, n), 'utf8')).not.toContain('DCArtboard');
+    writeFileSync(canvasPath(project), edited);
+    await hook('post-edit', e);
+    expect((await stopOf('e1d')).stdout).toBe('');
+    expect(existsSync(dir)).toBe(false);
+    writeFileSync(canvasPath(project), CANVAS);
+  });
+
+  // #168 E4 — `python3 w.py` whose file starts a detached process is a background call
+  test('#168 E4 — a script file that detaches leaves a background mark', async () => {
+    writeFileSync(
+      join(project, 'w.py'),
+      'import subprocess\nsubprocess.Popen(["python3", "x.py"], start_new_session=True)\n'
+    );
+    const input = bash(project, 'e4', 't4', 'python3 w.py');
+    await hook('pre-bash', input);
+    await hook('post-bash', input);
+    const mark = JSON.parse(readFileSync(join(runIn('e4'), 'bash', 't4.json'), 'utf8'));
+    expect(mark.bg).toBe(true);
   });
 });

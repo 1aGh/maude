@@ -16,6 +16,8 @@ export const FOLLOWS_PER_SECOND = 4;
 
 export const DANGLING_CANVAS = "That link goes to a canvas that isn't here any more.";
 export const DANGLING_ARTBOARD = "That link goes to an artboard that isn't here any more.";
+/** #168 F2: the one id every follow notice is raised under — a canvas picks when, so a repeat replaces it. */
+export const LINK_NOTICE_ID = 'canvas-link-follow';
 /** The entry a follow addresses: by element id, and by artboard when the id is on two artboards. */
 export function entryFor(links, elementId, artboardId) {
   const hits = (Array.isArray(links) ? links : []).filter((l) => l && l.id === elementId);
@@ -51,7 +53,7 @@ export function followPlan(entry) {
  *   zoomTo(artboard)       run `view.zoom-to-artboard` on the active canvas
  *   openCanvas(designRootRel, artboard)   open another canvas in this window and frame the artboard
  *   openTab(tabPath, artboard)            the same, for a tab path (going back)
- *   toast(text)
+ *   toast(text, id)        a canvas-triggered notice, always under LINK_NOTICE_ID
  *   external(url)          S3.10b: the trusted confirmation (external-link-confirm.jsx) — never an open
  *   history                preview-history.js
  *   nameOf(path)           the canvas display name for the back button
@@ -79,7 +81,7 @@ export function createLinkFollow(deps) {
       const plan = followPlan(entryFor(body?.links, msg.elementId, msg.artboardId ?? null));
       if (!plan) return null;
       if (plan.kind === 'toast') {
-        deps.toast(plan.text);
+        deps.toast(plan.text, LINK_NOTICE_ID);
         return plan;
       }
       if (plan.kind === 'external') {

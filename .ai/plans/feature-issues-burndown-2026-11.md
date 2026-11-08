@@ -119,7 +119,7 @@ W5 and W6 use Opus.
 - [x] T1.4 **#128 §10** (native-rust, Opus):
   - `install_name_tool -add_rpath @loader_path` on the staged `kg` in `sync-kg.mjs`, before codesign;
   - a `kg --version` smoke in `check-bundle-completeness.mjs`.
-- [ ] T1.5 **#155 §1, §2, §8, §9, §10 (small items):**
+- [x] T1.5 **#155 §1, §2, §8, §9, §10 (small items):**
   - the offline board uses `resolveArchiveAssets`;
   - skip hidden wrappers;
   - descend into SECTION and GROUP;
@@ -167,7 +167,7 @@ W5 and W6 use Opus.
   - why the `.ldm-hifi` components get no `data-cd-id` (stamping gap), and fix it;
   - D5 "Re-attach to element", with PATCH accepting the anchor;
   - a shared-cdId index survives edits, or is re-resolved.
-- [ ] T2.4 **#170, every item:**
+- [x] T2.4 **#170, every item:**
   - the Home `SHELL_NAVS` guard (Rust);
   - the comment card renders hidden until it is placed;
   - Inspector "+" gets the neutral grey and opens the picker;
@@ -180,9 +180,9 @@ W5 and W6 use Opus.
   - the docs save-mode line.
 - [ ] T2.4b **#170 leftovers:** R25 per D15; the toolbar popover under a shell toast (a new canvas→shell bridge message so the shell moves its toast stack — frame bridge, Opus); F35 panel padding reproduced on the Share and Version history panels (local cell + a project with history); R29 rest (islands growing out of their icon, Advanced folds snapping open); the Edit-video controls feel goes to Michal in the final report.
 - [x] T2.5b **#163 `/_api/ai/start`:** retire with 410 Gone on start/heartbeat/end for one release (keep `GET /_api/ai`); move the two-Mac e2e to `run/begin` with a `scope`; the ACL cell tests plant runs through a test-only registry seam that a `--release` build ignores (`release-build.ts` `IS_RELEASE_BUILD`); drop the unused `beginAction`/`endAction`; update comments, docs, What's New.
-- [ ] T2.5 **#163** (D1): implement each default, each with a test, plus the help, docs and What's New wording where it applies.
-- [ ] T2.6b **#172 rest:** ai-other-tab tab tooltip in fixed words ("<project> · AI is working on <canvas>" — `working_canvas` on the tab state from `scope.canvas`, strip `title`) and the "1 chat still running there · Show" toast (cross-tab event); desktop e2e specs for an-vote, co-mention-notify (cell), ve-footage, ia-more-ways (paste + video drop only) with their wdio lane confs, each run once alone; `ai-annotations.e2e.mjs` scenario for the `wrote` offer. Not planned (D13, Michal to OK in the final report): the hold tag with the ask's verb + element and the "Mobile — next" canvas ghost (both would put AI ask text on the untrusted canvas, against `v2-S5.11-neutral-ring-tags`); `dsWaitingText` device kind left (pinned). Separate Opus slice: `asset-origins.json` sync ("Added by Tereza").
-- [ ] T2.6 **#172** (D13):
+- [x] T2.5 **#163** (D1): implement each default, each with a test, plus the help, docs and What's New wording where it applies.
+- [x] T2.6b **#172 rest:** ai-other-tab tab tooltip in fixed words ("<project> · AI is working on <canvas>" — `working_canvas` on the tab state from `scope.canvas`, strip `title`) and the "1 chat still running there · Show" toast (cross-tab event); desktop e2e specs for an-vote, co-mention-notify (cell), ve-footage, ia-more-ways (paste + video drop only) with their wdio lane confs, each run once alone; `ai-annotations.e2e.mjs` scenario for the `wrote` offer. Not planned (D13, Michal to OK in the final report): the hold tag with the ask's verb + element and the "Mobile — next" canvas ghost (both would put AI ask text on the untrusted canvas, against `v2-S5.11-neutral-ring-tags`); `dsWaitingText` device kind left (pinned). Separate Opus slice: `asset-origins.json` sync ("Added by Tereza").
+- [x] T2.6 **#172** (D13):
   - write one spec line per state into the board's CONTRACT and build it: the Mobile-next ghost and step line; the hold tag with verb and element (`holdsFor`); "Put them in a section"; the ai-other-tab toast, tooltip and cf-busy; the ia-edges remainder, including `asset-origins.json` sync, which is a contract change and goes through the sync risk class; ds-make-filling;
   - drive the "not driven" scenarios as e2e.
 
@@ -258,7 +258,7 @@ W5 and W6 use Opus.
   - a per-subtree depth cap and tombstoned rows dropped;
   - the held-row button through the registry.
   - The hub changes stay v1-compatible.
-- [ ] T5.4 **#168, the rest:**
+- [x] T5.4 **#168, the rest:**
   - command-gate evidence is signed or recomputed, not self-asserted;
   - recovery writes and `_history` symlink checks, plus the overlap-check cost;
   - hook state outside the design root (the run-base hashes), the element label in the id key, `shots.jsonl`, scripts run from a file;
@@ -377,3 +377,7 @@ W5 and W6 use Opus.
 - 2026-11-08 #164 re-review: no medium left; lows N1 (double-loaded plugin empty settle), N2 (lane-level claim tagging), N3 (board saves not noted as person), N4 (guide's undo --chat too broad) → fix slice.
 - 2026-11-08 merged #164 lows N1–N4 (00e76ceba 07c2e38c6 2dfa51f8b 2a17f73b1) and the PNG allowlist trim dc2429b2e. #164 (T5.1) done: security pair re-review clean.
 - 2026-11-08 merged T6.3a 3c8b59e7f (single-writer _server.json, GET /_api/shell/attest HMAC, CLI step-down watcher, storeMode; MAUDE_APP_REGISTRY_FILE override). Lead fix: unsynced-refs classified in hub manifest + ACL classes (was red on main).
+- 2026-11-08 merged #168 S1 (f91e9abc4 103fc16b1 acee5a328 1fa796f63): canvas listener refuses service workers, recovery writes refuse symlinked paths, local-kernel seen sweep (head==entry==disk, idle), id-finding key covers the element. CLAUDE.md updated (SW sentence, gap measurement).
+- 2026-11-08 merged #168 S2 (634f74bc6 4dab71489): gate evidence HMAC under a per-machine key (committed v2 gate records read stale until re-recorded); snapshots/bases verified against hook-state records; shots.jsonl in hook state; script files read for detaching. Follow-up patches → small slice.
+- 2026-11-08 merged #168 S3+S4 (a7bacb08b … 9265ce18d: 7 canvas→shell message fixes incl. copy-canvas-path, Image (I) via a shell chip (one extra click — Michal to confirm), drag token not path, tab stacking test; G2 mine-stamp, G3 Recent colours by project identity (lead http.ts patch, after role checks), G4 ds-check roles; ux-patterns exempt by ID). G1 lead decision: keep the account-name fallback (B). S2 follow-ups 4d3c72e3a. Boot check OK. #168 (T5.4) done.
+- 2026-11-08 merged T6.3c ac1c53d99 (cli.sock peer-uid checked, verbs ensure/status/show/lease/release/restart, native consent sheet per option A, Not now per run, leases keep tabs busy, Settings › General › Terminal switch). Left → T6.3e/f: worktree tab label/profile/not-in-session, lease→registry busy, branch mismatch, show element/mode routing, e2e debug answer for the native sheet.

@@ -24,13 +24,16 @@
 //
 // State per Claude Code session in <designRoot>/_runs/<session>/ (runtime, DDR-115):
 //   snap/<tool_use_id>       bytes before that edit (`.new` marker: the file did not exist)
-//   base/<sha(path)>         bytes before the run first touched the file (stop-tier `against`);
-//                            `.bash`: an AI shell call wrote it first — no base, Stop checks it whole
+//   base/<sha(path)>         bytes before the run first touched the file (stop-tier `against`)
+//                            #168 E1: each counts only while it hashes to its record in the hook
+//                            state outside the project (hook-state.mjs `<session>/snaps/`), where
+//                            the `.bash` mark also lives: an AI shell call wrote the file first — no
+//                            base, Stop checks it whole
 // Only the hooks write base/, snap/, bash/, touched.json and stop-last* — main agent included (D1).
 //   touched.json             files this run changed ({at, by, via, artboards}: artboards the
 //                            studio mapped the edits to; null = unknown → any capture of the canvas)
-//   shots.jsonl              captures `maude design screenshot` made under this session (Stop's
-//                            screenshot gate; <designRoot>/_runs/shots.jsonl when no session is known)
+// Stop's screenshot gate reads the captures `maude design screenshot` made under this session from
+// the hook state only (#168 E3: `<session>/shots.jsonl`, or the root's when no session is known).
 //   bash/<tool_use_id>.json  a write verb's start ({at, snaps}) — post-bash binds what changed since;
 //                            a call that leaves a process running ({bg, by, seen}) keeps it until
 //                            the run ends, and every Stop binds what changed since `seen`
@@ -81,10 +84,14 @@ import { sessionRoot } from './confine-root.mjs';
 import { cleanFinding, cleanText, fileText, findingLine } from './finding-text.mjs';
 import {
   bashStatePath,
+  dropRunState,
   lanesCachePath,
   pruneStates,
   readState,
   removeState,
+  shotsPath,
+  snapshotRecordPath,
+  writePrivateCopy,
   writeState,
 } from './hook-state.mjs';
 import { DESIGN_REL, findProjectRoot, locateStudio, postStudio } from './studio-locate.mjs';
@@ -657,7 +664,7 @@ async function sessionStart(ctx) {
         `export MAUDE_HOOK_SESSION=${ctx.session}\nexport MAUDE_SESSION_ROOT=${q}\n`
       );
     } catch {
-      /* no env file: captures go to _runs/shots.jsonl */
+      /* no env file: captures go to the root's session-less record */
     }
   }
   const lines = [];
@@ -813,21 +820,54 @@ function targetOf(ctx, input) {
 const snapRel = (ctx, toolUseId) => `_runs/${ctx.session}/snap/${toolUseId}`;
 const baseRel = (ctx, rel) => `_runs/${ctx.session}/base/${sha(rel).slice(0, 16)}`;
 
-/** Save `cur` (or the "did not exist" marker) at `rel` under designRoot. */
-function saveSnapshot(ctx, rel, cur) {
-  const abs = join(ctx.designRoot, rel);
-  if (cur === null) writeAt(`${abs}.new`, '');
-  else writeAt(abs, cur);
+/** `_runs/<session>/{snap|base}/<name>` → its hash record in the hook state, or null. */
+const SNAP_REL_RE = /^_runs\/([A-Za-z0-9_-]{1,128})\/(snap|base)\/([^/]+)$/;
+function snapRecord(ctx, rel) {
+  const m = SNAP_REL_RE.exec(rel);
+  return m ? snapshotRecordPath(ctx.root, m[1], m[2], m[3]) : null;
 }
+
+/**
+ * Save `cur` (or the "did not exist" marker) at `rel` under designRoot — the studio reads it there —
+ * and its sha256 in the hook state outside the project (#168 E1): `loadSnapshot` trusts the bytes
+ * only while they hash to that record. No record (an unsafe name, a failed write) = no snapshot.
+ */
+function saveSnapshot(ctx, rel, cur) {
+  const rec = snapRecord(ctx, rel);
+  if (!rec) return;
+  const abs = join(ctx.designRoot, rel);
+  try {
+    if (cur === null) writeAt(`${abs}.new`, '');
+    else writeAt(abs, cur);
+    writeState(
+      rec,
+      cur === null ? { v: 1, existed: false } : { v: 1, existed: true, sha: sha(cur) }
+    );
+  } catch {
+    removeState(rec);
+  }
+}
+const verifiedCopy = (ctx, content) => writePrivateCopy(ctx.root, ctx.session, content);
+/** Has the hook recorded a snapshot (or a shell mark) at `rel` — whatever its bytes now hold? */
+const snapshotRecorded = (ctx, rel) => {
+  const rec = snapRecord(ctx, rel);
+  return rec !== null && readState(rec) !== null;
+};
 /**
  * p8-secfix-hook F4 — the run base is the file as it was before the run first wrote it. A shell
  * call the hook can't read (a python heredoc, `nohup … &`) writes without a snapshot, so the next
  * edit's first sight of the file would be AFTER that write and every finding the shell call planted
- * would read as "pre-existing". Such a file gets a `.bash` marker instead of a base: no base is
+ * would read as "pre-existing". Such a file gets a `.bash` mark instead of a base: no base is
  * ever saved for it in this run, and Stop checks it with none (every finding counts as the run's).
+ * #168 E1: the mark is a hook-state record (outside the project), so removing a file in the run
+ * folder never lets a base be taken after the shell write.
  */
-const shellMarkAbs = (ctx, rel) => join(ctx.designRoot, `${baseRel(ctx, rel)}.bash`);
-const shellWrote = (ctx, rel) => existsSync(shellMarkAbs(ctx, rel));
+const shellMarkRel = (ctx, rel) => `${baseRel(ctx, rel)}.bash`;
+const shellWrote = (ctx, rel) => snapshotRecorded(ctx, shellMarkRel(ctx, rel));
+function writeShellMark(ctx, rel) {
+  const rec = snapRecord(ctx, shellMarkRel(ctx, rel));
+  if (rec) writeState(rec, { v: 1, shell: true });
+}
 
 /**
  * p8-secfix-hook-2 N1 — when this turn began (`turn.json`, written by the prompt hook), or null
@@ -869,27 +909,37 @@ function shellMayHaveWritten(ctx, rel) {
   });
 }
 
-/** Save the run's base of `rel` (= `cur`) unless it has one, or a shell call wrote it first. */
+/**
+ * Save the run's base of `rel` (= `cur`) unless it has one, or a shell call wrote it first. A base
+ * the hook recorded counts as had even when its bytes were changed since (#168 E1): it is never
+ * re-taken from the file, and Stop then checks the file with no base.
+ */
 function ensureBase(ctx, rel, cur) {
   const base = baseRel(ctx, rel);
-  if (loadSnapshot(ctx, base) || shellWrote(ctx, rel)) return;
-  if (shellMayHaveWritten(ctx, rel)) writeAt(shellMarkAbs(ctx, rel), '');
+  if (snapshotRecorded(ctx, base) || shellWrote(ctx, rel)) return;
+  if (shellMayHaveWritten(ctx, rel)) writeShellMark(ctx, rel);
   else saveSnapshot(ctx, base, cur);
 }
 
 /** A shell call wrote `rel` before the run had a base of it: mark it (see ensureBase). */
 function markShellWrite(ctx, rel) {
-  if (!loadSnapshot(ctx, baseRel(ctx, rel)) && !shellWrote(ctx, rel))
-    writeAt(shellMarkAbs(ctx, rel), '');
+  if (!snapshotRecorded(ctx, baseRel(ctx, rel)) && !shellWrote(ctx, rel)) writeShellMark(ctx, rel);
 }
 
-/** { existed, content } of a saved snapshot, or null when there is none. */
+/**
+ * { existed, content, rel, sha } of a saved snapshot, or null when there is none. #168 E1: only one
+ * the hook recorded, whose bytes still hash to the record — a copy planted in the run folder, or one
+ * rewritten since, is no snapshot.
+ */
 function loadSnapshot(ctx, rel) {
-  const abs = join(ctx.designRoot, rel);
-  const content = readOr(abs);
-  if (content !== null) return { existed: true, content, rel };
-  if (existsSync(`${abs}.new`)) return { existed: false, content: null, rel };
-  return null;
+  const rec = snapRecord(ctx, rel);
+  const r = rec ? readState(rec) : null;
+  if (r?.v !== 1) return null;
+  if (r.existed === false) return { existed: false, content: null, rel };
+  if (r.existed !== true || typeof r.sha !== 'string') return null;
+  const content = readOr(join(ctx.designRoot, rel));
+  if (content === null || sha(content) !== r.sha) return null;
+  return { existed: true, content, rel, sha: r.sha };
 }
 
 /**
@@ -910,7 +960,8 @@ async function check(ctx, studio, rel, tier, snapshot, self) {
         tier,
         strict: true,
         introduced: true,
-        ...(snapshot?.existed ? { snapshot: snapshot.rel } : {}),
+        // #168 E1: the hash the hook verified, so the studio can refuse bytes changed since
+        ...(snapshot?.existed ? { snapshot: snapshot.rel, snapshotSha: snapshot.sha } : {}),
       },
       { timeoutMs: 900 }
     );
@@ -932,12 +983,21 @@ async function check(ctx, studio, rel, tier, snapshot, self) {
     '--root',
     ctx.root,
   ];
-  if (snapshot?.existed) args.push('--against', join(ctx.designRoot, snapshot.rel));
-  const p = spawnSync(self[0], [...self.slice(1), 'design', 'check', ...args], {
-    encoding: 'utf8',
-    timeout: tier === 'stop' ? 20000 : 1200,
-    env: { ...process.env, MAUDE_NO_UPDATE_CHECK: '1' },
-  });
+  // #168 E1: the local check reads the bytes the hook verified, from the hook state — not the run
+  // folder copy, which could change between the hash check and the read
+  const against = snapshot?.existed ? verifiedCopy(ctx, snapshot.content) : null;
+  if (against) args.push('--against', against);
+  else if (snapshot?.existed) return null; // could not hold the verified bytes: fail open
+  let p;
+  try {
+    p = spawnSync(self[0], [...self.slice(1), 'design', 'check', ...args], {
+      encoding: 'utf8',
+      timeout: tier === 'stop' ? 20000 : 1200,
+      env: { ...process.env, MAUDE_NO_UPDATE_CHECK: '1' },
+    });
+  } finally {
+    if (against) removeState(against);
+  }
   try {
     const results = JSON.parse(p.stdout);
     const errors = results.flatMap((x) => x.errors ?? []);
@@ -1160,11 +1220,15 @@ function recordTouch(ctx, rel, { by, via, artboards, at = Date.now() }) {
   writeAt(p, JSON.stringify(touched));
 }
 
-/** Captures of `rel` at or after `since`: this session's shots, plus session-less ones. */
+/**
+ * Captures of `rel` at or after `since`: this session's shots, plus session-less ones. #168 E3: read
+ * only from the hook state outside the project (`_record-shot.sh` writes there); a shots.jsonl in
+ * the run folder is never evidence.
+ */
 function shotsOf(ctx, rel, since) {
   const out = [];
-  for (const p of [join(ctx.run, 'shots.jsonl'), join(ctx.designRoot, '_runs', 'shots.jsonl')]) {
-    const text = readOr(p);
+  for (const p of [shotsPath(ctx.root, ctx.session), shotsPath(ctx.root, null)]) {
+    const text = p ? readOr(p) : null;
     if (!text) continue;
     for (const line of text.split('\n')) {
       try {
@@ -1402,7 +1466,9 @@ async function preBash(ctx, input) {
   // p8-secfix-hook F2 — a call that leaves a process running (`nohup … &`, `run_in_background`)
   // keeps its mark until the turn ends: Stop binds what that process wrote after the call returned
   const bg =
-    input.tool_input?.run_in_background === true || bashBackgrounds(command, { unparsed: false })
+    input.tool_input?.run_in_background === true ||
+    // #168 E4: a script file the call runs (inside the project) is read for detaching too
+    bashBackgrounds(command, { unparsed: false, cwd: ctx.cwd, root: ctx.root })
       ? { bg: true, by: input.agent_type ?? 'main' }
       : {};
   // p8-a1-claims — `interp`: something in the call writes without claiming (no table: assume so).
@@ -1978,6 +2044,7 @@ async function stop(ctx, input, self) {
       { timeoutMs: 600 }
     );
   rmSync(ctx.run, { recursive: true, force: true });
+  dropRunState(ctx.root, ctx.session); // #168 E1/E3: its snapshot hashes and screenshot record
   return null;
 }
 

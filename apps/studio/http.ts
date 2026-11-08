@@ -312,7 +312,13 @@ import { workspaceDisclosure } from './sync/workspace-signin.ts';
 import { thumbNotFound, thumbResponse, wantResponse } from './thumbs/routes.ts';
 import { BOOT_COVERS_DELAY_MS, createThumbService } from './thumbs/service.ts';
 import { normalizeTreeState } from './tree-state.ts';
-import { readUiPrefs, validateUiPrefsPatch, writeUiPrefs } from './ui-prefs.ts';
+import {
+  readUiPrefs,
+  scopeRecentColoursRead,
+  scopeRecentColoursWrite,
+  validateUiPrefsPatch,
+  writeUiPrefs,
+} from './ui-prefs.ts';
 import { persistCloudTranscript } from './video/provider-transcript.ts';
 import { loadWhatsNew, resolveMaudeVersion } from './whats-new.ts';
 import { isWorkspaceMode, resolveRenderLane } from './workspace-mode.ts';
@@ -2534,7 +2540,12 @@ export function createHttp(
     },
     // S11.11 — POST /_api/sync/resync (routes/sync.ts), moved from the legacy literal.
     // gate-b-sec4 — GET /_api/sync/link + POST /_api/sync/link/confirm: the parked committed link.
-    sync: { control: () => ctx.syncControl, trace: resyncTrace, link: createLinkGate(ctx), designRoot: ctx.paths.designRoot },
+    sync: {
+      control: () => ctx.syncControl,
+      trace: resyncTrace,
+      link: createLinkGate(ctx),
+      designRoot: ctx.paths.designRoot,
+    },
     // S11.13 — Settings › Advanced reads: the decision-memory count and the bundled plugin versions.
     settings: { repoRoot: ctx.paths.repoRoot },
     // S5.7 — the chat store's search / trash / resume-session routes (routes/chat.ts).
@@ -6829,6 +6840,7 @@ export function createHttp(
         const prefs = readUiPrefs() as Record<string, unknown>;
         // V2-8.9 r2 F4 — a cell's one prefs.json is every member's: no shared Recent colours
         if (isWorkspaceMode()) delete prefs.recentColours;
+        else scopeRecentColoursRead(prefs, rootIdentity(ctx.paths.repoRoot));
         return Response.json(prefs, { headers: { 'Cache-Control': 'no-store' } });
       }
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
@@ -6862,6 +6874,9 @@ export function createHttp(
           { error: 'recent-colours-cell', message: 'Recent colours are not saved in Maude Cloud.' },
           { status: 403, headers: { 'Cache-Control': 'no-store' } }
         );
+      // #168 G3 — Recent colours are keyed by this project's own identity, never a name the client sends
+      const scoped = scopeRecentColoursWrite(patch, rootIdentity(ctx.paths.repoRoot));
+      if (scoped) return new Response(scoped, { status: 400 });
       try {
         return Response.json(writeUiPrefs(patch), { headers: { 'Cache-Control': 'no-store' } });
       } catch (err) {

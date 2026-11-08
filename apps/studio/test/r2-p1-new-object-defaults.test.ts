@@ -212,4 +212,26 @@ describe('ds-check does not flag the fallback behind a role token', () => {
     expect(s1.every((f) => f.severity === 'blocker')).toBe(true);
     expect(r.state).not.toBe('switchable');
   });
+
+  // #168 G4 — the same force at runtime: `el.style.setProperty('--bg-3', 'initial')` declares the role with no style
+  // key in the source, so the fallback was still exempt. A static sniff of the call (any quote) drops it.
+  test('a role set at runtime with setProperty loses the exemption too', () => {
+    for (const q of ["'", '"', '`']) {
+      const r = check(
+        `runtime${q.charCodeAt(0)}`,
+        `export default () => (<div ref={(el) => el?.style.setProperty(${q}--bg-3${q}, 'initial')}>\n  <p style={{ background: 'var(--bg-3, #ff00ff)' }} />\n  <p style={{ color: 'var(--fg-1, #111111)' }} />\n</div>);\n`
+      );
+      const s1 = r.findings.filter((f) => f.rule === 'S1').map((f) => f.name);
+      expect([q, s1]).toEqual([q, ['#ff00ff']]);
+      expect(r.state).not.toBe('switchable');
+    }
+  });
+
+  test('setProperty of a name that is not a role keeps the exemption', () => {
+    const r = check(
+      'runtime-other',
+      "export default () => (<div ref={(el) => el?.style.setProperty('--my-thing', 'red')}>\n  <p style={{ background: 'var(--bg-3, #ff00ff)' }} />\n</div>);\n"
+    );
+    expect(r.findings.filter((f) => f.rule === 'S1')).toEqual([]);
+  });
 });

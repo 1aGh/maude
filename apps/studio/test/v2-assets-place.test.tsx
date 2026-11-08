@@ -8,7 +8,7 @@ import { createRoot, type Root } from 'react-dom/client';
 
 import { runAssetsAction } from '../client/v2/assets/assets-bus.js';
 import { ASSET_DRAG_MIME } from '../client/v2/assets/tile-drag.js';
-import { parseAssetDrag } from '../editing/asset-drag.ts';
+import { assetDragSession } from '../client/v2/assets/asset-drop-session.js';
 
 const realFetch = globalThis.fetch;
 let calls: Array<{ url: string; body?: unknown }> = [];
@@ -85,7 +85,9 @@ describe('Assets tab — drag and ↵ (S2.15)', () => {
     await act(async () => {
       pic?.dispatchEvent(ev);
     });
-    expect(parseAssetDrag(data.get(ASSET_DRAG_MIME))?.asset).toBe('assets/aa11bb22.jpg');
+    // #168 F6 — the session carries the path; the drag data only the opaque token
+    expect(assetDragSession.current()?.asset).toBe('assets/aa11bb22.jpg');
+    expect(data.get(ASSET_DRAG_MIME)).toBe(assetDragSession.token() ?? 'none');
   });
 
   test('↵ on a picture tile places it on the selected artboard: one edit-op, one undo record', async () => {

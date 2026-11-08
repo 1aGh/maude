@@ -595,6 +595,7 @@ describe('the Settings sheet, rendered per shell', () => {
   afterEach(async () => {
     for (const r of roots.splice(0)) await act(async () => r.unmount());
     document.body.innerHTML = '';
+    (window as unknown as { __TAURI__?: unknown }).__TAURI__ = undefined;
   });
 
   async function mountFor(id: string) {
@@ -602,6 +603,10 @@ describe('the Settings sheet, rendered per shell', () => {
     const cloud = by.cloudRole
       ? { role: by.cloudRole, dashboardUrl: 'https://cloud.example/dashboard' }
       : null;
+    // The desktop shell IS the Tauri app: its native-only rows (#206 the terminal switch) read a pref.
+    const w = window as unknown as { __TAURI__?: unknown };
+    if (by.native) w.__TAURI__ = { core: { invoke: async () => null } };
+    else w.__TAURI__ = undefined;
     const host = document.createElement('div');
     document.body.append(host);
     const root = createRoot(host);

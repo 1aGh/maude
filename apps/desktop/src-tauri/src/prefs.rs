@@ -32,11 +32,16 @@ pub struct Prefs {
     /// is that it must be reachable without ever opening a terminal.
     #[serde(default = "default_true")]
     pub claude_auto_setup: bool,
+    /// #206 (DDR-250, option A) — Settings › General "Let the terminal open projects in Maude".
+    /// DEFAULT ON. Off: a terminal design run never opens a folder in Maude (`cli_channel.rs`); it
+    /// uses its own hidden server. A tab that is already open still answers.
+    #[serde(default = "default_true")]
+    pub terminal_opens: bool,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { crash_reporting: false, claude_auto_setup: true }
+        Prefs { crash_reporting: false, claude_auto_setup: true, terminal_opens: true }
     }
 }
 
@@ -108,4 +113,40 @@ pub fn prefs_set_claude_auto_setup(
     pr.claude_auto_setup = enabled;
     save(&app, &pr);
     Ok(())
+}
+
+#[tauri::command]
+pub fn prefs_get_terminal_opens(app: tauri::AppHandle, webview: tauri::Webview) -> Result<bool, String> {
+    crate::windows::caller_project(&webview, false)?;
+    Ok(load(&app).terminal_opens)
+}
+
+#[tauri::command]
+pub fn prefs_set_terminal_opens(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    enabled: bool,
+) -> Result<(), String> {
+    crate::windows::caller_project(&webview, false)?;
+    let mut pr = load(&app);
+    pr.terminal_opens = enabled;
+    save(&app, &pr);
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// #206: a prefs.json written before the switch existed reads as ON (the default), and an
+    /// explicit off survives a round trip.
+    #[test]
+    fn terminal_opens_defaults_on_and_round_trips_off() {
+        let old: Prefs = serde_json::from_str(r#"{"crash_reporting":false,"claude_auto_setup":true}"#).unwrap();
+        assert!(old.terminal_opens);
+        assert!(Prefs::default().terminal_opens);
+        let p = Prefs { terminal_opens: false, ..Prefs::default() };
+        let back: Prefs = serde_json::from_str(&serde_json::to_string(&p).unwrap()).unwrap();
+        assert!(!back.terminal_opens);
+    }
 }

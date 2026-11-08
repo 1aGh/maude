@@ -2,7 +2,7 @@
 //
 // The released design plugin keeps no decision log. Its evidence is (a) the run folder it writes per
 // Claude Code session, `<designRoot>/_runs/<session>/` (cli/lib/design-hook.mjs header: touched.json,
-// stop-last*.json, shots.jsonl, base/<sha(path)>, agents.json), (b) what the model saw — a denied tool
+// stop-last*.json, base/<sha(path)>, agents.json; the shots.jsonl lives in the hook state, #168 E3), (b) what the model saw — a denied tool
 // call comes back as an error tool_result that starts with the reason code — and (c) the live
 // registry the trial's studio answers (`maude design runs list --json`, lib/trial.mjs). Pure fs +
 // text: no studio, no model.
@@ -10,6 +10,19 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+
+import { shotsPath } from '../../../../../cli/lib/hook-state.mjs';
+
+const readShots = (file) => {
+  try {
+    return readFileSync(file, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((l) => JSON.parse(l));
+  } catch {
+    return [];
+  }
+};
 
 /** The reason codes the design hook and the studio's edit/check put first in a refusal. */
 export const DENY_CODES = [
@@ -43,25 +56,26 @@ const readJson = (p, dflt = null) => {
  * folder while the run is alive (`lib/trial.mjs` `snapshotRuns`, into `<trial>/runlog/<session>/`); this reads
  * the archive and the project's own folders (the project's wins: a crashed run leaves its folder behind).
  */
-export function readRunState(project, runlog = null) {
+export function readRunState(project, runlog = null, env = process.env) {
   const dirs = new Map();
+  const archived = new Set();
   for (const root of [runlog, join(project, '.design', '_runs')]) {
     if (!root || !existsSync(root)) continue;
     for (const name of readdirSync(root)) {
       const p = join(root, name);
-      if (name !== 'sessions' && statSync(p).isDirectory()) dirs.set(name, p);
+      if (name === 'sessions' || !statSync(p).isDirectory()) continue;
+      dirs.set(name, p);
+      if (root === runlog) archived.add(name);
+      else archived.delete(name);
     }
   }
   const out = { sessions: [] };
   for (const [name, p] of dirs) {
     const stop = readdirSync(p).filter((f) => /^stop-last(\..+)?\.json$/.test(f));
-    let shots = [];
-    try {
-      shots = readFileSync(join(p, 'shots.jsonl'), 'utf8')
-        .split('\n')
-        .filter(Boolean)
-        .map((l) => JSON.parse(l));
-    } catch {}
+    // #168 E3: captures are recorded in the hook state outside the project (a `shots.jsonl` in the
+    // project is never evidence); the harness's archive copy (`snapshotRuns`) covers a finished run.
+    const shots = readShots(shotsPath(project, name, env));
+    if (!shots.length && archived.has(name)) shots.push(...readShots(join(p, 'shots.jsonl')));
     out.sessions.push({
       name,
       touched: readJson(join(p, 'touched.json'), {}),

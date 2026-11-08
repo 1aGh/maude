@@ -4,12 +4,15 @@
 #
 #   _record-shot.sh --root <repo> --canvas <rel> [--artboard <id> | --all]
 #
-# Appends {at, canvas, artboard, all, session} (one JSON line) to
-#   <repo>/.design/_runs/<MAUDE_HOOK_SESSION>/shots.jsonl   when the hook session is known
+# Appends {at, canvas, artboard, all, session} (one JSON line) to the design hooks' state OUTSIDE the
+# project (#168 E3; cli/lib/hook-state.mjs) — a shots.jsonl in the project is never evidence:
+#   <state>/<MAUDE_HOOK_SESSION>/shots.jsonl   when the hook session is known
 #     (the SessionStart hook exports it to Bash through CLAUDE_ENV_FILE)
-#   <repo>/.design/_runs/shots.jsonl                        otherwise
-# Stop counts a capture newer than an artboard's last edit; `--all` (a --full / --all-screens
-# capture) counts for every artboard of the canvas. Runtime state (DDR-115).
+#   <state>/shots.jsonl                        otherwise
+# where <state> = ${MAUDE_HOOK_STATE_HOME:-~/.claude/maude-hook}/<rootIdentity(repo)> (the first 12
+# hex of sha256 over the repo's resolved path, as studio-locate.mjs `rootIdentity`). Folders 0700,
+# file 0600; a symlink at the record is never followed. Stop counts a capture newer than an
+# artboard's last edit; `--all` (a --full / --all-screens capture) counts for every artboard.
 #
 # Best effort and silent: any problem → exit 0 without writing (a capture never fails for it).
 set -u
@@ -38,12 +41,29 @@ case "$CANVAS" in
   /* | *..* | "") exit 0 ;;
 esac
 
+# the hook state folder of this project: rootIdentity = sha256(realpath(repo))[:12]
+STATE_HOME="${MAUDE_HOOK_STATE_HOME:-}"
+if [ -z "$STATE_HOME" ]; then
+  [ -n "${HOME:-}" ] || exit 0
+  STATE_HOME="$HOME/.claude/maude-hook"
+fi
+REAL=$(cd "$ROOT" 2>/dev/null && pwd -P) || exit 0
+if command -v shasum >/dev/null 2>&1; then
+  ID=$(printf '%s' "$REAL" | shasum -a 256 2>/dev/null | cut -c1-12)
+elif command -v sha256sum >/dev/null 2>&1; then
+  ID=$(printf '%s' "$REAL" | sha256sum 2>/dev/null | cut -c1-12)
+else
+  exit 0
+fi
+printf '%s' "$ID" | grep -Eq '^[0-9a-f]{12}$' || exit 0
+STATE="$STATE_HOME/$ID"
+
 SESSION="${MAUDE_HOOK_SESSION:-}"
 if printf '%s' "$SESSION" | grep -Eq '^[A-Za-z0-9_-]{1,128}$'; then
-  DIR="$DESIGN/_runs/$SESSION"
+  DIR="$STATE/$SESSION"
   SESSION_JSON="\"$SESSION\""
 else
-  DIR="$DESIGN/_runs"
+  DIR="$STATE"
   SESSION_JSON=null
 fi
 
@@ -59,7 +79,12 @@ esac
 esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | tr -d '\000-\037'; }
 if [ -n "$ARTBOARD" ]; then ART_JSON="\"$(esc "$ARTBOARD")\""; else ART_JSON=null; fi
 
+umask 077
 mkdir -p "$DIR" 2>/dev/null || exit 0
+chmod 700 "$STATE_HOME" "$STATE" "$DIR" 2>/dev/null
+FILE="$DIR/shots.jsonl"
+[ -L "$FILE" ] && exit 0
+[ -e "$FILE" ] && [ ! -f "$FILE" ] && exit 0
 printf '{"at":%s,"canvas":"%s","artboard":%s,"all":%s,"session":%s}\n' \
-  "$AT" "$(esc "$CANVAS")" "$ART_JSON" "$ALL" "$SESSION_JSON" >>"$DIR/shots.jsonl" 2>/dev/null
+  "$AT" "$(esc "$CANVAS")" "$ART_JSON" "$ALL" "$SESSION_JSON" >>"$FILE" 2>/dev/null
 exit 0

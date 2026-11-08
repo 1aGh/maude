@@ -13,10 +13,11 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { shotsPath } from '../../../../../cli/lib/hook-state.mjs';
 import { stubClaudeEnv } from '../../../../../scripts/lib/stub-claude.mjs';
 import {
   CLI,
@@ -179,10 +180,10 @@ export async function stopStudio(project) {
 /**
  * Copy every run folder of the project (`.design/_runs/<session>/`, minus the per-edit `snap/` copies) to
  * `dest`. The released Stop hook deletes the folder when the run ends, so this is the only way its
- * `touched.json`, `base/`, `stop-last*.json` and `shots.jsonl` outlive the trial. Best effort: a file
+ * `touched.json`, `base/`, `stop-last*.json` and the capture record (kept in the hook state) outlive the trial. Best effort: a file
  * caught mid-write is skipped.
  */
-export function snapshotRuns(project, dest) {
+export function snapshotRuns(project, dest, env = process.env) {
   const root = join(project, '.design', '_runs');
   if (!existsSync(root)) return;
   for (const name of readdirSync(root)) {
@@ -191,8 +192,17 @@ export function snapshotRuns(project, dest) {
       cpSync(join(root, name), join(dest, name), {
         recursive: true,
         force: true,
-        filter: (src) => !/[\\/]snap([\\/]|$)/.test(src),
+        // a `shots.jsonl` in the project is never evidence (#168 E3): the record is the hook state's
+        filter: (src) => !/[\\/]snap([\\/]|$)/.test(src) && !/[\\/]shots\.jsonl$/.test(src),
       });
+    } catch {}
+    // the capture record lives outside the project (#168 E3) and goes with the Stop hook: keep a copy
+    try {
+      const from = shotsPath(project, name, env);
+      if (from && existsSync(from)) {
+        mkdirSync(join(dest, name), { recursive: true });
+        copyFileSync(from, join(dest, name, 'shots.jsonl'));
+      }
     } catch {}
   }
 }

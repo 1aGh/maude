@@ -817,3 +817,60 @@ test('#12 not-a-writer: a throwaway .design copy outside the project is free; th
   ])
     assert.equal(code(cmd), 'not-a-writer', cmd);
 });
+
+// #168 E4 — a script run from a FILE (`python3 w.py`, `bash run.sh`, `./run.sh`, `. env.sh`) was never
+// read for detaching, so `python3 w.py` whose text starts a detached process left no background mark.
+// Given the call's cwd and project root, the named file (inside the root, size-capped) is read as an
+// inline script is; a file outside the root, missing or too big is not read.
+test('E4 bashBackgrounds reads a script file the call runs (inside the root, capped)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'bg-script-'));
+  const outside = mkdtempSync(join(tmpdir(), 'bg-outside-'));
+  try {
+    mkdirSync(join(root, 'tools'));
+    writeFileSync(
+      join(root, 'w.py'),
+      'import subprocess\nsubprocess.Popen(["node", "x.js"], start_new_session=True)\n'
+    );
+    writeFileSync(
+      join(root, 'w.mjs'),
+      'import { spawn } from "node:child_process";\nspawn("x", { detached: true }).unref();\n'
+    );
+    writeFileSync(join(root, 'run.sh'), '#!/bin/sh\nnohup python3 other.py > /dev/null 2>&1 &\n');
+    writeFileSync(join(root, 'tools', 'go'), '#!/usr/bin/env bash\nsetsid node x.js\n');
+    writeFileSync(join(root, 'plain.py'), 'print("hello")\n');
+    writeFileSync(join(root, 'plain.sh'), 'echo hi\n');
+    writeFileSync(join(root, 'big.py'), `${'#'.repeat(300_000)}\nsubprocess.Popen(["x"])\n`);
+    writeFileSync(join(outside, 'w.py'), 'subprocess.Popen(["x"])\n');
+    const opts = { unparsed: false, cwd: root, root };
+    for (const cmd of [
+      'python3 w.py',
+      'python3 -u w.py --flag',
+      'node w.mjs',
+      'bash run.sh',
+      'sh ./run.sh',
+      './run.sh',
+      'source run.sh',
+      '. ./run.sh',
+      'tools/go',
+      `python3 ${join(root, 'w.py')}`,
+      'cd tools && cd .. && python3 w.py',
+    ])
+      assert.equal(bashBackgrounds(cmd, opts), true, cmd);
+    for (const cmd of [
+      'python3 plain.py',
+      'bash plain.sh',
+      'python3 missing.py',
+      `python3 ${join(outside, 'w.py')}`,
+      'python3 ../w.py',
+    ])
+      assert.equal(bashBackgrounds(cmd, opts), false, cmd);
+    // over the cap it is not read: unknown, which only the fail-closed caller counts
+    assert.equal(bashBackgrounds('python3 big.py', opts), false);
+    assert.equal(bashBackgrounds('python3 big.py', { cwd: root, root }), true);
+    // without a root nothing is read (the old behaviour)
+    assert.equal(bashBackgrounds('python3 w.py', { unparsed: false }), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  }
+});

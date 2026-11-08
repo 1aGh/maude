@@ -14406,6 +14406,32 @@
     "v2": "stable"
   },
   {
+    "hook": "settings-terminal",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Terminal group (desktop app only).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "GeneralSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-terminal-opens",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Terminal › Let the terminal open projects in Maude (Tauri pref `terminal_opens`, default on; desktop app only — #206).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "TerminalOpensRow"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "settings-layout",
     "kind": "testid",
     "pattern": false,

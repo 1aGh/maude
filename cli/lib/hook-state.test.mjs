@@ -25,10 +25,14 @@ import { after, before, describe, test } from 'node:test';
 
 import {
   bashStatePath,
+  dropRunState,
   hookStateDir,
   lanesCachePath,
   pruneStates,
   readState,
+  shotsPath,
+  snapshotRecordPath,
+  writePrivateCopy,
   writeState,
 } from './hook-state.mjs';
 
@@ -99,5 +103,80 @@ describe('pruneStates (D7)', () => {
     assert.equal(existsSync(join(stale, '..', '..')), false, 'the emptied session dir is gone');
     assert.equal(existsSync(lanesCachePath(root, e)), false, 'a stale lane cache is dropped');
     assert.equal(existsSync(fresh), true);
+  });
+});
+
+// #168 E1 / E3 — the run snapshots' hashes and the screenshot record live here, outside the project.
+describe('snapshot records, the screenshot record, run end (#168 E1/E3)', () => {
+  test('paths stay inside the root state folder; an unsafe segment has none', () => {
+    const e = { MAUDE_HOOK_STATE_HOME: join(scratch, 'rec') };
+    const dir = hookStateDir('/r5', e);
+    assert.equal(
+      snapshotRecordPath('/r5', 's1', 'base', '0123456789abcdef', e),
+      join(dir, 's1', 'snaps', 'base', '0123456789abcdef.json')
+    );
+    assert.equal(
+      snapshotRecordPath('/r5', 's1', 'snap', 'toolu_1.0123456789abcdef', e),
+      join(dir, 's1', 'snaps', 'snap', 'toolu_1.0123456789abcdef.json')
+    );
+    for (const [s, k, n] of [
+      ['../x', 'base', 'a'],
+      ['s1', 'bash', 'a'],
+      ['s1', 'base', '../a'],
+      ['s1', 'base', 'a/b'],
+      ['s1', 'base', '.hidden'],
+      ['s1', 'base', 'a..b'],
+      ['s1', 'base', ''],
+    ])
+      assert.equal(snapshotRecordPath('/r5', s, k, n, e), null, `${s} ${k} ${n}`);
+    assert.equal(shotsPath('/r5', 's1', e), join(dir, 's1', 'shots.jsonl'));
+    assert.equal(shotsPath('/r5', null, e), join(dir, 'shots.jsonl'));
+    assert.equal(shotsPath('/r5', '../x', e), null);
+  });
+
+  test('dropRunState removes the snapshot records and the shots, never the call states', () => {
+    const e = { MAUDE_HOOK_STATE_HOME: join(scratch, 'drop') };
+    const rec = snapshotRecordPath('/r6', 's', 'base', 'abc', e);
+    const call = bashStatePath('/r6', 's', 'call', e);
+    writeState(rec, { v: 1, existed: true, sha: 'x' }, e);
+    writeState(call, { v: 1 }, e);
+    writeFileSync(shotsPath('/r6', 's', e), '{}\n');
+    dropRunState('/r6', 's', e);
+    assert.equal(existsSync(rec), false);
+    assert.equal(existsSync(shotsPath('/r6', 's', e)), false);
+    assert.equal(existsSync(call), true);
+    dropRunState('/r6', '../..', e); // an unsafe session removes nothing
+    assert.equal(existsSync(call), true);
+  });
+
+  test('writePrivateCopy is owner-only and never reuses a name', () => {
+    const e = { MAUDE_HOOK_STATE_HOME: join(scratch, 'copy') };
+    const a = writePrivateCopy('/r7', 's', 'bytes', e);
+    const b = writePrivateCopy('/r7', 's', 'bytes', e);
+    assert.ok(a && b && a !== b);
+    assert.equal(readFileSync(a, 'utf8'), 'bytes');
+    assert.equal(statSync(a).mode & 0o777, 0o600);
+    assert.equal(writePrivateCopy('/r7', '../x', 'bytes', e), null);
+  });
+
+  test('prune: an edit snapshot record goes after a day, a run base and the shots after a week', () => {
+    const e = { MAUDE_HOOK_STATE_HOME: join(scratch, 'prune2') };
+    const day = 24 * 3_600_000;
+    const snap = snapshotRecordPath('/r8', 's', 'snap', 'toolu_9', e);
+    const base = snapshotRecordPath('/r8', 's', 'base', 'abc', e);
+    writeState(snap, { v: 1 }, e);
+    writeState(base, { v: 1 }, e);
+    writeFileSync(shotsPath('/r8', 's', e), '{}\n');
+    const twoDays = new Date(Date.now() - 2 * day);
+    for (const p of [snap, base, shotsPath('/r8', 's', e)]) utimesSync(p, twoDays, twoDays);
+    pruneStates('/r8', day, e);
+    assert.equal(existsSync(snap), false);
+    assert.equal(existsSync(base), true);
+    assert.equal(existsSync(shotsPath('/r8', 's', e)), true);
+    const tenDays = new Date(Date.now() - 10 * day);
+    for (const p of [base, shotsPath('/r8', 's', e)]) utimesSync(p, tenDays, tenDays);
+    pruneStates('/r8', day, e);
+    assert.equal(existsSync(base), false);
+    assert.equal(existsSync(shotsPath('/r8', 's', e)), false);
   });
 });

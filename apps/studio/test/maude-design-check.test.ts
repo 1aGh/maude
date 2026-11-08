@@ -343,16 +343,37 @@ describe('checkIntroduced — introduced vs pre-existing', () => {
     const r = checkIntroduced('ui/C.tsx', after, { against: before, strict: true });
     expect(r.errors.map((e) => e.code)).toEqual(['id-expression']);
     expect(r.existing).toEqual([]);
-    // the same expression, moved: existing
-    const movedSame = CANVAS.replace(
-      '<h1 data-cd-id="title">Hi</h1>',
-      `${expr('a')}<h1 data-cd-id="title">Hi</h1>`
-    );
+    // the same expression, moved within its artboard: existing (#168 E2 — into another artboard
+    // it is a new finding, pinned below)
+    const movedSame = CANVAS.replace('<p>x</p>', `${expr('a')}<p>x</p>`);
     const m = checkIntroduced('ui/C.tsx', movedSame, { against: before, strict: true });
     expect(m.errors).toEqual([]);
     expect(m.existing.map((e) => e.code)).toEqual(['id-expression']);
     // the key is a digest: no file text rides the finding
     expect(JSON.stringify(r)).not.toContain('data-cd-id={b}');
+  });
+
+  // #168 E2 — the element is part of an id finding's identity: the same offending source in
+  // another artboard (or on another element) is a new finding, not the old one moved
+  test('fixing an id in one artboard while adding the identical one in another is introduced', () => {
+    const expr = '<span data-cd-id={a}>s</span>';
+    const before = CANVAS.replace(
+      '<h1 data-cd-id="title">Hi</h1>',
+      `<h1 data-cd-id="title">Hi</h1>${expr}`
+    );
+    const elsewhere = CANVAS.replace('<p>x</p>', `<p>x</p>${expr}`);
+    const r = checkIntroduced('ui/C.tsx', elsewhere, { against: before, strict: true });
+    expect(r.errors.map((e) => e.code)).toEqual(['id-expression']);
+    expect(r.existing).toEqual([]);
+    // another element in the same artboard: introduced too
+    const otherEl = CANVAS.replace(
+      '<h1 data-cd-id="title">Hi</h1>',
+      '<h1 data-cd-id="title">Hi</h1><em data-cd-id={a}>s</em>'
+    );
+    const o = checkIntroduced('ui/C.tsx', otherEl, { against: before, strict: true });
+    expect(o.errors.map((e) => e.code)).toEqual(['id-expression']);
+    // the key stays a digest: the artboard and the element's text ride no finding key
+    for (const f of [...r.errors, ...o.errors]) expect(f.key).toMatch(/^[0-9a-f]{20}$/);
   });
 
   test('fixing one invalid id while adding another is introduced (id-format)', () => {

@@ -10,7 +10,8 @@ import {
   placeRequestFor,
 } from '../client/v2/assets/asset-drop-session.js';
 import { startAssetDrag, tileDragProps } from '../client/v2/assets/tile-drag.js';
-import { ASSET_DRAG_MIME, parseAssetDrag } from '../editing/asset-drag.ts';
+import { assetDragSession } from '../client/v2/assets/asset-drop-session.js';
+import { ASSET_DRAG_MIME } from '../editing/asset-drag.ts';
 
 const fakeDrag = () => {
   const data = new Map<string, string>();
@@ -29,7 +30,9 @@ describe('a video tile drag (r5-1)', () => {
     const clip = { videoWidth: 1920, videoHeight: 1080 } as unknown as HTMLVideoElement;
     const ok = startAssetDrag({ dataTransfer: dt }, 'assets/820e2d45.mov', clip);
     expect(ok).toBe(true);
-    const got = parseAssetDrag(data.get(ASSET_DRAG_MIME));
+    // #168 F6 — the session carries the path and size; the drag data only the opaque token
+    expect(data.get(ASSET_DRAG_MIME)).toBe(assetDragSession.token() ?? 'none');
+    const got = assetDragSession.current();
     expect(got?.asset).toBe('assets/820e2d45.mov');
     expect(got?.w).toBe(1920);
     expect(got?.h).toBe(1080);

@@ -125,6 +125,9 @@ export interface CanvasToShell {
   // S10.8 — "Review…" on the Design system canvas's bar: the person asks for "Update N canvases". The canvas
   // only asks; the shell opens the sheet (client/v2/ds/review-host.jsx), for the canvas on screen.
   'ds-review': Empty;
+  // #168 F5 — the Light/Dark pill's path button. The canvas only asks; the shell copies the path IT holds for the
+  // active frame (the `canvas.copy-file-path` action), never a path the canvas names or could overwrite.
+  'copy-canvas-path': Empty;
   // S10.9 (13 · ds-edit-reach) — the answer to a `ds-rects` ask: where each asked element sits, in THIS frame's own
   // pixels (getBoundingClientRect), and the frame's size. The reach view rings them. `label` is the artboard's own
   // name as text (untrusted; rendered as text only).
@@ -1186,7 +1189,15 @@ const aiSeenList: V = (v) =>
     : BAD;
 
 /** S9.22 — the comment bridge. The op names the door takes (comments/ops.ts `parseCommentOp`). */
-export const COMMENT_OPS = ['add', 'reply', 'resolve', 'reopen', 'edit-own', 'delete-own', 'reattach'] as const;
+export const COMMENT_OPS = [
+  'add',
+  'reply',
+  'resolve',
+  'reopen',
+  'edit-own',
+  'delete-own',
+  'reattach',
+] as const;
 /** S4.V4 G5 — the sticky ↔ comment conversion asks the thread makes; the SHELL answers them (S4.7 routes,
  *  its own session conversion map), never the comment door. `{ op, commentId }` only. */
 export const COMMENT_CONVERT_OPS = ['to-sticky', 'convert-undo', 'convert-undoable'] as const;
@@ -1324,6 +1335,8 @@ const c2s: C2S = {
   },
   // S10.8 — handled by client/v2/ds/use-ds-frames.js (opens the review for the ACTIVE canvas's system)
   'ds-review': { gate: 'active', status: 'live', owner: 'h/use-ds-frames', parse: none },
+  // #168 F5 — the bridge runs `canvas.copy-file-path` for the active tab
+  'copy-canvas-path': { gate: 'active', status: 'live', owner: BR, parse: none },
   // S10.9 — sent by the shell template's `ds-rects` region, read by client/v2/ds/reach-view.jsx (the frames it
   // framed itself, hence 'frame': a reach frame is never the active canvas)
   'ds-rects-result': {

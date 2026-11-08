@@ -966,25 +966,52 @@ function headNames(words) {
  * `sh -c` script that does, or an interpreter script whose visible text forks or detaches. An
  * unparseable command (or a `sh -c` script it can't read) may: that is `unparsed`, true by default
  * (fail closed — the ACP claim window). The caller keeps the call's claim window open until the
- * turn ends instead of the call's return + settle. A script FILE (`python3 w.py`) is not read —
- * the named residual (binding by what changed, not by time, is follow-up F3).
+ * turn ends instead of the call's return + settle.
+ * #168 E4: given the call's `cwd` and project `root`, a script FILE the call runs (`python3 w.py`,
+ * `bash run.sh`, `. env.sh`, `./run.sh`) is read like an inline script — only a regular file inside
+ * the root (realpath'd), at most `scriptMaxBytes`; a bigger one is unknown (`unparsed`). Without a
+ * root nothing is read.
  * p8-secfix-hook-2 N3: the design hook passes `unparsed: false` — a background mark binds every
  * later change to the AI until the turn ends, so it is kept for a call that visibly backgrounds.
  *
  * @param {unknown} command
- * @param {{ unparsed?: boolean, depth?: number }} [opts]
+ * @param {{ unparsed?: boolean, depth?: number, cwd?: string | null, root?: string | null, scriptMaxBytes?: number }} [opts]
  * @returns {boolean}
  */
-export function bashBackgrounds(command, { unparsed = true, depth = 0 } = {}) {
+export function bashBackgrounds(
+  command,
+  { unparsed = true, depth = 0, cwd = null, root = null, scriptMaxBytes = 262_144 } = {}
+) {
   if (typeof command !== 'string' || !command.trim()) return false;
   const cmds = parseBash(command);
   if (!cmds) return unparsed;
+  let here = cwd ? resolve(cwd) : null;
+  const deeper = (text) =>
+    depth < 4 &&
+    bashBackgrounds(text, { unparsed, depth: depth + 1, cwd: here, root, scriptMaxBytes });
+  /** E4 — a script file's verdict: true / false, or null when there is no readable file. */
+  const fileDetaches = (word, asShell) => {
+    const t = scriptFileText(word, here, root, scriptMaxBytes);
+    if (t === null) return null;
+    if (t === undefined) return unparsed;
+    return asShell ? deeper(t) : SCRIPT_DETACHES.test(t);
+  };
   for (const cmd of cmds) {
     if (cmd.bg) return true;
     const names = headNames(cmd.words);
     if (names.some((n) => BG_HEADS.has(n))) return true;
     const e = effective(cmd.words);
     if (!e) continue;
+    // a literal `cd` moves where a relative script path resolves (as callCoverage tracks it)
+    if (e.raw === 'cd' || e.raw === 'pushd') {
+      if (here && e.args[0]?.literal && !isOpt(e.args[0])) here = resolve(here, e.args[0].text);
+      continue;
+    }
+    // `. env.sh` / `source env.sh` run the file in this shell
+    if (root && (e.raw === '.' || e.raw === 'source')) {
+      if (fileDetaches(e.args[0], true)) return true;
+      continue;
+    }
     if (SHELLS.has(e.name)) {
       const k = e.args.findIndex((a) => a.literal && /^-[A-Za-z]*c[A-Za-z]*$/.test(a.text));
       const script = k === -1 ? null : e.args[k + 1];
@@ -998,15 +1025,60 @@ export function bashBackgrounds(command, { unparsed = true, depth = 0 } = {}) {
       const doc = k === -1 ? cmd.redirs.find((r) => r.op === '<<' || r.op === '<<-') : null;
       if (doc?.body && depth < 4 && bashBackgrounds(doc.body, { unparsed, depth: depth + 1 }))
         return true;
+      // `bash run.sh`: the script is a file (E4)
+      if (root && k === -1 && !doc && fileDetaches(operands(e.args)[0], true)) return true;
       continue;
     }
     const lang = Object.hasOwn(INTERPRETERS, e.name) ? e.name : null;
     if (lang) {
       const text = scriptText(cmd, e.args, INTERPRETERS[lang], lang);
       if (text && SCRIPT_DETACHES.test(text)) return true;
+      // `python3 w.py`: no inline program, the first operand is the script file (E4)
+      if (!text && root && fileDetaches(operands(e.args)[0], false)) return true;
+      continue;
+    }
+    // `./run.sh`, `tools/go`: the program word itself is a script file (E4) — its shebang says how
+    // it runs; a file with none runs as a shell script, a binary (NUL bytes) is not read
+    if (root && e.raw.includes('/')) {
+      const t = scriptFileText(
+        cmd.words[cmd.words.length - e.args.length - 1],
+        here,
+        root,
+        scriptMaxBytes
+      );
+      if (t === undefined && unparsed) return true;
+      if (typeof t === 'string' && !t.includes('\0')) {
+        const bang = /^#!\s*(\S+)(?:\s+(\S+))?/.exec(t);
+        const runner = bang
+          ? nameOf(
+              bang[1] === '/usr/bin/env' || nameOf(bang[1]) === 'env' ? (bang[2] ?? '') : bang[1]
+            )
+          : 'sh';
+        if (SHELLS.has(runner) ? deeper(t) : SCRIPT_DETACHES.test(t)) return true;
+      }
     }
   }
   return false;
+}
+
+/**
+ * #168 E4 — the text of a script file `word` names: a literal path resolved against `cwd`, realpath'd
+ * inside `root`, a regular file of at most `max` bytes. `null` = no such file (missing, outside the
+ * root, not a file, unreadable); `undefined` = a file too big to read.
+ */
+function scriptFileText(word, cwd, root, max) {
+  if (!root || !word?.literal || !word.text || word.text.includes('\0')) return null;
+  if (!isAbsolute(word.text) && !cwd) return null;
+  const real = realpathDeep(isAbsolute(word.text) ? word.text : resolve(cwd, word.text));
+  if (!within(real, realpathDeep(resolve(root)))) return null;
+  try {
+    const st = statSync(real);
+    if (!st.isFile()) return null;
+    if (st.size > max) return undefined;
+    return readFileSync(real, 'utf8');
+  } catch {
+    return null;
+  }
 }
 
 /**

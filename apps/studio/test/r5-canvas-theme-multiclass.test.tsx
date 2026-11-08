@@ -198,7 +198,9 @@ describe('r5-8 · the pill carries the canvas path, and a click copies it', () =
     expect(pathBtn()?.getAttribute('title')).toContain(LONG);
   });
 
-  test('clicking copies the whole path and says Copied', async () => {
+  // #168 F5 — the click asks the shell (`copy-canvas-path`), which copies the path it holds for the open tab: the
+  // global the pill reads is shown only, since canvas code can overwrite it
+  test('clicking asks the shell to copy the path and says Copied', async () => {
     setup();
     withFile(LONG);
     const written: string[] = [];
@@ -210,9 +212,18 @@ describe('r5-8 · the pill carries the canvas path, and a click copies it', () =
         },
       },
     });
-    await mountKitCanvas();
-    await press(pathBtn());
-    expect(written).toEqual([LONG]);
+    const posted: unknown[] = [];
+    const parent = window.parent;
+    const realPost = parent.postMessage;
+    parent.postMessage = ((m: unknown) => void posted.push(m)) as typeof parent.postMessage;
+    try {
+      await mountKitCanvas();
+      await press(pathBtn());
+    } finally {
+      parent.postMessage = realPost;
+    }
+    expect(written).toEqual([]);
+    expect(posted).toContainEqual({ dgn: 'copy-canvas-path' });
     expect(pathBtn()?.textContent).toBe('Copied');
   });
 

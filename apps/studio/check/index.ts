@@ -308,7 +308,13 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
     if (f.element) out.element = f.element;
     // p8-secfix-hook I1 — identity only: a digest of the id attribute's source, as an artboard
     // finding has, so a fixed old mapped id and a new different one never cancel out
-    if (f.span) out.key = sourceKey(text.slice(f.span.start, f.span.end));
+    // #168 E2 — and of the element it sits on (artboard, tag, label), so fixing one id while
+    // pasting the identical source onto another element or artboard never cancels out
+    if (f.span) {
+      const el = f.element;
+      const where = el ? `\u0000${el.artboard ?? ''}\u0000${el.tag}\u0000${el.label}` : '';
+      out.key = sourceKey(`${text.slice(f.span.start, f.span.end)}${where}`);
+    }
     (f.severity === 'error' ? r.errors : f.severity === 'warning' ? r.warnings : r.infos).push(out);
   }
 }
