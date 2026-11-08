@@ -50,6 +50,19 @@ import {
 import { labelPatch, NEW_ARROW } from './annotations/ui/arrow-kinds.ts';
 import { BoardStore } from './annotations/ui/board.ts';
 import {
+  type CheckEdit,
+  type ChecklistApi,
+  ChecklistContext,
+  progressWords,
+} from './annotations/ui/checklist.tsx';
+import {
+  checklistCommitOps,
+  isChecklistTarget,
+  itemPutsFor,
+  itemsForCopy,
+  splitPasteItems,
+} from './annotations/ui/checklist-wire.ts';
+import {
   Containment,
   expandForOp,
   insertSection,
@@ -116,19 +129,6 @@ import {
   withoutResolvedStickies,
 } from './annotations/ui/sticky-resolve.ts';
 import { expandTemplate, templateExtent } from './annotations/ui/template-place.ts';
-import {
-  type CheckEdit,
-  type ChecklistApi,
-  ChecklistContext,
-  progressWords,
-} from './annotations/ui/checklist.tsx';
-import {
-  checklistCommitOps,
-  isChecklistTarget,
-  itemPutsFor,
-  itemsForCopy,
-  splitPasteItems,
-} from './annotations/ui/checklist-wire.ts';
 import {
   aimCommitOps,
   draftOp,

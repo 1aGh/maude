@@ -49,7 +49,6 @@ import {
 } from '../../canvas-lib.tsx';
 import { SECTION_FOLDED_H } from '../constants.ts';
 import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
-import { ChecklistChip, ChecklistRows, useChecklistItems } from './checklist.tsx';
 import type { AnnotationElement } from '../types.ts';
 import {
   AI_SPARK,
@@ -59,6 +58,7 @@ import {
   sectionTone,
   stickyPaper,
 } from './ai-marks.tsx';
+import { ChecklistChip, ChecklistRows, useChecklistItems } from './checklist.tsx';
 import { quietPaper, whoInk } from './posture.ts';
 import type { ResolvedEnds } from './render-model.ts';
 import { labelPoint } from './rest-route.ts';

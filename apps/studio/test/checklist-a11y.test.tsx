@@ -17,8 +17,6 @@ afterAll(async () => {
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-
-import { STICKY_PALETTE } from '../annotations-model.ts';
 import type { AnnotationElement } from '../annotations/types.ts';
 import {
   type ChecklistApi,
@@ -28,6 +26,7 @@ import {
   doneInk,
 } from '../annotations/ui/checklist.tsx';
 import { contrast, quietPaper } from '../annotations/ui/posture.ts';
+import { STICKY_PALETTE } from '../annotations-model.ts';
 
 const items: AnnotationElement[] = [
   { id: 'c1', type: 'checkitem', index: 'a0', list: 's1', text: 'Write the post' },

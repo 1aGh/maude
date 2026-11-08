@@ -4,9 +4,8 @@
 // the carry) is slice 122-A; everything here codes against its name only.
 
 import { beforeEach, describe, expect, test } from 'bun:test';
-
-import { ACTIONS } from '../actions/index.ts';
 import { AGENT_PATHS } from '../actions/agents.ts';
+import { ACTIONS } from '../actions/index.ts';
 import {
   _setHeldClip,
   CELL_NO_CROSS_PROJECT,

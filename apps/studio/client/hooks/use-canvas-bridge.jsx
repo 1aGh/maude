@@ -586,7 +586,8 @@ export function useCanvasBridge({
                           replyTo?.postMessage({ dgn: 'record-edit', payload }, expectedOrigin);
                         // #122 — said where the paste landed: what came along ("· added 2 imports")
                         const said = clipWords(r);
-                        if (said) replyTo?.postMessage({ dgn: 'op-toast', message: said }, expectedOrigin);
+                        if (said)
+                          replyTo?.postMessage({ dgn: 'op-toast', message: said }, expectedOrigin);
                       })
                       .catch(() => {})
                   );

@@ -16,8 +16,8 @@
 
 import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
 import type { CommandRecord } from '../undo-stack.ts';
-import { type EditOpAsk, editOpRecord, runEditOp } from './edit-op.ts';
 import { clipWords } from './clip-words.ts';
+import { type EditOpAsk, editOpRecord, runEditOp } from './edit-op.ts';
 import { refusalLine } from './object-ops.ts';
 
 export const CLIP_ACTIONS = [

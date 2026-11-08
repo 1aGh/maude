@@ -16,7 +16,6 @@
  *             removing, rewording and reordering its entries are refused with the lock line.
  */
 
-import { keyBetween, keysBetween } from './fractional-index.ts';
 import {
   fromTaskLines,
   isChecklist,
@@ -24,9 +23,10 @@ import {
   itemsOf,
   MAX_CHECK_ITEMS,
 } from './elements/checkitem.model.ts';
+import { keyBetween, keysBetween } from './fractional-index.ts';
+import { isLocked } from './lock.ts';
 import type { Op } from './ops.ts';
 import { validateElement } from './registry.ts';
-import { isLocked } from './lock.ts';
 import type { AnnotationElement } from './types.ts';
 
 export type Board = ReadonlyMap<string, AnnotationElement>;

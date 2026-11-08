@@ -18,10 +18,10 @@
  *             instead of overwriting it (DDR-242 §4).
  */
 
-import { type ParsedHostRef, parseHostRef } from './elements/_shared.ts';
-import { anchorPoint, facingAnchor } from './elements/arrow.model.ts';
 import { guardLockedLists, withItemDeletes } from './checklist-ops.ts';
 import { DEFAULT_FONT_SIZE } from './constants.ts';
+import { type ParsedHostRef, parseHostRef } from './elements/_shared.ts';
+import { anchorPoint, facingAnchor } from './elements/arrow.model.ts';
 import { itemsOf, MAX_CHECK_ITEMS } from './elements/checkitem.model.ts';
 import { fitSticky } from './elements/sticky.model.ts';
 import { compareOrder, keyBetween } from './fractional-index.ts';

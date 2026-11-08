@@ -36,7 +36,6 @@ import { missingTranscriptsFor } from '../video/inject.ts';
 import { type RiskyMedia, riskyMediaIn } from '../video/media-risk.ts';
 import { resolveRenderLane } from '../workspace-mode.ts';
 import { captionGap, mergeDegraded, undecodableMediaGap } from './degraded.ts';
-import { createJobBudget, type JobBudget } from './job-budget.ts';
 import {
   type ExportContext,
   type ExportDegradation,
@@ -46,6 +45,7 @@ import {
   runExport,
   type Scope,
 } from './index.ts';
+import { createJobBudget, type JobBudget } from './job-budget.ts';
 import {
   CLOUD_CANCELLED_WORDS,
   formatNeedsBrowser,

@@ -2,18 +2,18 @@
 // one record per entry. Validation, the canonical bytes, the pure helpers and the registry/schema wiring.
 
 import { describe, expect, test } from 'bun:test';
+import { annotationsJsonSchema } from '../annotations/board-schema.ts';
 import {
   fromTaskLines,
   isChecklist,
-  itemsOf,
   itemsByList,
+  itemsOf,
   MAX_CHECK_ITEMS,
   MAX_CHECK_TEXT,
   progressOf,
   toTaskLines,
 } from '../annotations/elements/checkitem.model.ts';
 import { FORMAT2_TYPES, REGISTRY, validateElement } from '../annotations/registry.ts';
-import { annotationsJsonSchema } from '../annotations/board-schema.ts';
 import { parseBoard, serializeBoard, validateElements } from '../annotations/schema.ts';
 import type { AnnotationElement } from '../annotations/types.ts';
 
