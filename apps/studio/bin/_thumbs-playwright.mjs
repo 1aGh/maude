@@ -34,6 +34,7 @@ import { createInterface } from 'node:readline';
 import { afterPaint, launchChromium } from './_pw-launch.mjs';
 import { isBlankCover, parseRgb } from './_thumb-blank.mjs';
 import { pickAny, pickCover } from './_thumb-cover.mjs';
+import { notUnder } from './_thumb-route.mjs';
 import { drawTile } from './_tile-draw.mjs';
 
 const MAX_PAGES = 4;
@@ -92,7 +93,11 @@ async function makeContext(origin) {
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 1,
   });
-  await ctx.route('**/*', (route) => {
+  // #169 item 1 — the handler sees every request NOT under `<origin>/`: Playwright continues the
+  // rest itself (a serializable matcher is checked in its server half), so the ~20 module and CSS
+  // loads of a render no longer each wait on this process. A URL under `<origin>/` has exactly that
+  // origin, so what reaches the network is unchanged; the handler still re-checks the origin.
+  await ctx.route(notUnder(origin), (route) => {
     const req = route.request();
     let reqOrigin = null;
     try {
@@ -450,7 +455,10 @@ async function traceOf(page, cdp) {
       const nav = performance.getEntriesByType('navigation')[0];
       const r = (n) => Math.round(n);
       const rows = performance.getEntriesByType('resource').map((e) => ({
-        n: e.name.replace(location.origin, '').replace(/[?&](fc|t)=[^&]*/g, '').slice(0, 120),
+        n: e.name
+          .replace(location.origin, '')
+          .replace(/[?&](fc|t)=[^&]*/g, '')
+          .slice(0, 120),
         s: r(e.startTime),
         ttfb: r(e.responseStart - e.startTime),
         end: r(e.responseEnd),
@@ -478,7 +486,9 @@ async function traceOf(page, cdp) {
       const byUrl = new Map();
       profile.samples.forEach((id, i) => {
         const cf = byId.get(id)?.callFrame;
-        const k = cf?.url ? cf.url.split('/').slice(-1)[0].split('?')[0] : `(${cf?.functionName || '?'})`;
+        const k = cf?.url
+          ? cf.url.split('/').slice(-1)[0].split('?')[0]
+          : `(${cf?.functionName || '?'})`;
         byUrl.set(k, (byUrl.get(k) || 0) + (profile.timeDeltas[i] || 0));
       });
       const top = (m, n) =>
@@ -573,7 +583,7 @@ async function render(msg) {
     lap('mount');
     let trace;
     if (traceMode) trace = await traceOf(page, cdp);
-    const named =targets.map((t) => t?.artboard).filter((a) => typeof a === 'string');
+    const named = targets.map((t) => t?.artboard).filter((a) => typeof a === 'string');
     if (job.hasArtboards && named.length && named.length === targets.length) {
       // every target names its artboard (a version row, an on-demand shot): wait for exactly
       // those to mount — the count-settle below exists to pick a cover, which nothing asks for

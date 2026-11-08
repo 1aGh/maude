@@ -365,6 +365,19 @@
         }
       }
     </script>
+    <!-- #169 item 1 — the runtime modules every canvas loads (comment-mount.js's static import
+         graph): fetched while the canvas module builds instead of one level after another. The
+         server adds the shared canvas-lib and its imports here (canvas-lib-module.ts). Kept equal
+         to comment-mount's graph by test/shell-modulepreload.test.ts. -->
+    <link rel="modulepreload" href="./_canvas-runtime/react.js" />
+    <link rel="modulepreload" href="./_canvas-runtime/react-dom.js" />
+    <link rel="modulepreload" href="./_canvas-runtime/react-dom_client.js" />
+    <link rel="modulepreload" href="./_canvas-runtime/react_jsx-runtime.js" />
+    <link rel="modulepreload" href="./_canvas-runtime/yjs.js" />
+    <link rel="modulepreload" href="./_canvas-runtime/y-protocols_sync.js" />
+    <link rel="modulepreload" href="./_canvas-runtime/y-protocols_awareness.js" />
+    <link rel="modulepreload" href="./_canvas-runtime/lib0_decoding.js" />
+    <link rel="modulepreload" href="./_canvas-runtime/lib0_encoding.js" />
   </head>
   <body>
     <div id="canvas-root"></div>

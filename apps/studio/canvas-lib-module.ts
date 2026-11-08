@@ -36,6 +36,12 @@ export interface SharedCanvasLib {
   url: string;
   /** Every file the module bundled, absolute real paths. A canvas bundle may inline none of them. */
   inputs: ReadonlySet<string>;
+  /**
+   * #169 item 1 — the runtime packages the module imports STATICALLY (bare specifiers). The shell
+   * preloads them with the module itself, so the browser fetches the whole graph at once instead of
+   * one level per round trip (canvas → canvas-lib → remotion …). Absent = preload the module only.
+   */
+  staticImports?: readonly string[];
 }
 
 /** `/_canvas-runtime/<slug>` of the shared module (the hash is hex). */
@@ -125,7 +131,20 @@ async function buildSharedCanvasLib(): Promise<SharedCanvasLib> {
   for (const key of Object.keys(built.metafile?.inputs ?? {})) {
     inputs.add(realOrSelf(path.isAbsolute(key) ? key : path.resolve(process.cwd(), key)));
   }
-  return { bytes, hash, url: `./_canvas-runtime/canvas-lib.${hash}.js`, inputs };
+  // Bun's metafile lists no external imports, so they are read off the module: `import … from "x"`
+  // / `import "x"` (never `import("x")`, which loads on demand), kept to the runtime packages.
+  const staticImports = new Set<string>();
+  const text = new TextDecoder().decode(bytes);
+  for (const m of text.matchAll(STATIC_IMPORT_RE)) {
+    if (externals.has(m[1] as string)) staticImports.add(m[1] as string);
+  }
+  return {
+    bytes,
+    hash,
+    url: `./_canvas-runtime/canvas-lib.${hash}.js`,
+    inputs,
+    staticImports: [...staticImports].sort(),
+  };
 }
 
 /** `p` resolved through symlinks (a missing file as given) — both sides of the overlap check. */
@@ -144,8 +163,18 @@ const IMPORTMAP_RE = /(<script type="importmap">\s*)([\s\S]*?)(\s*<\/script>)/;
  * inline scripts (http.ts `serveCanvasShell`), so the policy matches what is served. A shell whose
  * importmap cannot be read is returned unchanged (its canvases then fail to load the specifier,
  * which the canvas builds never emit without this mapping — see http.ts `sharedLibForCanvas`).
+ *
+ * #169 item 1 — also preloads the module and the runtime packages it imports statically
+ * (`staticImports`, by default the served build's own list), right after the importmap: a version
+ * picture otherwise waited one round trip per import level before React could mount. Only
+ * `./_canvas-runtime/*.js` URLs the importmap names are preloaded (Maude's own code, served without a
+ * frame capability), and none the shell already preloads.
  */
-export function withSharedCanvasLib(shellHtml: string, url: string): string {
+export function withSharedCanvasLib(
+  shellHtml: string,
+  url: string,
+  staticImports: readonly string[] = staticImportsOf(url)
+): string {
   const m = IMPORTMAP_RE.exec(shellHtml);
   if (!m) return shellHtml;
   let map: { imports?: Record<string, string> };
@@ -155,9 +184,26 @@ export function withSharedCanvasLib(shellHtml: string, url: string): string {
     return shellHtml;
   }
   const next = { ...map, imports: { ...(map.imports ?? {}), '@maude/canvas-lib': url } };
+  const have = new Set([...shellHtml.matchAll(PRELOAD_RE)].map((p) => p[1]));
+  const links: string[] = [];
+  for (const href of [url, ...staticImports.map((s) => next.imports[s])]) {
+    if (typeof href !== 'string' || !RUNTIME_URL_RE.test(href) || have.has(href)) continue;
+    have.add(href);
+    links.push(`\n    <link rel="modulepreload" href="${href}" />`);
+  }
   return shellHtml.replace(
     IMPORTMAP_RE,
     (_all, open: string, _body: string, close: string) =>
-      `${open}${JSON.stringify(next, null, 2)}${close}`
+      `${open}${JSON.stringify(next, null, 2)}${close}${links.join('')}`
   );
+}
+
+const STATIC_IMPORT_RE = /\bimport\s*(?:[\w$*{}\s,]+?\s*from\s*)?"([^"]+)"/g;
+const PRELOAD_RE = /<link rel="modulepreload" href="([^"]+)"/g;
+const RUNTIME_URL_RE = /^\.\/_canvas-runtime\/[A-Za-z0-9@._-]+\.js$/;
+
+/** The static runtime imports of a served build, by the hash in its URL (none if unknown). */
+function staticImportsOf(url: string): readonly string[] {
+  const hash = SHARED_LIB_SLUG_RE.exec(url.slice(url.lastIndexOf('/') + 1))?.[1];
+  return (hash ? served.get(hash)?.staticImports : undefined) ?? [];
 }
