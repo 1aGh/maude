@@ -2802,6 +2802,8 @@ describe('#164 B1 — the manifest lives outside the project, and the settle fai
     expect(touchedOf('h4c')).toEqual([]);
   });
 
+  // N1 — and it sends no settle either: an empty settle would end the call with nothing claimed. Only
+  // the window closes, so a real settle still finds it (SETTLE_WAIT_MS) and the studio's release applies.
   test('H5 — a missing or corrupt manifest sends no claim and binds no touch', async () => {
     for (const how of ['corrupt', 'missing', 'wrong-shape']) {
       fresh();
@@ -2814,11 +2816,48 @@ describe('#164 B1 — the manifest lives outside the project, and the settle fai
       await Bun.sleep(15);
       writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
       await hook('post-bash', input);
-      const settles = calls('/_api/agent/bash/settle');
-      expect(`${how} ${settles.length}`).toBe(`${how} 1`);
-      expect(`${how} ${JSON.stringify(settles[0].changed)}`).toBe(`${how} []`);
+      expect(`${how} ${calls('/_api/agent/bash/settle').length}`).toBe(`${how} 0`);
+      const shut = calls('/_api/agent/bash/window').filter((w) => w.open === false);
+      expect(`${how} ${shut.length}`).toBe(`${how} 1`);
+      expect(shut[0]).toMatchObject({ toolUseId: `th5${how}`, all: true });
       expect(touchedOf(`h5${how}`)).toEqual([]);
     }
+  });
+
+  // N1 — the plugin loaded twice runs every hook twice. The copy that comes second finds the state file
+  // already settled and gone: it must not post an empty settle that could win the race and release the
+  // AI's own writes as outside.
+  test('N1 — a second post-bash with no state file never settles (the plugin loaded twice)', async () => {
+    fresh();
+    const input = bash(project, 'n1a', 'tn1a', ALL);
+    await hook('pre-bash', input);
+    const markP = join(runDir('n1a'), 'bash', 'tn1a.json');
+    const mark = readFileSync(markP, 'utf8');
+    await Bun.sleep(15);
+    writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
+    await hook('post-bash', input);
+    // the second copy read the in-project mark before the first removed it
+    writeFileSync(markP, mark);
+    await hook('post-bash', input);
+    const settles = calls('/_api/agent/bash/settle');
+    expect(settles).toHaveLength(1);
+    expect(settles[0].changed.map((c) => c.path)).toEqual(['ui/C.tsx']);
+    expect(calls('/_api/agent/bash/window').filter((w) => w.open === false)).toHaveLength(1);
+    expect(touchedOf('n1a')).toEqual(['ui/C.tsx']);
+  });
+
+  test('N1 — two post-bash hooks at once: no settle without the call’s changes', async () => {
+    fresh();
+    const input = bash(project, 'n1b', 'tn1b', ALL);
+    await hook('pre-bash', input);
+    await hook('pre-bash', input);
+    await Bun.sleep(15);
+    writeFileSync(canvasPath(project), CANVAS.replace('Hi', 'Yo'));
+    await Promise.all([hook('post-bash', input), hook('post-bash', input)]);
+    const settles = calls('/_api/agent/bash/settle');
+    expect(settles.length).toBeGreaterThanOrEqual(1);
+    for (const st of settles) expect(st.changed.map((c) => c.path)).toEqual(['ui/C.tsx']);
+    expect(touchedOf('n1b')).toEqual(['ui/C.tsx']);
   });
 
   // #164 F7 — the call's mode and coverage come from the state file OUTSIDE the project; the

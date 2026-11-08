@@ -1621,7 +1621,7 @@ const SETTLE_BATCH = 32; // the studio's CLAIM_MAX_FILES
  * #164 — the call returned (or its turn ended): diff the lane manifest taken before it against the lanes
  * now, and send the files whose bytes changed (with their sha256) to the studio, which claims those
  * bytes for the run and releases every other write it parked during the window as outside.
- * Fail closed: a missing / corrupt manifest sends `changed: []`; a studio that does not answer, or
+ * Fail closed: a missing / corrupt manifest sends no settle, only the window's close (N1); a studio that does not answer, or
  * answers anything but 200, binds nothing. An older studio (no settle route: 404) gets today's
  * binding. `studio` is the one located for the whole Stop, when there is one.
  */
@@ -1644,9 +1644,17 @@ async function settleCall(ctx, toolUseId, mark, by, studio = undefined) {
   }
   if (statePath) removeState(statePath);
   const named = Array.isArray(mark.files) ? mark.files.filter((f) => typeof f === 'string') : [];
+  // #164 N1 — no valid manifest (corrupt, or already settled by another copy of this hook: the plugin
+  // loaded twice): never a settle — an empty one would end the call with nothing claimed and could win
+  // the race against the real one. Only the window closes; a real settle still finds it within the
+  // studio's wait, and with none its parked writes go out as outside.
+  if (!valid) {
+    if (studio !== null) await bashWindow(ctx, toolUseId, false, named, mark.mode === 'all');
+    return;
+  }
   // #164 F6 — a `named` call can only have written what its command names (a create included): a
   // change elsewhere in the root is not sent, so the studio releases it as outside
-  if (valid && mark.mode === 'named') {
+  if (mark.mode === 'named') {
     const cover = new Set(named);
     changed = changed.filter((c) => cover.has(c.path));
   }
@@ -1654,13 +1662,12 @@ async function settleCall(ctx, toolUseId, mark, by, studio = undefined) {
     studio === undefined ? await locateStudio(ctx.root, { timeoutMs: LOCATE_MS }) : studio;
   // no studio: nothing to claim for; the hook still keeps its own record of what the call changed
   if (!located) {
-    if (valid)
-      bindTouches(
-        ctx,
-        mark,
-        by,
-        changed.map((c) => c.path)
-      );
+    bindTouches(
+      ctx,
+      mark,
+      by,
+      changed.map((c) => c.path)
+    );
     return;
   }
   const batches = [];
@@ -1682,7 +1689,7 @@ async function settleCall(ctx, toolUseId, mark, by, studio = undefined) {
       { timeoutMs: 2000 }
     );
     if (!res) {
-      if (!answered && valid)
+      if (!answered)
         bindTouches(
           ctx,
           mark,
@@ -1694,10 +1701,9 @@ async function settleCall(ctx, toolUseId, mark, by, studio = undefined) {
     if (res.status === 404 && !answered) {
       // an older studio: the window is claim-taking, and its binding is by file name
       await bashWindow(ctx, toolUseId, false, named, mark.mode === 'all');
-      if (valid)
-        await bindBashWrites(ctx, toolUseId, mark, by, mark.at, [
-          ...new Set([...named, ...changed.map((c) => c.path)]),
-        ]);
+      await bindBashWrites(ctx, toolUseId, mark, by, mark.at, [
+        ...new Set([...named, ...changed.map((c) => c.path)]),
+      ]);
       return;
     }
     if (res.status !== 200) {
