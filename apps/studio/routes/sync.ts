@@ -9,8 +9,9 @@
 //                              409 not-linked / not-signed-in / cell
 //   POST /_api/sync/held-deletes  { answer: delete|keep, folder? } → { ok, how, count } · 403
 //                              window-only / read-only / not-owner · 409 not-linked / nothing-held / busy
-//   POST /_api/sync/adopt-held  { path } → { ok } · 403 window-only / read-only / not-owner ·
-//                              409 not-linked / not-held / unreachable (#167 T5.3, the hub decides)
+//   POST /_api/sync/adopt-held  { path, sha256 } → { ok } · 403 window-only / read-only / not-owner ·
+//                              409 not-linked / not-held / changed / update / unreachable (#167 T5.3,
+//                              the hub decides; it adopts only the version `sha256` names)
 //
 // MAIN ORIGIN ONLY (never `origin: 'canvas'`): resync re-handshakes every document against the
 // person's own hub and re-runs a whole-project comparison — an amplification primitive a canvas must
@@ -31,7 +32,7 @@
 import { currentAccess, notInScopeResponse } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
 import { worktreeOf } from '../shell/worktree.ts';
-import type { AdoptHeldControl } from '../sync/adopt-held.ts';
+import { ADOPT_UPDATE, type AdoptHeldControl, SHA256_HEX } from '../sync/adopt-held.ts';
 import type { CodeConsentControl } from '../sync/code-module-consent.ts';
 import type { HeldDeletesControl } from '../sync/held-deletes.ts';
 import type { LinkGate } from '../sync/link-consent.ts';
@@ -404,6 +405,11 @@ export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
         if (typeof path !== 'string' || path.length === 0 || path.length > 1024) {
           return json(400, { ok: false, reason: 'bad-request', detail: 'Name one held file.' });
         }
+        // The version the person was shown: the hub adopts those bytes and no others.
+        const sha256 = (body as { sha256?: unknown } | null)?.sha256;
+        if (typeof sha256 !== 'string' || !SHA256_HEX.test(sha256)) {
+          return json(400, { ok: false, reason: 'bad-request', detail: ADOPT_UPDATE });
+        }
         const control = consentRuntime(deps.control())?.adoptHeld?.() ?? null;
         if (!control) {
           return json(409, {
@@ -412,7 +418,7 @@ export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
             detail: 'This project isn’t syncing with a hub right now.',
           });
         }
-        const r = await control.adopt(path);
+        const r = await control.adopt(path, sha256);
         if (r.ok) return json(200, r);
         if (r.reason === 'bad-request') return json(400, r);
         return json(r.reason === 'not-owner' ? 403 : 409, r);

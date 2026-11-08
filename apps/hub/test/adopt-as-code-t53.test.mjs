@@ -12,7 +12,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
 
-import { heldCodePaths, listProjectFiles, registerClassHolds } from '../src/file-manifest.mjs';
+import { createHash } from 'node:crypto';
+
+import {
+  heldCodeEntries,
+  heldCodePaths,
+  listProjectFiles,
+  registerClassHolds,
+} from '../src/file-manifest.mjs';
 import {
   closeJournal,
   handleJournalRoutes,
@@ -51,6 +58,7 @@ const declare = (paths) =>
   );
 const walk = () => walkImport({ journal, designRoot: root, log: quiet });
 const TEAMMATE = 'export default () => <i>teammate</i>;\n';
+const sha = (text) => createHash('sha256').update(text).digest('hex');
 
 function adopt(token, body, { method = 'POST' } = {}) {
   let out = null;
@@ -72,6 +80,9 @@ function adopt(token, body, { method = 'POST' } = {}) {
   assert.equal(handled, true);
   return out;
 }
+
+/** The version the owner was shown: the held list's sha for `rel`. */
+const shown = (rel) => heldCodeEntries(root).find((h) => h.path === rel)?.sha256;
 
 /** A teammate canvas made while undeclared, held once the owner declares `ui` only. */
 function heldTeammateCanvas(rel = 'brand/x.tsx') {
@@ -112,9 +123,10 @@ describe('POST /api/journal/adopt — owner only', () => {
   test("the owner's adopt drops the hold and the file syncs as code from then on", () => {
     heldTeammateCanvas();
     const owner = addToken(dataDir, { label: 'owner', scope: '*', role: 'owner' }).value;
-    const r = adopt(owner, { path: 'brand/x.tsx' });
+    const r = adopt(owner, { path: 'brand/x.tsx', sha256: shown('brand/x.tsx') });
     assert.equal(r.status, 200, JSON.stringify(r.payload));
     assert.equal(r.payload.adopted, true);
+    assert.equal(r.payload.sha256, sha(TEAMMATE));
     assert.deepEqual(heldCodePaths(root), []);
     const row = journal.latestFor('brand/x.tsx');
     assert.equal(row?.class, 'code-module');
@@ -134,7 +146,7 @@ describe('POST /api/journal/adopt — owner only', () => {
     walk();
     assert.deepEqual(heldCodePaths(root), ['brand/x.tsx']);
     const owner = addToken(dataDir, { label: 'owner', scope: '*', role: 'owner' }).value;
-    assert.equal(adopt(owner, { path: 'brand/x.tsx' }).status, 200);
+    assert.equal(adopt(owner, { path: 'brand/x.tsx', sha256: shown('brand/x.tsx') }).status, 200);
     assert.equal(journal.isGhost('brand/x.tsx'), false);
     walk();
     assert.deepEqual(heldCodePaths(root), []);
@@ -160,5 +172,65 @@ describe('POST /api/journal/adopt — owner only', () => {
     walk();
     const owner = addToken(dataDir, { label: 'owner', scope: '*', role: 'owner' }).value;
     assert.equal(adopt(owner, { path: 'brand/x.tsx' }).status, 404);
+  });
+});
+
+describe('POST /api/journal/adopt — adopts only the version the owner was shown', () => {
+  test('the held list names each held file by its sha and size', () => {
+    heldTeammateCanvas();
+    assert.deepEqual(heldCodeEntries(root), [
+      {
+        path: 'brand/x.tsx',
+        reason: 'canvas-before-folders',
+        sha256: sha(TEAMMATE),
+        size: Buffer.byteLength(TEAMMATE),
+      },
+    ]);
+  });
+
+  test('bytes swapped between show and click: 409, still held, nothing journalled', () => {
+    heldTeammateCanvas();
+    const owner = addToken(dataDir, { label: 'owner', scope: '*', role: 'owner' }).value;
+    const seen = shown('brand/x.tsx');
+    put('brand/x.tsx', 'export default () => <i>swapped</i>;\n'); // a teammate writes after the owner looked
+    const before = journal.head();
+    const r = adopt(owner, { path: 'brand/x.tsx', sha256: seen });
+    assert.equal(r.status, 409, JSON.stringify(r.payload));
+    assert.equal(r.payload.reason, 'changed');
+    assert.equal(journal.head(), before);
+    assert.equal(journal.latestFor('brand/x.tsx'), null);
+    assert.deepEqual(heldCodePaths(root), ['brand/x.tsx']);
+    // Shown again, the new version can be adopted.
+    assert.equal(adopt(owner, { path: 'brand/x.tsx', sha256: shown('brand/x.tsx') }).status, 200);
+  });
+
+  test('an older client that names no version is refused with "update", the file stays held', () => {
+    heldTeammateCanvas();
+    const owner = addToken(dataDir, { label: 'owner', scope: '*', role: 'owner' }).value;
+    for (const body of [{ path: 'brand/x.tsx' }, { path: 'brand/x.tsx', sha256: 'abc' }]) {
+      const r = adopt(owner, body);
+      assert.equal(r.status, 428, JSON.stringify(r.payload));
+      assert.equal(r.payload.reason, 'version-required');
+      assert.match(r.payload.error, /update Maude/i);
+    }
+    assert.deepEqual(heldCodePaths(root), ['brand/x.tsx']);
+    assert.equal(journal.latestFor('brand/x.tsx'), null);
+  });
+
+  test('recordWrite with an expected sha journals nothing when the disk differs', () => {
+    put('lib/a.ts', 'export const a = 1;\n');
+    assert.equal(
+      journal.recordWrite({
+        designRoot: root,
+        path: 'lib/a.ts',
+        source: 'owner-adopt',
+        expectSha256: sha('something else'),
+      }),
+      null
+    );
+    assert.equal(journal.latestFor('lib/a.ts'), null);
+    const same = { designRoot: root, path: 'lib/a.ts', source: 'owner-adopt' };
+    assert.ok(journal.recordWrite({ ...same, expectSha256: sha('export const a = 1;\n') }));
+    assert.ok(journal.latestFor('lib/a.ts'));
   });
 });

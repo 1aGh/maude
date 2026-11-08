@@ -218,10 +218,27 @@ function CodeConsentButton({ mode, host, fetchImpl, onDone }) {
  */
 export const FOLDERS_HELD_KINDS = new Set(['code-held', 'canvas-outside-folders']);
 
+/** The shown version of a held file: "1.2 KB · version a1b2c3d4" (the hub's sha, first 8). */
+export function heldVersionWords(v) {
+  const n = v.size;
+  const size =
+    n < 1000
+      ? `${n} ${n === 1 ? 'byte' : 'bytes'}`
+      : n < 1_000_000
+        ? `${(n / 1000).toFixed(1)} KB`
+        : `${(n / 1_000_000).toFixed(1)} MB`;
+  return `${size} · version ${v.sha256.slice(0, 8)}`;
+}
+
+/** Said when the hub names no version for a held file (an older hub): nothing to adopt safely. */
+const ADOPT_NEEDS_VERSION =
+  'This file can’t be adopted until Maude and the project’s hub are both up to date. Nothing changed.';
+
 /** "Adopt as code" (`sync.adopt-as-code`) on one file of the hub's code-held list — owner only:
- *  that list reaches the owner alone, and the hub's door refuses anyone else. */
-function AdoptButton({ rel, index, fetchImpl }) {
-  const [said, setSaid] = useState(null);
+ *  that list reaches the owner alone, and the hub's door refuses anyone else. It sends the version
+ *  the row shows (`version.sha256`); the hub adopts those bytes and no others (burndown F4). */
+function AdoptButton({ rel, index, version, fetchImpl }) {
+  const [said, setSaid] = useState(version ? null : ADOPT_NEEDS_VERSION);
   const [busy, setBusy] = useState(false);
   if (said)
     return (
@@ -238,7 +255,10 @@ function AdoptButton({ rel, index, fetchImpl }) {
       disabled={busy}
       onClick={async () => {
         setBusy(true);
-        const r = await postJson(fetchImpl, '/_api/sync/adopt-held', { path: rel });
+        const r = await postJson(fetchImpl, '/_api/sync/adopt-held', {
+          path: rel,
+          sha256: version.sha256,
+        });
         setBusy(false);
         setSaid(
           r?.ok
@@ -721,8 +741,20 @@ export default function SyncDetails({
                       {cleanName(rel)}
                       {h.kind === 'code-held' ? (
                         <>
-                          {' '}
-                          <AdoptButton rel={rel} index={i} fetchImpl={fetchImpl} />
+                          {h.versions?.[rel] ? (
+                            <>
+                              {' '}
+                              <span className="dg-hint" data-testid={`diag-sync-held-version-${i}`}>
+                                {heldVersionWords(h.versions[rel])}
+                              </span>
+                            </>
+                          ) : null}{' '}
+                          <AdoptButton
+                            rel={rel}
+                            index={i}
+                            version={h.versions?.[rel] ?? null}
+                            fetchImpl={fetchImpl}
+                          />
                         </>
                       ) : null}
                     </li>

@@ -7123,10 +7123,17 @@ export function filePlaneHeld(
   // #167 T5.3 — an overflowed hold list is a row even when it names nothing: files are held unlisted.
   if (result.codeHeld && (result.codeHeld.count > 0 || result.codeHeld.overflow === true)) {
     const overflow = result.codeHeld.overflow === true;
+    // Burndown F4 — the version of each file the hub holds, so the row shows it and adopts that one.
+    const files = result.codeHeld.paths.flatMap((h) =>
+      h.sha256 && typeof h.size === 'number'
+        ? [{ path: h.path, sha256: h.sha256, size: h.size }]
+        : []
+    );
     held.push({
       kind: 'code-held',
       count: result.codeHeld.count,
       paths: result.codeHeld.paths.map((h) => h.path),
+      ...(files.length > 0 ? { files } : {}),
       ...(overflow ? { overflow: true as const } : {}),
       detail: codeHeldDetail(result.codeHeld.count, { overflow }),
     });

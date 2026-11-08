@@ -53,6 +53,18 @@ export function canvasNamesBySlug(groups) {
   return out;
 }
 
+/** Burndown F4 — a code-held row's file versions, by path: `{ sha256, size }` (only a valid sha). */
+function heldVersions(files) {
+  const out = {};
+  if (!Array.isArray(files)) return out;
+  for (const f of files.slice(0, 200)) {
+    if (!f || typeof f.path !== 'string' || typeof f.sha256 !== 'string') continue;
+    if (!/^[0-9a-f]{64}$/.test(f.sha256) || !isCount(f.size)) continue;
+    out[f.path] = { sha256: f.sha256, size: f.size };
+  }
+  return out;
+}
+
 /** A canvas slug the runtime can name (no path, no traversal) — the same rule the bus applies. */
 export const SAFE_SLUG = /^[A-Za-z0-9_.-]{1,200}$/;
 
@@ -249,6 +261,7 @@ export function syncDetailsModel(
           paths: Array.isArray(h.paths)
             ? h.paths.filter((p) => typeof p === 'string').slice(0, 50)
             : [],
+          versions: heldVersions(h.files),
         })),
       rateLimited: files?.rateLimited ? { waiting: rateLimited } : null,
       failed,

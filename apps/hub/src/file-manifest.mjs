@@ -242,7 +242,10 @@ export function heldCodePaths(designRoot) {
  * folders were declared). A path whose bytes are again exactly the owner's last
  * code version is not held — the same lift `listProjectFiles` applies.
  *
- * @returns {{ path: string, reason: 'canvas-before-folders' | 'changed-as-canvas' }[]}
+ * Each entry with a file on disk also names its version (`sha256`, `size`): the owner's
+ * "Adopt as code" sends the sha back and the door adopts only that version.
+ *
+ * @returns {{ path: string, reason: 'canvas-before-folders' | 'changed-as-canvas', sha256?: string, size?: number }[]}
  */
 export function heldCodeEntries(designRoot) {
   const holds = classHolds.get(designRoot);
@@ -269,7 +272,11 @@ export function heldCodeEntries(designRoot) {
       sha256: st ? () => shaOf(abs, st.size, st.mtimeMs) : null,
     });
     if (cls !== 'never') continue;
-    out.push({ path: rel, reason: ownerSha ? 'changed-as-canvas' : 'canvas-before-folders' });
+    const entry = { path: rel, reason: ownerSha ? 'changed-as-canvas' : 'canvas-before-folders' };
+    // Additive: the version the owner is shown, so "Adopt as code" adopts exactly that one.
+    const fileSha = st ? shaOf(abs, st.size, st.mtimeMs) : null;
+    if (fileSha) Object.assign(entry, { sha256: fileSha, size: st.size });
+    out.push(entry);
   }
   return out;
 }

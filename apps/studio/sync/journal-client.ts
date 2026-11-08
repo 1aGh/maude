@@ -65,13 +65,22 @@ export interface JournalPage {
    */
   held?: {
     count: number;
-    paths: { path: string; reason: HeldReason }[];
+    paths: HeldEntry[];
     /** #167 T5.3 — the hub's list may be short (its hold cap or a cut walk): more are held. */
     overflow?: true;
   };
 }
 
 export type HeldReason = 'canvas-before-folders' | 'changed-as-canvas';
+
+/** One held file. `sha256` + `size` name the version on the hub (additive): "Adopt as code" sends the
+ *  sha back and the hub adopts only those bytes. Absent from an older hub — that row has no button. */
+export interface HeldEntry {
+  path: string;
+  reason: HeldReason;
+  sha256?: string;
+  size?: number;
+}
 
 /** How many held paths one page may carry here (the hub sends at most 200). */
 const MAX_HELD = 200;
@@ -83,7 +92,7 @@ const MAX_HELD = 200;
  */
 function parseHeld(body: Record<string, unknown>): JournalPage['held'] | undefined {
   if (!Array.isArray(body?.held)) return undefined;
-  const paths: { path: string; reason: HeldReason }[] = [];
+  const paths: HeldEntry[] = [];
   // p8-holds-fix (recheck info D): one row per path — the panel keys rows by it.
   const seen = new Set<string>();
   for (const raw of (body.held as unknown[]).slice(0, MAX_HELD)) {
@@ -94,7 +103,15 @@ function parseHeld(body: Record<string, unknown>): JournalPage['held'] | undefin
     seen.add(h.path);
     const reason: HeldReason =
       h.reason === 'changed-as-canvas' ? 'changed-as-canvas' : 'canvas-before-folders';
-    paths.push({ path: h.path, reason });
+    const version =
+      typeof h.sha256 === 'string' &&
+      /^[0-9a-f]{64}$/.test(h.sha256) &&
+      typeof h.size === 'number' &&
+      Number.isSafeInteger(h.size) &&
+      h.size >= 0
+        ? { sha256: h.sha256, size: h.size }
+        : {};
+    paths.push({ path: h.path, reason, ...version });
   }
   const rawCount = body.heldCount;
   const count =

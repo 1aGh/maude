@@ -26,6 +26,7 @@ import { codeHeldDetail, filePlaneHeld } from '../sync/index.ts';
 import { fetchJournal } from '../sync/journal-client.ts';
 
 const HUB = 'https://hub.test';
+const SHA = 'a1b2c3d4'.repeat(8);
 
 function hubWith(extra: Record<string, unknown>) {
   return (async (url: string) => {
@@ -111,7 +112,15 @@ describe('item 9 — the held row has its buttons (registry entries, not a key h
       pulled: 0,
       pushed: 0,
       conflicts: 0,
-      held: [{ kind: 'code-held', count: 1, paths: ['brand/x.tsx'], detail: codeHeldDetail(1) }],
+      held: [
+        {
+          kind: 'code-held',
+          count: 1,
+          paths: ['brand/x.tsx'],
+          files: [{ path: 'brand/x.tsx', sha256: SHA, size: 40 }],
+          detail: codeHeldDetail(1),
+        },
+      ],
     },
   };
 
@@ -150,7 +159,7 @@ describe('item 9 — the held row has its buttons (registry entries, not a key h
     });
     // (the panel reads its own GETs on mount; the adopt is the one POST)
     expect(calls.filter((c) => c.body !== null)).toEqual([
-      { url: '/_api/sync/adopt-held', body: { path: 'brand/x.tsx' } },
+      { url: '/_api/sync/adopt-held', body: { path: 'brand/x.tsx', sha256: SHA } },
     ]);
     expect(el.querySelector('[data-testid="diag-sync-held-adopt-said-0"]')?.textContent).toBe(
       'Kept as code. It syncs on the next pass.'
