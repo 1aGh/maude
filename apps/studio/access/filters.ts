@@ -598,6 +598,20 @@ export interface ProjectVisibility {
 const sources = new WeakMap<object, ProjectVisibility>();
 
 /**
+ * #169 T8.1c — a write the closure cannot see: a first-segment `_` path (runtime state, DDR-115),
+ * which the listing skips and no import walk reads. Every canvas build rewrites `_locator.json`,
+ * and each bump threw away every frame's cached closure, so the next requests re-walked the whole
+ * design root on the event loop. The two local harness folders still count: a harness grant
+ * (`_draw/<slug>.proof.tsx`, `_photo/<slug>.bgremove.tsx`) walks its own text. Anything that is not
+ * a plain relative path bumps (fail closed).
+ */
+function closureBlindTo(rel: unknown): boolean {
+  if (typeof rel !== 'string') return false;
+  const first = rel.split(/[\\/]/)[0] ?? '';
+  return first.startsWith('_') && first !== '_draw' && first !== '_photo';
+}
+
+/**
  * The closure source of one project: its disk reader, a closure cache keyed by (grants,
  * tree generation) and the generation bump on every file change. ONE per Context, so the
  * write gate (http.ts) and the read filters (api.ts) compute the same closure once.
@@ -612,7 +626,8 @@ export function projectVisibility(
   const hit = sources.get(ctx);
   if (hit) return hit;
   let generation = 0;
-  ctx.bus.on('fs:any', () => {
+  ctx.bus.on('fs:any', (rel: unknown) => {
+    if (closureBlindTo(rel)) return;
     generation++;
   });
   const cache: ClosureCache = createClosureCache();
