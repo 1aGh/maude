@@ -107,10 +107,14 @@ Anything else → 401 `{ ok:false, error:'api-key-required' }` (`Cache-Control: 
 `Origin`/`Sec-Fetch-Site` alone never pass. The cookie is `HttpOnly; SameSite=Strict; Path=/`, no
 `Max-Age` (dies with the webview session); its name is derived from the key so two servers on
 `127.0.0.1` never overwrite each other's. Its **value is random** (32 bytes), held only in the
-server's memory as `sha256(value) → last use` (`api-key.ts` `SESSIONS`, at most 256): never derived
-from the key, gone after **12 h unused** (`SESSION_IDLE_MS`) or a restart. Every exchange mints a
-fresh one and drops the session the request presented (rotation); two windows of one project hold
-two sessions. The canvas and capture listeners never read it (the gate runs on the main listener
+server's memory as `sha256(value) → { last use, opened, helper }` (`api-key.ts` `SESSIONS`): never
+derived from the key, gone after **12 h unused** (`SESSION_IDLE_MS`), **24 h after it opened, used or
+not** (`SESSION_MAX_AGE_MS`), or a restart. The desktop page re-trades its key once, unseen, when a
+request answers `401 api-key-required` (`api-session.js`). Every exchange mints a fresh one and drops
+the session the request presented (rotation); two windows of one project hold two sessions. The
+person's sessions are capped at 256; a **helper** session (opened by an `h<ts>.<nonce>.<mac>` link,
+MAC domain `maude-launch-helper/1`, which only capture helpers mint) has its own cap of 32 and ends
+after 30 min unused — eviction stays within a kind, so helper runs never push out the person. The canvas and capture listeners never read it (the gate runs on the main listener
 only) and nothing logs it. The key itself is never placed in a URL or a log.
 
 The gate records what authenticated each request (`requestCredential(req)`: `'key'` | `'session'`,
@@ -174,12 +178,34 @@ only to a terminal (a nohup'd `server-up` log keeps the plain address). **No aut
 launch token or the key** — the AI chat reads their stdout and stderr: `maude design server-up --url`
 prints the plain address; `--open` (`/design:browse`) hands a fresh link to `open`/`xdg-open` and
 prints the plain address. `desktop-locate.mjs key|launch-url` are internal to the helpers (captured
-into a variable, never echoed; screenshot.sh's log lines redact `maude-launch=` and `fc=`).
-`maude design agent-browser-safe open` refuses any URL carrying `maude-launch` (decoded forms too),
-so the AI's own browser never holds a session. A link reaches a helper process through a 0600 file
-it reads and deletes, never argv: the bug-report capture (`screenshot.sh --url-file`) and the perf
-probes (`--launch-file`). A page that already holds the session and opens a launch link again (a reload, a
-helper navigating twice) gets a 303 without the parameter; its token is not spent.
+into a variable, never echoed). Every helper log line goes through one redaction (`maude_redact`,
+`_url-guard.sh`; `redactUrl` in JS), which hides `maude-launch=` and `fc=` values, and agent-browser's
+own `open` output goes to `/dev/null` (`test/sec-loopback-bearer-p2d.test.ts` pins both statically).
+
+**No browser helper redeems a link it was handed.** `_url-guard.mjs` `urlRefusal` — the check every
+browser helper runs (screenshot `--url`, canvas-rects, smoke, visual-sanity, perf, photo-bg-remove,
+`agent-browser-safe open`) — parses the URL as the server does and refuses any query key or value
+containing `maude-launch` (any case, any encoding) and any URL whose escapes do not decode. The only
+redeemers are: `open`/`xdg-open` in `server-up --open` (the person's browser); `screenshot --shell`
+with a link it minted itself; `screenshot --url-file` with the server's link (the bug-report
+capture); the perf probes. The two screenshot paths pass `--launch-ok` and run in a browser session
+named at random and closed on exit — never one the caller named — so no session outlives the capture.
+
+**A link reaches a helper process never through argv or a folder the agent reads.** The perf probes
+get it on an inherited pipe (`--launch-fd 3 3< <(studio_launch_url …)`, `readLaunchFd`). The
+bug-report capture's link is a 0600 `<32 hex>.url` in `<state>/maude/servers/links/` (0700, inside the
+key folder the agent's Read is denied; `key-file.ts` `writeLinkFile`), removed in `finally`;
+`screenshot --url-file` takes only such a file (this user's, 0600, not a symlink, in that exact folder)
+and refuses any other path without reading or removing it (`takeLinkFile`). Helpers mint **helper**
+links (`studio_launch_url … --helper`, §7.2). A page that already holds the session and opens a launch
+link again (a reload, a helper navigating twice) gets a 303 without the parameter; its token is not
+spent.
+
+**Split off** (`MAUDE_CANVAS_ORIGIN_SPLIT=0`): a terminal starter stays key-less (phase 1, no key file)
+and the boot line says so (`terminalKeylessForSplitOff`) — there is no capture origin to mint a frame
+capability for, so key-less captures could not render, and canvas code already runs on the main origin
+with the page's session. A key the app hands over keeps required mode; the app never turns the split
+off.
 
 **A server started with neither a key nor role `cli`** (a bare `bun server.ts`, `npm run start`, the
 test harnesses) keeps phase 1: credential routes only, no key file. That is the starter's choice —
@@ -237,8 +263,18 @@ data or money out); permission answers over `/_ws/acp` (no verb sends them; foll
   and the key files; no auto verb prints it). Closing it needs a page-only secret (a second key only
   the Tauri command hands out) or a native confirm — follow-up, with the `/_ws/acp` answers.
 - **Browser cookies cross localhost ports.** In the terminal case the cookie rides to every
-  `localhost:<port>` the browser visits. Mitigated: random, server-held, 12 h idle expiry, rotation;
-  the canvas and capture listeners never read or log it. The desktop webviews have their own stores.
+  `localhost:<port>` the browser visits. Mitigated: random, server-held, 12 h idle expiry, a 24 h
+  absolute lifetime, rotation; the canvas and capture listeners never read or log it. The desktop
+  webviews have their own stores. **Not done:** tying §7.8 to a per-page value the page holds in
+  memory and sends as a header, which a copied cookie alone would not carry — follow-up, with the
+  page-only secret above.
+- **The link folder and the session kind are not proof of origin.** Any process of this user can
+  write a file into `<state>/maude/servers/links/` or mint a helper link — but only a key holder can
+  mint a link at all, and a capture that redeems one does so in its own closed session; the folder
+  rule exists so `--url-file` cannot read or delete an arbitrary file.
+- **Desktop with the split off.** A key the app hands over keeps required mode, so exports and
+  thumbnails render nothing if someone starts the app's server with `MAUDE_CANVAS_ORIGIN_SPLIT=0`;
+  the app never does.
 - **Fetch Metadata on old WebKit.** The session and §7.8 rely on `Sec-Fetch-Site`; WebKit has had
   wrong values on iframes (bugs 256472, 260284). Follow-up: a desktop e2e check of the headers a
   canvas-iframe request to the main origin carries on the oldest supported macOS.

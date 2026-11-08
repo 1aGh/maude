@@ -159,8 +159,9 @@ REL="_draw/$SLUG.proof.tsx"
 # sec-loopback-bearer §7.3 — a key-required server mints the capture's frame capability only for a caller
 # that sent the key: studio_capture_url asks with it and prints the capture-origin URL.
 . "$SCRIPT_DIR/_desktop-locate.sh"
+. "$SCRIPT_DIR/_url-guard.sh" # maude_redact — a log line never carries the frame capability
 URL="$(studio_capture_url "$REPO" "$PORT" "/_canvas-shell.html?canvas=$REL")"
-echo "→ screenshotting proof ladder ($URL)" >&2
+echo "→ screenshotting proof ladder ($(maude_redact "$URL"))" >&2
 
 bash "$SCRIPT_DIR/screenshot.sh" \
   --all-screens \

@@ -71,7 +71,9 @@ desktop_port() {
 #                                       returns 11 when the app serves the project but did not attest
 #   studio_curl <repo> <port> <curl args…>   curl with the key as a header, handed to curl through a
 #                                       config on stdin — never argv or the environment (`ps` shows both)
-#   studio_launch_url <repo> <port>     prints a one-time opening URL (`/?maude-launch=…`) for a browser
+#   studio_launch_url <repo> <port> [--helper]   prints a one-time opening URL (`/?maude-launch=…`) for
+#                                       a browser; --helper for a capture helper's own browser (its session
+#                                       sits in the helpers' budget and never evicts the person's)
 #
 # The key is cached per (repo, port) in an UNEXPORTED shell variable, so a polling loop asks once and no
 # child process inherits it. A request whose body is on stdin cannot use studio_curl.
@@ -132,7 +134,9 @@ studio_capture_url() {
 
 studio_launch_url() {
   local repo="$1" port="$2" out
-  out=$(_dl_node launch-url --root "$repo" --port "$port" 2>/dev/null)
+  local kind=()
+  [ "${3:-}" = "--helper" ] && kind=(--helper)
+  out=$(_dl_node launch-url --root "$repo" --port "$port" "${kind[@]}" 2>/dev/null)
   if [[ "$out" =~ ^http://localhost:[0-9]{1,5}/ ]]; then
     printf '%s\n' "$out"
   else

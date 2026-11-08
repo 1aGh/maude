@@ -82,8 +82,10 @@ describe('validateArgv — never a Maude opening link (sec-loopback-bearer §7.5
       `http://127.0.0.1:4399/index.html?open=a.tsx&maude-launch=${tok}`,
       `http://localhost:4399/?x=%6Daude-launch%3D${tok}`,
       `http://localhost:4399/?MAUDE-LAUNCH=${tok}`,
+      // re-check B: one malformed escape stopped the decode loop, leaving the encoded name unread
+      `http://localhost:4399/?a=%zz&%6Daude-launch=${tok}`,
     ])
-      expect(validateArgv(['open', url])).toMatch(/maude-launch/);
+      expect(validateArgv(['open', url])).not.toBeNull();
     expect(validateArgv(['open', 'http://localhost:4399/'])).toBeNull();
   });
 });

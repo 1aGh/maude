@@ -17,7 +17,7 @@
 //          [--zoom <n>] [--repeat <n>] [--fit-all] [--window WxH] [--dpr <n>] [--json]
 // Exit:  0 measured / 1 dependency, capture failure or a refused pass / 2 bad args / 3 occluded.
 
-import { appendFileSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs';
+import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
   buildRow,
@@ -30,6 +30,7 @@ import {
   renderReport,
 } from './_perf-shared.mjs';
 import { launchChromium } from './_pw-launch.mjs';
+import { readLaunchFd } from './_url-guard.mjs';
 
 function parseArgs(argv) {
   const o = {
@@ -56,7 +57,7 @@ function parseArgs(argv) {
     const v = () => argv[++i];
     if (a === '--url') o.url = v();
     else if (a === '--launch') o.launch = v();
-    else if (a === '--launch-file') o.launch = readLaunchFile(v());
+    else if (a === '--launch-fd') o.launch = readLaunchFd(v());
     else if (a === '--studio') o.studio = v();
     else if (a === '--label') o.label = v();
     else if (a === '--history') o.history = v();
@@ -261,17 +262,3 @@ main().catch((err) => {
   console.error(`_perf-probe-studio.mjs: ${err.message}`);
   process.exit(1);
 });
-
-/** sec-loopback-bearer §7.4 — the opening link, from the 0600 file perf.sh wrote; read once, deleted. */
-function readLaunchFile(p) {
-  try {
-    const url = readFileSync(p, 'utf8').split('\n')[0].trim();
-    return url;
-  } catch {
-    return '';
-  } finally {
-    try {
-      unlinkSync(p);
-    } catch {}
-  }
-}

@@ -17,6 +17,7 @@ import {
   mintLaunchToken,
   SESSION_IDLE_MS,
   SESSION_PATH,
+  type SessionStore,
   sessionCookieName,
 } from '../shell/api-key.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
@@ -48,7 +49,7 @@ function isolatedEnv(): Record<string, string> {
 }
 
 describe('the session cookie (pure)', () => {
-  const opts = (sessions: Map<string, number>, now: number) => ({
+  const opts = (sessions: SessionStore, now: number) => ({
     key: KEY,
     required: true,
     workspace: false,
@@ -58,7 +59,7 @@ describe('the session cookie (pure)', () => {
   });
   const NOW = 1_800_000_000;
   const name = sessionCookieName(KEY);
-  const mint = (sessions: Map<string, number>, now: number, cookie?: string) => {
+  const mint = (sessions: SessionStore, now: number, cookie?: string) => {
     const r = mainOriginKeyRefusal(
       req(SESSION_PATH, { [API_KEY_HEADER]: KEY, ...(cookie ? { cookie } : {}) }, 'POST'),
       opts(sessions, now)
@@ -68,7 +69,7 @@ describe('the session cookie (pure)', () => {
   };
 
   test('each exchange mints a fresh random value; the one presented is dropped (rotation)', () => {
-    const s = new Map<string, number>();
+    const s: SessionStore = new Map();
     const a = mint(s, NOW);
     const b = mint(s, NOW);
     expect(a.startsWith(`${name}=`)).toBe(true);
@@ -82,7 +83,7 @@ describe('the session cookie (pure)', () => {
   });
 
   test('a session unused for 12 h is gone; use keeps it alive', () => {
-    const s = new Map<string, number>();
+    const s: SessionStore = new Map();
     const a = mint(s, NOW);
     const idle = SESSION_IDLE_MS / 1000;
     expect(
@@ -97,7 +98,7 @@ describe('the session cookie (pure)', () => {
   });
 
   test('a cookie on a request whose Origin is another host never counts', () => {
-    const s = new Map<string, number>();
+    const s: SessionStore = new Map();
     const a = mint(s, NOW);
     expect(
       mainOriginKeyRefusal(
@@ -111,7 +112,7 @@ describe('the session cookie (pure)', () => {
   });
 
   test('the two exchanges answer a loopback Host only', () => {
-    const s = new Map<string, number>();
+    const s: SessionStore = new Map();
     const rebound = (path: string, headers: Record<string, string>, method = 'GET') =>
       new Request(`http://rebound.example:4400${path}`, {
         method,
@@ -139,7 +140,7 @@ describe('the used-nonce store (pure)', () => {
       required: true,
       workspace: false,
       usedNonces: used,
-      sessions: new Map<string, number>(),
+      sessions: new Map(),
     };
     const live = mintLaunchToken(KEY, NOW);
     expect(
@@ -166,18 +167,18 @@ describe('the used-nonce store (pure)', () => {
 
 describe('a one-time opening link never rides argv (static)', () => {
   const read = (rel: string) => readFileSync(join(import.meta.dir, '..', rel), 'utf8');
-  test('the bug-report shell capture hands screenshot.sh a 0600 file, not --url', () => {
+  test('the bug-report shell capture hands screenshot.sh a private link file, not --url', () => {
     const http = read('http.ts');
     expect(http).not.toMatch(/'--url',\s*`http:\/\/localhost:\$\{port\}\/\?maude-launch=/);
     expect(http).toContain("target = ['--url-file', linkFile]");
-    expect(read('bin/screenshot.sh')).toMatch(
-      /--url-file\) URL="\$\(head -n1 "\$2"[^\n]*rm -f "\$2"/
-    );
+    expect(http).toContain('linkFile = writeLinkFile(');
+    // re-check A: screenshot.sh takes only a file from the server's link folder (sec-loopback-bearer-p2d)
+    expect(read('bin/screenshot.sh')).toContain('URL="$(maude_take_link_file "$2")" || exit 2');
   });
-  test('perf.sh hands its probes a file, never --launch <token>', () => {
+  test('perf.sh hands its probes a pipe, never --launch <token> or a file', () => {
     const perf = read('bin/perf.sh');
     expect(perf).not.toContain('--launch "$(studio_launch_url');
-    expect(perf).toContain('--launch-file "$(launch_file)"');
+    expect(perf).not.toContain('--launch-file');
   });
 });
 

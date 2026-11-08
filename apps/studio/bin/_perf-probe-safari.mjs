@@ -38,7 +38,7 @@
 //           geometries: then they are not the same measurement.
 
 import { spawn } from 'node:child_process';
-import { appendFileSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs';
+import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import {
@@ -61,6 +61,7 @@ import {
   readHistory,
   renderReport,
 } from './_perf-shared.mjs';
+import { readLaunchFd } from './_url-guard.mjs';
 
 function parseArgs(argv) {
   const out = {
@@ -88,7 +89,7 @@ function parseArgs(argv) {
     const a = argv[i];
     if (a === '--url') out.url = argv[++i];
     else if (a === '--launch') out.launch = argv[++i];
-    else if (a === '--launch-file') out.launch = readLaunchFile(argv[++i]);
+    else if (a === '--launch-fd') out.launch = readLaunchFd(argv[++i]);
     else if (a === '--label') out.label = argv[++i];
     else if (a === '--history') out.history = argv[++i];
     else if (a === '--variant') out.variant = argv[++i];
@@ -625,17 +626,3 @@ main().catch((err) => {
   console.error(`_perf-probe-safari.mjs: ${err.message}`);
   process.exit(1);
 });
-
-/** sec-loopback-bearer §7.4 — the opening link, from the 0600 file perf.sh wrote; read once, deleted. */
-function readLaunchFile(p) {
-  try {
-    const url = readFileSync(p, 'utf8').split('\n')[0].trim();
-    return url;
-  } catch {
-    return '';
-  } finally {
-    try {
-      unlinkSync(p);
-    } catch {}
-  }
-}

@@ -121,7 +121,7 @@ if [ "$ENGINE" = "auto" ]; then
   fi
 fi
 ab_headless_browser
-echo "→ canvas-rects engine: $ENGINE | url: $URL" >&2
+echo "→ canvas-rects engine: $ENGINE | url: $(maude_redact "$URL")" >&2
 
 # ---------- agent-browser lane ----------
 if [ "$ENGINE" = "agent-browser" ]; then
@@ -131,7 +131,8 @@ if [ "$ENGINE" = "agent-browser" ]; then
     exit 0
   fi
   ab_park_arm
-  "$AB" open "$URL" >&2
+  # its own output can echo the URL (a frame capability): never to stderr, which the AI chat reads
+  "$AB" open "$URL" >/dev/null 2>&1
 
   # Poll for the hook itself (more precise than screenshot.sh's generic
   # [data-dc-screen] mount check — this is exactly what we're about to call).

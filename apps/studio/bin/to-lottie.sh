@@ -32,6 +32,7 @@
 #       / 4 verify render failed.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/_url-guard.sh" # maude_redact — log lines never carry a link or a frame capability
 GEN=""
 OUT=""
 VERIFY=0
@@ -113,7 +114,7 @@ if [ "$VERIFY" -eq 1 ]; then
     F_TRIM="$(printf '%s' "$F" | tr -d '[:space:]')"
     URL="http://localhost:$PORT/_to-lottie-verify.html?src=$OUT_BASE&f=$F_TRIM"
     PNG="$FRAMES_DIR/frame-$F_TRIM.png"
-    echo "→ verify frame $F_TRIM ($URL)" >&2
+    echo "→ verify frame $F_TRIM ($(maude_redact "$URL"))" >&2
     bash "$SCRIPT_DIR/screenshot.sh" --url "$URL" --full --out "$PNG" --timeout "$TIMEOUT" >&2 \
       || { echo "✗ verify frame $F_TRIM failed" >&2; FAIL=$((FAIL + 1)); }
   done

@@ -52,7 +52,21 @@ const BOOT_KEY = ENV_KEY ?? randomBytes(32).toString('hex');
  * §7.5 — a terminal-started server (role `cli`: `maude design serve`, `server-up`) mints its own
  * key, writes it to the per-user key file (shell/key-file.ts) and opens with a launch token.
  */
-const TERMINAL_REQUIRED = ENV_KEY === null && isCliRole(process.env);
+const TERMINAL_ROLE = ENV_KEY === null && isCliRole(process.env);
+/**
+ * re-check F — with the canvas-origin split off (`MAUDE_CANVAS_ORIGIN_SPLIT=0`, server.ts) there is
+ * no capture origin to mint a frame capability for, so the key-less headless captures (exports,
+ * thumbnails, helpers) cannot render, and canvas code runs on the main origin with the page's own
+ * session anyway. A terminal starter in that mode therefore stays key-less (phase 1). The desktop
+ * app never turns the split off; a key it hands over keeps required mode either way.
+ */
+const CANVAS_SPLIT_OFF = /^(0|false|off|no)$/i.test(process.env.MAUDE_CANVAS_ORIGIN_SPLIT ?? '');
+const TERMINAL_REQUIRED = TERMINAL_ROLE && !CANVAS_SPLIT_OFF;
+
+/** re-check F — a terminal server left key-less because the split is off (the boot line says so). */
+export function terminalKeylessForSplitOff(): boolean {
+  return TERMINAL_ROLE && CANVAS_SPLIT_OFF && !isWorkspaceMode();
+}
 /**
  * §7.1 — a starter handed this process its key (the desktop app), or a terminal starter asked
  * for one (§7.5): every main-origin caller needs it. A server started with neither (a bare
@@ -134,14 +148,22 @@ export function credentialRouteRefusal(
 export const SESSION_PATH = '/_api/shell/session';
 export const LAUNCH_PARAM = 'maude-launch';
 const LAUNCH_DOMAIN = 'maude-launch/1';
+/** re-check G — a capture helper's own browser: its token and session are kept apart from the person's. */
+const HELPER_LAUNCH_DOMAIN = 'maude-launch-helper/1';
 const COOKIE_NAME_DOMAIN = 'maude-cookie-name/1';
 export const LAUNCH_TTL_SEC = 300;
 /** §7.2 — a session not used for this long is gone (the page trades its key or a fresh link again). */
 export const SESSION_IDLE_MS = 12 * 60 * 60 * 1000;
-const LAUNCH_RE = /^(\d{1,12})\.([0-9a-f]{32})\.([0-9a-f]{64})$/;
+/** re-check D — and none lives longer than this, used or not (a leaked cookie dies within a day). */
+export const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+/** re-check G — a helper's session (a capture, a perf run) is never used again once it is done. */
+export const HELPER_SESSION_IDLE_MS = 30 * 60 * 1000;
+const LAUNCH_RE = /^(h?)(\d{1,12})\.([0-9a-f]{32})\.([0-9a-f]{64})$/;
 const SESSION_VALUE_RE = /^[0-9a-f]{64}$/;
 const MAX_USED_NONCES = 4096;
 const MAX_SESSIONS = 256;
+/** re-check G — the helpers' own budget: a run of captures never pushes out the person's session. */
+const MAX_HELPER_SESSIONS = 32;
 const SHELL_OWN_CREDENTIAL_RE =
   /^\/_api\/shell\/(status|attest|clip-export|clip-asset|clip-import)$/;
 
@@ -155,43 +177,63 @@ export function sessionCookieName(key: string): string {
 }
 
 /**
- * §7.2 — the live sessions: sha256(cookie value) → last use (ms). The value is random and held only
- * in this process (never derived from the key), so a leaked cookie dies with idleness or a restart.
+ * §7.2 — the live sessions: sha256(cookie value) → { last use, opened, helper } (ms). The value is
+ * random and held only in this process (never derived from the key), so a leaked cookie dies with
+ * idleness, its 24 h lifetime or a restart. Helper sessions (a capture's own browser) have their
+ * own budget and a short idle expiry, so they never evict the person's.
  */
-export type SessionStore = Map<string, number>;
+export type SessionRec = { seen: number; born: number; helper: boolean };
+export type SessionStore = Map<string, SessionRec>;
 const SESSIONS: SessionStore = new Map();
+
+function sessionExpired(rec: SessionRec, nowMs: number): boolean {
+  const idle = rec.helper ? HELPER_SESSION_IDLE_MS : SESSION_IDLE_MS;
+  return nowMs - rec.seen > idle || nowMs - rec.born > SESSION_MAX_AGE_MS;
+}
 
 function sessionLive(store: SessionStore, value: string, nowMs: number): boolean {
   if (!SESSION_VALUE_RE.test(value)) return false;
   const id = sha256Hex(value);
-  const seen = store.get(id);
-  if (seen === undefined) return false;
-  if (nowMs - seen > SESSION_IDLE_MS) {
+  const rec = store.get(id);
+  if (rec === undefined) return false;
+  if (sessionExpired(rec, nowMs)) {
     store.delete(id);
     return false;
   }
-  store.set(id, nowMs);
+  rec.seen = nowMs;
   return true;
 }
 
-/** A fresh session. Each exchange rotates: the session the caller presented, if any, is dropped. */
-function openSession(store: SessionStore, nowMs: number, replacing: string | null): string {
+/**
+ * A fresh session. Each exchange rotates: the session the caller presented, if any, is dropped. At
+ * the cap, the least recently used session of the SAME kind goes (a helper never evicts the person).
+ */
+function openSession(
+  store: SessionStore,
+  nowMs: number,
+  replacing: string | null,
+  helper = false
+): string {
   if (replacing) store.delete(sha256Hex(replacing));
-  for (const [id, seen] of store) if (nowMs - seen > SESSION_IDLE_MS) store.delete(id);
-  while (store.size >= MAX_SESSIONS) {
+  for (const [id, rec] of store) if (sessionExpired(rec, nowMs)) store.delete(id);
+  const cap = helper ? MAX_HELPER_SESSIONS : MAX_SESSIONS;
+  for (;;) {
+    let count = 0;
     let oldest: string | null = null;
     let at = Number.POSITIVE_INFINITY;
-    for (const [id, seen] of store) {
-      if (seen < at) {
-        at = seen;
+    for (const [id, rec] of store) {
+      if (rec.helper !== helper) continue;
+      count++;
+      if (rec.seen < at) {
+        at = rec.seen;
         oldest = id;
       }
     }
-    if (oldest === null) break;
+    if (count < cap || oldest === null) break;
     store.delete(oldest);
   }
   const value = randomBytes(32).toString('hex');
-  store.set(sha256Hex(value), nowMs);
+  store.set(sha256Hex(value), { seen: nowMs, born: nowMs, helper });
   return value;
 }
 
@@ -199,11 +241,20 @@ function setCookieHeader(key: string, value: string): string {
   return `${sessionCookieName(key)}=${value}; Path=/; HttpOnly; SameSite=Strict`;
 }
 
-/** A one-time launch token (§7.4): `<ts>.<nonce>.<mac>`. Anyone holding the key can mint one. */
-export function mintLaunchToken(key: string, nowSec = Math.floor(Date.now() / 1000)): string {
+/**
+ * A one-time launch token (§7.4): `<ts>.<nonce>.<mac>`. Anyone holding the key can mint one. A
+ * `helper` token (`h<ts>.<nonce>.<mac>`, its own MAC domain) opens a helper session (re-check G).
+ */
+export function mintLaunchToken(
+  key: string,
+  nowSec = Math.floor(Date.now() / 1000),
+  kind: 'person' | 'helper' = 'person'
+): string {
   const nonce = randomBytes(16).toString('hex');
   const ts = String(Math.floor(nowSec));
-  return `${ts}.${nonce}.${hmacHex(key, `${LAUNCH_DOMAIN}\n${ts}\n${nonce}`)}`;
+  const helper = kind === 'helper';
+  const domain = helper ? HELPER_LAUNCH_DOMAIN : LAUNCH_DOMAIN;
+  return `${helper ? 'h' : ''}${ts}.${nonce}.${hmacHex(key, `${domain}\n${ts}\n${nonce}`)}`;
 }
 
 /** Used launch nonces → the token's own `ts` (unix s). Only an expired entry is ever dropped. */
@@ -341,16 +392,20 @@ function launchExchange(
   now: number
 ): Response {
   const m = LAUNCH_RE.exec(url.searchParams.get(LAUNCH_PARAM) ?? '');
-  const fresh = !!m && now - Number(m[1]) <= LAUNCH_TTL_SEC && Number(m[1]) - now <= 30;
+  const helper = m?.[1] === 'h';
+  const ts = m?.[2] ?? '';
+  const nonce = m?.[3] ?? '';
+  const fresh = !!m && now - Number(ts) <= LAUNCH_TTL_SEC && Number(ts) - now <= 30;
+  const domain = helper ? HELPER_LAUNCH_DOMAIN : LAUNCH_DOMAIN;
   if (
     !m ||
     !fresh ||
-    used.has(m[2]) ||
-    !keyMatches(m[3], hmacHex(key, `${LAUNCH_DOMAIN}\n${m[1]}\n${m[2]}`))
+    used.has(nonce) ||
+    !keyMatches(m[4], hmacHex(key, `${domain}\n${ts}\n${nonce}`))
   ) {
     return plainText(
       401,
-      'This Maude link has expired or was already used. Open the project again from Maude, or run `maude design browse`.'
+      'This Maude link has expired or was already used. Open the project again from Maude, or run `maude design server-up --open`.'
     );
   }
   if (used.size >= MAX_USED_NONCES) {
@@ -362,13 +417,13 @@ function launchExchange(
         'Too many Maude links were opened at once. Try again in a few minutes.'
       );
   }
-  used.set(m[2], Number(m[1]));
+  used.set(nonce, Number(ts));
   url.searchParams.delete(LAUNCH_PARAM);
   return new Response(null, {
     status: 303,
     headers: {
       Location: `${url.pathname}${url.search}`,
-      'Set-Cookie': setCookieHeader(key, openSession(sessions, now * 1000, null)),
+      'Set-Cookie': setCookieHeader(key, openSession(sessions, now * 1000, null, helper)),
       'Referrer-Policy': 'no-referrer',
       ...noStore,
     },
