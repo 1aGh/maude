@@ -15,7 +15,7 @@
 
 import type { StillController } from './artboard-still.ts';
 import { acceptFromShell } from './bridge/dgn-protocol.ts';
-import { checkStillWebp } from './bridge/still-webp.ts';
+import { checkStillImage, stillMime } from './bridge/still-webp.ts';
 import { currentCanvasFile } from './shell-canvas-file.ts';
 
 export const STILL_STYLE_SEP = '~';
@@ -81,8 +81,8 @@ export interface StillPersistOptions {
   win?: Window;
   file?: string | null;
   styleSig?: () => string;
-  /** a blob of bytes (tests pass a fake) */
-  toBlob?: (bytes: ArrayBuffer) => Blob;
+  /** a blob of checked still bytes, typed with their MIME (tests pass a fake) */
+  toBlob?: (bytes: ArrayBuffer, type: 'image/webp' | 'image/png') => Blob;
   /** a blob's bytes */
   bytesOf?: (blob: Blob) => Promise<ArrayBuffer>;
 }
@@ -99,7 +99,7 @@ export function startStillPersist(st: StillController, o: StillPersistOptions = 
   const file = o.file === undefined ? currentCanvasFile() : o.file;
   if (!embedded || !file || !persistAllowed(win.location?.search ?? '')) return () => {};
   const styleSig = o.styleSig ?? (() => documentStyleSignature(win.document));
-  const toBlob = o.toBlob ?? ((b: ArrayBuffer) => new Blob([b], { type: 'image/webp' }));
+  const toBlob = o.toBlob ?? ((b: ArrayBuffer, type: string) => new Blob([b], { type }));
   const bytesOf = o.bytesOf ?? ((b: Blob) => b.arrayBuffer());
   let shellOrigin: string | null = null;
   const pending = new Map<string, { blob: Blob; sig: string }>();
@@ -113,7 +113,7 @@ export function startStillPersist(st: StillController, o: StillPersistOptions = 
     const to = shellOrigin;
     void bytesOf(blob)
       .then((bytes) => {
-        if (!checkStillWebp(bytes).ok) return;
+        if (!checkStillImage(bytes).ok) return;
         try {
           win.parent.postMessage(
             {
@@ -143,8 +143,10 @@ export function startStillPersist(st: StillController, o: StillPersistOptions = 
     for (const it of m.items) {
       const cut = it.sig.lastIndexOf(STILL_STYLE_SEP);
       if (cut <= 0 || it.sig.slice(cut + 1) !== style) continue;
-      if (!checkStillWebp(it.bytes).ok) continue;
-      st.cache.seed(it.artboard, toBlob(it.bytes), it.sig.slice(0, cut));
+      // the MIME comes from the checked bytes (WebP, or PNG where the browser encodes no WebP), never the frame's word
+      const type = stillMime(it.bytes);
+      if (!type) continue;
+      st.cache.seed(it.artboard, toBlob(it.bytes, type), it.sig.slice(0, cut));
     }
     st.adoptSeeds();
     for (const [id, p] of pending) offer(id, p.blob, p.sig);
