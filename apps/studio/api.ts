@@ -5755,6 +5755,16 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: false, status: 500, error: err instanceof Error ? err.message : 'move failed' };
     }
 
+    // The FOLDER moved: say so once, here, whether or not a canvas lives inside. The per-canvas
+    // `moved` announcements below are no stand-in — an EMPTY folder has none, and the tree (served
+    // from the index cache) reloads the moment this write answers, ahead of the file watcher. The
+    // same shape as `mkdir` / `removed-folder`: no `rel`, so the canvas-list watchers ignore it.
+    ctx.bus.emit('canvas-list-update', {
+      action: 'moved-folder',
+      dir: toRelDir,
+      fromDir: relDir,
+    });
+
     const moved: string[] = [path.relative(paths.repoRoot, toDirFinalAbs)];
     const locatorAbs = path.join(paths.designRoot, '_locator.json');
     for (const fromRel of canvasRels) {
