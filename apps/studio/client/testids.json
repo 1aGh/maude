@@ -5747,6 +5747,21 @@
     "v2": "new"
   },
   {
+    "hook": "share-worktree-syncs-from",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#206 §5: a worktree tab's Share sheet — “Syncs from <main>”, no Connect and no Move to cloud (a worktree is never linked; the Connect route refuses it too).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": [
+      "apps/studio/test/v2-share-link-unconfirmed.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "share-unreachable",
     "kind": "testid",
     "pattern": false,

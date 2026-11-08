@@ -575,8 +575,21 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
 
     // gate-b-sec4 — the hub the app itself bound this folder to (a managed copy), so the studio
     // honours that link without asking. A committed `linkedHub` is never this (sync/link-consent.ts).
-    if let Some(hub) = crate::app_state::app_bound_hub(app, &project_root) {
-        command = command.env("MAUDE_APP_BOUND_HUB", hub);
+    // #206 §5: a worktree tab is never linked — no bound hub, and its server is told whose worktree
+    // it is (`MAUDE_WORKTREE_OF`, shell/worktree.ts: "Syncs from <main>", Connect refused).
+    let worktree_main = crate::app_state::load(app).worktree_main(&project_root);
+    match worktree_main {
+        Some(wt) => {
+            command = command.env(
+                "MAUDE_WORKTREE_OF",
+                crate::windows::project_display_name(&wt.main_root.to_string_lossy()),
+            );
+        }
+        None => {
+            if let Some(hub) = crate::app_state::app_bound_hub(app, &project_root) {
+                command = command.env("MAUDE_APP_BOUND_HUB", hub);
+            }
+        }
     }
 
     // Loopback GitHub-token bridge (DDR-108): the dev-server's /_api/github/*
@@ -2164,5 +2177,19 @@ mod tests {
         if std::env::var("MAUDE_E2E_RUNNING_CAP").is_err() {
             assert_eq!(running_cap(), RUNNING_CAP);
         }
+    }
+
+    /// #206 §5 pin: a worktree tab's server is told its main project and never gets a bound hub.
+    #[test]
+    fn a_worktree_spawn_is_told_its_main_and_gets_no_bound_hub() {
+        let src = include_str!("sidecar.rs");
+        let at = src
+            .find("let worktree_main = crate::app_state::load(app).worktree_main(&project_root);")
+            .expect("the spawn asks whether the root is a worktree tab");
+        let block = &src[at..at + 700];
+        let wt = block.find("\"MAUDE_WORKTREE_OF\"").expect("worktree env");
+        let none = block.find("None => {").expect("the non-worktree arm");
+        let hub = block.find("\"MAUDE_APP_BOUND_HUB\"").expect("bound hub");
+        assert!(wt < none && none < hub, "the bound hub is only for a non-worktree");
     }
 }

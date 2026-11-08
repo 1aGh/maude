@@ -128,6 +128,8 @@ export function ShareSheet({
   const [lastSynced, setLastSynced] = useState(null);
   // gate-b-sec4 — `{ host }` while the folder's committed link waits for this Mac's Connect
   const [pendingLink, setPendingLink] = useState(null);
+  // #206 §5 — the main project's name when this tab is a git worktree of it: never linked, no Connect
+  const [worktreeOf, setWorktreeOf] = useState(null);
   const emailRef = useRef(null);
   const connectRef = useRef(null);
   const sheetRef = useModalFocus({ onClose });
@@ -168,7 +170,10 @@ export function ShareSheet({
     let live = true;
     api.pendingLink().then((r) => {
       const host = r?.ok ? r.body?.pending?.host : null;
-      if (live) setPendingLink(typeof host === 'string' && host ? { host } : null);
+      const main = r?.ok ? r.body?.worktreeOf : null;
+      if (!live) return;
+      setPendingLink(typeof host === 'string' && host ? { host } : null);
+      setWorktreeOf(typeof main === 'string' && main ? main : null);
     });
     return () => {
       live = false;
@@ -372,7 +377,8 @@ export function ShareSheet({
       }
     });
   const adv = advancedView({ view, shell, hubUrl: posture?.hub });
-  const offerMove = posture && !view.linked && shell === 'native' && !moving && !pendingLink;
+  const offerMove =
+    posture && !view.linked && shell === 'native' && !moving && !pendingLink && !worktreeOf;
 
   const rows = peopleRows(people, { youEmail, now });
   const team = canvas ? teamRow(people, projectPeople, project) : null;
@@ -429,6 +435,11 @@ export function ShareSheet({
             {movingWords(moving.state)}
           </p>
         )}
+        {posture && !view.linked && worktreeOf && (
+          <p className="v2sh-hint" data-testid="share-worktree-syncs-from">
+            Syncs from {worktreeOf}
+          </p>
+        )}
         {posture && !view.linked && pendingLink && (
           <div className="v2sh-arow v2sh-arow--stack" data-testid="share-link-unconfirmed">
             <p className="v2sh-hint">
@@ -447,15 +458,21 @@ export function ShareSheet({
           </div>
         )}
         {/* a cloud tab is never a "local project": it IS the workspace, so this line has no true form there (rc3-i) */}
-        {posture && !view.linked && !offerMove && !moving && !pendingLink && shell !== 'cloud' && (
-          <div className="v2sh-arow v2sh-arow--stack">
-            <p className="v2sh-hint" data-testid="share-local-note">
-              Local project — kept on this Mac. To invite people, move it to Maude Cloud in the
-              Maude app.
-            </p>
-            <ExportInstead onExport={onExport && (() => onExport())} />
-          </div>
-        )}
+        {posture &&
+          !view.linked &&
+          !offerMove &&
+          !moving &&
+          !pendingLink &&
+          !worktreeOf &&
+          shell !== 'cloud' && (
+            <div className="v2sh-arow v2sh-arow--stack">
+              <p className="v2sh-hint" data-testid="share-local-note">
+                Local project — kept on this Mac. To invite people, move it to Maude Cloud in the
+                Maude app.
+              </p>
+              <ExportInstead onExport={onExport && (() => onExport())} />
+            </div>
+          )}
         {posture && view.linked && !view.reachable && (
           <p className="v2sh-hint" data-testid="share-unreachable">
             {unreachableWords(shell)}
