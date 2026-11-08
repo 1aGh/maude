@@ -48,7 +48,13 @@ import {
   useLiveViewport,
 } from '../../canvas-lib.tsx';
 import { SECTION_FOLDED_H } from '../constants.ts';
-import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
+import {
+  authorLine,
+  hiddenCheckItems,
+  provenanceLine,
+  relativeTime,
+  tiltOf,
+} from '../elements/sticky.model.ts';
 import type { AnnotationElement } from '../types.ts';
 import {
   AI_SPARK,
@@ -58,7 +64,7 @@ import {
   sectionTone,
   stickyPaper,
 } from './ai-marks.tsx';
-import { ChecklistChip, ChecklistRows, useChecklistItems } from './checklist.tsx';
+import { ChecklistChip, ChecklistMore, ChecklistRows, useChecklistItems } from './checklist.tsx';
 import { quietPaper, whoInk } from './posture.ts';
 import type { ResolvedEnds } from './render-model.ts';
 import { labelPoint } from './rest-route.ts';
@@ -444,6 +450,13 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
           {withListMarkers(text, lst)}
         </div>
       )}
+      {items.length && !edit ? (
+        <ChecklistMore
+          listId={el.id}
+          hidden={hiddenCheckItems({ w, h, fontSize: fmt.fontSize }, text, items)}
+          paper={fill}
+        />
+      ) : null}
       {items.length && !edit ? <ChecklistChip listId={el.id} paper={fill} /> : null}
       {edit ? <EditNotice notice={edit.notice} /> : null}
       {aiMade && !edit ? <SparkGlyph className="dc-annot-spark" /> : null}

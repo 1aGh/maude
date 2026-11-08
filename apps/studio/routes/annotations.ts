@@ -23,6 +23,7 @@
 
 import { randomBytes } from 'node:crypto';
 import { arrivalLine, guardFigjamOps, parseFigjamBody } from '../annotations/figjam-into.ts';
+import { itemsByList, toTaskLines } from '../annotations/elements/checkitem.model.ts';
 import { keyBetween } from '../annotations/fractional-index.ts';
 import type { Op as AnnotationOp } from '../annotations/ops.ts';
 import { parseBoard } from '../annotations/schema.ts';
@@ -218,11 +219,36 @@ export function convertOps(
 ): Array<{ op: 'delete'; id: string }> {
   const ids = [stickyId];
   for (const el of board) {
+    // #113 - a checklist's entries are part of the sticky: they leave with it (undo brings them all back)
+    if (el.type === 'checkitem' && el.list === stickyId) {
+      ids.push(el.id);
+      continue;
+    }
     if (el.type !== 'arrow') continue;
     const a = el as AnnotationElement & { start?: { el?: string } };
     if (a.start?.el === stickyId) ids.push(el.id);
   }
   return ids.map((id) => ({ op: 'delete' as const, id }));
+}
+
+/**
+ * The words a sticky carries into a comment: its text, and for a checklist its entries as Markdown task lines
+ * (`toTaskLines`), so the thread keeps what was ticked and what was not.
+ */
+export function stickyCommentText(
+  board: readonly AnnotationElement[],
+  el: AnnotationElement
+): string {
+  const title = typeof el.text === 'string' ? el.text.trim() : '';
+  const items = itemsByList(board).get(el.id) ?? [];
+  if (!items.length) return title;
+  return toTaskLines(
+    title,
+    items.map((i) => ({
+      text: typeof i.text === 'string' ? i.text : '',
+      done: i.done !== undefined && i.done !== null,
+    }))
+  ).trim();
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -347,7 +373,7 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
           if (!el) return { ok: false, status: 404, body: { ok: false, reason: 'gone' } };
           if (el.type !== 'sticky')
             return { ok: false, status: 409, body: { ok: false, reason: 'not-a-sticky' } };
-          const text = typeof el.text === 'string' ? el.text.trim() : '';
+          const text = stickyCommentText(board, el);
           if (!text) return { ok: false, status: 409, body: { ok: false, reason: 'empty' } };
           label = toCommentLabel(text);
           const x = num(el.x) ?? 0;

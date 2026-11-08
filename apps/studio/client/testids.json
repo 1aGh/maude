@@ -29220,6 +29220,22 @@
     "v2": "new"
   },
   {
+    "hook": "checklist-more-<listId>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "#113: \"+N more\" fade over the bottom of a checklist sticky whose entries no longer fit (a list past the sticky's growth ceiling). Plain text, takes no press.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/checklist.tsx",
+      "symbol": "ChecklistMore"
+    },
+    "region": "canvas iframe",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/checklist-a11y.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "annot-sticky-paper-more",
     "kind": "testid",
     "pattern": false,

@@ -22,6 +22,7 @@ import {
   type ChecklistApi,
   ChecklistChip,
   ChecklistContext,
+  ChecklistMore,
   ChecklistRows,
   doneInk,
 } from '../annotations/ui/checklist.tsx';
@@ -174,5 +175,31 @@ describe('contrast', () => {
 
   test('the done ink is quieter than the object ink (it reads as done)', () => {
     expect(doneInk('#fce8a6')).not.toBe('#2a2a28');
+  });
+});
+
+describe('"+N more" (a list taller than the sticky can grow)', () => {
+  function mountMore(hidden: number) {
+    host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+    act(() => {
+      root?.render(<ChecklistMore listId="s1" hidden={hidden} paper="#fce8a6" />);
+    });
+    return host;
+  }
+
+  test('says how many entries are clipped, as plain text a reader can find', () => {
+    const el = mountMore(3);
+    const more = el.querySelector('[data-testid="checklist-more-s1"]');
+    expect(more?.textContent).toBe('+3 more');
+    // a fade over the clipped rows; never takes a press
+    expect((more as HTMLElement).style.pointerEvents).toBe('none');
+    expect((more as HTMLElement).style.backgroundImage).toContain('linear-gradient');
+  });
+
+  test('draws nothing when nothing is clipped', () => {
+    const el = mountMore(0);
+    expect(el.querySelector('[data-testid="checklist-more-s1"]')).toBeNull();
   });
 });

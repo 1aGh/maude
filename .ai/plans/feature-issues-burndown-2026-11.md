@@ -300,7 +300,7 @@ W5 and W6 use Opus.
 
 - [x] T7.1 A contract for each: the #122 cross-canvas clipboard (copy / cut / paste of artboards and elements, including assets and imports, plus undo on both canvases) and the #113 checklist as an annotation / sticky kind (sync, undo, export). They go through the action registry, so there are no new key handlers.
 - [ ] T7.2 Build #122, plus e2e.
-- [ ] T7.3 Build #113, plus e2e, the What's New entry and docs.
+- [x] T7.3 Build #113, plus e2e, the What's New entry and docs.
 
 ### W8 — Performance and harness
 
@@ -395,3 +395,4 @@ W5 and W6 use Opus.
 - 2026-11-08 merged T6.5 91afb756d (#208 cause: Tauri packs child webviews into the GTK vbox with expand, set_bounds is a no-op there → strip and tab each took half; fix: Linux-only packing, strip 38 px, tab grows; new linux-shell-lane.yml (ubuntu-22.04, Xvfb, harness example) — first run on the wave push). Zoom/pan: partly explained (strip swallowed input); touchpad pinch on WebKitGTK unverified.
 - 2026-11-08 merged T6.3g (8898fff67 49605d870 73a0f013f): Home Worktrees row (open_worktree by pid, home-only), every sign-in from a worktree tab refused 'Sign in from <main>' (contract reading; lead accepted), Move to cloud refused server-side, cli-reuse takeover case. #206 built; the cli-reuse lane run is owed in T9.1. T6.3/T6.4/T6.5 ticked (Linux lane first runs on push).
 - 2026-11-08 merged 113-B (e1ee5bd0b 06d6d46fd): checklist UI, registry keys + checkItemFocused, a11y, one undo per gesture, template/copy/delete carry entries, Turn into checklist, role-matrix row. 113-C (e2e from the scratch script, What's New, docs, +N more fade, ⌘Z label) next.
+- 2026-11-08 merged 113-C (d40ca748e 8ec7d3c6c): checklist e2e 6/6, '+N more' fade, checklist→comment keeps entries as task lines (one ⌘Z), docs + What's New. #113 built. Follow-up T7.3b: ⌘Z toast names the gesture (thread an optional label through ops → proposeLane → kernel; lead chose option A). Wave-2 push candidate 6867607ad on the mini.
