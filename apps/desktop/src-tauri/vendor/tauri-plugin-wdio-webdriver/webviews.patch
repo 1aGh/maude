@@ -127,6 +127,15 @@
          tokio::time::sleep(std::time::Duration::from_millis(100)).await;
          self.get_window_rect().await
      }
+@@ -1651,7 +1651,7 @@
+     async fn add_cookie(&self, mut cookie: Cookie) -> Result<(), WebDriverErrorResponse> {
+         // Per WebDriver spec: if no domain is specified, use the current page's domain
+         if cookie.domain.is_none() {
+-            if let Ok(url) = self.window().url() {
++            if let Some(url) = crate::platform::webview_url::url_of(self.window()) {
+                 cookie.domain = url.host_str().map(String::from);
+             }
+         }
 --- a/src/platform/ios.rs
 +++ b/src/platform/ios.rs
 @@ -1,7 +1,7 @@
@@ -235,9 +244,146 @@
          &self.window
      }
  
+@@ -106,8 +106,7 @@
+             let block = RcBlock::new(move |result: *mut AnyObject, error: *mut NSError| {
+                 let response = if !error.is_null() {
+                     let error_ref = &*error;
+-                    let description = error_ref.localizedDescription();
+-                    Err(description.to_string())
++                    Err(describe_ns_error(error_ref))
+                 } else if result.is_null() {
+                     Ok(Value::Null)
+                 } else {
+@@ -214,8 +213,7 @@
+             let block = RcBlock::new(move |result: *mut AnyObject, error: *mut NSError| {
+                 let response = if !error.is_null() {
+                     let error_ref = &*error;
+-                    let description = error_ref.localizedDescription();
+-                    Err(description.to_string())
++                    Err(describe_ns_error(error_ref))
+                 } else if result.is_null() {
+                     Ok(Value::Null)
+                 } else {
+@@ -271,8 +269,7 @@
+             let block = RcBlock::new(move |image: *mut NSImage, error: *mut NSError| {
+                 let response = if !error.is_null() {
+                     let error_ref = &*error;
+-                    let description = error_ref.localizedDescription();
+-                    Err(description.to_string())
++                    Err(describe_ns_error(error_ref))
+                 } else if image.is_null() {
+                     Err("No image returned".to_string())
+                 } else {
+@@ -386,8 +383,7 @@
+             let block = RcBlock::new(move |data: *mut NSData, error: *mut NSError| {
+                 let response = if !error.is_null() {
+                     let error_ref = &*error;
+-                    let description = error_ref.localizedDescription();
+-                    Err(description.to_string())
++                    Err(describe_ns_error(error_ref))
+                 } else if data.is_null() {
+                     Err("No PDF data returned".to_string())
+                 } else {
+@@ -456,6 +452,33 @@
+     Ok(BASE64_STANDARD.encode(&bytes))
+ }
+ 
++/// The text of an `NSError` from `evaluateJavaScript` / `callAsyncJavaScript`.
++///
++/// WebKit reports a script that THREW with the generic `localizedDescription` "A JavaScript exception
++/// occurred"; the exception's own message (e.g. `stale element reference`, which the executor's scripts
++/// throw and `WebDriverErrorResponse::javascript_error` maps to the W3C code) is only in the error's
++/// `userInfo["WKJavaScriptExceptionMessage"]`. Reading the description alone turned every stale element
++/// into a plain `javascript error` (upstream fixed this in 1.4.0; this is the same mapping).
++pub(super) fn describe_ns_error(error: &NSError) -> String {
++    // SAFETY: `userInfo` and `objectForKey:` are plain Foundation getters; both results are nullable and
++    // checked, and `ns_object_to_json` only reads the object it is handed.
++    unsafe {
++        let info: *mut AnyObject = msg_send![error, userInfo];
++        if !info.is_null() {
++            let key = NSString::from_str("WKJavaScriptExceptionMessage");
++            let message: *mut AnyObject = msg_send![info, objectForKey: &*key];
++            if !message.is_null() {
++                if let Value::String(text) = ns_object_to_json(&*message) {
++                    if !text.is_empty() {
++                        return text;
++                    }
++                }
++            }
++        }
++    }
++    error.localizedDescription().to_string()
++}
++
+ /// Convert an `NSObject` to a JSON value
+ pub(super) unsafe fn ns_object_to_json(obj: &AnyObject) -> Value {
+     use objc2_foundation::NSString as NSStr;
+@@ -682,5 +705,55 @@
+         let this = Self::alloc(mtm);
+         let this = this.set_ivars(WebDriverUIDelegateIvars { alert_state });
+         msg_send![super(this), init]
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::server::response::WebDriverErrorResponse;
++
++    /// An `NSError` whose `userInfo` holds one entry.
++    fn error_with(key: &str, value: &str) -> Retained<NSError> {
++        let domain = NSString::from_str("WKErrorDomain");
++        let key = NSString::from_str(key);
++        let value = NSString::from_str(value);
++        // SAFETY: plain Foundation class methods with matching argument types.
++        unsafe {
++            let info: Retained<AnyObject> = msg_send![
++                objc2::class!(NSDictionary),
++                dictionaryWithObject: &*value,
++                forKey: &*key
++            ];
++            msg_send![
++                objc2::class!(NSError),
++                errorWithDomain: &*domain,
++                code: 4isize,
++                userInfo: &*info
++            ]
++        }
++    }
++
++    /// WebKit's error for a script that threw carries the exception's own message in `userInfo`.
++    #[test]
++    fn a_thrown_script_error_reports_the_exceptions_own_message() {
++        let err = error_with("WKJavaScriptExceptionMessage", "stale element reference");
++        assert_eq!(describe_ns_error(&err), "stale element reference");
++    }
++
++    #[test]
++    fn a_thrown_stale_element_maps_to_the_w3c_code() {
++        let err = error_with(
++            "WKJavaScriptExceptionMessage",
++            "Error: stale element reference",
++        );
++        let mapped = WebDriverErrorResponse::javascript_error(&describe_ns_error(&err), None);
++        assert_eq!(mapped.error, "stale element reference");
++    }
++
++    #[test]
++    fn an_error_without_an_exception_message_keeps_its_description() {
++        let err = error_with("NSLocalizedDescription", "A JavaScript exception occurred");
++        assert_eq!(describe_ns_error(&err), "A JavaScript exception occurred");
+     }
+ }
 --- a/src/platform/mod.rs
 +++ b/src/platform/mod.rs
-@@ -25,14 +25,14 @@
+@@ -1,5 +1,6 @@
+ pub(crate) mod alert_state;
+ mod executor;
++pub(crate) mod webview_url;
+ 
+ pub use alert_state::AlertStateManager;
+ pub use executor::*;
+@@ -25,14 +26,14 @@
  mod ios;
  
  use std::sync::Arc;
@@ -254,7 +400,7 @@
      timeouts: Timeouts,
      frame_context: Vec<FrameId>,
  ) -> Arc<dyn PlatformExecutor<R>> {
-@@ -42,7 +42,7 @@
+@@ -42,7 +43,7 @@
  /// Create a platform-specific executor for the given window
  #[cfg(target_os = "windows")]
  pub fn create_executor<R: Runtime + 'static>(
@@ -263,7 +409,7 @@
      timeouts: Timeouts,
      frame_context: Vec<FrameId>,
  ) -> Arc<dyn PlatformExecutor<R>> {
-@@ -56,7 +56,7 @@
+@@ -56,7 +57,7 @@
  /// Create a platform-specific executor for the given window
  #[cfg(target_os = "linux")]
  pub fn create_executor<R: Runtime + 'static>(
@@ -272,7 +418,7 @@
      timeouts: Timeouts,
      frame_context: Vec<FrameId>,
  ) -> Arc<dyn PlatformExecutor<R>> {
-@@ -66,7 +66,7 @@
+@@ -66,7 +67,7 @@
  /// Create a platform-specific executor for the given window
  #[cfg(target_os = "android")]
  pub fn create_executor<R: Runtime + 'static>(
@@ -281,7 +427,7 @@
      timeouts: Timeouts,
      frame_context: Vec<FrameId>,
  ) -> Arc<dyn PlatformExecutor<R>> {
-@@ -80,7 +80,7 @@
+@@ -80,7 +81,7 @@
  /// Create a platform-specific executor for the given window
  #[cfg(target_os = "ios")]
  pub fn create_executor<R: Runtime + 'static>(
@@ -290,6 +436,63 @@
      timeouts: Timeouts,
      frame_context: Vec<FrameId>,
  ) -> Arc<dyn PlatformExecutor<R>> {
+--- a/src/platform/webview_url.rs
++++ b/src/platform/webview_url.rs
+@@ -0,0 +1,54 @@
++//! A webview's URL, read without the macOS main-thread panic (Maude fork; see `VENDORED.md`).
++//!
++//! `tauri::Webview::url()` answers on the main thread with `WKWebView.URL().unwrap()` (wry 0.57), and a
++//! `WKWebView` has no URL until its first navigation commits, or again while that navigation is being
++//! replaced. A call in that window panics the main thread and quits the app. The shell has the same
++//! helper (`src/webview_url.rs` in `maude-desktop`, which also holds the test that keeps every other
++//! `.url()` call out of both trees); this copy exists because a vendored crate cannot reach the shell's.
++//!
++//! `url_of` reads `WKWebView.URL` itself, on the main thread, and answers `None` when there is none.
++//! Off macOS it is `url()`.
++
++use tauri::{Runtime, Url, Webview};
++
++/// How long a caller off the main thread waits for the main thread to read the URL.
++#[cfg(target_os = "macos")]
++const MAIN_THREAD_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
++
++/// The webview's current URL, or `None` while it has none, when it is gone, or when the main thread does
++/// not answer in time. Never panics.
++pub(crate) fn url_of<R: Runtime>(webview: &Webview<R>) -> Option<Url> {
++    #[cfg(target_os = "macos")]
++    {
++        use objc2::msg_send;
++        use objc2::runtime::AnyObject;
++
++        let (tx, rx) = std::sync::mpsc::channel::<Option<String>>();
++        webview
++            .with_webview(move |platform| {
++                // SAFETY: on macOS `inner()` is the live WKWebView this closure runs against, on the main
++                // thread (Tauri's `with_webview` contract); `URL` and `absoluteString` are nullable getters.
++                let url = unsafe {
++                    let wk: *mut AnyObject = platform.inner().cast();
++                    let url: *mut AnyObject = msg_send![wk, URL];
++                    if url.is_null() {
++                        None
++                    } else {
++                        let abs: *mut AnyObject = msg_send![url, absoluteString];
++                        if abs.is_null() {
++                            None
++                        } else {
++                            Some((*abs.cast::<objc2_foundation::NSString>()).to_string())
++                        }
++                    }
++                };
++                let _ = tx.send(url);
++            })
++            .ok()?;
++        rx.recv_timeout(MAIN_THREAD_WAIT).ok()??.parse().ok()
++    }
++    #[cfg(not(target_os = "macos"))]
++    {
++        webview.url().ok()
++    }
++}
 --- a/src/platform/windows.rs
 +++ b/src/platform/windows.rs
 @@ -5,7 +5,7 @@
