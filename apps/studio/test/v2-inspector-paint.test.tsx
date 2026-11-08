@@ -554,6 +554,11 @@ const activeId = () => document.activeElement?.getAttribute('data-testid') ?? nu
 describe('IR-11 — a new paint starts from the slot’s role token, never currentColor', () => {
   // #170: IR-11 says it in full — with no system and nothing in Recent, "+" adds a neutral mid grey (not a role token
   // a system could have supplied) and opens the picker at once.
+  // #168 G3 (89c4ac1f8) keys Recent by "this project" (one bucket per page, not per config name), so an earlier test's
+  // picks are this test's Recent unless the store is emptied first.
+  beforeEach(async () => {
+    (await import('../client/v2/inspector/sections/recent-colours.js')).recentStore.reset();
+  });
   test('no design system, empty Recent: Fill › + writes a neutral mid grey and opens the picker', async () => {
     const host = await one({ authored: {} }, NO_DS);
     await click(q(host, 'insp-add-fill'));
@@ -712,8 +717,9 @@ describe('IR-8 — the colour picker popover', () => {
     const saved = posts.filter((p) => p.url === '/_api/ui-prefs').at(-1)?.body as {
       recentColours: Record<string, string[]>;
     };
-    expect(saved.recentColours.Picker[0]).toBe('var(--fg-3)');
-    expect(saved.recentColours.Picker.length).toBe(8);
+    // #168 G3 (89c4ac1f8) — the page sends only RECENT_HERE; the server keys it by its own root identity
+    expect(saved.recentColours.here[0]).toBe('var(--fg-3)');
+    expect(saved.recentColours.here.length).toBe(8);
   });
 
   test('Custom: the raw colour is written first, then asked once — Use <nearest> or Add it to the system', async () => {

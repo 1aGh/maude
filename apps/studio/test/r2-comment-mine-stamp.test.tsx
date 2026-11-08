@@ -142,6 +142,8 @@ describe('the canvas wears "You" on what the shell says is yours', () => {
               'iagh'
             ),
           },
+          // #168 F3 (6532961ad) — the overlay hears only its shell: post from the parent frame
+          source: window.parent as unknown as Window,
         })
       );
     });

@@ -70,6 +70,7 @@ describe('wiring', () => {
   test('the "copy made" toasts wear the copy glyph, not a success tick', () => {
     const src = read('client/hooks/use-canvas-bridge.jsx');
     expect(src).toContain("const DUPLICATE_TOAST = { kind: 'info', icon: 'duplicate' }");
-    expect(src.match(/DUPLICATE_TOAST\)/g)?.length).toBe(2);
+    // #168 T5.4 F2 (623f5e8e0) — the width-duplicate toast spreads it under its own fixed id; still two call sites.
+    expect(src.match(/DUPLICATE_TOAST\)|\.\.\.DUPLICATE_TOAST,/g)?.length).toBe(2);
   });
 });
