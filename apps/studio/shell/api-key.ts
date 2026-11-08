@@ -20,6 +20,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 import { isWorkspaceMode } from '../workspace-mode.ts';
+import { isCliRole } from './cli-yield.ts';
 
 export const API_KEY_ENV = 'MAUDE_SHELL_API_KEY';
 export const API_KEY_HEADER = 'x-maude-api-key';
@@ -46,12 +47,26 @@ export function takeApiKey(env: Record<string, string | undefined> = process.env
 
 const ENV_KEY = takeApiKey(process.env);
 const BOOT_KEY = ENV_KEY ?? randomBytes(32).toString('hex');
-/** §7.1 — a starter handed this process its key, so every main-origin caller needs it. */
-const BOOT_REQUIRED = ENV_KEY !== null;
+/**
+ * §7.5 — a terminal-started server (role `cli`: `maude design serve`, `server-up`) mints its own
+ * key, writes it to the per-user key file (shell/key-file.ts) and opens with a launch token.
+ */
+const TERMINAL_REQUIRED = ENV_KEY === null && isCliRole(process.env);
+/**
+ * §7.1 — a starter handed this process its key (the desktop app), or a terminal starter asked
+ * for one (§7.5): every main-origin caller needs it. A server started with neither (a bare
+ * `bun server.ts`, a test harness) keeps phase 1: credential routes only.
+ */
+const BOOT_REQUIRED = ENV_KEY !== null || TERMINAL_REQUIRED;
 
 /** This process's key (in-process launch-URL minting, phase 2b). */
 export function bootApiKey(): string {
   return BOOT_KEY;
+}
+
+/** §7.5 — did this server mint its own key as a terminal-started server (it writes the key file)? */
+export function terminalKeyMode(): boolean {
+  return TERMINAL_REQUIRED && !isWorkspaceMode();
 }
 
 /** §7.1 — is this server in required mode? */
@@ -175,6 +190,30 @@ function isExempt(method: string, pathname: string): boolean {
   );
 }
 
+/**
+ * The session cookie, counted only same-origin: the canvas origin is the same host on another port,
+ * which a cookie treats as same-site.
+ */
+function hasSessionCookie(req: Request, key: string): boolean {
+  const site = req.headers.get('sec-fetch-site');
+  if (site && site !== 'same-origin' && site !== 'none') return false;
+  const c = sessionCookie(key);
+  const got = cookieValue(req, c.name);
+  return got !== null && keyMatches(got, c.value);
+}
+
+function redirectWithoutLaunch(url: URL): Response {
+  url.searchParams.delete(LAUNCH_PARAM);
+  return new Response(null, {
+    status: 303,
+    headers: {
+      Location: `${url.pathname}${url.search}`,
+      'Referrer-Policy': 'no-referrer',
+      ...noStore,
+    },
+  });
+}
+
 type GateOpts = {
   key?: string;
   required?: boolean;
@@ -241,8 +280,12 @@ export function mainOriginKeyRefusal(req: Request, opts: GateOpts = {}): Respons
     read &&
     (pathname === '/' || pathname === '/index.html') &&
     url.searchParams.has(LAUNCH_PARAM)
-  )
+  ) {
+    // a page that already holds the session (a reload, a helper navigating twice) just drops the
+    // parameter — its token stays unspent and unchecked
+    if (hasSessionCookie(req, key)) return redirectWithoutLaunch(url);
     return launchExchange(url, key, opts);
+  }
 
   const presented = presentedKey(req);
   if (pathname === SESSION_PATH) {
@@ -257,13 +300,6 @@ export function mainOriginKeyRefusal(req: Request, opts: GateOpts = {}): Respons
 
   if (isExempt(method, pathname)) return null;
   if (presented !== null) return keyMatches(presented, key) ? null : refuse(401, 'api-key-invalid');
-  // the cookie counts only same-origin: the canvas origin is the same host on another port, which
-  // a cookie treats as same-site
-  const site = req.headers.get('sec-fetch-site');
-  if (!site || site === 'same-origin' || site === 'none') {
-    const c = sessionCookie(key);
-    const got = cookieValue(req, c.name);
-    if (got !== null && keyMatches(got, c.value)) return null;
-  }
+  if (hasSessionCookie(req, key)) return null;
   return refuse(401, 'api-key-required');
 }

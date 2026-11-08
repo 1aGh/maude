@@ -77,7 +77,14 @@ import {
   yieldIntervalFrom,
   yieldRefusal,
 } from './shell/cli-yield.ts';
-import { mainOriginKeyRefusal } from './shell/api-key.ts';
+import {
+  bootApiKey,
+  mainOriginKeyRefusal,
+  mintLaunchToken,
+  terminalKeyMode,
+  LAUNCH_PARAM,
+} from './shell/api-key.ts';
+import { removeServerKeyFile, writeServerKeyFile } from './shell/key-file.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
 import { exitWithParent } from './shell/parent-watch.ts';
 import { removeServerJsonIfOurs, writeServerJson } from './shell/server-json.ts';
@@ -1125,6 +1132,18 @@ const captureServer =
     : null;
 if (captureServer) ctx.captureOrigin = `http://localhost:${captureServer.port}`;
 
+// sec-loopback-bearer §7.5 — a terminal-started server minted its own key; the CLI on this machine
+// reads it from the per-user key file (never the project), and the browser opens with a launch token.
+// Written BEFORE `_server.json`: a helper that found the port there finds the key too.
+const serverKeyFile = terminalKeyMode()
+  ? writeServerKeyFile({
+      port: server.port ?? 0,
+      pid: process.pid,
+      rootId: rootIdentity(ctx.paths.repoRoot),
+      apiKey: bootApiKey(),
+    })
+  : null;
+
 const startedAt = new Date().toISOString();
 bootFinished();
 // #206 (DDR-250 decision 7) — atomic, and removed at shutdown only while it still names this
@@ -1248,9 +1267,15 @@ try {
 }
 
 const url = `http://localhost:${server.port}`;
+// §7.5 — a key-requiring server opens with a one-time launch token; it is printed only to a
+// terminal (a nohup'd server-up log keeps the plain address) and never names the key itself
+const launchUrl = () => `${url}/?${LAUNCH_PARAM}=${mintLaunchToken(bootApiKey())}`;
+const requiresLaunch = terminalKeyMode();
 console.log(`\n  ${ctx.projectLabel} — local browser`);
 console.log('  ─────────────────────────────');
-console.log(`  ${url}`);
+console.log(`  ${requiresLaunch && process.stdout.isTTY ? launchUrl() : url}`);
+if (requiresLaunch)
+  console.log('  (the link opens once; `maude design browse` opens the studio again)');
 console.log(`  Project:   ${ctx.cfg.name}`);
 console.log(`  Config:    ${ctx.cfg._source}`);
 console.log(`  Design:    ${ctx.paths.designRoot}`);
@@ -1274,7 +1299,11 @@ if (!process.env.NO_OPEN && !WORKSPACE) {
     // throw. That is precisely how a headless image with no `xdg-open` took the
     // whole server down. (DDR-009 also prefers Bun.* here.)
     try {
-      Bun.spawn([opener, url], { stdin: 'ignore', stdout: 'ignore', stderr: 'ignore' }).unref();
+      Bun.spawn([opener, requiresLaunch ? launchUrl() : url], {
+        stdin: 'ignore',
+        stdout: 'ignore',
+        stderr: 'ignore',
+      }).unref();
     } catch {
       console.log(`  (could not open a browser automatically — visit ${url})`);
     }
@@ -1375,6 +1404,7 @@ async function shutdown() {
   }
   // #206 — compare-and-delete: never another server's file (a desktop sidecar on this root)
   removeServerJsonIfOurs(ctx.paths.serverInfoFile, { pid: process.pid, started: startedAt });
+  removeServerKeyFile(serverKeyFile);
   server.stop();
   try {
     canvasServer?.stop();

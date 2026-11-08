@@ -37,6 +37,8 @@ import {
   probeDesktop,
   readRegistry,
   registryPath,
+  serverKeyDir,
+  terminalKeyFor,
 } from './desktop-locate.mjs';
 import { postStudio, probeStudio, studioHeaders } from './studio-locate.mjs';
 
@@ -781,5 +783,96 @@ describe('callers ask the app first', () => {
     assert.equal(b.served, null);
     assert.deepEqual(b.forwarded, ['--root', root]);
     reset();
+  });
+});
+
+// sec-loopback-bearer §7.5 — a terminal-started server writes its own key to a 0600 file in the
+// per-user state dir. The CLI reads it only for the port `/_health` tied to this root, never from
+// the project, and refuses a file another user (or the group) could have written.
+describe('a terminal-started server key', () => {
+  const API = '7a'.repeat(32);
+  let STATE;
+  let prevState;
+  before(() => {
+    STATE = scratch();
+    prevState = process.env.XDG_STATE_HOME;
+    process.env.XDG_STATE_HOME = STATE;
+  });
+  after(() => {
+    if (prevState === undefined) delete process.env.XDG_STATE_HOME;
+    else process.env.XDG_STATE_HOME = prevState;
+  });
+  const keyFile = (root, rec, mode = 0o600) => {
+    const dir = serverKeyDir({ XDG_STATE_HOME: STATE });
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const f = join(dir, `${rootIdOf(root)}.json`);
+    rmSync(f, { force: true });
+    writeFileSync(f, JSON.stringify({ v: 1, rootId: rootIdOf(root), apiKey: API, ...rec }), {
+      mode,
+    });
+    chmodSync(f, mode);
+    return f;
+  };
+  const runMode = (args) =>
+    new Promise((res) => {
+      const c = spawn(process.execPath, [join(HERE, 'desktop-locate.mjs'), ...args], {
+        env: { ...env(), XDG_STATE_HOME: STATE },
+      });
+      let out = '';
+      c.stdout.on('data', (d) => (out += d));
+      c.on('exit', (code) => res({ code, out }));
+    });
+
+  test('terminalKeyFor: the right port and a live pid only; a loose mode never', () => {
+    const root = project();
+    const e = { XDG_STATE_HOME: STATE };
+    keyFile(root, { port: 4410, pid: process.pid });
+    assert.equal(terminalKeyFor(root, 4410, { env: e }), API);
+    assert.equal(terminalKeyFor(root, 4411, { env: e }), null);
+    keyFile(root, { port: 4410, pid: deadPid() });
+    assert.equal(terminalKeyFor(root, 4410, { env: e }), null);
+    keyFile(root, { port: 4410, pid: process.pid }, 0o644);
+    assert.equal(terminalKeyFor(root, 4410, { env: e }), null);
+    keyFile(root, { port: 4410, pid: process.pid, rootId: 'ffffffffffff' });
+    assert.equal(terminalKeyFor(root, 4410, { env: e }), null);
+  });
+
+  test('probeStudio carries the key and every request sends it', async () => {
+    const root = project();
+    const srv = await fakeServer({ rootId: rootIdOf(root) });
+    reset();
+    plantServerJson(root, srv.port);
+    keyFile(root, { port: srv.port, pid: process.pid });
+    const { studio } = await probeStudio(root);
+    assert.equal(studio.apiKey, API);
+    assert.equal(studioHeaders(studio)['x-maude-api-key'], API);
+    await postStudio(studio, '/_api/ui/open', { canvas: 'a.tsx' });
+    assert.equal(srv.keys.at(-1), API);
+  });
+
+  test('key + launch-url modes: the key file of the server /_health ties to this root', async () => {
+    const root = project();
+    const srv = await fakeServer({ rootId: rootIdOf(root) });
+    reset();
+    keyFile(root, { port: srv.port, pid: process.pid });
+    const k = await runMode(['key', '--root', root, '--port', String(srv.port)]);
+    assert.equal(k.code, 0);
+    assert.equal(k.out.trim(), API);
+    const u = await runMode(['launch-url', '--root', root, '--port', String(srv.port)]);
+    assert.equal(u.code, 0);
+    const m =
+      /^http:\/\/localhost:(\d+)\/\?maude-launch=(\d+)\.([0-9a-f]{32})\.([0-9a-f]{64})$/.exec(
+        u.out.trim()
+      );
+    assert.ok(m, u.out);
+    assert.equal(Number(m[1]), srv.port);
+    const want = createHmac('sha256', API).update(`maude-launch/1\n${m[2]}\n${m[3]}`).digest('hex');
+    assert.equal(m[4], want);
+    // another project's server on that port: no key
+    const other = await fakeServer({ rootId: 'ffffffffffff' });
+    keyFile(root, { port: other.port, pid: process.pid });
+    assert.equal((await runMode(['key', '--root', root, '--port', String(other.port)])).code, 10);
+    const plain = await runMode(['launch-url', '--root', root, '--port', String(other.port)]);
+    assert.equal(plain.out.trim(), `http://localhost:${other.port}/`);
   });
 });
