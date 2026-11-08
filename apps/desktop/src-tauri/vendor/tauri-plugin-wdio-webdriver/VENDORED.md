@@ -28,6 +28,22 @@ fails with `no such window`.
 - `DELETE /window` calls `webview.close()` instead of `WebviewWindow::destroy()`.
 - `Cargo.toml`: `tauri` gets the `unstable` feature (`Manager::webviews`).
 
+Two further fixes ride on the same patch (#171, burndown T8.2):
+
+- `platform/macos.rs` `describe_ns_error`: a script that threw reports WebKit's generic "A JavaScript
+  exception occurred" as `localizedDescription`; the exception's own message is in
+  `userInfo["WKJavaScriptExceptionMessage"]`. All four `NSError` sites (evaluate, async script,
+  screenshot, print) read it through one function, so `stale element reference` thrown by an executor
+  script maps to the W3C code instead of a plain `javascript error` (upstream 1.4.0 has the same
+  mapping; our copy is written against the 1.2.0 tree). Pinned by `platform::macos::tests`.
+- `platform/webview_url.rs` `url_of`: `add_cookie` read `self.window().url()`, the call that panics the
+  macOS main thread while a WKWebView has no URL (`src/webview_url.rs` in `maude-desktop` explains).
+  The shell's `webview_url::tests::no_raw_webview_url_calls` now scans this tree too and keeps every
+  other raw `.url()` out of it (only `android.rs`, which has no WKWebView, is exempt).
+
+Run the crate's own tests (the shell's `cargo test --lib` does not include a vendored dependency):
+`cd vendor/tauri-plugin-wdio-webdriver && cargo test --lib` (it writes a throwaway `Cargo.lock`: delete it).
+
 The spike (`v2-3.7-own-tab-bar` ec34becf, `spike/wdio-webdriver-webviews.diff`) changed only the
 macOS executor's type; this copy makes the same type swap in the linux / windows / ios / android
 executors, which `create_executor` in `platform/mod.rs` already hands a `Webview`. Without it

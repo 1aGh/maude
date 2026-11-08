@@ -4,6 +4,7 @@ import { $, browser, expect } from '@wdio/globals';
 
 import { capture, startReport } from '../helpers/evidence';
 import { hubProcess } from '../helpers/hub-process';
+import { waitShown } from '../helpers/poll';
 import { waitForSidecar } from '../helpers/sidecar';
 import { pinCurrentWindow } from '../helpers/windows';
 
@@ -87,8 +88,8 @@ describe('offline-conflict (native-desktop)', () => {
     process.kill(hubProcess(t()), 'SIGSTOP');
     try {
       writeFileSync(mine(), board([sticky('s1', 'Číslo na zádech větší — 30 cm')]));
+      await waitShown(`${tid('canvases-foot')}[data-slot="sync"]`, 60_000);
       const foot = await $(`${tid('canvases-foot')}[data-slot="sync"]`);
-      await foot.waitForDisplayed({ timeout: 60_000 });
       expect(await foot.getText()).toContain('kept on this Mac');
       await capture('01-offline-foot');
     } finally {
@@ -99,8 +100,8 @@ describe('offline-conflict (native-desktop)', () => {
       theirs(),
       board([sticky('s1', 'Číslo 25 cm — jinak se nad něj nevejde sponzor')])
     );
+    await waitShown(tid('sync-conflict-mark'), 120_000);
     const mark = await $(tid('sync-conflict-mark'));
-    await mark.waitForDisplayed({ timeout: 120_000 });
     expect(await mark.getText()).toContain('2 versions');
     const toast = await $('*=one sticky needs a look');
     expect(await toast.isExisting()).toBe(true);

@@ -51,7 +51,10 @@
           // arrive after the gesture, not only after a DOM turn.
           const hold = Number.isFinite(value?.hold) ? Math.min(Math.max(value.hold, 0), 2000) : 0;
           // a held drag's moves come on top of the hold: 1 s of slack timed out on a loaded runner (2026-10-27)
-          const timeoutMs = operation === 'play' ? 5000 : hold ? 2000 + hold : 1000;
+          // A plain probe answers in a DOM turn; the deadline only exists so a gone frame fails. 1 s was
+          // shorter than a canvas frame starved by a loaded machine (the Mac mini's headless run), so
+          // it is 5 s: a late reply is a reply, a frame that never answers still fails.
+          const timeoutMs = operation === 'play' ? 5000 : hold ? 2000 + hold : 5000;
           const timer = setTimeout(() => {
             pending.delete(id);
             resolve({ error: 'Active canvas probe response timed out', visible: false });

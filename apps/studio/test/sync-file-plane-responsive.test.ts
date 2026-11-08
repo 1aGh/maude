@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createFileLedger } from '../sync/file-ledger.ts';
-import { createFilePlane, hashFileStreamed, sha256File } from '../sync/file-plane.ts';
+import { createFilePlane, sha256File } from '../sync/file-plane.ts';
 
 const HUB_DIR = join(import.meta.dir, '..', '..', 'hub');
 const FIXTURE = join(HUB_DIR, 'test', 'fixtures', 'serve-hub.mjs');
@@ -193,17 +193,24 @@ test('a large upload body streams from disk — never the whole file as one buff
 test('hashing a large file holds its read-ahead, not the file', async () => {
   const abs = join(work, 'big.bin');
   writeRender(abs, 256 * MIB);
-  Bun.gc(true);
-  const before = process.memoryUsage().rss;
-  let peak = before;
-  const tick = setInterval(() => {
-    peak = Math.max(peak, process.memoryUsage().rss);
-  }, 2);
-  const got = await hashFileStreamed(abs);
-  clearInterval(tick);
-  peak = Math.max(peak, process.memoryUsage().rss);
-  expect(got).toBe(sha256File(abs));
-  rmSync(abs);
+  // Measured in a fresh process: the suite's own RSS moves with every other test's garbage.
+  const child = Bun.spawn(
+    [process.execPath, 'run', join(import.meta.dir, '_hash-rss-child.ts'), abs],
+    { stdout: 'pipe', stderr: 'pipe' }
+  );
+  const [out, err, code] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ]);
+  const want = sha256File(abs);
+  rmSync(abs, { force: true });
+  expect(code, err).toBe(0);
+  const { sha, riseBytes } = JSON.parse(out.trim().split('\n').pop() ?? '{}') as {
+    sha: string;
+    riseBytes: number;
+  };
+  expect(sha).toBe(want);
   // A whole-file read is 256 MB on its own; the stream measured ~30 MB.
-  expect(peak - before).toBeLessThan(128 * MIB);
-});
+  expect(riseBytes).toBeLessThan(128 * MIB);
+}, 60_000);

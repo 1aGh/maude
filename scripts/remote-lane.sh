@@ -6,7 +6,8 @@
 # The mini (ssh host `hub`, Apple M4 · 10 cores · 16 GB) is mostly idle, while this Mac also runs
 # Blender and the agent sessions. Use it for CPU-heavy, display-free work: the full studio suite,
 # hub tests, headless screenshot chains (agent-browser / playwright), `bun build.ts --release`.
-# NOT for: desktop e2e (WebKit needs an unlocked, visible screen), the Tauri `.app` build, editing.
+# NOT for: desktop e2e (WebKit needs an unlocked, visible GUI session and the mini has no Rust toolchain for the
+# debug `.app`; the script refuses such a command, see below), the Tauri `.app` build, editing.
 #
 # How it works
 #   1. Pushes <rev> (default: HEAD of the current checkout or worktree; the tree must be committed)
@@ -59,6 +60,18 @@ case "$SLOT" in
 esac
 if [[ $# -eq 0 ]]; then
   echo "usage: scripts/remote-lane.sh [--rev <rev>] [--slot 1|2|3|auto] [--max <s>] [--fetch <path>]… -- <command…>" >&2
+  exit 2
+fi
+
+# The desktop e2e lane (and the debug `.app` build it needs) cannot run on the mini - refuse before anything is sent.
+# It drives the debug Maude.app through WebDriver: the mini has no Rust toolchain to build it (and nothing may be
+# brew-installed there), and WebKit renders only for a visible window in an UNLOCKED GUI session, which a process
+# started over ssh is not in (checked 2026-11-08: console session locked; the same wall safaridriver hit).
+# A run sent anyway burns a slot and reports reds that say nothing about the product. Set
+# MAUDE_REMOTE_ALLOW_DESKTOP_E2E=1 on the day the mini has the toolchain and an unlocked session.
+if [[ "${MAUDE_REMOTE_ALLOW_DESKTOP_E2E:-}" != 1 ]] \
+  && printf '%s\n' "$*" | grep -Eq 'test:e2e:desktop|wdio[ .]|wdio\.[a-z0-9-]+\.conf|tauri (build|dev)|cargo (build|test|tauri)'; then
+  echo "remote-lane: refused - the desktop e2e lane cannot run on the mini: it needs the debug Maude.app (no Rust toolchain there) and a visible window in an unlocked GUI session (not reachable from ssh). Run it on this Mac, or set MAUDE_REMOTE_ALLOW_DESKTOP_E2E=1 once the mini has both." >&2
   exit 2
 fi
 

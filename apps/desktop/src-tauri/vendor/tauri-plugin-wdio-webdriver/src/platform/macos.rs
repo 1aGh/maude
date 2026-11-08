@@ -106,8 +106,7 @@ impl<R: Runtime + 'static> PlatformExecutor<R> for MacOSExecutor<R> {
             let block = RcBlock::new(move |result: *mut AnyObject, error: *mut NSError| {
                 let response = if !error.is_null() {
                     let error_ref = &*error;
-                    let description = error_ref.localizedDescription();
-                    Err(description.to_string())
+                    Err(describe_ns_error(error_ref))
                 } else if result.is_null() {
                     Ok(Value::Null)
                 } else {
@@ -214,8 +213,7 @@ impl<R: Runtime + 'static> PlatformExecutor<R> for MacOSExecutor<R> {
             let block = RcBlock::new(move |result: *mut AnyObject, error: *mut NSError| {
                 let response = if !error.is_null() {
                     let error_ref = &*error;
-                    let description = error_ref.localizedDescription();
-                    Err(description.to_string())
+                    Err(describe_ns_error(error_ref))
                 } else if result.is_null() {
                     Ok(Value::Null)
                 } else {
@@ -271,8 +269,7 @@ impl<R: Runtime + 'static> PlatformExecutor<R> for MacOSExecutor<R> {
             let block = RcBlock::new(move |image: *mut NSImage, error: *mut NSError| {
                 let response = if !error.is_null() {
                     let error_ref = &*error;
-                    let description = error_ref.localizedDescription();
-                    Err(description.to_string())
+                    Err(describe_ns_error(error_ref))
                 } else if image.is_null() {
                     Err("No image returned".to_string())
                 } else {
@@ -386,8 +383,7 @@ impl<R: Runtime + 'static> PlatformExecutor<R> for MacOSExecutor<R> {
             let block = RcBlock::new(move |data: *mut NSData, error: *mut NSError| {
                 let response = if !error.is_null() {
                     let error_ref = &*error;
-                    let description = error_ref.localizedDescription();
-                    Err(description.to_string())
+                    Err(describe_ns_error(error_ref))
                 } else if data.is_null() {
                     Err("No PDF data returned".to_string())
                 } else {
@@ -454,6 +450,33 @@ unsafe fn image_to_png_base64(image: &NSImage) -> Result<String, String> {
 
     let bytes = png_data.to_vec();
     Ok(BASE64_STANDARD.encode(&bytes))
+}
+
+/// The text of an `NSError` from `evaluateJavaScript` / `callAsyncJavaScript`.
+///
+/// WebKit reports a script that THREW with the generic `localizedDescription` "A JavaScript exception
+/// occurred"; the exception's own message (e.g. `stale element reference`, which the executor's scripts
+/// throw and `WebDriverErrorResponse::javascript_error` maps to the W3C code) is only in the error's
+/// `userInfo["WKJavaScriptExceptionMessage"]`. Reading the description alone turned every stale element
+/// into a plain `javascript error` (upstream fixed this in 1.4.0; this is the same mapping).
+pub(super) fn describe_ns_error(error: &NSError) -> String {
+    // SAFETY: `userInfo` and `objectForKey:` are plain Foundation getters; both results are nullable and
+    // checked, and `ns_object_to_json` only reads the object it is handed.
+    unsafe {
+        let info: *mut AnyObject = msg_send![error, userInfo];
+        if !info.is_null() {
+            let key = NSString::from_str("WKJavaScriptExceptionMessage");
+            let message: *mut AnyObject = msg_send![info, objectForKey: &*key];
+            if !message.is_null() {
+                if let Value::String(text) = ns_object_to_json(&*message) {
+                    if !text.is_empty() {
+                        return text;
+                    }
+                }
+            }
+        }
+    }
+    error.localizedDescription().to_string()
 }
 
 /// Convert an `NSObject` to a JSON value
@@ -682,5 +705,55 @@ impl WebDriverUIDelegate {
         let this = Self::alloc(mtm);
         let this = this.set_ivars(WebDriverUIDelegateIvars { alert_state });
         msg_send![super(this), init]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::server::response::WebDriverErrorResponse;
+
+    /// An `NSError` whose `userInfo` holds one entry.
+    fn error_with(key: &str, value: &str) -> Retained<NSError> {
+        let domain = NSString::from_str("WKErrorDomain");
+        let key = NSString::from_str(key);
+        let value = NSString::from_str(value);
+        // SAFETY: plain Foundation class methods with matching argument types.
+        unsafe {
+            let info: Retained<AnyObject> = msg_send![
+                objc2::class!(NSDictionary),
+                dictionaryWithObject: &*value,
+                forKey: &*key
+            ];
+            msg_send![
+                objc2::class!(NSError),
+                errorWithDomain: &*domain,
+                code: 4isize,
+                userInfo: &*info
+            ]
+        }
+    }
+
+    /// WebKit's error for a script that threw carries the exception's own message in `userInfo`.
+    #[test]
+    fn a_thrown_script_error_reports_the_exceptions_own_message() {
+        let err = error_with("WKJavaScriptExceptionMessage", "stale element reference");
+        assert_eq!(describe_ns_error(&err), "stale element reference");
+    }
+
+    #[test]
+    fn a_thrown_stale_element_maps_to_the_w3c_code() {
+        let err = error_with(
+            "WKJavaScriptExceptionMessage",
+            "Error: stale element reference",
+        );
+        let mapped = WebDriverErrorResponse::javascript_error(&describe_ns_error(&err), None);
+        assert_eq!(mapped.error, "stale element reference");
+    }
+
+    #[test]
+    fn an_error_without_an_exception_message_keeps_its_description() {
+        let err = error_with("NSLocalizedDescription", "A JavaScript exception occurred");
+        assert_eq!(describe_ns_error(&err), "A JavaScript exception occurred");
     }
 }

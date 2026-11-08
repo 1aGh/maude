@@ -130,6 +130,8 @@ describe('createSocketKeepalive', () => {
   });
 });
 
+const LAG_PROBE_MS = 50;
+
 /**
  * Attach a real provider to the control document with a shortened silence
  * check, and count how many times its socket (re)connects in `windowMs`.
@@ -163,7 +165,20 @@ async function connectsOver({ keepaliveMs, silenceMs, windowMs, name = FILES_CTL
   // The provider's own awareness renewals would keep a socket talking; the
   // hub drops presence on this document, so turn it off here too.
   provider.awareness?.setLocalState(null);
+  // Watch THIS process's event loop. A starved runner (the rest of the suite,
+  // a stopped process) freezes the keep-alive timer AND the provider's own
+  // silence check together, and on resume the silence check fires first, so a
+  // healthy socket is recycled for a reason that says nothing about the
+  // keep-alive. A window that saw a stall that long is reported as starved.
+  let stalledMs = 0;
+  let last = performance.now();
+  const lag = setInterval(() => {
+    const now = performance.now();
+    stalledMs = Math.max(stalledMs, now - last - LAG_PROBE_MS);
+    last = now;
+  }, LAG_PROBE_MS);
   await new Promise((r) => setTimeout(r, windowMs));
+  clearInterval(lag);
   ka?.stop();
   // TEARDOWN MUST NOT LEAVE A RETRY BEHIND. A close landed shortly before
   // `destroy()` leaves `onClose`'s `setTimeout(connect, delay)` pending, and
@@ -175,17 +190,31 @@ async function connectsOver({ keepaliveMs, silenceMs, windowMs, name = FILES_CTL
   provider.destroy();
   socket.destroy();
   await server.destroy();
-  return opens;
+  return { opens, starved: stalledMs >= (silenceMs - (keepaliveMs || 0)) / 2 };
+}
+
+/**
+ * The same window, repeated until one runs unstarved (at most `tries`). The
+ * assertion that a socket STAYS up is only about the keep-alive when the
+ * process kept running; a starved window proves nothing either way.
+ */
+async function connectsUnstarved(opts, tries = 4) {
+  let r;
+  for (let i = 0; i < tries; i += 1) {
+    r = await connectsOver(opts);
+    if (!r.starved) return r.opens;
+  }
+  assert.fail(`every one of ${tries} windows was starved by the machine — nothing to judge`);
 }
 
 describe('against a real server and provider', () => {
   it('with the keep-alive, an idle control socket stays up', async () => {
-    const opens = await connectsOver({ keepaliveMs: 300, silenceMs: 1_200, windowMs: 4_000 });
+    const opens = await connectsUnstarved({ keepaliveMs: 300, silenceMs: 1_200, windowMs: 4_000 });
     assert.equal(opens, 1);
   });
 
   it('a CANVAS socket stays up too (v1.6.13 night: 214 upgrades/h from canvas shards)', async () => {
-    const opens = await connectsOver({
+    const opens = await connectsUnstarved({
       keepaliveMs: 300,
       silenceMs: 1_200,
       windowMs: 4_000,
@@ -195,7 +224,7 @@ describe('against a real server and provider', () => {
   });
 
   it('without it, the silence check recycles the socket (still alive for #118)', async () => {
-    const opens = await connectsOver({ keepaliveMs: 0, silenceMs: 1_200, windowMs: 4_000 });
+    const { opens } = await connectsOver({ keepaliveMs: 0, silenceMs: 1_200, windowMs: 4_000 });
     assert.ok(opens >= 2, `expected the idle socket to be recycled, saw ${opens} open(s)`);
   });
 });

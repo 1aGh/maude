@@ -98,13 +98,19 @@ const SETUP = `
     const last = window.__probeLog.at(-1);
     if ((on ? 'catcher-on' : 'catcher-off') !== last && (on || last === 'catcher-on')) window.__probeLog.push(on ? 'catcher-on' : 'catcher-off');
   }).observe(document.body, { subtree: true, childList: true });
-  // a row drawn before the tree is live can swallow the first click: click until the canvas starts opening
-  for (let i = 0; i < 20 && (q('main.viewport')?.dataset.canvasState ?? 'idle') === 'idle'; i++) {
+  // a row drawn before the tree is live can swallow the first click: click until the canvas starts opening. A click
+  // that DID take leaves 'idle' within a beat, but on a loaded machine that beat is seconds, and a second click while
+  // the first is opening restarts it - so a retry waits a long interval before it concludes the click was lost.
+  for (let i = 0; i < 6 && (q('main.viewport')?.dataset.canvasState ?? 'idle') === 'idle'; i++) {
     (await wait(() => q('[data-testid="canvas-row-ui-smoke"]')))?.click();
-    await wait(() => q('main.viewport')?.dataset.canvasState !== 'idle', 1500);
+    await wait(() => q('main.viewport')?.dataset.canvasState !== 'idle', 6000);
   }
   await wait(() => q('main.viewport')?.dataset.canvasState === 'ready' && !q('[data-testid="canvas-loading"]'));
-  (await wait(() => q('[data-testid="panel-tab-assets"]')))?.click();
+  // the same for the Assets tab: a tab drawn while the panel re-renders can swallow the click; the tile is the proof
+  for (let i = 0; i < 6 && !q('[data-testid="assets-tile"]'); i++) {
+    (await wait(() => q('[data-testid="panel-tab-assets"]')))?.click();
+    await wait(() => q('[data-testid="assets-tile"]'), 4000);
+  }
 `;
 const READY = `(() => {
   const f = document.querySelector('[data-testid="canvas-frame"]');

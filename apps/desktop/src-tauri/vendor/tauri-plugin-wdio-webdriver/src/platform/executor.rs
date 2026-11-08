@@ -1651,7 +1651,7 @@ pub trait PlatformExecutor<R: Runtime>: Send + Sync {
     async fn add_cookie(&self, mut cookie: Cookie) -> Result<(), WebDriverErrorResponse> {
         // Per WebDriver spec: if no domain is specified, use the current page's domain
         if cookie.domain.is_none() {
-            if let Ok(url) = self.window().url() {
+            if let Some(url) = crate::platform::webview_url::url_of(self.window()) {
                 cookie.domain = url.host_str().map(String::from);
             }
         }
