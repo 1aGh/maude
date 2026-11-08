@@ -1375,10 +1375,10 @@ function MenusBoard() {
     { label: "Export…", keys: "⇧⌘E" }, { label: "Handoff to production", keys: "⇧⌘H", highlight: true }, { label: "Close canvas" },
   ];
   const view: MenuItem[] = [
-    { label: "Hide panels", keys: "⌘\\" }, { label: "Comments", keys: "⇧⌘M", note: "3 open", highlight: true }, { label: "Assets" }, { label: "Annotations", keys: "⇧P" }, { label: "Present the canvas", highlight: true }, "sep",
+    { label: "Hide panels", keys: "⌘\\" }, { label: "Layers" }, { label: "Inspector", keys: "⇧⌘I" }, { label: "Comments", keys: "⇧⌘M", note: "3 open", highlight: true }, { label: "Assets" }, { label: "AI chat", keys: "⌘/" }, { label: "Annotations", keys: "⇧P" }, { label: "Present the canvas", highlight: true }, "sep",
     { label: "Zoom in", keys: "⌘+" }, { label: "Zoom out", keys: "⌘−" }, { label: "Zoom to fit", keys: "⌘0" }, { label: "Actual size", keys: "⌘1" }, "sep",
     { group: "Advanced" },
-    { label: "Layers as a panel", indent: true, highlight: true }, { label: "Inspector", keys: "⇧⌘I", indent: true }, { label: "Open inspector on select", indent: true, checked: true, highlight: true },
+    { label: "Layers as a panel", indent: true, highlight: true }, { label: "Open inspector on select", indent: true, checked: true, highlight: true },
     { label: "Keep timeline open", keys: "⇧⌘T", indent: true }, { label: "Minimap", indent: true, highlight: true }, { label: "Zoom controls", indent: true, highlight: true }, { label: "Print guides", indent: true, highlight: true },
     { label: "Hidden files", indent: true }, { label: "Pin panels to the side", indent: true },
   ];
@@ -1389,7 +1389,7 @@ function MenusBoard() {
   const cols: [string, MenuItem[], ReactNode][] = [
     ["Menu", main, <>Back to Home — was the browser's “← Dashboard” link.</>],
     ["Menu › File", file, <>Open project… — was “Open another folder or team project”. Import from Figma… and Import a brand… — were Quick setup. Handoff — was in Help.</>],
-    ["Menu › View, Advanced open", view, <>Comments shows the open count — was in the status bar. Present the canvas — was Presentation mode. Advanced: Layers as a panel, Open inspector on select, Minimap, Zoom controls, Print guides — were Settings and the canvas.</>],
+    ["Menu › View, Advanced open", view, <>Layers and Inspector are View rows, beside an AI chat row (D15). Comments shows the open count — was in the status bar. Present the canvas — was Presentation mode. Advanced: Layers as a panel, Open inspector on select, Minimap, Zoom controls, Print guides — were Settings and the canvas.</>],
     ["Menu › Help", help, <>Help and guides holds slash commands, opt-out and the critic loop. What's new and Report a bug were icons in the menu bar.</>],
   ];
   return (
@@ -1694,7 +1694,7 @@ function SearchBoard() {
     { title: "Panels and AI", keys: [["Hide / show panels", "⌘\\"], ["Ask AI", "⌘/"], ["Comments", "⇧⌘M"], ["Search", "⌘K"], ["All shortcuts", "?"]] },
     { title: "File", keys: [["New canvas", "⌘N"], ["Version history", "⌥⌘H"], ["Export…", "⇧⌘E"], ["Settings…", "⌘,"]] },
   ];
-  const adv: [string, string, string][] = [["Inspector", "⇧⌘I", "Menu › View › Advanced"], ["Keep timeline open", "⇧⌘T", "Menu › View › Advanced"], ["Reload canvas", "⌘R", "Menu › Diagnostics"]];
+  const adv: [string, string, string][] = [["Inspector", "⇧⌘I", "Menu › View"],["Keep timeline open", "⇧⌘T", "Menu › View › Advanced"], ["Reload canvas", "⌘R", "Menu › Diagnostics"]];
   const moved: [string, string][] = [["Changes ⇧⌘G", "Version history ⌥⌘H"], ["Assistant ⇧⌘A", "Ask AI ⌘/ — ⇧⌘A now selects all annotations"], ["Files tree T", "Hide panels ⌘\\ — T is Text"], ["Hidden files H", "Canvases › Advanced — H is Hand"], ["Design system S", "⌘K “design system” — S is Section"], ["New board N", "New canvas ⌘N — N is Sticky, in Preview"], ["Search / and ⌘F", "⌘K"], ["Arrow, Highlighter", "Preview's toolbar — Arrow A; Highlighter is Marker's second tip"], ["Section, Eraser", "Preview's toolbar — Section S; Eraser is a Marker option"], ["Insert", "Edit's toolbar — Image I · Component ⇧I"]];
   /* Three columns, balanced by row count: Edit tools · Preview tools + File · Canvas + Panels and AI. */
   const cols = [[0], [1, 4], [2, 3]];

@@ -51,10 +51,14 @@ const BOARD: Record<string, [string, string][]> = {
     ['Handoff to production', '⇧⌘H'],
     ['Close canvas', ''],
   ],
+  // #170 R25 (D15): Layers and the Inspector are first-level View rows, and the AI chat has one
   View: [
     ['Hide panels', '⌘\\'],
+    ['Layers', ''],
+    ['Inspector', '⇧⌘I'],
     ['Comments', '⇧⌘M'],
     ['Assets', ''],
+    ['AI chat', '⌘/'],
     ['Annotations', '⇧P'],
     ['Present the canvas', ''],
     ['Zoom in', '⌘+'],
@@ -65,7 +69,6 @@ const BOARD: Record<string, [string, string][]> = {
   ],
   'View › Advanced': [
     ['Layers as a panel', ''],
-    ['Inspector', '⇧⌘I'],
     ['Open inspector on select', ''],
     ['Keep timeline open', '⇧⌘T'],
     ['Minimap', ''],
