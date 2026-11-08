@@ -3,7 +3,7 @@
 # Canonical recipe (was inline in `edit.md` step 2, `new.md` step 2, etc.).
 #
 # Usage:
-#   server-up.sh [--root <repo>] [--timeout 10] [--allow-legacy] [--show]
+#   server-up.sh [--root <repo>] [--timeout 10] [--allow-legacy] [--show] [--url]
 #
 # #206 T6.3d (DDR-250): while the Maude desktop app runs, ITS server for this project is the one to use. The
 # app's registry is asked first (_desktop-locate.sh; the port is believed only after an attest challenge), then
@@ -12,6 +12,8 @@
 # headless server — as role `cli` (MAUDE_SERVER_ROLE=cli), which steps down by itself once the app serves the
 # project. A planted `_server.json` is never used while the app's registry names the project.
 #   --show   (/design:browse) ask the app to show the project; when it does, print nothing and exit 0
+#   --url    print the studio's opening URL instead of its port: a server that requires its API key (the
+#            app's, or one started here — sec-loopback-bearer §7.5) opens with a one-time launch token
 #
 # Reads / writes:
 #   $DESIGN_ROOT/_server.json   (PID + port the running server wrote)
@@ -34,14 +36,16 @@ REPO=""
 TIMEOUT=10
 ALLOW_LEGACY=0
 SHOW=0
+EMIT_URL=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --root)    REPO="$2"; shift 2 ;;
     --timeout) TIMEOUT="$2"; shift 2 ;;
     --allow-legacy) ALLOW_LEGACY=1; shift ;;
     --show) SHOW=1; shift ;;
+    --url) EMIT_URL=1; shift ;;
     --help|-h)
-      sed -n '2,31p' "$0" | sed 's/^# \?//'
+      sed -n '2,33p' "$0" | sed 's/^# \?//'
       exit 0
       ;;
     *)
@@ -59,6 +63,11 @@ fi
 # Step 0 — the desktop app's server, when the app runs (#206 T6.3d).
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/_desktop-locate.sh"
+
+# The last stdout line: the port, or with --url the opening URL (one-time token when the server needs a key).
+emit() {
+  if [ "$EMIT_URL" -eq 1 ]; then studio_launch_url "$REPO" "$1"; else echo "$1"; fi
+}
 if [ $SHOW -eq 1 ]; then
   desktop_port "$REPO" --ensure show
 else
@@ -68,7 +77,7 @@ case $? in
   0)
     if [ -n "$DESKTOP_PORT" ]; then
       echo "✓ Maude is serving this project port=$DESKTOP_PORT" >&2
-      echo "$DESKTOP_PORT"
+      emit "$DESKTOP_PORT"
     fi
     exit 0
     ;;
@@ -227,7 +236,7 @@ if [ -f "$STATE" ]; then
        } catch { process.exit(1); }
      ' "$PID" "$REPO"; then
     echo "✓ server alive pid=$PID port=$PORT" >&2
-    echo "$PORT"
+    emit "$PORT"
     exit 0
   else
     echo "→ stale _server.json — clearing and respawning" >&2
@@ -318,7 +327,7 @@ while [ $i -lt "$TIMEOUT" ]; do
     PORT=$(read_port)
     if [ -n "$PORT" ] && curl -fs "http://127.0.0.1:$PORT/_health" >/dev/null 2>&1; then
       echo "✓ server started port=$PORT after ${i}s" >&2
-      echo "$PORT"
+      emit "$PORT"
       exit 0
     fi
   fi

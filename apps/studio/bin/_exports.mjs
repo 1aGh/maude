@@ -16,6 +16,7 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { outputViolation, violationMessage } from '../../../cli/lib/confine-out.mjs';
+import { studioHeaders } from '../../../cli/lib/studio-locate.mjs';
 import { replayExportBody } from '../exporters/replay.ts';
 import {
   call,
@@ -169,7 +170,8 @@ async function fetchBytes(studio, jobId) {
   try {
     const res = await fetch(
       `${studio.base}/_api/export-jobs/download?${new URLSearchParams({ id: jobId })}`,
-      { signal: AbortSignal.timeout(60_000) }
+      // sec-loopback-bearer §7.6 — the studio's API key, like every `call`
+      { headers: studioHeaders(studio), signal: AbortSignal.timeout(60_000) }
     );
     return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
   } catch {

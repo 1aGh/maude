@@ -36,7 +36,13 @@ if [ -z "${PORT:-}" ]; then
   exit 1
 fi
 
-if curl -fsS -X POST "http://127.0.0.1:${PORT}/_api/acp/focus" >/dev/null 2>&1; then
+# sec-loopback-bearer §7.6 — the studio's API key, through curl's stdin config (never argv)
+. "$(dirname "$0")/_desktop-locate.sh"
+if ! studio_key "$REPO" "$PORT"; then
+  echo "chat-open: Maude has this project open, but its server did not answer the check." >&2
+  exit 1
+fi
+if studio_curl "$REPO" "$PORT" -fsS -X POST "http://127.0.0.1:${PORT}/_api/acp/focus" >/dev/null 2>&1; then
   echo "→ opened the AI chat panel in Maude (port ${PORT})."
 else
   echo "chat-open: focus request to the dev server failed (port ${PORT})." >&2

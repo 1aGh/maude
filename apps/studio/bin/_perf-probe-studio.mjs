@@ -55,6 +55,7 @@ function parseArgs(argv) {
     const a = argv[i];
     const v = () => argv[++i];
     if (a === '--url') o.url = v();
+    else if (a === '--launch') o.launch = v();
     else if (a === '--studio') o.studio = v();
     else if (a === '--label') o.label = v();
     else if (a === '--history') o.history = v();
@@ -100,7 +101,9 @@ async function main() {
       deviceScaleFactor: opts.dpr,
     });
     const page = await ctx.newPage();
-    await page.goto(opts.url, { waitUntil: 'domcontentloaded' });
+    // sec-loopback-bearer §7.4 — a one-time opening link (perf.sh `studio_launch_url`): visited first, it
+    // leaves the session cookie the studio page needs; every later URL is built from --url as before
+    await page.goto(opts.launch || opts.url, { waitUntil: 'domcontentloaded' });
     const rowSel = `[data-testid="canvas-row-${opts.studio}"]`;
     // A canvas the Canvases panel does not list (the Design system canvas under system/) is opened by its path.
     const viaPath = async () => {

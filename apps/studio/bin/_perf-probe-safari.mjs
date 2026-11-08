@@ -87,6 +87,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--url') out.url = argv[++i];
+    else if (a === '--launch') out.launch = argv[++i];
     else if (a === '--label') out.label = argv[++i];
     else if (a === '--history') out.history = argv[++i];
     else if (a === '--variant') out.variant = argv[++i];
@@ -326,6 +327,9 @@ async function main() {
       width: opts.windowSize.w,
       height: opts.windowSize.h,
     });
+    // sec-loopback-bearer §7.4 — a one-time opening link (perf.sh `studio_launch_url`): visited first, it
+    // leaves the session cookie the studio page needs; every later URL is built from --url as before
+    if (opts.launch) await wd(opts.driverPort, 'POST', `${base}/url`, { url: opts.launch });
     await wd(opts.driverPort, 'POST', `${base}/url`, { url: opts.url });
 
     // Studio mode measures the canvas AS THE USER RUNS IT: inside the studio

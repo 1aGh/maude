@@ -33,6 +33,7 @@ import {
   WhisperRunError,
   writeTranscriptSidecar,
 } from '../video/words-run.ts';
+import { studioHeadersFor } from '../../../cli/lib/studio-locate.mjs';
 import { chromiumDecoder } from './_transcribe-local.mjs';
 
 /** Read `.design/config.json` → generation.transcription.whisperModel, or null
@@ -133,11 +134,14 @@ export function resolveProvider(flag, repo) {
  * Still no SILENT cloud switch (DDR-164): `auto` is a chosen mode, and the
  * caller prints which engine it resolved to before transcribing.
  */
-export async function settleAutoProvider(provider, port) {
+export async function settleAutoProvider(provider, port, repo = process.cwd()) {
   if (provider !== 'auto') return { provider, autoReason: null };
-  const base = `http://127.0.0.1:${port || process.env.MAUDE_PORT || 4399}`;
+  const p = port || process.env.MAUDE_PORT || 4399;
+  const base = `http://127.0.0.1:${p}`;
   try {
     const res = await fetch(`${base}/_api/generate/providers`, {
+      // sec-loopback-bearer §7.6 — the studio's API key (none for a port that is not this project's)
+      headers: await studioHeadersFor(repo, p),
       signal: AbortSignal.timeout(1500),
     });
     if (res.ok) {
@@ -223,6 +227,8 @@ async function runCloud(args, repo, provider) {
   }
 
   const base = `http://127.0.0.1:${port}/_api/generate-jobs`;
+  // sec-loopback-bearer §7.6 — every call carries the studio's API key
+  const keyed = await studioHeadersFor(repo, port);
   const body = { modality: 'transcription', provider, sourceAsset: source };
   if (args.model) body.model = args.model;
   if (args.lang) body.params = { language: args.lang };
@@ -232,7 +238,7 @@ async function runCloud(args, repo, provider) {
   try {
     const res = await fetch(base, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { ...keyed, 'content-type': 'application/json' },
       body: JSON.stringify(body),
     });
     const json = await res.json().catch(() => ({}));
@@ -257,7 +263,7 @@ async function runCloud(args, repo, provider) {
     await new Promise((r) => setTimeout(r, 2000));
     let job;
     try {
-      const jobs = await (await fetch(base)).json();
+      const jobs = await (await fetch(base, { headers: keyed })).json();
       job = Array.isArray(jobs?.jobs) ? jobs.jobs.find((j) => j.id === jobId) : null;
     } catch {
       /* transient — keep polling until the deadline */
@@ -325,7 +331,7 @@ async function main() {
   const { provider: chosen, defaulted } = resolveProvider(args.provider, repo);
   // `auto` settles into a concrete engine here, and we SAY which — the engine is
   // never a mystery even when the user delegated the pick (DDR-164).
-  const { provider, autoReason } = await settleAutoProvider(chosen, args.port);
+  const { provider, autoReason } = await settleAutoProvider(chosen, args.port, repo);
   if (autoReason) process.stderr.write(`transcribe: ${autoReason}\n`);
   if (defaulted)
     process.stderr.write(

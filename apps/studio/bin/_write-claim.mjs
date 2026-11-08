@@ -8,8 +8,11 @@
 // an ordinary one. Never throws: a failed claim never blocks the verb's write. Internal; not a verb.
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import { serverKeyForSync } from '../../../cli/lib/desktop-locate.mjs';
 
 import {
   DESIGN_REL,
@@ -101,20 +104,38 @@ export function claimWritesSync(from, writes, { env = process.env, timeoutSec = 
       chat,
       writes: list.map((w) => ({ path: claimPath(w.rel), content: w.content })),
     });
-    const r = curl(
-      [
-        '-o',
-        '/dev/null',
-        '-w',
-        '%{http_code}',
-        '-H',
-        'content-type: application/json',
-        '--data-binary',
-        '@-',
-        `${base}/_api/agent/write/claim`,
-      ],
-      body
-    );
+    // sec-loopback-bearer §7.6 — the key of the server on that port (the app's, attested here with a
+    // synchronous challenge; else a terminal server's key file). curl takes it through a config on
+    // stdin, never argv, so the body then goes through a 0600 file in a private temp dir.
+    const key = serverKeyForSync(root, port, {
+      env,
+      attest: (p, n) => {
+        const a = curl([`http://127.0.0.1:${p}/_api/shell/attest?n=${n}`]);
+        try {
+          return a.status === 0 ? JSON.parse(a.stdout)?.mac : null;
+        } catch {
+          return null;
+        }
+      },
+    });
+    const post = ['-o', '/dev/null', '-w', '%{http_code}', '-H', 'content-type: application/json'];
+    const url = `${base}/_api/agent/write/claim`;
+    let r;
+    if (key) {
+      const dir = mkdtempSync(join(tmpdir(), 'maude-claim-'));
+      try {
+        const file = join(dir, 'body.json');
+        writeFileSync(file, body, { mode: 0o600 });
+        r = curl(
+          ['--config', '-', ...post, '--data-binary', `@${file}`, url],
+          `header = "x-maude-api-key: ${key}"\n`
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    } else {
+      r = curl([...post, '--data-binary', '@-', url], body);
+    }
     const code = Number(String(r.stdout).trim());
     return code === 200
       ? { claimed: true }

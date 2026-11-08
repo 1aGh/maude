@@ -29,9 +29,8 @@ the executable Studio runtime is resolved by `maude`.
 
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-PORT=$(maude design server-up --root "$REPO_ROOT" --show) || exit $?
-if [ -n "$PORT" ]; then
-  URL="http://localhost:$PORT/"
+URL=$(maude design server-up --root "$REPO_ROOT" --show --url) || exit $?
+if [ -n "$URL" ]; then
   open "$URL" 2>/dev/null || xdg-open "$URL" 2>/dev/null || echo "Open $URL"
 fi
 ```
@@ -39,6 +38,9 @@ fi
 When the Maude app is running, `--show` asks it to bring this project's tab to the front (Maude asks
 once before it opens a folder it has never opened). Then `server-up` prints no port, and no browser
 window opens: the project is in Maude. Without the app, it starts the studio as below.
+
+`--url` prints the studio's address instead of its port. The address opens the studio once: a
+second visit needs a new one, so run the command again rather than reusing an old link.
 
 `server-up` is idempotent: it verifies the project's existing server and returns
 its port. It starts the server with `NO_OPEN=1` always, so opening the window is
