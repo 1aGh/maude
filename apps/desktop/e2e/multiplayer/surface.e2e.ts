@@ -7804,6 +7804,10 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               );
             }, 15000).catch((error) => failedStep('preview-render', from, error));
             await from.screenshot(join(run.out, `L18-preview-selected-${from.name}.png`));
+            for (const p of all)
+              await p.shell(
+                `window.__maudeSelectionPreparationTrace?.push({ at: performance.now(), kind: 'restore-click' })`
+              );
             const start = performance.now();
             await from.click(selector('history-preview-restore'));
             // 2.0.4: Restore asks in the shell's own dialog (window.confirm is a no-op in the app).
@@ -7877,6 +7881,17 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                             computedWeight: s.computed?.['font-weight'] ?? null };
                         }
                         return null;
+                      })()`)
+                      .catch((e) => String(e)),
+                    // the trace from the restore click on: did a `loaded` arrive, and a select-set after it?
+                    traceSinceRestore: await p
+                      .shell(`(() => {
+                        const t = window.__maudeSelectionPreparationTrace || [];
+                        let i = t.length - 1;
+                        while (i > 0 && t[i].kind !== 'restore-click') i--;
+                        return t.slice(i).map((e) => ({ at: Math.round(e.at), kind: e.kind,
+                          text: e.selection ? String(e.selection.text ?? '').slice(0, 30) : undefined,
+                          w: e.selection?.authored?.['font-weight'] }));
                       })()`)
                       .catch((e) => String(e)),
                   }))
