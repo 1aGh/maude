@@ -8,6 +8,7 @@ import {
   CHECK_INDENT,
   CHECK_ROW_GAP,
   fitSticky,
+  hiddenCheckItems,
   wrapLines,
 } from '../annotations/elements/sticky.model.ts';
 
@@ -56,5 +57,30 @@ describe('fitSticky with entries', () => {
     expect(fitSticky(cur, 'Launch', rows(200, 'word '.repeat(30).trim())).h).toBe(
       STICKY_MAX_GROWN_H
     );
+  });
+});
+
+describe('hiddenCheckItems — the "+N more" count', () => {
+  test('a sticky fitted to its list hides nothing', () => {
+    const fitted = fitSticky(cur, 'Launch', rows(8));
+    expect(hiddenCheckItems(fitted, 'Launch', rows(8))).toBe(0);
+  });
+
+  test('a list taller than the card hides the rows that no longer fit', () => {
+    const hidden = hiddenCheckItems(cur, 'Launch', rows(8));
+    expect(hidden).toBeGreaterThan(0);
+    expect(hidden).toBeLessThan(8);
+    expect(hiddenCheckItems(cur, 'Launch', rows(12))).toBeGreaterThan(hidden);
+  });
+
+  test('past the ceiling the rest is counted, not drawn', () => {
+    const long = rows(200, 'word '.repeat(30).trim());
+    const fitted = fitSticky(cur, 'Launch', long);
+    expect(fitted.h).toBe(STICKY_MAX_GROWN_H);
+    expect(hiddenCheckItems(fitted, 'Launch', long)).toBeGreaterThan(0);
+  });
+
+  test('no entries, nothing hidden', () => {
+    expect(hiddenCheckItems(cur, 'Launch', [])).toBe(0);
   });
 });

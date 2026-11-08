@@ -43,6 +43,25 @@ const sticky = (over: Record<string, unknown> = {}) =>
     author: { kind: 'human', name: 'Jonas Novak' },
     ...over,
   }) as AnnotationElement;
+// #113 — a checklist sticky (title + two entries, one ticked) that sits clear of the hero note
+const CHECKLIST = [
+  sticky({ id: 's_list', index: 'a1', x: 600, y: 120, text: 'Launch' }),
+  {
+    id: 'ck_a',
+    type: 'checkitem',
+    index: 'a0',
+    list: 's_list',
+    text: 'Write the post',
+  },
+  {
+    id: 'ck_b',
+    type: 'checkitem',
+    index: 'a1',
+    list: 's_list',
+    text: 'Record the demo',
+    done: { by: 'Jonas Novak', at: '2026-11-08T10:12:00Z' },
+  },
+] as AnnotationElement[];
 const board = (els: AnnotationElement[]) => canonicalAnnotations(serializeBoard(els)) as string;
 const older = (file: string) => ({
   id: 'c_older',
@@ -92,7 +111,7 @@ describe('the local home — one action, both lanes', () => {
   beforeAll(async () => {
     ({ root, designRoot } = makeSandbox());
     writeFileSync(join(designRoot, 'ui', 'card.tsx'), tsx('card'));
-    writeFileSync(boardFile(), board([sticky()]));
+    writeFileSync(boardFile(), board([sticky(), ...CHECKLIST]));
     mkdirSync(join(designRoot, '_comments'), { recursive: true });
     writeFileSync(commentsFile(), JSON.stringify([older(FILE)], null, 2));
     const port = nextPort();
@@ -152,6 +171,22 @@ describe('the local home — one action, both lanes', () => {
       label: toCommentLabel(STICKY_TEXT),
     });
 
+    const undo = await post('/_api/project/undo', { actionId: r.json.actionId });
+    expect(undo.status).toBe(200);
+    expect(read(boardFile())).toBe(before.board);
+    expect(read(commentsFile())).toBe(before.comments);
+  }, 30_000);
+
+  test('a checklist sticky becomes a comment with its entries as task lines; they leave the board; ⌘Z restores all', async () => {
+    const before = { board: read(boardFile()), comments: read(commentsFile()) };
+    const r = await post('/_api/annotations/to-comment', { file: FILE, id: 's_list' });
+    expect(r.status).toBe(200);
+    const thread = comments().find((c) => c.id === r.json.commentId);
+    expect(thread?.text).toBe('Launch\n- [ ] Write the post\n- [x] Record the demo');
+    // the entries go with their sticky: no orphan records are left behind
+    expect(ids()).not.toContain('s_list');
+    expect(ids()).not.toContain('ck_a');
+    expect(ids()).not.toContain('ck_b');
     const undo = await post('/_api/project/undo', { actionId: r.json.actionId });
     expect(undo.status).toBe(200);
     expect(read(boardFile())).toBe(before.board);

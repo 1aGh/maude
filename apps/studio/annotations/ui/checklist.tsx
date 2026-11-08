@@ -383,3 +383,47 @@ export function ChecklistChip({ listId, paper }: { listId: string; paper: string
     </span>
   );
 }
+
+/**
+ * "+N more": a fade over the bottom of a checklist card whose entries no longer fit (a list past the sticky's
+ * growth ceiling, or a card the person made small). Plain text a reader can find; never takes a press. The
+ * count comes from the model (`hiddenCheckItems`), the same measure `fitSticky` grows by.
+ */
+export function ChecklistMore({
+  listId,
+  hidden,
+  paper,
+}: {
+  listId: string;
+  hidden: number;
+  paper: string;
+}) {
+  if (hidden <= 0) return null;
+  const hex = /^#[0-9a-f]{6}$/i.test(paper.trim());
+  return (
+    <span
+      data-testid={`checklist-more-${listId}`}
+      className="dc-annot-check-more"
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 22, // above the footer row (CHECK_FOOTER_H)
+        padding: '14px 10px 0',
+        boxSizing: 'border-box',
+        textAlign: 'right',
+        fontFamily: UI_FONT,
+        fontSize: 'var(--type-xs, 11px)',
+        fontWeight: 600,
+        lineHeight: 1.5,
+        color: doneInk(paper),
+        // the paper is validated; a value that is not a plain hex gets no gradient, never a url()
+        ...(hex ? { backgroundImage: `linear-gradient(to bottom, ${paper}00, ${paper} 70%)` } : {}),
+        pointerEvents: 'none',
+        zIndex: 1,
+      }}
+    >
+      +{hidden} more
+    </span>
+  );
+}

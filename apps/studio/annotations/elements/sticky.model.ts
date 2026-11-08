@@ -177,6 +177,32 @@ export function fitSticky(
   return { w, h, fontSize };
 }
 
+/**
+ * How many entries of a checklist no longer fit in a sticky of this size (#113 "+N more"): the title and the
+ * entries are measured the way `fitSticky` measures them, and an entry whose bottom passes the card's height
+ * (less the footer) is clipped. Only a list past `STICKY_MAX_GROWN_H`, or a card the person made small, has any.
+ */
+export function hiddenCheckItems(
+  size: StickySize,
+  text: string,
+  items: ReadonlyArray<{ text?: unknown }>
+): number {
+  if (!items.length) return 0;
+  const lineH = size.fontSize * LINE_H;
+  const titleH = Math.ceil(wrapLines(text, size.fontSize, size.w - PAD_X * 2) * lineH + PAD_Y * 2);
+  const rowW = size.w - PAD_X * 2 - CHECK_INDENT;
+  const room = size.h - CHECK_FOOTER_H;
+  let used = titleH;
+  let hidden = 0;
+  for (const it of items) {
+    const t = typeof it.text === 'string' && it.text ? it.text : CHECK_PLACEHOLDER;
+    used += wrapLines(t, size.fontSize, rowW) * lineH + CHECK_ROW_GAP;
+    // the gap below the last visible entry is air, not content
+    if (used - CHECK_ROW_GAP > room) hidden++;
+  }
+  return hidden;
+}
+
 /** A drop on a sticky lands this far down and right, so the one under it still shows (cell 3). */
 export const STICKY_STACK_STEP = 12;
 

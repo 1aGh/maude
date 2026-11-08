@@ -48,8 +48,14 @@ import {
   useLiveViewport,
 } from '../../canvas-lib.tsx';
 import { SECTION_FOLDED_H } from '../constants.ts';
-import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
-import { ChecklistChip, ChecklistRows, useChecklistItems } from './checklist.tsx';
+import {
+  authorLine,
+  hiddenCheckItems,
+  provenanceLine,
+  relativeTime,
+  tiltOf,
+} from '../elements/sticky.model.ts';
+import { ChecklistChip, ChecklistMore, ChecklistRows, useChecklistItems } from './checklist.tsx';
 import type { AnnotationElement } from '../types.ts';
 import {
   AI_SPARK,
@@ -444,6 +450,13 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
           {withListMarkers(text, lst)}
         </div>
       )}
+      {items.length && !edit ? (
+        <ChecklistMore
+          listId={el.id}
+          hidden={hiddenCheckItems({ w, h, fontSize: fmt.fontSize }, text, items)}
+          paper={fill}
+        />
+      ) : null}
       {items.length && !edit ? <ChecklistChip listId={el.id} paper={fill} /> : null}
       {edit ? <EditNotice notice={edit.notice} /> : null}
       {aiMade && !edit ? <SparkGlyph className="dc-annot-spark" /> : null}
