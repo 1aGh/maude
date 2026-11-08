@@ -382,6 +382,17 @@ export function hasFileClassesV2(capabilities: string[] | null): boolean {
   return Array.isArray(capabilities) && capabilities.includes(FILE_CLASSES_V2_CAPABILITY);
 }
 
+/** The capability a hub advertises when its file door takes the who-added sidecar (#172). */
+export const ASSET_ADDED_CAPABILITY = 'asset-added-v1';
+
+/**
+ * Does this hub's file door take `assets/<stem>.added.json` (#172)? A hub before it answers `400
+ * invalid path`, so the desktop holds the file for it with a reason (`olderDoorRefusesAdded`).
+ */
+export function hasAssetAddedV1(capabilities: string[] | null): boolean {
+  return Array.isArray(capabilities) && capabilities.includes(ASSET_ADDED_CAPABILITY);
+}
+
 /** The capability a hub advertises when its doors take paths up to 32 segments deep (fix/205). */
 export const FILE_DEPTH_V2_CAPABILITY = 'file-depth-v2';
 

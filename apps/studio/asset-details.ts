@@ -14,6 +14,7 @@
 
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { readAssetAdded } from './asset-added.ts';
 import { homeShort, readAssetOrigin } from './asset-origins.ts';
 import { sidecarsOf } from './asset-trash.ts';
 import { describeMedia, probeMedia } from './bin/_media-probe.mjs';
@@ -77,7 +78,10 @@ export interface AssetDetails {
    * (#128 §1): the sentence names the asset and the codec and the fix. Only present for such a clip.
    */
   mediaWarnings?: string[];
-  /** "Added by <name>" — the display name this Mac's origin record keeps, only to a session that may hear the Original */
+  /**
+   * "Added by <name>" — from the synced `assets/<stem>.added.json` (#172), told to every session that may see the asset;
+   * else the display name this Mac's origin record keeps, only to a session that may hear the Original. Never an e-mail.
+   */
   addedBy?: string;
   uses: UseOfAsset[];
   advanced: {
@@ -342,6 +346,8 @@ export function assetDetails(rel: string, o: AssetDetailsOptions): AssetDetails 
   }
 
   const origin = o.includeOriginal ? readAssetOrigin(o.designRoot, rel) : null;
+  // #172 — the synced record is what every peer says; this Mac's own note is only the fallback for an older import
+  const addedBy = readAssetAdded(o.designRoot, rel)?.by ?? origin?.by;
   const mediaWarning =
     kind === 'video'
       ? mediaWarningOf(rel, path.join(o.designRoot, ...rel.split('/')), st, o.probe ?? probeMedia)
@@ -369,7 +375,7 @@ export function assetDetails(rel: string, o: AssetDetailsOptions): AssetDetails 
     madeByAi: madeByAiOf(o.designRoot, rel),
     footage: kind === 'video' ? footageOf(o.designRoot, rel) : null,
     ...(mediaWarning ? { mediaWarnings: [mediaWarning] } : {}),
-    ...(origin?.by ? { addedBy: origin.by } : {}),
+    ...(addedBy ? { addedBy } : {}),
     uses,
     advanced,
   };

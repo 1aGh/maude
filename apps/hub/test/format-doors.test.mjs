@@ -250,6 +250,27 @@ describe('the doors on a real hub (H4, H5)', () => {
     }
   });
 
+  // #172 — who added an asset travels as `assets/<stem>.added.json`. A 2.0 hub before it refuses
+  // the file, so a desktop offers it only to a hub that says `asset-added-v1` — and this door takes it.
+  test('asset-added-v1: advertised, and the who-added sidecar lands', {
+    timeout: 60000,
+  }, async () => {
+    const hub = await startHub();
+    try {
+      const health = await (await fetch(`${hub.http}/health`)).json();
+      assert.ok(health.capabilities.includes('asset-added-v1'));
+      const member = caller(hub.http, hub.member);
+      const put = await member.put(
+        '/api/file/assets/a1b2c3d4.added.json',
+        Buffer.from('{"format":"maude.added","v":1,"by":"Tereza"}'),
+        { 'content-type': 'application/json' }
+      );
+      assert.equal(put.status, 200, `${put.status} ${put.text}`);
+    } finally {
+      await hub.stop();
+    }
+  });
+
   // fix/205-sync-assets — the depth cap is 32 segments now; an older door stopped at 8 and a
   // desktop holds deeper paths for it. This hub says `file-depth-v2`, so its door must take them.
   test('file-depth-v2: advertised, and a path deeper than 8 lands (33 still refused)', {

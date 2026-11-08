@@ -82,7 +82,7 @@ export function addedText(mtimeMs, now = Date.now()) {
 }
 
 /**
- * "Added by Tereza" — from the origin record's display name, when one exists. Never an e-mail: a name that has an `@` in it
+ * "Added by Tereza" — from the synced who-added record (`assets/<stem>.added.json`, #172), else this Mac's origin record. Never an e-mail: a name that has an `@` in it
  * is not drawn, whatever the answer said. '' when nobody is named.
  */
 export function addedByLine(d) {

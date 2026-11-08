@@ -70,6 +70,8 @@ const CODE_MODULE_EXTS = new Set(['ts', 'tsx', 'js', 'mjs']);
 // `.beats.json`): new sidecars because R8 freezes `.footage.json` / `.edl.json`.
 // + S8's generation provenance (`assets/<sha8>.gen.json`, `maude.gen` v1). The
 // per-use photo edit (`assets/<img8>.<edit8>.photo.json`) already rides `.photo.json`.
+// + #172: who brought an asset in (`assets/<sha8>.added.json`, `maude.added` v1) — a
+// display name only; the per-Mac original path stays in `_canvas-state/asset-origins.json`.
 const COMPANION_SIDECAR_SUFFIXES = [
   '.photo.json',
   '.audio.json',
@@ -79,6 +81,7 @@ const COMPANION_SIDECAR_SUFFIXES = [
   '.transcript.json',
   '.beats.json',
   '.gen.json',
+  '.added.json',
 ];
 
 /** A DIRECTORY segment must start alphanumeric — keeps `_*` runtime

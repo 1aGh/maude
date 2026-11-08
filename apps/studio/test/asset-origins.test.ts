@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { addedRelOf, readAssetAdded } from '../asset-added.ts';
 import {
   homeShort,
   isOriginPath,
@@ -203,9 +204,45 @@ describe('asset origins', () => {
     expect(ok.exitCode).toBe(0);
     const [stored] = JSON.parse(ok.stdout.toString()) as Array<{ path: string }>;
     expect(readAssetOrigin(root, stored?.path as string)?.by).toBe('Tereza');
+    // #172 — the name (and only the name) also travels with the project, beside the asset
+    expect(readAssetAdded(root, stored?.path as string)?.by).toBe('Tereza');
+    const sidecar = readFileSync(path.join(root, addedRelOf(stored?.path) as string), 'utf8');
+    expect(sidecar).not.toContain('from-finder');
+    expect(sidecar).not.toContain(root);
     const mail = run('tereza@example.com');
     expect(mail.exitCode).toBe(0);
     expect(readAssetOrigin(root, stored?.path as string)?.by).toBe('Tereza');
+    expect(readAssetAdded(root, stored?.path as string)?.by).toBe('Tereza');
+  });
+
+  test('#172 — an e-mail given to `--added-by` names nobody in the synced record either', () => {
+    const root = project();
+    const src = path.join(root, 'mail.png');
+    writeFileSync(
+      src,
+      Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('mail')])
+    );
+    const out = Bun.spawnSync(
+      [
+        'bun',
+        'run',
+        path.join(import.meta.dir, '../bin/_import-asset.mjs'),
+        src,
+        '--root',
+        root,
+        '--design-root',
+        '.',
+        '--kind',
+        'raster',
+        '--added-by',
+        'tereza@example.com',
+        '--json',
+      ],
+      { env: { ...process.env, NO_OPEN: '1' } }
+    );
+    expect(out.exitCode).toBe(0);
+    const [stored] = JSON.parse(out.stdout.toString()) as Array<{ path: string }>;
+    expect(existsSync(path.join(root, addedRelOf(stored?.path) as string))).toBe(false);
   });
 
   test('home folders are shown as ~', () => {

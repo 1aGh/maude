@@ -121,6 +121,7 @@ import { accessFor, getHubRecord, watchHubsConfig } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
 import {
   hasAnnotationsV2,
+  hasAssetAddedV1,
   hasFileClassesV2,
   hasFileDepthV2,
   hasLedger,
@@ -6083,6 +6084,8 @@ export function createSyncRuntime(
                 hubTakesV2Files: hasFileClassesV2(caps),
                 // fix/205 — an older hub refuses paths deeper than 8 segments; held, with a reason.
                 hubTakesDeepPaths: hasFileDepthV2(caps),
+                // #172 — a hub before `asset-added-v1` refuses the who-added sidecar; held, with a reason.
+                hubTakesAddedFiles: hasAssetAddedV1(caps),
                 unlimitedOutboundDeletes: unlimitedDeletes,
                 // Increment 6, DEFAULT ON: a hub-owned mirror that ignores
                 // deletes contradicts the model it is selling — you delete a

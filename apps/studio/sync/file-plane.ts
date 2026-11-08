@@ -76,6 +76,7 @@ import {
   MAX_SEGMENTS,
   OLDER_HUB_DEPTH_REASON,
   olderDoorRefuses,
+  olderDoorRefusesAdded,
   olderDoorRefusesDepth,
 } from './file-membership.ts';
 import {
@@ -652,6 +653,12 @@ export interface FilePlaneOptions {
    * true, like `hubTakesV2Files`.
    */
   hubTakesDeepPaths?: boolean;
+  /**
+   * #172 — the hub advertises `asset-added-v1` (`hasAssetAddedV1`). False ⇒ the who-added sidecar
+   * `assets/<stem>.added.json` (`olderDoorRefusesAdded`) is held here with the older-hub reason;
+   * its asset still goes up. Absent ⇒ true, like `hubTakesV2Files`.
+   */
+  hubTakesAddedFiles?: boolean;
   /**
    * Issue #204 — how fast this plane talks to the hub (concurrency + requests per minute). One per
    * plane so the adaptive width survives from pass to pass. Default: `createPullPacer()`.
@@ -2625,7 +2632,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       // fix/205 — the same for a path deeper than an older door takes (8 segments).
       const olderHubReason =
         here && remoteHash === null
-          ? opts.hubTakesV2Files === false && olderDoorRefuses(rel)
+          ? (opts.hubTakesV2Files === false && olderDoorRefuses(rel)) ||
+            (opts.hubTakesAddedFiles === false && olderDoorRefusesAdded(rel))
             ? OLDER_HUB_REASON
             : opts.hubTakesDeepPaths === false && olderDoorRefusesDepth(rel)
               ? OLDER_HUB_DEPTH_REASON

@@ -27,6 +27,7 @@ const SIDECAR_SUFFIXES = [
   '.transcript.json',
   '.beats.json',
   '.gen.json',
+  '.added.json',
   '.srt',
   '.vtt',
   '.json',

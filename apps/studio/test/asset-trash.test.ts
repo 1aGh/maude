@@ -38,6 +38,7 @@ describe('sidecarsOf', () => {
       'assets/a1b2c3d4.jpg',
       'assets/a1b2c3d4.photo.json',
       'assets/a1b2c3d4.gen.json',
+      'assets/a1b2c3d4.added.json', // #172 — who added it
       'assets/a1b2c3d4.9f8e7d6c.photo.json',
       'assets/a1b2c3d4.png', // another picture that happens to share the stem
       'assets/zzzz0000.photo.json', // somebody else's
@@ -45,6 +46,7 @@ describe('sidecarsOf', () => {
       put(root, f);
     expect(sidecarsOf(root, 'assets/a1b2c3d4.jpg').sort()).toEqual([
       'assets/a1b2c3d4.9f8e7d6c.photo.json',
+      'assets/a1b2c3d4.added.json',
       'assets/a1b2c3d4.gen.json',
       'assets/a1b2c3d4.photo.json',
     ]);

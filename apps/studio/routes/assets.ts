@@ -18,7 +18,10 @@
 // cross-origin + DNS-rebinding pair; the role gate is here: a project-level write into `assets/` — Can edit on the
 // project, and a canvas-only session is refused (as `/_api/assets/trash`).
 
+import path from 'node:path';
+
 import type { Access } from '../access/scope.ts';
+import { addedRelOf, recordAssetAdded } from '../asset-added.ts';
 import {
   CONVERT_MAX_BYTES,
   CONVERT_OUT_MAX_BYTES,
@@ -48,6 +51,12 @@ export interface AssetImportRouteDeps {
   access: (req: Request) => Access;
   /** A file joined the project (the studio's change announcement; workspace mode only). */
   announce?: (rel: string) => void;
+  /**
+   * #172 — who is importing, for "Added by" on every peer (`assets/<stem>.added.json`, contract 172-asset-origins.md):
+   * a cell's vouched member, else this Mac's git user. Cleaned before it is written (an e-mail becomes its words, a
+   * machine actor names nobody). Absent → no record.
+   */
+  addedBy?: (req: Request) => string | null | undefined | Promise<string | null | undefined>;
   /** Seams for the tests (the SVG canary drives a browser; `sips` is macOS only). The studio passes none. */
   importSvg?: (text: string, opts: ImportOpts) => Promise<Imported>;
   importConvertible?: (bytes: Buffer, opts: ImportOpts) => Promise<Imported>;
@@ -179,7 +188,15 @@ export function createAssetImportRoutes(deps: AssetImportRouteDeps): RouteSpec[]
           else if (sniffRasterKind(bytes)) r = doRaster(bytes, opts());
           else if (looksLikeSvg(bytes)) r = await doSvg(bytes.toString('utf8'), opts());
           else throw new ImportAssetError(5, 'not a picture Maude can bring in', 'unsupported');
-          if (!r.reused) deps.announce?.(r.path);
+          if (!r.reused) {
+            deps.announce?.(r.path);
+            // #172 — a fresh import says who brought it in; write-once, so the same bytes again keep the first name.
+            // A record that cannot be written is a missing line, never a failed import.
+            const who = await Promise.resolve(deps.addedBy?.(req)).catch(() => null);
+            const design = path.join(deps.root, deps.designRel);
+            if (recordAssetAdded(design, r.path, who))
+              deps.announce?.(addedRelOf(r.path) as string);
+          }
           return json(201, {
             ok: true,
             path: r.path,
