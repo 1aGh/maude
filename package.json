@@ -50,6 +50,7 @@
     "test:e2e:desktop:switchrepos": "pnpm --filter @maude/desktop-e2e e2e:switchrepos",
     "test:e2e:desktop:tabs": "pnpm --filter @maude/desktop-e2e e2e:tabs",
     "test:e2e:desktop:tabs-identity": "pnpm --filter @maude/desktop-e2e e2e:tabs-identity",
+    "test:e2e:desktop:cli-reuse": "pnpm --filter @maude/desktop-e2e e2e:cli-reuse",
     "test:e2e:desktop:relaunch": "pnpm --filter @maude/desktop-e2e e2e:relaunch",
     "test:e2e:desktop:home": "pnpm --filter @maude/desktop-e2e e2e:home",
     "test:e2e:desktop:onboarding": "pnpm --filter @maude/desktop-e2e e2e:onboarding",

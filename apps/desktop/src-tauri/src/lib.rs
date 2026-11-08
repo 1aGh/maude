@@ -684,6 +684,7 @@ pub fn run() {
             github_home::github_clone,
             github_home::github_create,
             notify::e2e_notification_click,
+            cli_channel::e2e_cli_consent,
             app_state::app_get_last_project,
             app_state::app_set_last_project,
             app_state::app_recent_projects,

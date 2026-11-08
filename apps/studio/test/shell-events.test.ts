@@ -127,7 +127,12 @@ describe('shell events reach this window', () => {
     const s = start();
     await tick();
     expect(Object.keys(here).sort()).toEqual(
-      ['shell://navigate', 'shell://opened-existing', 'shell://tabs-restored'].sort()
+      [
+        'shell://branch-changed',
+        'shell://navigate',
+        'shell://opened-existing',
+        'shell://tabs-restored',
+      ].sort()
     );
     expect(Object.keys(global)).toEqual([]);
     here['shell://opened-existing']?.({ payload: { name: 'Alligators brand' } });
@@ -135,6 +140,15 @@ describe('shell events reach this window', () => {
     expect(s.toasts).toEqual(['Alligators brand is open in this window.']);
     s.stop();
     expect(Object.keys(here)).toEqual([]);
+  });
+
+  test('#206: branch-changed → the one line, only with both branch names', async () => {
+    const s = start();
+    await tick();
+    here['shell://branch-changed']?.({ payload: { was: 'main', now: 'feat-x' } });
+    here['shell://branch-changed']?.({ payload: { was: 'main' } });
+    expect(s.toasts).toEqual(['This folder switched from main to feat-x.']);
+    s.stop();
   });
 
   test('tabs-restored emitted before the page existed is pulled once on start', async () => {

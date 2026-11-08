@@ -27,7 +27,11 @@ afterEach(() => {
 
 const ok = (body: unknown, status = 200) => Promise.resolve({ ok: status < 300, status, body });
 
-async function mount(pending: { host: string } | null, confirm = () => ok({ ok: true })) {
+async function mount(
+  pending: { host: string } | null,
+  confirm = () => ok({ ok: true }),
+  worktreeOf?: string
+) {
   const calls: string[] = [];
   let linked = false;
   const api = {
@@ -39,7 +43,7 @@ async function mount(pending: { host: string } | null, confirm = () => ok({ ok: 
     people: () => ok({ people: [] }),
     pendingLink: () => {
       calls.push('pendingLink');
-      return ok({ pending });
+      return ok(worktreeOf ? { pending, worktreeOf } : { pending });
     },
     confirmLink: () => {
       calls.push('confirmLink');
@@ -82,6 +86,16 @@ describe('a committed link this Mac never made', () => {
       'This project says it syncs with team.example.com. Connect?'
     );
     expect(q('share-link-connect')?.textContent).toBe('Connect');
+    expect(q('share-local-note')).toBeNull();
+    expect(q('share-move')).toBeNull();
+  });
+
+  // #206 §5 — a worktree tab is never linked: "Syncs from <main>", no Connect, no Move to cloud.
+  test('a worktree tab says where it syncs from and offers nothing to press', async () => {
+    const { q } = await mount(null, undefined, 'Atlas');
+    expect(q('share-worktree-syncs-from')?.textContent).toBe('Syncs from Atlas');
+    expect(q('share-link-unconfirmed')).toBeNull();
+    expect(q('share-link-connect')).toBeNull();
     expect(q('share-local-note')).toBeNull();
     expect(q('share-move')).toBeNull();
   });

@@ -530,18 +530,33 @@ impl WindowBook {
 
     /// The session to save (§5.5 `session`): every tab in tab order, a project
     /// tab with its pid, and the focused (else front) label.
+    #[cfg(test)]
     pub fn session_tabs(&self) -> (Vec<crate::app_state::SessionTab>, Option<String>) {
-        let tabs = self
+        self.session_tabs_skipping(|_| false)
+    }
+
+    /// `session_tabs` without the project tabs whose root `skip` names — #206 §5: a worktree tab
+    /// is never restored at relaunch (Home's Worktrees row reopens one). A skipped front tab
+    /// leaves no focused label (the relaunch lands on Home or the first tab).
+    pub fn session_tabs_skipping(
+        &self,
+        skip: impl Fn(&str) -> bool,
+    ) -> (Vec<crate::app_state::SessionTab>, Option<String>) {
+        let tabs: Vec<crate::app_state::SessionTab> = self
             .tabs
             .iter()
             // S9.17: a cell tab is opened by a door answer, never restored.
             .filter(|l| !is_cell_label(l))
+            .filter(|l| !self.root_of(l).is_some_and(|r| skip(&r)))
             .map(|l| crate::app_state::SessionTab {
                 label: l.clone(),
                 pid: self.project_of(l).map(|(pid, _)| pid),
             })
             .collect();
-        (tabs, self.front_label())
+        let front = self
+            .front_label()
+            .filter(|f| !self.root_of(f).is_some_and(|r| skip(&r)));
+        (tabs, front)
     }
 
     /// The label a NEW window for `pid` gets: `p-<pid>`, unless that label is
@@ -741,6 +756,36 @@ pub fn project_display_name(root: &str) -> String {
             .unwrap_or_else(|| root.to_string())
     });
     crate::notify::sanitize_title(&name)
+}
+
+/// #206 §5 — a worktree tab's name in the strip: `<main project name> · <branch>` (the short sha +
+/// "detached", or the folder's name, when there is no branch).
+pub fn worktree_tab_name(main_name: &str, head: &crate::project_resolve::Head, folder: &str) -> String {
+    use crate::project_resolve::Head;
+    let b = match head {
+        Head::Branch(b) => b.clone(),
+        Head::Detached(sha) => format!("{sha} detached"),
+        Head::Unknown => folder.to_string(),
+    };
+    crate::notify::sanitize_title(&format!("{main_name} · {b}"))
+}
+
+/// The strip's name for a project tab: a name the person gave it on this Mac, else a worktree
+/// tab's `<main> · <branch>`, else `project_display_name`.
+pub fn tab_display_name(st: &crate::app_state::AppState, root: &str) -> String {
+    if crate::app_state::display_name_of(&pid_for_root(root)).is_some() {
+        return project_display_name(root);
+    }
+    match st.worktree_main(root) {
+        Some(wt) => {
+            let folder = Path::new(root)
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            worktree_tab_name(&project_display_name(&wt.main_root.to_string_lossy()), &wt.head, &folder)
+        }
+        None => project_display_name(root),
+    }
 }
 
 /// `data_store_identifier` exists from macOS 14 (WKWebsiteDataStore
@@ -1546,6 +1591,8 @@ pub fn open_window_for_root_as(
         background,
     )?;
     if let Opened::New(label) = &opened {
+        // #206: the branch this tab shows, so a later `git checkout` under it is told (cli_channel).
+        crate::cli_channel::note_branch(root);
         // Server after the window: the splash shows at once, and a server that
         // is still running for this root (closed < CLOSE_GRACE ago, or kept by
         // the pool) is attached to instead of spawned.
@@ -1884,11 +1931,12 @@ pub fn save_session_now(app: &AppHandle) {
     let Some(state) = app.try_state::<SidecarState>() else {
         return;
     };
+    let st = crate::app_state::load(app);
     let (tabs, focused) = state
         .windows
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .session_tabs();
+        .session_tabs_skipping(|root| st.worktree_main(root).is_some());
     crate::app_state::save_session(app, tabs, focused);
 }
 
@@ -4072,6 +4120,7 @@ mod tests {
             "allow-e2e-open-root",
             "allow-e2e-bind-profile",
             "allow-e2e-notification-click",
+            "allow-e2e-cli-consent",
             "allow-e2e-deliver-deep-link",
             "allow-e2e-shell-bounds",
         ];
@@ -4815,6 +4864,33 @@ mod tests {
         b.insert("p-a", Role::Project { pid: "la".into(), root: "/r/a".into() }, 2);
         let (tabs, _) = b.session_tabs();
         assert_eq!(tabs.iter().map(|t| t.label.as_str()).collect::<Vec<_>>(), ["p-a"]);
+    }
+
+    /// #206 §5: a worktree tab is never in the saved session; nor is it the focused tab there.
+    #[test]
+    fn a_worktree_tab_is_never_restored() {
+        let mut b = WindowBook::default();
+        b.insert("p-a", Role::Project { pid: "la".into(), root: "/r/a".into() }, 1);
+        b.insert("p-w", Role::Project { pid: "lw".into(), root: "/r/w".into() }, 2);
+        assert!(b.focus("p-w", 3));
+        let (tabs, front) = b.session_tabs_skipping(|r| r == "/r/w");
+        assert_eq!(tabs.iter().map(|t| t.label.as_str()).collect::<Vec<_>>(), ["p-a"]);
+        assert_eq!(front, None);
+        let src = include_str!("windows.rs");
+        let save = &src[src.find("pub fn save_session_now(").unwrap()..];
+        let save = &save[..save.find("\n}\n").unwrap()];
+        assert!(save.contains("session_tabs_skipping(|root| st.worktree_main(root).is_some())"));
+    }
+
+    #[test]
+    fn a_worktree_tab_is_named_after_its_main_project_and_branch() {
+        use crate::project_resolve::Head;
+        assert_eq!(worktree_tab_name("Atlas", &Head::Branch("feat-x".into()), "wt"), "Atlas · feat-x");
+        assert_eq!(
+            worktree_tab_name("Atlas", &Head::Detached("abc1234".into()), "wt"),
+            "Atlas · abc1234 detached"
+        );
+        assert_eq!(worktree_tab_name("Atlas", &Head::Unknown, "wt-2"), "Atlas · wt-2");
     }
 
     /// `open_cell_tab` checks its caller, the front tab and the account before

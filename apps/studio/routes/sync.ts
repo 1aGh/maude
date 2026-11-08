@@ -30,6 +30,7 @@
 
 import { currentAccess, notInScopeResponse } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
+import { worktreeOf } from '../shell/worktree.ts';
 import type { AdoptHeldControl } from '../sync/adopt-held.ts';
 import type { CodeConsentControl } from '../sync/code-module-consent.ts';
 import type { HeldDeletesControl } from '../sync/held-deletes.ts';
@@ -72,6 +73,11 @@ export interface SyncRouteDeps {
   access?: () => Access;
   /** #158 — the design root `GET /_api/sync/unsynced-refs` reads; absent = nothing to check. */
   designRoot?: string;
+  /**
+   * #206 §5 — the main project's name when this server serves a worktree tab (`shell/worktree.ts`,
+   * default: from the env the app spawned it with). A worktree is never linked.
+   */
+  worktreeOf?: () => string | null;
 }
 
 const json = (status: number, body: unknown) =>
@@ -97,6 +103,7 @@ export function resyncRefusal(
 
 export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
   const access = () => (deps.access ?? currentAccess)();
+  const worktree = () => (deps.worktreeOf ?? worktreeOf)();
   return [
     // gate-b-sec4 (M1) — a committed `linkedHub` this Mac never linked waits here; the Share sheet
     // asks "This project says it syncs with <host>. Connect?". MAIN ORIGIN ONLY: a canvas never
@@ -107,10 +114,13 @@ export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
       origin: 'main',
       readOnly: 'allowed',
       // A project-class answer: a canvas-only session hears the missing-scope refusal (U3).
-      handle: async () =>
-        access().can('read', null)
-          ? json(200, { pending: deps.link?.pending() ?? null })
-          : notInScopeResponse(),
+      handle: async () => {
+        if (!access().can('read', null)) return notInScopeResponse();
+        // #206 §5: a worktree tab says "Syncs from <main>" and offers no Connect.
+        const main = worktree();
+        if (main) return json(200, { pending: null, worktreeOf: main });
+        return json(200, { pending: deps.link?.pending() ?? null });
+      },
     },
     // Connect: record on THIS Mac that the folder's hub may receive this Mac's credential, then
     // start syncing with exactly the parked value. Can edit and up (like Resync); a person's
@@ -154,6 +164,14 @@ export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
             error: 'read-only',
             reason: 'not-allowed',
             message: 'Ask the owner to change this.',
+          });
+        }
+        const main = worktree();
+        if (main) {
+          return json(409, {
+            ok: false,
+            reason: 'worktree',
+            detail: `This folder syncs from ${main}. Connect ${main} instead.`,
           });
         }
         if (!deps.link) {

@@ -512,6 +512,44 @@ describe('callers ask the app first', () => {
     reset();
   });
 
+  const PREP = join(REPO_ROOT, 'apps', 'studio', 'bin', 'prep.sh');
+  const prep = (root) =>
+    new Promise((res) => {
+      const c = spawn('bash', [PREP, '--root', root, '--json'], {
+        env: {
+          ...env(),
+          PATH: `${lanePath()}:/opt/homebrew/bin:/usr/local/bin`,
+          CLAUDE_PROJECT_DIR: '',
+        },
+      });
+      let out = '';
+      c.stdout.on('data', (d) => (out += d));
+      c.on('exit', (code) => res({ code, out }));
+    });
+
+  test('prep: server.owner is app (the attested port, not _server.json), cli, or none', async (t) => {
+    const jq = spawnSync('jq', ['--version'], {
+      env: { PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin' },
+    });
+    if (jq.status !== 0) return t.skip('no jq');
+    const root = project();
+    const app = await fakeServer({ rootId: rootIdOf(root) });
+    const planted = await fakeServer({ rootId: rootIdOf(root) });
+    reset();
+    writeRegistry(REG, [running(root, app.port)]);
+    plantServerJson(root, planted.port);
+    let r = await prep(root);
+    assert.equal(r.code, 0);
+    assert.deepEqual(JSON.parse(r.out).server, { up: true, port: app.port, owner: 'app' });
+    reset();
+    r = await prep(root);
+    assert.deepEqual(JSON.parse(r.out).server, { up: true, port: planted.port, owner: 'cli' });
+    rmSync(join(root, '.design', '_server.json'));
+    r = await prep(root);
+    assert.deepEqual(JSON.parse(r.out).server, { up: false, port: null, owner: 'none' });
+    reset();
+  });
+
   test('server-up: a forged MAC → exit 1, no fallback to _server.json, no spawn', async () => {
     const root = project();
     const app = await fakeServer({ key: WRONG, rootId: rootIdOf(root) });

@@ -101,6 +101,8 @@ pub struct RunningView {
     pub attest_key: Option<String>,
     pub profile: String,
     pub started_ms: u64,
+    /// A live terminal lease keeps it in use (contract §6) — the entry's `busy`.
+    pub busy: bool,
 }
 
 /// One resting tab (its server stopped, the tab kept).
@@ -108,6 +110,7 @@ pub struct RunningView {
 pub struct RestingView {
     pub root: String,
     pub profile: String,
+    pub busy: bool,
 }
 
 /// The realpath string Node's `realpathSync` gives (what `rootIdentity` hashes), or the input.
@@ -192,7 +195,7 @@ pub fn build_registry(
             kind,
             main_root,
             branch,
-            busy: false,
+            busy: r.busy,
             started: Some(iso_utc(r.started_ms)),
             root: real,
         });
@@ -214,7 +217,7 @@ pub fn build_registry(
             kind,
             main_root,
             branch,
-            busy: false,
+            busy: r.busy,
             started: None,
             root: real,
         });
@@ -306,6 +309,7 @@ pub(crate) fn publish(app: &AppHandle) {
                     attest_key: inst.attest_key.clone(),
                     profile: inst.profile_id.clone(),
                     started_ms: inst.started_ms,
+                    busy: crate::cli_channel::leased(root),
                 })
             })
             .collect()
@@ -323,7 +327,11 @@ pub(crate) fn publish(app: &AppHandle) {
     let st = crate::app_state::load(app);
     let resting: Vec<RestingView> = resting_roots
         .into_iter()
-        .map(|root| RestingView { profile: st.profile_for(&root), root })
+        .map(|root| RestingView {
+            profile: st.profile_for(&root),
+            busy: crate::cli_channel::leased(&root),
+            root,
+        })
         .collect();
     let mut known: std::collections::HashSet<String> = st.projects.keys().cloned().collect();
     known.extend(running.iter().map(|r| crate::windows::pid_for_root(&r.root)));
@@ -368,6 +376,7 @@ mod tests {
             attest_key: Some(key.into()),
             profile: "default".into(),
             started_ms: 1_762_560_123_456,
+            busy: false,
         }
     }
 
@@ -394,7 +403,7 @@ mod tests {
         let reg = build_registry(
             app_info(),
             &[running(&a, Some(46399), &key)],
-            &[RestingView { root: b.clone(), profile: "work".into() }],
+            &[RestingView { root: b.clone(), profile: "work".into(), busy: false }],
             &|_| false,
         );
         assert_eq!(reg.v, 1);
@@ -429,13 +438,35 @@ mod tests {
     }
 
     #[test]
+    fn a_live_lease_marks_the_entry_busy_running_or_resting() {
+        let base = scratch("busy");
+        let (a, b) = (base.join("a"), base.join("b"));
+        for p in [&a, &b] {
+            std::fs::create_dir_all(p).unwrap();
+        }
+        let (a, b) = (a.to_string_lossy().into_owned(), b.to_string_lossy().into_owned());
+        let mut ra = running(&a, Some(46399), &"ab".repeat(32));
+        ra.busy = true;
+        let reg = build_registry(
+            app_info(),
+            &[ra],
+            &[RestingView { root: b.clone(), profile: "default".into(), busy: true }],
+            &|_| false,
+        );
+        assert!(reg.servers.iter().all(|s| s.busy), "{:?}", reg.servers);
+        let reg = build_registry(app_info(), &[running(&a, Some(46399), &"ab".repeat(32))], &[], &|_| false);
+        assert!(!reg.servers[0].busy);
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
     fn a_root_both_running_and_resting_is_listed_once_as_running() {
         let base = scratch("dupe");
         let a = base.to_string_lossy().into_owned();
         let reg = build_registry(
             app_info(),
             &[running(&a, None, &"cd".repeat(32))],
-            &[RestingView { root: a.clone(), profile: "default".into() }],
+            &[RestingView { root: a.clone(), profile: "default".into(), busy: false }],
             &|_| false,
         );
         assert_eq!(reg.servers.len(), 1);

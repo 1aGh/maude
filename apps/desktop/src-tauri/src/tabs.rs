@@ -929,7 +929,7 @@ fn current_state(app: &AppHandle) -> Option<TabStripState> {
     let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
     let mut s = strip_state_full(
         &book,
-        windows::project_display_name,
+        |root| windows::tab_display_name(&st, root),
         |root| {
             let id = st.profile_for(root);
             account_badge(&id, &label_of(&id))
@@ -942,7 +942,24 @@ fn current_state(app: &AppHandle) -> Option<TabStripState> {
         .unwrap_or_else(|e| e.into_inner())
         .take()
         .filter(|l| s.tabs.iter().any(|t| &t.label == l && t.kind == "project"));
+    // #206 §6: a live terminal lease shows the "AI running" spark on a background tab.
+    for t in s.tabs.iter_mut().filter(|t| t.kind == "project") {
+        let leased = book
+            .root_of(&t.label)
+            .is_some_and(|r| crate::cli_channel::leased(&r));
+        t.dot = lease_dot(t.dot, t.label == s.active, leased);
+    }
     Some(s)
+}
+
+/// #206 §6 — the strip mark of a tab a terminal lease holds: the run's own mark wins; otherwise
+/// the "AI running" spark while the lease lives. The active tab never carries a dot.
+pub fn lease_dot(dot: Option<Dot>, active: bool, leased: bool) -> Option<Dot> {
+    match (dot, active, leased) {
+        (_, true, _) => dot,
+        (None, false, true) => Some(Dot::Working),
+        _ => dot,
+    }
 }
 
 /// What a row of the tab menu (right-click a tab, 11 `pn-tab-menu`) does.
@@ -1628,6 +1645,19 @@ mod tests {
         // Nothing focused yet (boot): Home is the active tab.
         let s = strip_state(&book_abc(), |_| String::new());
         assert_eq!(s.active, "home");
+    }
+
+    #[test]
+    fn a_lease_shows_the_ai_spark_on_a_background_tab_only() {
+        assert_eq!(lease_dot(None, false, true), Some(Dot::Working));
+        assert_eq!(lease_dot(None, true, true), None, "never on the active tab");
+        assert_eq!(lease_dot(None, false, false), None);
+        assert_eq!(lease_dot(Some(Dot::NeedsYou), false, true), Some(Dot::NeedsYou));
+        let src = include_str!("tabs.rs");
+        let cur = &src[src.find("fn current_state(").unwrap()..];
+        let cur = &cur[..cur.find("\n}\n").unwrap()];
+        assert!(cur.contains("t.dot = lease_dot(t.dot, t.label == s.active, leased)"));
+        assert!(cur.contains("|root| windows::tab_display_name(&st, root)"));
     }
 
     #[test]

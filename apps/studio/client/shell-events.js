@@ -10,6 +10,8 @@
 //                                         + "Opened from <name>'s link — <canvas>.")
 //   shell://opened-existing {name}       toast "<name> is open in this window."
 //   shell://tabs-restored {count}        toast "<count> tabs reopened. Each one starts when you open it."
+//   shell://branch-changed {was, now}    #206 §6: toast "This folder switched from <was> to <now>." (a terminal
+//                                         asked for this tab after a `git checkout` under it)
 //   take_link_opened {name}              toast "Opened <name> from a link." (a link opened this NEW tab)
 //
 // Rust emits tabs-restored while the restored front tab is still on its splash, before this page
@@ -74,6 +76,7 @@ export function invitedByAuthor(from, author) {
 
 export const openedExistingWords = (name) => `${name} is open in this window.`;
 export const linkOpenedWords = (name) => `Opened ${name} from a link.`;
+export const branchChangedWords = (was, now) => `This folder switched from ${was} to ${now}.`;
 export const tabsRestoredWords = (count) =>
   `${count} tabs reopened. Each one starts when you open it.`;
 
@@ -216,6 +219,11 @@ export function startShellEvents({ invoke, listen, toast, onNavigate }) {
   });
   sub('shell://tabs-restored', restored);
   sub('shell://navigate', navigate);
+  sub('shell://branch-changed', (p) => {
+    const was = cleanName(p?.was);
+    const now = cleanName(p?.now);
+    if (alive && was && now) toast(branchChangedWords(was, now), true, undefined, TOP_PILL);
+  });
   const linkOpened = (p) => {
     const name = cleanName(p?.name);
     if (alive && name) toast(linkOpenedWords(name), true, undefined, LINK_PILL);
