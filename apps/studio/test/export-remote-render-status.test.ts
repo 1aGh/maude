@@ -296,3 +296,78 @@ describe('the export job — cloud lane carries the service status to the row', 
     }
   });
 });
+
+describe('renderRemotely — the bearer never follows a redirect', () => {
+  /** Another origin that records every request it gets. */
+  function trap() {
+    const hits: Array<{ path: string; auth: string }> = [];
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        hits.push({
+          path: new URL(req.url).pathname,
+          auth: req.headers.get('authorization') ?? '',
+        });
+        return Response.json({ state: 'running' });
+      },
+    });
+    stops.push(() => server.stop(true));
+    return { url: `http://127.0.0.1:${server.port}`, hits };
+  }
+
+  /** A service that answers the named paths with a 307 to `to`; `/render` waits for `finish()` unless redirected. */
+  function redirecting(to: string, paths: string[]) {
+    let finish!: () => void;
+    const finished = new Promise<void>((r) => {
+      finish = r;
+    });
+    let polls = 0;
+    const server = Bun.serve({
+      port: 0,
+      async fetch(req) {
+        const url = new URL(req.url);
+        if (url.pathname === '/_render/status') polls += 1;
+        if (paths.includes(url.pathname))
+          return new Response(null, { status: 307, headers: { location: `${to}${url.pathname}` } });
+        if (url.pathname === '/render') {
+          await Promise.race([
+            finished,
+            new Promise((r) => req.signal.addEventListener('abort', r)),
+          ]);
+          return new Response(new Uint8Array([1]), {
+            headers: { 'content-type': 'video/mp4', 'x-maude-filename': 'out.mp4' },
+          });
+        }
+        return Response.json({ ok: true });
+      },
+    });
+    stops.push(() => server.stop(true));
+    return { url: `http://127.0.0.1:${server.port}`, finish, polls: () => polls };
+  }
+
+  test('/render answering a redirect fails the job; nothing reaches the other origin', async () => {
+    const t = trap();
+    const svc = redirecting(t.url, ['/render']);
+    await expect(
+      renderRemotely({ ...baseArgs, service: { url: svc.url, secret: SECRET }, pollMs: 10_000 })
+    ).rejects.toThrow();
+    expect(t.hits).toEqual([]);
+  });
+
+  test('/_render/status and /_render/cancel never follow a redirect', async () => {
+    const t = trap();
+    const svc = redirecting(t.url, ['/_render/status', '/_render/cancel']);
+    const controller = new AbortController();
+    const pending = renderRemotely({
+      ...baseArgs,
+      service: { url: svc.url, secret: SECRET },
+      pollMs: 15,
+      signal: controller.signal,
+    });
+    await until(() => svc.polls() > 2);
+    controller.abort();
+    await expect(pending).rejects.toThrow();
+    await Bun.sleep(100);
+    expect(t.hits).toEqual([]);
+  });
+});
