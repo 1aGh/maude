@@ -3,11 +3,12 @@
 // was handed (B/C — bin/_url-guard.test.mjs), helper log lines never carry a link or a frame
 // capability (E), sessions have an absolute lifetime (D) and helper sessions never evict the person's
 // (G), and the two capture fallbacks work (F).
-import { describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import type { Subprocess } from 'bun';
 // @ts-expect-error — plain ESM CLI module without types
 import { mintLaunchToken as cliMint } from '../../../cli/lib/desktop-locate.mjs';
 // @ts-expect-error — plain ESM helper without types
@@ -22,6 +23,7 @@ import {
   type SessionStore,
 } from '../shell/api-key.ts';
 import { serverLinkDir, writeLinkFile } from '../shell/key-file.ts';
+import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const KEY = 'a7'.repeat(32);
 const NOW = 1_800_000_000;
@@ -227,5 +229,66 @@ describe('E — helper log lines never carry an opening link or a frame capabili
     expect(r.stdout).toBe(
       'http://localhost:1/_canvas-shell.html?canvas=a.tsx&fc=…&x=1 and /?maude-launch=…'
     );
+  });
+});
+
+// re-check F — with the canvas-origin split off there is no capture origin to mint a frame capability
+// for, and canvas code runs on the main origin with the page's own session anyway. A terminal server
+// started that way therefore stays key-less (phase 1), says so at boot, and its captures render.
+describe('F — a terminal server with the origin split off is key-less', () => {
+  let proc: Subprocess;
+  let base: string;
+  let state: string;
+  let out = '';
+  beforeAll(async () => {
+    const { root, designRoot } = makeSandbox();
+    Bun.write(
+      join(designRoot, 'ui', 'Probe.tsx'),
+      'import { DesignCanvas } from "@maude/canvas-lib";\nexport default function P() { return <DesignCanvas />; }\n'
+    );
+    state = mkdtempSync(join(tmpdir(), 'p2d-f-state-'));
+    const port = nextPort();
+    base = `http://127.0.0.1:${port}`;
+    proc = await bootServer(root, port, {
+      MAUDE_SERVER_ROLE: 'cli',
+      MAUDE_CANVAS_ORIGIN_SPLIT: '0',
+      XDG_STATE_HOME: state,
+      MAUDE_APP_REGISTRY_FILE: join(state, 'no-app', 'servers.json'),
+    });
+  }, 60_000);
+  afterAll(async () => {
+    if (proc) await killProc(proc);
+    out = '';
+    rmSync(state, { recursive: true, force: true });
+  });
+
+  test('no key file, the canvas module answers a key-less capture, and the boot line says why', async () => {
+    expect((await fetch(`${base}/_config`)).status).toBe(200);
+    expect((await fetch(`${base}/_canvas-shell.html?canvas=ui/Probe.tsx`)).status).toBe(200);
+    expect(existsSync(join(state, 'maude', 'servers'))).toBe(false);
+    if (proc.stdout && typeof proc.stdout !== 'number') {
+      const reader = (proc.stdout as ReadableStream<Uint8Array>).getReader();
+      const t = setTimeout(() => reader.cancel(), 1500);
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        out += new TextDecoder().decode(value);
+        if (out.includes('MAUDE_CANVAS_ORIGIN_SPLIT')) break;
+      }
+      clearTimeout(t);
+    }
+    expect(out).toContain('MAUDE_CANVAS_ORIGIN_SPLIT=0');
+  });
+});
+
+describe('F — after a port bounce a canvas capture asks the new server again', () => {
+  test('relive_url re-runs studio_capture_url instead of rewriting the port', () => {
+    const shot = read('bin/screenshot.sh');
+    const relive = shot.slice(
+      shot.indexOf('relive_url() {'),
+      shot.indexOf('capture_resilient() {')
+    );
+    expect(relive).toContain('URL="$(studio_capture_url "$RELIVE_REPO" "$new" "$CAPTURE_REL")"');
+    expect(shot).toContain('URL="$(studio_capture_url "$REPO" "$PORT" "$CAPTURE_REL")"');
   });
 });

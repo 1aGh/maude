@@ -52,7 +52,21 @@ const BOOT_KEY = ENV_KEY ?? randomBytes(32).toString('hex');
  * §7.5 — a terminal-started server (role `cli`: `maude design serve`, `server-up`) mints its own
  * key, writes it to the per-user key file (shell/key-file.ts) and opens with a launch token.
  */
-const TERMINAL_REQUIRED = ENV_KEY === null && isCliRole(process.env);
+const TERMINAL_ROLE = ENV_KEY === null && isCliRole(process.env);
+/**
+ * re-check F — with the canvas-origin split off (`MAUDE_CANVAS_ORIGIN_SPLIT=0`, server.ts) there is
+ * no capture origin to mint a frame capability for, so the key-less headless captures (exports,
+ * thumbnails, helpers) cannot render, and canvas code runs on the main origin with the page's own
+ * session anyway. A terminal starter in that mode therefore stays key-less (phase 1). The desktop
+ * app never turns the split off; a key it hands over keeps required mode either way.
+ */
+const CANVAS_SPLIT_OFF = /^(0|false|off|no)$/i.test(process.env.MAUDE_CANVAS_ORIGIN_SPLIT ?? '');
+const TERMINAL_REQUIRED = TERMINAL_ROLE && !CANVAS_SPLIT_OFF;
+
+/** re-check F — a terminal server left key-less because the split is off (the boot line says so). */
+export function terminalKeylessForSplitOff(): boolean {
+  return TERMINAL_ROLE && CANVAS_SPLIT_OFF && !isWorkspaceMode();
+}
 /**
  * §7.1 — a starter handed this process its key (the desktop app), or a terminal starter asked
  * for one (§7.5): every main-origin caller needs it. A server started with neither (a bare

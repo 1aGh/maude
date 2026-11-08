@@ -74,6 +74,7 @@ import {
   LAUNCH_PARAM,
   mainOriginKeyRefusal,
   mintLaunchToken,
+  terminalKeylessForSplitOff,
   terminalKeyMode,
 } from './shell/api-key.ts';
 import {
@@ -1276,6 +1277,10 @@ console.log('  ─────────────────────�
 console.log(`  ${requiresLaunch && process.stdout.isTTY ? launchUrl() : url}`);
 if (requiresLaunch)
   console.log('  (the link opens once; `maude design server-up --open` opens the studio again)');
+if (terminalKeylessForSplitOff())
+  console.log(
+    '  (MAUDE_CANVAS_ORIGIN_SPLIT=0: canvases run on this origin, so this server asks no key — any process on this Mac can reach it)'
+  );
 console.log(`  Project:   ${ctx.cfg.name}`);
 console.log(`  Config:    ${ctx.cfg._source}`);
 console.log(`  Design:    ${ctx.paths.designRoot}`);
