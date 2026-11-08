@@ -25,6 +25,8 @@ export interface UseCanvasKeysOptions {
   capture?: boolean;
   /** S3.11 — what the canvas has selected right now (read per keydown), for a selection-keyed binding. */
   selection?: () => SelKind;
+  /** #113 — is this keydown's target a checklist row or entry (the `checkItemFocused` fact)? Read per keydown. */
+  checkItemFocused?: (e: KeyboardEvent) => boolean;
 }
 
 export function useCanvasKeys(handlers: CanvasKeyHandlers, opts: UseCanvasKeysOptions = {}): void {
@@ -34,6 +36,8 @@ export function useCanvasKeys(handlers: CanvasKeyHandlers, opts: UseCanvasKeysOp
   const { target = 'window', capture = false } = opts;
   const selectionRef = useRef(opts.selection);
   selectionRef.current = opts.selection;
+  const checkRef = useRef(opts.checkItemFocused);
+  checkRef.current = opts.checkItemFocused;
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const index = canvasKeyIndex(ids.split('|'));
@@ -48,7 +52,8 @@ export function useCanvasKeys(handlers: CanvasKeyHandlers, opts: UseCanvasKeysOp
         // `inspect.edit`, can only match with it); undefined on a free canvas = the v1 context ('edit')
         canvasModeStore(window).get().mode ?? undefined,
         canvasSingleKeys(),
-        selectionRef.current?.()
+        selectionRef.current?.(),
+        checkRef.current?.(ke) ?? false
       );
       if (id) handlersRef.current[id]?.(ke);
     };

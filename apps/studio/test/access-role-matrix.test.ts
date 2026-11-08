@@ -159,6 +159,21 @@ const ROWS: Row[] = [
     viewer: 'refused',
     editor: true,
   },
+  // #113 — every checklist gesture (tick, add, reword, remove, reorder, turn into checklist) is an op batch on
+  // this one door: Can comment cannot tick (contract 113-checklist Q1), before the body is read.
+  {
+    family: 'annotations (#113 checklist tick)',
+    method: 'POST',
+    path: '/_api/annotations/ops',
+    body: {
+      file: FIXTURE,
+      actionId: 'tick-1',
+      ops: [
+        { op: 'patch', id: 'ck-1', set: { done: { by: 'Jonas', at: '2026-11-08T10:12:00Z' } } },
+      ],
+    },
+    viewer: 'refused',
+  },
   // S4.16 - Can comment: the op batches and the whole-board write above, the sticky <-> comment doors and the
   // FigJam import all answer 403 (hidden is not refused). The refusal comes before the body is read.
   {

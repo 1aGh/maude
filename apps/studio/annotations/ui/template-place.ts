@@ -25,6 +25,11 @@ export interface TemplatePlacement {
   box: Box;
   /** How many elements the template made (a labelled shape or arrow is two strokes, one element). */
   count: number;
+  /**
+   * #113 — records with no stroke form (a checklist's `checkitem` entries): the layer puts them in the SAME
+   * batch as the strokes (one ⌘Z), since the stroke view never carries them.
+   */
+  records: AnnotationElement[];
 }
 
 const PLACEMENT_KEYS = new Set(['op', 'type', 'in', 'near', 'pin', 'pointer', 'to', 'from']);
@@ -92,12 +97,17 @@ export function expandBoard(
     who && !s.authorName ? { ...s, authorName: who } : s
   );
   const parented = new Set(els.filter((e) => e.parent).map((e) => e.id));
-  const top = els.filter((e) => !parented.has(e.id) && e.type !== 'arrow');
+  const drawn = new Set(strokes.map((s) => s.id));
+  const records = els.filter((e) => e.type === 'checkitem' && !drawn.has(e.id));
+  const top = els.filter(
+    (e) => !parented.has(e.id) && e.type !== 'arrow' && e.type !== 'checkitem'
+  );
   return {
     strokes,
     selectIds: (top.length ? top : els).map((e) => e.id),
     box: boxOf(strokes),
     count: els.length,
+    records,
   };
 }
 

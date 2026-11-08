@@ -1,4 +1,15 @@
+import {
+  addItem,
+  type ChecklistResult,
+  makeChecklist,
+  moveItem,
+  removeItem,
+  rewordItem,
+  tickItem,
+  withItemDeletes,
+} from './annotations/checklist-ops.ts';
 import { MAX_BOARD_BYTES, MAX_ELEMENTS } from './annotations/constants.ts';
+import { isChecklist, itemsByList } from './annotations/elements/checkitem.model.ts';
 import { fanOut, stackLanding, stackMembers } from './annotations/elements/sticky.model.ts';
 import { type HostRects, resolverFromRects } from './annotations/hosts.ts';
 import { guardLockedOps, isAllLocked, lockedStrokeIds } from './annotations/lock.ts';
@@ -105,6 +116,19 @@ import {
   withoutResolvedStickies,
 } from './annotations/ui/sticky-resolve.ts';
 import { expandTemplate, templateExtent } from './annotations/ui/template-place.ts';
+import {
+  type CheckEdit,
+  type ChecklistApi,
+  ChecklistContext,
+  progressWords,
+} from './annotations/ui/checklist.tsx';
+import {
+  checklistCommitOps,
+  isChecklistTarget,
+  itemPutsFor,
+  itemsForCopy,
+  splitPasteItems,
+} from './annotations/ui/checklist-wire.ts';
 import {
   aimCommitOps,
   draftOp,
@@ -423,6 +447,9 @@ function isBoardClipboard(txt: string): boolean {
 
 function isEditable(t: EventTarget | null): boolean {
   if (!t || !(t as HTMLElement).tagName) return false;
+  // #113 — a checklist row's keys are the registry's `checklist.*` (useCanvasKeys under `checkItemFocused`):
+  // the layer's own sticky keys (⌫ ↵ arrows ⌘C …) stand aside on it, like in a text field.
+  if (isChecklistTarget(t)) return true;
   const el = t as HTMLElement;
   const tag = el.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
@@ -691,6 +718,14 @@ const STICKY_RUN_ACTIONS: ReadonlySet<string> = new Set([
   'annotation.ask-ai',
   'annotations.trash-resolved',
   'annotations.select-resolved',
+  // #113 — the checklist rows from ⌘K / the menus (the keys reach the same code through useCanvasKeys)
+  'annotation.make-checklist',
+  'checklist.toggle',
+  'checklist.edit',
+  'checklist.add-below',
+  'checklist.remove-empty',
+  'checklist.move-up',
+  'checklist.move-down',
 ]);
 
 const ANNOT_CSS = `
@@ -903,6 +938,8 @@ export interface StrokesStoreValue {
    * `annotation.fold`, `annotation.to-comment`) on the current selection. False when it does not apply.
    */
   runAction?: (id: string) => boolean;
+  /** #113 — does this sticky have checklist entries (the small toolbar offers "Turn into checklist" when not)? */
+  isChecklist?: (id: string) => boolean;
   /** The host a dragged arrow endpoint would bind to (halo), or null. */
   setBindHint?: (hostId: string | null) => void;
   /** Live size label + dimension-match halos while resizing, or null. */
@@ -934,7 +971,7 @@ export function useStrokesStore(): StrokesStoreValue | null {
 // the main tool palette, the in-canvas draw chrome, the minimap, and the
 // right-click menu. Clicks on these route to their own handlers.
 const CHROME_SELECTOR =
-  '.dc-annot-conn-dot, .dc-annot-arrowui-live, .dc-annot-ctx, .dc-tool-palette, .dc-mm, .dc-context-menu, .dc-tp-popover, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-resize-handle, .dc-annot-rotate-zone, .dc-annot-editor, [data-group-resize-corner]';
+  '.dc-annot-conn-dot, .dc-annot-arrowui-live, .dc-annot-ctx, .dc-tool-palette, .dc-mm, .dc-context-menu, .dc-tp-popover, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-resize-handle, .dc-annot-rotate-zone, .dc-annot-editor, [data-group-resize-corner], [data-an-checklist]';
 
 const HINTS_KEY = 'maude-annot-hints-v1';
 
@@ -1037,6 +1074,19 @@ function scaleStrokeInGroup(
 }
 
 /** The copies of `ids` in a duplicate result (what to select afterwards). */
+/** #113 — two checklist gestures as one batch (a split = a reword + an add; ⌘↵ in an entry = a reword + a tick). */
+function joinChecklist(a: ChecklistResult | null, b: ChecklistResult): ChecklistResult {
+  if (!a) return b;
+  if (!a.ok) return a;
+  if (!b.ok) return b;
+  return { ok: true, ops: [...a.ops, ...b.ops], label: b.label };
+}
+
+/** #113 — a fresh checklist entry id (the layer focuses the new row by it). */
+function mintCheckId(): string {
+  return `ck_${Math.random().toString(36).slice(2, 10).padEnd(8, '0')}`;
+}
+
 function cloneRoots(ids: readonly string[], res: { idMap: ReadonlyMap<string, string> }): string[] {
   return ids.map((id) => res.idMap.get(id)).filter((x): x is string => !!x);
 }
@@ -1610,7 +1660,11 @@ export function AnnotationsLayer() {
       next: readonly Stroke[],
       label?: string,
       /** #163 — `drag`: the person dragged the objects; only a drag adopts them into a section */
-      opts?: { drag?: boolean }
+      opts?: {
+        drag?: boolean;
+        /** #113 — records with no stroke form (a copied checklist's entries) that ride in the same batch */
+        extraOps?: readonly AnnotationOp[];
+      }
     ) => {
       setPreview(null);
       // An upload still in flight is not on the board: it leaves the view
@@ -1644,7 +1698,12 @@ export function AnnotationsLayer() {
       // locked element (as of `prevMap`) is not moved, resized, re-texted or
       // deleted. The board re-renders from the store, so a blocked change
       // snaps back on its own.
-      const ops = guardLockedOps(prevMap, diffToOps(prevMap, nextMap)).ops;
+      // #113 — a deleted checklist sticky takes its entries (the same batch, so the same ⌘Z), and a copy of one
+      // brings its entries' puts (`extraOps`): the stroke view never carries entries.
+      const ops = [
+        ...withItemDeletes(committed, guardLockedOps(prevMap, diffToOps(prevMap, nextMap)).ops),
+        ...(opts?.extraOps ?? []),
+      ];
       // A text edit session's commit (Task 19): the board merges against what
       // the session last SENT (its drafts), while undo goes back to the text
       // before the edit. Drafts never reach undo.
@@ -1798,7 +1857,9 @@ export function AnnotationsLayer() {
       const res = unlockCopies(duplicateStrokes(prev, withSubtree(ids), dx, dy));
       if (res.strokes.length === prev.length) return [];
       const added = res.strokes.length - prev.length;
-      commitStrokes(prev, res.strokes, `duplicate ${added} stroke${added === 1 ? '' : 's'}`);
+      commitStrokes(prev, res.strokes, `duplicate ${added} stroke${added === 1 ? '' : 's'}`, {
+        extraOps: itemPutsFor(board.committed.values(), res.idMap), // #113 — a checklist's entries travel
+      });
       // Select the copies of what was selected (their contents ride along).
       return cloneRoots(ids, res);
     };
@@ -1871,6 +1932,7 @@ export function AnnotationsLayer() {
       previewStroke,
       commitGesture,
       runAction: (id: string) => runAnnotationActionRef.current(id),
+      isChecklist: (id: string) => isChecklist(board.committed.values(), id),
     };
   }, [strokes, setStrokes, commitStrokes, rememberDeletedIds]);
 
@@ -2283,7 +2345,10 @@ export function AnnotationsLayer() {
     }
     const placed = expandTemplate(p.id, { x: wx, y: wy }, name || null);
     if (!placed) return true;
-    commitStrokes(before, [...before, ...placed.strokes], `add ${p.id} template`);
+    commitStrokes(before, [...before, ...placed.strokes], `add ${p.id} template`, {
+      // #113 — a checklist template's entries (no stroke form) go in the same batch
+      extraOps: placed.records.map((el) => ({ op: 'put', el }) as AnnotationOp),
+    });
     annotSel?.replace(placed.selectIds);
     return true;
   };
@@ -3946,13 +4011,16 @@ export function AnnotationsLayer() {
         text,
         fmt,
         measuredH,
-        commitSessionRef.current?.base ?? existing.text
+        commitSessionRef.current?.base ?? existing.text,
+        itemsByList(board.committed.values())
+          .get(id)
+          ?.map((i) => ({ text: i.text })) // #113 — room for a checklist's entries
       );
       if (!edited) return;
       const next = prev.map((s) => (s.id === id ? edited : s));
       commitStrokes(prev, next, 'edit sticky');
     },
-    [commitStrokes]
+    [commitStrokes, board]
   );
 
   // Phase 21 — re-edit an EXISTING standalone text node. Empty text deletes it
@@ -4195,7 +4263,11 @@ export function AnnotationsLayer() {
           ?.writeText(
             JSON.stringify({
               maudeElements: 2,
-              elements: v1ToV2(payload, { flat: true }).elements,
+              // #113 — a checklist sticky's entries ride after the cards (paste remaps their `list`)
+              elements: [
+                ...v1ToV2(payload, { flat: true }).elements,
+                ...itemsForCopy(board.committed, expanded),
+              ],
             })
           )
           .catch(() => {
@@ -4210,7 +4282,7 @@ export function AnnotationsLayer() {
       }
       return true;
     },
-    [annotSel]
+    [annotSel, board]
   );
 
   /**
@@ -4223,6 +4295,8 @@ export function AnnotationsLayer() {
     (txt: string): boolean => {
       if (!annotSel || !isBoardClipboard(txt)) return false;
       let safe: Stroke[] = [];
+      // #113 — the payload's checklist entries and the stickies they belong to (entries have no stroke form)
+      let pastedRecords: AnnotationElement[] = [];
       try {
         const parsed = JSON.parse(txt) as {
           maudeElements?: number;
@@ -4249,11 +4323,14 @@ export function AnnotationsLayer() {
           const out: Record<string, unknown> = { ...el };
           delete out.author;
           delete out.locked; // #137 — a pasted copy starts unlocked
-          if (author) out.author = author;
+          if (author && el.type !== 'checkitem') out.author = author; // an entry has no author line
           if (el.type === 'link' && typeof el.url === 'string') out.domain = linkDomain(el.url);
           return out;
         });
-        safe = elementsToStrokes(validateElements(mine).elements);
+        const valid = validateElements(mine).elements;
+        const { drawn, items } = splitPasteItems(valid);
+        pastedRecords = items.length ? [...drawn.filter((e) => e.type === 'sticky'), ...items] : [];
+        safe = elementsToStrokes(drawn);
       } catch {
         return false;
       }
@@ -4270,7 +4347,9 @@ export function AnnotationsLayer() {
       // recompute keeps binds to hosts present in THIS canvas and strips the
       // cross-canvas danglers (endpoint frozen).
       const next = recomputeBoundArrows([...prev, ...clones]);
-      commitStrokes(prev, next, `paste ${clones.length} stroke${clones.length === 1 ? '' : 's'}`);
+      commitStrokes(prev, next, `paste ${clones.length} stroke${clones.length === 1 ? '' : 's'}`, {
+        extraOps: pastedRecords.length ? itemPutsFor(pastedRecords, res.idMap) : [],
+      });
       annotSel.replace(res.newIds);
       return true;
     },
@@ -4670,6 +4749,7 @@ export function AnnotationsLayer() {
               ? ('Reopen' as const)
               : ('Resolve' as const),
           canFanOut: stackMembers(stickyBoxes(strokes), soleSelected.id).length > 1,
+          canChecklist: !isChecklist(board.committed.values(), soleSelected.id),
         }
       : null;
   const sectionMenu =
@@ -4790,7 +4870,8 @@ export function AnnotationsLayer() {
         action === 'resolve' ||
         action === 'fan-out' ||
         action === 'fold' ||
-        action === 'to-comment'
+        action === 'to-comment' ||
+        action === 'make-checklist'
       ) {
         runAnnotationActionRef.current(`annotation.${action}`);
       } else if (action === 'history') {
@@ -4835,6 +4916,272 @@ export function AnnotationsLayer() {
       }
     },
     [annotSel, copySelection, strokesById]
+  );
+
+  // ── #113 — checklists (contract 113-checklist §5.3–§5.6) ──
+  // Every gesture is ONE op batch (annotations/checklist-ops.ts) through the lock net and the sticky's growth
+  // (annotations/ui/checklist-wire.ts), applied here and recorded as one undo step. Entries never go through
+  // the stroke diff. Keys are the registry's `checklist.*` (useCanvasKeys below, under `checkItemFocused`);
+  // the rows draw in annotations/ui/checklist.tsx and only report focus and clicks.
+  const [checkEdit, setCheckEdit] = useState<CheckEdit | null>(null);
+  const [checkFocus, setCheckFocus] = useState<CheckEdit | null>(null);
+  const [checkAnnounce, setCheckAnnounce] = useState<ChecklistApi['announce']>(null);
+  /** The row that last had focus (⌘K's checklist rows act on it while its sticky is selected). */
+  const lastRowRef = useRef<string | null>(null);
+  const checkLive = posture === 'drawn' && annotationPicks(tool, posture);
+  useEffect(() => {
+    if (!checkLive) setCheckEdit(null);
+  }, [checkLive]);
+  const prevByListRef = useRef<Map<string, AnnotationElement[]>>(new Map());
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-read per board version; identity kept while no entry changed
+  const checkByList = useMemo(() => {
+    const next = itemsByList(board.elements.values());
+    const prev = prevByListRef.current;
+    const same =
+      next.size === prev.size &&
+      [...next].every(([k, v]) => {
+        const p = prev.get(k);
+        return !!p && p.length === v.length && p.every((x, i) => x === v[i]);
+      });
+    if (same) return prev;
+    prevByListRef.current = next;
+    return next;
+  }, [board, boardVersion]);
+  const checkSay = useCallback((message: string) => {
+    if (!postToShell({ dgn: 'annotation-toast', v: 1, message, undo: false }))
+      showCanvasToast(message);
+  }, []);
+  /** Commit one checklist gesture; a refusal (a locked list, a gone entry) says why. */
+  const commitChecklist = useCallback(
+    (res: ChecklistResult): boolean => {
+      if (!res.ok) {
+        checkSay(res.message);
+        return false;
+      }
+      const ops = checklistCommitOps(board.committed, res.ops);
+      if (!ops.length) return true;
+      setPreview(null);
+      const inverse = applyOpsLocal(ops);
+      undoStackRef.current.record(
+        buildAnnotationOpsRecord({ ops, inverse, label: res.label, file: fileRef.current })
+      );
+      return true;
+    },
+    [board, applyOpsLocal, checkSay]
+  );
+  const checkMe = collab?.myName ?? 'Someone';
+  const listOf = useCallback(
+    (itemId: string): string | null => {
+      const l = board.committed.get(itemId)?.list;
+      return typeof l === 'string' ? l : null;
+    },
+    [board]
+  );
+  const announceList = useCallback(
+    (listId: string | null) => {
+      if (!listId) return;
+      const items = itemsByList(board.committed.values()).get(listId) ?? [];
+      setCheckAnnounce({ list: listId, text: progressWords(items) });
+    },
+    [board]
+  );
+  /** The words in an open entry, when they differ from what is stored (null = nothing to reword). */
+  const pendingReword = useCallback(
+    (itemId: string, text: string): ChecklistResult | null => {
+      const stored = board.committed.get(itemId)?.text;
+      return (typeof stored === 'string' ? stored : '') === text
+        ? null
+        : rewordItem(board.committed, itemId, text);
+    },
+    [board]
+  );
+  const checkToggle = useCallback(
+    (itemId: string, typed?: string) => {
+      const cur = board.committed.get(itemId);
+      if (!cur) return;
+      const tick = tickItem(board.committed, itemId, cur.done === undefined, { by: checkMe });
+      const pre = typed === undefined ? null : pendingReword(itemId, typed);
+      if (commitChecklist(joinChecklist(pre, tick))) announceList(listOf(itemId));
+    },
+    [board, checkMe, commitChecklist, pendingReword, announceList, listOf]
+  );
+  const checkStartEdit = useCallback(
+    (itemId: string, caret: number | 'end' = 'end') => {
+      // a locked list keeps its words (it still ticks): say so instead of opening the field
+      const probe = rewordItem(board.committed, itemId, '');
+      if (!probe.ok) {
+        checkSay(probe.message);
+        return;
+      }
+      setCheckEdit({ id: itemId, caret });
+    },
+    [board, checkSay]
+  );
+  const checkCommitText = useCallback(
+    (itemId: string, text: string) => {
+      setCheckEdit((e) => (e?.id === itemId ? null : e));
+      const r = pendingReword(itemId, text);
+      if (r) commitChecklist(r);
+    },
+    [pendingReword, commitChecklist]
+  );
+  const checkAddAtEnd = useCallback(
+    (listId: string) => {
+      const id = mintCheckId();
+      if (commitChecklist(addItem(board.committed, listId, { id }))) setCheckEdit({ id, caret: 0 });
+    },
+    [board, commitChecklist]
+  );
+  const checkFocused = useCallback(
+    (itemId: string) => {
+      lastRowRef.current = itemId;
+      setCheckFocus(null);
+      // the row's keys are scoped to an annotation selection: its sticky becomes the selection
+      const list = listOf(itemId);
+      if (
+        list &&
+        annotSel &&
+        !(annotSel.selectedIds.length === 1 && annotSel.selectedIds[0] === list)
+      )
+        annotSel.replace(list);
+    },
+    [listOf, annotSel]
+  );
+  const checklistApi = useMemo<ChecklistApi>(
+    () => ({
+      byList: checkByList,
+      interactive: checkLive,
+      editing: checkEdit,
+      focusRequest: checkFocus,
+      announce: checkAnnounce,
+      toggle: (id) => checkToggle(id),
+      startEdit: checkStartEdit,
+      commitText: checkCommitText,
+      addAtEnd: checkAddAtEnd,
+      focused: checkFocused,
+    }),
+    [
+      checkByList,
+      checkLive,
+      checkEdit,
+      checkFocus,
+      checkAnnounce,
+      checkToggle,
+      checkStartEdit,
+      checkCommitText,
+      checkAddAtEnd,
+      checkFocused,
+    ]
+  );
+  /**
+   * The registry's checklist gestures. `itemId` is the row (a key's target, or the last focused row for a
+   * ⌘K row); `field` the open entry's input when the key came from it. True when it did something.
+   */
+  const runChecklist = useCallback(
+    (id: string, itemId: string, field: HTMLInputElement | null): boolean => {
+      if (!checkLive) return false;
+      const typed = field ? field.value.replace(/\n/g, ' ') : undefined;
+      const list = listOf(itemId);
+      if (!list) return false;
+      const rows = itemsByList(board.committed.values()).get(list) ?? [];
+      const at = rows.findIndex((r) => r.id === itemId);
+      switch (id) {
+        case 'checklist.toggle':
+          checkToggle(itemId, typed);
+          return true;
+        case 'checklist.edit':
+          checkStartEdit(itemId, 'end');
+          return true;
+        case 'checklist.add-below': {
+          // ↵ splits at the caret like a list editor: the words after it start the next entry
+          const caret = field?.selectionStart ?? typed?.length ?? 0;
+          const before = typed === undefined ? undefined : typed.slice(0, caret);
+          const after = typed === undefined ? '' : typed.slice(caret);
+          const nid = mintCheckId();
+          const pre = before === undefined ? null : pendingReword(itemId, before);
+          if (field && before !== undefined) field.value = before; // its blur then rewords nothing
+          const add = addItem(board.committed, list, { id: nid, after: itemId, text: after });
+          if (commitChecklist(joinChecklist(pre, add))) setCheckEdit({ id: nid, caret: 0 });
+          return true;
+        }
+        case 'checklist.remove-empty': {
+          if (typed === undefined || typed !== '') return false; // a character to delete: the field's
+          const prev = rows[at - 1];
+          const next = rows[at + 1];
+          if (commitChecklist(removeItem(board.committed, itemId))) {
+            if (prev) setCheckEdit({ id: prev.id, caret: 'end' });
+            else {
+              setCheckEdit(null);
+              if (next) setCheckFocus({ id: next.id });
+            }
+          }
+          return true;
+        }
+        case 'checklist.move-up':
+        case 'checklist.move-down': {
+          const pre = typed === undefined ? null : pendingReword(itemId, typed);
+          const move = moveItem(
+            board.committed,
+            itemId,
+            id === 'checklist.move-up' ? 'up' : 'down'
+          );
+          if (commitChecklist(joinChecklist(pre, move))) {
+            if (field) setCheckEdit({ id: itemId, caret: field.selectionStart ?? 'end' });
+            else setCheckFocus({ id: itemId });
+          }
+          return true;
+        }
+        case 'checklist.focus-prev':
+        case 'checklist.focus-next': {
+          const to = rows[at + (id === 'checklist.focus-prev' ? -1 : 1)];
+          if (to) setCheckFocus({ id: to.id });
+          return true;
+        }
+        default:
+          return false;
+      }
+    },
+    [checkLive, listOf, board, checkToggle, checkStartEdit, pendingReword, commitChecklist]
+  );
+  const runChecklistRef = useRef(runChecklist);
+  runChecklistRef.current = runChecklist;
+  const checklistKey = (id: string) => (e: KeyboardEvent) => {
+    const row = (e.target as Element | null)?.closest?.(
+      '[data-an-check-row]'
+    ) as HTMLElement | null;
+    const itemId = row?.dataset.itemId;
+    if (!itemId) return;
+    const field =
+      e.target instanceof HTMLInputElement && e.target.hasAttribute('data-an-check-input')
+        ? e.target
+        : null;
+    if (!runChecklistRef.current(id, itemId, field)) return;
+    e.preventDefault();
+    // Space must not also arm the hold-to-pan (canvas-lib) or play a video under the sticky
+    e.stopPropagation();
+  };
+  useCanvasKeys(
+    {
+      'checklist.toggle': checklistKey('checklist.toggle'),
+      'checklist.edit': checklistKey('checklist.edit'),
+      'checklist.add-below': checklistKey('checklist.add-below'),
+      'checklist.remove-empty': checklistKey('checklist.remove-empty'),
+      'checklist.move-up': checklistKey('checklist.move-up'),
+      'checklist.move-down': checklistKey('checklist.move-down'),
+      'checklist.focus-prev': checklistKey('checklist.focus-prev'),
+      'checklist.focus-next': checklistKey('checklist.focus-next'),
+    },
+    {
+      target: 'document',
+      capture: true,
+      checkItemFocused: (e) => isChecklistTarget(e.target),
+      // a focused row is its sticky's scope (checkFocused selects the sticky; this covers the first key)
+      selection: () =>
+        (annotSel?.selectedIds.length ?? 0) > 0 ||
+        (typeof document !== 'undefined' && isChecklistTarget(document.activeElement))
+          ? 'annotation'
+          : 'none',
+    }
   );
 
   // S4.12 - stickies and sections up close. One entry point for the menu rows, the small toolbar and the
@@ -4905,11 +5252,34 @@ export function AnnotationsLayer() {
           say(trashedLine(ids.length), true);
           return true;
         }
+        // #113 — "Turn into checklist" (menu, small toolbar, ⌘K): its task lines become entries
+        case 'annotation.make-checklist': {
+          const only = sel.length === 1 ? cur.find((x) => x.id === sel[0]) : undefined;
+          if (!only || only.tool !== 'sticky') return false;
+          const res = makeChecklist(board.committed, only.id, { by: me });
+          if (!commitChecklist(res)) return false;
+          // a fresh, empty entry opens for typing
+          const first = itemsByList(board.committed.values()).get(only.id)?.[0];
+          if (first && !first.text) setCheckEdit({ id: first.id, caret: 0 });
+          return true;
+        }
+        // ⌘K's checklist rows act on the row that last had focus, while its sticky is the selection
+        case 'checklist.toggle':
+        case 'checklist.edit':
+        case 'checklist.add-below':
+        case 'checklist.remove-empty':
+        case 'checklist.move-up':
+        case 'checklist.move-down': {
+          const row = lastRowRef.current;
+          const list = row ? board.committed.get(row)?.list : undefined;
+          if (!row || typeof list !== 'string' || !sel.includes(list)) return false;
+          return runChecklistRef.current(id, row, null);
+        }
         default:
           return false;
       }
     },
-    [annotSel, collab?.myName, commitStrokes]
+    [annotSel, collab?.myName, commitStrokes, board, commitChecklist]
   );
   runAnnotationActionRef.current = runAnnotationAction;
   // ⌘/ with annotations selected asks the AI about them (registry `annotation.ask-ai`, Preview only; in Edit
@@ -5073,34 +5443,36 @@ export function AnnotationsLayer() {
           }}
         />
         {visible ? (
-          <AnnotationsSvg
-            worldRef={worldRef}
-            strokes={shownStrokes}
-            quiet={quiet}
-            anchorsById={anchorsById}
-            selectMode={annotationPicks(tool, posture) && !quiet}
-            selectedStrokes={selectedStrokes}
-            selectionLocked={selectionLocked}
-            marquee={marquee}
-            snapGuides={snapGuides}
-            bindHintId={bindHintId}
-            resizeInfo={resizeInfo}
-            connDraft={connDraft}
-            addTextHintId={editingTarget ? null : addTextHintId}
-            ghost={ghostPreview}
-            editingTarget={editingTarget}
-            editCaretPoint={editCaretPoint}
-            inkColor={color}
-            onCommitEdit={commitEditing}
-            onCancelEdit={cancelEditing}
-            onDraftEdit={draftEditing}
-            onChainEdit={chainAfterCommit}
-            gestureState={gestureState}
-            editNotice={editGone ? 'deleted' : remoteEdited ? 'edited' : null}
-            unknownElements={unknownElements}
-            arrowUi={arrowUi}
-            foldNotes={foldNotes}
-          />
+          <ChecklistContext.Provider value={checklistApi}>
+            <AnnotationsSvg
+              worldRef={worldRef}
+              strokes={shownStrokes}
+              quiet={quiet}
+              anchorsById={anchorsById}
+              selectMode={annotationPicks(tool, posture) && !quiet}
+              selectedStrokes={selectedStrokes}
+              selectionLocked={selectionLocked}
+              marquee={marquee}
+              snapGuides={snapGuides}
+              bindHintId={bindHintId}
+              resizeInfo={resizeInfo}
+              connDraft={connDraft}
+              addTextHintId={editingTarget ? null : addTextHintId}
+              ghost={ghostPreview}
+              editingTarget={editingTarget}
+              editCaretPoint={editCaretPoint}
+              inkColor={color}
+              onCommitEdit={commitEditing}
+              onCancelEdit={cancelEditing}
+              onDraftEdit={draftEditing}
+              onChainEdit={chainAfterCommit}
+              gestureState={gestureState}
+              editNotice={editGone ? 'deleted' : remoteEdited ? 'edited' : null}
+              unknownElements={unknownElements}
+              arrowUi={arrowUi}
+              foldNotes={foldNotes}
+            />
+          </ChecklistContext.Provider>
         ) : null}
         {visible && !quiet ? (
           <BelongsOutline
@@ -5863,7 +6235,12 @@ export function AnnotationContextMenu({
   onClose,
 }: {
   /** S4.12 - the sticky rows (canvas 15 an-convert): only for a sole sticky / section. */
-  sticky?: { resolveWord: 'Resolve' | 'Reopen'; canFanOut: boolean } | null;
+  sticky?: {
+    resolveWord: 'Resolve' | 'Reopen';
+    canFanOut: boolean;
+    /** #113 — a plain sticky (no entries yet): "Turn into checklist" */
+    canChecklist?: boolean;
+  } | null;
   /** S4.12 - the section rows: Fold / Unfold, and the AI question. */
   section?: { foldWord: 'Fold' | 'Unfold' } | null;
   pos: { x: number; y: number };
@@ -5943,6 +6320,7 @@ export function AnnotationContextMenu({
       {sticky ? (
         <>
           {item('to-comment', 'Turn into a comment')}
+          {sticky.canChecklist ? item('make-checklist', 'Turn into checklist') : null}
           {item('resolve', sticky.resolveWord)}
           {sticky.canFanOut ? item('fan-out', 'Fan out') : null}
           {/* p8-dead-reasons — `history.object`: the shell opens Version history filtered to this sticky */}

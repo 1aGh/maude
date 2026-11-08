@@ -29,13 +29,15 @@ export function resolveCanvasKey(
   /** The shell's "Single-key shortcuts" switch (bridge `key-prefs`, canvas-mode-store); absent = on. */
   singleKeys?: boolean,
   /** S3.11 — what the canvas has selected, for a binding keyed to it (`inspect.edit`); absent = 'none'. */
-  selection?: SelKind
+  selection?: SelKind,
+  /** #113 — focus is on a checklist row or in an entry (the `checkItemFocused` fact). */
+  checkItemFocused?: boolean
 ): ActionId | null {
   return (
     resolveChord(
       index,
       chordFromEvent(e),
-      canvasKeyCtx({ typing, readOnly: false, mode, singleKeys, selection })
+      canvasKeyCtx({ typing, readOnly: false, mode, singleKeys, selection, checkItemFocused })
     )?.action.id ?? null
   );
 }
