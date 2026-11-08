@@ -2,7 +2,15 @@
 // Real-process surface runner. Partial runs never produce a certified baseline.
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -286,6 +294,23 @@ try {
     );
     identities[id] = path;
   }
+  // gate-b-sec4 — a committed `linkedHub` is only a claim: the studio honours it when this Mac's
+  // link record (project-links.json, BESIDE the hubs.json it signs in with) names the folder, or the
+  // app bound it (MAUDE_APP_BOUND_HUB). The peers get the latter from `studio()`; the native app's
+  // sidecar gets neither from Rust (the project is not a managed copy), so without this record it
+  // parked the link and opened as a "Local project" whose canvases never arrived. The record is the
+  // one `maude design link` writes for the designer's own folder.
+  writeFileSync(
+    join(dirname(identities['designer-a']), 'project-links.json'),
+    JSON.stringify({
+      v: 1,
+      since: Date.now(),
+      links: {
+        [realpathSync(source)]: { hub: `http://127.0.0.1:${port}`, at: Date.now(), how: 'link' },
+      },
+    }),
+    { mode: 0o600 }
+  );
   const studio = (name, projectRoot, studioPort, identity) =>
     start(
       name,

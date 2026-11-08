@@ -26,6 +26,7 @@ export const VOTE_WORDS = {
   pickTargets: 'Pick at least one artboard to vote on.',
   failed: 'Couldn’t start the vote. Nothing was changed.',
   castFailed: 'Your vote didn’t count. Try again.',
+  endFailed: 'Couldn’t end the vote. Try again.',
   noneLeft: 'No votes left. Take one back to move it.',
   cast: 'Cast',
   clear: 'Clear',
@@ -256,19 +257,42 @@ export function createVoteStore(o = {}) {
     }
   }
 
+  /**
+   * End vote (the bar's button, or an editor's store writing the result once the time ran out). A refused end says
+   * why — the server's line — and lets the next press try again; an allowed end closes the bar on the server's own
+   * answer, even if the read after it still lists the vote open.
+   */
   async function finish(id) {
-    if (endingId === id) return;
+    if (endingId === id) return { ok: true };
     endingId = id;
     const v = state.vote;
     const labels = {};
     for (const a of state.artboards) labels[asTarget(a.id)] = a.label;
-    await call(fetchImpl, 'POST', url('/end'), {
+    const r = await call(fetchImpl, 'POST', url('/end'), {
       file: state.file,
       id,
       labels,
       ...(v ? { place: resultPlace(state.artboards, v.targets) } : {}),
     });
+    if (r.status !== 200 || !r.data?.ok) {
+      endingId = null;
+      notify(r.data?.line ?? VOTE_WORDS.endFailed);
+      await load();
+      return { ok: false };
+    }
     await load();
+    const row = r.data.vote;
+    if (
+      row?.id === id &&
+      row.state === 'ended' &&
+      state.vote?.id === id &&
+      state.vote.state === 'open'
+    ) {
+      set({ vote: row, pending: null });
+      arm();
+      notify(VOTE_WORDS.ended);
+    }
+    return { ok: true };
   }
 
   return {
@@ -383,8 +407,8 @@ export function createVoteStore(o = {}) {
     },
     async end() {
       const v = state.vote;
-      if (!v || v.state !== 'open' || !state.canEdit) return;
-      await finish(v.id);
+      if (!v || v.state !== 'open' || !state.canEdit) return { ok: false };
+      return finish(v.id);
     },
     stop() {
       if (timer) clearTimer(timer);
