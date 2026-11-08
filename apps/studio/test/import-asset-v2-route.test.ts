@@ -136,7 +136,7 @@ describe('POST /_api/import-asset (v2)', () => {
     const { post, root, announced } = setup(role('member'), () => who);
     const a = (await (await post(PSD, { 'x-import-kind': 'psd' })).json()) as { path: string };
     const design = join(root, '.design');
-    const sidecar = a.path.replace(/\.png$/, '.added.json');
+    const sidecar = `${a.path}.added.json`; // #172 F6: keyed by the full file name
     expect(readAssetAdded(design, a.path)).toMatchObject({ by: 'Tereza Novak' });
     expect(readFileSync(join(design, sidecar), 'utf8')).not.toContain('@');
     expect(announced).toEqual([a.path, sidecar]);
@@ -150,9 +150,7 @@ describe('POST /_api/import-asset (v2)', () => {
       const { post, root } = setup(role('member'), () => who);
       const a = (await (await post(PSD, { 'x-import-kind': 'psd' })).json()) as { path: string };
       expect(readAssetAdded(join(root, '.design'), a.path)).toBeNull();
-      expect(existsSync(join(root, '.design', a.path.replace(/\.png$/, '.added.json')))).toBe(
-        false
-      );
+      expect(existsSync(join(root, '.design', `${a.path}.added.json`))).toBe(false);
     }
   });
 

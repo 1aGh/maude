@@ -103,7 +103,7 @@ describe('chunked asset upload', () => {
       // Nothing but the final file under assets/ (and, when there is a name to give, its #172 `.added.json`
       // record — a companion of the asset, not scratch), and no session left behind.
       expect(
-        readdirSync(join(designRoot, 'assets')).filter((f) => f !== `${sha8}.added.json`)
+        readdirSync(join(designRoot, 'assets')).filter((f) => f !== `${sha8}.mp4.added.json`)
       ).toEqual([`${sha8}.mp4`]);
       expect(chunkDirs(designRoot)).toEqual([]);
     });
