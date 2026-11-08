@@ -36,12 +36,15 @@ import {
  *     never in Home's projects/Recent, and its server reaped after the tab closes;
  *  3. no app: the CLI keeps today's path (exit 10 — its own headless server);
  *  4. a folder the app never opened: one consent sheet — Open opens it and the CLI gets its port; Not now
- *     answers denied and is kept for the run (no second sheet).
+ *     answers denied and is kept for the run (no second sheet);
+ *  5. (T6.3g) the desktop opens a folder a terminal server holds: that server steps down, and the tab can undo
+ *     within 10 s (no `store-locked`).
  */
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '../../../..');
 const LOCATE = join(REPO, 'cli', 'lib', 'desktop-locate.mjs');
 const SERVER_UP = join(REPO, 'apps', 'studio', 'bin', 'server-up.sh');
+const SERVER_TS = join(REPO, 'apps', 'studio', 'server.ts');
 const PRIMARY = process.env.MAUDE_PROJECT_ROOT as string;
 const REG = process.env.MAUDE_E2E_APP_REGISTRY as string;
 
@@ -242,12 +245,19 @@ describe('cli-reuse (native-desktop)', () => {
     expect(wtPid).toBeGreaterThan(0);
 
     await focusTab(HOME);
-    const shell = await invokeTauri<{ projects: { root: string }[]; recent: string[] }>(
-      'shell_state'
-    );
+    const shell = await invokeTauri<{
+      projects: { pid: string; root: string }[];
+      recent: string[];
+      worktrees: { pid: string; root: string; mainPid: string; branch: string }[];
+    }>('shell_state');
     const roots = shell.projects.map((p) => realpathSync(p.root));
     expect(roots).toContain(realpathSync(main));
     expect(roots).not.toContain(realpathSync(wt));
+    // T6.3g: Home lists it under its main project as a Worktrees row instead.
+    const mainPid = shell.projects.find((p) => realpathSync(p.root) === realpathSync(main))?.pid;
+    const row = shell.worktrees.find((w) => realpathSync(w.root) === realpathSync(wt));
+    expect(row?.mainPid).toBe(mainPid);
+    expect(row?.branch).toBe('feat-x');
     await capture('worktree tab');
 
     await closeTab(wtLabel, primaryLabel);
@@ -267,6 +277,86 @@ describe('cli-reuse (native-desktop)', () => {
     });
     expect(r.code).toBe(10);
     expect(r.out).toBe('');
+  });
+
+  // #206 T6.3g (contract §6 "Handover", §9) — the desktop opens a root a terminal server already holds: the
+  // terminal server (role `cli`) sees the app's attested sidecar in servers.json and steps down; the tab's own
+  // server takes the store lock, and within 10 s of that exit the tab can undo (no `store-locked`).
+  it('the desktop takes over a folder a CLI server holds; the tab can undo within 10 s', async () => {
+    await focusTab(primaryLabel);
+    const held = makeProject('cli-held');
+    const cli = spawn('bun', [SERVER_TS, '--root', held], {
+      env: cliEnv({ MAUDE_SERVER_ROLE: 'cli' }),
+      stdio: 'ignore',
+    });
+    let cliExited = 0;
+    cli.on('exit', () => {
+      cliExited = Date.now();
+    });
+    try {
+      await browser.waitUntil(
+        () => {
+          try {
+            return readServerInfo(held).pid === cli.pid;
+          } catch {
+            return false;
+          }
+        },
+        {
+          timeout: 60_000,
+          interval: 250,
+          timeoutMsg: 'the terminal server never wrote _server.json',
+        }
+      );
+
+      const opened = await openTab(held);
+      expect(opened.opened).toBe('new');
+      await browser.waitUntil(() => cliExited > 0, {
+        timeout: 150_000,
+        interval: 250,
+        timeoutMsg: 'the terminal server did not step down for the app’s tab',
+      });
+      // Its yield never deletes the app's _server.json (compare-and-delete): the file names the app's server.
+      await browser.waitUntil(() => entryOf(held)?.port !== undefined, {
+        timeout: 30_000,
+        interval: 250,
+        timeoutMsg: 'the app never listed the tab’s server in servers.json',
+      });
+
+      await focusTab(opened.label);
+      let code = 'store-locked';
+      await browser.waitUntil(
+        async () => {
+          code = await browser.execute(async () => {
+            try {
+              const r = await fetch('/_api/project/undo', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ actionId: 'e2e-nothing-to-undo' }),
+              });
+              const b = (await r.json().catch(() => ({}))) as { code?: string; reason?: string };
+              return String(b.code ?? b.reason ?? r.status);
+            } catch {
+              return 'store-locked'; // the page is still between documents
+            }
+          });
+          return code !== 'store-locked';
+        },
+        {
+          // what is left of the 10 s since the terminal server exited
+          timeout: Math.max(250, 10_000 - (Date.now() - cliExited)),
+          interval: 250,
+          timeoutMsg: 'the tab still answers store-locked 10 s after the terminal server exited',
+        }
+      );
+      expect(Date.now() - cliExited).toBeLessThanOrEqual(10_500);
+      expect(code).not.toBe('store-locked');
+      expect(readServerInfo(held).pid).not.toBe(cli.pid);
+      await capture('handover — the tab took the folder');
+      await closeTab(opened.label, primaryLabel);
+    } finally {
+      if (!cliExited) cli.kill('SIGTERM');
+    }
   });
 
   it('a new folder asks once: Open opens it; Not now is denied and kept for the run', async () => {

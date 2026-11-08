@@ -467,6 +467,45 @@ describe('Home page in the desktop app', () => {
     expect(watched.some((c) => /home-question/.test(c))).toBe(false);
   });
 
+  // #206 T6.3g (contract 206 §5) — a worktree tab is never a project row: Home lists the worktree
+  // folders this Mac opened as one Worktrees row under the main project, and a chip opens its tab
+  // by pid only (`open_worktree({pid})`, never a path, never `open_project`).
+  test('a Worktrees row under the main project opens a worktree by pid', async () => {
+    const WT = 'l00000000000000c3';
+    shellOverride = {
+      ...SHELL,
+      worktrees: [
+        {
+          pid: WT,
+          root: '/x/a-wt',
+          mainPid: P1,
+          branch: 'feat-x',
+          place: 'closed',
+        },
+        // a planted row for a project Home does not list: nowhere to show it
+        { pid: 'l00000000000000d4', root: '/x/z', mainPid: 'nope', branch: 'z', place: 'closed' },
+        { pid: 42, mainPid: P1, branch: 'bad' },
+      ],
+    } as unknown as typeof SHELL;
+    mount();
+    await flush();
+    const row = $(`home-project-worktrees-${P1}`);
+    expect(row?.textContent).toContain('Worktrees');
+    expect($(`home-project-worktrees-${P2}`)).toBeNull();
+    const chips = host.querySelectorAll('[data-testid^="home-worktree-"]');
+    expect(chips.length).toBe(1);
+    const chip = $(`home-worktree-${WT}`);
+    expect(chip?.textContent).toBe('feat-x');
+    expect(chip?.getAttribute('aria-label')).toBe('Open the feat-x worktree of Alligators brand');
+    expect(host.querySelectorAll('[data-testid^="home-project-row-"]').length).toBe(2);
+    act(() => chip?.click());
+    await flush();
+    expect(invokes.filter((i) => i.cmd === 'open_worktree').map((i) => i.args)).toEqual([
+      { pid: WT },
+    ]);
+    expect(invokes.some((i) => i.cmd === 'open_project')).toBe(false);
+  });
+
   test('the account whose project was used last leads the Projects list (Work above Personal)', async () => {
     shellOverride = {
       ...SHELL,
@@ -951,7 +990,7 @@ describe('home-api', () => {
           'shellInvoke',
           'shellListen',
         ].includes(name) &&
-        !/^(shellState|openProject|openProjectFolder|relinkProject|managedProjectOpen|openCloudUrl|openCellDoor|takePendingDeepLink|takePendingInvite|openTeamServerSignIn|pickProjectLocation|signInPrepare|signInOpenBrowser|signInDone)$/.test(
+        !/^(shellState|openProject|openProjectFolder|openWorktree|relinkProject|managedProjectOpen|openCloudUrl|openCellDoor|takePendingDeepLink|takePendingInvite|openTeamServerSignIn|pickProjectLocation|signInPrepare|signInOpenBrowser|signInDone)$/.test(
           name
         )
     );

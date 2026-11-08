@@ -3,7 +3,11 @@
 // POST /_api/sync/link/confirm refuses even the owner, even with something waiting — so a person cannot
 // make the worktree a second linked copy by hand either.
 import { describe, expect, test } from 'bun:test';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { legacyClaim, resolveAccess } from '../access/scope.ts';
+import { createCloudMoveRoutes } from '../routes/cloud-move.ts';
 import { createSyncRoutes } from '../routes/sync.ts';
 import { WORKTREE_ENV, worktreeOf } from '../shell/worktree.ts';
 
@@ -46,6 +50,44 @@ describe('a worktree tab never links', () => {
     expect(confirmed).toEqual([]);
   });
 
+  // #206 T6.3g — Move to cloud would make the worktree a second linked copy: refused server-side,
+  // before the body, the job file or any call to Maude Cloud.
+  test('Move to cloud is refused for a worktree before anything is spent', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'maude-wt-move-'));
+    const calls: string[] = [];
+    const move = (wt: string | null) =>
+      createCloudMoveRoutes({
+        designRoot: dir,
+        projectName: () => 'Atlas',
+        localFormat: () => 2,
+        cloud: { openManaged: async () => ({}) as never, attachStored: async () => ({}) as never },
+        cloudConfigPath: () => join(dir, 'no-cloud.json'),
+        hubsConfigPath: join(dir, 'no-hubs.json'),
+        fetchImpl: (async (u: string) => {
+          calls.push(String(u));
+          return new Response('{}', { status: 500 });
+        }) as never,
+        worktreeOf: () => wt,
+      }).find((x) => x.method === 'POST' && x.path === '/_api/cloud/move');
+    try {
+      const res = (await move('Atlas')?.handle(post(), {})) as Response;
+      expect(res.status).toBe(409);
+      expect(await res.json()).toMatchObject({
+        ok: false,
+        reason: 'worktree',
+        error: 'This folder syncs from Atlas. Move Atlas to the cloud instead.',
+      });
+      expect(calls).toEqual([]);
+      expect(existsSync(join(dir, '_state', 'cloud-move.json'))).toBe(false);
+      // An ordinary folder goes on as today (here: no Maude Cloud sign-in on this profile).
+      const plain = (await move(null)?.handle(post(), {})) as Response;
+      expect(plain.status).toBe(401);
+      expect(await plain.json()).toMatchObject({ reason: 'signed-out' });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test('an ordinary project keeps today’s answers', async () => {
     const confirmed: string[] = [];
     const r = routes(null, confirmed);
@@ -54,7 +96,8 @@ describe('a worktree tab never links', () => {
       pending: { host: 'team.example.com' },
     });
     const confirm = r.find((x) => x.path === '/_api/sync/link/confirm');
-    expect(((await confirm?.handle(post(), {})) as Response).status).toBe(200);
+    const ok = (await confirm?.handle(post(), {})) as Response;
+    expect(ok.status).toBe(200);
     expect(confirmed).toEqual(['yes']);
   });
 });

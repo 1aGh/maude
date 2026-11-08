@@ -28,6 +28,7 @@ import {
   openCloudUrl,
   openProject,
   openProjectFolder,
+  openWorktree,
   pendingInviteAccept,
   pendingInviteLeave,
   pickProjectLocation,
@@ -625,6 +626,19 @@ export function HomeApp() {
       }
     },
     [fail]
+  );
+
+  // #206 T6.3g — a Worktrees row's chip: its own tab, by pid (never `open_project`, never a path).
+  const openWorktreeTab = useCallback(
+    async (pid) => {
+      if (!data.native) return;
+      try {
+        await openWorktree(pid);
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [data.native, fail]
   );
 
   // A project not on this Mac yet, once prepared: its own copy → a tab (`managed_project_open`
@@ -1232,6 +1246,7 @@ export function HomeApp() {
                     showHeader={projGroups.length > 1 || !!g.profile.email}
                     canOpen={data.native}
                     onOpen={(pid) => open(pid)}
+                    onOpenWorktree={openWorktreeTab}
                     onRelink={relink}
                     onOpenCloud={openCloud}
                   />
@@ -1455,6 +1470,33 @@ function RowCopies({ row, canOpen, onOpen }) {
   );
 }
 
+// #206 T6.3g (contract 206 §5) — the git worktrees of this project this Mac opened as tabs: one
+// "Worktrees" row under the project, a chip per branch. A worktree is never a project row of its own.
+function RowWorktrees({ row, canOpen, onOpen }) {
+  if (!row.worktrees?.length) return null;
+  return (
+    <span className="home-prow-copies" data-testid={`home-project-worktrees-${row.pid}`}>
+      <span className="home-prow-wt-h">Worktrees</span>
+      {row.worktrees.map((w) => (
+        <button
+          key={w.pid}
+          type="button"
+          className="chip home-prow-copy"
+          data-testid={`home-worktree-${w.pid}`}
+          data-place={w.place}
+          onClick={() => onOpen(w.pid)}
+          disabled={!canOpen}
+          {...reasonProps(!canOpen, 'homeBrowser')}
+          title={w.root}
+          aria-label={`Open the ${w.branch} worktree of ${row.name}`}
+        >
+          {w.branch}
+        </button>
+      ))}
+    </span>
+  );
+}
+
 // A project tab's live state (shell_state `ai` + `place`), canvas 11's words: AI working (a spark
 // while it runs) · Needs you (it is waiting on a decision — the one that asks for you wins) ·
 // Resting (its server is stopped; the tab wakes it). A resting tab never has AI (rest policy).
@@ -1491,7 +1533,15 @@ function RowLive({ row }) {
   return null;
 }
 
-function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenCloud }) {
+function ProfileGroup({
+  group,
+  showHeader,
+  canOpen,
+  onOpen,
+  onOpenWorktree,
+  onRelink,
+  onOpenCloud,
+}) {
   const { profile, cloud } = group;
   return (
     <div className="home-acct" data-testid={`home-profile-${profile.id}`}>
@@ -1590,6 +1640,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
                 </button>
               )}
               <RowCopies row={r} canOpen={canOpen} onOpen={onOpen} />
+              <RowWorktrees row={r} canOpen={canOpen} onOpen={onOpenWorktree} />
             </li>
           )
         )}

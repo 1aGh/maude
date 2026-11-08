@@ -49,6 +49,8 @@ const MAX_RECENT: usize = 10;
 /// v2 MRU cap (contract §5.5; was 10).
 const MAX_RECENT_V2: usize = 50;
 const SCHEMA_V2: u32 = 2;
+/// #206 T6.3g — how many worktree folders Home remembers.
+const MAX_WORKTREES: usize = 50;
 /// A vanished root's registry entry ages out after this long unopened (§5.5).
 const VANISHED_AGE_OUT_MS: u64 = 90 * 24 * 60 * 60 * 1000;
 
@@ -224,6 +226,12 @@ pub struct AppState {
         skip_serializing_if = "Option::is_none"
     )]
     pub last_sign_in_profile: Option<String>,
+    /// #206 §5 (T6.3g) — the git worktree folders this Mac opened as tabs (newest first, ≤ 50).
+    /// A worktree is never a project entry or in Recent; Home lists these under their main project
+    /// as its Worktrees row while the folder is still a worktree of it (`seen_worktrees`), and the
+    /// next Home load drops one that is gone (`prune_worktrees`). A 1.x build ignores the key.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub worktrees: Vec<String>,
     // ── v1 keys: recomputed from v2 on every load/save, read only to migrate ──
     #[serde(default)]
     pub last_project: Option<String>,
@@ -460,6 +468,46 @@ impl AppState {
             .then_some(wt)
     }
 
+    /// #206 T6.3g — remember `root` for Home's Worktrees row when it is a worktree tab. True when
+    /// the list changed (the newest stays first; one entry per folder; ≤ `MAX_WORKTREES`).
+    pub fn note_worktree(&mut self, root: &str) -> bool {
+        if self.worktree_main(root).is_none() {
+            return false;
+        }
+        let pid = windows::pid_for_root(root);
+        if self.worktrees.first().is_some_and(|r| windows::pid_for_root(r) == pid) {
+            return false;
+        }
+        self.worktrees.retain(|r| windows::pid_for_root(r) != pid);
+        self.worktrees.insert(0, root.to_string());
+        self.worktrees.truncate(MAX_WORKTREES);
+        true
+    }
+
+    /// The remembered worktree folders that are still worktrees of a known project, with their
+    /// main checkout — what Home lists. A folder that is gone is never listed.
+    pub fn seen_worktrees(&self) -> Vec<(String, crate::project_resolve::Worktree)> {
+        self.worktrees
+            .iter()
+            .filter_map(|r| self.worktree_main(r).map(|w| (r.clone(), w)))
+            .collect()
+    }
+
+    /// Drop the remembered worktrees that `seen_worktrees` no longer lists. True when any went.
+    pub fn prune_worktrees(&mut self) -> bool {
+        let before = self.worktrees.len();
+        self.worktrees = self.seen_worktrees().into_iter().map(|(r, _)| r).collect();
+        self.worktrees.len() != before
+    }
+
+    /// #206 §5 — a sign-in started from a worktree tab never creates or rebinds a profile (the tab
+    /// talks as its main project): the words that say so, or `None` for any other root.
+    pub fn worktree_sign_in_refusal(&self, root: &str) -> Option<String> {
+        let wt = self.worktree_main(root)?;
+        let main = windows::project_display_name(&wt.main_root.to_string_lossy());
+        Some(format!("Sign in from {main}."))
+    }
+
     pub fn is_profile_bound(&self, id: &str) -> bool {
         self.projects.values().any(|e| e.profile == id)
     }
@@ -690,6 +738,9 @@ pub(crate) fn settle_sign_in(
     store: impl FnOnce(&str) -> Result<(), String>,
     now: u64,
 ) -> Result<SignedIn, String> {
+    if let Some(words) = st.worktree_sign_in_refusal(root) {
+        return Err(words);
+    }
     let current = st.profile_for(root);
     let pid = windows::pid_for_root(root);
     let target = profiles::sign_in_target(
@@ -725,6 +776,9 @@ pub(crate) fn prepare_team_switch(
     label: &str,
     now: u64,
 ) -> Result<Option<String>, String> {
+    if let Some(words) = st.worktree_sign_in_refusal(root) {
+        return Err(words);
+    }
     let current = st.profile_for(root);
     let pid = windows::pid_for_root(root);
     if st.others_on_profile(&current, &pid) == 0 {
@@ -767,6 +821,36 @@ pub fn set_last_sign_in_profile(app: &tauri::AppHandle, id: &str) {
         return;
     }
     update(app, |st, _| st.last_sign_in_profile = Some(id.to_string()));
+}
+
+/// #206 T6.3g — a tab opened on `root`: remember it for Home's Worktrees row when it is a worktree
+/// tab. Reads first, so an ordinary project (or one already noted) is not a write.
+pub fn note_worktree(app: &tauri::AppHandle, root: &str) {
+    if !load(app).note_worktree(root) {
+        return;
+    }
+    update(app, |st, _| {
+        st.note_worktree(root);
+    });
+}
+
+/// #206 T6.3g — a Home load drops the remembered worktrees whose folder is gone. Reads first.
+pub fn prune_worktrees(app: &tauri::AppHandle) {
+    if !load(app).prune_worktrees() {
+        return;
+    }
+    update(app, |st, _| {
+        st.prune_worktrees();
+    });
+}
+
+/// #206 §5 — Err("Sign in from <main>.") when `root` is a worktree tab: every sign-in a project
+/// tab starts asks this first, so a worktree tab never begins a flow that would bind it.
+pub fn refuse_worktree_sign_in(app: &tauri::AppHandle, root: &str) -> Result<(), String> {
+    match load(app).worktree_sign_in_refusal(root) {
+        Some(words) => Err(words),
+        None => Ok(()),
+    }
 }
 
 /// Remember the port the Home server bound (contract §5.5 `homePort`), so the
@@ -836,16 +920,20 @@ pub fn bind_profile(app: &tauri::AppHandle, root: &str, id: &str) -> Result<(), 
     Ok(())
 }
 
-/// Bind `root` to an existing profile by choice (V2-3.8 cloud prepare).
+/// Bind `root` to an existing profile by choice (V2-3.8 cloud prepare). Never a worktree tab
+/// (#206 §5): it talks as its main project and is never a registry entry of its own.
 pub fn bind_chosen(app: &tauri::AppHandle, root: &str, id: &str) -> Result<(), String> {
     profiles::validate_id(id)?;
     if !profiles::exists(id) {
         return Err("That account profile doesn't exist.".to_string());
     }
     update(app, |st, now| {
+        if let Some(words) = st.worktree_sign_in_refusal(root) {
+            return Err(words);
+        }
         st.bind(root, id, now);
-    });
-    Ok(())
+        Ok(())
+    })
 }
 
 /// `AppState::bind_managed` through the lock. The profile must be valid and
@@ -976,7 +1064,7 @@ pub fn app_recent_projects(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     const DAY: u64 = 24 * 60 * 60 * 1000;
@@ -1029,6 +1117,108 @@ mod tests {
         assert!(st.worktree_main(&wt_s).is_none());
         assert_eq!(st.profile_for(&wt_s), default_profile());
         std::fs::remove_dir_all(base).unwrap();
+    }
+
+    /// #206 T6.3g — Home lists the worktree tabs this Mac opened under their main project, and a
+    /// folder that is gone (or no longer a worktree of a known project) drops out at the next prune.
+    #[test]
+    fn a_worktree_tab_is_remembered_for_home_and_pruned_when_its_folder_goes() {
+        let base = tmp("wt-seen");
+        let (main, wt) = make_worktree(&base, "feat-x");
+        let (main_s, wt_s) = (main.to_string_lossy().into_owned(), wt.to_string_lossy().into_owned());
+        let mut st = AppState::default();
+        assert!(!st.note_worktree(&wt_s), "main not known: not a worktree tab");
+        st.upsert(&main_s, 1);
+        assert!(st.note_worktree(&wt_s));
+        assert!(!st.note_worktree(&wt_s), "noted once");
+        assert!(!st.note_worktree(&main_s), "the main checkout is a project, not a worktree");
+        assert_eq!(st.worktrees, vec![wt_s.clone()]);
+        let seen = st.seen_worktrees();
+        assert_eq!(seen.len(), 1);
+        assert_eq!((seen[0].0.as_str(), &seen[0].1.main_root), (wt_s.as_str(), &main));
+        assert!(!st.projects.contains_key(&windows::pid_for_root(&wt_s)), "never a project entry");
+        // It round-trips, and a state with none writes no key (a 1.x build ignores it either way).
+        let back: AppState = serde_json::from_value(serde_json::to_value(&st).unwrap()).unwrap();
+        assert_eq!(back.worktrees, st.worktrees);
+        assert!(serde_json::to_value(AppState::default()).unwrap().get("worktrees").is_none());
+        assert!(!st.prune_worktrees(), "still there: nothing pruned");
+        std::fs::remove_dir_all(&wt).unwrap();
+        assert!(st.seen_worktrees().is_empty(), "a vanished folder is never listed");
+        assert!(st.prune_worktrees());
+        assert!(st.worktrees.is_empty());
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    /// #206 T6.3g (contract §5 Profile) — a sign-in started from a worktree tab never creates or
+    /// rebinds a profile, and never gives the worktree an entry of its own: it says "Sign in from <main>".
+    #[test]
+    fn a_sign_in_from_a_worktree_tab_says_sign_in_from_main_and_binds_nothing() {
+        keychain::test_store::install();
+        let base = tmp("wt-signin");
+        let (main, wt) = make_worktree(&base, "feat-x");
+        let (main_s, wt_s) = (main.to_string_lossy().into_owned(), wt.to_string_lossy().into_owned());
+        let reg = base.join("profiles.json");
+        let shared = profiles::create_in(&reg, "wt shared").unwrap().id;
+        let mut st = AppState::default();
+        st.bind(&main_s, &shared, 1);
+        st.bind("/v238/wtsignin/other", &shared, 1);
+        let before = ids(&reg);
+        let mut stored = false;
+        let err = settle_sign_in(
+            &mut st,
+            &reg,
+            &wt_s,
+            SignInKind::GitHub,
+            "someone-else",
+            |_| true,
+            |_| {
+                stored = true;
+                Ok(())
+            },
+            2,
+        )
+        .unwrap_err();
+        assert_eq!(err, "Sign in from main.");
+        assert!(!stored, "nothing is stored");
+        assert_eq!(prepare_team_switch(&mut st, &reg, &wt_s, "wt", 3).unwrap_err(), "Sign in from main.");
+        assert_eq!(st.worktree_sign_in_refusal(&wt_s).as_deref(), Some("Sign in from main."));
+        assert_eq!(st.worktree_sign_in_refusal(&main_s), None, "the main project signs in as usual");
+        assert_eq!(ids(&reg), before, "no profile is made");
+        assert!(!st.projects.contains_key(&windows::pid_for_root(&wt_s)), "no entry for the worktree");
+        assert_eq!(st.profile_for(&wt_s), shared, "it still talks as its main project");
+        assert_eq!(st.profile_for(&main_s), shared, "the main project is not rebound");
+        assert_eq!(st.last_sign_in_profile, None);
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    /// #206 T6.3g — every sign-in a project tab starts asks first, before a device code or a prepare.
+    #[test]
+    fn every_project_tab_sign_in_start_refuses_a_worktree_tab_first() {
+        let body = |src: &str, sig: &str| {
+            let i = src.find(sig).unwrap_or_else(|| panic!("{sig} not found"));
+            let end = src[i + 1..].find("#[tauri::command").map_or(src.len(), |e| i + 1 + e);
+            src[i..end].to_string()
+        };
+        for (src, sig) in [
+            (include_str!("oauth.rs"), "pub async fn github_sign_in("),
+            (include_str!("profiles.rs"), "pub async fn cloud_sign_in_prepare("),
+            (include_str!("profiles.rs"), "pub async fn team_sign_in_prepare("),
+        ] {
+            let b = body(src, sig);
+            let refuse = b
+                .find("refuse_worktree_sign_in(&app, &caller.root)?")
+                .unwrap_or_else(|| panic!("{sig} starts a sign-in from a worktree tab"));
+            let caller = b.find("caller_project(&webview, false)?").unwrap();
+            assert!(caller < refuse, "{sig}: the caller first, then the worktree refusal");
+            for later in ["profile_for(", "prepare_team_switch_app("] {
+                if let Some(at) = b.find(later) {
+                    assert!(refuse < at, "{sig}: refused before {later}");
+                }
+            }
+        }
+        let bind = body(include_str!("app_state.rs"), "pub fn bind_chosen(");
+        let bind = &bind[..bind.find("\n}\n").unwrap()];
+        assert!(bind.contains("worktree_sign_in_refusal(root)"), "bind_chosen binds a worktree");
     }
 
     // p8-sec2-lows I2 — a state file that exists but does not parse is "unreadable", a missing one is not.

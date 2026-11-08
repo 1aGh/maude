@@ -660,6 +660,7 @@ pub fn run() {
             notify::e2e_dock_badge,
             open_project_folder,
             home::shell_state,
+            home::open_worktree,
             home::home_session,
             home::new_home_tab,
             home::take_pending_intent,

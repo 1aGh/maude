@@ -611,6 +611,8 @@ pub async fn cloud_sign_in_prepare(
     webview: tauri::Webview,
 ) -> Result<bool, String> {
     let caller = crate::windows::caller_project(&webview, false)?;
+    // #206 §5: a worktree tab talks as its main project — "Sign in from <main>", before any flow.
+    crate::app_state::refuse_worktree_sign_in(&app, &caller.root)?;
     let current = crate::app_state::profile_for(&app, &caller.root);
     if !paths(&current)?.cloud_config.exists() {
         // 2c: the one sign-in `cloud_signed_in` will accept from this caller.
@@ -644,6 +646,7 @@ pub async fn team_sign_in_prepare(
     webview: tauri::Webview,
 ) -> Result<bool, String> {
     let caller = crate::windows::caller_project(&webview, false)?;
+    crate::app_state::refuse_worktree_sign_in(&app, &caller.root)?;
     let label = crate::windows::project_display_name(&caller.root);
     let moved = crate::app_state::prepare_team_switch_app(&app, &caller.root, &label)?;
     if moved.is_some() {

@@ -272,6 +272,9 @@ export const openProject = (where, target, intent) =>
     ...(intent ? { intent } : {}),
   });
 export const openProjectFolder = () => shellInvoke('open_project_folder');
+/** #206 T6.3g — a Worktrees row's folder as its own tab, by the pid `shell_state` listed it under
+ *  (Rust resolves the folder from its own list; Home never names a path). → `{label, opened}`. */
+export const openWorktree = (pid) => shellInvoke('open_worktree', { pid });
 export const relinkProject = (pid) => shellInvoke('relink_project', { pid });
 /** The existing command (github.js `managedProjectOpen`): resolves the managed copy's folder. */
 export const managedProjectOpen = (p) =>

@@ -1593,6 +1593,8 @@ pub fn open_window_for_root_as(
     if let Opened::New(label) = &opened {
         // #206: the branch this tab shows, so a later `git checkout` under it is told (cli_channel).
         crate::cli_channel::note_branch(root);
+        // #206 T6.3g: a worktree tab is listed on Home under its main project (never in Recent).
+        crate::app_state::note_worktree(app, root);
         // Server after the window: the splash shows at once, and a server that
         // is still running for this root (closed < CLOSE_GRACE ago, or kept by
         // the pool) is attached to instead of spawned.

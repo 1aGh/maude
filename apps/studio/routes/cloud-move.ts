@@ -26,6 +26,7 @@ import { join } from 'node:path';
 import { boundCloudToken, cloudConfigPath } from '../cloud/config-path.ts';
 import { type CloudEndpointResult, cloudUrl } from '../cloud/endpoints.ts';
 import { createHubFormatClient } from '../migrate/hub.ts';
+import { worktreeOf } from '../shell/worktree.ts';
 import { getHubRecord, normalizeUrl } from '../sync/hubs-config.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -47,6 +48,11 @@ export interface CloudMoveDeps {
   cloudConfigPath?: () => string;
   /** this profile's hubs.json; absent = `hubsConfigPath()` */
   hubsConfigPath?: string;
+  /**
+   * #206 §5 — the main project's name when this server serves a worktree tab (`shell/worktree.ts`,
+   * default: from the env the app spawned it with). A worktree is never linked, so it never moves.
+   */
+  worktreeOf?: () => string | null;
   /** seams for tests */
   fetchImpl?: typeof fetch;
   pollMs?: number;
@@ -340,6 +346,15 @@ export function createCloudMoveRoutes(deps: CloudMoveDeps): RouteSpec[] {
         // (cli/lib/bash-guard.mjs `human-only`). Checked before the body, the job file or the cloud.
         if (req.headers.get('sec-fetch-site') !== 'same-origin')
           return json(403, { ok: false, reason: 'window-only', error: WORDS.windowOnly });
+        // #206 §5 (T6.3g): a worktree tab syncs from its main project — moving it would make a
+        // second linked copy. Refused before the body, the job file or any call to Maude Cloud.
+        const main = (deps.worktreeOf ?? worktreeOf)();
+        if (main)
+          return json(409, {
+            ok: false,
+            reason: 'worktree',
+            error: `This folder syncs from ${main}. Move ${main} to the cloud instead.`,
+          });
         const next = gate.then(() => startMove(req));
         gate = next.catch(() => null);
         return next;

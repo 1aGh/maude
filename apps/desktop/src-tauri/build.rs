@@ -99,6 +99,8 @@ fn main() {
                 // V2-3.3 Home window (home.rs, lib.rs). The Home-only ones are
                 // granted by the RUNTIME `home` capability (home::HOME_PERMISSIONS).
                 "shell_state",
+                // #206 T6.3g: Home's Worktrees row (Home only, HOME_PERMISSIONS).
+                "open_worktree",
                 // V2-3.6 H1: the Home page secret (Home only).
                 "home_session",
                 "new_home_tab",

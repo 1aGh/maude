@@ -44598,6 +44598,36 @@
     "v2": "new"
   },
   {
+    "hook": "home-project-worktrees-<pid>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "#206 T6.3g: the Worktrees row under a local project (`<pid>` = the main project): the git worktrees of it this Mac opened as tabs (`shell_state.worktrees`), one chip per branch. A worktree is never a project row of its own; a folder that is gone drops out at the next Home load.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "RowWorktrees"
+    },
+    "region": "home",
+    "consumers": [
+      "apps/studio/test/home-page.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-worktree-<pid>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "#206 T6.3g: one worktree chip in a Worktrees row (`<pid>` = the worktree folder's pid), named by its branch (or the short sha + \"detached\", or the folder name); `data-place` = tab | resting | closed. Click → `open_worktree({pid})` — its own tab, never the project list or Recent.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "RowWorktrees"
+    },
+    "region": "home",
+    "consumers": [
+      "apps/studio/test/home-page.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "home-top-face",
     "kind": "testid",
     "pattern": false,

@@ -286,7 +286,7 @@ export function buildHomeModel({
     const ib = mru.has(b.pid) ? mru.get(b.pid) : Number.POSITIVE_INFINITY;
     return ia - ib || a.name.localeCompare(b.name);
   });
-  const localRows = collapseDuplicates(allLocal, cloudUrl);
+  const localRows = attachWorktrees(collapseDuplicates(allLocal, cloudUrl), shell?.worktrees);
 
   // one profile's copy never hides another profile's cloud row
   const bound = new Set(
@@ -359,6 +359,35 @@ export function buildHomeModel({
     groups: ranked,
     projectCount: localRows.length + cloudRows.length,
   };
+}
+
+/**
+ * #206 T6.3g (contract 206 §5 "Home and Recent") — the worktree folders this Mac opened as tabs
+ * (`shell_state.worktrees`, newest first) go under their main project's row as `worktrees`, never as
+ * rows of their own. A row folded into another (`copies`) hands its worktrees to that row; a worktree
+ * whose main project Home does not list is not shown.
+ */
+function attachWorktrees(rows, worktrees) {
+  const valid = (worktrees ?? []).filter(
+    (w) =>
+      w &&
+      typeof w.pid === 'string' &&
+      typeof w.mainPid === 'string' &&
+      typeof w.branch === 'string' &&
+      w.branch
+  );
+  return rows.map((r) => {
+    const owners = new Set([r.pid, ...r.copies.map((c) => c.pid)]);
+    const mine = valid
+      .filter((w) => owners.has(w.mainPid))
+      .map((w) => ({
+        pid: w.pid,
+        branch: w.branch,
+        place: w.place ?? 'closed',
+        root: w.root ?? '',
+      }));
+    return { ...r, worktrees: mine };
+  });
 }
 
 /**
