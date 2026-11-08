@@ -13,7 +13,8 @@ import {
   LAUNCH_PARAM,
   mainOriginKeyRefusal,
   mintLaunchToken,
-  sessionCookie,
+  SESSION_PATH,
+  sessionCookieName,
 } from '../shell/api-key.ts';
 import { removeServerKeyFile, serverKeyDir, writeServerKeyFile } from '../shell/key-file.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
@@ -61,21 +62,36 @@ describe('the key file (pure)', () => {
 describe('a launch link opened twice (a reload, a helper navigating again)', () => {
   const KEY = 'b7'.repeat(32);
   test('with the session cookie: 303 without the parameter, the token left unspent', () => {
-    const used = new Set<string>();
+    const used = new Map<string, number>();
     const tok = mintLaunchToken(KEY);
-    const c = sessionCookie(KEY);
     const r = (cookie?: string) =>
       new Request(`http://127.0.0.1:4400/?canvas=a.tsx&${LAUNCH_PARAM}=${tok}`, {
         headers: { host: '127.0.0.1:4400', ...(cookie ? { cookie } : {}) },
       });
-    const opts = { key: KEY, required: true, workspace: false, usedNonces: used };
-    const again = mainOriginKeyRefusal(r(`${c.name}=${c.value}`), opts);
+    const opts = {
+      key: KEY,
+      required: true,
+      workspace: false,
+      usedNonces: used,
+      sessions: new Map<string, number>(),
+    };
+    const session = mainOriginKeyRefusal(
+      new Request(`http://127.0.0.1:4400${SESSION_PATH}`, {
+        method: 'POST',
+        headers: { host: '127.0.0.1:4400', [API_KEY_HEADER]: KEY },
+      }),
+      opts
+    );
+    const live = (session?.headers.get('set-cookie') ?? '').split(';')[0];
+    const again = mainOriginKeyRefusal(r(live), opts);
     expect(again?.status).toBe(303);
     expect(again?.headers.get('location')).toBe('/?canvas=a.tsx');
     expect(again?.headers.get('set-cookie')).toBeNull();
     expect(used.size).toBe(0);
     // a wrong cookie is no session: the token is checked (and spent) as before
-    expect(mainOriginKeyRefusal(r(`${c.name}=${'0'.repeat(64)}`), opts)?.status).toBe(303);
+    expect(
+      mainOriginKeyRefusal(r(`${sessionCookieName(KEY)}=${'0'.repeat(64)}`), opts)?.status
+    ).toBe(303);
     expect(used.size).toBe(1);
     expect(mainOriginKeyRefusal(r(), opts)?.status).toBe(401);
   });
@@ -135,6 +151,37 @@ describe('a terminal-started server requires its own key', () => {
     expect(first.status).toBe(303);
     const c = (first.headers.get('set-cookie') ?? '').split(';')[0];
     expect((await fetch(`${base}/_config`, { headers: { cookie: c } })).status).toBe(200);
+  });
+
+  // §7.3 — a helper's headless capture asks with the key, so its capture URL carries the frame
+  // capability; the keyless 307 carries none (sec-loopback-bearer-p2c)
+  test('studio_capture_url: the capture-origin URL with its capability, never the key', () => {
+    const port = new URL(base).port;
+    const r = Bun.spawnSync(
+      [
+        'bash',
+        '-c',
+        '. "$1/_desktop-locate.sh"; studio_capture_url "$2" "$3" "/_canvas-shell.html?canvas=ui/fixture.html"',
+        '_',
+        join(import.meta.dir, '..', 'bin'),
+        root,
+        port,
+      ],
+      {
+        env: {
+          ...process.env,
+          XDG_STATE_HOME: state,
+          MAUDE_APP_REGISTRY_FILE: join(state, 'no-app', 'servers.json'),
+        },
+      }
+    );
+    const out = r.stdout.toString().trim();
+    const loc = new URL(out);
+    expect(loc.port).not.toBe(port);
+    expect(loc.pathname).toBe('/_canvas-shell.html');
+    expect(loc.searchParams.has('fc')).toBe(true);
+    const { apiKey } = JSON.parse(readFileSync(keyFile(), 'utf8'));
+    expect(out + r.stderr.toString()).not.toContain(apiKey);
   });
 
   test('the file goes away with the server', async () => {

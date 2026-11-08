@@ -25,6 +25,7 @@ import {
 } from './scope.ts';
 import * as svg from './svg.ts';
 import { gif, mp4, webm } from './video.ts';
+import { localCaptureUrl } from '../shell/capture-url.ts';
 import * as zip from './zip.ts';
 
 export type Format =
@@ -238,5 +239,6 @@ export function canvasShellUrl(
     const at = pastVersionOf({ atSha: opts.at });
     if (at) params.set('sha', at);
   }
-  return `${ctx.serverOrigin}/_canvas-shell.html?${params.toString()}`;
+  // sec-loopback-bearer §7.3 — on a key-required server, already the capture origin + capability
+  return localCaptureUrl(`${ctx.serverOrigin}/_canvas-shell.html?${params.toString()}`);
 }

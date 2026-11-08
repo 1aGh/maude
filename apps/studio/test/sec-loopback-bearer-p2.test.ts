@@ -12,7 +12,7 @@ import {
   mainOriginKeyRefusal,
   mintLaunchToken,
   SESSION_PATH,
-  sessionCookie,
+  sessionCookieName,
 } from '../shell/api-key.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
@@ -24,10 +24,21 @@ function req(path: string, headers: Record<string, string> = {}, method = 'GET')
 }
 
 describe('mainOriginKeyRefusal (pure, required mode)', () => {
-  const used = new Set<string>();
-  const opts = { key: KEY, required: true, workspace: false, usedNonces: used };
+  const used = new Map<string, number>();
+  const opts = {
+    key: KEY,
+    required: true,
+    workspace: false,
+    usedNonces: used,
+    sessions: new Map<string, number>(),
+  };
   const gate = (r: Request, now?: number) => mainOriginKeyRefusal(r, { ...opts, now });
-  const cookie = sessionCookie(KEY);
+  const cookieName = sessionCookieName(KEY);
+  /** a live session, minted the way the page mints it */
+  const session = () =>
+    (
+      gate(req(SESSION_PATH, { [API_KEY_HEADER]: KEY }, 'POST'))?.headers.get('set-cookie') ?? ''
+    ).split(';')[0];
 
   test('no key on an ordinary route, a write and a socket → 401 api-key-required', async () => {
     for (const r of [
@@ -61,11 +72,11 @@ describe('mainOriginKeyRefusal (pure, required mode)', () => {
   });
 
   test('the session cookie passes same-origin, never same-site (the canvas origin)', () => {
-    const c = `${cookie.name}=${cookie.value}`;
+    const c = session();
     expect(gate(req('/_config', { cookie: c }))).toBeNull();
     expect(gate(req('/_config', { cookie: c, 'sec-fetch-site': 'same-origin' }))).toBeNull();
     expect(gate(req('/_config', { cookie: c, 'sec-fetch-site': 'same-site' }))?.status).toBe(401);
-    expect(gate(req('/_config', { cookie: `${cookie.name}=${'0'.repeat(64)}` }))?.status).toBe(401);
+    expect(gate(req('/_config', { cookie: `${cookieName}=${'0'.repeat(64)}` }))?.status).toBe(401);
   });
 
   test('the exempt bootstrap answers without a key; nothing else does', () => {
@@ -95,13 +106,11 @@ describe('mainOriginKeyRefusal (pure, required mode)', () => {
     const ok = gate(req(SESSION_PATH, { [API_KEY_HEADER]: KEY }, 'POST'));
     expect(ok?.status).toBe(204);
     const set = ok?.headers.get('set-cookie') ?? '';
-    expect(set).toContain(`${cookie.name}=${cookie.value}`);
+    expect(set).toMatch(new RegExp(`^${cookieName}=[0-9a-f]{64};`));
     expect(set).toContain('HttpOnly');
     expect(set).toContain('SameSite=Strict');
     // a cookie alone, or no credential, never mints a session
-    expect(
-      gate(req(SESSION_PATH, { cookie: `${cookie.name}=${cookie.value}` }, 'POST'))?.status
-    ).toBe(401);
+    expect(gate(req(SESSION_PATH, { cookie: session() }, 'POST'))?.status).toBe(401);
     expect(gate(req(SESSION_PATH, {}, 'POST'))?.status).toBe(401);
   });
 
@@ -111,7 +120,9 @@ describe('mainOriginKeyRefusal (pure, required mode)', () => {
     const first = gate(req(`/?open=a.tsx&${LAUNCH_PARAM}=${tok}`), now + 5);
     expect(first?.status).toBe(303);
     expect(first?.headers.get('location')).toBe('/?open=a.tsx');
-    expect(first?.headers.get('set-cookie') ?? '').toContain(`${cookie.name}=${cookie.value}`);
+    expect(first?.headers.get('set-cookie') ?? '').toMatch(
+      new RegExp(`^${cookieName}=[0-9a-f]{64};`)
+    );
     expect(gate(req(`/?${LAUNCH_PARAM}=${tok}`), now + 6)?.status).toBe(401);
     expect(gate(req(`/?${LAUNCH_PARAM}=${mintLaunchToken(KEY, now)}`), now + 301)?.status).toBe(
       401
