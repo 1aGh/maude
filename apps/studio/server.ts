@@ -44,7 +44,7 @@ import { bootFinished, bootStep } from './boot-progress.ts';
 import { bootSelfHeal } from './boot-self-heal.ts';
 import { isSandboxArmed } from './canvas-build-sandbox.ts';
 import { createCanvasListWatch } from './canvas-list-watch.ts';
-import { canvasTopLevelRefusal, topLevelGuardedRoutes } from './canvas-top-level.ts';
+import { canvasTopLevelRefusal } from './canvas-top-level.ts';
 import { type AiActivityEntry, createAiActivity } from './collab/ai-activity.ts';
 import { createGitLifecycle } from './collab/git-lifecycle.ts';
 import { personHoldsOf } from './collab/holds.ts';
@@ -801,13 +801,29 @@ async function seesRoomCanvas(access: Access, slug: string): Promise<boolean> {
   return access.seesCanvas(file.startsWith(prefix) ? file.slice(prefix.length) : file);
 }
 
+/**
+ * #168 T5.4 S1 — no canvas installs a service worker, on either canvas listener. Under the canvas
+ * CSP `worker-src` falls back to `script-src 'self'`, so a canvas could otherwise register a worker
+ * that outlives its frame and answers later frames on the shared origin. The browser marks the
+ * worker script fetch (and its updates) with `Service-Worker: script`; no canvas needs one.
+ */
+function serviceWorkerRefusal(req: Request, listener: string): Response | null {
+  if (!req.headers.get('service-worker')) return null;
+  return new Response(`the ${listener} origin installs no service workers`, { status: 403 });
+}
+
+/** The interactive canvas listener's gate: no service worker, never a top-level page. */
+function canvasRefusal(req: Request): Response | null {
+  return serviceWorkerRefusal(req, 'canvas') ?? canvasTopLevelRefusal(req);
+}
+
 function captureRefusal(req: Request): Response | null {
   if (!isLoopbackHost(req.headers.get('host')))
     return new Response('local request required (DNS-rebinding guard)', { status: 403 });
   if (req.headers.get('upgrade'))
     return new Response('the capture origin accepts no upgrades', { status: 403 });
-  if (req.headers.get('service-worker'))
-    return new Response('the capture origin installs no service workers', { status: 403 });
+  const sw = serviceWorkerRefusal(req, 'capture');
+  if (sw) return sw;
   if (req.method !== 'GET' && req.method !== 'HEAD') return captureWriteRefusal();
   return null;
 }
@@ -834,12 +850,15 @@ function framedRoutes<R extends Record<string, unknown>>(routes: R): R {
   return out as R;
 }
 
-/** Each route behind the capture gate — the capture origin's copy of the ONE table. */
-function readOnlyRoutes<R extends Record<string, unknown>>(routes: R): R {
+/** Each route behind `refusal` (Bun matches `routes` before `fetch`, so a gate on `fetch` alone misses them). */
+function gatedRoutes<R extends Record<string, unknown>>(
+  routes: R,
+  refusal: (req: Request) => Response | null
+): R {
   const out: Record<string, unknown> = {};
   for (const [path, handler] of Object.entries(routes)) {
     const fn = handler as (req: Request) => Response | Promise<Response>;
-    out[path] = (req: Request) => captureRefusal(req) ?? fn(req);
+    out[path] = (req: Request) => refusal(req) ?? fn(req);
   }
   return out as R;
 }
@@ -863,7 +882,9 @@ function startCanvasServer(
     // GET/HEAD gate — never a third allowlist (V2-2.8 S9).
     // V2-3.6 N-M2 — the interactive canvas origin refuses a top-level document
     // (canvas-top-level.ts); the capture origin is loaded top-level by design.
-    routes: capture ? readOnlyRoutes(routes) : topLevelGuardedRoutes(routes),
+    // The capture origin's copy of the ONE table sits behind the capture gate; the interactive
+    // one behind the canvas gate (#168 S1: no service worker; V2-3.6 N-M2: no top-level page).
+    routes: gatedRoutes(routes, capture ? captureRefusal : canvasRefusal),
     async fetch(req, srv) {
       const pathname = new URL(req.url).pathname;
 
@@ -873,7 +894,7 @@ function startCanvasServer(
         const refused = captureRefusal(req);
         if (refused) return refused;
       } else {
-        const refused = canvasTopLevelRefusal(req);
+        const refused = canvasRefusal(req);
         if (refused) return refused;
       }
       // gate-b-c4 — the rest runs inside this request's frame (see inFrame).

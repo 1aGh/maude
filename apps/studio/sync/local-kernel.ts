@@ -671,6 +671,55 @@ export interface LocalHomeOptions {
   log?: Pick<Console, 'warn' | 'error'>;
   /** S1.7b — ctx.bus.emit: `trash:changed` when an accepted action changed the Trash. */
   emit?: (event: string, payload: unknown) => void;
+  /** #168 — a `seen` entry unused this long may be swept (see `sweepSeen`). */
+  seenIdleMs?: number;
+  /** #168 — sweep `seen` this often; 0 = never by itself (tests sweep by hand). */
+  seenSweepMs?: number;
+}
+
+/** #168 T5.4 — defaults for the `seen` sweep: idle for 10 minutes, looked at every 5. */
+export const SEEN_IDLE_MS = 10 * 60_000;
+export const SEEN_SWEEP_MS = 5 * 60_000;
+
+/**
+ * The local kernel's `seen` map, stamped with each entry's last use (a read or a write), so an
+ * idle sweep can find the entries nobody has needed for a while. `peek` reads without using.
+ */
+class SeenMap extends Map<string, string> {
+  private readonly used = new Map<string, number>();
+  constructor(private readonly clock: () => number) {
+    super();
+  }
+  override get(k: string): string | undefined {
+    const v = super.get(k);
+    if (v !== undefined) this.used.set(k, this.clock());
+    return v;
+  }
+  override set(k: string, v: string): this {
+    this.used.set(k, this.clock());
+    return super.set(k, v);
+  }
+  override delete(k: string): boolean {
+    this.used.delete(k);
+    return super.delete(k);
+  }
+  override clear(): void {
+    this.used.clear();
+    super.clear();
+  }
+  peek(k: string): string | undefined {
+    return super.get(k);
+  }
+  usedAt(k: string): number | undefined {
+    return this.used.get(k);
+  }
+  /** Keys unused since `before`, sorted (a stable answer). */
+  idleKeys(before: number): string[] {
+    return [...this.used]
+      .filter(([, at]) => at <= before)
+      .map(([k]) => k)
+      .sort();
+  }
 }
 
 export interface ForeignStore {
@@ -717,6 +766,8 @@ export interface LocalHome {
   expectMove(fromRel: string, toRel: string): void;
   /** Propose every pending observation now. */
   flush(): Promise<void>;
+  /** #168 — drop the idle `seen` entries the store and the disk agree on now (keys dropped). */
+  sweepSeen(): Promise<string[]>;
   /** Other machines' stores in `_state/`, read-only (C1). */
   foreignStores(): ForeignStore[];
   /** Read-only history of one foreign store. */
@@ -783,8 +834,14 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   // hold staged bytes the store has not accepted; `seen` remembers what each lane held when the
   // watcher last read it — the `d0` a change is composed from (`R.mine = merge3(d0, d1, mine)`)
   // and the base a person's edit made on top of staged bytes is proposed from.
-  /** `${rel}|${lane}` → the lane's value on disk when last read (or written) here. */
-  const seen = new Map<string, string>();
+  /**
+   * `${rel}|${lane}` → the lane's value on disk when last read (or written) here. #168 — swept
+   * when idle (`sweepSeen`), so it no longer holds every lane a session ever touched.
+   */
+  const seen = new SeenMap(now);
+  const seenIdleMs = opts.seenIdleMs ?? SEEN_IDLE_MS;
+  const seenSweepMs = opts.seenSweepMs ?? SEEN_SWEEP_MS;
+  let seenTimer: ReturnType<typeof setInterval> | null = null;
   /**
    * `${canvas}|${lane}` → the studio's own write of that lane (api.ts `source-written` for the
    * source, server.ts `proposeLane` for layout and board — S2.20b), until the watcher reads it.
@@ -2060,6 +2117,46 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     return run;
   };
 
+  /**
+   * #168 T5.4 — drop the `seen` entries nobody used for `seenIdleMs` whose value the store's head
+   * AND the disk both hold. With the head equal to the entry, a missing entry decides every read
+   * the same way: the watcher's "changed?" compares the disk with the head instead
+   * (`laneHash(v) === headHash` ⇔ `prev === v`), and the base it proposes from is the head's
+   * blob, which is `prev` (the disk check is a second guard on top). A run's staged bytes are
+   * never swept: the store's head does not hold them. A head that moves later reaches the disk
+   * through `publishChanges`, which sets the entry again. Runs in `serial`, so no proposal is in
+   * flight while it looks; an entry used meanwhile is kept.
+   * Returns the keys dropped (sorted).
+   */
+  function sweepSeen(): Promise<string[]> {
+    return serial(async () => {
+      const o = opened;
+      if (!o || !kernel || closed) return [];
+      const before = now() - seenIdleMs;
+      const dropped: string[] = [];
+      for (const k of seen.idleKeys(before)) {
+        const bar = k.lastIndexOf('|');
+        const rel = k.slice(0, bar);
+        const lane = k.slice(bar + 1) as LocalLane;
+        const value = seen.peek(k);
+        if (value === undefined || !(LOCAL_LANES as readonly string[]).includes(lane)) continue;
+        if (notes.has(k) || superseded.has(k) || holdLive(rel)) continue;
+        if (diskLane(rel, lane) !== value) continue;
+        const doc: string | null = await o.store.docByPath(rel);
+        if (!doc) continue;
+        const head = (await o.store.heads([doc]))[doc] as
+          | { lanes?: Record<string, { hash: string | null }> }
+          | undefined;
+        if (hashOr(head?.lanes?.[lane]?.hash) !== laneHash(value)) continue;
+        // used (or changed) while the store answered: keep it
+        if (seen.peek(k) !== value || (seen.usedAt(k) ?? 0) > before) continue;
+        seen.delete(k);
+        dropped.push(k);
+      }
+      return dropped;
+    });
+  }
+
   function drain(): Promise<void> {
     if (timer) clearTimeout(timer);
     timer = null;
@@ -2639,6 +2736,12 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   }
 
   start();
+  if (seenSweepMs > 0) {
+    seenTimer = setInterval(() => {
+      sweepSeen().catch((err) => log.warn(`[local-kernel] seen sweep failed: ${String(err)}`));
+    }, seenSweepMs);
+    (seenTimer as { unref?: () => void }).unref?.();
+  }
 
   return {
     file,
@@ -2656,6 +2759,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       if (strokes.size) await Promise.allSettled([...strokes]);
       await drain();
     },
+    sweepSeen,
     foreignStores,
     foreignHistory,
     store: () => {
@@ -2667,6 +2771,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       closed = true;
       if (timer) clearTimeout(timer);
       if (retryTimer) clearInterval(retryTimer);
+      if (seenTimer) clearInterval(seenTimer);
+      seenTimer = null;
       for (const o of foreignOpen.values()) o.db.close();
       foreignOpen.clear();
       try {
