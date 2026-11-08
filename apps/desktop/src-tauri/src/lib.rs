@@ -17,6 +17,7 @@
 
 mod app_state;
 mod bus;
+mod cli_registry;
 mod crash_reporter;
 mod deep_link;
 mod doors;
@@ -778,18 +779,11 @@ pub fn run() {
                 home: Mutex::new(None),
             });
 
-            // Clear any stale `_server.json` from a previous session BEFORE spawning,
-            // so `wait_for_server` blocks on THIS run's fresh (post-bind) write. Without
-            // this the webview navigates to the old port before the new server binds →
-            // connection refused → intermittent white screen. (`attach_or_spawn`
-            // removes it again on its spawn path; this keeps the boot ordering explicit.)
-            let boot_root = match &plan {
-                BootPlan::Project(root) => Some(root.clone()),
-                BootPlan::Home { reopen } => reopen.clone(),
-            };
-            if let Some(root) = &boot_root {
-                let _ = std::fs::remove_file(root.join(".design").join("_server.json"));
-            }
+            // #206 (DDR-250): a fresh CLI registry for THIS app run (no servers yet), so a
+            // file a crashed previous run left behind never names a dead pid's servers.
+            // No `_server.json` delete here any more: the server is that file's only
+            // writer, and the boot wait reads the spawn's own app-owned info file.
+            cli_registry::publish(&handle);
 
             // 0. Start the loopback GitHub-token bridge BEFORE spawning the sidecar,
             // so its endpoint+key are available to pass to the child (DDR-108).

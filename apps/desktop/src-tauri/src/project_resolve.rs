@@ -162,6 +162,129 @@ pub fn resolve_project_for_link(
     Ok(resolve_known_in(&st, &project, Some(&profile)))
 }
 
+// ── Worktrees (#206, DDR-250, contract `206-cli-reuses-desktop.md` §5) ──────────
+//
+// A git worktree's root holds a `.git` FILE (`gitdir: <main>/.git/worktrees/<name>`)
+// instead of a `.git` directory. Detection reads files only — no git process — and
+// trusts the folder's own `.git` file for nothing: the main repository has to vouch
+// for the worktree (its `worktrees/<name>/gitdir` names this folder's `.git` back), so
+// a planted `.git` file in a downloaded folder cannot claim to be a worktree of a
+// project Maude already knows.
+
+/// What a worktree's `HEAD` names.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Head {
+    /// `ref: refs/heads/<branch>`.
+    Branch(String),
+    /// A bare commit id: its first 7 characters.
+    Detached(String),
+    /// Anything else (absent, unreadable, a ref outside `refs/heads/`).
+    Unknown,
+}
+
+impl Head {
+    /// The registry's `branch` field: a branch name, or `null`.
+    pub fn branch(&self) -> Option<String> {
+        match self {
+            Head::Branch(b) => Some(b.clone()),
+            _ => None,
+        }
+    }
+}
+
+/// A folder that is a linked worktree of another checkout.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Worktree {
+    /// The main checkout's realpath (the parent of the common `.git` dir).
+    pub main_root: PathBuf,
+    pub head: Head,
+}
+
+/// `root` as a linked worktree of another checkout, or `None` (an ordinary
+/// checkout, not a git folder, a broken or planted `.git` file).
+///
+/// All of these must hold, or it is not a worktree:
+/// 1. `<root>/.git` is a regular file whose first line is `gitdir: <g>` (`<g>`
+///    absolute, or relative to `root`), and `<g>` is a directory `…/worktrees/<name>`;
+/// 2. `<g>/commondir` resolves to the directory that holds that `worktrees/`;
+/// 3. **the back-reference**: `<g>/gitdir` names `<root>/.git` — the main repository
+///    vouches for this folder (a planted `.git` file elsewhere fails here);
+/// 4. the common dir is a `.git` directory inside a main checkout other than `root`
+///    (a bare repository has no checkout to open).
+pub fn worktree_of(root: &Path) -> Option<Worktree> {
+    let dot_git = root.join(".git");
+    if !std::fs::symlink_metadata(&dot_git).ok()?.file_type().is_file() {
+        return None;
+    }
+    let pointer = read_small(&dot_git)?;
+    let g_rel = pointer.lines().next()?.strip_prefix("gitdir:")?.trim();
+    if g_rel.is_empty() {
+        return None;
+    }
+    let g = std::fs::canonicalize(root.join(g_rel)).ok()?;
+    if !g.is_dir() || g.parent()?.file_name()? != "worktrees" {
+        return None;
+    }
+    let holder = g.parent()?.parent()?.to_path_buf();
+    let common_rel = read_small(&g.join("commondir"))?;
+    let common = std::fs::canonicalize(g.join(common_rel.lines().next()?.trim())).ok()?;
+    if common != holder {
+        return None;
+    }
+    let back_rel = read_small(&g.join("gitdir"))?;
+    let back = std::fs::canonicalize(g.join(back_rel.lines().next()?.trim())).ok()?;
+    if back != std::fs::canonicalize(&dot_git).ok()? {
+        return None;
+    }
+    if common.file_name()? != ".git" || !std::fs::symlink_metadata(&common).ok()?.is_dir() {
+        return None;
+    }
+    let main_root = common.parent()?.to_path_buf();
+    if main_root == std::fs::canonicalize(root).ok()? {
+        return None;
+    }
+    Some(Worktree {
+        main_root,
+        head: parse_head(read_small(&g.join("HEAD")).as_deref()),
+    })
+}
+
+/// The branch an ORDINARY checkout (`.git` is a directory) is on — the registry's
+/// `branch` for a project tab. A worktree reads its own HEAD through `worktree_of`.
+pub fn branch_of(root: &Path) -> Option<String> {
+    let dot_git = root.join(".git");
+    if !std::fs::symlink_metadata(&dot_git).ok()?.is_dir() {
+        return None;
+    }
+    parse_head(read_small(&dot_git.join("HEAD")).as_deref()).branch()
+}
+
+/// A git metadata file, capped at 4 KiB (they are one line; a huge one is not git's).
+fn read_small(path: &Path) -> Option<String> {
+    use std::io::Read;
+    let mut buf = String::new();
+    std::fs::File::open(path)
+        .ok()?
+        .take(4096)
+        .read_to_string(&mut buf)
+        .ok()?;
+    Some(buf)
+}
+
+fn parse_head(raw: Option<&str>) -> Head {
+    let Some(line) = raw.and_then(|r| r.lines().next()).map(str::trim) else {
+        return Head::Unknown;
+    };
+    if let Some(b) = line.strip_prefix("ref: refs/heads/") {
+        let sane = !b.is_empty() && b.len() <= 255 && !b.chars().any(|c| c.is_control());
+        return if sane { Head::Branch(b.to_string()) } else { Head::Unknown };
+    }
+    if (line.len() == 40 || line.len() == 64) && line.bytes().all(|c| c.is_ascii_hexdigit()) {
+        return Head::Detached(line[..7].to_ascii_lowercase());
+    }
+    Head::Unknown
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -278,5 +401,157 @@ mod tests {
         }
         assert_eq!(resolve_from_paths("other-folder", paths), None);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    // ── #206 worktree detection ────────────────────────────────────────────────
+
+    /// A scratch dir holding `main/` (a checkout with a `.git` DIR) and nothing else yet.
+    fn git_scratch(tag: &str) -> (PathBuf, PathBuf) {
+        let base = std::env::temp_dir().join(format!("maude-206-wt-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let main = base.join("main");
+        std::fs::create_dir_all(main.join(".git/worktrees")).unwrap();
+        std::fs::write(main.join(".git/HEAD"), "ref: refs/heads/main\n").unwrap();
+        (std::fs::canonicalize(&base).unwrap(), std::fs::canonicalize(&main).unwrap())
+    }
+
+    /// The files `git worktree add <wt>` writes, by hand: `<wt>/.git` (a file), and
+    /// `<main>/.git/worktrees/<name>/{gitdir,commondir,HEAD}`.
+    fn fake_worktree(main: &Path, wt: &Path, name: &str, head: &str) -> PathBuf {
+        let g = main.join(".git/worktrees").join(name);
+        std::fs::create_dir_all(&g).unwrap();
+        std::fs::create_dir_all(wt).unwrap();
+        std::fs::write(wt.join(".git"), format!("gitdir: {}\n", g.display())).unwrap();
+        std::fs::write(g.join("gitdir"), format!("{}\n", wt.join(".git").display())).unwrap();
+        std::fs::write(g.join("commondir"), "../..\n").unwrap();
+        std::fs::write(g.join("HEAD"), head).unwrap();
+        g
+    }
+
+    #[test]
+    fn worktree_of_reads_a_dot_git_file_back_to_its_main_checkout() {
+        let (base, main) = git_scratch("file");
+        let wt = base.join("wt-feat");
+        fake_worktree(&main, &wt, "wt-feat", "ref: refs/heads/feat-x\n");
+        assert_eq!(
+            worktree_of(&wt),
+            Some(Worktree { main_root: main.clone(), head: Head::Branch("feat-x".into()) })
+        );
+        // A relative `gitdir:` (git ≥ 2.48 `worktree.useRelativePaths`) resolves from the worktree.
+        std::fs::write(wt.join(".git"), "gitdir: ../main/.git/worktrees/wt-feat\n").unwrap();
+        assert_eq!(worktree_of(&wt).map(|w| w.main_root), Some(main.clone()));
+        // Detached: the short commit id.
+        std::fs::write(
+            main.join(".git/worktrees/wt-feat/HEAD"),
+            "0123456789abcdef0123456789abcdef01234567\n",
+        )
+        .unwrap();
+        assert_eq!(worktree_of(&wt).map(|w| w.head), Some(Head::Detached("0123456".into())));
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn worktree_of_an_ordinary_checkout_or_a_plain_folder_is_none() {
+        let (base, main) = git_scratch("dir");
+        assert_eq!(worktree_of(&main), None, "a .git DIRECTORY is an ordinary checkout");
+        assert_eq!(branch_of(&main).as_deref(), Some("main"));
+        let plain = base.join("plain");
+        std::fs::create_dir_all(&plain).unwrap();
+        assert_eq!(worktree_of(&plain), None);
+        assert_eq!(branch_of(&plain), None);
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn worktree_of_refuses_a_broken_or_planted_gitdir() {
+        let (base, main) = git_scratch("broken");
+        let wt = base.join("wt");
+        let g = fake_worktree(&main, &wt, "wt", "ref: refs/heads/feat\n");
+        assert!(worktree_of(&wt).is_some(), "the fixture itself is a worktree");
+
+        for content in [
+            "gitdir: /definitely/not/here\n".to_string(),
+            "not a gitdir line\n".to_string(),
+            "gitdir: \n".to_string(),
+            // A real git dir, but not a worktree entry (no `worktrees/<name>` parent).
+            format!("gitdir: {}\n", main.join(".git").display()),
+        ] {
+            std::fs::write(wt.join(".git"), &content).unwrap();
+            assert_eq!(worktree_of(&wt), None, "{content:?}");
+        }
+
+        // A PLANTED `.git` file: another folder claims the real worktree entry. The main
+        // repository's `gitdir` back-reference names `wt`, not the impostor.
+        std::fs::write(wt.join(".git"), format!("gitdir: {}\n", g.display())).unwrap();
+        let impostor = base.join("downloaded");
+        std::fs::create_dir_all(&impostor).unwrap();
+        std::fs::write(impostor.join(".git"), format!("gitdir: {}\n", g.display())).unwrap();
+        assert_eq!(worktree_of(&impostor), None, "the main repo never vouched for it");
+        assert!(worktree_of(&wt).is_some());
+
+        // `commondir` that names some other repository.
+        std::fs::write(g.join("commondir"), "/tmp\n").unwrap();
+        assert_eq!(worktree_of(&wt), None);
+        std::fs::write(g.join("commondir"), "../..\n").unwrap();
+
+        // A bare repository has no main checkout to open.
+        let bare = base.join("bare.git");
+        std::fs::create_dir_all(bare.join("worktrees/b")).unwrap();
+        let wb = base.join("wb");
+        std::fs::create_dir_all(&wb).unwrap();
+        std::fs::write(wb.join(".git"), format!("gitdir: {}\n", bare.join("worktrees/b").display())).unwrap();
+        std::fs::write(bare.join("worktrees/b/gitdir"), format!("{}\n", wb.join(".git").display())).unwrap();
+        std::fs::write(bare.join("worktrees/b/commondir"), "../..\n").unwrap();
+        assert_eq!(worktree_of(&wb), None, "a bare repo is not a project");
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn head_names_only_a_local_branch_with_sane_characters() {
+        let (base, main) = git_scratch("head");
+        let wt = base.join("wt");
+        let g = fake_worktree(&main, &wt, "wt", "ref: refs/heads/feat/nested-1\n");
+        assert_eq!(worktree_of(&wt).map(|w| w.head), Some(Head::Branch("feat/nested-1".into())));
+        for head in ["ref: refs/remotes/origin/x\n", "ref: refs/heads/\n", "ref: refs/heads/a\u{7}b\n", "garbage\n"] {
+            std::fs::write(g.join("HEAD"), head).unwrap();
+            assert_eq!(worktree_of(&wt).map(|w| w.head), Some(Head::Unknown), "{head:?}");
+        }
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    /// The layout real git writes (absolute or relative paths, whichever this git
+    /// defaults to) — skipped when no `git` is on PATH. Isolated from the user's git
+    /// config so no hook, signing or template runs.
+    #[test]
+    fn worktree_of_matches_a_real_git_worktree() {
+        let raw = std::env::temp_dir().join(format!("maude-206-realgit-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&raw);
+        std::fs::create_dir_all(raw.join("main")).unwrap();
+        let base = raw.canonicalize().unwrap();
+        let main = base.join("main");
+        let git = |dir: &Path, args: &[&str]| {
+            // no-console-window: test-only, builds a real worktree fixture.
+            std::process::Command::new("git")
+                .current_dir(dir)
+                .env("GIT_CONFIG_GLOBAL", "/dev/null")
+                .env("GIT_CONFIG_NOSYSTEM", "1")
+                .env("HOME", &base)
+                .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"])
+                .args(args)
+                .output()
+        };
+        let Ok(out) = git(&main, &["init", "-q"]) else { return }; // no git on PATH
+        assert!(out.status.success());
+        assert!(git(&main, &["commit", "-q", "--allow-empty", "-m", "x"]).unwrap().status.success());
+        let wt = base.join("wt");
+        let out = git(&main, &["worktree", "add", "-q", "-b", "feat-real", wt.to_str().unwrap()]).unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        assert_eq!(
+            worktree_of(&wt),
+            Some(Worktree { main_root: main.clone(), head: Head::Branch("feat-real".into()) })
+        );
+        assert_eq!(worktree_of(&main), None);
+        assert_eq!(branch_of(&main).as_deref(), Some("main"));
+        std::fs::remove_dir_all(base).unwrap();
     }
 }

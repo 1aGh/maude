@@ -122,6 +122,15 @@ pub struct SidecarInstance {
     /// a respawn gets a fresh path and a fresh token, so a dead child's file or
     /// token never answers for its successor.
     pub shell: Option<ShellProbe>,
+    /// #206 (DDR-250): the port the CURRENT child bound, from its own info file
+    /// (`spawn_record_port`) — what the CLI registry (`cli_registry.rs`) publishes.
+    /// `None` until it binds, and again once the child is gone.
+    pub port: Option<u16>,
+    /// #206: the CURRENT child's attest key (`MAUDE_SHELL_ATTEST_KEY`), published in the
+    /// app-owned registry only. A respawn mints a new one; it dies with its child.
+    pub attest_key: Option<String>,
+    /// #206: wall-clock ms of the current spawn (the registry's `started`).
+    pub started_ms: u64,
 }
 
 /// Where the shell's authenticated probe for ONE spawn goes (V2-1.1 decision 8):
@@ -416,30 +425,12 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
     let state = app.state::<SidecarState>();
     let project_root = project_root.to_string();
 
-    // RETIRE THE PREVIOUS PROCESS'S `_server.json` BEFORE WE SPAWN — issue #115.
-    //
-    // The dev-server unlinks this file only on a GRACEFUL shutdown (server.ts),
-    // so a crash leaves the dead process's `{pid, port, url, canvasOrigin}` on
-    // disk. Every reader here treats the file's existence as "a server is
-    // listening": the respawn path below calls `wait_for_server` the instant
-    // this function returns, and with a stale file that wait satisfies itself in
-    // ~0 ms with the dead URL — so the recovery re-navigate fires before the
-    // fresh child has bound anything, and the one mechanism that would have
-    // reloaded a page holding a stale `canvasOrigin` spends itself for nothing.
-    //
-    // The BOOT path (lib.rs, whose comment already names the symptom: "the
-    // webview navigates to the old port before the new server binds →
-    // connection refused → intermittent white screen") and `switch_project`
-    // have both always done this. The RESPAWN path and the DDR-235 "Try again"
-    // path never did — which is why a crash-respawn behaved worse than a cold
-    // start. Doing it HERE covers all four, so they cannot drift again.
-    // Best-effort by design: a file that isn't there, or can't be removed, must
-    // not stop us from starting a server.
-    let _ = std::fs::remove_file(
-        std::path::Path::new(&project_root)
-            .join(".design")
-            .join("_server.json"),
-    );
+    // #206 (DDR-250, contract §6.1): Rust deletes no `_server.json`. Issue #115's
+    // stale-file trap is closed by construction — every wait reads THIS spawn's own
+    // app-owned info file (`wait_for_shell_url`), never `_server.json` — and the file
+    // has one writer, the server, which unlinks it only while it still names itself.
+    // A blind delete here orphaned a terminal-started server that still served (and
+    // held the store lock for) this root, so the next `server-up` started a third.
 
     let mut command = app
         .shell()
@@ -617,6 +608,15 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
             .env("MAUDE_SHELL_INFO_FILE", p.info_file.to_string_lossy().to_string())
             .env("MAUDE_SHELL_TOKEN", p.token.clone());
     }
+    // #206 (DDR-250, contract §3) — the attest key FOR THIS SPAWN: the server answers
+    // `GET /_api/shell/attest?n=` with an HMAC under it, and the app-owned registry
+    // (`cli_registry.rs`) hands it to the CLI, which uses a port only after the MAC
+    // checks out. A respawn gets a new key. No RNG ⇒ no key ⇒ the server is simply
+    // not attestable (the CLI keeps its own server) — never a guessable one.
+    let attest_key = mint_attest_key();
+    if let Some(k) = &attest_key {
+        command = command.env(crate::cli_registry::ATTEST_KEY_ENV, k.clone());
+    }
 
     // In a packaged .app the sidecar binary sits alone in Contents/MacOS/ with no
     // apps/studio/ up-tree, so paths.ts walk-up can't find the runtime. Point it at
@@ -684,6 +684,9 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
             profile_id: profile_id.clone(),
             bridge_key: None,
             shell: None,
+            port: None,
+            attest_key: None,
+            started_ms: 0,
         });
         // The previous child's key (a respawn, or a racing double spawn) dies
         // with that child; the new one carries its own.
@@ -694,6 +697,10 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
         // retired, so nothing can read the old address as the new child's.
         retire_shell_probe(std::mem::replace(&mut entry.shell, shell));
         entry.profile_id = profile_id.clone();
+        // #206: the new child's own key and start time; its port comes with its info file.
+        entry.attest_key = attest_key;
+        entry.port = None;
+        entry.started_ms = crate::cli_registry::now_ms();
         // CORRECTNESS (security-auditor A5) — `or_insert` overwrites an EXISTING
         // entry's `child`, and the first cut did exactly that: a racing second
         // `spawn_for` for the same root would drop a live CommandChild on the
@@ -713,6 +720,7 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
         eprintln!("[maude] replacing a live sidecar for {project_root} — terminating the old one");
         terminate(old);
     }
+    crate::cli_registry::publish(app);
     if let Some(info_file) = record_from {
         spawn_record_port(app, project_root.clone(), info_file);
     }
@@ -785,6 +793,9 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
                                     crate::keychain::revoke_key(&k);
                                 }
                                 retire_shell_probe(inst.shell.take());
+                                // #206: the dead child's key and port vouch for nothing.
+                                inst.attest_key = None;
+                                inst.port = None;
                                 log_line(&format!(
                                     "[maude] dev-server was up {}s before it died — restart {}/{}",
                                     uptime.as_secs(),
@@ -801,6 +812,7 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
                             }
                         }
                     };
+                    crate::cli_registry::publish(&app);
                     // N-M3: the dead child's port vouches for nothing from now on —
                     // the respawn's own info file records the next origin.
                     crate::windows::on_server_died(&app, &supervised_root, attempt > MAX_RESTARTS);
@@ -1021,8 +1033,8 @@ pub fn switch_project(app: &AppHandle, label: &str, new_root: PathBuf, open: Opt
     spawn_enforce_cap(app);
 
     // Re-navigate once the target project's dev-server is up. Unchanged for the
-    // spawn path; instant for the attach path, since `_server.json` is already
-    // there from the live instance. The DDR-109 loopback guard applies per
+    // spawn path; instant for the attach path, since the live instance's info
+    // file already names its address. The DDR-109 loopback guard applies per
     // instance exactly as before — a pool does not relax it.
     crate::windows::navigate_when_up(app, label.to_string(), root, open);
 }
@@ -1036,11 +1048,8 @@ pub fn switch_project(app: &AppHandle, label: &str, new_root: PathBuf, open: Opt
 ///
 ///  • Killing tore down the WHOLE server process, so every chat in the project
 ///    we're leaving died — not just the visible one.
-///  • Deleting `_server.json` was safe when it could only ever be a stale file
-///    from a previous app session. With a pool it may be a LIVE instance's
-///    state, and removing it would orphan a healthy server (`wait_for_server`
-///    would then block on a write that never comes). So it is deleted ONLY when
-///    we are actually about to spawn.
+///  • Deleting `_server.json` orphaned whichever server wrote it. Since #206
+///    (DDR-250) Rust deletes it nowhere: the server is its only writer.
 pub(crate) fn attach_or_spawn(app: &AppHandle, root: &str) -> bool {
     let state = app.state::<SidecarState>();
     // V2-3.8: a live server spawned on another profile than the project's
@@ -1075,7 +1084,6 @@ pub(crate) fn attach_or_spawn(app: &AppHandle, root: &str) -> bool {
         log_line(&format!("[maude] {root} already running — attaching to its live server"));
         return false;
     }
-    let _ = std::fs::remove_file(std::path::Path::new(root).join(".design").join("_server.json"));
     if let Err(e) = spawn_for(app, root) {
         log_line(&format!("[maude] could not spawn dev-server for {root}: {e}"));
     }
@@ -1147,6 +1155,11 @@ fn mint_shell_probe(app: &AppHandle, root: &str) -> Option<ShellProbe> {
     })
 }
 
+/// #206: a 32-byte attest key for one spawn (64 hex), or `None` without an RNG.
+pub(crate) fn mint_attest_key() -> Option<String> {
+    random_hex(32)
+}
+
 /// Delete a retired probe's info file. The token dies with the struct.
 fn retire_shell_probe(probe: Option<ShellProbe>) {
     if let Some(p) = probe {
@@ -1196,6 +1209,22 @@ fn spawn_record_port(app: &AppHandle, root: String, info_file: PathBuf) {
         for _ in 0..RECORD_PORT_TICKS {
             if let Some(port) = read_shell_port(&info_file) {
                 crate::app_state::record_port(&app, &root, port);
+                // #206 "ready": the registry learns the port — for THIS spawn only (a
+                // respawn has another info file, so an old address never lands on it).
+                let ours = {
+                    let state = app.state::<SidecarState>();
+                    let mut pool = state.instances.lock().unwrap_or_else(|e| e.into_inner());
+                    match pool.get_mut(&root) {
+                        Some(inst) if inst.shell.as_ref().is_some_and(|p| p.info_file == info_file) => {
+                            inst.port = Some(port);
+                            true
+                        }
+                        _ => false,
+                    }
+                };
+                if ours {
+                    crate::cli_registry::publish(&app);
+                }
                 return;
             }
             tokio::time::sleep(Duration::from_millis(250)).await;
@@ -1500,6 +1529,9 @@ pub(crate) fn shutdown_instance(app: &AppHandle, root: &str) {
             inst.child
         })
     };
+    // #206: rest / reap — the entry (and its attest key) leaves the registry before
+    // the SIGTERM grace, and a resting tab is listed as resting.
+    crate::cli_registry::publish(app);
     if let Some(child) = child {
         terminate(child);
     }
@@ -1644,6 +1676,8 @@ pub fn kill_server(app: &AppHandle) {
                 })
                 .collect()
         };
+        // #206: quit — the registry lists no server from here on.
+        crate::cli_registry::publish(app);
         for (root, child) in children {
             log_shutdown(&format!(
                 "[maude] quitting — stopping dev-server for {root}"
@@ -1687,6 +1721,33 @@ mod tests {
             port_ts.contains(&format!("export const PREFERRED_PORT_ENV = '{}';", super::PREFERRED_PORT_ENV)),
             "port.ts reads a different name"
         );
+    }
+
+    // #206 (DDR-250, contract §3) — every project spawn mints its OWN attest key, passes it under
+    // the `MAUDE_SHELL_*` name the server reads (and the agent scrub drops), stores it on the
+    // instance, and publishes the registry; Home is never attestable.
+    #[test]
+    fn project_spawn_mints_a_fresh_attest_key_and_publishes_the_registry() {
+        let src = include_str!("sidecar.rs");
+        let spawn = &src[src.find("pub fn spawn_for(").unwrap()..];
+        let spawn = &spawn[..spawn.find("\n}\n").unwrap()];
+        assert!(spawn.contains("let attest_key = mint_attest_key();"));
+        assert!(spawn.contains(".env(crate::cli_registry::ATTEST_KEY_ENV, k.clone())"));
+        assert!(spawn.contains("entry.attest_key = attest_key;"));
+        assert!(spawn.contains("crate::cli_registry::publish(app);"));
+        assert_eq!(crate::cli_registry::ATTEST_KEY_ENV, "MAUDE_SHELL_ATTEST_KEY");
+        assert!(!include_str!("home.rs").contains("ATTEST_KEY_ENV"), "Home is not attestable");
+        let a = super::mint_attest_key().expect("an RNG on the test machine");
+        let b = super::mint_attest_key().unwrap();
+        assert_eq!(a.len(), 64);
+        assert!(a.bytes().all(|c| c.is_ascii_hexdigit()));
+        assert_ne!(a, b, "a key per spawn");
+        // Every place a child goes away publishes too (reap/rest, crash, quit).
+        let shut = &src[src.find("pub(crate) fn shutdown_instance(").unwrap()..];
+        assert!(shut[..shut.find("\n}\n").unwrap()].contains("crate::cli_registry::publish(app);"));
+        let kill = &src[src.find("pub fn kill_server(").unwrap()..];
+        assert!(kill[..kill.find("\n}\n").unwrap()].contains("crate::cli_registry::publish(app);"));
+        assert!(spawn.contains("inst.attest_key = None;"), "a crashed child's key is dropped");
     }
 
     #[test]
