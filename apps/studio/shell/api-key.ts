@@ -17,8 +17,9 @@
 // trades the key for an HttpOnly session cookie once; a browser opened from the terminal trades a
 // one-time launch token in its opening URL for the same cookie.
 
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
+import { isLoopbackHost } from '../sync/loopback.ts';
 import { isWorkspaceMode } from '../workspace-mode.ts';
 import { isCliRole } from './cli-yield.ts';
 
@@ -132,28 +133,70 @@ export function credentialRouteRefusal(
 
 export const SESSION_PATH = '/_api/shell/session';
 export const LAUNCH_PARAM = 'maude-launch';
-const SESSION_DOMAIN = 'maude-session/1';
 const LAUNCH_DOMAIN = 'maude-launch/1';
 const COOKIE_NAME_DOMAIN = 'maude-cookie-name/1';
 export const LAUNCH_TTL_SEC = 300;
+/** §7.2 — a session not used for this long is gone (the page trades its key or a fresh link again). */
+export const SESSION_IDLE_MS = 12 * 60 * 60 * 1000;
 const LAUNCH_RE = /^(\d{1,12})\.([0-9a-f]{32})\.([0-9a-f]{64})$/;
+const SESSION_VALUE_RE = /^[0-9a-f]{64}$/;
 const MAX_USED_NONCES = 4096;
+const MAX_SESSIONS = 256;
 const SHELL_OWN_CREDENTIAL_RE =
   /^\/_api\/shell\/(status|attest|clip-export|clip-asset|clip-import)$/;
 
 const hmacHex = (key: string, msg: string) => createHmac('sha256', key).update(msg).digest('hex');
+const sha256Hex = (v: string) => createHash('sha256').update(v).digest('hex');
+const noStore = { 'Cache-Control': 'no-store' };
 
-/** The session cookie a key mints; its name is per key, so two servers on 127.0.0.1 never collide. */
-export function sessionCookie(key: string): { name: string; value: string } {
-  return {
-    name: `maude_k_${hmacHex(key, COOKIE_NAME_DOMAIN).slice(0, 12)}`,
-    value: hmacHex(key, SESSION_DOMAIN),
-  };
+/** The session cookie's name: per key, so two servers on 127.0.0.1 never overwrite each other's. */
+export function sessionCookieName(key: string): string {
+  return `maude_k_${hmacHex(key, COOKIE_NAME_DOMAIN).slice(0, 12)}`;
 }
 
-function setCookieHeader(key: string): string {
-  const c = sessionCookie(key);
-  return `${c.name}=${c.value}; Path=/; HttpOnly; SameSite=Strict`;
+/**
+ * §7.2 — the live sessions: sha256(cookie value) → last use (ms). The value is random and held only
+ * in this process (never derived from the key), so a leaked cookie dies with idleness or a restart.
+ */
+export type SessionStore = Map<string, number>;
+const SESSIONS: SessionStore = new Map();
+
+function sessionLive(store: SessionStore, value: string, nowMs: number): boolean {
+  if (!SESSION_VALUE_RE.test(value)) return false;
+  const id = sha256Hex(value);
+  const seen = store.get(id);
+  if (seen === undefined) return false;
+  if (nowMs - seen > SESSION_IDLE_MS) {
+    store.delete(id);
+    return false;
+  }
+  store.set(id, nowMs);
+  return true;
+}
+
+/** A fresh session. Each exchange rotates: the session the caller presented, if any, is dropped. */
+function openSession(store: SessionStore, nowMs: number, replacing: string | null): string {
+  if (replacing) store.delete(sha256Hex(replacing));
+  for (const [id, seen] of store) if (nowMs - seen > SESSION_IDLE_MS) store.delete(id);
+  while (store.size >= MAX_SESSIONS) {
+    let oldest: string | null = null;
+    let at = Number.POSITIVE_INFINITY;
+    for (const [id, seen] of store) {
+      if (seen < at) {
+        at = seen;
+        oldest = id;
+      }
+    }
+    if (oldest === null) break;
+    store.delete(oldest);
+  }
+  const value = randomBytes(32).toString('hex');
+  store.set(sha256Hex(value), nowMs);
+  return value;
+}
+
+function setCookieHeader(key: string, value: string): string {
+  return `${sessionCookieName(key)}=${value}; Path=/; HttpOnly; SameSite=Strict`;
 }
 
 /** A one-time launch token (§7.4): `<ts>.<nonce>.<mac>`. Anyone holding the key can mint one. */
@@ -163,7 +206,9 @@ export function mintLaunchToken(key: string, nowSec = Math.floor(Date.now() / 10
   return `${ts}.${nonce}.${hmacHex(key, `${LAUNCH_DOMAIN}\n${ts}\n${nonce}`)}`;
 }
 
-const USED_NONCES = new Set<string>();
+/** Used launch nonces → the token's own `ts` (unix s). Only an expired entry is ever dropped. */
+export type NonceStore = Map<string, number>;
+const USED_NONCES: NonceStore = new Map();
 
 function cookieValue(req: Request, name: string): string | null {
   const raw = req.headers.get('cookie');
@@ -191,15 +236,73 @@ function isExempt(method: string, pathname: string): boolean {
 }
 
 /**
- * The session cookie, counted only same-origin: the canvas origin is the same host on another port,
- * which a cookie treats as same-site.
+ * §7.8 — routes only the person may call: a browser session on a same-origin request, never the
+ * header key every helper and verb sends. (Spend approval and spend limits depend on the body; their
+ * routes ask `personRequest` themselves, in http.ts.)
  */
-function hasSessionCookie(req: Request, key: string): boolean {
+const PERSON_ONLY: readonly (readonly [string, RegExp])[] = [
+  ['POST', /^\/_api\/git\/push$/],
+  ['POST', /^\/_api\/share\/invites(\/[^/]+\/resend)?$/],
+  ['POST', /^\/_api\/cloud\/(attach|attach\/code|move|signin\/start)$/],
+];
+
+export function isPersonOnlyRoute(method: string, pathname: string): boolean {
+  return PERSON_ONLY.some(([m, re]) => m === method && re.test(pathname));
+}
+
+/**
+ * The session cookie, counted only same-origin: the canvas origin is the same host on another port,
+ * which a cookie treats as same-site. An `Origin` naming another host never rides it either (an
+ * engine that sends no Fetch Metadata). Returns the live value, else null.
+ */
+function sessionCookieOf(
+  req: Request,
+  key: string,
+  store: SessionStore,
+  nowMs: number
+): string | null {
   const site = req.headers.get('sec-fetch-site');
-  if (site && site !== 'same-origin' && site !== 'none') return false;
-  const c = sessionCookie(key);
-  const got = cookieValue(req, c.name);
-  return got !== null && keyMatches(got, c.value);
+  if (site && site !== 'same-origin' && site !== 'none') return null;
+  const origin = req.headers.get('origin');
+  if (origin && !sameHostOrigin(req, origin)) return null;
+  const got = cookieValue(req, sessionCookieName(key));
+  return got !== null && sessionLive(store, got, nowMs) ? got : null;
+}
+
+function loopbackHostHeader(req: Request): boolean {
+  const host = req.headers.get('host');
+  if (!host) return false;
+  try {
+    return isLoopbackHost(new URL(`http://${host}`).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** What authenticated a main-origin request (recorded by the gate, read by `requestCredential`). */
+export type RequestCredential = 'key' | 'session';
+const CREDENTIAL_OF = new WeakMap<Request, RequestCredential>();
+
+/**
+ * §7.3 — the credential the gate saw on this request, on an exempt path too (`/_canvas-shell` mints a
+ * frame capability only for an authenticated caller). null = none, or the gate did not run.
+ */
+export function requestCredential(req: Request): RequestCredential | null {
+  return CREDENTIAL_OF.get(req) ?? null;
+}
+
+/**
+ * §7.8 — is this request the person at the studio page? In required mode: a browser session (the
+ * cookie, never the header key) on a `Sec-Fetch-Site: same-origin` request whose `Origin` is this
+ * server. Outside required mode (phase 1, a cell behind its proxy) the old rule: a browser sends
+ * `Origin` on a write, the CLI never does.
+ */
+export function personRequest(req: Request, opts: { required?: boolean } = {}): boolean {
+  const origin = req.headers.get('origin');
+  if (!(opts.required ?? apiKeyRequired())) return !!origin;
+  if (CREDENTIAL_OF.get(req) !== 'session') return false;
+  if (req.headers.get('sec-fetch-site') !== 'same-origin') return false;
+  return !!origin && sameHostOrigin(req, origin);
 }
 
 function redirectWithoutLaunch(url: URL): Response {
@@ -218,16 +321,25 @@ type GateOpts = {
   key?: string;
   required?: boolean;
   workspace?: boolean;
-  usedNonces?: Set<string>;
+  usedNonces?: NonceStore;
+  sessions?: SessionStore;
   /** unix seconds */
   now?: number;
 };
 
-const noStore = { 'Cache-Control': 'no-store' };
+const plainText = (status: number, text: string) =>
+  new Response(text, {
+    status,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', ...noStore },
+  });
 
-function launchExchange(url: URL, key: string, opts: GateOpts): Response {
-  const used = opts.usedNonces ?? USED_NONCES;
-  const now = opts.now ?? Math.floor(Date.now() / 1000);
+function launchExchange(
+  url: URL,
+  key: string,
+  used: NonceStore,
+  sessions: SessionStore,
+  now: number
+): Response {
   const m = LAUNCH_RE.exec(url.searchParams.get(LAUNCH_PARAM) ?? '');
   const fresh = !!m && now - Number(m[1]) <= LAUNCH_TTL_SEC && Number(m[1]) - now <= 30;
   if (
@@ -236,20 +348,27 @@ function launchExchange(url: URL, key: string, opts: GateOpts): Response {
     used.has(m[2]) ||
     !keyMatches(m[3], hmacHex(key, `${LAUNCH_DOMAIN}\n${m[1]}\n${m[2]}`))
   ) {
-    return new Response(
-      'This Maude link has expired or was already used. Open the project again from Maude, or run `maude design browse`.',
-      { status: 401, headers: { 'Content-Type': 'text/plain; charset=utf-8', ...noStore } }
+    return plainText(
+      401,
+      'This Maude link has expired or was already used. Open the project again from Maude, or run `maude design browse`.'
     );
   }
-  // a cleared nonce is long past its 300 s lifetime by the time 4096 links were opened
-  if (used.size >= MAX_USED_NONCES) used.clear();
-  used.add(m[2]);
+  if (used.size >= MAX_USED_NONCES) {
+    // only a token past its lifetime can be forgotten: a forgotten live one would open twice
+    for (const [nonce, ts] of used) if (now - ts > LAUNCH_TTL_SEC) used.delete(nonce);
+    if (used.size >= MAX_USED_NONCES)
+      return plainText(
+        429,
+        'Too many Maude links were opened at once. Try again in a few minutes.'
+      );
+  }
+  used.set(m[2], Number(m[1]));
   url.searchParams.delete(LAUNCH_PARAM);
   return new Response(null, {
     status: 303,
     headers: {
       Location: `${url.pathname}${url.search}`,
-      'Set-Cookie': setCookieHeader(key),
+      'Set-Cookie': setCookieHeader(key, openSession(sessions, now * 1000, null)),
       'Referrer-Policy': 'no-referrer',
       ...noStore,
     },
@@ -266,6 +385,9 @@ export function mainOriginKeyRefusal(req: Request, opts: GateOpts = {}): Respons
   if (opts.workspace ?? isWorkspaceMode()) return null;
   if (!(opts.required ?? BOOT_REQUIRED)) return null;
   const key = opts.key ?? BOOT_KEY;
+  const sessions = opts.sessions ?? SESSIONS;
+  const now = opts.now ?? Math.floor(Date.now() / 1000);
+  const nowMs = opts.now !== undefined ? opts.now * 1000 : Date.now();
   let url: URL;
   try {
     url = new URL(req.url);
@@ -275,16 +397,18 @@ export function mainOriginKeyRefusal(req: Request, opts: GateOpts = {}): Respons
   const { pathname } = url;
   const method = req.method.toUpperCase();
   const read = method === 'GET' || method === 'HEAD';
+  const launch =
+    read && (pathname === '/' || pathname === '/index.html') && url.searchParams.has(LAUNCH_PARAM);
+  // C7 — the two exchanges answer a loopback Host only: a rebound name never gets a session
+  if ((launch || pathname === SESSION_PATH) && !loopbackHostHeader(req))
+    return refuse(403, 'local request required');
 
-  if (
-    read &&
-    (pathname === '/' || pathname === '/index.html') &&
-    url.searchParams.has(LAUNCH_PARAM)
-  ) {
+  const cookie = sessionCookieOf(req, key, sessions, nowMs);
+  if (launch) {
     // a page that already holds the session (a reload, a helper navigating twice) just drops the
     // parameter — its token stays unspent and unchecked
-    if (hasSessionCookie(req, key)) return redirectWithoutLaunch(url);
-    return launchExchange(url, key, opts);
+    if (cookie) return redirectWithoutLaunch(url);
+    return launchExchange(url, key, opts.usedNonces ?? USED_NONCES, sessions, now);
   }
 
   const presented = presentedKey(req);
@@ -294,12 +418,20 @@ export function mainOriginKeyRefusal(req: Request, opts: GateOpts = {}): Respons
     if (!keyMatches(presented, key)) return refuse(401, 'api-key-invalid');
     return new Response(null, {
       status: 204,
-      headers: { 'Set-Cookie': setCookieHeader(key), ...noStore },
+      headers: {
+        'Set-Cookie': setCookieHeader(key, openSession(sessions, nowMs, cookie)),
+        ...noStore,
+      },
     });
   }
 
+  const keyOk = presented !== null && keyMatches(presented, key);
+  if (keyOk) CREDENTIAL_OF.set(req, 'key');
+  else if (presented === null && cookie) CREDENTIAL_OF.set(req, 'session');
   if (isExempt(method, pathname)) return null;
-  if (presented !== null) return keyMatches(presented, key) ? null : refuse(401, 'api-key-invalid');
-  if (hasSessionCookie(req, key)) return null;
-  return refuse(401, 'api-key-required');
+  if (presented !== null && !keyOk) return refuse(401, 'api-key-invalid');
+  if (!keyOk && !cookie) return refuse(401, 'api-key-required');
+  if (isPersonOnlyRoute(method, pathname) && !personRequest(req, { required: true }))
+    return refuse(403, 'person-only');
+  return null;
 }

@@ -13,7 +13,8 @@ import {
   LAUNCH_PARAM,
   mainOriginKeyRefusal,
   mintLaunchToken,
-  sessionCookie,
+  SESSION_PATH,
+  sessionCookieName,
 } from '../shell/api-key.ts';
 import { removeServerKeyFile, serverKeyDir, writeServerKeyFile } from '../shell/key-file.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
@@ -61,21 +62,36 @@ describe('the key file (pure)', () => {
 describe('a launch link opened twice (a reload, a helper navigating again)', () => {
   const KEY = 'b7'.repeat(32);
   test('with the session cookie: 303 without the parameter, the token left unspent', () => {
-    const used = new Set<string>();
+    const used = new Map<string, number>();
     const tok = mintLaunchToken(KEY);
-    const c = sessionCookie(KEY);
     const r = (cookie?: string) =>
       new Request(`http://127.0.0.1:4400/?canvas=a.tsx&${LAUNCH_PARAM}=${tok}`, {
         headers: { host: '127.0.0.1:4400', ...(cookie ? { cookie } : {}) },
       });
-    const opts = { key: KEY, required: true, workspace: false, usedNonces: used };
-    const again = mainOriginKeyRefusal(r(`${c.name}=${c.value}`), opts);
+    const opts = {
+      key: KEY,
+      required: true,
+      workspace: false,
+      usedNonces: used,
+      sessions: new Map<string, number>(),
+    };
+    const session = mainOriginKeyRefusal(
+      new Request(`http://127.0.0.1:4400${SESSION_PATH}`, {
+        method: 'POST',
+        headers: { host: '127.0.0.1:4400', [API_KEY_HEADER]: KEY },
+      }),
+      opts
+    );
+    const live = (session?.headers.get('set-cookie') ?? '').split(';')[0];
+    const again = mainOriginKeyRefusal(r(live), opts);
     expect(again?.status).toBe(303);
     expect(again?.headers.get('location')).toBe('/?canvas=a.tsx');
     expect(again?.headers.get('set-cookie')).toBeNull();
     expect(used.size).toBe(0);
     // a wrong cookie is no session: the token is checked (and spent) as before
-    expect(mainOriginKeyRefusal(r(`${c.name}=${'0'.repeat(64)}`), opts)?.status).toBe(303);
+    expect(
+      mainOriginKeyRefusal(r(`${sessionCookieName(KEY)}=${'0'.repeat(64)}`), opts)?.status
+    ).toBe(303);
     expect(used.size).toBe(1);
     expect(mainOriginKeyRefusal(r(), opts)?.status).toBe(401);
   });

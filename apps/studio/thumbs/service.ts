@@ -43,6 +43,7 @@ import {
   thumbKey,
   versionLaneHashes,
 } from './keys.ts';
+import { localCaptureUrl } from '../shell/capture-url.ts';
 import { hasThumb, pruneThumbs, readThumb, writeThumb } from './store.ts';
 import { checkJpeg, coverWorthy, jpegSize } from './validate.ts';
 
@@ -559,7 +560,9 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
         {
           op: 'tile',
           // gate-b-c4 — `frame` scopes the capture to the canvas the tile imports (access/frame.ts).
-          url: `${server}/_canvas-shell.html?hide-chrome=1&frame=${encodeURIComponent(job.rel)}`,
+          url: localCaptureUrl(
+            `${server}/_canvas-shell.html?hide-chrome=1&frame=${encodeURIComponent(job.rel)}`
+          ),
           expectOrigin: capture,
           src: `/${designRel}/${job.rel.split('/').map(encodeURIComponent).join('/')}`,
           video: job.video === true,

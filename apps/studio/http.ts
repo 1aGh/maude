@@ -307,7 +307,10 @@ import {
   bootApiKey,
   credentialRouteRefusal,
   mintLaunchToken,
+  personRequest,
+  requestCredential,
 } from './shell/api-key.ts';
+import { setLocalCaptureResolver } from './shell/capture-url.ts';
 import { resolveProfile } from './shell/profile.ts';
 import {
   cacheControlFor,
@@ -6672,7 +6675,9 @@ export function createHttp(
       // The person's answer to a "needs your OK" card. Only the app's page can give it: a browser always
       // sends Origin on a POST, the `maude design generate` verb (curl) never does.
       if (typeof body.approve === 'string' || typeof body.decline === 'string') {
-        if (!req.headers.get('origin'))
+        // sec-loopback-bearer §7.8 — in required mode, the page's own session on a same-origin
+        // request; the header key every helper and verb sends never answers it
+        if (!personRequest(req))
           return Response.json(
             { ok: false, message: 'This is answered in Maude, not from a command.' },
             { status: 403, headers: { 'Cache-Control': 'no-store' } }
@@ -6992,10 +6997,7 @@ export function createHttp(
         });
       // The spend limits on paid generation are the PERSON's: set in Settings (a browser page, which sends
       // Origin), never from a command the AI runs, and only by a session that edits the project.
-      if (
-        'generateSpend' in patch &&
-        (!req.headers.get('origin') || !accessOf(req).can('edit', null))
-      )
+      if ('generateSpend' in patch && (!personRequest(req) || !accessOf(req).can('edit', null)))
         return Response.json(
           {
             error: 'spend-limits-in-settings',
@@ -7532,7 +7534,15 @@ export function createHttp(
         // render (?hide-chrome=1) that still lands here ALWAYS gets the
         // network-locked capture CSP so it can't SSRF/exfil (attacker F1).
         const capture = url.searchParams.get('hide-chrome') === '1';
-        return serveCanvasShell(process.env.MAUDE_CSP_POC === '1', capture, url.searchParams, req);
+        // sec-loopback-bearer §7.3 — the shell is exempt from the key; a caller that sent none gets
+        // the bare shell (nothing about the canvas it names)
+        return serveCanvasShell(
+          process.env.MAUDE_CSP_POC === '1',
+          capture,
+          url.searchParams,
+          req,
+          !authenticatedCaller(req)
+        );
       }
 
       // DDR-150 dogfood — canvas-relative assets alias. A comp's
@@ -7864,7 +7874,24 @@ export function createHttp(
     return site === null || site === 'none' || site === 'same-origin';
   }
 
+  /**
+   * sec-loopback-bearer §7.3 — did this main-origin request carry the key or the page's session? The
+   * shell routes are exempt from the key (every headless capture follows their 307), so the gate only
+   * records what it saw. Outside required mode every caller counts (phase 1).
+   */
+  function authenticatedCaller(req: Request): boolean {
+    return !apiKeyRequired() || requestCredential(req) !== null;
+  }
+
   function captureRedirect(url: URL, req: Request): Response | null {
+    return captureRedirectFor(url, authenticatedCaller(req) && startedByUserAgent(req), req);
+  }
+
+  /**
+   * The 307 to the capture origin. `mint` = the redirect may carry a frame capability for the canvas
+   * the URL names (an authenticated caller the user agent started, or the server itself).
+   */
+  function captureRedirectFor(url: URL, mint: boolean, req?: Request): Response | null {
     if (!ctx.captureOrigin) return null;
     // gate-b-c4 — the capture is a frame too: scoped to the canvas the URL names (a server-minted
     // capability; a URL naming no canvas, or a bad path, goes frame-less and reads nothing).
@@ -7878,8 +7905,9 @@ export function createHttp(
     // gate-b-c4d — minted only for a navigation the user agent or this origin started. Canvas A
     // running in a capture could otherwise `window.open` this URL for canvas B: the popup lands
     // on A's own (capture) origin, A reads `fc` from its `location` and reads B as the owner. Such
-    // a request (`same-site`) still redirects — frame-less, so the capture reads nothing.
-    const fc = rel && startedByUserAgent(req) ? frameCapFor(req, [rel]) : null;
+    // a request (`same-site`) still redirects — frame-less, so the capture reads nothing. So does a
+    // caller with no key on a key-required server (sec-loopback-bearer §7.3).
+    const fc = rel && mint ? frameCapFor(req, [rel]) : null;
     if (fc) search.set(FRAME_PARAM, fc);
     const qs = search.toString();
     return new Response(null, {
@@ -7890,6 +7918,20 @@ export function createHttp(
       },
     });
   }
+
+  // sec-loopback-bearer §7.3 — the server's own headless captures (exporters, thumbnails) open the
+  // capture origin directly: in required mode a child browser carries no key, so the redirect is
+  // resolved here, with the capability minted for the server's own (local) subject.
+  setLocalCaptureResolver((raw) => {
+    if (!apiKeyRequired()) return raw;
+    try {
+      const u = new URL(raw);
+      if (u.pathname !== '/_canvas-shell.html' && u.pathname !== '/_canvas-shell') return raw;
+      return captureRedirectFor(u, true)?.headers.get('Location') ?? raw;
+    } catch {
+      return raw;
+    }
+  });
 
   /** The meta lane of the canvas a `?sha=` shell renders, or null (no sha, no such lane, bad path). */
   async function versionMetaFor(query?: URLSearchParams): Promise<string | null> {
@@ -7934,7 +7976,8 @@ export function createHttp(
     applyCsp: boolean,
     capture: boolean,
     query: URLSearchParams | undefined,
-    req: Request
+    req: Request,
+    bare = false
   ): Promise<Response> {
     // `comment-mount.js` is versioned for the same reason as the studio page's
     // bundle (see `serveIndexHtml`): a fixed URL outlives a release in any
@@ -7963,7 +8006,7 @@ export function createHttp(
     // module is refused to that frame anyway).
     const withInspector = inspect().injectInspector(shellHtml);
     let injected = withInspector;
-    if (shellCanvasVisible(req, query)) {
+    if (!bare && shellCanvasVisible(req, query)) {
       const pastMeta = await versionMetaFor(query);
       injected = injectVersionMeta(
         injectFallbacks(
