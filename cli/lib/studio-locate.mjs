@@ -7,11 +7,18 @@
 // sha256(realpath(root))[:12], http.ts rootIdentity) — a reused port may be another project's.
 // Any failure → null: callers fail open.
 //
-// Leaf module: node built-ins only.
+// #206 T6.3d — the desktop app first (desktop-locate.mjs): while the app runs and its registry names
+// this root as running, ITS attested server is the studio and `_server.json` is never read; a server
+// there that does not attest means no studio (fail closed), not a fallback to the project file.
+//
+// Node built-ins + desktop-locate.mjs (itself a leaf).
 
-import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+
+import { probeDesktop, rootIdentity } from './desktop-locate.mjs';
+
+export { rootIdentity };
 
 export const DESIGN_REL = '.design';
 
@@ -24,17 +31,6 @@ export function findProjectRoot(start) {
     if (up === cur) return null;
     cur = up;
   }
-}
-
-/** http.ts rootIdentity, verbatim. */
-export function rootIdentity(root) {
-  let resolved = root;
-  try {
-    resolved = realpathSync(root);
-  } catch {
-    /* hash what we were told */
-  }
-  return createHash('sha256').update(resolved, 'utf8').digest('hex').slice(0, 12);
 }
 
 /** `{ port, base }` of the studio serving `root`, or null. Never throws. */
@@ -53,6 +49,19 @@ export async function probeStudio(
   root,
   { timeoutMs = 300, attempts = 1, retryDelayMs = 250 } = {}
 ) {
+  const app = await probeDesktop(root, { timeoutMs: Math.max(timeoutMs, 300) });
+  if (app.state === 'unverified') return { state: 'none' };
+  if (app.state === 'running') {
+    const base = `http://127.0.0.1:${app.port}`;
+    let health = null;
+    try {
+      const res = await fetch(`${base}/_health`, { signal: AbortSignal.timeout(timeoutMs) });
+      if (res.ok) health = await res.json();
+    } catch {
+      /* attested already; /_health is only informative here */
+    }
+    return { studio: { port: app.port, base, health, owner: 'app', label: app.label } };
+  }
   let port;
   try {
     const info = JSON.parse(readFileSync(join(root, DESIGN_REL, '_server.json'), 'utf8'));

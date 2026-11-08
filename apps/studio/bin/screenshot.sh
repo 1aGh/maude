@@ -160,6 +160,16 @@ if [ -z "$URL" ]; then
   REPO="${ROOT:-${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
   STATE="$REPO/.design/_server.json"
   ACTIVE_JSON="$REPO/.design/_active.json"
+  # #206 T6.3d — the desktop app's attested server first; a planted _server.json never wins while the app
+  # serves this project (11 = it does, but did not answer the check: stop).
+  if [ -z "$PORT" ]; then
+    . "$(dirname "$0")/_desktop-locate.sh"
+    desktop_port "$REPO" --lease
+    case $? in
+      0) PORT="$DESKTOP_PORT" ;;
+      11) exit 1 ;;
+    esac
+  fi
   if [ -z "$PORT" ] && [ -f "$STATE" ]; then
     if command -v jq >/dev/null 2>&1; then
       PORT=$(jq -r .port "$STATE" 2>/dev/null)
@@ -530,6 +540,13 @@ RELIVE_STATE="$RELIVE_REPO/.design/_server.json"
 RELIVED=0
 
 read_state_port() {
+  # #206 T6.3d — the app's attested server first (a tab can be respawned on another port)
+  . "$(dirname "$0")/_desktop-locate.sh"
+  desktop_port "$RELIVE_REPO"
+  case $? in
+    0) [ -n "$DESKTOP_PORT" ] && { printf '%s\n' "$DESKTOP_PORT"; return 0; } ;;
+    11) return 1 ;;
+  esac
   [ -f "$RELIVE_STATE" ] || return 1
   if command -v jq >/dev/null 2>&1; then
     jq -r .port "$RELIVE_STATE" 2>/dev/null

@@ -57,7 +57,18 @@ emit_static() {
 }
 
 # ---------- server detection ----------
-if [ -z "$PORT" ] && [ -f "$STATE" ]; then
+# #206 T6.3d — the desktop app's attested server first. 11 (the app serves this project but did not answer the
+# check) never falls back to _server.json: the static, browser-free manifest instead.
+APP_UNVERIFIED=0
+if [ -z "$PORT" ]; then
+  . "$SCRIPT_DIR/_desktop-locate.sh"
+  desktop_port "$REPO" --lease
+  case $? in
+    0) PORT="$DESKTOP_PORT" ;;
+    11) APP_UNVERIFIED=1 ;;
+  esac
+fi
+if [ -z "$PORT" ] && [ "$APP_UNVERIFIED" = 0 ] && [ -f "$STATE" ]; then
   if command -v jq >/dev/null 2>&1; then
     PORT=$(jq -r .port "$STATE" 2>/dev/null)
   else
