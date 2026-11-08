@@ -20,9 +20,9 @@ import { join } from 'node:path';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { acceptFromCanvas, C2S_ACTIVE, c2sSpec } from '../bridge/dgn-protocol.ts';
+import { _resetReadOnlyCache } from '../read-only-mode.ts';
 import { ToolPalette } from '../tool-palette.tsx';
 import { ToolProvider } from '../use-tool-mode.tsx';
-import { _resetReadOnlyCache } from '../read-only-mode.ts';
 
 const ORIGIN = 'http://canvas.test';
 const active = { name: 'active' } as unknown as Window;
