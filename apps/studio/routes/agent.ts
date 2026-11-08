@@ -920,7 +920,13 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
         return bad('snapshot is a run snapshot under _runs/');
       const text = readDesignFile(deps, rel);
       if (text === null) return json(404, { error: `no file ${rel}`, code: 'not-found' });
-      const against = typeof b.snapshot === 'string' ? readDesignFile(deps, b.snapshot) : null;
+      let against = typeof b.snapshot === 'string' ? readDesignFile(deps, b.snapshot) : null;
+      // #168 E1: the hook sent the hash of the snapshot bytes it verified. Bytes that differ now were
+      // swapped since: never `against` (the file is then checked as a new one — every finding counts).
+      if (against !== null && typeof b.snapshotSha === 'string' && SHA256_RE.test(b.snapshotSha)) {
+        if (createHash('sha256').update(against, 'utf8').digest('hex') !== b.snapshotSha)
+          against = null;
+      }
       // S3.5 — a sidecar's Present ids are checked against its canvas's artboards.
       const srcRel = rel.endsWith('.meta.json') ? rel.replace(/\.meta\.json$/, '.tsx') : null;
       const src = srcRel ? readDesignFile(deps, srcRel) : null;

@@ -15,6 +15,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { changedArtboards, createAgentRuns } from '../agent-runs.ts';
@@ -251,6 +252,41 @@ describe('POST /_api/agent/* (routes/agent.ts)', () => {
         })
       ).status
     ).toBe(400);
+  });
+
+  test('check: a snapshot whose bytes differ from the hash the hook verified is not used', async () => {
+    const snapDir = join(project, '.design', '_runs', 'sc', 'snap');
+    mkdirSync(snapDir, { recursive: true });
+    // the snapshot as saved is a clean canvas; the file now has a duplicate id the write introduced
+    const saved = CANVAS;
+    const rel = '_runs/sc/snap/t1';
+    writeFileSync(join(snapDir, 't1'), saved);
+    writeFileSync(
+      join(project, '.design', 'ui', 'Dup.tsx'),
+      CANVAS.replace('id="pricing"', 'id="hero"')
+    );
+    const sha = createHash('sha256').update(saved, 'utf8').digest('hex');
+    const ask = (snapshotSha?: string) =>
+      post('/_api/agent/check', {
+        path: 'ui/Dup.tsx',
+        tier: 'fast',
+        strict: true,
+        introduced: true,
+        snapshot: rel,
+        ...(snapshotSha ? { snapshotSha } : {}),
+      });
+    // matching hash → the snapshot is `against`: the duplicate is introduced
+    expect((await ask(sha)).body.ok).toBe(false);
+    // swapped after the hook hashed it, to a copy that already has the finding: refused, and the
+    // file is checked as a new one (every finding counts)
+    writeFileSync(join(snapDir, 't1'), CANVAS.replace('id="pricing"', 'id="hero"'));
+    const swapped = await ask(sha);
+    expect(swapped.body.ok).toBe(false);
+    expect((swapped.body.errors as { code: string }[]).map((e) => e.code)).toEqual([
+      'artboard-duplicate',
+    ]);
+    // no hash sent (an older hook): the copy is trusted and the finding reads as pre-existing
+    expect((await ask()).body.ok).toBe(true);
   });
 
   test('edit/touched maps the change to artboards + lost ids from the pre-edit snapshot', async () => {

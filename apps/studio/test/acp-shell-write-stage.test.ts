@@ -253,6 +253,35 @@ describe('acp / a call that outlives itself keeps its window until the turn ends
       ]);
     }
   });
+  test('#168 E4 — a script FILE that detaches keeps the window too (read from the project)', () => {
+    writeFileSync(
+      join(ROOT, 'go.sh'),
+      '#!/bin/sh\nnohup python3 w.py ui/C.tsx >/dev/null 2>&1 &\n'
+    );
+    mkdirSync(join(ROOT, 'tools'), { recursive: true });
+    writeFileSync(join(ROOT, 'tools', 'w.py'), 'import subprocess\nsubprocess.Popen(["x"])\n');
+    writeFileSync(join(ROOT, 'quiet.sh'), '#!/bin/sh\npython3 w.py ui/C.tsx\n');
+    for (const [id, command, outlives] of [
+      ['h1', 'bash go.sh', true],
+      ['h2', './go.sh', true],
+      ['h3', 'cd tools && python3 w.py ui/C.tsx', true],
+      ['h4', 'bash quiet.sh', false],
+    ] as const) {
+      const calls: Call[] = [];
+      const t = createAgentActivityTracker(mkCtx(calls), ai, `c-${id}`);
+      t.beginTurn?.('cut it', `r_${id}`);
+      shell(t, command, id);
+      done(t, id);
+      expect(windowsOf(calls), id).toEqual(
+        outlives
+          ? [{ call: id, open: true }]
+          : [
+              { call: id, open: true },
+              { call: id, open: false },
+            ]
+      );
+    }
+  });
   test('a call that waits for its process still shuts at its return', () => {
     const calls: Call[] = [];
     const t = createAgentActivityTracker(mkCtx(calls), ai, 'c-fg');
