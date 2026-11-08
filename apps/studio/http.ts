@@ -8312,10 +8312,12 @@ export function createHttp(
    */
   async function annotationOps(req: Request, listener: 'main' | 'canvas'): Promise<Response> {
     if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-    const body = await readJson<{ file?: unknown; actionId?: unknown; ops?: unknown }>(
-      req,
-      MAX_ANNOTATIONS_BYTES + 2048
-    );
+    const body = await readJson<{
+      file?: unknown;
+      actionId?: unknown;
+      ops?: unknown;
+      label?: unknown;
+    }>(req, MAX_ANNOTATIONS_BYTES + 2048);
     if (!body || typeof body.file !== 'string' || !body.file) {
       return new Response('body must include { file, actionId, ops }', { status: 400 });
     }
@@ -8344,6 +8346,8 @@ export function createHttp(
     // only through the vote door (routes/votes.ts → api.applyAnnotationOps in-process).
     const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined, {
       guard: voteDoorOnly,
+      // T7.3b (#113) — a person's gesture in words, untrusted (api.ts cleans it; a run batch drops it)
+      ...(tag.runId === null && typeof body.label === 'string' ? { label: body.label } : {}),
     });
     if (r.refused) {
       return Response.json(

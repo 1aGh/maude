@@ -228,6 +228,11 @@ export interface LaneProposal {
    * this proposal is its inverse (V2-1.5 §5.4), and lands as that edit's undo right behind it.
    */
   undoes?: string;
+  /**
+   * T7.3b (#113) — the person's gesture in words ("Ticked “Write the post”"), the edit's label in
+   * place of the lane's. Untrusted canvas text: the hub link cleans it. A v1 hub stores it as any label.
+   */
+  label?: string;
 }
 
 /** p8-fix-c2 — sends one lane proposal under the id (and dependency) the projection assigned. */
@@ -295,7 +300,7 @@ export interface DocProjection {
   proposeLane(
     lane: ProposalLane,
     value: string,
-    opts?: { baseContent?: string; writeId?: string; stageable?: boolean }
+    opts?: { baseContent?: string; writeId?: string; stageable?: boolean; label?: string }
   ): Promise<ProposalOutcome> | null;
   /**
    * S2.20c — ⌘Z on the person's html edit `undoes` while it waits behind an AI run: put `value`
@@ -926,7 +931,8 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     op?: SourceOp,
     replays = 0,
     undoes?: string,
-    via?: ProposeVia
+    via?: ProposeVia,
+    label?: string
   ): Promise<ProposalOutcome> {
     const link = opts.accepted as AcceptedLaneLink;
     const prior = pending.get(lane);
@@ -1045,6 +1051,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
           ...(writeId ? { writeId } : {}),
           ...(stageable ? { stageable: true } : {}),
           ...(undoes ? { undoes } : {}),
+          ...(label ? { label } : {}),
         });
     return sent.then(settle, (err: unknown) => {
       const code = (err as { code?: unknown })?.code;
@@ -1502,7 +1509,19 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         return Promise.resolve({ status: 'accepted' });
       }
       const base = o?.baseContent ?? (inFlight ? inFlight.lastValue : agreedValue(lane));
-      return submit(lane, value, base, value, o?.writeId, o?.stageable === true);
+      return submit(
+        lane,
+        value,
+        base,
+        value,
+        o?.writeId,
+        o?.stageable === true,
+        undefined,
+        0,
+        undefined,
+        undefined,
+        lane === 'annotations' ? o?.label : undefined
+      );
     },
     proposeVia(lane, value, baseContent, via) {
       if (!acceptedOn() || stopped) return null;

@@ -173,7 +173,7 @@ const api = createApi(ctx, {
   },
   // Phase 8 Task 5 — same bridge for annotations. PUT /_api/annotations writes
   // the SVG blob to disk; we mirror it into the live Y.Map for collab peers.
-  onAnnotationsChanged: (file, svg, writeId, base, recordedWithLanes, contested) => {
+  onAnnotationsChanged: (file, svg, writeId, base, recordedWithLanes, contested, label) => {
     const runtime = ctx.syncControl?.current?.();
     // T-S4.5b — a `run:<id>` batch (gated in http.ts annotationOps) joins its run's stage.
     const runId = runTagOf(writeId);
@@ -201,6 +201,8 @@ const api = createApi(ctx, {
           ...(base !== undefined ? { baseText: base } : {}),
           // T5.2 (#165) — a disk-path batch's contest, as a room's projection carries it.
           ...(contested?.length ? { contested } : {}),
+          // T7.3b (#113) — the gesture in words names the row ⌘Z undoes ("Ticked “…”")
+          ...(label ? { label } : {}),
         });
     if (proposed) {
       void proposed.catch(() => {});
@@ -213,9 +215,9 @@ const api = createApi(ctx, {
   // Code review H1 — the canvas op path goes to a live room's replica, not to a
   // file its debounced flush hasn't caught up with. Accepted mode keeps the
   // disk + proposeLane path: there the hub kernel merges against the base.
-  applyAnnotationOpsLive: (file, ops, actionId, guard) => {
+  applyAnnotationOpsLive: (file, ops, actionId, guard, label) => {
     if (ctx.syncControl?.current?.()?.acceptedMode?.()) return null;
-    return collab?.registry.applyOpsToRoom(api.fileSlug(file), ops, actionId, guard) ?? null;
+    return collab?.registry.applyOpsToRoom(api.fileSlug(file), ops, actionId, guard, label) ?? null;
   },
   // S4.V4 G4 — the reader's half of the same shortcut (the vote door reads its own write back).
   readAnnotationsLive: (file) => {
