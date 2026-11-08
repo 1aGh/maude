@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "design-video",
-  "version": "2.0.8",
+  "version": "2.1.0",
   "description": "Opt-in video for the Maude design plugin — cut raw footage into a directed reel, analyze a clip's picture and sound, author editable Remotion video canvases, generate a video clip from your own provider key, and export an animation to Lottie. Needs the design plugin. Verbs: /design-video:reel /design-video:video-analyze /design-video:to-lottie.",
   "author": {
     "name": "1aGh"

@@ -1,5 +1,19 @@
 # @1agh/maude
 
+## 2.1.0
+
+### Minor Changes
+
+- **Update the `maude` CLI together with the app.** The local studio server now answers only callers that hold its key. An older `maude` CLI (for example a global npm install used in a terminal) gets refused by a newer Maude app's server; a newer CLI works with an older app.
+- Security: a studio server started by the desktop app or by `maude design serve` answers only callers holding its key. The app's own page gets it from the app, a browser opened from the terminal gets a one-time link, and Maude's helpers send it for you. Other programs and web pages on your Mac can no longer drive it. Paying for media, raising spend limits, pushing, sharing and connecting to the cloud need you in the app, never the AI.
+- Spend limits on generated media: about $2 per session and $10 per day, with a confirm above $1 per job, all changeable in Settings › Advanced › Generation spend.
+- Video is its own plugin in a terminal (`design-video`); the app always loads it.
+- Checklists on the canvas; copy and paste artboards and elements between canvases and projects.
+- `maude design` runs reuse the desktop app's server for that checkout and open results as desktop tabs; a folder opened from outside asks once whether to trust it.
+- AI writes are attributed by what each call wrote, not by a time window; undo handles collaborators and the legacy save mode more safely.
+- Overview stills no longer flash back to blank; version pictures load faster.
+- Video export fixes (HEVC, inline SVG, cloud long videos with cancel and progress), Figma import fidelity, comments that stay on their element, the Linux window fix, and many shell and polish fixes (Layers and Inspector now live in View).
+
 ## 1.10.0
 
 ### Minor Changes
