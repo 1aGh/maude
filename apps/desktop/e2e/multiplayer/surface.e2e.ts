@@ -1520,6 +1520,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L18.css-undo.own-value', from.name, async () => {
           if (from.name === 'hub') return CELL_NO_PERSONAL_UNDO;
           const rel = 'ui/SurfaceText.tsx';
+          // The previous row's teammate still has the heading selected, and a selection held by someone
+          // else keeps the fields closed ("… is editing … the fields open when they move on"). They move on.
+          for (const p of all) {
+            if (p === from || (await p.read('[aria-label="Clear selection"]')) === null) continue;
+            await p.click('[aria-label="Clear selection"]');
+            await until(async () => (await p.read('[aria-label="Clear selection"]')) === null);
+          }
           await selectHeading(from);
           const before = WEIGHTS.find((v) => weightIn(from, rel, v)) ?? null;
           const next = before === '500' ? '600' : '500';
@@ -7857,6 +7864,21 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                     fontWeight: await inspectedWeight(p),
                     expected: '400',
                     reselectedAfterRestore: false,
+                    // what the canvas last told this shell about the selection (its source-authored and
+                    // computed weight): stale here ⇒ the canvas re-posted old styles; fresh ⇒ the Inspector
+                    // kept an old value
+                    lastSelectSet: await p
+                      .shell(`(() => {
+                        const t = window.__maudeSelectionPreparationTrace || [];
+                        for (let i = t.length - 1; i >= 0; i--) if (t[i].kind === 'select-set') {
+                          const s = t[i].selection || {};
+                          return { at: t[i].at, text: String(s.text ?? '').slice(0, 40),
+                            authored: s.authored ?? null, declared: s.declared ?? null,
+                            computedWeight: s.computed?.['font-weight'] ?? null };
+                        }
+                        return null;
+                      })()`)
+                      .catch((e) => String(e)),
                   }))
               ),
             };
