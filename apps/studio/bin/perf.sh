@@ -164,14 +164,9 @@ DESIGN_ROOT="$REPO/.design"
 STATE="$DESIGN_ROOT/_server.json"
 # #206 T6.3d — the desktop app's attested server first; _server.json only when the app does not serve it.
 . "$(dirname "$0")/_desktop-locate.sh"
-# sec-loopback-bearer §7.4 — a one-time opening link reaches a probe through a 0600 file it reads and
-# deletes, never its argv (`ps` shows argv to every process of this user)
-launch_file() {
-  local f
-  f=$(mktemp "${TMPDIR:-/tmp}/maude-launch.XXXXXX") || return 1
-  studio_launch_url "$REPO" "$PORT" > "$f"
-  printf '%s' "$f"
-}
+# sec-loopback-bearer §7.4–7.5 (re-check A) — a one-time opening link reaches a probe on an inherited
+# pipe (`--launch-fd 3 3< <(studio_launch_url …)`): never its argv (`ps` shows argv to every process of
+# this user) and never a file ($TMPDIR is the AI chat's own scratch folder, which the agent reads).
 PORT=""
 desktop_port "$REPO" --lease
 case $? in
@@ -298,11 +293,11 @@ if [ "$OPEN_LOAD" = "1" ]; then
   [ "$PROBE_ENGINE" = "safari" ] && OPEN_ENGINE="webkit"
   echo "→ perf --open-load: $REL_FULL | port: $PORT | engine: $OPEN_ENGINE" >&2
   # sec-loopback-bearer §7.4 — the studio page needs a session: the probe opens a one-time link first
-  ARGS=(--url "http://localhost:${PORT}/" --launch-file "$(launch_file)" --open "${REL_FULL#"$DESIGN_REL"/}" --engine "$OPEN_ENGINE" --timeout "$TIMEOUT")
+  ARGS=(--url "http://localhost:${PORT}/" --launch-fd 3 --open "${REL_FULL#"$DESIGN_REL"/}" --engine "$OPEN_ENGINE" --timeout "$TIMEOUT")
   [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
   [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
   [ "$JSON" = "1" ] && ARGS+=(--json)
-  exec node "$SCRIPT_DIR/_perf-probe-open.mjs" "${ARGS[@]}"
+  exec node "$SCRIPT_DIR/_perf-probe-open.mjs" "${ARGS[@]}" 3< <(studio_launch_url "$REPO" "$PORT")
 fi
 
 if [ "$PROBE_ENGINE" = "safari" ]; then
@@ -329,7 +324,7 @@ if [ "$PROBE_ENGINE" = "safari" ]; then
   echo "→ perf: $REL_FULL | port: $PORT | engine: webkit-safari${STUDIO:+ | studio}" >&2
   ARGS=(--url "$PROBE_URL" --label "$REL_FULL$([ "$STUDIO" = "1" ] && echo " (studio)")" --history "$HISTORY"
         --timeout "$TIMEOUT" --pan "$PAN" --zoom "$ZOOM" --repeat "$REPEAT")
-  [ "$STUDIO" = "1" ] && ARGS+=(--studio "$SLUG" --launch-file "$(launch_file)")
+  [ "$STUDIO" = "1" ] && ARGS+=(--studio "$SLUG" --launch-fd 3)
   [ "$FIT_ALL" = "1" ] && ARGS+=(--fit-all)
   [ "$JSON" = "1" ] && ARGS+=(--json)
   [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
@@ -338,6 +333,9 @@ if [ "$PROBE_ENGINE" = "safari" ]; then
   [ -n "$VARIANT" ] && ARGS+=(--variant "$VARIANT")
   [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
   [ "$STUDIO" = "1" ] && ARGS+=(--open "${REL_FULL#"$DESIGN_REL"/}")
+  if [ "$STUDIO" = "1" ]; then
+    exec "$JS_RUNTIME" "$SCRIPT_DIR/_perf-probe-safari.mjs" "${ARGS[@]}" 3< <(studio_launch_url "$REPO" "$PORT")
+  fi
   exec "$JS_RUNTIME" "$SCRIPT_DIR/_perf-probe-safari.mjs" "${ARGS[@]}"
 fi
 
@@ -349,7 +347,7 @@ if [ "$PROBE_ENGINE" = "chromium" ] && [ "$STUDIO" = "1" ]; then
     | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
   ENGINE_TAG="${MAUDE_PERF_ENGINE_TAG:-blink-studio}"
   echo "→ perf: $REL_FULL | port: $PORT | engine: $ENGINE_TAG" >&2
-  ARGS=(--url "http://localhost:${PORT}/" --launch-file "$(launch_file)" --studio "$SLUG" --label "$REL_FULL" --history "$HISTORY"
+  ARGS=(--url "http://localhost:${PORT}/" --launch-fd 3 --studio "$SLUG" --label "$REL_FULL" --history "$HISTORY"
         --engine-tag "$ENGINE_TAG" --timeout "$TIMEOUT" --pan "$PAN" --zoom "$ZOOM" --repeat "$REPEAT")
   [ "$FIT_ALL" = "1" ] && ARGS+=(--fit-all)
   [ "$JSON" = "1" ] && ARGS+=(--json)
@@ -358,7 +356,7 @@ if [ "$PROBE_ENGINE" = "chromium" ] && [ "$STUDIO" = "1" ]; then
   [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
   # a canvas the Canvases panel does not list (the Design system canvas under system/) opens by its path
   ARGS+=(--open "${REL_FULL#"$DESIGN_REL"/}")
-  exec node "$SCRIPT_DIR/_perf-probe-studio.mjs" "${ARGS[@]}"
+  exec node "$SCRIPT_DIR/_perf-probe-studio.mjs" "${ARGS[@]}" 3< <(studio_launch_url "$REPO" "$PORT")
 fi
 
 AB="${MAUDE_AGENT_BROWSER:-agent-browser}"

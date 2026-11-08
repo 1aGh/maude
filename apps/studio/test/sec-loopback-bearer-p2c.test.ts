@@ -166,18 +166,18 @@ describe('the used-nonce store (pure)', () => {
 
 describe('a one-time opening link never rides argv (static)', () => {
   const read = (rel: string) => readFileSync(join(import.meta.dir, '..', rel), 'utf8');
-  test('the bug-report shell capture hands screenshot.sh a 0600 file, not --url', () => {
+  test('the bug-report shell capture hands screenshot.sh a private link file, not --url', () => {
     const http = read('http.ts');
     expect(http).not.toMatch(/'--url',\s*`http:\/\/localhost:\$\{port\}\/\?maude-launch=/);
     expect(http).toContain("target = ['--url-file', linkFile]");
-    expect(read('bin/screenshot.sh')).toMatch(
-      /--url-file\) URL="\$\(head -n1 "\$2"[^\n]*rm -f "\$2"/
-    );
+    expect(http).toContain('linkFile = writeLinkFile(');
+    // re-check A: screenshot.sh takes only a file from the server's link folder (sec-loopback-bearer-p2d)
+    expect(read('bin/screenshot.sh')).toContain('URL="$(maude_take_link_file "$2")" || exit 2');
   });
-  test('perf.sh hands its probes a file, never --launch <token>', () => {
+  test('perf.sh hands its probes a pipe, never --launch <token> or a file', () => {
     const perf = read('bin/perf.sh');
     expect(perf).not.toContain('--launch "$(studio_launch_url');
-    expect(perf).toContain('--launch-file "$(launch_file)"');
+    expect(perf).not.toContain('--launch-file');
   });
 });
 

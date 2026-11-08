@@ -50,6 +50,11 @@
 MODE=""
 SEL=""
 URL=""
+# sec-loopback-bearer §7.5 — set only when the URL is a link this script minted or the server handed it
+# (never one from --url): only then may it carry a one-time opening link, in a browser session of its own
+LAUNCH_OK=""
+# re-check F — the capture path, so a port bounce asks the new server for its own capture URL
+CAPTURE_REL=""
 PORT=""
 OUT=""
 OUT_DIR=""
@@ -75,10 +80,14 @@ while [ $# -gt 0 ]; do
     --shell)    MODE="shell"; shift ;;
     --canvas)   CANVAS_SET=1; ACTIVE="$2"; shift 2 ;;
     --all-screens) ALL_SCREENS=1; shift ;;
-    --url)      URL="$2"; shift 2 ;;
-    # sec-loopback-bearer §7.4 — the URL from a 0600 file (a one-time opening link never rides argv);
-    # read once and deleted
-    --url-file) URL="$(head -n1 "$2" 2>/dev/null)"; rm -f "$2"; shift 2 ;;
+    --url)      URL="$2"; LAUNCH_OK=""; shift 2 ;;
+    # sec-loopback-bearer §7.4–7.5 — the server's link (a one-time opening link never rides argv): only
+    # a file in the server's private folder is read (once) and removed; any other path is refused
+    # untouched (_url-guard.mjs `takeLinkFile`)
+    --url-file)
+      . "$(dirname "$0")/_url-guard.sh"
+      URL="$(maude_take_link_file "$2")" || exit 2
+      LAUNCH_OK=1; shift 2 ;;
     --port)     PORT="$2"; shift 2 ;;
     --out)      OUT="$2"; shift 2 ;;
     --out-dir)  OUT_DIR="$2"; shift 2 ;;
@@ -194,6 +203,7 @@ if [ -z "$URL" ]; then
     # needs no key: the plain URL). Canvas captures below go to the capture origin through the 307.
     . "$(dirname "$0")/_desktop-locate.sh"
     URL="$(studio_launch_url "$REPO" "$PORT")"
+    LAUNCH_OK=1
   else
     [ -z "$ACTIVE" ] && { echo "screenshot.sh: no active canvas in _active.json (open one in browser first)" >&2; exit 1; }
 
@@ -205,7 +215,8 @@ if [ -z "$URL" ]; then
     # split-on and legacy same-origin modes).
     # sec-loopback-bearer §7.3 — asked with the key, so the capture gets its frame capability
     . "$(dirname "$0")/_desktop-locate.sh"
-    URL="$(studio_capture_url "$REPO" "$PORT" "/_canvas-shell.html?canvas=${ACTIVE_ENC}")"
+    CAPTURE_REL="/_canvas-shell.html?canvas=${ACTIVE_ENC}"
+    URL="$(studio_capture_url "$REPO" "$PORT" "$CAPTURE_REL")"
   fi
 fi
 
@@ -220,7 +231,7 @@ fi
 
 # V2-8.9 B2 — whatever the URL came from (--url, --port, _server.json), only http(s) to this Mac:
 # never file://, never another host (_url-guard.mjs). Checked before any browser starts.
-. "$(dirname "$0")/_url-guard.sh" && maude_url_guard "$URL" || exit 2
+. "$(dirname "$0")/_url-guard.sh" && maude_url_guard ${LAUNCH_OK:+--launch-ok} "$URL" || exit 2
 
 # The file-tree row testid the client stamps (app.jsx `pathTestIdSlug`):
 # designRoot dot-folder stripped, extension stripped, non-alphanumerics folded
@@ -260,6 +271,12 @@ AB="${MAUDE_AGENT_BROWSER:-agent-browser}"
 # closes the session it STARTED (_ab-park.sh, which also waits for the daemon's socket to go so
 # the next capture on the same name starts a fresh one); a session that was already running (the
 # agent's own browsing) is parked on about:blank and left running (p8-fix-a F6).
+# sec-loopback-bearer §7.5 (re-check C) — a capture that redeems an opening link does it in a session
+# of its own, never one the caller named: a random name nobody else holds, started here and so closed
+# on exit (_ab-park.sh) — the studio session never outlives the capture in anyone's browser.
+if [ -n "$LAUNCH_OK" ] && [[ "$URL" == *maude-launch* ]]; then
+  export AGENT_BROWSER_SESSION="maude-shot-$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')"
+fi
 if [ "$MODE" = "shell" ] && [ -z "$AGENT_BROWSER_SESSION" ]; then
   export AGENT_BROWSER_SESSION="maude-shell-shot"
 fi
@@ -281,7 +298,7 @@ fi
 # chrome-headless-shell, resolved (desktop: provisioned once) by _ab-headless.sh — canvas-rects.sh uses the same.
 ab_headless_browser
 # A log line never carries a one-time opening link or a frame capability (stderr reaches the AI chat).
-shown_url() { printf '%s' "$1" | sed -E 's/(maude-launch|fc)=[^&]*/\1=…/g'; }
+shown_url() { maude_redact "$1"; }
 echo "→ screenshot engine: $ENGINE | url: $(shown_url "$URL")" >&2
 
 # ---------- engine: agent-browser ----------
@@ -461,7 +478,8 @@ navigate_once() {
     # ignoring this exit code turns "the server is down" into "here is your
     # screenshot" — which for the Report-a-Bug shell shot means a blank image
     # labelled "Maude window" lands in someone's bug report.
-    if ! "$AB" open "$URL" >&2; then
+    # its own output can echo the URL (an opening link, a frame capability): never to stderr
+    if ! "$AB" open "$URL" >/dev/null 2>&1; then
       echo "✗ navigation failed: $(shown_url "$URL")" >&2
       return 1
     fi
@@ -578,6 +596,9 @@ relive_url() {
     if [ "$MODE" = "shell" ]; then
       # a launch token is for the server that minted it: ask the new one for its own
       URL="$(studio_launch_url "$RELIVE_REPO" "$new")"
+    elif [ -n "$CAPTURE_REL" ]; then
+      # re-check F — the capture URL names the old server's capture origin and capability: ask the new one
+      URL="$(studio_capture_url "$RELIVE_REPO" "$new" "$CAPTURE_REL")"
     else
       URL=$(printf '%s' "$URL" | sed -E "s#(://[^:/]+:)[0-9]+#\1${new}#")
     fi

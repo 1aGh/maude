@@ -12,7 +12,8 @@
 // Only the CLI reads it (cli/lib/desktop-locate.mjs `terminalKeyFor`), and only for a port the
 // project's own `/_health` check already tied to this root.
 
-import { chmodSync, lstatSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { chmodSync, lstatSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 
@@ -73,5 +74,35 @@ export function removeServerKeyFile(path: string | null, pid = process.pid): voi
     if (rec.pid === pid) unlinkSync(path);
   } catch {
     /* gone already, or not ours */
+  }
+}
+
+/**
+ * re-check A/C — `<state>/maude/servers/links`: where the server leaves a one-time opening link for a
+ * capture helper it spawns (the bug-report shell capture → `screenshot.sh --url-file`). Inside the key
+ * folder the AI chat's Read is denied (`credentialDenyRules`), so the link never sits in a folder the
+ * agent reads; the helper takes only a file from here (bin/_url-guard.mjs `takeLinkFile`).
+ */
+export function serverLinkDir(env: Record<string, string | undefined> = process.env): string {
+  return join(serverKeyDir(env), 'links');
+}
+
+/** Write `url` to a fresh `<serverLinkDir>/<32 hex>.url` (0600, 0700 folder); its path, or null. */
+export function writeLinkFile(
+  url: string,
+  env: Record<string, string | undefined> = process.env
+): string | null {
+  const dir = serverLinkDir(env);
+  try {
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const st = lstatSync(dir);
+    const uid = typeof process.getuid === 'function' ? process.getuid() : null;
+    if (!st.isDirectory() || (uid !== null && st.uid !== uid)) return null;
+    if ((st.mode & 0o077) !== 0) chmodSync(dir, 0o700);
+    const path = join(dir, `${randomBytes(16).toString('hex')}.url`);
+    writeFileSync(path, `${url}\n`, { mode: 0o600, flag: 'wx' });
+    return path;
+  } catch {
+    return null;
   }
 }

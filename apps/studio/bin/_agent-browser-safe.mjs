@@ -200,22 +200,9 @@ export function validateArgv(argv) {
   // V2-8.9 B2 — `--allowed-domains` names hosts, so it never stopped `file://` (no host at all):
   // `open file:///…/.ssh/id_ed25519` + `get text body` read any file. Only http(s) to this Mac.
   // (`screenshot <path>` is confined to the project / temp dir by the dispatcher, cli design.mjs.)
-  if (sub === 'open') {
-    const why = urlRefusal(rest[0]);
-    if (why) return why;
-    // sec-loopback-bearer §7.5 — a one-time opening link is the person's: it opens a full studio
-    // session, which the AI's browser must never hold (encoded forms included)
-    let raw = String(rest[0]);
-    for (let i = 0; i < 3; i++) {
-      try {
-        raw = decodeURIComponent(raw);
-      } catch {
-        break;
-      }
-    }
-    if (/maude-launch/i.test(raw))
-      return "a Maude opening link (maude-launch) is for the person's own browser, never this one";
-  }
+  // sec-loopback-bearer §7.5 — urlRefusal also refuses a one-time opening link in any encoding
+  // (_url-guard.mjs `launchRefusal`): the AI's browser never holds a studio session.
+  if (sub === 'open') return urlRefusal(rest[0]);
   return null;
 }
 

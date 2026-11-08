@@ -25,8 +25,8 @@
 //          [--shot <png>] [--shot-mid <png>] [--json]
 // Exit: 0 measured / 1 failed / 2 bad args.
 
-import { readFileSync, unlinkSync } from 'node:fs';
 import { launchChromium, launchWebkit } from './_pw-launch.mjs';
+import { readLaunchFd } from './_url-guard.mjs';
 
 function parseArgs(argv) {
   const o = {
@@ -50,7 +50,7 @@ function parseArgs(argv) {
     const v = () => argv[++i];
     if (a === '--url') o.url = v();
     else if (a === '--launch') o.launch = v();
-    else if (a === '--launch-file') o.launch = readLaunchFile(v());
+    else if (a === '--launch-fd') o.launch = readLaunchFd(v());
     else if (a === '--open') o.open = v();
     else if (a === '--engine') o.engine = v();
     else if (a === '--window') o.window = v();
@@ -368,17 +368,3 @@ main().catch((err) => {
   console.error(`_perf-probe-open.mjs: ${err.message}`);
   process.exit(1);
 });
-
-/** sec-loopback-bearer §7.4 — the opening link, from the 0600 file perf.sh wrote; read once, deleted. */
-function readLaunchFile(p) {
-  try {
-    const url = readFileSync(p, 'utf8').split('\n')[0].trim();
-    return url;
-  } catch {
-    return '';
-  } finally {
-    try {
-      unlinkSync(p);
-    } catch {}
-  }
-}
