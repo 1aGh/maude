@@ -30,9 +30,13 @@ maude design history name ui/home.tsx r11 "Before the pricing change"   # a name
   run would wipe that save, so you never restore the whole canvas for this. Take back what the run did instead:
 
   ```sh
-  maude design history undo --chat "$MAUDE_CHAT_ID"   # every action of this conversation, as ONE new version; the person's saves stay
   maude design history undo --action <id>             # one action (the id: `history show <ref>`)
+  maude design history undo --chat "$MAUDE_CHAT_ID"   # every action of this conversation on EVERY canvas, as ONE new version; the person's saves stay
   ```
+
+  "Undo that" about one canvas is `--action`: undo that canvas's actions from this conversation, newest first.
+  `--chat` also takes back what you changed on every other canvas, so ask the person before you run `--chat`
+  unless they asked for everything this conversation did.
 
   Outside a Maude chat there is no `$MAUDE_CHAT_ID`: read what the run changed, then undo its actions one by one.
 
