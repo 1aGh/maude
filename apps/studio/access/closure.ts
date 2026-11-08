@@ -1048,6 +1048,45 @@ function walkImports(
   return { visited, refused, missing, blocked: blocked || refused.size > 0 };
 }
 
+/** #122 (122-A) — `importAllowed`'s answer: why a would-be import is refused, and the canvases it would inline. */
+export type ImportVerdict =
+  | { ok: true }
+  | { ok: false; why: 'canvas' | 'missing' | 'blocked'; canvases: string[] };
+
+/**
+ * A design-root listing that answers `has` by reading (a paste checks one import, never lists the project);
+ * it iterates as empty. An own `has` on a plain Set: no class syntax the hub's strip-only TypeScript lacks.
+ */
+const readableFiles = (probe: (rel: string) => boolean): ReadonlySet<string> =>
+  Object.assign(new Set<string>(), { has: probe });
+
+/**
+ * #122 (122-A) — may a canvas at `fromRel` gain `import … from spec`? The C4 import walk's own rule (`walkImports`:
+ * an importable extension, not a canvas, nothing under a `_` runtime folder, every import resolving, transitively)
+ * applied to that ONE import — the would-be text, never the disk's copy of `fromRel` and never its other imports
+ * (a paste is refused for what it adds, not for what the target already had). A bare / virtual specifier is not
+ * walked (`@maude/canvas-lib`, `react`): allowed. A reader with no listing errs to "canvas" like every partial
+ * listing (`listTruncated`), so the same-name owner rule never admits a stylesheet here.
+ */
+export function importAllowed(
+  spec: string,
+  fromRel: string,
+  project: { text(rel: string): string | null },
+  config?: ClosureConfig
+): ImportVerdict {
+  if (!spec.startsWith('.')) return { ok: true };
+  if (/['"\\\n`]/.test(spec)) return { ok: false, why: 'blocked', canvases: [] };
+  const probe = `import '${spec}';\n`;
+  const text = (rel: string): string | null => (rel === fromRel ? probe : project.text(rel));
+  const reader: ProjectReader = { list: () => [], text, head: () => '' };
+  const files = readableFiles((rel) => text(rel) !== null);
+  const cfg = config ?? closureConfigOf(readJsonObject(reader, 'config.json'));
+  const walk = walkImports(walkEnv(reader, files, cfg), fromRel, new Set([fromRel]));
+  if (walk.refused.size) return { ok: false, why: 'canvas', canvases: [...walk.refused].sort() };
+  if (walk.missing.size) return { ok: false, why: 'missing', canvases: [] };
+  return walk.blocked ? { ok: false, why: 'blocked', canvases: [] } : { ok: true };
+}
+
 /**
  * gate-b-c4j — per canvas, the other canvases its import walk refuses (sorted; a canvas importing
  * none is absent): a frame on it renders none of them, so its module is refused. What the shell

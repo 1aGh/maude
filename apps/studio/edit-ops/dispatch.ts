@@ -345,6 +345,8 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
         params: req.params ?? {},
         // V2-8.9 L1: a copy keeps its text on the requester's own shelf
         ...(deps.clipScope ? { clipScope: deps.clipScope } : {}),
+        // #122: a copy resolves the imports it carries
+        readFile: deps.read,
       });
     } catch (e) {
       if (e instanceof CanvasEditError) return refuse('invalid', e.message);
@@ -424,6 +426,8 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
       ...(deps.exists ? { exists: deps.exists } : {}),
       ...(deps.ctx ? { ctx: deps.ctx(rel) } : {}),
       ...(deps.clipScope ? { clipScope: deps.clipScope } : {}),
+      // #122: a cross-canvas paste checks every import it adds against the C4 import rule
+      readFile: deps.read,
     });
   } catch (e) {
     if (e instanceof CanvasEditError) return refuse('invalid', e.message);

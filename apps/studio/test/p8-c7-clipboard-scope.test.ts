@@ -94,7 +94,7 @@ beforeEach(() => _resetClips());
 
 describe('needsOf / scopeAt', () => {
   const at = (needle: string) => SRC.indexOf(needle);
-  test('a range reads what its component declares: a parameter, a local const, a module helper', () => {
+  test('a range needs what its component declares: a parameter, a local const (a module name is carried, #122)', () => {
     const range = (id: string) => {
       const from = SRC.lastIndexOf('<', SRC.indexOf(`data-cd-id="${id}"`));
       const to = SRC.indexOf('\n', from);
@@ -102,7 +102,8 @@ describe('needsOf / scopeAt', () => {
     };
     expect(needsOf(SRC, ...range('reads-title'))).toEqual(['title']);
     expect(needsOf(SRC, ...range('reads-label'))).toEqual(['label']);
-    expect(needsOf(SRC, ...range('reads-accent'))).toEqual(['accent']);
+    // #122 (122-A): `accent` is a module-level const — the clip carries it (clip-carry.ts), so it is no need
+    expect(needsOf(SRC, ...range('reads-accent'))).toEqual([]);
     expect(needsOf(SRC, ...range('plain'))).toEqual([]);
     // a callback's own parameter and a property name are not reads of the component
     expect(needsOf(SRC, ...range('own-names'))).toEqual(['items']);
