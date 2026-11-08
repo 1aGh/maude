@@ -21,6 +21,7 @@ afterAll(() => GlobalRegistrator.unregister());
 import {
   isArtboardSelectionOf,
   RESTORE_LEAD_MS,
+  renameKey,
   restoreAfterLoad,
   restorePostOf,
   shellSelectionOf,
@@ -207,8 +208,8 @@ describe('S2.24 G2 — the restore reads the selection when it FIRES, not when t
 });
 
 describe('S2.25 G1 — a write that names the selected text moves the selection with it', () => {
-  test('restorePostOf follows a rename (artboard + old id → new id) and leaves the rest alone', () => {
-    const renames = new Map([['a1\u0000aaaaaaaa', 'jedeme-v-zelenem']]);
+  test('restorePostOf follows a rename (canvas + artboard + old id → new id) and leaves the rest alone', () => {
+    const renames = new Map([[renameKey(FILE, 'a1', 'aaaaaaaa'), 'jedeme-v-zelenem']]);
     expect(restorePostOf(el('aaaaaaaa'), FILE, renames)).toEqual({
       dgn: 'select-by-id',
       id: 'jedeme-v-zelenem',
@@ -224,6 +225,14 @@ describe('S2.25 G1 — a write that names the selected text moves the selection 
     expect(restorePostOf(board('laptop'), FILE, renames)).toEqual({
       dgn: 'select-by-id',
       artboardId: 'laptop',
+    });
+    // another canvas built alike shares the content-hash id; the name was written on FILE only
+    const other = FILE.replace('Site', 'Other');
+    expect(restorePostOf({ ...el('aaaaaaaa'), file: other }, other, renames)).toEqual({
+      dgn: 'select-by-id',
+      id: 'aaaaaaaa',
+      artboardId: 'a1',
+      index: 0,
     });
   });
 });

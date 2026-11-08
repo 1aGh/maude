@@ -149,22 +149,29 @@ export function restoreAfterLoad(selected, file) {
 /**
  * S2.25 G1 — the key a rename is kept under: a write may give a text an authored name (`data-cd-id="jedeme-v-zelenem"`
  * for what was the content-hash id `42612cfe`), after which the id the shell holds names nothing in the canvas.
+ * Keyed by the CANVAS too: content-hash ids are structural, so two canvases built alike share them, and a name
+ * written on one canvas sent every later restore on the other to an id it does not have — the canvas resolved
+ * nothing, never re-sent its selection, and the inspector kept the values from before a teammate's restore
+ * (surface rows L18.history.preview-restore, 2026-11-08).
  */
-export const renameKey = (artboardId, id) => `${artboardId ?? ''}\u0000${id}`;
-/** The id `id` was renamed to by a write, or `id` itself. */
-const renamedId = (renames, artboardId, id) => renames?.get(renameKey(artboardId, id)) ?? id;
+export const renameKey = (file, artboardId, id) =>
+  `${file ?? ''}\u0000${artboardId ?? ''}\u0000${id}`;
+/** The id `id` on `file` was renamed to by a write, or `id` itself. */
+const renamedId = (renames, file, artboardId, id) =>
+  renames?.get(renameKey(file, artboardId, id)) ?? id;
 
 /**
- * S2.25 G1 — what a successful edit-op renamed: its `targets` against the `refs` it answered with ("the targets as
- * written: same order, every element an authored id"), as `[renameKey, newId]` pairs. Only the ids that differ.
+ * S2.25 G1 — what a successful edit-op on `file` renamed: its `targets` against the `refs` it answered with ("the
+ * targets as written: same order, every element an authored id"), as `[renameKey, newId]` pairs. Only the ids
+ * that differ.
  */
-export function renamesOf(targets, refs) {
+export function renamesOf(file, targets, refs) {
   const out = [];
-  if (!Array.isArray(targets) || !Array.isArray(refs)) return out;
+  if (!file || !Array.isArray(targets) || !Array.isArray(refs)) return out;
   targets.forEach((t, i) => {
     const r = refs[i];
     if (t?.element && r?.element && t.element !== r.element)
-      out.push([renameKey(t.artboard, t.element), r.element]);
+      out.push([renameKey(file, t.artboard, t.element), r.element]);
   });
   return out;
 }
@@ -183,7 +190,7 @@ export function restorePostOf(selected, file, renames, now = Date.now()) {
   }
   return {
     dgn: 'select-by-id',
-    id: renamedId(renames, back.sel.artboardId, back.sel.id),
+    id: renamedId(renames, file, back.sel.artboardId, back.sel.id),
     artboardId: back.sel.artboardId ?? null,
     index: back.sel.index ?? 0,
   };

@@ -653,7 +653,8 @@ export function useCanvasBridge({
                     // content-hash id) leaves the id the shell holds naming nothing: follow it to the new one.
                     const map = renamedIdsRef.current;
                     if (map.size > 64) map.clear();
-                    for (const [k, v] of renamesOf(body.targets, result.refs)) map.set(k, v);
+                    for (const [k, v] of renamesOf(body.file, body.targets, result.refs))
+                      map.set(k, v);
                     restoreSelectionOn(body.file, RESTORE_LEAD_MS);
                   }
                 })
