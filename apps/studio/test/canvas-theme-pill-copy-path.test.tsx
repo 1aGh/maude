@@ -14,8 +14,14 @@ const STUDIO = join(import.meta.dir, '..');
 
 describe('the pill asks, it never copies', () => {
   let root: { unmount(): void } | null = null;
-  afterEach(() => {
-    root?.unmount();
+  // Unmount inside act: React 19 schedules the commit's passive-effect flush on the scheduler, and an unmount
+  // outside act leaves that task to fire after `afterAll` removed the happy-dom window (`window is not defined`,
+  // an unhandled error between tests that fails the CI shard).
+  afterEach(async () => {
+    const { act } = await import('react');
+    await act(async () => {
+      root?.unmount();
+    });
     root = null;
     document.body.innerHTML = '';
   });
