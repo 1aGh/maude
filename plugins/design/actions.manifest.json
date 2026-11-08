@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "89ff79ca7c2d",
+  "manifestVersion": "e44adfc715fe",
   "actions": [
     {
       "id": "search.open",
@@ -5070,6 +5070,119 @@
     {
       "id": "annotation.ask-ai",
       "label": "Ask AI about this",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design read-annotations"
+      }
+    },
+    {
+      "id": "annotation.make-checklist",
+      "label": "Turn into checklist",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add checkitem records whose list is the sticky’s id (its task lines become the entries, the rest stays its text)"
+      }
+    },
+    {
+      "id": "checklist.toggle",
+      "label": "Tick / untick",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Set the checkitem’s done to { by, at }; remove it to untick"
+      }
+    },
+    {
+      "id": "checklist.edit",
+      "label": "Edit item",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Change the checkitem’s text field"
+      }
+    },
+    {
+      "id": "checklist.add-below",
+      "label": "Add an item",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add a checkitem with the same list, ordered after this one"
+      }
+    },
+    {
+      "id": "checklist.remove-empty",
+      "label": "Remove the empty item",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Remove the empty checkitem from the annotations file"
+      }
+    },
+    {
+      "id": "checklist.move-up",
+      "label": "Move item up",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Change the checkitem’s index so it sorts before the one above"
+      }
+    },
+    {
+      "id": "checklist.move-down",
+      "label": "Move item down",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Change the checkitem’s index so it sorts after the one below"
+      }
+    },
+    {
+      "id": "checklist.focus-prev",
+      "label": "Previous item",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design read-annotations"
+      }
+    },
+    {
+      "id": "checklist.focus-next",
+      "label": "Next item",
       "kind": "command",
       "exec": "canvas",
       "effect": "none",

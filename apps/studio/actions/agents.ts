@@ -1694,6 +1694,18 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/votes/end', method: 'POST' },
     agent: human('vote', 'the counts and the result section: `maude design read-annotations`'),
   },
+  // #113 — a checklist is a sticky with `checkitem` records (list, text, done); the AI writes them through annotate.
+  'annotation.make-checklist': BOARD(
+    'Add checkitem records whose list is the sticky’s id (its task lines become the entries, the rest stays its text)'
+  ),
+  'checklist.toggle': BOARD('Set the checkitem’s done to { by, at }; remove it to untick'),
+  'checklist.edit': BOARD('Change the checkitem’s text field'),
+  'checklist.add-below': BOARD('Add a checkitem with the same list, ordered after this one'),
+  'checklist.remove-empty': BOARD('Remove the empty checkitem from the annotations file'),
+  'checklist.move-up': BOARD('Change the checkitem’s index so it sorts before the one above'),
+  'checklist.move-down': BOARD('Change the checkitem’s index so it sorts after the one below'),
+  'checklist.focus-prev': { effect: 'none', agent: cli('maude design read-annotations') },
+  'checklist.focus-next': { effect: 'none', agent: cli('maude design read-annotations') },
   'annotation.point-to': BOARD(
     'Set the arrow’s startHost / endHost to the new ab:<artboard> or el:<artboard>/<id> ref (with the name it is shown under) and move its start / end cache to where the host is'
   ),

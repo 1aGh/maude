@@ -650,10 +650,12 @@ export function stickyEditNext(
   text: string,
   fmt: EditorFmt | undefined,
   measuredH: number | undefined,
-  baseText: string = existing.text
+  baseText: string = existing.text,
+  /** #113 — a checklist's entries: the card keeps room for them under its title. */
+  items?: ReadonlyArray<{ text?: unknown }>
 ): StickyStroke | null {
   if (baseText === text && existing.text === text && fmtEqual(existing, fmt)) return null;
-  const fit = fitSticky({ w: existing.w, h: existing.h, fontSize: existing.fontSize }, text);
+  const fit = fitSticky({ w: existing.w, h: existing.h, fontSize: existing.fontSize }, text, items);
   const sized =
     fit.w !== Math.abs(existing.w) ||
     fit.h !== Math.abs(existing.h) ||

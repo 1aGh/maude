@@ -11,6 +11,16 @@ const ANN = { ...IN_CANVAS, selection: ['annotation' as const] };
 // S2.6: the chords an Edit-mode OBJECT op also binds (⌘G ⇧⌘G ⇧⌘L ] [ ⌘] ⌘[) belong to the board only in
 // Preview — in Edit, annotations are quiet and click-through, so a press never reaches a sticky.
 const ANN_PREVIEW = { ...ANN, mode: ['preview' as const] };
+// #113 — a checklist row (or an entry being typed in) has the keys while it has focus. The layer reports the
+// sticky's selection kind ('annotation') whenever a row has focus, so these share the annotation scope.
+const ROW = {
+  focus: ['canvas' as const],
+  selection: ['annotation' as const],
+  facts: ['checkItemFocused' as const],
+};
+const ENTRY = { ...ROW, focus: ['text' as const] };
+// …and the sticky's own keys stand aside on that row (↑ ↓ move between rows, ↵ edits the entry).
+const ANN_NOT_ROW = { ...ANN, notFacts: ['checkItemFocused' as const] };
 const ann = (id: string, label: string, keys: ReturnType<typeof kb>[]): ActionDef => ({
   id,
   label,
@@ -18,6 +28,77 @@ const ann = (id: string, label: string, keys: ReturnType<typeof kb>[]): ActionDe
   exec: 'canvas',
   keys,
 });
+
+/** #113 (contract 113-checklist §5.5) — a checklist's rows. The layer answers them (keys through
+ *  `useCanvasKeys`, ⌘K rows on the `run-action` lane); a tick works on a locked list, the rest do not. */
+const check = (
+  id: string,
+  label: string,
+  keys: ReturnType<typeof kb>[],
+  extra: Partial<ActionDef> = {}
+): ActionDef => ({
+  id,
+  label,
+  kind: 'command',
+  exec: 'canvas',
+  enabled: { minRole: 'edit', selection: ['annotation'] },
+  keys,
+  ...extra,
+});
+
+export const CHECKLIST_ACTIONS: ActionDef[] = [
+  {
+    id: 'annotation.make-checklist',
+    label: 'Turn into checklist',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    search: { keywords: ['checklist', 'todo', 'to-do', 'tasks', 'tick', 'sticky', 'list'] },
+  },
+  // ⌘↵ in an entry ticks it; outside an entry ⌘↵ stays `annotation.chain` (focus: canvas).
+  check(
+    'checklist.toggle',
+    'Tick / untick',
+    [kb('Space', 'selection', { when: ROW }), kb('⌘↵', 'selection', { when: ENTRY, inText: true })],
+    { search: { keywords: ['tick', 'check', 'done', 'todo', 'checklist'] } }
+  ),
+  check('checklist.edit', 'Edit item', [kb('↵', 'selection', { when: ROW })], {
+    search: { keywords: ['checklist', 'item', 'rename', 'reword'] },
+  }),
+  check(
+    'checklist.add-below',
+    'Add an item',
+    [kb('↵', 'selection', { when: ENTRY, inText: true })],
+    {
+      search: { keywords: ['checklist', 'item', 'add', 'todo', 'new'] },
+    }
+  ),
+  check(
+    'checklist.remove-empty',
+    'Remove the empty item',
+    [kb('⌫', 'selection', { when: ENTRY, inText: true })],
+    { search: { keywords: ['checklist', 'item', 'remove', 'delete'] } }
+  ),
+  check(
+    'checklist.move-up',
+    'Move item up',
+    [kb('⌥⌘↑', 'selection', { when: { ...ROW, focus: ['canvas', 'text'] }, inText: true })],
+    { search: { keywords: ['checklist', 'reorder', 'up'] } }
+  ),
+  check(
+    'checklist.move-down',
+    'Move item down',
+    [kb('⌥⌘↓', 'selection', { when: { ...ROW, focus: ['canvas', 'text'] }, inText: true })],
+    { search: { keywords: ['checklist', 'reorder', 'down'] } }
+  ),
+  // Roving focus between rows (one tab stop per list): never a ⌘K row.
+  check('checklist.focus-prev', 'Previous item', [kb('↑', 'selection', { when: ROW })], {
+    search: { hidden: true },
+  }),
+  check('checklist.focus-next', 'Next item', [kb('↓', 'selection', { when: ROW })], {
+    search: { hidden: true },
+  }),
+];
 
 export const ANNOTATION_ACTIONS: ActionDef[] = [
   ann('annotation.group', 'Group', [kb('⌘G', 'selection', { when: ANN_PREVIEW })]),
@@ -31,11 +112,11 @@ export const ANNOTATION_ACTIONS: ActionDef[] = [
   ann('annotation.copy', 'Copy', [kb('⌘C', 'selection', { when: ANN })]),
   ann('annotation.cut', 'Cut', [kb('⌘X', 'selection', { when: ANN })]),
   ann('annotation.chain', 'Add the next one', [kb('⌘↵', 'selection', { when: ANN })]),
-  ann('annotation.edit-text', 'Edit text', [kb('↵', 'selection', { when: ANN })]),
+  ann('annotation.edit-text', 'Edit text', [kb('↵', 'selection', { when: ANN_NOT_ROW })]),
   ann(
     'annotation.nudge',
     'Nudge',
-    ['←', '→', '↑', '↓'].flatMap((a) => mods(a, '⇧', 'selection', { when: ANN }))
+    ['←', '→', '↑', '↓'].flatMap((a) => mods(a, '⇧', 'selection', { when: ANN_NOT_ROW }))
   ),
   ann('annotation.remove', 'Remove', [
     ...mods('⌫', '⇧', 'selection', { when: ANN }),
@@ -99,6 +180,7 @@ export const ANNOTATION_ACTIONS: ActionDef[] = [
     keys: [kb('⌘/', 'selection', { when: ANN_PREVIEW })],
     search: { keywords: ['ask ai', 'sticky', 'section', 'selection'] },
   },
+  ...CHECKLIST_ACTIONS,
 ];
 
 // S4.9 (C29): resolved stickies stay struck through in place; this hides them for the person who

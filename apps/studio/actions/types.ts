@@ -71,7 +71,9 @@ export type Fact =
   // p8-v1-drop — a design system in this project is below Conformant: ⌘K offers "Bring it up to the schema"
   | 'dsUpgradeOffered'
   // 2.0.7 B2 — the active canvas shows Pages (one artboard at a time): Preview and Present are off, paging is on
-  | 'pagesView';
+  | 'pagesView'
+  // #113 — keyboard focus is on a checklist row or in an entry's text: Space ticks, ↑ ↓ move between rows
+  | 'checkItemFocused';
 
 /** Declarative predicate — serialisable into the manifest, evaluable in the shell, the iframe and
  *  (role half) the server. Every present field must hold (AND); `any` is an OR of sub-predicates. */

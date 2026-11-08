@@ -102,6 +102,8 @@ export interface CanvasKeyState {
   toolArmed?: boolean;
   /** S8.16 — the selected picture has other takes (the shell's `gen-takes`): ← → are not a nudge then. */
   selectionHasTakes?: boolean;
+  /** #113 — focus is on a checklist row or in an entry's text (annotations/ui/checklist.tsx). */
+  checkItemFocused?: boolean;
 }
 
 /** The canvas iframe's KeyCtx for a keydown it received. */
@@ -115,6 +117,7 @@ export function canvasKeyCtx(s: CanvasKeyState): KeyCtx {
     facts: new Set<Fact>([
       ...(s.toolArmed ? (['toolArmed'] as const) : []),
       ...(s.selectionHasTakes ? (['selectionHasTakes'] as const) : []),
+      ...(s.checkItemFocused ? (['checkItemFocused'] as const) : []),
     ]),
     ...(s.singleKeys === false ? { singleKeys: false } : {}),
   };

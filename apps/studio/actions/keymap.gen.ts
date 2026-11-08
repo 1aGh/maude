@@ -1039,39 +1039,59 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'annotation.edit-text',
     exec: 'canvas',
     keys: [
-      { chord: '↵', layer: 'selection', when: { focus: ['canvas'], selection: ['annotation'] } },
+      {
+        chord: '↵',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], notFacts: ['checkItemFocused'] },
+      },
     ],
   },
   {
     id: 'annotation.nudge',
     exec: 'canvas',
     keys: [
-      { chord: '←', layer: 'selection', when: { focus: ['canvas'], selection: ['annotation'] } },
+      {
+        chord: '←',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], notFacts: ['checkItemFocused'] },
+      },
       {
         chord: '⇧←',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['annotation'] },
+        when: { focus: ['canvas'], selection: ['annotation'], notFacts: ['checkItemFocused'] },
         alias: true,
       },
-      { chord: '→', layer: 'selection', when: { focus: ['canvas'], selection: ['annotation'] } },
+      {
+        chord: '→',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], notFacts: ['checkItemFocused'] },
+      },
       {
         chord: '⇧→',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['annotation'] },
+        when: { focus: ['canvas'], selection: ['annotation'], notFacts: ['checkItemFocused'] },
         alias: true,
       },
-      { chord: '↑', layer: 'selection', when: { focus: ['canvas'], selection: ['annotation'] } },
+      {
+        chord: '↑',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], notFacts: ['checkItemFocused'] },
+      },
       {
         chord: '⇧↑',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['annotation'] },
+        when: { focus: ['canvas'], selection: ['annotation'], notFacts: ['checkItemFocused'] },
         alias: true,
       },
-      { chord: '↓', layer: 'selection', when: { focus: ['canvas'], selection: ['annotation'] } },
+      {
+        chord: '↓',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], notFacts: ['checkItemFocused'] },
+      },
       {
         chord: '⇧↓',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['annotation'] },
+        when: { focus: ['canvas'], selection: ['annotation'], notFacts: ['checkItemFocused'] },
         alias: true,
       },
     ],
@@ -1105,6 +1125,112 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
         chord: '⌘/',
         layer: 'selection',
         when: { focus: ['canvas'], selection: ['annotation'], mode: ['preview'] },
+      },
+    ],
+  },
+  {
+    id: 'checklist.toggle',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    keys: [
+      {
+        chord: 'Space',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], facts: ['checkItemFocused'] },
+      },
+      {
+        chord: '⌘↵',
+        layer: 'selection',
+        when: { focus: ['text'], selection: ['annotation'], facts: ['checkItemFocused'] },
+        inText: true,
+      },
+    ],
+  },
+  {
+    id: 'checklist.edit',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    keys: [
+      {
+        chord: '↵',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], facts: ['checkItemFocused'] },
+      },
+    ],
+  },
+  {
+    id: 'checklist.add-below',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    keys: [
+      {
+        chord: '↵',
+        layer: 'selection',
+        when: { focus: ['text'], selection: ['annotation'], facts: ['checkItemFocused'] },
+        inText: true,
+      },
+    ],
+  },
+  {
+    id: 'checklist.remove-empty',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    keys: [
+      {
+        chord: '⌫',
+        layer: 'selection',
+        when: { focus: ['text'], selection: ['annotation'], facts: ['checkItemFocused'] },
+        inText: true,
+      },
+    ],
+  },
+  {
+    id: 'checklist.move-up',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    keys: [
+      {
+        chord: '⌥⌘↑',
+        layer: 'selection',
+        when: { focus: ['canvas', 'text'], selection: ['annotation'], facts: ['checkItemFocused'] },
+        inText: true,
+      },
+    ],
+  },
+  {
+    id: 'checklist.move-down',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    keys: [
+      {
+        chord: '⌥⌘↓',
+        layer: 'selection',
+        when: { focus: ['canvas', 'text'], selection: ['annotation'], facts: ['checkItemFocused'] },
+        inText: true,
+      },
+    ],
+  },
+  {
+    id: 'checklist.focus-prev',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    keys: [
+      {
+        chord: '↑',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], facts: ['checkItemFocused'] },
+      },
+    ],
+  },
+  {
+    id: 'checklist.focus-next',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    keys: [
+      {
+        chord: '↓',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], facts: ['checkItemFocused'] },
       },
     ],
   },

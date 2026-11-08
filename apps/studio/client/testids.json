@@ -29051,6 +29051,84 @@
     "v2": "new"
   },
   {
+    "hook": "annot-ctx-make-checklist",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#113: \"Checklist\" on the small toolbar over a sole sticky that has no entries yet - Turn into checklist (its ☐ / - [ ] lines become entries).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "checklist-<listId>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "#113: the entries of a checklist sticky (`role=\"group\"`, labelled by the sticky's title). `<listId>` is the sticky's id.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/checklist.tsx",
+      "symbol": "ChecklistRows"
+    },
+    "region": "canvas iframe",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/checklist-a11y.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "checklist-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "#113: one checklist entry, `role=\"checkbox\"` with `aria-checked` (the row is the 24 px target; one tab stop per list). `<id>` is the checkitem id; `data-done=\"1\"` when ticked, `data-by=\"ai\"` for an AI tick.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/checklist.tsx",
+      "symbol": "ChecklistRows"
+    },
+    "region": "canvas iframe",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/checklist-a11y.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "checklist-add",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#113: \"+ Add an item\" under a checklist's entries - only for Can edit in Preview.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/checklist.tsx",
+      "symbol": "ChecklistRows"
+    },
+    "region": "canvas iframe",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/checklist-a11y.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "checklist-progress-<listId>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "#113: the \"3/5\" chip in a checklist sticky's footer; its polite live line says \"3 of 5 done\" after the person's own tick.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/checklist.tsx",
+      "symbol": "ChecklistChip"
+    },
+    "region": "canvas iframe",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/checklist-a11y.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "annot-sticky-paper-more",
     "kind": "testid",
     "pattern": false,
@@ -29138,7 +29216,7 @@
     "hook": "annot-menu-<action>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "S4.12: a row of the annotation right-click menu. `<action>`: `copy`, `cut`, `paste`, `duplicate`, `front`, `forward`, `backward`, `back`, `group`, `ungroup`, `lock`, `unlock`, `delete` (“Move to trash”), and for a sole sticky `to-comment`, `resolve`, `fan-out`, for a sole section `fold`, and `ask-ai` for both.",
+    "meaning": "S4.12: a row of the annotation right-click menu. `<action>`: `copy`, `cut`, `paste`, `duplicate`, `front`, `forward`, `backward`, `back`, `group`, `ungroup`, `lock`, `unlock`, `delete` (“Move to trash”), and for a sole sticky `to-comment`, `make-checklist` (a plain sticky, #113), `resolve`, `fan-out`, for a sole section `fold`, and `ask-ai` for both.",
     "producer": {
       "file": "apps/studio/annotations-layer.tsx",
       "symbol": "AnnotationContextMenu"

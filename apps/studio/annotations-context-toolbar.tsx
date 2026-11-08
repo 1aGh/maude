@@ -1736,6 +1736,18 @@ export function AnnotationContextToolbar({
       ) : null}
       <div className="dc-annot-ctx-sep" />
       {lockBtn}
+      {soleSticky && store.isChecklist && !store.isChecklist(soleSticky.id) ? (
+        // #113 — its task lines become entries; a sticky with none gets one empty entry
+        <button
+          type="button"
+          className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+          data-testid="annot-ctx-make-checklist"
+          title="Turn into checklist — its ☐ / - [ ] lines become items you can tick"
+          onClick={() => store.runAction?.('annotation.make-checklist')}
+        >
+          Checklist
+        </button>
+      ) : null}
       {soleSticky ? (
         <button
           type="button"
