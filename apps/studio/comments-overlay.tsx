@@ -61,7 +61,6 @@ import {
   type WorldPoint,
   worldToClient,
 } from './comment-anchor.ts';
-import { authorFace } from './comments/author-face.ts';
 import {
   cancelReattach,
   listenForReattachPick,
@@ -69,6 +68,7 @@ import {
   reattachOpFor,
   requestReattach,
 } from './comment-reattach.ts';
+import { authorFace } from './comments/author-face.ts';
 import { fromHeadline, fromWho } from './comments/from-line.ts';
 import {
   type ImportedFrom,
@@ -742,6 +742,8 @@ export function CommentsOverlay(): React.ReactNode {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onMessage = (e: MessageEvent) => {
+      // only the shell above this canvas may drive the overlay (#168 F3: a sibling frame could post here)
+      if (e.source !== window.parent) return;
       const m = e.data as {
         dgn?: string;
         comments?: unknown;
