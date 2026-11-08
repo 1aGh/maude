@@ -2978,7 +2978,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   }
 
   async function writeBoardFile(file: string, text: string): Promise<void> {
-    await Bun.write(annotationsPath(file), text);
+    const abs = annotationsPath(file);
+    await Bun.write(abs, text);
+    // #164 N3 — the person's bytes, noted as soon as they are on disk (as a layout save is): the end of
+    // a call that wrote without naming files must not take them for the AI. Only a person's save is noted.
+    saveHold().notePersonWrite(abs, text);
     // Annotations reach OTHER VIEWERS over the collab room, but the file is also
     // a versioned, file-plane sidecar (DDR-115), and the file plane learns about
     // a cell's own writes through exactly this event.

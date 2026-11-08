@@ -36,3 +36,27 @@ test('the skill digest does not say "restore the row just below the change"', ()
   assert.doesNotMatch(md, /with the row just BELOW the change/);
   assert.match(md, /history undo --chat/);
 });
+
+// #164 N4 — `undo --chat` takes back every action of the conversation on EVERY canvas. A one-canvas
+// "undo that" goes to `--action`; `--chat` is asked for first.
+test('the guide sends a one-canvas "undo that" to --action and asks before --chat', () => {
+  const s = section(read('_guide-versions-and-trash.md'));
+  assert.ok(
+    s.indexOf('history undo --action') < s.indexOf('history undo --chat'),
+    '--action comes first'
+  );
+  assert.match(s, /every canvas/i);
+  assert.match(s, /ask the person before[^.]*--chat|--chat[^.]*ask/i);
+});
+
+test('the skill digest prefers --action and asks before --chat', () => {
+  const md = read('SKILL.md');
+  const line = md.split('\n').find((l) => l.includes('**Put a canvas back the way it was**'));
+  assert.ok(line, 'the put-it-back line is there');
+  assert.ok(
+    line.indexOf('history undo --action') < line.indexOf('history undo --chat'),
+    '--action comes first'
+  );
+  assert.match(line, /every canvas/i);
+  assert.match(line, /ask the person before[^.]*--chat|--chat[^.]*ask/i);
+});

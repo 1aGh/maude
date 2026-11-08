@@ -51,7 +51,7 @@ import { rekeyUserState } from '../home/user-state.ts';
 import { acceptedColdStart, localCreateLanes } from './accepted-cold-start.ts';
 import { type AcceptedLink, createAcceptedLink, type StructuralOutcome } from './accepted-link.ts';
 import { createAccessRelay } from './access-notices.ts';
-import type { RunFence } from './action-stage.ts';
+import { type RunFence, shellClaimLane } from './action-stage.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from './agent.ts';
 import { isPushableAssetRel, pushAssets } from './asset-push.ts';
 import {
@@ -6905,10 +6905,12 @@ export function createSyncRuntime(
     },
     settleShellCall: (key, call, claimed) => {
       if (!acceptedLink) return false;
-      const slugs = (claimed ?? [])
-        .map((f) => slugForRepoRel(String(f).replace(/\.(?:meta|annotations)\.json$/i, '.tsx')))
-        .filter((c): c is string => !!c);
-      return acceptedLink.stage.settleShellCall(key, call, slugs);
+      // N2 — each claimed file names its own lane of the canvas, never the whole canvas
+      const lanes = (claimed ?? []).flatMap((f) => {
+        const slug = slugForRepoRel(String(f).replace(/\.(?:meta|annotations)\.json$/i, '.tsx'));
+        return slug ? [{ slug, lane: shellClaimLane(String(f)) }] : [];
+      });
+      return acceptedLink.stage.settleShellCall(key, call, lanes);
     },
     shellCall: (key, call) => {
       const w = acceptedLink?.stage.shellCall(key, call);

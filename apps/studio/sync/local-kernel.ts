@@ -68,7 +68,12 @@ import { isDraftWriteId } from '../annotations/ui/text-session.ts';
 import { attributeArtboards } from '../attribute-artboards.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import { bumpTrashSeq, type TrashListing } from '../history/trash.ts';
-import { createActionStage, type RunFence, type RunStageSummary } from './action-stage.ts';
+import {
+  createActionStage,
+  type RunFence,
+  type RunStageSummary,
+  shellClaimLane,
+} from './action-stage.ts';
 import { atomicWrite } from './atomic-write.ts';
 import { validateCanvasPath } from './canvas-path.ts';
 import { laneValueFromFile, mergeSharedMetaIntoLocal } from './codec.ts';
@@ -2509,13 +2514,13 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       if (canvas) stage.claim(key, canvas, hash ?? null);
     },
     settleShellCall(key, call, claimed) {
-      const canvases = (claimed ?? [])
-        .map((repoRel) => {
-          const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
-          return rel ? canvasOfRel(rel) : null;
-        })
-        .filter((c): c is string => !!c);
-      return stage.settleShellCall(key, call, canvases);
+      // N2 — each claimed file names its own lane of the canvas, never the whole canvas
+      const lanes = (claimed ?? []).flatMap((repoRel) => {
+        const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
+        const slug = rel ? canvasOfRel(rel) : null;
+        return slug ? [{ slug, lane: shellClaimLane(rel as string) }] : [];
+      });
+      return stage.settleShellCall(key, call, lanes);
     },
     shellCall(key, call) {
       const w = stage.shellCall(key, call);

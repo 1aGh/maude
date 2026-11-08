@@ -902,3 +902,62 @@ describe('A1 — an AI write to a canvas the command does not name is the AI’s
     expect(bound.artboards).toEqual(['desktop']);
   });
 });
+
+// #164 N3 — a person's board save that goes straight through (no window names the board) is noted as
+// theirs the moment its bytes are on disk, like a layout save — not when the whole action ends — so an
+// `all` window's settle arriving in between never binds those bytes as the AI's touch.
+describe('#164 N3 — a person’s board save is noted as theirs', () => {
+  test('noted as soon as the board is written, while the rest of the action still runs', async () => {
+    const r = apiRig();
+    let seen: boolean | null = null;
+    const res = await asPersonSave(() =>
+      r.api.convertLanes(
+        repo(HOME),
+        () => ({
+          ok: true,
+          ops: [{ op: 'put', el: sticky('s_conv') } as never],
+          comments: [],
+          result: null,
+        }),
+        {
+          accepted: false,
+          // the action is still running here: the board is on disk, the proposal not yet answered
+          send: async () => {
+            const now = r.readOr(r.board);
+            seen = now.includes('s_conv') && r.hold.landedByPerson(r.board, now);
+            return { status: 'accepted' } as never;
+          },
+        }
+      )
+    );
+    expect(res.ok).toBe(true);
+    expect(seen).toBe(true);
+  });
+
+  test('a board op batch with no hold: its bytes are the person’s landing', async () => {
+    const r = apiRig();
+    const res = await asPersonSave(() =>
+      r.api.applyAnnotationOps(repo(HOME), [{ op: 'put', el: sticky('s_mine') } as never])
+    );
+    expect(res.ok).toBe(true);
+    const now = r.readOr(r.board);
+    expect(now).toContain('s_mine');
+    expect(r.hold.landedByPerson(r.board, now)).toBe(true);
+  });
+
+  test('the layout lane is noted the same way', async () => {
+    const r = apiRig();
+    const move = { layout: { artboards: [{ id: 'desktop', x: 300, y: 40 }] } };
+    await asPersonSave(() => r.api.patchCanvasMeta(repo(HOME), move));
+    expect(r.hold.landedByPerson(r.meta, r.readOr(r.meta))).toBe(true);
+  });
+
+  test('a board write that is not a person’s save is not noted', async () => {
+    const r = apiRig();
+    const res = await r.api.applyAnnotationOps(repo(HOME), [
+      { op: 'put', el: sticky('s_tool') } as never,
+    ]);
+    expect(res.ok).toBe(true);
+    expect(r.hold.landedByPerson(r.board, r.readOr(r.board))).toBe(false);
+  });
+});
