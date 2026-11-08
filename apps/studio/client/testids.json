@@ -26466,6 +26466,22 @@
     "v2": "new"
   },
   {
+    "hook": "export-job-cancel-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Cancel on a running cloud row (#128): stops the export, which also stops it on the render service (registry `export.cancel`).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/job-row.jsx",
+      "symbol": "JobRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/exports-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "export-toast-action-<id>",
     "kind": "testid",
     "pattern": true,

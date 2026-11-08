@@ -199,7 +199,7 @@ W5 and W6 use Opus.
   - before the frame-step fallback, a "no audio" warning that names the asset and codec.
 - [x] T3.5 **#128 §4:** inserting a video into a `kind="video"` artboard replaces the placeholder, fills 100 %, sets the `objectFit="cover"` prop and keeps `durationInFrames` in sync.
 - [x] T3.6 **#128 §5:** a transform / crop handle for a selected `<Video>` layer, plus inspector fit / focus / scale fields that write back to the TSX. Reuse `editing/crop-mode.tsx`.
-- [ ] T3.7 **#128 cloud comments 2–3** (D7): `apps/render` gets scale 1 and JPEG intermediates for the cloud, one mp4 job at a time, progress, `POST /_render/cancel`, and the "render busy" vs "waking up" message. **The deploy goes out only with a release tag**, never a manual fleet change.
+- [x] T3.7 **#128 cloud comments 2–3** (D7): `apps/render` gets scale 1 and JPEG intermediates for the cloud, one mp4 job at a time, progress, `POST /_render/cancel`, and the "render busy" vs "waking up" message. **The deploy goes out only with a release tag**, never a manual fleet change.
 
 ### W4 — Import, plugins and sync diagnostics
 
@@ -389,3 +389,4 @@ W5 and W6 use Opus.
 - 2026-11-08 merged 113-A e6118490d (checkitem model, checklist-ops, annotate items, read-annotations progress, template; locked list refuses reorder too — lead accepted, conservative). 113-B next.
 - 2026-11-08 merged T6.3e/f + T6.4 (6d70ea91f 1cac08822 b108ac8b5): leases → registry busy + strip spark, branch gate (warn / refuse with unsent), worktree tabs (main's profile, <main> · <branch>, not in session/Recent, MAUDE_WORKTREE_OF, Share 'Syncs from', Connect refused server-side), prep.sh server.owner, debug-only consent answer, cli-reuse e2e lane (written, run once alone). Left → T6.3g: Home Worktrees row, Sign in from <main>, server-side Move-to-cloud refusal, desktop-takes-over-CLI e2e case.
 - 2026-11-08 merged T6.3e/f + T6.4 (6d70ea91f 1cac08822 b108ac8b5): leases → registry busy + strip spark, branch gate, worktree tabs (main's profile, <main> · <branch>, not in session/Recent, MAUDE_WORKTREE_OF, Share 'Syncs from', Connect refused server-side), prep.sh server.owner, debug-only consent answer, cli-reuse e2e lane (written). T6.3g running.
+- 2026-11-08 merged T3.7b 37e7fc736 (waiting line on desktop cloud rows, queue wait bounded and off the job budget, 'Rendered at 1× in the cloud' notice, owner-scoped Cancel incl. hub route). #128 done except the release deploy of apps/render (tag only).

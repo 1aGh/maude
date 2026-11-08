@@ -246,6 +246,57 @@ describe('status — the hub is untrusted', () => {
     expect(await run(hub2).status(JOB)).toEqual({ state: 'queued' });
   });
 
+  test('#128 T3.7b: a running job the service holds behind another video carries its waiting line', async () => {
+    const hub = fakeHub(
+      (_r, url) =>
+        cellRunning(url) ??
+        json(200, {
+          job: { status: 'running', waiting: `Waiting\u0000— another video\n${'x'.repeat(400)}` },
+        })
+    );
+    const st = (await run(hub).status(JOB)) as { state: string; waiting?: string };
+    expect(st.state).toBe('running');
+    expect(st.waiting?.startsWith('Waiting — another video')).toBe(true);
+    expect(st.waiting?.length).toBeLessThanOrEqual(120);
+    expect([...(st.waiting ?? '')].every((ch) => ch.charCodeAt(0) >= 32)).toBe(true);
+    // not a string / empty: no line at all
+    for (const waiting of [{ no: 1 }, '', 7]) {
+      const h = fakeHub(
+        (_r, url) => cellRunning(url) ?? json(200, { job: { status: 'running', waiting } })
+      );
+      expect(await run(h).status(JOB)).toEqual({ state: 'running' });
+    }
+  });
+
+  test('#128 T3.7b: a finished job’s notice (reason, remedy) comes through as text, capped', async () => {
+    const hub = fakeHub(
+      (_r, url) =>
+        cellRunning(url) ??
+        json(200, {
+          job: {
+            status: 'done',
+            degraded: {
+              reason: 'Rendered at 1× in the cloud. You asked for 2×.',
+              remedy: 'x'.repeat(900),
+            },
+          },
+        })
+    );
+    const st = (await run(hub).status(JOB)) as {
+      state: string;
+      degraded?: { reason: string; remedy?: string };
+    };
+    expect(st.state).toBe('done');
+    expect(st.degraded?.reason).toBe('Rendered at 1× in the cloud. You asked for 2×.');
+    expect(st.degraded?.remedy?.length).toBe(300);
+    // no reason, no notice
+    const h2 = fakeHub(
+      (_r, url) =>
+        cellRunning(url) ?? json(200, { job: { status: 'done', degraded: { remedy: 'x' } } })
+    );
+    expect(await run(h2).status(JOB)).toEqual({ state: 'done' });
+  });
+
   test('done, and failed with capped text', async () => {
     const hub = fakeHub((_r, url) => cellRunning(url) ?? json(200, { job: { status: 'done' } }));
     expect(await run(hub).status(JOB)).toEqual({ state: 'done' });
@@ -681,5 +732,46 @@ describe('the sender — send-time fingerprint, the capability wait, the 10-minu
     });
     expect(await send(record)).toEqual({ ok: true, ref: JOB });
     expect(sent).toHaveLength(1);
+  });
+});
+
+describe('#128 T3.7b — cancel', () => {
+  const CANCEL = `/api/projects/current/v1/render-jobs/${JOB}/cancel`;
+
+  test('POSTs the job’s cancel route with the bearer in the header only, no body', async () => {
+    const hub = fakeHub(() => json(200, { jobId: JOB, cancelled: true }));
+    expect(await doorFor(hub).cancel(JOB)).toEqual({ ok: true });
+    expect(hub.seen).toHaveLength(1);
+    expect(hub.seen[0]?.method).toBe('POST');
+    expect(hub.seen[0]?.path).toBe(CANCEL);
+    expect(hub.seen[0]?.auth).toBe(`Bearer ${TOKEN}`);
+  });
+
+  const rows: Array<[string, number, Record<string, unknown>]> = [
+    ['404 (the cloud no longer has it) -> nothing left to stop', 404, { ok: true }],
+    ['410 -> nothing left to stop', 410, { ok: true }],
+    ['409 -> not-running', 409, { ok: false, code: 'not-running' }],
+    ['403 -> forbidden', 403, { ok: false, code: 'forbidden' }],
+    ['401 -> unreachable (sign in again)', 401, { ok: false, code: 'unreachable' }],
+    ['5xx -> unreachable', 502, { ok: false, code: 'unreachable' }],
+    ['429 -> unreachable', 429, { ok: false, code: 'unreachable' }],
+  ];
+  for (const [name, status, want] of rows) {
+    test(name, async () => {
+      const hub = fakeHub(() => json(status, {}));
+      expect(await doorFor(hub).cancel(JOB)).toEqual(want as never);
+    });
+  }
+
+  test('no answer / signed out -> unreachable; a job id that is not ours never leaves this Mac', async () => {
+    const hub = fakeHub(() => json(200, {}));
+    expect(await doorFor(hub, { token: () => null }).cancel(JOB)).toEqual({
+      ok: false,
+      code: 'unreachable',
+    });
+    expect(await doorFor(hub).cancel('../../etc/passwd')).toEqual({ ok: true });
+    expect(hub.seen).toHaveLength(0);
+    const down = doorFor({ url: 'http://127.0.0.1:9' }, { timeoutMs: 500 });
+    expect(await down.cancel(JOB)).toEqual({ ok: false, code: 'unreachable' });
   });
 });

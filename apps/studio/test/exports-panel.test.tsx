@@ -144,6 +144,28 @@ describe('the panel lists the last 20, each saying where it runs', () => {
     expect(jobMeta(rendering, { now: NOW })).toBe('In the cloud · 50 %');
   });
 
+  test('#128 T3.7b — a running cloud row has a Cancel that asks for that job; other rows have none', async () => {
+    const jobs = [
+      job({ id: 'c', runsOn: 'cloud', status: 'running', progress: { current: 4, total: 25 } }),
+      job({ id: 'm', runsOn: 'this-mac', status: 'running' }),
+      job({ id: 'd', runsOn: 'cloud' }),
+      job({ id: 'f', runsOn: 'cloud', status: 'failed', error: 'Cancelled.' }),
+    ];
+    const cancel = mock(async () => {});
+    const m = mount(
+      createElement(ExportsPanel, { center: center(jobs, { cancel }), native: true })
+    );
+    const btn = m.q('[data-testid="export-job-cancel-c"]');
+    expect(btn?.textContent).toBe('Cancel');
+    expect(m.q('[data-testid="export-job-cancel-m"]')).toBeNull();
+    expect(m.q('[data-testid="export-job-cancel-d"]')).toBeNull();
+    expect(m.q('[data-testid="export-job-cancel-f"]')).toBeNull();
+    await act(async () => btn?.click());
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect((cancel.mock.calls[0] as unknown as [{ id: string }])[0].id).toBe('c');
+    m.unmount();
+  });
+
   test('a job that does not say ran on this Mac', () => {
     expect(jobMeta(job({ status: 'queued' }), { now: NOW })).toBe('On this Mac · Queued');
   });

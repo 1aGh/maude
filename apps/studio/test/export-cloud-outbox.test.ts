@@ -12,8 +12,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { estimateSpec } from '../exporters/estimate.ts';
 import {
+  CLOUD_CANCELLED_WORDS,
   CLOUD_EXPIRED_WORDS,
   CLOUD_QUEUED_WORDS,
+  type CloudCancelAnswer,
   type CloudJobStatus,
   type CloudRenderDoor,
   chooseRenderLane,
@@ -57,16 +59,26 @@ const VIDEO: ExportSpecV2 = {
 interface FakeDoor extends CloudRenderDoor {
   online: boolean;
   submits: string[];
+  cancels: string[];
   jobs: Map<string, CloudJobStatus>;
   answer: TargetAnswer | null;
+  /** what the hub answers a cancel with (null = it stopped the job) */
+  cancelAnswer: CloudCancelAnswer | null;
 }
 
 function fakeDoor(): FakeDoor {
   const d: FakeDoor = {
     online: false,
     submits: [],
+    cancels: [],
     jobs: new Map(),
     answer: null,
+    cancelAnswer: null,
+    async cancel(jobId) {
+      if (!d.online) return { ok: false, code: 'unreachable' };
+      d.cancels.push(jobId);
+      return d.cancelAnswer ?? { ok: true };
+    },
     async submit({ jobId }) {
       if (!d.online) return { ok: false, network: true };
       if (d.answer) return d.answer;
@@ -453,5 +465,95 @@ describe('S8.5 the offline queue — export.cloud', () => {
     expect(rec?.state).toBe('dropped');
     expect(rec?.outcome).toMatchObject({ code: 'refused', ref: 'no-cloud' });
     expect(NO_CLOUD_WORDS).toContain('render it on this Mac');
+  });
+});
+
+describe('#128 T3.7b — the waiting line and Cancel on a cloud row', () => {
+  const WAITING = 'Waiting — another video is rendering first';
+  async function running() {
+    const r = rig();
+    r.door.online = true;
+    const j = r.start();
+    if (!j.ok) throw new Error('enqueue failed');
+    await r.outbox.drain.wake();
+    return { ...r, jobId: j.jobId };
+  }
+
+  test('a running row carries the render service’s waiting line while it waits, and drops it after', async () => {
+    const { door, cloud, jobId } = await running();
+    door.jobs.set(jobId, { state: 'running', waiting: WAITING });
+    await cloud.pollNow(jobId);
+    const row = cloud.rows().find((x) => x.id === jobId);
+    expect(row?.status).toBe('running');
+    expect(row?.waiting).toBe(WAITING);
+
+    door.jobs.set(jobId, { state: 'running', progress: { current: 3, total: 9 } });
+    await cloud.pollNow(jobId);
+    const after = cloud.rows().find((x) => x.id === jobId);
+    expect(after?.waiting).toBeUndefined();
+    expect(after?.progress).toEqual({ current: 3, total: 9 });
+  });
+
+  test('a notice the cloud sends with a finished job rides the downloaded row (rendered at 1×)', async () => {
+    const { door, cloud, jobId } = await running();
+    const degraded = {
+      reason: 'Rendered at 1× in the cloud. You asked for 2×.',
+      remedy: 'For 2×, export it on this Mac.',
+    };
+    door.jobs.set(jobId, { state: 'done', degraded });
+    await cloud.pollNow(jobId);
+    const row = cloud.rows().find((x) => x.id === jobId);
+    expect(row?.status).toBe('done');
+    expect(row?.degraded).toEqual(degraded);
+  });
+
+  test('Cancel on a running row: the hub is told, the row ends in words, polling does not bring it back', async () => {
+    const { door, cloud, jobId } = await running();
+    const c = await cloud.cancel(jobId);
+    expect(c).toEqual({ ok: true });
+    expect(door.cancels).toEqual([jobId]);
+    const row = cloud.rows().find((x) => x.id === jobId);
+    expect(row?.status).toBe('failed');
+    expect(row?.error).toBe(CLOUD_CANCELLED_WORDS);
+    door.jobs.set(jobId, { state: 'done' });
+    await cloud.pollNow(jobId);
+    expect(cloud.rows().find((x) => x.id === jobId)?.status).toBe('failed');
+  });
+
+  test('Cancel with no answer from the hub keeps the row running and says why', async () => {
+    const { door, cloud, jobId } = await running();
+    door.online = false;
+    expect(await cloud.cancel(jobId)).toEqual({ ok: false, code: 'unreachable' });
+    expect(cloud.rows().find((x) => x.id === jobId)?.status).toBe('running');
+  });
+
+  test('Cancel on a job the cloud already finished is not-running; the next poll fetches the file', async () => {
+    const { door, cloud, jobId } = await running();
+    door.cancelAnswer = { ok: false, code: 'not-running' };
+    expect(await cloud.cancel(jobId)).toEqual({ ok: false, code: 'not-running' });
+    expect(cloud.rows().find((x) => x.id === jobId)?.status).toBe('running');
+  });
+
+  test('Cancel on a row still waiting for this Mac to be online withdraws it; nothing is ever sent', async () => {
+    const { door, outbox, cloud, clock, start } = rig();
+    const r = start();
+    if (!r.ok) throw new Error('enqueue failed');
+    await outbox.drain.wake();
+    expect(await cloud.cancel(r.jobId)).toEqual({ ok: true });
+    expect(cloud.rows().find((x) => x.id === r.jobId)).toBeUndefined();
+    door.online = true;
+    clock.t += 60_000;
+    await outbox.drain.wake();
+    expect(door.submits).toEqual([]);
+    expect(door.cancels).toEqual([]);
+  });
+
+  test('Cancel on an unknown or finished job says so', async () => {
+    const { door, cloud, jobId } = await running();
+    expect(await cloud.cancel('i_zzzzzzzzzzzzzzzzzzzz')).toEqual({ ok: false, code: 'not-found' });
+    expect(await cloud.cancel('not-an-id')).toEqual({ ok: false, code: 'not-found' });
+    door.jobs.set(jobId, { state: 'done' });
+    await cloud.pollNow(jobId);
+    expect(await cloud.cancel(jobId)).toEqual({ ok: false, code: 'not-running' });
   });
 });

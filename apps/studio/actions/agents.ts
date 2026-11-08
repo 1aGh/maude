@@ -1451,6 +1451,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/export-jobs/retry', method: 'POST' },
     agent: cli('maude design exports retry <id> [--item <id,…>]'),
   },
+  // #128 T3.7b — Cancel a running cloud export: the owner's own job only, a stranger's id is a missing one.
+  'export.cancel': {
+    effect: 'project',
+    minRole: 'comment',
+    server: { route: '/_api/export-jobs/cancel', method: 'POST' },
+    agent: cli('maude design exports cancel <id>'),
+  },
   'share.open': { effect: 'shared', agent: human('links') },
   // S9.20: where the hub has links, the owner's Copy link makes the project's link (POST); everyone
   // else copies the location, which grants nothing. Making a link is the owner's, refused there.

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "89ff79ca7c2d",
+  "manifestVersion": "21f3c028a9dc",
   "actions": [
     {
       "id": "search.open",
@@ -4114,6 +4114,22 @@
       "agent": {
         "path": "cli",
         "verb": "maude design exports retry <id> [--item <id,…>]"
+      }
+    },
+    {
+      "id": "export.cancel",
+      "label": "Cancel",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "comment",
+      "server": {
+        "route": "/_api/export-jobs/cancel",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design exports cancel <id>"
       }
     },
     {

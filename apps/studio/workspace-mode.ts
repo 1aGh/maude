@@ -112,6 +112,7 @@ export const FORBIDDEN_ROUTE_PREFIXES: ReadonlyArray<{
       '/_api/export-jobs',
       '/_api/export-jobs/download',
       '/_api/export-jobs/retry',
+      '/_api/export-jobs/cancel',
       '/_api/export-history',
       '/_api/export-assemble',
       '/_api/export-warmup',

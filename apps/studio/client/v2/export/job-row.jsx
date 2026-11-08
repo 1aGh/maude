@@ -11,6 +11,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { summarizeNoticeText } from '../../../notifications.tsx';
 import { StIcon } from '../../shell/icons.jsx';
 import {
+  CANCEL_EXPORT,
   DOWNLOAD,
   EXPORT_AGAIN,
   jobMenuItems,
@@ -226,7 +227,7 @@ function StateWord({ job }) {
  * @param selected the row to focus when the panel opens on it
  * @param native   a Mac app: Show in Finder; a browser tab downloads instead
  * @param busy     this job's bytes are being fetched or saved
- * @param on       { reveal(job), download(job), again(job), retry(job) }
+ * @param on       { reveal(job), download(job), again(job), retry(job), cancel(job)? }
  */
 export function JobRow({
   job,
@@ -240,6 +241,7 @@ export function JobRow({
   const ref = useRef(null);
   const moreRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   useEffect(() => {
     if (!selected) return;
     ref.current?.scrollIntoView?.({ block: 'nearest' });
@@ -305,6 +307,24 @@ export function JobRow({
             onClick={() => on.renderHere(job)}
           >
             {RENDER_HERE}
+          </button>
+        ) : job.status === 'running' && job.runsOn === 'cloud' && on?.cancel ? (
+          // #128 T3.7b — a cloud video can be stopped: registry `export.cancel`
+          <button
+            type="button"
+            className="btn btn--sm ex-retry"
+            data-testid={`export-job-cancel-${job.id}`}
+            disabled={cancelling}
+            onClick={async () => {
+              setCancelling(true);
+              try {
+                await on.cancel(job);
+              } finally {
+                setCancelling(false);
+              }
+            }}
+          >
+            {CANCEL_EXPORT}
           </button>
         ) : (
           <StateWord job={job} />

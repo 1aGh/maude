@@ -20,6 +20,7 @@ import {
   CLOUD_FINGERPRINT_MAX,
   CLOUD_TOO_BIG_WORDS,
   CloudArtifactTooLargeError,
+  type CloudCancelAnswer,
   type CloudJobStatus,
   type CloudRenderDoor,
   cloudNotSyncedWords,
@@ -219,16 +220,41 @@ export function createHubRenderDoor(opts: HubRenderDoorOptions): CloudRenderDoor
       const body = await readJson(r);
       const job = (body?.job && typeof body.job === 'object' ? body.job : body) as Json | null;
       const state = job?.state ?? job?.status;
-      if (state === 'done') return { state: 'done' };
+      if (state === 'done') {
+        const d = (
+          job?.degraded && typeof job.degraded === 'object' ? job.degraded : null
+        ) as Json | null;
+        const reason = cleanText(d?.reason, 300);
+        const remedy = cleanText(d?.remedy, 300);
+        return {
+          state: 'done',
+          ...(reason ? { degraded: { reason, ...(remedy ? { remedy } : {}) } } : {}),
+        };
+      }
       if (state === 'failed') {
         const error = cleanText(job?.error, 500);
         return { state: 'failed', ...(error ? { error } : {}) };
       }
       if (state === 'queued' || state === 'running') {
         const progress = clampProgress(job?.progress);
-        return { state, ...(progress ? { progress } : {}) };
+        const waiting = cleanText(job?.waiting, 120);
+        return { state, ...(progress ? { progress } : {}), ...(waiting ? { waiting } : {}) };
       }
       return { state: 'unreachable' }; // a state we do not know: ask again, trust nothing
+    },
+
+    async cancel(jobId): Promise<CloudCancelAnswer> {
+      // a job id that is not ours is nothing to stop — and never leaves this Mac
+      if (!JOB_ID_RE.test(jobId)) return { ok: true };
+      const r = await reach('POST', `${jobsPath}/${jobId}/cancel`);
+      if (r === 'signed-out' || r === 'network') return { ok: false, code: 'unreachable' };
+      await r.body?.cancel().catch(() => {});
+      lastHeard = now();
+      // 404 / 410: the cloud no longer has it, so there is nothing left to stop
+      if (r.status === 200 || r.status === 404 || r.status === 410) return { ok: true };
+      if (r.status === 409) return { ok: false, code: 'not-running' };
+      if (r.status === 403) return { ok: false, code: 'forbidden' };
+      return { ok: false, code: 'unreachable' };
     },
 
     async artifact(jobId) {

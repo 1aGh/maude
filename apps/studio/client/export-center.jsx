@@ -328,6 +328,35 @@ export function useExportCenter({ enabled = true } = {}) {
     [fail]
   );
 
+  // #128 T3.7b — Cancel a running cloud export (POST /_api/export-jobs/cancel, registry `export.cancel`).
+  // The row ends in "Cancelled." over the socket; a refusal says why instead.
+  const cancel = useCallback(
+    async (job) => {
+      try {
+        const r = await fetch('/_api/export-jobs/cancel', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ id: job.id }),
+        });
+        if (!r.ok)
+          fail(
+            job,
+            "Couldn't cancel",
+            r.status === 409
+              ? 'It has already finished.'
+              : r.status === 502
+                ? "The cloud didn't answer. Try again."
+                : r.status === 404
+                  ? 'That export is no longer here.'
+                  : (await r.text()) || `Refused (${r.status})`
+          );
+      } catch (err) {
+        fail(job, "Couldn't cancel", err?.message || String(err));
+      }
+    },
+    [fail]
+  );
+
   // A spec that names where to save (Downloads, or the remembered folder) saves itself on this Mac the
   // moment it is done — no dialog. Any other waits for Show in Finder, which asks once.
   useEffect(() => {
@@ -364,6 +393,7 @@ export function useExportCenter({ enabled = true } = {}) {
     reveal,
     again,
     retry,
+    cancel,
     renderHere,
     removeFromList,
     savedPaths,

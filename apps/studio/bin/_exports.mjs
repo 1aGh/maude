@@ -4,6 +4,8 @@
 //   list            GET /_api/export-history — this session's recent exports (effect none)
 //   retry <id|i>    S8.4 — run only the items of one group job that did not make it, again
 //                   (POST /_api/export-jobs/retry — the Exports panel's "Retry <name>"); effect project
+//   cancel <id>     #128 T3.7b — stop one of your unfinished exports (POST /_api/export-jobs/cancel —
+//                   the Exports panel's "Cancel" on a running cloud row); effect project
 //   again <id|i>    re-submit one entry through the SAME jobs path the Export sheet's
 //                   "Export again" row uses: POST /_api/export-jobs with replayExportJob(entry)
 //                   (exporters/replay.ts — the sheet's scope fallback), wait for the job, write
@@ -30,11 +32,14 @@ import {
 export const USAGE = `usage: maude design exports list [--json] [--root <project>]
        maude design exports again <id | index> [--out <file|folder/>] [--no-wait] [--json] [--root <project>]
        maude design exports retry <id | index> [--item <id[,id…]>] [--no-wait] [--json] [--root <project>]
+       maude design exports cancel <id> [--json] [--root <project>]
   list    recent exports, newest first (index 0 is the newest)
   again   export that entry again, exactly as the Export sheet's "Export again" does; waits for the
           job and writes the file to --out (default: the current folder). --no-wait only queues it.
   retry   run again ONLY the items of that export that did not make it (all of them, or --item); the
           ones that made it are left alone. Waits for the job and says how many made it.
+  cancel  stop one of YOUR unfinished exports (the id the panel row shows); a running cloud video is
+          also stopped on the render service. Another person's export is not found.
 Exit 0 ok · 1 not found / the export failed · 2 usage · 3 no studio running.
 `;
 
@@ -232,7 +237,36 @@ async function retry(words) {
   return failed.length || done.status === 'failed' ? 1 : 0;
 }
 
-const SUBS = { list, again, retry };
+async function cancel(words) {
+  const { flags, pos } = parseWords(words, { bool: ['--json'], value: ['--root'] });
+  if (pos.length !== 1) throw new UsageError('cancel takes one <id>');
+  const c = await connect('exports', flags['--root']);
+  if (c.exit) return c.exit;
+  const id = pos[0];
+  const posted = await call(c.studio, '/_api/export-jobs/cancel', { method: 'POST', json: { id } });
+  if (posted?.status !== 200) {
+    const why =
+      posted?.status === 404
+        ? 'that export is not here any more'
+        : posted?.status === 409
+          ? 'it has already finished'
+          : posted?.status === 502
+            ? 'the cloud did not answer'
+            : posted
+              ? clean(posted.text).slice(0, 200) || posted.status
+              : 'no answer';
+    process.stderr.write(`maude design exports cancel: not cancelled (${why})\n`);
+    return 1;
+  }
+  process.stdout.write(
+    flags['--json']
+      ? `${JSON.stringify(untrustedJson({ jobId: id, cancelled: true }))}\n`
+      : `→ cancelled ${clean(id)}\n`
+  );
+  return 0;
+}
+
+const SUBS = { list, again, retry, cancel };
 
 if (import.meta.main) {
   runVerb('exports', USAGE, async (words) => {
