@@ -302,7 +302,12 @@ import {
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
-import { credentialRouteRefusal } from './shell/api-key.ts';
+import {
+  apiKeyRequired,
+  bootApiKey,
+  credentialRouteRefusal,
+  mintLaunchToken,
+} from './shell/api-key.ts';
 import { resolveProfile } from './shell/profile.ts';
 import {
   cacheControlFor,
@@ -3620,8 +3625,11 @@ export function createHttp(
             'bash',
             join(BIN_DIR, 'screenshot.sh'),
             '--shell',
-            '--port',
-            port,
+            // A key-required server (sec-loopback-bearer §7) answers the shell page only to a
+            // caller with its key: hand the capture a one-time launch link minted in-process.
+            ...(apiKeyRequired()
+              ? ['--url', `http://localhost:${port}/?maude-launch=${mintLaunchToken(bootApiKey())}`]
+              : ['--port', port]),
             '--out',
             out,
             '--root',
