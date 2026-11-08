@@ -243,8 +243,30 @@ export default function K() {
 }
 `;
 
+/** A poll gap this far above the poll interval means the process did not run (a starved runner, a stopped process). */
+const FROZEN_GAP_MS = 500;
+
+/**
+ * A deadline counted in time THIS process actually ran. A wall-clock deadline also charges the time a starved runner
+ * spent not running, and expires on the first tick after the freeze - before the socket data queued behind it is read
+ * (the hub-format-fence flake of 2026-10-31, same cause). A gap above FROZEN_GAP_MS is charged as one tick.
+ */
+function runClock(tickMs: number) {
+  let ran = 0;
+  let last = performance.now();
+  return {
+    tick(): number {
+      const now = performance.now();
+      const gap = now - last;
+      last = now;
+      ran += gap > FROZEN_GAP_MS ? tickMs : gap;
+      return ran;
+    },
+  };
+}
+
 async function waitFor<T>(fn: () => T | Promise<T>, what: string, ms = 20_000): Promise<T> {
-  const end = Date.now() + ms;
+  const clock = runClock(50);
   for (;;) {
     try {
       const v = await fn();
@@ -252,7 +274,7 @@ async function waitFor<T>(fn: () => T | Promise<T>, what: string, ms = 20_000): 
     } catch {
       /* retry */
     }
-    if (Date.now() > end) throw new Error(`timed out waiting for ${what}`);
+    if (clock.tick() > ms) throw new Error(`timed out waiting for ${what}`);
     await new Promise((r) => setTimeout(r, 50));
   }
 }
@@ -270,12 +292,19 @@ function startHub(dataDir: string): Promise<Hub> {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let buf = '';
-    const timer = setTimeout(() => reject(new Error(`hub did not start: ${buf}`)), 20_000);
+    // 20 s of RUN time, not wall time: a hub child starting on a starved machine is not a hub that failed.
+    const clock = runClock(100);
+    const timer = setInterval(() => {
+      if (clock.tick() > 20_000) {
+        clearInterval(timer);
+        reject(new Error(`hub did not start: ${buf}`));
+      }
+    }, 100);
     proc.stdout?.on('data', (chunk: Buffer) => {
       buf += chunk.toString('utf8');
       for (const line of buf.split('\n')) {
         if (!line.startsWith('{')) continue;
-        clearTimeout(timer);
+        clearInterval(timer);
         const info = JSON.parse(line);
         resolve({ proc, http: info.http, port: info.port, tokens: info.tokens });
         return;
@@ -431,7 +460,8 @@ describe.skipIf(!HUB_READY)('⌘Z of a text step on a real hub, two studios', ()
     bob = await startPeer(join(root, 'bob'), bobUrl);
     await bob.runtime.pullRemoteNow();
     await waitFor(() => bob.runtime.acceptedMode?.() === true, 'bob in accepted mode');
-  }, 60_000);
+    // Each step above has its own run-time deadline; this is only the ceiling for all of them on a starved machine.
+  }, 240_000);
 
   afterAll(async () => {
     await alice?.runtime.stop();

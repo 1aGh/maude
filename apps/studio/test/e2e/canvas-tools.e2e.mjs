@@ -99,8 +99,28 @@ async function waitFor(fn, what, ms = 20_000) {
 }
 
 const rects = (s) => (s.match(/data-shape="rect"[^>]*/g) ?? []).map((l) => l);
+// Each rect by its OWN id, never by its place in the file: a copy's position in the source is the writer's business.
+const rectTags = (s) => s.match(/<div[^>]*data-shape="rect"[^>]*>/g) ?? [];
+const rectTag = (s, id) => rectTags(s).find((t) => t.includes(`data-cd-id="${id}"`)) ?? null;
+const copyIds = (s) =>
+  rectTags(s)
+    .map((t) => /data-cd-id="([^"]+)"/.exec(t)?.[1])
+    .filter((id) => id && id !== 'rect');
 const leftOf = (s, id) =>
   new RegExp(`data-cd-id="${id}"[^>]*left: "(-?[\\d.]+)px"`).exec(s)?.[1] ?? null;
+
+// The frame draws the selection (halo + resize handles) a beat AFTER the element renders: a ⌘D sent before it is
+// there goes to a selection the frame has not bound yet and is lost. So wait for the halo to sit on THIS element -
+// a signal that follows the work, where a fixed sleep guessed how long it takes on a loaded machine.
+const selectionOn = (c, id) =>
+  c.frame().evaluate((cdId) => {
+    const el = document.querySelector(`[data-cd-id="${cdId}"]`);
+    const halo = document.querySelector('.dc-cv-halo--selected');
+    if (!el || !halo || !document.querySelector('.dc-el-resize-handle')) return false;
+    const a = el.getBoundingClientRect();
+    const b = halo.getBoundingClientRect();
+    return Math.abs(a.left - b.left) < 4 && Math.abs(a.top - b.top) < 4;
+  }, id);
 
 async function click(c, x, y) {
   const p = c.P(x, y);
@@ -266,10 +286,14 @@ describe('r1 D1 — canvas tools in a real browser', () => {
       await sleep(400);
       await drag(c, { x: r.cx, y: r.cy }, { x: r.cx + 150, y: r.cy + 120 }, { alt: true });
       await waitFor(() => rects(c.src()).length === 2, '⌥-drag made a copy');
+      const dropId = await waitFor(() => copyIds(c.src())[0], 'the ⌥-drag copy has its own id');
+      await waitFor(
+        () => /left: "250px", top: "220px"/.test(rectTag(c.src(), dropId) ?? ''),
+        'the copy landed at the drop'
+      );
       const after = c.src();
       assert.equal((after.match(/<DCArtboard/g) ?? []).length, 1, 'the artboard was not copied');
       assert.equal(leftOf(after, 'rect'), '100', 'the original stayed put');
-      assert.match(rects(after)[1], /left: "250px", top: "220px"/, 'the copy landed at the drop');
       await c.page.keyboard.press('Meta+z');
       await waitFor(() => rects(c.src()).length === 1, '⌘Z took the copy back in one step');
 
@@ -279,24 +303,30 @@ describe('r1 D1 — canvas tools in a real browser', () => {
       await c.page.keyboard.press('Meta+d');
       await waitFor(() => rects(c.src()).length === 2, '⌘D made a copy');
       // Michal (r1): the copy lands +10 / +10 from the original, and it is the selection
-      const dup = c.src();
-      assert.equal(leftOf(dup, 'rect'), '100', 'the original stayed put');
-      assert.match(rects(dup)[1], /left: "110px", top: "110px"/, 'the ⌘D copy is offset +10 / +10');
-      const copyId = /data-cd-id="([^"]+)"[^>]*left: "110px"/.exec(dup)?.[1];
-      assert.ok(copyId && copyId !== 'rect', 'the copy has its own id');
-      // a second ⌘D copies the COPY (it is selected): +10 / +10 again
+      const copyId = await waitFor(() => copyIds(c.src())[0], 'the ⌘D copy has its own id');
+      await waitFor(
+        () => /left: "110px", top: "110px"/.test(rectTag(c.src(), copyId) ?? ''),
+        'the ⌘D copy is offset +10 / +10'
+      );
+      assert.equal(leftOf(c.src(), 'rect'), '100', 'the original stayed put');
+      // a second ⌘D copies the COPY (it is selected): +10 / +10 again. Press it only once the copy has rendered
+      // AND the selection is drawn on it - a loaded machine lags behind the file write, and a ⌘D sent before
+      // the frame bound the new selection is lost.
       await waitFor(
         () =>
           c.frame().evaluate((id) => !!document.querySelector('[data-cd-id="' + id + '"]'), copyId),
         'the copy rendered'
       );
-      await sleep(800);
+      await waitFor(() => selectionOn(c, copyId), 'the selection halo sits on the ⌘D copy');
       await c.page.keyboard.press('Meta+d');
       await waitFor(() => rects(c.src()).length === 3, 'a second ⌘D copied the selected copy');
-      assert.match(
-        rects(c.src())[2],
-        /left: "120px", top: "120px"/,
-        'the selection moved to the copy'
+      const secondId = await waitFor(
+        () => copyIds(c.src()).find((id) => id !== copyId),
+        'the second copy has its own id'
+      );
+      await waitFor(
+        () => /left: "120px", top: "120px"/.test(rectTag(c.src(), secondId) ?? ''),
+        'the second copy sits +10 / +10 from the first'
       );
       await c.page.keyboard.press('Meta+z');
       await waitFor(() => rects(c.src()).length === 2, '⌘Z took the second copy back in one step');

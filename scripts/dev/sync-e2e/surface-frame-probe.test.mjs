@@ -17,6 +17,7 @@ test('debug probe observes an isolated canvas without disabling same-origin enfo
     res.setHeader('content-type', 'text/html');
     res.end(`<h1>Rendered on another origin</h1><input value="unchanged">
       <button onclick="this.textContent='Clicked through UI'">Click me</button>
+      <span id="slow" onclick="const t = performance.now(); while (performance.now() - t < 1500); this.textContent='Done after a stall'">Slow</span>
       <div contenteditable="true" aria-label="Editor">Initial</div>
       <div id="gesture" style="width:100px;height:100px" onpointerup="this.textContent='Pointer finished'">Drag here</div>
       <div id="drop" ondrop="event.preventDefault(); event.dataTransfer.files[0].text().then(t => this.textContent=t)">Drop here</div>
@@ -29,7 +30,9 @@ test('debug probe observes an isolated canvas without disabling same-origin enfo
       </script>`);
   });
   await new Promise((done) => canvas.listen(0, '127.0.0.1', done));
-  const canvasUrl = `http://127.0.0.1:${canvas.address().port}`;
+  // A different SITE from the shell (as the app's canvas origin is), so the browser can give the frame its own
+  // process and a stalled frame does not freeze the shell's timers with it.
+  const canvasUrl = `http://localhost:${canvas.address().port}`;
   const shell = createServer((_req, res) => {
     res.setHeader('content-type', 'text/html');
     res.end(
@@ -41,7 +44,9 @@ test('debug probe observes an isolated canvas without disabling same-origin enfo
   try {
     // Launched inside try: a failed launch must still close both servers, or
     // the open listeners keep the test process alive forever.
-    browser = await chromium.launch();
+    // Playwright switches site isolation OFF by default; the app's canvas runs in its own process, so a stalled
+    // frame must not freeze the shell with it (the stall case below needs that).
+    browser = await chromium.launch({ args: ['--site-per-process'] });
     const page = await browser.newPage();
     await page.addInitScript(script);
     await page.goto(`http://127.0.0.1:${shell.address().port}`);
@@ -75,6 +80,12 @@ test('debug probe observes an isolated canvas without disabling same-origin enfo
       await page.frameLocator('iframe').locator('button').textContent(),
       'Clicked through UI'
     );
+    // A canvas frame that is starved by the machine (a loaded runner, a busy
+    // main thread) answers late, not never: a plain probe waits well past the
+    // 1 s that timed out on the Mac mini's headless Chromium. The click handler
+    // holds the frame's thread for 1.5 s, the way a starved frame does.
+    const stalled1 = await page.evaluate(() => window.__maudeE2EFrameProbe('#slow', 'click'));
+    assert.equal(stalled1.error, undefined, 'a late reply from a starved frame is not a timeout');
     await page.evaluate(() =>
       window.__maudeE2EFrameProbe('[contenteditable]', 'editText', 'Typed text')
     );
