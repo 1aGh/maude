@@ -38,6 +38,8 @@ import {
   isDesignRel,
   keepTransfer,
 } from '../edit-ops/clipboard.ts';
+import { CLIP_MEDIA_EXT, isClipMedia } from '../edit-ops/clip-carry.ts';
+import { sanitizeSvgAllowlist } from '../bin/_import-asset.mjs';
 
 /** Picture bytes one clip may bring (the server's own body bound is ~108 MB; the header rides under it). */
 export const CLIP_ASSETS_MAX_BYTES = 80 * 1024 * 1024;
@@ -46,7 +48,8 @@ export const CLIP_FRAME_MAX_BYTES = 4 + CLIP_HEADER_MAX_BYTES + CLIP_ASSETS_MAX_
 export const CLIP_ASSETS_MAX = 256;
 const SIDECAR_MAX_BYTES = 256 * 1024;
 
-const CAS_RE = /^assets\/([0-9a-f]{8})\.[a-z0-9]{1,8}$/;
+// only media crosses (edit-ops/clip-carry.ts `CLIP_MEDIA_EXT`): a `.tsx` named by its own hash is still code
+const CAS_RE = new RegExp(`^assets/([0-9a-f]{8})\\.(?:${CLIP_MEDIA_EXT.join('|')})$`);
 const SIDECAR_RE = /^assets\/([0-9a-f]{8})(?:\.[0-9a-f]{8,16})?\.photo\.json$/;
 
 export const GONE = 'That copy is gone; copy it again.';
@@ -171,6 +174,22 @@ const whatUses = (t: ClipTransfer) =>
       ? 'That object uses'
       : 'Those objects use';
 
+const copyOver = (t: ClipTransfer, rel: string) =>
+  `${whatUses(t)} ${rel}, which this project doesn’t have. Copy that file over first.`;
+
+/**
+ * An SVG crosses only as the import-asset sanitizer (bin/_import-asset.mjs) leaves it: sanitizing it again
+ * changes nothing. One that came in another way is brought in through import-asset, not the clip lane.
+ */
+function svgAsSanitized(bytes: Uint8Array): boolean {
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return sanitizeSvgAllowlist(text) === text;
+  } catch {
+    return false;
+  }
+}
+
 /** The target half: check everything, then write the pictures and keep the clip. */
 export function importFromShell(
   frame: { header: unknown; blobs: Uint8Array },
@@ -222,12 +241,19 @@ export function importFromShell(
     at += size;
   }
   if (at !== blobs.length || at > CLIP_ASSETS_MAX_BYTES) return invalid;
+
+  // a file under assets/ that is not media never crosses: the person copies it over first, as with a module
+  for (const rel of t.carry.assets)
+    if (!isClipMedia(rel) && !SIDECAR_RE.test(rel) && !inside(designRoot, rel))
+      return { ok: false, status: 409, error: 'asset-not-media', message: copyOver(t, rel) };
   const pictures = new Set<string>();
   for (const f of files) {
     const shape = assetShape(f.rel) as { kind: 'cas' | 'sidecar'; sha8: string };
     if (shape.kind !== 'cas') continue;
     if (sha256(f.bytes).slice(0, 8) !== shape.sha8)
       return { ok: false, status: 422, error: 'asset-mismatch', message: CHANGED };
+    if (f.rel.endsWith('.svg') && !svgAsSanitized(f.bytes))
+      return { ok: false, status: 422, error: 'asset-not-media', message: copyOver(t, f.rel) };
     pictures.add(shape.sha8);
   }
   for (const f of files) {
@@ -258,6 +284,8 @@ export function importFromShell(
       return { ok: false, status: 500, error: 'assets-dir' };
     }
     for (const f of files) {
+      // never a name that is not media or a sidecar (checked above; held again at the one write)
+      if (!assetShape(f.rel)) return invalid;
       const name = f.rel.slice('assets/'.length);
       const abs = join(dir, name);
       if (existsSync(abs)) continue;

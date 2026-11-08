@@ -400,3 +400,79 @@ describe('clip-asset', () => {
     expect((await get('/_api/shell/clip-asset', `?id=${id}&rel=${PIC}`)).status).toBe(200);
   });
 });
+
+describe('only media crosses as an asset', () => {
+  const setup = async () => {
+    const a = project({ [HOME]: HOME_SRC, [CARD]: CARD_SRC, [PIC]: PNG });
+    const body = await exported(a, await copyOnSource(a));
+    return { body, b: project({ [HOME]: OTHER_SRC, [CARD]: CARD_SRC }) };
+  };
+  const named = (bytes: Uint8Array, ext: string) =>
+    `assets/${createHash('sha256').update(bytes).digest('hex').slice(0, 8)}.${ext}`;
+  const withAsset = (body: Record<string, unknown>, rel: string) => ({
+    ...body,
+    carry: { ...(body.carry as { assets: string[] }), assets: [PIC, rel].sort() },
+  });
+
+  test('code named by its own hash (assets/<sha8>.tsx) → 400, nothing written', async () => {
+    const { body, b } = await setup();
+    for (const ext of ['tsx', 'ts', 'js', 'mjs', 'json', 'css', 'html']) {
+      const code = new TextEncoder().encode(
+        `export default function X() { return null } // ${ext}`
+      );
+      const rel = named(code, ext);
+      const r = await routes({ designRoot: b }).post(
+        frame(withAsset(body, rel), [
+          { rel: PIC, bytes: PNG },
+          { rel, bytes: code },
+        ])
+      );
+      expect(r.status).toBe(400);
+      expect(existsSync(join(b, rel))).toBe(false);
+    }
+    expect(existsSync(join(b, 'assets'))).toBe(false);
+  });
+
+  test('a clip naming a non-media asset this project lacks → refused in the copy-over words', async () => {
+    const { body, b } = await setup();
+    const r = await routes({ designRoot: b }).post(
+      frame(withAsset(body, 'assets/0a1b2c3d.tsx'), [{ rel: PIC, bytes: PNG }])
+    );
+    expect(r.status).toBe(409);
+    expect(((await r.json()) as { message: string }).message).toBe(
+      'That artboard uses assets/0a1b2c3d.tsx, which this project doesn’t have. Copy that file over first.'
+    );
+    expect(existsSync(join(b, 'assets'))).toBe(false);
+  });
+
+  test('an SVG crosses only as the import-asset sanitizer leaves it', async () => {
+    const { body, b } = await setup();
+    const dirty = new TextEncoder().encode(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 4"><script>alert(1)</script><rect width="4" height="4"/></svg>'
+    );
+    const rel = named(dirty, 'svg');
+    const bad = await routes({ designRoot: b }).post(
+      frame(withAsset(body, rel), [
+        { rel: PIC, bytes: PNG },
+        { rel, bytes: dirty },
+      ])
+    );
+    expect(bad.status).toBe(422);
+    expect(((await bad.json()) as { message: string }).message).toContain(
+      'Copy that file over first.'
+    );
+    expect(existsSync(join(b, 'assets'))).toBe(false);
+
+    const { sanitizeSvgAllowlist } = await import('../bin/_import-asset.mjs');
+    const clean = new TextEncoder().encode(sanitizeSvgAllowlist(new TextDecoder().decode(dirty)));
+    const okRel = named(clean, 'svg');
+    const ok = await routes({ designRoot: b }).post(
+      frame(withAsset(body, okRel), [
+        { rel: PIC, bytes: PNG },
+        { rel: okRel, bytes: clean },
+      ])
+    );
+    expect(ok.status).toBe(200);
+    expect(readFileSync(join(b, okRel))).toEqual(Buffer.from(clean));
+  });
+});

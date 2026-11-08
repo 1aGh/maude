@@ -170,19 +170,40 @@ impl BookInner {
         self.seq
     }
 
-    /// The latest copy and whether it is the caller's own.
-    fn latest_for(&self, tab: &str) -> Option<(Latest, bool)> {
-        self.latest.as_ref().map(|l| (l.clone(), l.tab == tab))
+    /// The latest copy and whether it is the caller's own. A copy made in a project that talks as
+    /// another profile (another account) is not offered: nothing crosses between profiles.
+    fn latest_for(
+        &self,
+        tab: &str,
+        root: &str,
+        profile_of: &dyn Fn(&str) -> String,
+    ) -> Option<(Latest, bool)> {
+        let l = self.latest.as_ref()?;
+        let mine = l.tab == tab;
+        if !mine && profile_of(&l.root) != profile_of(root) {
+            return None;
+        }
+        Some((l.clone(), mine))
     }
 
     /// The copy a take in `tab` may carry: the one it was asked about (`seq`), made in ANOTHER tab.
-    fn source_for(&self, tab: &str, root: &str, seq: u64) -> Result<Latest, &'static str> {
+    fn source_for(
+        &self,
+        tab: &str,
+        root: &str,
+        seq: u64,
+        profile_of: &dyn Fn(&str) -> String,
+    ) -> Result<Latest, &'static str> {
         let l = self.latest.as_ref().ok_or(GONE)?;
         if l.seq != seq {
             return Err(AGAIN);
         }
         if l.tab == tab || l.root == root {
             // the caller's own copy pastes through its own shell's handle, never through Rust
+            return Err(GONE);
+        }
+        if profile_of(&l.root) != profile_of(root) {
+            // a copy made as another account never lands in this one
             return Err(GONE);
         }
         Ok(l.clone())
@@ -229,7 +250,12 @@ pub fn clip_note(
 pub fn clip_latest(webview: tauri::Webview) -> Result<Option<LatestView>, String> {
     let caller = caller_project(&webview, false)?;
     let book = book(&webview)?;
-    let Some((l, mine)) = book.lock().latest_for(&caller.label) else {
+    let app = webview.app_handle().clone();
+    let profile_of = |root: &str| crate::app_state::profile_for(&app, root);
+    let Some((l, mine)) = book
+        .lock()
+        .latest_for(&caller.label, &caller.root, &profile_of)
+    else {
         return Ok(None);
     };
     Ok(Some(LatestView {
@@ -252,9 +278,10 @@ pub fn clip_latest(webview: tauri::Webview) -> Result<Option<LatestView>, String
 pub async fn clip_take(webview: tauri::Webview, seq: u64) -> Result<TakeAnswer, String> {
     let caller = caller_project(&webview, false)?;
     let app = webview.app_handle().clone();
+    let profile_of = |root: &str| crate::app_state::profile_for(&app, root);
     let src = book(&webview)?
         .lock()
-        .source_for(&caller.label, &caller.root, seq)
+        .source_for(&caller.label, &caller.root, seq, &profile_of)
         .map_err(str::to_string)?;
     // a resting / stopped source is never woken: its clip went with its server
     let from = crate::sidecar::shell_probe_for(&app, &src.root).ok_or(GONE)?;
@@ -312,7 +339,23 @@ fn url_with(origin: &str, path: &str, query: &[(&str, &str)]) -> Result<tauri::U
     Ok(u)
 }
 
-/// The pictures an export lists, checked: designRoot-relative `assets/…`, counted and capped.
+/// The file kinds a clip may carry as an asset: pictures, video, sound, fonts — never code, styles, data or
+/// a document. Mirrors `CLIP_MEDIA_EXT` (apps/studio/edit-ops/clip-carry.ts).
+const MEDIA_EXT: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "mp4", "mov", "m4v", "webm", "mp3", "m4a",
+    "wav", "ogg", "aac", "woff", "woff2", "ttf", "otf",
+];
+
+/// A media file, or the `.photo.json` sidecar that travels with a picture.
+fn is_media_asset(name: &str) -> bool {
+    if name.ends_with(".photo.json") {
+        return true;
+    }
+    name.rsplit_once('.')
+        .is_some_and(|(_, ext)| MEDIA_EXT.contains(&ext))
+}
+
+/// The pictures an export lists, checked: designRoot-relative `assets/…`, media only, counted and capped.
 pub fn plan_assets(export: &serde_json::Value) -> Result<Vec<(String, u64)>, String> {
     let list = export
         .get("assets")
@@ -335,6 +378,11 @@ pub fn plan_assets(export: &serde_json::Value) -> Result<Vec<(String, u64)>, Str
                 .all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-' || b == b'_');
         if !ok_name {
             return Err(CHANGED.to_string());
+        }
+        if !is_media_asset(name) {
+            return Err(format!(
+                "That copy uses {rel}, which this project doesn’t have. Copy that file over first."
+            ));
         }
         total = total.saturating_add(size);
         if total > ASSETS_MAX {
@@ -561,13 +609,14 @@ mod tests {
 
     #[test]
     fn the_latest_copy_wins_and_mine_says_whose_it_is() {
+        let one = |_: &str| "default".to_string();
         let mut b = BookInner::default();
-        assert!(b.latest_for("p-a").is_none());
+        assert!(b.latest_for("p-a", A, &one).is_none());
         let s1 = b.note("p-a", A, ID, ClipKind::Objects, 2, "ui/Home.tsx");
-        let (l, mine) = b.latest_for("p-a").unwrap();
+        let (l, mine) = b.latest_for("p-a", A, &one).unwrap();
         assert!(mine);
         assert_eq!((l.seq, l.count, l.from.as_str()), (s1, 2, "ui/Home.tsx"));
-        assert!(!b.latest_for("p-b").unwrap().1);
+        assert!(!b.latest_for("p-b", B, &one).unwrap().1);
         let s2 = b.note(
             "p-b",
             B,
@@ -577,21 +626,34 @@ mod tests {
             "ui/About.tsx",
         );
         assert!(s2 > s1);
-        assert!(b.latest_for("p-b").unwrap().1);
-        assert!(!b.latest_for("p-a").unwrap().1);
+        assert!(b.latest_for("p-b", B, &one).unwrap().1);
+        assert!(!b.latest_for("p-a", A, &one).unwrap().1);
     }
 
     #[test]
     fn a_take_carries_only_the_copy_it_was_asked_about_from_another_tab() {
+        let one = |_: &str| "default".to_string();
         let mut b = BookInner::default();
-        assert_eq!(b.source_for("p-b", B, 1), Err(GONE));
+        assert_eq!(b.source_for("p-b", B, 1, &one), Err(GONE));
         let s = b.note("p-a", A, ID, ClipKind::Objects, 2, "ui/Home.tsx");
         // the toast asked about seq s; a newer copy since → press ⌘V again, nothing carried
-        assert_eq!(b.source_for("p-b", B, s + 1), Err(AGAIN));
-        assert_eq!(b.source_for("p-b", B, s).unwrap().id, ID);
+        assert_eq!(b.source_for("p-b", B, s + 1, &one), Err(AGAIN));
+        assert_eq!(b.source_for("p-b", B, s, &one).unwrap().id, ID);
         // the copying tab (or another tab on the same root) never takes through Rust
-        assert_eq!(b.source_for("p-a", A, s), Err(GONE));
-        assert_eq!(b.source_for("p-x", A, s), Err(GONE));
+        assert_eq!(b.source_for("p-a", A, s, &one), Err(GONE));
+        assert_eq!(b.source_for("p-x", A, s, &one), Err(GONE));
+    }
+
+    #[test]
+    fn nothing_crosses_between_profiles() {
+        // A talks as `default`, B as another account
+        let two = |root: &str| if root == A { "default" } else { "work" }.to_string();
+        let mut b = BookInner::default();
+        let s = b.note("p-a", A, ID, ClipKind::Objects, 1, "ui/Home.tsx");
+        assert!(b.latest_for("p-b", B, &two).is_none());
+        assert_eq!(b.source_for("p-b", B, s, &two), Err(GONE));
+        // the copying tab still sees its own copy
+        assert!(b.latest_for("p-a", A, &two).unwrap().1);
     }
 
     #[test]
@@ -641,6 +703,33 @@ mod tests {
             serde_json::json!({ "assets": [{ "rel": "assets/a.png", "size": ASSETS_MAX + 1 }] }),
         ] {
             assert!(plan_assets(&bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn only_media_crosses_as_an_asset() {
+        for good in [
+            "assets/0a1b2c3d.svg",
+            "assets/0a1b2c3d.mp4",
+            "assets/0a1b2c3d.woff2",
+            "assets/0a1b2c3d.photo.json",
+        ] {
+            let ok = serde_json::json!({ "assets": [{ "rel": good, "size": 1 }] });
+            assert!(plan_assets(&ok).is_ok(), "{good}");
+        }
+        for code in [
+            "assets/0a1b2c3d.tsx",
+            "assets/0a1b2c3d.ts",
+            "assets/0a1b2c3d.js",
+            "assets/0a1b2c3d.mjs",
+            "assets/0a1b2c3d.json",
+            "assets/0a1b2c3d.css",
+            "assets/0a1b2c3d.html",
+            "assets/0a1b2c3d",
+        ] {
+            let bad = serde_json::json!({ "assets": [{ "rel": code, "size": 1 }] });
+            let err = plan_assets(&bad).unwrap_err();
+            assert!(err.ends_with("Copy that file over first."), "{code}: {err}");
         }
     }
 
