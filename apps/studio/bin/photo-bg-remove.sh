@@ -250,8 +250,8 @@ URL="http://localhost:$PORT/_canvas-shell.html?canvas=$REL&nonce=$NONCE"
 . "$SCRIPT_DIR/_url-guard.sh" && maude_url_guard "$URL" || exit 2 # V2-8.9 B2 — http(s) to this Mac only
 SEL="[data-photo-bgremove-status]"
 
-echo "→ driving $URL (session $SESSION)" >&2
-if ! "$AB" --session "$SESSION" open "$URL" >&2; then
+echo "→ driving $(maude_redact "$URL") (session $SESSION)" >&2
+if ! "$AB" --session "$SESSION" open "$URL" >/dev/null 2>&1; then
   echo "photo-bg-remove.sh: agent-browser failed to open the harness canvas" >&2
   exit 3
 fi

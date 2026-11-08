@@ -97,6 +97,7 @@ DESIGN_ROOT="$REPO/.design"
 STATE="$DESIGN_ROOT/_server.json"
 # #206 T6.3d — the desktop app's attested server first. APP_OWNED=1 means --restart must never kill it.
 . "$SCRIPT_DIR/_desktop-locate.sh"
+. "$SCRIPT_DIR/_url-guard.sh" # maude_redact
 APP_OWNED=0
 if [ -z "$PORT" ]; then
   desktop_port "$REPO"
@@ -133,7 +134,7 @@ probe_one() {
   local url="$BASE/_canvas-runtime/$slug"
   local served
   served=$(curl -fs -o /dev/null -w '%{size_download}' "$url" 2>/dev/null) || {
-    echo "✗ $slug — served HTTP error (curl failed for $url)" >&2
+    echo "✗ $slug — served HTTP error (curl failed for $(maude_redact "$url"))" >&2
     return 1
   }
   # Hard floor at 256 bytes — any working ESM bundle is bigger than that.

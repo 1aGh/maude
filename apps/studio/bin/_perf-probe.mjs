@@ -39,6 +39,7 @@ import {
   readHistory,
   renderReport,
 } from './_perf-shared.mjs';
+import { redactUrl } from './_url-guard.mjs';
 
 const AB = resolveAgentBrowserBin();
 
@@ -102,10 +103,12 @@ function parseArgs(argv) {
   return out;
 }
 
-function ab(args) {
+function ab(args, quiet = false) {
   return execFileSync(AB, ['--session', AB_SESSION, ...args], {
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
+    // `open` can echo its URL (a frame capability) — never to stderr, which the AI chat reads
+    ...(quiet ? { stdio: 'ignore' } : {}),
   });
 }
 
@@ -147,9 +150,11 @@ async function main() {
 
   try {
     opened = true;
-    ab(['open', opts.url]);
+    ab(['open', opts.url], true);
   } catch (err) {
-    console.error(`_perf-probe.mjs: agent-browser could not open ${opts.url}\n${err.message}`);
+    console.error(
+      `_perf-probe.mjs: agent-browser could not open ${redactUrl(opts.url)}\n${redactUrl(err.message)}`
+    );
     process.exit(1);
   }
 

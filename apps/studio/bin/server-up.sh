@@ -76,7 +76,7 @@ emit() {
     local link
     link="$(studio_launch_url "$REPO" "$1")"
     open "$link" >/dev/null 2>&1 || xdg-open "$link" >/dev/null 2>&1 ||
-      echo "server-up.sh: no browser opener here; run \`maude design browse\` in a terminal" >&2
+      echo "server-up.sh: no browser opener here; run \`maude design server-up --open\` in a terminal that can open a browser" >&2
   fi
   printf 'http://localhost:%s/\n' "$1"
 }

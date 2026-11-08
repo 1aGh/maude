@@ -8,7 +8,7 @@
 // the studio on `127.0.0.1:<port>` and the canvas origin on `localhost:<port>` (two sites), every
 // picture lost its capability and got the frame-less answer (403): "Picture not found".
 //
-// The desktop app, `maude design browse` and every printed address use `localhost`, the same site
+// The desktop app, `maude design server-up --open` and every printed address use `localhost`, the same site
 // as the canvas origin, so they never hit this; a cell and a self-hosted workspace must already put
 // the canvas domain on the studio's site (its session cookie needs it). What is left is a person
 // (or a harness) typing `127.0.0.1` or `[::1]`. Their browser's own top-level navigation to the

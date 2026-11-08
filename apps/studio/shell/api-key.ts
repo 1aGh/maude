@@ -350,7 +350,7 @@ function launchExchange(
   ) {
     return plainText(
       401,
-      'This Maude link has expired or was already used. Open the project again from Maude, or run `maude design browse`.'
+      'This Maude link has expired or was already used. Open the project again from Maude, or run `maude design server-up --open`.'
     );
   }
   if (used.size >= MAX_USED_NONCES) {

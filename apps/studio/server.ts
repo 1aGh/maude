@@ -1275,7 +1275,7 @@ console.log(`\n  ${ctx.projectLabel} — local browser`);
 console.log('  ─────────────────────────────');
 console.log(`  ${requiresLaunch && process.stdout.isTTY ? launchUrl() : url}`);
 if (requiresLaunch)
-  console.log('  (the link opens once; `maude design browse` opens the studio again)');
+  console.log('  (the link opens once; `maude design server-up --open` opens the studio again)');
 console.log(`  Project:   ${ctx.cfg.name}`);
 console.log(`  Config:    ${ctx.cfg._source}`);
 console.log(`  Design:    ${ctx.paths.designRoot}`);
