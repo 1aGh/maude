@@ -251,8 +251,12 @@ function web(name: string, root: string, page: Page): Surface {
       await page.locator(q).selectOption({ value });
     },
     async dragTo(source, destination) {
-      await page.locator(source).scrollIntoViewIfNeeded();
-      await page.locator(destination).scrollIntoViewIfNeeded();
+      // not `scrollIntoViewIfNeeded`: it waits for a stable box, and a windowed tree row is re-drawn under a
+      // teammate's sync updates, so it never settles ("element is not stable")
+      // A row the windowed list has not drawn is reached by the gesture itself (it scrolls the held drag).
+      for (const q of [source, destination])
+        if ((await page.locator(q).count()) > 0)
+          await page.locator(q).evaluate((el) => el.scrollIntoView({ block: 'nearest' }));
       await page.evaluate(`(${treeDragSource})(${JSON.stringify({ source, destination })})`);
     },
     async screenshot(path) {
@@ -482,6 +486,21 @@ async function answerName(s: Surface, value: string): Promise<number> {
   // The dialog's own button, not Enter: the embedded driver's Enter is a synthetic keydown, which never
   // submits a form (implicit submission needs a trusted key), so the native dialog stayed open.
   await s.click(selector('name-dialog-create'));
+  return start;
+}
+/** The tree's "New folder" row (`canvases-new-name`, aria-label "Folder name"): the row IS the field, typed like a
+ *  person (the driver's setValue clears through an unfocus, which cancels the row) and committed with Enter. */
+async function newFolderNamed(s: Surface, value: string): Promise<number> {
+  await s.click(selector('tree-new-folder'));
+  const field = selector('canvases-new-name');
+  await until(async () => (await s.count(field)) === 1, 10000);
+  await s.press('Meta+a');
+  await s.press('Backspace');
+  for (const key of value) await s.press(key);
+  const typed = await s.shell(`document.querySelector(${JSON.stringify(field)})?.value ?? null`);
+  if (typed !== value) throw new Error(`Folder name field holds ${JSON.stringify(typed)}`);
+  const start = performance.now();
+  await s.press('Enter');
   return start;
 }
 /** Put away an ask a refusal left open (its words are read first). */
@@ -884,7 +903,9 @@ async function receivers(
   all: Surface[],
   q: string,
   start: number,
-  rel: string
+  rel: string,
+  // a tree row below the fold is not drawn (the list is windowed): bring it in before reading
+  reveal = false
 ) {
   return Promise.all(
     all
@@ -892,7 +913,10 @@ async function receivers(
       .map(async (to) => {
         const result: Record<string, unknown> = { receiver: to.name };
         try {
-          await until(async () => (await to.read(q)) !== null);
+          await until(async () => {
+            if (reveal) await scrollRowIntoList(to, q);
+            return (await to.read(q)) !== null;
+          });
           result.visibleMs = performance.now() - start;
           result.diskExists = existsSync(join(to.root, '.design', rel));
           await to.screenshot(join(run.out, `${id}-${from.name}-to-${to.name}.png`));
@@ -1331,7 +1355,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       const WEIGHTS = ['400', '500', '600', '700'];
       const weightIn = (p: Surface, rel: string, value: string) =>
         new RegExp(`fontWeight:\\s*"?${value}\\b`).test(bytes(p.root, rel).toString());
-      const selectHeading = async (p: Surface) => {
+      const selectHeading = async (p: Surface, opts: { anyHeading?: boolean } = {}) => {
         // Read-only ordering trace: a preparation failure must distinguish a
         // missed pointer from a later frame/selection message overwriting it.
         await p.shell(`(() => {
@@ -1368,6 +1392,17 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             }
             return '';
           })()`) as Promise<string>;
+        // a duplicated heading has a twin: with `anyHeading` the selection may be either (the id read off the first h1
+        // is not always the one the pointer lands on)
+        const lastIsHeading = () =>
+          p.shell(`(() => {
+            const t = window.__maudeSelectionPreparationTrace || [];
+            for (let i = t.length - 1; i >= 0; i--) {
+              if (t[i].kind === 'clear-select') return false;
+              if (t[i].kind === 'select-set') return t[i].selection?.tag === 'h1';
+            }
+            return false;
+          })()`) as Promise<boolean>;
         // Discard the parked selection through the visible shell control.
         // Waiting for it to disappear prevents a same-id heading in the old
         // canvas from satisfying the new canvas's precondition.
@@ -1385,7 +1420,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const headingSelected = async () => {
           const selected = await p.read(selectedValue);
           return (
-            (await lastSelector()).includes(`[data-cd-id="${id}"]`) &&
+            (opts.anyHeading
+              ? await lastIsHeading()
+              : (await lastSelector()).includes(`[data-cd-id="${id}"]`)) &&
             !!selected?.includes(headingText) &&
             (await p.read(weight)) !== null
           );
@@ -1669,12 +1706,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               reason: 'New folder control is absent for this participant.',
             };
           const name = `Surface-${from.name}`;
-          await from.click(selector('tree-new-folder'));
-          await from.fill('[aria-label="New folder name"]', name);
-          const start = performance.now();
-          await from.click('[aria-label="Create folder"]');
+          const start = await newFolderNamed(from, name);
           const q = selector(`tree-folder-ui-${slug(name)}`);
-          await until(async () => (await from.read(q)) !== null);
+          await until(async () => {
+            await scrollRowIntoList(from, q);
+            return (await from.read(q)) !== null;
+          });
           const path = join(from.root, '.design/ui', name);
           const entries = readdirSync(path);
           if (
@@ -1682,7 +1719,15 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             (entries.includes('.gitkeep') && readFileSync(join(path, '.gitkeep')).length !== 0)
           )
             throw new Error('Created folder contains user content');
-          const observations = await receivers('L01-create', from, all, q, start, `ui/${name}`);
+          const observations = await receivers(
+            'L01-create',
+            from,
+            all,
+            q,
+            start,
+            `ui/${name}`,
+            true
+          );
           return {
             status: observations.every((o) => o.status === 'pass') ? 'pass' : 'fail',
             observations,
@@ -1696,9 +1741,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           const renamed = `Surface-${from.name}-renamed`;
           const q = selector(`tree-folder-ui-${slug(name)}`);
           const renamedQ = selector(`tree-folder-ui-${slug(renamed)}`);
-          for (const p of all)
+          for (const p of all) {
+            await scrollRowIntoList(p, q); // the list is windowed: a row below the fold is not drawn
             if ((await p.read(q)) === null || !existsSync(join(p.root, '.design/ui', name)))
               throw new Unexercised(`Rename needs the created folder at ${p.name}`);
+          }
           await from.hover(q);
           await from.click(selector(`tree-row-menu-ui-${slug(name)}`));
           const menu = await from.read('[role="menu"]');
@@ -1713,7 +1760,10 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             all,
             `L01-empty-rename-${from.name}`,
             start,
-            async (p) => (await p.read(q)) === null && (await p.read(renamedQ)) !== null,
+            async (p) => {
+              await scrollRowIntoList(p, renamedQ);
+              return (await p.read(q)) === null && (await p.read(renamedQ)) !== null;
+            },
             (p) =>
               !existsSync(join(p.root, '.design/ui', name)) &&
               existsSync(join(p.root, '.design/ui', renamed))
@@ -1727,19 +1777,28 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           const sourceQ = selector(`tree-folder-${slug(source)}`);
           const destQ = selector(`tree-folder-ui-${slug(dest)}`);
           for (const p of all) {
+            await scrollRowIntoList(p, sourceQ);
             if ((await p.read(sourceQ)) === null || !existsSync(join(p.root, '.design', source)))
               throw new Unexercised(`Seeded empty source absent at ${p.name}`);
+            await scrollRowIntoList(p, destQ);
             if ((await p.read(`${destQ}[aria-expanded="false"]`)) !== null) await p.click(destQ);
           }
+          await scrollRowIntoList(from, destQ);
+          await scrollRowIntoList(from, sourceQ);
           const start = performance.now();
           await from.dragTo(sourceQ, destQ);
           return observeAll(
             all,
             `L01-empty-move-${from.name}`,
             start,
-            async (p) =>
-              (await p.read(sourceQ)) === null &&
-              (await p.read(selector(`tree-folder-${slug(target)}`))) !== null,
+            async (p) => {
+              await scrollRowIntoList(p, destQ);
+              await scrollRowIntoList(p, selector(`tree-folder-${slug(target)}`));
+              return (
+                (await p.read(sourceQ)) === null &&
+                (await p.read(selector(`tree-folder-${slug(target)}`))) !== null
+              );
+            },
             (p) =>
               !existsSync(join(p.root, '.design', source)) &&
               existsSync(join(p.root, '.design', target)) &&
@@ -1750,9 +1809,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           const name = `EmptyDelete-${from.name}`;
           const rel = `ui/${name}`;
           const q = selector(`tree-folder-${slug(rel)}`);
-          for (const p of all)
+          for (const p of all) {
+            await scrollRowIntoList(p, q);
             if ((await p.read(q)) === null || !existsSync(join(p.root, '.design', rel)))
               throw new Unexercised(`Delete requires the pre-existing folder at ${p.name}`);
+          }
           await from.hover(q);
           await from.click(selector(`tree-row-menu-${slug(rel)}`));
           await from.menu('Delete folder');
@@ -3737,6 +3798,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       // the subtree — every descendant and sidecar follows, nothing ghosts.
       const folderRow = (dir: string) => selector(`tree-folder-${slug(dir)}`);
       const expand = async (p: Surface, dir: string) => {
+        if (dir.includes('/')) await scrollRowIntoList(p, folderRow(dir)); // the list is windowed
         if ((await p.read(`${folderRow(dir)}[aria-expanded="false"]`)) !== null)
           await p.click(folderRow(dir));
       };
@@ -3753,10 +3815,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // Destination for the later move, seeded like any fixture folder.
           mkdirSync(join(from.root, '.design/ui', dest), { recursive: true });
           writeFileSync(join(from.root, '.design/ui', dest, '.gitkeep'), '');
-          await from.click(selector('tree-new-folder'));
-          await from.fill('[aria-label="New folder name"]', top);
-          await from.click('[aria-label="Create folder"]');
-          await until(async () => (await from.read(folderRow(base))) !== null);
+          await newFolderNamed(from, top);
+          await until(async () => {
+            await scrollRowIntoList(from, folderRow(base));
+            return (await from.read(folderRow(base))) !== null;
+          });
           await from.hover(folderRow(base));
           await from.click(selector(`tree-row-menu-${slug(base)}`));
           await from.menu('New folder here');
@@ -3794,8 +3857,21 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             throw new Unexercised('Move needs the nested hierarchy and its destination everywhere');
           const before = { canvas: inner(), annotations: annotationsOf(inner()) };
           for (const p of all) await expand(p, 'ui');
-          const start = performance.now();
-          await from.dragTo(folderRow(base), folderRow(`ui/${dest}`));
+          // both rows drawn at once (the list is windowed): the drop target first, then the source
+          // A row the list re-draws under the scroll is "not stable" for the browser lane: draw again, then drag.
+          let start = performance.now();
+          for (let attempt = 0; ; attempt++) {
+            try {
+              await scrollRowIntoList(from, folderRow(`ui/${dest}`));
+              await scrollRowIntoList(from, folderRow(base));
+              start = performance.now();
+              await from.dragTo(folderRow(base), folderRow(`ui/${dest}`));
+              break;
+            } catch (error) {
+              if (attempt >= 2) throw error;
+              await sleep(500);
+            }
+          }
           base = `ui/${dest}/${top}`;
           return observeAll(
             all,
@@ -3820,7 +3896,10 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // move row could not run): the rename keeps its parent.
           const parent = base.split('/').slice(0, -1).join('/');
           await expand(from, parent);
-          await until(async () => (await from.read(folderRow(base))) !== null);
+          await until(async () => {
+            await scrollRowIntoList(from, folderRow(base));
+            return (await from.read(folderRow(base))) !== null;
+          });
           await from.hover(folderRow(base));
           await from.click(selector(`tree-row-menu-${slug(base)}`));
           await from.menu('Rename folder');
@@ -3832,6 +3911,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             start,
             async (p) => {
               await expand(p, parent);
+              await scrollRowIntoList(p, folderRow(base));
               return (
                 (await p.read(folderRow(oldBase))) === null &&
                 (await p.read(folderRow(base))) !== null
@@ -3855,6 +3935,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             annotations: annotationsOf(inner()),
           };
           await expand(from, base.split('/').slice(0, -1).join('/'));
+          await scrollRowIntoList(from, folderRow(base));
           await from.hover(folderRow(base));
           await from.click(selector(`tree-row-menu-${slug(base)}`));
           await from.menu('Delete folder');
@@ -6656,8 +6737,19 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await until(
             async () => !!(await from.probe('[data-testid="toolbar-slot-el-text"]'))?.visible
           );
-          const start = performance.now();
+          // Text is click to type (S2.12b): the slot arms the tool, and a click on the artboard's empty area
+          // adds the text there (a click on existing text would type into it instead).
           await gesture(from, '[data-testid="toolbar-slot-el-text"]', 'click');
+          // The press goes to the input layer the armed tool owns (it covers the canvas), aimed at the artboard
+          // body's empty lower part, as a fraction of that layer.
+          const layer = (await from.probe('.dc-annot-input'))?.rect;
+          const body = (await from.probe('[data-dc-screen="el"] .dc-artboard-body'))?.rect;
+          if (!layer || !body) throw new Error('Text tool: input layer or artboard body absent');
+          const start = performance.now();
+          await gesture(from, '.dc-annot-input', 'pointer', {
+            x: (body.x + body.width * 0.5 - layer.x) / layer.width,
+            y: (body.y + body.height * 0.85 - layer.y) / layer.height,
+          });
           return observeAll(
             all,
             `L07-insert-${from.name}`,
@@ -6670,12 +6762,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all)
             if (count(p, rel, '<h1') !== 2)
               throw new Unexercised(`Delete needs the duplicated heading at ${p.name}`);
-          await selectHeading(from);
+          await selectHeading(from, { anyHeading: true });
           // The insert above left its new text selected: pick the heading.
           for (
             let n = 0;
             n < 6 &&
-            !((await from.read(selector('inspector-selection'))) ?? '').includes(
+            !((await from.read(selector('inspector-title'))) ?? '').includes(
               `Element ${from.name}`
             );
             n++
@@ -6686,13 +6778,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // Act on what the designer sees: the heading named in the selection
           // chip, on a canvas that has stopped re-rendering the duplicate.
           await until(async () => {
-            const chip = await from.read(selector('inspector-selection'));
+            const chip = await from.read(selector('inspector-title'));
             if (!chip?.includes(`Element ${from.name}`) || (await headings(from)) !== 2)
               return false;
             await sleep(300);
-            return (
-              (await headings(from)) === 2 && !!(await from.read(selector('inspector-selection')))
-            );
+            return (await headings(from)) === 2 && !!(await from.read(selector('inspector-title')));
           });
           // The drill above double-clicks, which can open the heading's text
           // editor (`plaintext-only`): Delete then edits text at the caret
@@ -6707,7 +6797,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await sleep(150);
           }
           const before = {
-            chip: await from.read(selector('inspector-selection')).catch(() => null),
+            chip: await from.read(selector('inspector-title')).catch(() => null),
             textEditing: await editing(),
           };
           const start = performance.now();
@@ -6726,7 +6816,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 ...result,
                 beforeDelete: before,
                 afterDelete: {
-                  chip: await from.read(selector('inspector-selection')).catch(() => null),
+                  chip: await from.read(selector('inspector-title')).catch(() => null),
                   authorHeadings: await headings(from).catch(() => null),
                   authorSourceHeadings: count(from, rel, '<h1'),
                 },
@@ -6789,7 +6879,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await selectHeading(from);
           // The heading ALONE — the inspector also offers weight on the
           // section around it, and dragging that moves the whole section.
-          const chip = async () => (await from.read(selector('inspector-selection'))) ?? '';
+          const chip = async () => (await from.read(selector('inspector-title'))) ?? '';
           for (
             let n = 0;
             n < 6 &&
