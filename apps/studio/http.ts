@@ -201,12 +201,6 @@ import {
 } from './generation/gemma-models.ts';
 import { type GenerationJobQueue, GenerationQueueFullError } from './generation/jobs.ts';
 import {
-  createSpendGuard,
-  estimateJobCost,
-  readSpendSettings,
-  type SpendGuard,
-} from './generation/spend.ts';
-import {
   configuredProviders,
   deleteProviderKey,
   getProviderKey,
@@ -227,6 +221,12 @@ import {
   hasProvider,
   listProviders,
 } from './generation/registry.ts';
+import {
+  createSpendGuard,
+  estimateJobCost,
+  readSpendSettings,
+  type SpendGuard,
+} from './generation/spend.ts';
 import { validateGenRequest } from './generation/types.ts';
 import {
   downloadWhisperModel,
