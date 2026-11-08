@@ -47,6 +47,7 @@
     "allow-clip-latest",
     "allow-clip-take",
     "allow-take-pending-intent",
+    "allow-project-api-session",
     "allow-take-tabs-restored",
     "allow-take-pending-navigate",
     "allow-take-link-opened",

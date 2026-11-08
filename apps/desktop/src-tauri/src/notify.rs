@@ -1025,13 +1025,15 @@ pub(crate) async fn probe_runs(
     timeout: Duration,
 ) -> Option<RunsSnapshot> {
     let url = runs_url(&probe.info_file)?;
-    let resp = crate::sidecar::probe_client()?
+    let mut req = crate::sidecar::probe_client()?
         .get(url)
         .header("X-Maude-Shell", &probe.token)
-        .timeout(timeout)
-        .send()
-        .await
-        .ok()?;
+        .timeout(timeout);
+    // sec-loopback-bearer §7 — the server requires the spawn's key from every caller
+    if let Some(k) = probe.api_key.as_deref() {
+        req = req.header(crate::sidecar::API_KEY_HEADER, k);
+    }
+    let resp = req.send().await.ok()?;
     if !resp.status().is_success() {
         return None;
     }
@@ -1508,6 +1510,7 @@ mod tests {
         let probe = ShellProbe {
             info_file: info_file.clone(),
             token: token.clone(),
+            api_key: None,
         };
         let status = probe_status(&probe).await.expect("the real server answers");
         assert_eq!(status.ai.running, 1);
@@ -1522,6 +1525,7 @@ mod tests {
         let wrong = ShellProbe {
             info_file: info_file.clone(),
             token: "b".repeat(64),
+            api_key: None,
         };
         assert_eq!(probe_status(&wrong).await, None);
 
@@ -1529,6 +1533,7 @@ mod tests {
         let gone = ShellProbe {
             info_file: app_owned.join("missing.json"),
             token: token.clone(),
+            api_key: None,
         };
         assert_eq!(probe_status(&gone).await, None);
         assert_eq!(runs_url(&app_owned.join("missing.json")), None);
@@ -1567,6 +1572,7 @@ mod tests {
         let probe = ShellProbe {
             info_file: info_file.clone(),
             token,
+            api_key: None,
         };
         let t = Duration::from_millis(ACTIVITY_PROBE_TIMEOUT_MS);
         let snap = probe_runs(&probe, t).await.expect("answers to the spawn's token");
@@ -1574,6 +1580,7 @@ mod tests {
         let wrong = ShellProbe {
             info_file,
             token: "d".repeat(64),
+            api_key: None,
         };
         assert!(probe_runs(&wrong, t).await.is_none());
         assert_eq!(hits.load(Ordering::SeqCst), 2);

@@ -669,6 +669,7 @@ pub fn run() {
             home::home_session,
             home::new_home_tab,
             home::take_pending_intent,
+            sidecar::project_api_session,
             windows::take_tabs_restored,
             windows::take_pending_navigate,
             home::index_search,

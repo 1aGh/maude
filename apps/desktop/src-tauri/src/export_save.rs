@@ -193,9 +193,13 @@ fn export_client() -> Result<&'static reqwest::Client, String> {
 
 /// Ask the project's server for the job's bytes; a non-2xx (a 3xx too) is an error
 /// before any file is touched.
-async fn fetch(url: &str) -> Result<reqwest::Response, String> {
-    let resp = export_client()?
-        .get(url)
+async fn fetch(url: &str, key: Option<&str>) -> Result<reqwest::Response, String> {
+    let mut req = export_client()?.get(url);
+    // sec-loopback-bearer §7 — the server requires the spawn's key from every caller
+    if let Some(k) = key {
+        req = req.header(sidecar::API_KEY_HEADER, k);
+    }
+    let resp = req
         .send()
         .await
         .map_err(|e| format!("Couldn't reach the local Maude server: {e}"))?;
@@ -223,8 +227,12 @@ async fn stream_into(resp: reqwest::Response, mut file: tokio::fs::File) -> Resu
 
 /// The panel's pick: `dest` is the path the person chose (the panel already asked
 /// about replacing a file there), so it is created or truncated.
-pub(crate) async fn stream_download_to_file(url: &str, dest: &Path) -> Result<(), String> {
-    let resp = fetch(url).await?;
+pub(crate) async fn stream_download_to_file(
+    url: &str,
+    key: Option<&str>,
+    dest: &Path,
+) -> Result<(), String> {
+    let resp = fetch(url, key).await?;
     let file = tokio::fs::File::create(dest)
         .await
         .map_err(|e| format!("Couldn’t write the export: {e}"))?;
@@ -237,8 +245,13 @@ pub(crate) async fn stream_download_to_file(url: &str, dest: &Path) -> Result<()
 
 /// No panel: a NEW file named `name` (or `name (2)`, …) in `dir`. `create_new` never
 /// replaces a file and never follows a symlink sitting at that name.
-pub(crate) async fn download_new_in(url: &str, dir: &Path, name: &str) -> Result<PathBuf, String> {
-    let resp = fetch(url).await?;
+pub(crate) async fn download_new_in(
+    url: &str,
+    key: Option<&str>,
+    dir: &Path,
+    name: &str,
+) -> Result<PathBuf, String> {
+    let resp = fetch(url, key).await?;
     for n in 1..=MAX_NUMBERED {
         let dest = dir.join(numbered(name, n));
         match tokio::fs::OpenOptions::new()
@@ -483,7 +496,9 @@ pub async fn save_export(
     let mode = SaveTo::parse(save_to.as_deref())?;
     // The origin comes from the app-owned info file of THAT project's running
     // child (V2-1.1 decision 8), never the in-project `_server.json` (V2-3.6 M1).
-    let info_file = sidecar::shell_info_file(&app, &caller.root);
+    let probe = sidecar::shell_probe_for(&app, &caller.root);
+    let info_file = probe.as_ref().map(|p| p.info_file.clone());
+    let key = probe.and_then(|p| p.api_key);
     let url = export_download_url(info_file.as_deref(), &job_id)?;
     let name = clean_file_name(&filename);
     let remembered = session_folders()
@@ -495,12 +510,12 @@ pub async fn save_export(
         SaveTo::Downloads => app.path().download_dir().ok().and_then(|d| usable_dir(&d)),
     };
     let wrote = match straight_in {
-        Some(dir) => download_new_in(&url, &dir, &name).await?,
+        Some(dir) => download_new_in(&url, key.as_deref(), &dir, &name).await?,
         None => {
             let Some(dest) = ask_where(&app, &webview, &name, remembered.as_deref()).await? else {
                 return Ok(None); // cancelled — not an error
             };
-            stream_download_to_file(&url, &dest).await?;
+            stream_download_to_file(&url, key.as_deref(), &dest).await?;
             // The folder the person picked is the project's from now on (on this Mac).
             if let Some(dir) = dest.parent().and_then(usable_dir) {
                 let persisted = app_state::set_export_folder(&app, &caller.pid, &dir);
@@ -787,7 +802,7 @@ mod tests {
         std::os::unix::fs::symlink(&outside, folder.join("out (2).png")).unwrap();
         let port = serve(vec![ok_body("PNGDATA")]);
         let url = format!("http://127.0.0.1:{port}/_api/export-jobs/download?id=a");
-        let got = tauri::async_runtime::block_on(download_new_in(&url, &folder, "out.png")).unwrap();
+        let got = tauri::async_runtime::block_on(download_new_in(&url, None, &folder, "out.png")).unwrap();
         assert_eq!(got, folder.join("out (3).png"));
         assert_eq!(std::fs::read(&got).unwrap(), b"PNGDATA");
         assert_eq!(std::fs::read(folder.join("out.png")).unwrap(), b"mine");
@@ -800,7 +815,7 @@ mod tests {
         let d = scratch("fail");
         let port = serve(vec!["HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into()]);
         let url = format!("http://127.0.0.1:{port}/_api/export-jobs/download?id=a");
-        assert!(tauri::async_runtime::block_on(download_new_in(&url, &d, "out.png")).is_err());
+        assert!(tauri::async_runtime::block_on(download_new_in(&url, None, &d, "out.png")).is_err());
         assert!(!d.join("out.png").exists());
         let _ = std::fs::remove_dir_all(d);
     }
@@ -846,10 +861,10 @@ mod tests {
         let dir = scratch("export-redirect");
         let dest = dir.join("out.pdf");
         let url = format!("http://127.0.0.1:{first}/_api/export-jobs/download?id=a");
-        let res = tauri::async_runtime::block_on(stream_download_to_file(&url, &dest));
+        let res = tauri::async_runtime::block_on(stream_download_to_file(&url, None, &dest));
         assert!(res.is_err(), "a redirect must fail the download, got {res:?}");
         assert!(std::fs::read(&dest).map(|b| b != b"evil").unwrap_or(true));
-        let res = tauri::async_runtime::block_on(download_new_in(&url, &dir, "x.pdf"));
+        let res = tauri::async_runtime::block_on(download_new_in(&url, None, &dir, "x.pdf"));
         assert!(res.is_err());
         let _ = std::fs::remove_dir_all(&dir);
     }

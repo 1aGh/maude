@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-project-api-session"
+description = "Enables the project_api_session command without any pre-configured scope."
+commands.allow = ["project_api_session"]
+
+[[permission]]
+identifier = "deny-project-api-session"
+description = "Denies the project_api_session command without any pre-configured scope."
+commands.deny = ["project_api_session"]
