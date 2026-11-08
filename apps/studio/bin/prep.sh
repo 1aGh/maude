@@ -132,16 +132,32 @@ if [ -f "$PREFLIGHT_FILE" ] && [ "$HAVE_JQ" = "1" ]; then
 fi
 
 # ---- server liveness ----------------------------------------------------------
+# #206 (contract §2): who serves this checkout — `app` (the Maude desktop app's attested server; its
+# port, never `_server.json`'s, while the app has the project open), `cli` (a terminal server found
+# through `_server.json` + /_health) or `none`. Probe only: nothing is opened, started or leased.
 SERVER_FILE="$DR_ABS/_server.json"
 SERVER_UP="false"
 SERVER_PORT=""
-if [ -f "$SERVER_FILE" ] && [ "$HAVE_JQ" = "1" ]; then
+SERVER_OWNER="none"
+DESKTOP_RC=10
+if [ -f "$(dirname "$0")/_desktop-locate.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$(dirname "$0")/_desktop-locate.sh"
+  desktop_port "$REPO" 2>/dev/null
+  DESKTOP_RC=$?
+fi
+if [ "$DESKTOP_RC" = 0 ] && [ -n "${DESKTOP_PORT:-}" ]; then
+  SERVER_OWNER="app"; SERVER_UP="true"; SERVER_PORT="$DESKTOP_PORT"
+elif [ "$DESKTOP_RC" = 11 ]; then
+  # the app has it open but its server did not answer the check: the app's, and not usable
+  SERVER_OWNER="app"
+elif [ -f "$SERVER_FILE" ] && [ "$HAVE_JQ" = "1" ]; then
   SERVER_PORT=$(jq -r '.port // empty' "$SERVER_FILE" 2>/dev/null)
   SERVER_PID=$(jq -r '.pid // empty' "$SERVER_FILE" 2>/dev/null)
   if [ -n "$SERVER_PID" ] && [ -n "$SERVER_PORT" ] \
      && kill -0 "$SERVER_PID" 2>/dev/null \
      && curl -fs "http://localhost:$SERVER_PORT/_health" >/dev/null 2>&1; then
-    SERVER_UP="true"
+    SERVER_UP="true"; SERVER_OWNER="cli"
   fi
 fi
 
@@ -168,6 +184,7 @@ if [ "$MODE" = "shell" ]; then
   printf 'export DEPS_MISSING=%q\n'      "$DEPS_MISSING"
   printf 'export SERVER_UP=%s\n'         "$SERVER_UP"
   printf 'export SERVER_PORT=%q\n'       "$SERVER_PORT"
+  printf 'export SERVER_OWNER=%s\n'      "$SERVER_OWNER"
   if [ "$SHAPE" = "edit" ] || [ "$SHAPE" = "all" ]; then
     printf 'export ACTIVE_CANVAS=%q\n'   "$ACTIVE_CANVAS"
     printf 'export SELECTED_FILE=%q\n'   "$SELECTED_FILE"
@@ -188,7 +205,7 @@ if [ "$HAVE_JQ" = "1" ]; then
     --arg astrat "$ACCENT_STRATEGY" --arg cspace "$COLOR_SPACE" \
     --arg mbvar "$MOODBOARD_VARIANTS" \
     --arg depsok "$DEPS_OK" --arg depsmiss "$DEPS_MISSING" \
-    --arg sup "$SERVER_UP" --arg sport "$SERVER_PORT" \
+    --arg sup "$SERVER_UP" --arg sport "$SERVER_PORT" --arg sown "$SERVER_OWNER" \
     --arg act "$ACTIVE_CANVAS" --arg selfile "$SELECTED_FILE" \
     --arg selv "$SEL_VALID" --arg tabs "$OPEN_TABS" --arg slug "$ACTIVE_SLUG" \
     --argjson sel "${SELECTED_ELEMENT:-null}" \
@@ -208,7 +225,7 @@ if [ "$HAVE_JQ" = "1" ]; then
         sel_valid: ($selv == "1"), open_tabs: ($tabs | tonumber? // 0), slug: $slug
       },
       deps: { ok: $depsok, missing: ($depsmiss | if . == "" then [] else split(",") end) },
-      server: { up: ($sup == "true"), port: ($sport | if . == "" then null else (tonumber? // .) end) }
+      server: { up: ($sup == "true"), port: ($sport | if . == "" then null else (tonumber? // .) end), owner: $sown }
     }'
 else
   printf '{"repo_root":"%s","config_present":%s,"jq":false,"note":"jq unavailable — install jq for full prep.sh output"}\n' \

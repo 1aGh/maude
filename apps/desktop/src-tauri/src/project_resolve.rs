@@ -259,6 +259,14 @@ pub fn branch_of(root: &Path) -> Option<String> {
     parse_head(read_small(&dot_git.join("HEAD")).as_deref()).branch()
 }
 
+/// The branch `root` is on now, worktree or not (`None`: detached, unknown, not a git folder).
+pub fn current_branch(root: &Path) -> Option<String> {
+    match worktree_of(root) {
+        Some(wt) => wt.head.branch(),
+        None => branch_of(root),
+    }
+}
+
 /// A git metadata file, capped at 4 KiB (they are one line; a huge one is not git's).
 fn read_small(path: &Path) -> Option<String> {
     use std::io::Read;

@@ -432,11 +432,32 @@ impl AppState {
     }
 
     pub fn profile_for(&self, root: &str) -> String {
+        let pid = windows::pid_for_root(root);
+        // #206 §5: a worktree tab talks as its main project, with no prompt and no binding of its own.
+        let pid = match self.projects.contains_key(&pid) {
+            true => pid,
+            false => self
+                .worktree_main(root)
+                .map_or(pid, |w| windows::pid_for_root(&w.main_root.to_string_lossy())),
+        };
         self.projects
-            .get(&windows::pid_for_root(root))
+            .get(&pid)
             .map(|e| e.profile.clone())
             .filter(|p| profiles::validate_id(p).is_ok())
             .unwrap_or_else(default_profile)
+    }
+
+    /// #206 §5 (DDR-250) — `root` as a worktree TAB: not a project of its own, and a git worktree
+    /// (vouched for by its main repo) of a project Maude knows. Such a tab takes the main project's
+    /// profile, is never restored or in Recent, and lists under its main project on Home.
+    pub fn worktree_main(&self, root: &str) -> Option<crate::project_resolve::Worktree> {
+        if self.projects.contains_key(&windows::pid_for_root(root)) {
+            return None;
+        }
+        let wt = crate::project_resolve::worktree_of(Path::new(root))?;
+        self.projects
+            .contains_key(&windows::pid_for_root(&wt.main_root.to_string_lossy()))
+            .then_some(wt)
     }
 
     pub fn is_profile_bound(&self, id: &str) -> bool {
@@ -969,6 +990,45 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
+    }
+
+    /// #206 §5 — a git worktree of a project Maude knows (a `.git` file the main repo vouches for).
+    pub(crate) fn make_worktree(base: &Path, branch: &str) -> (PathBuf, PathBuf) {
+        let main = base.join("main");
+        let g = main.join(".git/worktrees/wt");
+        std::fs::create_dir_all(&g).unwrap();
+        std::fs::write(main.join(".git/HEAD"), "ref: refs/heads/main\n").unwrap();
+        let wt = base.join("wt");
+        std::fs::create_dir_all(&wt).unwrap();
+        std::fs::write(wt.join(".git"), format!("gitdir: {}\n", g.display())).unwrap();
+        std::fs::write(g.join("gitdir"), format!("{}\n", wt.join(".git").display())).unwrap();
+        std::fs::write(g.join("commondir"), "../..\n").unwrap();
+        std::fs::write(g.join("HEAD"), format!("ref: refs/heads/{branch}\n")).unwrap();
+        (
+            std::fs::canonicalize(&main).unwrap(),
+            std::fs::canonicalize(&wt).unwrap(),
+        )
+    }
+
+    #[test]
+    fn a_worktree_of_a_known_project_takes_its_profile_and_an_unknown_one_does_not() {
+        let base = tmp("wt-profile");
+        let (main, wt) = make_worktree(&base, "feat-x");
+        let (main_s, wt_s) = (main.to_string_lossy().into_owned(), wt.to_string_lossy().into_owned());
+        let mut st = AppState::default();
+        assert!(st.worktree_main(&wt_s).is_none(), "main not known: an ordinary folder");
+        assert_eq!(st.profile_for(&wt_s), default_profile());
+        st.upsert(&main_s, 1);
+        st.projects.get_mut(&windows::pid_for_root(&main_s)).unwrap().profile = "work".into();
+        let w = st.worktree_main(&wt_s).expect("a worktree of a known project");
+        assert_eq!(w.main_root, main);
+        assert_eq!(st.profile_for(&wt_s), "work", "the main project's binding, no prompt");
+        assert!(st.worktree_main(&main_s).is_none(), "the main checkout is a project");
+        // Opened by the person as a project of its own (consent sheet): its own entry wins.
+        st.upsert(&wt_s, 2);
+        assert!(st.worktree_main(&wt_s).is_none());
+        assert_eq!(st.profile_for(&wt_s), default_profile());
+        std::fs::remove_dir_all(base).unwrap();
     }
 
     // p8-sec2-lows I2 — a state file that exists but does not parse is "unreadable", a missing one is not.

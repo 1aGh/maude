@@ -144,6 +144,7 @@ pub enum Refusal {
     Busy,
     TooManySheets,
     NotReady,
+    BranchChangedUnsent,
 }
 
 impl Refusal {
@@ -160,6 +161,7 @@ impl Refusal {
             Refusal::Busy => "busy",
             Refusal::TooManySheets => "too-many-sheets",
             Refusal::NotReady => "not-ready",
+            Refusal::BranchChangedUnsent => "branch-changed-unsent",
         }
     }
 
@@ -421,6 +423,15 @@ impl Leases {
         }
     }
 
+    /// Every root a live lease holds (expired ones dropped) — the lease watcher compares these.
+    pub fn live_roots(&mut self, now: Instant) -> std::collections::BTreeSet<String> {
+        self.0.retain(|_, m| {
+            m.retain(|_, end| *end > now);
+            !m.is_empty()
+        });
+        self.0.keys().cloned().collect()
+    }
+
     pub fn is_leased(&mut self, root: &str, now: Instant) -> bool {
         let Some(m) = self.0.get_mut(root) else {
             return false;
@@ -444,6 +455,97 @@ pub(crate) fn leased(root: &str) -> bool {
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .is_leased(&real, Instant::now())
+}
+
+fn live_leases() -> std::collections::BTreeSet<String> {
+    LEASES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .live_roots(Instant::now())
+}
+
+// ── Branch (contract §6 "Branch mismatch") ──────────────────────────────────
+
+/// What `ensure`/`show` do about the folder's branch.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BranchCheck {
+    Same,
+    /// The reply carries `warning:{kind:'branch-changed', was, now}`; the tab is relabelled.
+    Changed { was: String, now: String },
+    /// The folder switched under a tab with unsent changes: `refused:'branch-changed-unsent'`.
+    RefuseUnsent,
+}
+
+impl BranchCheck {
+    pub fn warning(&self) -> Option<Value> {
+        match self {
+            BranchCheck::Changed { was, now } => {
+                Some(json!({ "kind": "branch-changed", "was": was, "now": now }))
+            }
+            _ => None,
+        }
+    }
+}
+
+/// A branch as the warning names it: the branch, or "detached" (a bare commit, not a git folder).
+pub fn branch_word(b: Option<&str>) -> String {
+    b.map_or_else(|| "detached".to_string(), str::to_string)
+}
+
+/// `was` = the branch the tab was opened with, `now` = the folder's HEAD, `expect` = the agent's own
+/// HEAD (`expect.branch`), `unsent` = the tab's `ShellStatus.unsent` (`None` = unreadable, counted
+/// as none: a booting server holds no unsent changes).
+pub fn branch_check(
+    was: Option<&str>,
+    now: Option<&str>,
+    expect: Option<&str>,
+    unsent: Option<u32>,
+) -> BranchCheck {
+    if was != now {
+        if unsent.unwrap_or(0) > 0 {
+            return BranchCheck::RefuseUnsent;
+        }
+        return BranchCheck::Changed {
+            was: branch_word(was),
+            now: branch_word(now),
+        };
+    }
+    match expect {
+        Some(e) if Some(e) != now => BranchCheck::Changed {
+            was: e.to_string(),
+            now: branch_word(now),
+        },
+        _ => BranchCheck::Same,
+    }
+}
+
+/// The branch each open tab was opened with (by realpath), updated once a change was told.
+#[derive(Debug, Default)]
+pub struct TabBranches(HashMap<String, Option<String>>);
+
+impl TabBranches {
+    pub fn note(&mut self, root: &str, branch: Option<String>) {
+        self.0.insert(root.to_string(), branch);
+    }
+
+    /// `None` = never noted (a tab opened before this run's channel saw it).
+    pub fn was(&self, root: &str) -> Option<Option<String>> {
+        self.0.get(root).cloned()
+    }
+}
+
+static BRANCHES: std::sync::LazyLock<Mutex<TabBranches>> =
+    std::sync::LazyLock::new(Default::default);
+
+/// A tab for `root` was just built: remember the branch it shows. Called by
+/// `windows::open_window_for_root_as`.
+pub(crate) fn note_branch(root: &str) {
+    let real = crate::cli_registry::realpath(root);
+    let b = crate::project_resolve::current_branch(Path::new(&real));
+    BRANCHES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .note(&real, b);
 }
 
 // ── The socket ──────────────────────────────────────────────────────────────
@@ -596,6 +698,7 @@ mod glue {
                 return;
             }
         };
+        watch_leases(app);
         let uid = my_uid();
         let app = app.clone();
         let spawned = std::thread::Builder::new()
@@ -631,6 +734,35 @@ mod glue {
                 "[maude] terminal channel thread did not start: {e}"
             ));
         }
+    }
+
+    /// How often the lease watcher looks for a lease that ended by itself.
+    const LEASE_WATCH: Duration = Duration::from_secs(2);
+
+    /// A lease begins or ends (by itself, too): the registry's `busy` and the strip's AI dot follow.
+    fn watch_leases(app: &AppHandle) {
+        let app = app.clone();
+        let _ = std::thread::Builder::new()
+            .name("maude-cli-leases".into())
+            .spawn(move || {
+                let mut last = std::collections::BTreeSet::new();
+                loop {
+                    std::thread::sleep(LEASE_WATCH);
+                    if app
+                        .state::<SidecarState>()
+                        .shutting_down
+                        .load(Ordering::SeqCst)
+                    {
+                        break;
+                    }
+                    let live = live_leases();
+                    if live != last {
+                        crate::cli_registry::publish(&app);
+                        crate::tabs::changed(&app);
+                        last = live;
+                    }
+                }
+            });
     }
 
     /// The dirs no terminal-supplied root may be in (or contain): every app dir and the profile
@@ -695,9 +827,13 @@ mod glue {
                 root,
                 purpose,
                 lease,
+                expect,
                 ..
             } => match root_of(&root) {
-                Ok(real) => ensure(app, &real, purpose, None, None, lease.as_ref()),
+                Ok(real) => {
+                    let expect = expect.and_then(|e| e.branch);
+                    ensure(app, &real, purpose, None, None, lease.as_ref(), expect.as_deref())
+                }
                 Err(r) => r.reply(),
             },
             Op::Show {
@@ -710,7 +846,7 @@ mod glue {
                     let canvas = canvas
                         .as_deref()
                         .and_then(crate::project_resolve::validate_open_param);
-                    ensure(app, &real, Purpose::Show, canvas, artboard, None)
+                    ensure(app, &real, Purpose::Show, canvas, artboard, None, None)
                 }
                 Err(r) => r.reply(),
             },
@@ -729,6 +865,7 @@ mod glue {
                         ttl_sec,
                         Instant::now(),
                     );
+                    crate::cli_registry::publish(app);
                     json!({ "ok": true })
                 }
                 Err(e) => e.reply(),
@@ -757,10 +894,21 @@ mod glue {
         canvas: Option<String>,
         artboard: Option<String>,
         lease: Option<&LeaseAsk>,
+        expect: Option<&str>,
     ) -> Value {
         let root = real.to_string_lossy().into_owned();
-        if label_of(app, &root).is_some() {
-            return answer_open(app, &root, purpose, canvas, artboard, lease);
+        if let Some((label, _, tab_root)) = label_of(app, &root) {
+            let warning = match branch_gate(app, &root, &label, &tab_root, expect) {
+                Ok(w) => w,
+                Err(refused) => return refused,
+            };
+            let mut reply = answer_open(app, &root, purpose, canvas, artboard, lease);
+            if let (Some(w), Some(obj)) = (warning, reply.as_object_mut()) {
+                if obj.get("status").and_then(Value::as_str) != Some("refused") {
+                    obj.insert("warning".into(), w);
+                }
+            }
+            return reply;
         }
         let enabled = crate::prefs::load(app).terminal_opens;
         let declined = TICKETS
@@ -801,6 +949,58 @@ mod glue {
                     Ok((id, false)) => json!({ "status": "consent", "ticket": id }),
                     Err(r) => r.reply(),
                 }
+            }
+        }
+    }
+
+    /// Contract §6 "Branch mismatch" for an open tab: the folder's HEAD against the branch the tab
+    /// was opened with (and the agent's own `expect`). A change relabels the tab, shows its one
+    /// line and rides the reply as a warning — unless the tab has unsent changes: refused.
+    fn branch_gate(
+        app: &AppHandle,
+        root: &str,
+        label: &str,
+        tab_root: &str,
+        expect: Option<&str>,
+    ) -> Result<Option<Value>, Value> {
+        let now = crate::project_resolve::current_branch(Path::new(root));
+        let was = {
+            let mut b = BRANCHES.lock().unwrap_or_else(|e| e.into_inner());
+            match b.was(root) {
+                Some(w) => w,
+                None => {
+                    // A tab this channel never saw open: what it shows now is what it was opened with.
+                    b.note(root, now.clone());
+                    now.clone()
+                }
+            }
+        };
+        let unsent = if was != now {
+            tauri::async_runtime::block_on(crate::sidecar::shell_status(app, tab_root))
+                .map(|s| s.unsent)
+        } else {
+            None
+        };
+        match branch_check(was.as_deref(), now.as_deref(), expect, unsent) {
+            BranchCheck::Same => Ok(None),
+            BranchCheck::RefuseUnsent => Err(Refusal::BranchChangedUnsent.reply()),
+            c @ BranchCheck::Changed { .. } => {
+                if was != now {
+                    BRANCHES
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .note(root, now.clone());
+                    if let BranchCheck::Changed { was, now } = &c {
+                        crate::bus::send(
+                            label,
+                            "shell://branch-changed",
+                            json!({ "was": was, "now": now }),
+                        );
+                    }
+                    crate::tabs::changed(app);
+                    crate::cli_registry::publish(app);
+                }
+                Ok(c.warning())
             }
         }
     }
@@ -1432,4 +1632,79 @@ mod tests {
         let read = body.find("read_request(").expect("read");
         assert!(check < read);
     }
+
+    #[test]
+    fn a_branch_change_warns_and_unsent_changes_refuse() {
+        use BranchCheck::*;
+        assert_eq!(branch_check(Some("main"), Some("main"), None, Some(0)), Same);
+        assert_eq!(
+            branch_check(Some("a"), Some("b"), None, Some(0)),
+            Changed { was: "a".into(), now: "b".into() }
+        );
+        assert_eq!(
+            branch_check(Some("a"), None, None, None),
+            Changed { was: "a".into(), now: "detached".into() },
+            "an unreadable status is no unsent changes; a detached HEAD has a name"
+        );
+        assert_eq!(branch_check(Some("a"), Some("b"), None, Some(2)), RefuseUnsent);
+        // The agent's own HEAD differs from the folder's: the same warning, never a refusal.
+        assert_eq!(
+            branch_check(Some("b"), Some("b"), Some("a"), Some(3)),
+            Changed { was: "a".into(), now: "b".into() }
+        );
+        assert_eq!(branch_check(Some("b"), Some("b"), Some("b"), Some(3)), Same);
+        assert_eq!(
+            Refusal::BranchChangedUnsent.reply()["reason"],
+            "branch-changed-unsent",
+            "the CLI matches this word"
+        );
+        let w = BranchCheck::Changed { was: "a".into(), now: "b".into() }.warning();
+        assert_eq!(w, Some(json!({ "kind": "branch-changed", "was": "a", "now": "b" })));
+    }
+
+    #[test]
+    fn a_tab_keeps_the_branch_it_was_opened_with_until_a_change_is_told() {
+        let mut b = TabBranches::default();
+        assert_eq!(b.was("/r"), None, "never noted");
+        b.note("/r", Some("main".into()));
+        b.note("/r2", None);
+        assert_eq!(b.was("/r"), Some(Some("main".into())));
+        assert_eq!(b.was("/r2"), Some(None));
+        b.note("/r", Some("feat".into()));
+        assert_eq!(b.was("/r"), Some(Some("feat".into())));
+    }
+
+    #[test]
+    fn the_live_lease_set_changes_when_a_lease_ends() {
+        let now = Instant::now();
+        let mut l = Leases::default();
+        l.grant("/a", "x", Some(5), now);
+        l.grant("/b", "y", Some(50), now);
+        assert_eq!(l.live_roots(now).into_iter().collect::<Vec<_>>(), ["/a", "/b"]);
+        assert_eq!(
+            l.live_roots(now + Duration::from_secs(6)).into_iter().collect::<Vec<_>>(),
+            ["/b"]
+        );
+    }
+
+    /// Pins: a lease change republishes the registry and the strip; `ensure` reads the branch gate
+    /// before it answers an open tab; a new tab notes its branch.
+    #[test]
+    fn leases_feed_the_registry_and_ensure_runs_the_branch_gate() {
+        let src = include_str!("cli_channel.rs");
+        let watch = &src[src.find("fn watch_leases(").unwrap()..];
+        let watch = &watch[..watch.find("\n    }\n").unwrap()];
+        assert!(watch.contains("crate::cli_registry::publish(&app)"));
+        assert!(watch.contains("crate::tabs::changed(&app)"));
+        let ens = &src[src.find("    fn ensure(\n").unwrap()..];
+        let ens = &ens[..ens.find("\n    }\n").unwrap()];
+        assert!(ens.find("branch_gate(").unwrap() < ens.find("answer_open(").unwrap());
+        let reg = include_str!("cli_registry.rs");
+        assert!(reg.contains("busy: crate::cli_channel::leased(root)"));
+        let win = include_str!("windows.rs");
+        let open = &win[win.find("pub fn open_window_for_root_as(").unwrap()..];
+        let open = &open[..open.find("\n}\n").unwrap()];
+        assert!(open.contains("crate::cli_channel::note_branch(root)"));
+    }
+
 }
