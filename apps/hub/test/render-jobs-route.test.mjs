@@ -143,6 +143,16 @@ function studioHandler(req, res) {
       jobs.set(id, { id, status: 'queued', owner, spec: JSON.parse(text).spec });
       return json(202, { jobId: id });
     }
+    if (url.pathname === '/_api/export-jobs/cancel' && req.method === 'POST') {
+      const j = jobs.get(JSON.parse(text || '{}').id);
+      // owner-scoped like the real store: another member's job is a missing one
+      if (!j || j.owner !== owner) return json(404, { error: 'Not found' });
+      if (j.status !== 'queued' && j.status !== 'running')
+        return json(409, { error: 'not-running' });
+      j.status = 'failed';
+      j.error = 'Cancelled';
+      return json(200, { ok: true });
+    }
     if (url.pathname === '/_api/export-jobs/download') {
       const j = jobs.get(url.searchParams.get('id'));
       if (!j || j.owner !== owner) return json(404, { error: 'Not found' });
@@ -592,4 +602,105 @@ test('the studio’s refusals reach the desktop as codes (422 cap, queue full �
   const full = await submit('tok-member', { jobId: JOB(33), spec: spec() });
   assert.equal(full.status, 429);
   assert.equal((await full.json()).code, 'busy');
+});
+
+// ---- #128 follow-ups (T3.7b): the waiting line, and Cancel ----------------------------------
+
+test('status carries the render service’s waiting line, capped, only when it is a string', async () => {
+  await submit('tok-member', { jobId: JOB(40), spec: spec() });
+  Object.assign(jobs.get(JOB(40)), { status: 'running', waiting: 'W'.repeat(400) });
+  const body = await (await call(`/${JOB(40)}`, { token: 'tok-member' })).json();
+  assert.equal(typeof body.job.waiting, 'string');
+  assert.equal(body.job.waiting.length, 120);
+  jobs.get(JOB(40)).waiting = { not: 'a string' };
+  const odd = await (await call(`/${JOB(40)}`, { token: 'tok-member' })).json();
+  assert.equal('waiting' in odd.job, false);
+  delete jobs.get(JOB(40)).waiting;
+  const none = await (await call(`/${JOB(40)}`, { token: 'tok-member' })).json();
+  assert.equal('waiting' in none.job, false);
+});
+
+test('a finished job’s notice (rendered at 1×) crosses as reason and remedy only, capped', async () => {
+  await submit('tok-member', { jobId: JOB(46), spec: spec() });
+  Object.assign(jobs.get(JOB(46)), {
+    status: 'done',
+    degraded: {
+      reason: `Rendered at 1× in the cloud. ${'r'.repeat(900)}`,
+      remedy: 'For 2×, export it on this Mac.'.padEnd(900, '.'),
+      audioDropped: true,
+      fontsNotEmbedded: ['x'],
+    },
+  });
+  const body = await (await call(`/${JOB(46)}`, { token: 'tok-member' })).json();
+  assert.deepEqual(Object.keys(body.job.degraded).sort(), ['reason', 'remedy']);
+  assert.ok(body.job.degraded.reason.startsWith('Rendered at 1× in the cloud'));
+  assert.equal(body.job.degraded.reason.length, 300);
+  assert.equal(body.job.degraded.remedy.length, 300);
+  jobs.get(JOB(46)).degraded = { remedy: 'no reason' };
+  assert.equal(
+    'degraded' in (await (await call(`/${JOB(46)}`, { token: 'tok-member' })).json()).job,
+    false
+  );
+});
+
+test('cancel: the requester stops their running job; the studio is asked as that person', async () => {
+  await submit('tok-member', { jobId: JOB(41), spec: spec() });
+  jobs.get(JOB(41)).status = 'running';
+  seen.length = 0;
+  const r = await call(`/${JOB(41)}/cancel`, { token: 'tok-member', method: 'POST' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(await r.json(), { jobId: JOB(41), cancelled: true });
+  const post = posts()[0];
+  assert.equal(post.url, '/_api/export-jobs/cancel');
+  assert.deepEqual(JSON.parse(post.body), { id: JOB(41) });
+  assert.equal(post.headers.authorization, undefined);
+  assert.equal(post.headers['x-maude-session'], sha('tenant-1\0bob@x.test').slice(0, 16));
+  assert.equal(jobs.get(JOB(41)).status, 'failed');
+});
+
+test('cancel: another member’s job and a missing one answer the same 404, nothing is stopped', async () => {
+  await submit('tok-member', { jobId: JOB(42), spec: spec() });
+  jobs.get(JOB(42)).status = 'running';
+  const foreign = await call(`/${JOB(42)}/cancel`, { token: 'tok-owner', method: 'POST' });
+  const missing = await call(`/${JOB(43)}/cancel`, { token: 'tok-owner', method: 'POST' });
+  assert.equal(foreign.status, 404);
+  assert.equal(missing.status, 404);
+  assert.deepEqual(await foreign.json(), await missing.json());
+  assert.equal(jobs.get(JOB(42)).status, 'running');
+});
+
+test('cancel: a finished job is 409 not-running; GET is 405; observer 403; no bearer 401; dark 404', async () => {
+  await submit('tok-member', { jobId: JOB(44), spec: spec() });
+  jobs.get(JOB(44)).status = 'done';
+  const done = await call(`/${JOB(44)}/cancel`, { token: 'tok-member', method: 'POST' });
+  assert.equal(done.status, 409);
+  assert.equal((await done.json()).code, 'not-running');
+  assert.equal((await call(`/${JOB(44)}/cancel`, { token: 'tok-member' })).status, 405);
+  assert.equal(
+    (await call(`/${JOB(44)}/cancel`, { token: 'tok-observer', method: 'POST' })).status,
+    403
+  );
+  assert.equal((await call(`/${JOB(44)}/cancel`, { method: 'POST' })).status, 401);
+  assert.equal(
+    (await call('/not-an-id/cancel', { token: 'tok-member', method: 'POST' })).status,
+    404
+  );
+  seen.length = 0;
+  enabled = false;
+  assert.equal(
+    (await call(`/${JOB(44)}/cancel`, { token: 'tok-member', method: 'POST' })).status,
+    404
+  );
+  assert.equal(seen.length, 0);
+});
+
+test('cancel: a cookie alone cancels nothing (bearer only, so no CSRF surface)', async () => {
+  await submit('tok-member', { jobId: JOB(45), spec: spec() });
+  jobs.get(JOB(45)).status = 'running';
+  const r = await call(`/${JOB(45)}/cancel`, {
+    method: 'POST',
+    headers: { cookie: 'maude_session=tok-member' },
+  });
+  assert.equal(r.status, 401);
+  assert.equal(jobs.get(JOB(45)).status, 'running');
 });

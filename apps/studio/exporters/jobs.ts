@@ -36,6 +36,7 @@ import { missingTranscriptsFor } from '../video/inject.ts';
 import { type RiskyMedia, riskyMediaIn } from '../video/media-risk.ts';
 import { resolveRenderLane } from '../workspace-mode.ts';
 import { captionGap, mergeDegraded, undecodableMediaGap } from './degraded.ts';
+import { createJobBudget, type JobBudget } from './job-budget.ts';
 import {
   type ExportContext,
   type ExportDegradation,
@@ -46,10 +47,12 @@ import {
   type Scope,
 } from './index.ts';
 import {
+  CLOUD_CANCELLED_WORDS,
   formatNeedsBrowser,
   NoRenderServiceError,
   REMOTE_UNSUPPORTED_FORMATS,
   REMOTE_UNSUPPORTED_MESSAGE,
+  RENDER_BUSY_WORDS,
   RENDER_WAITING_WORDS,
   type RemoteCanvasAccess,
   renderRemotely,
@@ -224,6 +227,9 @@ export type RetryResult =
       reason: 'missing' | 'not-retryable' | 'nothing-to-retry' | 'busy' | 'not-allowed';
     };
 
+/** #128 T3.7b — why a cancel did not stop anything. */
+export type CancelResult = { ok: true } | { ok: false; reason: 'missing' | 'not-running' };
+
 export interface ExportJobQueue {
   /**
    * `already: true` — a replay of a `clientId` this owner already holds (S8.5b-1): nothing new is
@@ -237,6 +243,12 @@ export interface ExportJobQueue {
    * scoped like every read: another member's id answers false, exactly like a missing one.
    */
   refreshRenderToken(id: string, token: string, session?: string): boolean;
+  /**
+   * #128 T3.7b — stop one of this session's unfinished jobs. The job's abort signal fires, which
+   * also cancels it on the render service. Another member's job answers `missing`, like an id that
+   * never existed (V2-1.16 U1); a finished one `not-running`.
+   */
+  cancel(id: string, session?: string): CancelResult;
   /**
    * S8.4 — run again ONLY the failed (or waiting) items of a group job, named by `items` when
    * given. Returns once the re-run is started; the job goes back to `running` and its items
@@ -270,6 +282,37 @@ export interface ExportJobQueue {
 const HISTORY_DEPTH = 20;
 const MAX_JOB_AGE_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_JOB_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** What a job a person cancelled says on its row (CONTRACT voice: short, no blame). */
+export const EXPORT_CANCELLED_WORDS = CLOUD_CANCELLED_WORDS;
+
+/**
+ * #128 T3.7b — the most a video may wait in the render service's queue, in total, before the job
+ * ends. The wait does not spend the job's render budget (it is not render time), so a stuck queue
+ * needs its own ceiling: one video ahead of it renders for at most the 60 min video ceiling, plus
+ * slack for the hand-over.
+ */
+export const QUEUE_WAIT_CEIL_MS = 75 * 60 * 1000;
+
+/** The scale the cloud renders a video at (mirrors apps/render/service.ts `CLOUD_VIDEO_SCALE`). */
+const CLOUD_VIDEO_SCALE = 1;
+/** The start of the notice a cloud video gets when it was asked for more than 1× (#128 T3.7b). */
+export const CLOUD_SCALE_WORDS = 'Rendered at 1× in the cloud';
+
+/**
+ * A cloud video asked for a larger scale is rendered at {@link CLOUD_VIDEO_SCALE} (the render
+ * instance cannot finish a long frame-by-frame video at 2×); the file is complete, so this rides the
+ * degradation channel as a notice, with the way to get the larger size.
+ */
+function cloudScaleGap(format: string, options: ExportOptions): ExportDegradation | undefined {
+  if (format !== 'mp4' && format !== 'webm' && format !== 'gif') return undefined;
+  const asked = Math.floor(Number(options.scale));
+  if (!Number.isFinite(asked) || asked <= CLOUD_VIDEO_SCALE) return undefined;
+  return {
+    reason: `${CLOUD_SCALE_WORDS}. You asked for ${asked}×.`,
+    remedy: `For ${asked}×, export it on this Mac.`,
+  };
+}
 
 // Video/animation exports run a per-frame capture loop, so they legitimately
 // take far longer than the 5-min default that's fine for image exports. The
@@ -473,6 +516,8 @@ export interface ExportJobQueueDeps {
   now?: () => number;
   /** #128 T3.7 — how often a remote render is asked for its status (ms); tests shorten it. */
   remotePollMs?: number;
+  /** #128 T3.7b — the most a video may wait in the render queue in total (ms); tests shorten it. */
+  queueWaitMs?: number;
 }
 
 export function createExportJobQueue(
@@ -507,6 +552,35 @@ export function createExportJobQueue(
   // S8.5b-1 — the args of every job not yet finished (the render reads `remoteCanvas` off them at
   // dispatch, so a swapped token reaches the render) and its result (what a replay hands back).
   const live = new Map<string, { args: EnqueueArgs; result: Promise<ExportResult> }>();
+  // #128 T3.7b — what stops a running job and why it stopped: a person's Cancel, or the queue ceiling.
+  const controls = new Map<
+    string,
+    { controller: AbortController; cancelled: boolean; queueExpired: boolean }
+  >();
+  // The job's budget, so the render's "waiting" report can pause it (makeRenderOne).
+  const budgets = new WeakMap<ExportJob, JobBudget>();
+  /** A job's budget: running time spends it, queue time does not (up to the ceiling). */
+  function armBudget(args: EnqueueArgs, controller: AbortController, job: ExportJob): JobBudget {
+    const ctl = controls.get(job.id);
+    const budget = createJobBudget({
+      budgetMs: jobTimeoutMs(args),
+      maxPauseMs: deps.queueWaitMs ?? QUEUE_WAIT_CEIL_MS,
+      onExpire: (why) => {
+        if (why === 'queue' && ctl) ctl.queueExpired = true;
+        controller.abort();
+      },
+    });
+    budgets.set(job, budget);
+    budget.start();
+    return budget;
+  }
+  /** What a failed job says: a person's Cancel and the queue ceiling have their own words. */
+  const failureWords = (id: string, err: unknown): string => {
+    const ctl = controls.get(id);
+    if (ctl?.cancelled) return EXPORT_CANCELLED_WORDS;
+    if (ctl?.queueExpired) return RENDER_BUSY_WORDS;
+    return err instanceof Error ? err.message : String(err);
+  };
 
   // Seed the ledger from disk ONCE — the only read of the history file. Every
   // later persist derives fresh from `jobs` and overwrites; there is no
@@ -697,7 +771,7 @@ export function createExportJobQueue(
           );
         }
       }
-      const res = dispatchRemote
+      const rendered = dispatchRemote
         ? await renderRemotely({
             format: args.format,
             targets: remoteTargets,
@@ -752,6 +826,9 @@ export function createExportJobQueue(
             onWaiting: (waiting) => {
               if (waiting) job.waiting = RENDER_WAITING_WORDS;
               else delete job.waiting;
+              // #128 T3.7b — the wait is the queue's, not the render's: the job's budget stands still
+              if (waiting) budgets.get(job)?.pause();
+              else budgets.get(job)?.resume();
               emit(job);
             },
           })
@@ -769,6 +846,11 @@ export function createExportJobQueue(
               },
             },
           });
+      // #128 T3.7b — the cloud renders a video at 1×: say so when a larger scale was asked for.
+      const scaleGap = dispatchRemote ? cloudScaleGap(u.format, u.options) : undefined;
+      const res: ExportResult = scaleGap
+        ? { ...rendered, degraded: mergeDegraded(rendered.degraded, scaleGap) }
+        : rendered;
       // #128 §7 — captions over a clip with no transcript sidecar export silently empty. Checked
       // here, around the render, so the local lane and the render-worker lane (which holds no
       // tenant files) say the same thing. A failed check never fails an export.
@@ -860,10 +942,11 @@ export function createExportJobQueue(
     emit(job);
 
     const controller = new AbortController();
+    controls.set(id, { controller, cancelled: false, queueExpired: false });
     const done = (async () => {
       const release = await semaphore.acquire();
       const ranFrom = clock();
-      const timer = setTimeout(() => controller.abort(), jobTimeoutMs(held.args));
+      const budget = armBudget(held.args, controller, job);
       try {
         const renderOne = makeRenderOne(held.args, held.lane, controller, job);
         const before = await heldFiles(job, rest);
@@ -894,9 +977,10 @@ export function createExportJobQueue(
         if (res.degraded) job.degraded = res.degraded;
       } catch (err) {
         job.status = 'failed';
-        job.error = err instanceof Error ? err.message : String(err);
+        job.error = failureWords(id, err);
       } finally {
-        clearTimeout(timer);
+        budget.stop();
+        controls.delete(id);
         meterRender(held.lane, ranFrom);
         job.finishedAt = new Date().toISOString();
         settleRetryable(job);
@@ -983,6 +1067,7 @@ export function createExportJobQueue(
     emit(job);
 
     const controller = new AbortController();
+    controls.set(id, { controller, cancelled: false, queueExpired: false });
 
     const dispatchRemote = lane !== 'local' && formatNeedsBrowser(args.format);
     if (args.group) groups.set(id, { args, lane });
@@ -1032,8 +1117,9 @@ export function createExportJobQueue(
       // render budget; arming the timer before the semaphore resolves would
       // abort it before it ever ran (code-review finding, /flow:done).
       const ranFrom = clock();
-      const timer = setTimeout(() => controller.abort(), jobTimeoutMs(args));
+      const budget = armBudget(args, controller, job);
       try {
+        if (controls.get(id)?.cancelled) throw new Error(EXPORT_CANCELLED_WORDS);
         job.status = 'running';
         job.startedAt = new Date().toISOString();
         emit(job);
@@ -1075,30 +1161,44 @@ export function createExportJobQueue(
       } catch (err) {
         job.status = 'failed';
         job.finishedAt = new Date().toISOString();
-        job.error = err instanceof Error ? err.message : String(err);
+        job.error = failureWords(id, err);
         settleRetryable(job);
         emit(job);
         await persistAndEvict();
         throw err;
       } finally {
-        clearTimeout(timer);
+        budget.stop();
         meterRender(lane, ranFrom);
         release();
       }
     })();
     live.set(id, { args, result });
     // Every settle path (lane refusal, AI hold, render) ends here: the job is finished.
-    result.then(
-      () => live.delete(id),
-      () => live.delete(id)
-    );
+    const settled = () => {
+      live.delete(id);
+      controls.delete(id);
+    };
+    result.then(settled, settled);
 
     return { id, result };
+  }
+
+  /** #128 T3.7b — see `ExportJobQueue.cancel`. */
+  function cancel(id: string, session: string = currentSession()): CancelResult {
+    const job = jobs.get(id);
+    if (!job || ownerOf(id) !== normalizeSessionKey(session))
+      return { ok: false, reason: 'missing' };
+    const ctl = controls.get(id);
+    if (!ctl || isFinished(job)) return { ok: false, reason: 'not-running' };
+    ctl.cancelled = true;
+    ctl.controller.abort();
+    return { ok: true };
   }
 
   return {
     enqueue,
     retry,
+    cancel,
     refreshRenderToken(id, token, session = currentSession()) {
       if (typeof token !== 'string' || token.length === 0 || token.length > 4096) return false;
       const held = live.get(id);

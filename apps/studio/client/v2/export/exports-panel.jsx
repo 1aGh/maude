@@ -62,6 +62,7 @@ export function ExportsPanel({
     download: center.download,
     again: center.again,
     retry: center.retry,
+    cancel: center.cancel,
     renderHere: center.renderHere,
     // 09 ex-history — the row menu: the same settings in the sheet, the names on the clipboard, off the list
     againWith: (job) => {

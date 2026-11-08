@@ -203,4 +203,55 @@ describe('export jobs are scoped to the requesting member (V2-2.8 S5)', () => {
       await killProc(proc);
     }
   }, 60_000);
+  // #128 T3.7b — Cancel is the export class AND the owner's: a member stops only a job they started;
+  // anyone else's id (or one that never existed) gets the same 404, and a finished job is not running.
+  test('POST /_api/export-jobs/cancel is scoped to the member who exported', async () => {
+    const { root } = makeSandbox();
+    const port = nextPort();
+    const proc = await bootServer(root, port, WORKSPACE_ENV);
+    try {
+      const base = `http://localhost:${port}`;
+      const cancel = (session: string, body: unknown) =>
+        fetch(`${base}/_api/export-jobs/cancel`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...as(session) },
+          body: JSON.stringify(body),
+        });
+      const start = await fetch(`${base}/_api/export-jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...as(ALICE) },
+        body: JSON.stringify({ v: 2, spec: { v: 2, scope: 'project', format: 'zip' } }),
+      });
+      expect(start.status).toBe(202);
+      const { jobId } = (await start.json()) as { jobId: string };
+      const deadline = Date.now() + 15_000;
+      let done = false;
+      while (Date.now() < deadline && !done) {
+        done = (await jobsOf(base, ALICE)).some((j) => j.id === jobId && j.status === 'done');
+        if (!done) await Bun.sleep(25);
+      }
+      expect(done).toBe(true);
+
+      // Alice owns it, but it is finished: nothing is running to stop.
+      const mine = await cancel(ALICE, { id: jobId });
+      expect(mine.status).toBe(409);
+      expect(await mine.json()).toEqual({ error: 'not-running' });
+
+      // Bob: the same answer an id that never existed gets.
+      const hidden = await cancel(BOB, { id: jobId });
+      const ghost = await cancel(BOB, { id: crypto.randomUUID() });
+      expect(hidden.status).toBe(404);
+      expect({ status: hidden.status, body: await hidden.text() }).toEqual({
+        status: ghost.status,
+        body: await ghost.text(),
+      });
+
+      // The body must be {id}, nothing else.
+      expect((await cancel(ALICE, { id: jobId, extra: 1 })).status).toBe(400);
+      expect((await cancel(ALICE, {})).status).toBe(400);
+      expect((await cancel(ALICE, [jobId])).status).toBe(400);
+    } finally {
+      await killProc(proc);
+    }
+  }, 60_000);
 });

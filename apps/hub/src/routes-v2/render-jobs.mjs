@@ -5,6 +5,7 @@
 //   POST /api/projects/:p/v1/render-jobs            { jobId, spec, label?, expect? }  export
 //   GET  /api/projects/:p/v1/render-jobs/:id                                          export
 //   GET  /api/projects/:p/v1/render-jobs/:id/file                                     export
+//   POST /api/projects/:p/v1/render-jobs/:id/cancel                                   export (#128 T3.7b)
 //
 // Bearer only: the handler reads `authorization`, never a cookie (no ambient credential, so no
 // CSRF). The hub BUILDS the session the browser proxy would hold for this person, judges export
@@ -40,6 +41,7 @@ export const RENDER_JOBS_ROUTE = new RegExp(`${base}$`);
 // Any one segment is classified here (an ill-formed id is this door's 404, never the studio's).
 export const RENDER_JOB_ROUTE = new RegExp(`${base}/([^/]{1,128})$`);
 export const RENDER_JOB_FILE_ROUTE = new RegExp(`${base}/([^/]{1,128})/file$`);
+export const RENDER_JOB_CANCEL_ROUTE = new RegExp(`${base}/([^/]{1,128})/cancel$`);
 
 /** The outbox record id the desktop sends — also the studio's job id (§7). */
 export const DOOR_JOB_ID_RE = /^i_[a-z0-9]{20}$/;
@@ -48,6 +50,21 @@ export const RENDER_JOBS_BODY_BYTES = 256 * 1024;
 /** The studio's JSON answers are small; a bigger one is not trusted. */
 const MAX_UPSTREAM_JSON = 256 * 1024;
 const MAX_ERROR_CHARS = 500;
+/** #128 T3.7b — the render service's "waiting" line is one short sentence. */
+const MAX_WAITING_CHARS = 120;
+/** #128 T3.7b — a finished job's notice ("Rendered at 1× in the cloud…"): two short sentences. */
+const MAX_NOTICE_CHARS = 300;
+
+/** The notice a finished job carries, as reason + remedy text only (nothing else of it crosses). */
+function projectNotice(d) {
+  if (!d || typeof d !== 'object' || typeof d.reason !== 'string' || !d.reason) return null;
+  return {
+    reason: d.reason.slice(0, MAX_NOTICE_CHARS),
+    ...(typeof d.remedy === 'string' && d.remedy
+      ? { remedy: d.remedy.slice(0, MAX_NOTICE_CHARS) }
+      : {}),
+  };
+}
 
 /** §10 — per actor. */
 export const RENDER_JOBS_LIMITS = Object.freeze({
@@ -152,11 +169,16 @@ function answerStatus(respondJson, jobId, body) {
     job.progress && Number.isFinite(job.progress.current) && Number.isFinite(job.progress.total)
       ? { current: job.progress.current, total: job.progress.total }
       : null;
+  const notice = projectNotice(job.degraded);
   respondJson(200, {
     job: {
       id: jobId,
       status: typeof job.status === 'string' ? job.status : 'unknown',
       ...(progress ? { progress } : {}),
+      ...(typeof job.waiting === 'string' && job.waiting
+        ? { waiting: job.waiting.slice(0, MAX_WAITING_CHARS) }
+        : {}),
+      ...(notice ? { degraded: notice } : {}),
       ...(typeof job.error === 'string' ? { error: job.error.slice(0, MAX_ERROR_CHARS) } : {}),
     },
   });
@@ -405,6 +427,36 @@ export function createRenderJobsRoutes({
     return answerStatus(respondJson, jobId, await readUpstreamJson(r.stream));
   }
 
+  /**
+   * #128 T3.7b — the requester stops their own unfinished job. The studio's job store is
+   * owner-scoped (the session key), so a foreign job is a missing one there and answers the same
+   * 404 here; aborting the job also cancels it on the render service (renderRemotely's signal).
+   */
+  async function cancel({ respondJson }, who, jobId) {
+    const p = proxy();
+    if (!p?.forwardAs) {
+      respondJson(404, { ...NOT_FOUND });
+      return true;
+    }
+    const r = await p.forwardAs(sessionOf(who), {
+      method: 'POST',
+      path: '/_api/export-jobs/cancel',
+      body: { id: jobId },
+    });
+    if (!r.ok) return respondForwardRefusal(respondJson, r);
+    r.stream.resume();
+    if (r.status === 200) {
+      respondJson(200, { jobId, cancelled: true });
+    } else if (r.status === 404) {
+      respondJson(404, { ...NOT_FOUND });
+    } else if (r.status === 409) {
+      respondJson(409, { code: 'not-running' });
+    } else {
+      respondJson(r.status >= 500 ? r.status : 502, { code: 'upstream' });
+    }
+    return true;
+  }
+
   async function file({ response, respondJson }, who, jobId) {
     const p = proxy();
     if (!p?.forwardAs) {
@@ -450,6 +502,7 @@ export function createRenderJobsRoutes({
     const { path, method, request, respondJson } = ctx;
     let m = RENDER_JOBS_ROUTE.exec(path);
     let kind = 'collection';
+    if (!m) [m, kind] = [RENDER_JOB_CANCEL_ROUTE.exec(path), 'cancel'];
     if (!m) [m, kind] = [RENDER_JOB_FILE_ROUTE.exec(path), 'file'];
     if (!m) [m, kind] = [RENDER_JOB_ROUTE.exec(path), 'one'];
     if (!m) return false;
@@ -491,6 +544,17 @@ export function createRenderJobsRoutes({
       }
       return submit(ctx, who);
     }
+    if (kind === 'cancel') {
+      if (method !== 'POST') {
+        respondJson(405, { code: 'method-not-allowed' });
+        return true;
+      }
+      if (!DOOR_JOB_ID_RE.test(jobId)) {
+        respondJson(404, { ...NOT_FOUND });
+        return true;
+      }
+      return cancel(ctx, who, jobId);
+    }
     if (!isGet) {
       respondJson(405, { code: 'method-not-allowed' });
       return true;
@@ -526,6 +590,14 @@ async function renderJobsHandler(ctx) {
 export const RENDER_JOBS_ROWS = Object.freeze([
   {
     pattern: RENDER_JOBS_ROUTE,
+    cap: Object.freeze({ safe: null, unsafe: 'export' }),
+    scope: 'canvas',
+    canvasDoor: true,
+    handler: renderJobsHandler,
+  },
+  {
+    // #128 T3.7b — Cancel: a POST (bearer only), the export capability like the submit
+    pattern: RENDER_JOB_CANCEL_ROUTE,
     cap: Object.freeze({ safe: null, unsafe: 'export' }),
     scope: 'canvas',
     canvasDoor: true,

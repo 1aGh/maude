@@ -2228,6 +2228,20 @@ export function createHttp(
     // S8.5 — the Render row: a cloud door on this Mac, and a comp's own length (Suggest each time)
     cloudRender: () => resolveRenderLane() === 'local' && cloudExports.available(),
     videoSeconds: (rel) => cloudFacts.videoSeconds(rel),
+    // #128 T3.7b — Cancel: a cloud row on a desktop (the hub is asked), else one of THIS session's jobs
+    cancel: async (id, session) => {
+      if (!isWorkspaceMode()) {
+        const c = await cloudExports.cancel(id);
+        if (c.ok) return { ok: true };
+        if (c.code !== 'not-found')
+          return {
+            ok: false,
+            reason: c.code === 'not-running' || c.code === 'forbidden' ? c.code : 'unreachable',
+          };
+      }
+      const r = exportJobs.cancel(id, session);
+      return r.ok ? { ok: true } : { ok: false, reason: r.reason };
+    },
     // S8.4 — Retry: only the failed items of one of THIS session's group jobs
     retry: (id, items, session, allow) => exportJobs.retry(id, items, session, allow),
     // S8.7 — the Print preflight: fonts are read under the design root; the safe margin is measured from the
@@ -8194,7 +8208,8 @@ export function createHttp(
     // comments this session sees — so an invisible id is a missing one (U1).
     if (access.grants.length > 0 && req.method === 'POST') {
       // S8.4 — Retry names a job, not a canvas: the route gates every canvas its items reach
-      if (pathname === '/_api/export-jobs/retry') return null;
+      if (pathname === '/_api/export-jobs/retry' || pathname === '/_api/export-jobs/cancel')
+        return null;
       if (V2_EXPORT_DOORS.has(pathname)) {
         const body = (await req
           .clone()

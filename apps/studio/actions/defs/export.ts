@@ -94,6 +94,18 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     visible: { minRole: 'comment' },
     search: { hidden: true },
   },
+  // #128 T3.7b — "Cancel" on a running cloud export (client/v2/export/job-row.jsx, testid
+  // `export-job-cancel-<id>`): stops it, which also stops it on the render service, through
+  // POST /_api/export-jobs/cancel (the export class, the owner's jobs only). A row action, so it is
+  // hidden from ⌘K: it needs the job it acts on.
+  {
+    id: 'export.cancel',
+    label: 'Cancel',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'comment' },
+    search: { hidden: true },
+  },
   // ── no key in v1 ──
   {
     id: 'share.open',

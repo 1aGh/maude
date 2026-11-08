@@ -523,6 +523,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/export-jobs': { class: 'local' },
   '/_api/export-jobs/download': { class: 'local' },
   '/_api/export-jobs/retry': { class: 'local' }, // S8.4 — re-runs a job's failed items; the files stay on this Mac
+  '/_api/export-jobs/cancel': { class: 'local' }, // #128 T3.7b — stops one of the session's unfinished exports; writes no project file
   '/_api/export-preflight': { class: 'local' }, // S8.7 — names and numbers about a print export, writes nothing
   '/_api/export-preview': { class: 'local' }, // P8 C2 — artboard stills of what an export reaches, from the picture service; writes nothing
   '/_api/export-warmup': { class: 'local' },

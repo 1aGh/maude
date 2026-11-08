@@ -31,6 +31,8 @@ export const OPEN_FOLDER = 'Open the Downloads folder';
 export const SHOW_IN_FINDER = 'Show in Finder';
 export const DOWNLOAD = 'Download';
 export const EXPORT_AGAIN = 'Export again';
+/** #128 T3.7b — stop a running cloud export (registry `export.cancel`). */
+export const CANCEL_EXPORT = 'Cancel';
 export const MORE = 'More';
 export const EXPORT_AGAIN_WITH = 'Export again with other settings…';
 export const COPY_FILE_NAMES = 'Copy file names';

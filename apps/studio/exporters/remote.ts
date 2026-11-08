@@ -584,8 +584,17 @@ export function compSecondsFromSource(source: string): number | null {
 
 /** Where a cloud job stands, as the door answers a poll. */
 export type CloudJobStatus =
-  | { state: 'queued' | 'running'; progress?: { current: number; total: number } }
-  | { state: 'done' }
+  | {
+      state: 'queued' | 'running';
+      progress?: { current: number; total: number };
+      /** #128 T3.7b — the render service holds this job behind another video: the row's words for it */
+      waiting?: string;
+    }
+  | {
+      state: 'done';
+      /** #128 T3.7b — the finished file is complete but lesser (e.g. rendered at 1× in the cloud) */
+      degraded?: { reason: string; remedy?: string };
+    }
   | { state: 'failed'; error?: string }
   /** the cloud no longer knows the job (past its age, another project) */
   | { state: 'gone' }
@@ -606,8 +615,18 @@ export interface CloudRenderDoor {
     expect?: CloudFingerprintEntry[];
   }): Promise<TargetAnswer>;
   status(jobId: string): Promise<CloudJobStatus>;
+  /**
+   * #128 T3.7b — ask the cloud to stop one of this person's unfinished jobs. Optional: a door
+   * built before Cancel has none, and the row then says it cannot reach the cloud.
+   */
+  cancel?(jobId: string): Promise<CloudCancelAnswer>;
   artifact(jobId: string): Promise<{ filename: string | null; body: Uint8Array } | null>;
 }
+
+/** What the cloud answered a Cancel with (`ok` also when it no longer knows the job). */
+export type CloudCancelAnswer =
+  | { ok: true }
+  | { ok: false; code: 'not-running' | 'forbidden' | 'unreachable' };
 
 /** One file of a canvas's closure as this Mac holds it: sha256, or null for presence-only (an asset). */
 export interface CloudFingerprintEntry {
@@ -627,6 +646,8 @@ export class CloudArtifactTooLargeError extends Error {
 
 /** The words of a cloud row while it waits (09 ex-offline, CONTRACT §4). */
 export const CLOUD_QUEUED_WORDS = 'Queued — starts when this Mac is online';
+/** The row of a cloud job the person cancelled. */
+export const CLOUD_CANCELLED_WORDS = 'Cancelled.';
 export const CLOUD_GONE_WORDS = 'The cloud no longer has this export. Export it again.';
 export const CLOUD_FAILED_WORDS = 'The cloud couldn’t render it.';
 export const CLOUD_EXPIRED_WORDS = 'Not exported — it waited a day.';
@@ -667,6 +688,10 @@ interface TrackRecord {
   acceptedAt: number;
   phase: TrackPhase;
   progress?: { current: number; total: number };
+  /** #128 T3.7b — the cloud holds the job behind another video (never persisted: a poll sets it) */
+  waiting?: string;
+  /** #128 T3.7b — the finished file is complete but lesser (the cloud's notice) */
+  degraded?: { reason: string; remedy?: string };
   filename?: string;
   error?: string;
   finishedAt?: number;
@@ -687,8 +712,10 @@ export interface CloudRow {
   spec: ExportSpecV2;
   label: string;
   runsOn: 'cloud';
-  /** queued in the outbox: the row says so and offers "Render on this Mac now" */
+  /** queued in the outbox ("Render on this Mac now"), or held behind another video by the cloud */
   waiting?: string;
+  /** the finished file is complete but lesser — the same notice a this-Mac export carries */
+  degraded?: { reason: string; remedy?: string };
 }
 
 type CloudEnqueue = {
@@ -810,6 +837,8 @@ export function createCloudExports(opts: CloudExportsOptions) {
       ...(t.filename ? { filename: t.filename } : {}),
       ...(t.error ? { error: t.error } : {}),
       ...(t.progress ? { progress: t.progress } : {}),
+      ...(t.phase === 'rendering' && t.waiting ? { waiting: t.waiting } : {}),
+      ...(t.degraded ? { degraded: t.degraded } : {}),
       spec: t.spec,
       label: t.label,
       runsOn: 'cloud',
@@ -875,6 +904,7 @@ export function createCloudExports(opts: CloudExportsOptions) {
   function finish(t: TrackRecord, patch: Partial<TrackRecord>): void {
     const next: TrackRecord = { ...t, ...patch, finishedAt: now() };
     if (patch.progress === undefined && 'progress' in patch) delete next.progress;
+    delete next.waiting; // a finished job waits for nothing
     tracked.set(t.jobId, next);
     persist(next);
     announce(rowOfTrack(next));
@@ -901,13 +931,17 @@ export function createCloudExports(opts: CloudExportsOptions) {
       return finish(t, { phase: 'failed', error: error || CLOUD_FAILED_WORDS });
     }
     if (st.state === 'queued' || st.state === 'running') {
-      if (st.progress) {
-        const next = { ...t, progress: st.progress };
+      const waiting = typeof st.waiting === 'string' && st.waiting ? st.waiting : undefined;
+      if (st.progress || waiting !== t.waiting) {
+        const next: TrackRecord = { ...t, ...(st.progress ? { progress: st.progress } : {}) };
+        if (waiting) next.waiting = waiting;
+        else delete next.waiting;
         tracked.set(id, next);
         announce(rowOfTrack(next));
       }
       return schedule(id);
     }
+    if (st.state !== 'done') return schedule(id); // (narrowing; every other state returned above)
     // done — the file comes down to this Mac, under the same untrusted-name rule as a render reply
     let art: Awaited<ReturnType<CloudRenderDoor['artifact']>> = null;
     try {
@@ -924,7 +958,12 @@ export function createCloudExports(opts: CloudExportsOptions) {
     const filename = safeArtifactName(art.filename, t.format as Format);
     mkdirSync(path.join(dir, id), { recursive: true });
     writeFileSync(path.join(dir, id, filename), art.body);
-    finish(t, { phase: 'done', filename, progress: undefined });
+    finish(t, {
+      phase: 'done',
+      filename,
+      progress: undefined,
+      ...(st.degraded ? { degraded: st.degraded } : {}),
+    });
   }
 
   /** The sender's success hook: the cloud took the job — follow it to the file. */
@@ -1009,6 +1048,40 @@ export function createCloudExports(opts: CloudExportsOptions) {
     },
     accepted,
     rows,
+    /**
+     * #128 T3.7b — Cancel a cloud row. A job the cloud has: the hub is asked (it stops the job, which
+     * cancels it on the render service) and the row ends in words; no answer keeps it running. One
+     * still waiting in the outbox is withdrawn and never sent.
+     */
+    async cancel(id: string): Promise<{ ok: true } | { ok: false; code: string }> {
+      if (!JOB_ID_RE.test(id)) return { ok: false, code: 'not-found' };
+      const t = tracked.get(id);
+      if (t) {
+        if (t.phase !== 'rendering') return { ok: false, code: 'not-running' };
+        const door = opts.door();
+        let answer: CloudCancelAnswer = { ok: false, code: 'unreachable' };
+        if (door?.cancel) {
+          try {
+            answer = await door.cancel(id);
+          } catch {
+            answer = { ok: false, code: 'unreachable' };
+          }
+        }
+        if (!answer.ok) return answer;
+        // a poll may have ended the job while the hub was being asked
+        const cur = tracked.get(id);
+        if (!cur || cur.phase !== 'rendering') return { ok: false, code: 'not-running' };
+        const timer = timers.get(id);
+        if (timer !== undefined) clearTimer(timer);
+        timers.delete(id);
+        finish(cur, { phase: 'failed', error: CLOUD_CANCELLED_WORDS, progress: undefined });
+        return { ok: true };
+      }
+      const r = opts.outbox.store.get(id);
+      if (!r || r.kind !== 'export.cloud') return { ok: false, code: 'not-found' };
+      const c = opts.outbox.store.cancel(id);
+      return c.ok ? { ok: true } : { ok: false, code: c.code };
+    },
     /** The finished file's bytes (`/_api/export-jobs/download?id=`) — only a done cloud job. */
     bytes(
       id: string

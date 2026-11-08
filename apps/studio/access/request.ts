@@ -102,6 +102,8 @@ export const EXPORT_WRITES: ReadonlySet<string> = new Set([
  */
 export const EXPORT_TABLE_WRITES: ReadonlySet<string> = new Set([
   '/_api/export-jobs/retry',
+  // #128 T3.7b — Cancel stops one of the session's own unfinished exports (the owner's jobs only)
+  '/_api/export-jobs/cancel',
   // S8.7 — the Print preflight (paper, the back, safe margin, fonts) is numbers and names about an export
   '/_api/export-preflight',
   // P8 C2 — the pictures of what an export would reach (artboard stills from the picture service)

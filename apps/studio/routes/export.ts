@@ -91,6 +91,11 @@ export interface ExportRouteDeps {
     designRoot: string;
     rects?(canvasRel: string): Promise<RectsManifest | null>;
   };
+  /**
+   * #128 T3.7b — stop one of this session's unfinished exports (a cloud row on a desktop, a job on a
+   * cell). `missing` is also what another member's job answers (V2-1.16 U1).
+   */
+  cancel(id: string, session: string): Promise<ExportCancelResult> | ExportCancelResult;
   /** S8.4 — run a group job's failed items again; `session` = who asks (the job queue's owner check) */
   retry(
     id: string,
@@ -99,6 +104,11 @@ export interface ExportRouteDeps {
     allow: (canvas: string | null) => boolean
   ): Promise<RetryResult>;
 }
+
+/** #128 T3.7b — what a Cancel did (the route's answers: 200 / 404 / 409 / 403 / 502). */
+export type ExportCancelResult =
+  | { ok: true }
+  | { ok: false; reason: 'missing' | 'not-running' | 'forbidden' | 'unreachable' };
 
 /** The role refusal — the same shape the local gate answers a read-only write with. */
 const capabilityRefusal = () => json(403, ACP_REFUSAL);
@@ -286,6 +296,21 @@ function parseRetryBody(text: string): { id: string; items?: string[] } | null {
   return { id: b.id, items: b.items as string[] };
 }
 
+/** The cancel body: `{id}`, nothing else. */
+function parseCancelBody(text: string): { id: string } | null {
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  const b = body as Record<string, unknown>;
+  if (Object.keys(b).some((k) => k !== 'id')) return null;
+  if (typeof b.id !== 'string' || !b.id || b.id.length > 64) return null;
+  return { id: b.id };
+}
+
 export function createExportRoutes(deps: ExportRouteDeps): RouteSpec[] {
   return [
     {
@@ -452,6 +477,32 @@ export function createExportRoutes(deps: ExportRouteDeps): RouteSpec[] {
           })
         );
         return json(200, { items });
+      },
+    },
+    {
+      // #128 T3.7b — the Exports row's Cancel: stops one of THIS session's unfinished exports. On a
+      // cell the job's abort also cancels it on the render service; on a desktop a cloud row asks the
+      // hub, whose door stops the cell's job. The export class and the owner's jobs only.
+      method: 'POST',
+      path: '/_api/export-jobs/cancel',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: async (req) => {
+        const a = deps.access(req);
+        if (!a.can('export', null) && a.grants.length === 0) return capabilityRefusal();
+        if (Number(req.headers.get('content-length')) > MAX_BODY)
+          return json(413, { error: 'too-large' });
+        const text = await req.text();
+        if (text.length > MAX_BODY) return json(413, { error: 'too-large' });
+        const body = parseCancelBody(text);
+        if (!body) return json(400, { error: 'bad-cancel', message: 'body must be {id}' });
+        const r = await deps.cancel(body.id, sessionFromRequest(req));
+        if (r.ok) return json(200, { ok: true, id: body.id }) as Response;
+        // not yours ≡ never existed: the same answer the download and retry routes give
+        if (r.reason === 'missing') return new Response('Not found', { status: 404 });
+        if (r.reason === 'forbidden') return capabilityRefusal();
+        if (r.reason === 'unreachable') return json(502, { error: 'unreachable' });
+        return json(409, { error: r.reason });
       },
     },
     {
