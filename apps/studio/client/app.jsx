@@ -3,6 +3,10 @@
 // Renders: file tree, tabs, viewport (iframes), status bar, design-system view, comments.
 // Universal — no project tokens needed; styling lives in client/styles/.
 
+// sec-loopback-bearer §7.4 — FIRST: a desktop project tab opens its session with its server before
+// any other module can send a request (side effect; a no-op elsewhere).
+import './v2/shell/api-session-boot.js';
+import { apiSessionReady } from './v2/shell/api-session.js';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
@@ -3627,7 +3631,9 @@ else {
   // #204 R — the shell's pollers mount before `/_config` answers; they wait for it (bounded) so a
   // workspace cell is never asked a route it withholds on the way up. Home is no cell: it says so at once.
   expectServedFrom();
-  const migrated = migrateAtBoot().catch(() => {});
+  // sec-loopback-bearer §7.4 — a desktop project tab renders once its session with its server is
+  // open, so the sockets its effects open carry the cookie (resolves at once anywhere else).
+  const migrated = apiSessionReady().then(() => migrateAtBoot().catch(() => {}));
   Promise.race([migrated, new Promise((r) => setTimeout(r, 1500))]).then(() =>
     bootShellMode((mode) => {
       if (mode === 'home') setServedFrom(null);
