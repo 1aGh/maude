@@ -1,6 +1,6 @@
 # DDR-250 — The desktop owns a checkout's server; the CLI finds it in an app-owned registry and asks over an app-owned socket
 
-- **Status:** Proposed (draft) — 2026-11-07. §5 (first-open trust) waits for Michal; T6.3 does not start before it.
+- **Status:** Accepted (Michal 2026-11-08: first-open trust option A)
 - **Extends:** DDR-106 (sidecar over the compiled server), DDR-109 (loopback guard), decision `v2-3.4-shell-probe-gate-order` (the shell trusts app-owned files and per-spawn secrets, never the project), `v2-3.7-own-tab-bar` (tabs = a sidecar pool behind one window), `v2-3.5-deep-link-routing`
 - **Related:** DDR-084 (server-up boots the compiled binary), `maude/burndown-t1-9-server-up-always-headless`, `maude/burndown-t1-10-app-cli-spawns-adjacent-sidecar`, `gate-b-sec4` (a committed `linkedHub` is a claim, `sync/link-consent.ts`), issue #115 (why Rust deleted `_server.json`)
 - **Ticket:** issue #206; plan `.ai/plans/feature-issues-burndown-2026-11.md` T6.1–T6.2

@@ -203,7 +203,7 @@ W5 and W6 use Opus.
 
 ### W4 — Import, plugins and sync diagnostics
 
-- [ ] T4.1 **#155 §3–§7 and the rest of §10:**
+- [x] T4.1 **#155 §3–§7 and the rest of §10:**
   - fonts (D8);
   - paint opacity, stacked fills, radial / angular / diamond gradients, blur, backdrop blur and blend modes;
   - the contrast floor (D8);
@@ -226,7 +226,7 @@ W5 and W6 use Opus.
   - the cross-plugin references, the ratchets and the `v2-words` counts;
   - a migration note in the docs and site plus a What's New entry.
   - Record a DDR.
-- [ ] T4.5 **#158:**
+- [x] T4.5 **#158:**
   - a read-only diagnostic resolving each synced canvas's imports and `url()` refs against the sync set (reuse `access/closure.ts` and `sync/file-membership.ts`; do not change the membership predicate);
   - it names the file and the reason;
   - surfaced in `maude design status`, `/design:smoke` and the Sync panel.
@@ -274,7 +274,7 @@ W5 and W6 use Opus.
   - measure a doubled server (RSS, startup);
   - measure what two servers on one root do to the store lock, the watcher and sync;
   - finish the inventory from the 2026-11-07 sweep.
-- [ ] T6.2 DDR and contract:
+- [x] T6.2 DDR and contract:
   - an app-owned, per-user registry (root → port, verified with a per-spawn secret; a planted `_server.json` is never trusted);
   - a CLI → app channel (deep link or single-instance args) that can name a root;
   - the worktree-tab model (label, Home and Recent, profile and sync: a worktree copy of a linked project never links as a second copy);
@@ -372,3 +372,6 @@ W5 and W6 use Opus.
 - 2026-11-07 merged T5.3 part 2 (2763a90ec c70b291b8 a77df003e b6511430d): owner-only POST /api/journal/adopt + /_api/sync/adopt-held, held-row actions via registry (humanMax 186→188, lead confirmed), heldOverflow shown, item 6 option A. Adopt is a new owner door → in the T9.1 security pair.
 - 2026-11-07 merged 164-sec studio side (64a0e8092 4f631c927 20485dbf1 6119cd63e 5c6b9b148). Re-review next, then mini full suite + push.
 - 2026-11-07 merged T6.1 spike + T6.2 draft ad0225002 (contract 206-cli-reuses-desktop.md, DDR-250 Proposed: app-owned servers.json + per-spawn attest, cli.sock, CLI server yields, worktree tab never links; measured: doubled server 116–360 MB, store-lock 409 on undo, _server.json delete race reproduced both ways). Waiting on Michal: first-open trust (A/B/C, lead recommends A).
+- 2026-11-08 Michal chose #206 first-open trust **A** (ask once per new folder; known folders + their worktrees open silently; Settings switch). DDR-250 Accepted. T6.3a–f next.
+- 2026-11-08 merged T5.4 spike e65346c35 (contract 168-hardening.md: D10 one-origin-per-canvas NOT contained → named gap stays, item closes with measurements; slices S1–S4; S4 ux-patterns exempt-by-ID reverses Michal's 2026-10-31 'c' → needs his OK), T4.5 9d30a6a97 (+ lead patches: registry class, designRoot dep), T2.2 PNG 39a88e3bb (WebKit stills persist as validated PNG; PNG ~6× WebP vs caps), T4.1 (f7831e6f3 0d8e3b025 ad35b072f f7400e14f d81eb6c79 d560786e5; leftovers: per-instance layout, angular/diamond in SVG lane, REST --frames sharing, per-paint blend, docs for --one-canvas).
+- 2026-11-08 #164 re-review: no medium left; lows N1 (double-loaded plugin empty settle), N2 (lane-level claim tagging), N3 (board saves not noted as person), N4 (guide's undo --chat too broad) → fix slice.
