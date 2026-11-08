@@ -5,6 +5,8 @@
 // belongs to — and its `when.focus` already does: chrome / timeline / modal are shell foci, canvas
 // is the iframe's; a binding without a focus list belongs to both (the canvas forwards it when its
 // action is `fromCanvas`, V2-1.3 §5.7). Timeline-layer bindings need timeline focus — shell only.
+// A binding whose ONLY foci are text fields (#113: a checklist entry being typed in) is the canvas's —
+// the shell's own text bindings always name a shell focus beside it.
 
 import { indexKeys, type KeyIndex } from './resolve.ts';
 import type { ActionDef, ActionId, KeyBinding, KeyedAction } from './types.ts';
@@ -19,7 +21,10 @@ export function bindingInDocument(b: KeyBinding, doc: KeyDocument): boolean {
       !focus ||
       focus.some((f) => f === 'chrome' || f === 'timeline' || f === 'modal')
     );
-  return b.layer !== 'timeline' && (!focus || focus.includes('canvas'));
+  return (
+    b.layer !== 'timeline' &&
+    (!focus || focus.includes('canvas') || focus.every((f) => f === 'text'))
+  );
 }
 
 /** The index one document resolves: the bindings it owns, of the actions it has handlers for. */

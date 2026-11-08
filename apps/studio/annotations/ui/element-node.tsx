@@ -49,6 +49,7 @@ import {
 } from '../../canvas-lib.tsx';
 import { SECTION_FOLDED_H } from '../constants.ts';
 import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
+import { ChecklistChip, ChecklistRows, useChecklistItems } from './checklist.tsx';
 import type { AnnotationElement } from '../types.ts';
 import {
   AI_SPARK,
@@ -343,6 +344,7 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
       : null;
   const shown = [line, origin, doneLine].filter(Boolean).join(' · ');
   const pin = useTimePin(el); // S4.16 — the time chip, the fade off range, "Not printed"
+  const items = useChecklistItems(el.id); // #113 — a sticky with entries draws as a checklist
   return (
     <Node
       el={el}
@@ -408,6 +410,32 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
             onDraft={edit.onDraft}
           />
         </div>
+      ) : items.length ? (
+        // #113 — a checklist: the sticky's text is the title, its entries under it (annotations/ui/checklist.tsx)
+        <div
+          className="dc-annot-checklist-card"
+          data-an-checklist-card="1"
+          style={{
+            ...style,
+            position: 'absolute',
+            inset: 0,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            boxSizing: 'border-box',
+            paddingBottom: 26,
+          }}
+        >
+          {/* the title is the sticky's text slot (the caret-at-click mirror measures `.dc-annot-text`) */}
+          {text ? <div className="dc-annot-text">{withListMarkers(text, lst)}</div> : null}
+          <ChecklistRows
+            listId={el.id}
+            title={text}
+            paper={fill}
+            fontSize={fmt.fontSize}
+            inert={!interactive || !!quiet}
+          />
+        </div>
       ) : (
         <div
           className="dc-annot-text"
@@ -416,6 +444,7 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
           {withListMarkers(text, lst)}
         </div>
       )}
+      {items.length && !edit ? <ChecklistChip listId={el.id} paper={fill} /> : null}
       {edit ? <EditNotice notice={edit.notice} /> : null}
       {aiMade && !edit ? <SparkGlyph className="dc-annot-spark" /> : null}
       {resolved ? (
@@ -449,7 +478,7 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
           style={{
             position: 'absolute',
             left: aiMade ? 28 : 12,
-            right: 12,
+            right: items.length ? 52 : 12,
             bottom: 5,
             padding: '0 2px',
             borderRadius: 3,
