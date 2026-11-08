@@ -213,8 +213,10 @@ describe('a shell-spawned project server', () => {
     const ok = await fetch(base, { headers: { 'x-maude-shell': TOKEN } });
     expect(ok.status).toBe(200);
     const body = await ok.json();
-    expect(Object.keys(body).sort()).toEqual(['ai', 'jobs', 'unsent', 'version']);
+    expect(Object.keys(body).sort()).toEqual(['ai', 'jobs', 'storeMode', 'unsent', 'version']);
     expect(body.ai).toEqual({ running: 0, awaiting: 0 });
+    // #206 — the only server on this root holds the store lock
+    expect(body.storeMode).toBe('writer');
     expect(typeof body.version).toBe('string');
     expect((await fetch(base)).status).toBe(401);
     expect(

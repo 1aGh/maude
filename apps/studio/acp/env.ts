@@ -59,8 +59,10 @@ const GENERATION_KEY_CUSTODY_RE = /^MAUDE_GEN_KEY/i;
  *     Only the dev-server's github/token.ts talks to the bridge; an agent holding the key could
  *     ask it for the profile's GitHub OAuth token.
  *   • `MAUDE_SHELL_*` — the shell probe token + its info-file path (V2-3.4, V2-1.1 decision 8),
- *     and `MAUDE_SHELL_SIDECAR` (not a secret: the app-port-range marker, port.ts — an agent's own
- *     `maude design serve` must stay off the app's 46399–46408).
+ *     the per-spawn attest key `MAUDE_SHELL_ATTEST_KEY` (#206, shell/attest.ts — an agent holding
+ *     it could answer for the app's sidecar), and `MAUDE_SHELL_SIDECAR` (not a secret: the
+ *     app-port-range marker, port.ts — an agent's own `maude design serve` must stay off the
+ *     app's 46399–46408).
  *   • `MAUDE_HOME_*` — the Home server's internal bearer, its page secret (V2-3.6 H1) and its
  *     state dir. A project server never receives them; scrubbed anyway, so no spawn path can
  *     hand them on.
@@ -154,6 +156,9 @@ export function scrubAgentEnv(
     if (PROFILE_POINTER_KEYS.has(key)) continue;
     // V2-1.15 §5.4 — a run binding is the bridge's to set, per chat (chatSpawnEnv)
     if (RUN_BINDING_KEYS.has(key)) continue;
+    // #206 — a server's role (`cli`: step down for the app's sidecar, shell/cli-yield.ts) is its
+    // own; a server the agent starts says its own role (server-up / `maude design serve`)
+    if (key === 'MAUDE_SERVER_ROLE') continue;
     out[key] = value;
   }
   return out;

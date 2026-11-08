@@ -41,6 +41,7 @@ const NONE = [
   '/_api/kg/summary',
   '/_api/settings/about',
   '/_api/shell/status',
+  '/_api/shell/attest', // #206: one MAC over a nonce
   '/_api/workspace/disclosure',
   '/_api/report',
   '/_api/report-fallback',

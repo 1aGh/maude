@@ -59,7 +59,7 @@ import { FORMAT_GATE_OPTS, formatGate } from './format.ts';
 import { createFsWatch } from './fs-watch.ts';
 import { createGenerationJobQueue } from './generation/jobs.ts';
 import { createGitWatch } from './git/watch.ts';
-import { createHttp } from './http.ts';
+import { createHttp, rootIdentity } from './http.ts';
 import { flushAllIndexes } from './index/service.ts';
 import { createInspectRegistry } from './inspect.ts';
 import { listenLoopback, V4_LOOPBACK } from './loopback-listen.ts';
@@ -67,9 +67,19 @@ import { startHeapWatch } from './mem.ts';
 import { bindFirst, PORT_LADDER, portCandidates, resolvePort } from './port.ts';
 import { canvasOriginRoutes } from './routes/canvas-origin.ts';
 import { runStageHooks } from './routes/index.ts';
+import { bindShellRuntime, shellPendingWork } from './routes/shell.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
+import {
+  isCliRole,
+  registryPath,
+  SERVER_ROLE_ENV,
+  watchForAppSidecar,
+  yieldIntervalFrom,
+  yieldRefusal,
+} from './shell/cli-yield.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
 import { exitWithParent } from './shell/parent-watch.ts';
+import { removeServerJsonIfOurs, writeServerJson } from './shell/server-json.ts';
 import { createActionFeed } from './sync/action-feed.ts';
 import { accessFor, getHubRecord, watchHubsConfig } from './sync/hubs-config.ts';
 import { hubHealth } from './sync/journal-client.ts';
@@ -465,6 +475,11 @@ const MAX_REQUEST_BODY = ASSET_MAX_VIDEO_BYTES + 8 * 1024 * 1024;
 const FETCH_ROUTES_FORBIDDEN_IN_WORKSPACE = ['/_ws/acp'];
 const FETCH_ROUTES_SANDBOXED = ['/_canvas-shell.html', '/_canvas-runtime/'];
 const WORKSPACE = isWorkspaceMode();
+// #206 — a terminal-started server (server-up / `maude design serve`) steps down for the app's
+// sidecar on this root (shell/cli-yield.ts). Read once and removed: a role is this process's, not
+// its children's (scrubAgentEnv drops it from the agent as well).
+const CLI_ROLE = !WORKSPACE && isCliRole(process.env);
+delete process.env[SERVER_ROLE_ENV];
 // DDR-209 A′1 — the contract that lets a cell serve `/_canvas-shell` +
 // `/_canvas-runtime` at all: the canvas build runs out of process, with an empty
 // environment, an import allowlist and ceilings. Computed here rather than
@@ -495,7 +510,9 @@ function withSession<T extends unknown[]>(
   // so a leaf asks `currentAccess()` instead of re-deriving a role.
   // p8-a1-save-hold — and WHO saves: a write from the studio page (a browser) is a person's save, which
   // waits while a running interpreter call names its file (ai/save-hold.ts); a terminal verb never does.
+  // #206 — a CLI server stepping down for the app's sidecar refuses new writes (shell/cli-yield.ts)
   return (req, ...rest) =>
+    yieldRefusal(req) ??
     runWithAccess(http.accessOf(req), () =>
       runInSession(WORKSPACE ? normalizeSessionKey(req.headers.get(SESSION_HEADER)) : '', () =>
         withSaveRequest(req, () => handler(req, ...rest))
@@ -578,6 +595,9 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
     routes: SERVER_ROUTES,
     async fetch(req, srv) {
       const pathname = new URL(req.url).pathname;
+      // #206 — the fall-through half of the yield refusal (`withSession` covers the routes map)
+      const yielded = yieldRefusal(req);
+      if (yielded) return yielded;
 
       // Containment (DDR-193 §2) — the `fetch` fall-through owns paths that are
       // not in the route table (`/_ws/acp`), so pruning the table alone would
@@ -799,7 +819,7 @@ function captureRefusal(req: Request): Response | null {
  */
 function inFrame(req: Request, fn: () => Response | Promise<Response>): Promise<Response> {
   return runInFrame(http.frameScopeOf(req), async () => {
-    const stop = frameRefusal(new URL(req.url).pathname, http.accessOf(req));
+    const stop = yieldRefusal(req) ?? frameRefusal(new URL(req.url).pathname, http.accessOf(req));
     return stop ?? fn();
   });
 }
@@ -1018,6 +1038,9 @@ const extraShellOrigins = (process.env.MAUDE_EXTRA_SHELL_ORIGINS ?? '')
   .map((o) => ` ${o}`)
   .join('');
 ctx.mainOrigin = `http://localhost:${server.port} http://127.0.0.1:${server.port}${publicShellOrigin}${extraShellOrigins}`;
+// #206 — what /_api/shell/attest binds into its MAC: this root's identity and the port this
+// listener BOUND (never a request's Host). Answered only when the app gave this spawn a key.
+bindShellRuntime({ rootId: rootIdentity(ctx.paths.repoRoot), port: server.port ?? 0 });
 // DDR-247 — apps that may FRAME the studio for the read-only `?embed=1` view.
 // Deliberately NOT folded into `mainOrigin` above: those are shells, and the
 // hub's canvas door accepts shells as writers. An embedder only gets framing.
@@ -1074,26 +1097,21 @@ if (captureServer) ctx.captureOrigin = `http://localhost:${captureServer.port}`;
 
 const startedAt = new Date().toISOString();
 bootFinished();
-await Bun.write(
-  ctx.paths.serverInfoFile,
-  JSON.stringify(
-    {
-      pid: process.pid,
-      port: server.port,
-      url: `http://localhost:${server.port}`,
-      ...(canvasOrigin ? { canvasOrigin } : {}),
-      // The port the canvas listener actually BOUND, as distinct from the
-      // public `canvasOrigin` name above. A co-located reverse proxy (the cell's
-      // hub) forwards canvas-origin traffic here; nothing else needs it.
-      ...(canvasServer ? { canvasPort: canvasServer.port } : {}),
-      started: startedAt,
-      project: ctx.cfg.name,
-      config_source: ctx.cfg._source,
-    },
-    null,
-    2
-  )
-);
+// #206 (DDR-250 decision 7) — atomic, and removed at shutdown only while it still names this
+// server (shell/server-json.ts): another server on this root may have written its own since.
+writeServerJson(ctx.paths.serverInfoFile, {
+  pid: process.pid,
+  port: server.port ?? 0,
+  url: `http://localhost:${server.port}`,
+  ...(canvasOrigin ? { canvasOrigin } : {}),
+  // The port the canvas listener actually BOUND, as distinct from the
+  // public `canvasOrigin` name above. A co-located reverse proxy (the cell's
+  // hub) forwards canvas-origin traffic here; nothing else needs it.
+  ...(canvasServer ? { canvasPort: canvasServer.port } : {}),
+  started: startedAt,
+  project: ctx.cfg.name,
+  config_source: ctx.cfg._source,
+});
 // V2-1.1 decision 8 — the same facts, to the desktop shell's own info file when it asked for one
 // (MAUDE_SHELL_INFO_FILE; atomic, 0600). Its probes read only that file + call the token-gated
 // /_api/shell/status, so a planted _server.json is never believed. _server.json is unchanged.
@@ -1153,6 +1171,9 @@ const syncRuntime = createSyncSupervisor(ctx, collab ? { registry: collab.regist
 // unchanged. The watcher feeds it through the bus.
 const localHome = attachLocalHome(ctx, syncRuntime);
 ctx.syncControl = localHome.control;
+// #206 — `/_api/shell/status.storeMode`: `read-only` while another server on this root holds the
+// store lock. No local store (a linked project) is never waiting for one.
+bindShellRuntime({ storeMode: () => localHome.home()?.mode() ?? 'writer' });
 // S5.3 — the run registry's lease home (Q2): the linked hub when its `/health` advertises
 // `runs-v1`, else per-Mac leases plus the Diagnostics line. An unreachable hub (capabilities
 // null) keeps the per-Mac home without the line — it is offline, not old. A cell keeps its own.
@@ -1322,14 +1343,8 @@ async function shutdown() {
   } catch {
     /* watcher cleanup is best-effort */
   }
-  try {
-    await Bun.write(ctx.paths.serverInfoFile, '').catch(() => {});
-    // Remove the file by writing empty then unlinking.
-    const fs = await import('node:fs/promises');
-    await fs.unlink(ctx.paths.serverInfoFile).catch(() => {});
-  } catch {
-    /* ignore */
-  }
+  // #206 — compare-and-delete: never another server's file (a desktop sidecar on this root)
+  removeServerJsonIfOurs(ctx.paths.serverInfoFile, { pid: process.pid, started: startedAt });
   server.stop();
   try {
     canvasServer?.stop();
@@ -1351,3 +1366,20 @@ process.on('SIGTERM', shutdown);
 // from a terminal (`maude design serve`, server-up.sh's nohup respawn) is meant to outlive that
 // terminal and is left alone (shell/parent-watch.ts says who is who).
 exitWithParent(() => void shutdown(), 'server');
+
+// #206 (DDR-250 decision 1) — a terminal-started server hands the root over to the desktop app's
+// sidecar once one is running here AND attests (shell/cli-yield.ts): new writes get 409 `yielded`,
+// its jobs and unsent work finish (≤ 120 s), then the ordinary shutdown releases the store lock.
+const appRegistry = CLI_ROLE ? registryPath() : null;
+if (appRegistry) {
+  watchForAppSidecar({
+    root: ctx.paths.repoRoot,
+    rootId: rootIdentity(ctx.paths.repoRoot),
+    selfPid: process.pid,
+    selfPort: server.port ?? 0,
+    file: appRegistry,
+    pending: shellPendingWork,
+    intervalMs: yieldIntervalFrom(process.env),
+    onYield: () => void shutdown(),
+  });
+}

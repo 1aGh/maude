@@ -126,7 +126,9 @@ describe('scrubAgentEnv — subscription guardrail', () => {
       'MAUDE_TOKEN_SOMETHING_NEW',
       'MAUDE_SHELL_TOKEN', // shell probe token (V2-3.4)
       'MAUDE_SHELL_INFO_FILE',
+      'MAUDE_SHELL_ATTEST_KEY', // #206: the per-spawn attest key (shell/attest.ts)
       'MAUDE_SHELL_SOMETHING_NEW',
+      'MAUDE_SERVER_ROLE', // #206: a server's role (cli) is its own, never its children's
       'MAUDE_HOME_TOKEN', // Home internal bearer (home.rs)
       'MAUDE_HOME_PAGE_SECRET', // Home page secret (V2-3.6 H1)
       'MAUDE_HOME_STATE_DIR',
