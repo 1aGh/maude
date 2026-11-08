@@ -627,6 +627,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'Read the artboard’s JSX in the source (the clipboard is the person’s)'
     ),
   },
+  'artboard.cut': TSX('Move the artboard’s JSX in the source (the clipboard is the person’s)'),
   'canvas.paste': TSX(
     'Write the JSX into the source; a copy gets new element ids (the clipboard is the user’s)'
   ),

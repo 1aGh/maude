@@ -47,6 +47,7 @@ import {
   notePasteIntent,
   shapeClipRequest,
 } from '../clipboard-relay.ts';
+import { clipWords } from '../../editing/clip-words.ts';
 import { exportRegionOf } from '../export-region.ts';
 import {
   localSelectRecord,
@@ -544,7 +545,8 @@ export function useCanvasBridge({
         };
         // V2-clipboard-objects — the clipboard is the shell's (client/clipboard-relay.ts): a paste names the
         // shell's handle, never the canvas's; a clip from ANOTHER canvas waits for a click on the shell's toast.
-        const shaped = shapeClipRequest(asked);
+        // (#122: a cloud tab holds no copy made in another project — its refusal says so, not "nothing to paste")
+        const shaped = shapeClipRequest(asked, { cloudTab: !!cfg?.cloud });
         if (shaped.kind === 'reply') {
           reply(shaped.result);
           return;
@@ -582,6 +584,9 @@ export function useCanvasBridge({
                         const payload = legacyRecordPayload(r, 'Paste');
                         if (payload)
                           replyTo?.postMessage({ dgn: 'record-edit', payload }, expectedOrigin);
+                        // #122 — said where the paste landed: what came along ("· added 2 imports")
+                        const said = clipWords(r);
+                        if (said) replyTo?.postMessage({ dgn: 'op-toast', message: said }, expectedOrigin);
                       })
                       .catch(() => {})
                   );

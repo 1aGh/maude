@@ -1532,6 +1532,10 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `.dc-participants / .dc-participant(--agent)` | selector | Participants chrome (avatars; `--agent` = the AI participant). | `participants-chrome.tsx` · `ParticipantsChrome` | e2e-mp:surface, test:canvas-hide-chrome | stable — re-emit |
 | `.dc-cursor / .dc-peer-selection / [data-peer-gesture]` | selector | Remote cursors, peer selection outlines, and peer gesture previews. | `cursors-overlay.tsx` · `Cursor`<br>`cursors-overlay.tsx` · `PeerSelection`<br>`cursors-overlay.tsx` · `PeerAnnotationGesture` | e2e-mp:surface, test-e2e:annotations-ui.e2e.mjs, test:peer-selection-follows-camera, test:presence-gesture-preview | stable — re-emit |
 | `canvas-menu-item-<id>` | testid (pattern) | One row of the canvas right-click menu; `<id>` is the registry item id (copy-css, copy-id, copy-style, paste-style, convert-to-absolute, theme, fit-one, ...). | `context-menu.tsx` · `MenuItemRow` | — | new |
+| `canvas-menu-item-cut-artboard` | testid | One row of the artboard right-click menu: Cut ⌘X (`artboard.cut`: the copy and the move to the Trash in one write). Absent without a clipboard (viewer / read-only menu). Sits in the clipboard group with `canvas-menu-item-copy-artboard` and `canvas-menu-item-paste-artboard`. | `context-menu.tsx` · `MenuItemRow` | test-e2e:clipboard-cross-canvas.e2e.mjs | new |
+| `canvas-menu-item-copy-artboard` | testid | The artboard menu's Copy ⌘C row (`artboard.copy`). | `context-menu.tsx` · `MenuItemRow` | test-e2e:clipboard-cross-canvas.e2e.mjs | new |
+| `canvas-menu-item-paste-artboard` | testid | The artboard menu's Paste ⌘V row (`canvas.paste`, beside this board's row). | `context-menu.tsx` · `MenuItemRow` | test-e2e:clipboard-cross-canvas.e2e.mjs | new |
+| `notice-canvas-clip-confirm` | testid | The shell's own ask before a paste of a clip copied in ANOTHER canvas: "Paste the artboard copied in Home?" with one action, Paste (`.maude-notice-action`). One reused slot; a click on it runs the paste. A canvas never confirms it itself. | `notifications.tsx` · `NoticeCard` | test-e2e:clipboard-cross-canvas.e2e.mjs | new |
 
 ### home
 

@@ -102,3 +102,18 @@ conventions are in `apps/studio/schema/canvas-tsx.md` ("Object operations").
 - **A custom print size** is `print={{ paper: "<nearest larger preset>", orientation, sizeMm: [w, h], bleedMm }}` — never
   `paper: "custom"`, which Maude 1 throws on. Always write `bleedMm`.
 - Full recipe and the sizes: `apps/studio/schema/canvas-tsx.md` ("Add an artboard of a kind").
+
+## Cut, copy and paste between canvases (#122)
+
+The clipboard is the person's (Cut ⌘X · Copy ⌘C · Paste ⌘V, on an artboard or on objects); there is no verb for it. When you do
+the same by hand, move the JSX in the source and bring along what it reads from around it:
+
+- **A name from the file's own module scope** (`const W = 1440`, a local `function Pill`, a `type`) is copied with it, in dependency
+  order, after the target's imports. The target already has an identical one: reuse it. A different one under the same name: give the
+  copy a new name (`W2`) in the declaration and in every place the moved JSX reads it.
+- **An import** (`Card` from `../components/Card`) is added to the target with its specifier re-relativised from the target's folder.
+  Never copy the module file. If the module is itself a canvas, do not import it: move the shared part into a component first.
+- **A name from inside a function** (props, hook state, a `.map` parameter) cannot travel. Move the whole component instead.
+- **Assets** (`assets/<sha8>.<ext>`) need nothing inside a project: the path is the same from every canvas.
+- Comments, votes, annotations and Present notes about a copied artboard stay with the original.
+- A cut artboard is moved to the Trash (restorable), and a canvas keeps at least one artboard.

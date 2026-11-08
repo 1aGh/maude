@@ -204,6 +204,19 @@ export const EDIT_ACTIONS: ActionDef[] = [
     help: { group: 'objects', order: 903 },
   },
   {
+    // #122 — ⌘X on an artboard selection: the copy and the move to the Trash in ONE write (edit-ops
+    // `artboard.cut`), so a cut board nobody pastes is in the Trash, not only in a forgettable clip. The paste
+    // is its own action on the other canvas, in that canvas's own ⌘Z.
+    id: 'artboard.cut',
+    label: 'Cut artboard',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    keys: [kb('⌘X', 'selection', { when: { ...OBJ, mode: ['edit'], selection: ['artboard'] } })],
+    search: { hidden: true },
+    help: { group: 'objects', order: 904 },
+  },
+  {
     id: 'canvas.paste',
     label: 'Paste objects',
     kind: 'command',
