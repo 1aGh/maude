@@ -23,6 +23,7 @@ test('the slot command and the dep install run under the env -i allowlist', () =
 
 test('the allowlist is exactly the basics, a slot-local home and the caches', () => {
   assert.deepEqual(vars.sort(), [
+    'AGENT_BROWSER_EXECUTABLE_PATH',
     'BUN_INSTALL_CACHE_DIR',
     'GIT_CONFIG_GLOBAL',
     'HOME',
