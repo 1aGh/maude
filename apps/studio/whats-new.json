@@ -2,6 +2,16 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "annotations-checklist",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "Checklists on the canvas",
+      "summary": "Turn a sticky into a to-do list: tick entries off with a click or Space, add the next with Enter, and see a 3/5 count. Two people can tick at once, every tick undoes with Command-Z, and Claude can write and tick entries too.",
+      "learnMore": "https://maude.sh/docs/desktop/window",
+      "surface": "design-ui"
+    },
+    {
       "id": "video-clip-export-warnings",
       "version": null,
       "date": null,
