@@ -86,6 +86,10 @@ fn main() {
                 "mention_notice",
                 // V2-8.9 M1 (windows.rs): a project tab's web switch → its navigation gate.
                 "set_tab_web",
+                // #122 122-C (clip_bridge.rs): a paste between two project tabs on this Mac.
+                "clip_note",
+                "clip_latest",
+                "clip_take",
                 // V2-3.7 the tab strip (tabs.rs; granted to `strip` only,
                 // capabilities/strip.json).
                 "tabs_state",

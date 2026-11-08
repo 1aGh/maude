@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-clip-latest"
+description = "Enables the clip_latest command without any pre-configured scope."
+commands.allow = ["clip_latest"]
+
+[[permission]]
+identifier = "deny-clip-latest"
+description = "Denies the clip_latest command without any pre-configured scope."
+commands.deny = ["clip_latest"]
