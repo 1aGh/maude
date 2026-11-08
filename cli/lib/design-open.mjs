@@ -16,6 +16,7 @@
 
 import { readFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { ensureDesktop } from './desktop-locate.mjs';
 import { DESIGN_REL, findProjectRoot, locateStudio, postStudio } from './studio-locate.mjs';
 
 export const OPEN_USAGE = `usage: maude design open <canvas>[#artboard][@element] [--mode edit|preview|present]
@@ -201,13 +202,36 @@ export async function runOpen({
     );
     return 3;
   };
-  const studio = await locateStudio(root, { timeoutMs: 1500 });
-  if (!studio) return noWindow();
   const payload = { canvas };
   if (a.target.artboard) payload.artboard = a.target.artboard;
   if (a.target.element) payload.element = a.target.element;
   if (a.mode) payload.mode = a.mode;
   if (a.select) payload.select = a.select;
+  const where = `${canvas}${payload.artboard ? `#${payload.artboard}` : ''}${payload.element ? `@${payload.element}` : ''}`;
+  // #206 T6.3d (contract §4 `show`): while the desktop app runs, it brings the project's tab to the
+  // front (opening it, asking the person once for a new folder) and shows the canvas there. No app,
+  // or no socket yet → the running studio, as before. A `--select` still goes to the studio after.
+  const { select: _select, ...showArgs } = payload;
+  const app = await ensureDesktop(root, {
+    env,
+    purpose: 'show',
+    show: showArgs,
+    log: (l) => err.write(`${l}\n`),
+  });
+  if (app.state === 'refused') {
+    err.write(`maude design open: ${app.line}\n`);
+    return 4;
+  }
+  if (app.state === 'shown' && !payload.select) {
+    out.write(
+      a.json
+        ? `${JSON.stringify({ ok: true, open: payload, ...(presentLink ? { presentationLink: presentLink } : {}) })}\n`
+        : `→ showing ${where} in Maude\n`
+    );
+    return 0;
+  }
+  const studio = await locateStudio(root, { timeoutMs: 1500 });
+  if (!studio) return noWindow();
   const r = await postStudio(studio, '/_api/ui/open', payload);
   if (!r) {
     err.write('maude design open: the studio did not answer\n');
@@ -228,7 +252,6 @@ export async function runOpen({
     err.write(`maude design open: the studio refused (${r.status} ${r.body?.error ?? ''})\n`);
     return 1;
   }
-  const where = `${canvas}${payload.artboard ? `#${payload.artboard}` : ''}${payload.element ? `@${payload.element}` : ''}`;
   out.write(
     a.json
       ? `${JSON.stringify({ ok: true, open: r.body?.open ?? payload, ...(presentLink ? { presentationLink: presentLink } : {}) })}\n`

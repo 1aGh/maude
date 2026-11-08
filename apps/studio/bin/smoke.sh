@@ -86,12 +86,21 @@ DESIGN_ROOT="$REPO/.design"
 [ -d "$DESIGN_ROOT" ] || { echo "smoke.sh: no .design/ under $REPO" >&2; exit 1; }
 
 STATE="$DESIGN_ROOT/_server.json"
-[ -f "$STATE" ] || { echo "smoke.sh: $STATE missing — run server-up.sh first" >&2; exit 1; }
-
-if command -v jq >/dev/null 2>&1; then
-  PORT=$(jq -r .port "$STATE" 2>/dev/null)
-else
-  PORT=$(sed -nE 's/.*"port"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$STATE" | head -n1)
+# #206 T6.3d — the desktop app's attested server first; _server.json only when the app does not serve it.
+. "$(dirname "$0")/_desktop-locate.sh"
+PORT=""
+desktop_port "$REPO" --lease
+case $? in
+  0) PORT="$DESKTOP_PORT" ;;
+  11) exit 1 ;;
+esac
+if [ -z "$PORT" ]; then
+  [ -f "$STATE" ] || { echo "smoke.sh: $STATE missing — run server-up.sh first" >&2; exit 1; }
+  if command -v jq >/dev/null 2>&1; then
+    PORT=$(jq -r .port "$STATE" 2>/dev/null)
+  else
+    PORT=$(sed -nE 's/.*"port"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$STATE" | head -n1)
+  fi
 fi
 [ -n "$PORT" ] || { echo "smoke.sh: no port in $STATE" >&2; exit 1; }
 

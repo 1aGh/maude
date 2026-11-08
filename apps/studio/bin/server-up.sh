@@ -3,7 +3,15 @@
 # Canonical recipe (was inline in `edit.md` step 2, `new.md` step 2, etc.).
 #
 # Usage:
-#   server-up.sh [--root <repo>] [--timeout 10] [--allow-legacy]
+#   server-up.sh [--root <repo>] [--timeout 10] [--allow-legacy] [--show]
+#
+# #206 T6.3d (DDR-250): while the Maude desktop app runs, ITS server for this project is the one to use. The
+# app's registry is asked first (_desktop-locate.sh; the port is believed only after an attest challenge), then
+# the app itself over its socket (it opens or wakes the project's tab, asking the person once for a new folder).
+# Only when the app is not running, has no socket yet, says no, or has 3 busy projects does this start its own
+# headless server — as role `cli` (MAUDE_SERVER_ROLE=cli), which steps down by itself once the app serves the
+# project. A planted `_server.json` is never used while the app's registry names the project.
+#   --show   (/design:browse) ask the app to show the project; when it does, print nothing and exit 0
 #
 # Reads / writes:
 #   $DESIGN_ROOT/_server.json   (PID + port the running server wrote)
@@ -19,18 +27,21 @@
 #
 # Output: prints the port on stdout. Diagnostic lines go to stderr.
 # Exit:   0 = server ready / 1 = start timeout or missing runtime / 2 = bad args /
-#         3 = dev-server runtime deps missing (yjs/y-protocols/lib0 — see preflight).
+#         3 = dev-server runtime deps missing (yjs/y-protocols/lib0 — see preflight) /
+#         4 = Maude refused (unsaved changes for another branch in this folder; message on stderr).
 
 REPO=""
 TIMEOUT=10
 ALLOW_LEGACY=0
+SHOW=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --root)    REPO="$2"; shift 2 ;;
     --timeout) TIMEOUT="$2"; shift 2 ;;
     --allow-legacy) ALLOW_LEGACY=1; shift ;;
+    --show) SHOW=1; shift ;;
     --help|-h)
-      sed -n '2,21p' "$0" | sed 's/^# \?//'
+      sed -n '2,31p' "$0" | sed 's/^# \?//'
       exit 0
       ;;
     *)
@@ -45,6 +56,27 @@ if [ -z "$REPO" ]; then
   REPO="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 fi
 
+# Step 0 — the desktop app's server, when the app runs (#206 T6.3d).
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/_desktop-locate.sh"
+if [ $SHOW -eq 1 ]; then
+  desktop_port "$REPO" --ensure show
+else
+  desktop_port "$REPO" --ensure capture --lease
+fi
+case $? in
+  0)
+    if [ -n "$DESKTOP_PORT" ]; then
+      echo "✓ Maude is serving this project port=$DESKTOP_PORT" >&2
+      echo "$DESKTOP_PORT"
+    fi
+    exit 0
+    ;;
+  4) exit 4 ;;
+  11) exit 1 ;;
+  *) : ;; # not the app's — the project's own server, below
+esac
+
 # Resolve plugin root + pick a server runtime.
 #   --allow-legacy → node + server.mjs (debug-only — no TSX pipeline, no HMR).
 #   compiled platform binary → the PRODUCTION runtime (DDR-009/DDR-084). It embeds
@@ -54,7 +86,6 @@ fi
 #     `maude design <verb>` resolves it and passes MAUDE_DEV_SERVER_BIN; a direct
 #     `bash server-up.sh` falls back to the postinstall side-channel.
 #   bun + server.ts → dev tree / fallback (DDR-020 made bun authoritative for source).
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # PLUGIN_ROOT is a 2-levels-under-pkgRoot anchor: plugins/design when `maude
 # design <verb>` sets CLAUDE_PLUGIN_ROOT, else apps/studio ($SCRIPT_DIR/.. — the
 # studio root, also 2-deep) for a direct `bash server-up.sh`. Both keep
@@ -254,6 +285,9 @@ fi
 # T1.9 (#206) — agents and verbs boot the studio through here; that must never pop a browser window at the
 # person, whatever the caller's env says. /design:browse opens the window itself after server-up.
 export NO_OPEN=1
+# #206 T6.3d — a terminal-started server is role `cli`: it steps down by itself once the desktop app serves
+# this project (shell/cli-yield.ts). The server reads it once and drops it from its own env.
+export MAUDE_SERVER_ROLE=cli
 mkdir -p "$DESIGN_ROOT"
 echo "→ starting dev server: $RUNTIME_CMD --root $REPO" >&2
 # Its own session, not the caller's process group: `nohup … &` alone keeps the caller's group, and an agent's shell

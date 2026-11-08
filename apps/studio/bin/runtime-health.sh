@@ -95,6 +95,16 @@ except Exception: print("")
 # ---------- resolve port from _server.json if not given ----------
 DESIGN_ROOT="$REPO/.design"
 STATE="$DESIGN_ROOT/_server.json"
+# #206 T6.3d — the desktop app's attested server first. APP_OWNED=1 means --restart must never kill it.
+. "$SCRIPT_DIR/_desktop-locate.sh"
+APP_OWNED=0
+if [ -z "$PORT" ]; then
+  desktop_port "$REPO"
+  case $? in
+    0) PORT="$DESKTOP_PORT"; APP_OWNED=1 ;;
+    11) exit 1 ;;
+  esac
+fi
 if [ -z "$PORT" ]; then
   if [ ! -f "$STATE" ]; then
     echo "runtime-health.sh: no --port given and $STATE not found (run server-up.sh first)" >&2
@@ -183,6 +193,16 @@ echo "  If the failure was from the 'ratio < threshold' check:" >&2
 echo "    → the running server cached a defective dynamic Bun.build output." >&2
 echo "    → --restart will respawn the server and load the (good) disk pre-built." >&2
 
+if [ "$RESTART" -eq 1 ] && [ "$APP_OWNED" = 1 ]; then
+  # #206 T6.3d (DDR-250 decision 7) — never kill the app's server: ask the app to restart it.
+  if desktop_locate restart --root "$REPO"; then
+    echo "→ asked Maude to restart this project's server; run runtime-health again in a few seconds" >&2
+    exit 3
+  fi
+  echo "✗ Maude serves this project; restart it from Maude (the tab's Try again), not from here" >&2
+  exit 3
+fi
+
 if [ "$RESTART" -eq 1 ]; then
   echo "→ --restart given; killing server and respawning via server-up.sh" >&2
   if [ -f "$STATE" ]; then
@@ -190,6 +210,11 @@ if [ "$RESTART" -eq 1 ]; then
       PID=$(jq -r .pid "$STATE" 2>/dev/null)
     else
       PID=$(sed -nE 's/.*"pid"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$STATE" | head -n1)
+    fi
+    # never a pid the desktop app owns (its own, or a server it spawned): the file sits in the project
+    if [ -n "$PID" ] && desktop_locate app-pid --pid "$PID"; then
+      echo "✗ the server in $STATE is Maude's own; restart it from Maude, not from here" >&2
+      exit 3
     fi
     if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
       kill "$PID" 2>/dev/null

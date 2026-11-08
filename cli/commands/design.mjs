@@ -674,8 +674,41 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
 `;
 }
 
+/**
+ * #206 T6.3d (contract 206-cli-reuses-desktop.md §2): `serve` when the desktop app already serves
+ * the project → a pointer and exit 0, no second server; `--force` keeps the old behaviour. The
+ * server it does start runs as role `cli` (MAUDE_SERVER_ROLE=cli), so it steps down by itself once
+ * the app serves the project (shell/cli-yield.ts). The root is the server's own order: --root,
+ * $CLAUDE_PROJECT_DIR, the cwd (context.ts resolveRepoRoot).
+ */
+export async function serveDesktopGuard(forwarded, { env = process.env, cwd = process.cwd() } = {}) {
+  const force = forwarded.includes('--force');
+  const rest = forwarded.filter((a) => a !== '--force');
+  const i = rest.indexOf('--root');
+  const root =
+    i !== -1 && rest[i + 1]
+      ? resolve(rest[i + 1])
+      : env.CLAUDE_PROJECT_DIR
+        ? resolve(env.CLAUDE_PROJECT_DIR)
+        : cwd;
+  if (force) return { forwarded: rest, served: null };
+  const { locateDesktop } = await import('../lib/desktop-locate.mjs');
+  const served = await locateDesktop(root, { env });
+  return { forwarded: rest, served };
+}
+
 async function runServe({ args, pkgRoot }) {
-  const forwarded = args.slice(args.indexOf('serve') + 1);
+  const guard = await serveDesktopGuard(args.slice(args.indexOf('serve') + 1));
+  if (guard.served) {
+    process.stdout.write(
+      'Maude is already serving this project — it is open in the Maude app.\n' +
+        '  `maude design open <canvas>` shows a canvas there. To start a separate server anyway: maude design serve --force\n'
+    );
+    process.exit(0);
+  }
+  const forwarded = guard.forwarded;
+  // the server reads it once and drops it from its own env (server.ts); a shell spawn never has it
+  process.env.MAUDE_SERVER_ROLE = 'cli';
   const fs = await import('node:fs');
 
   // Resolution order:
