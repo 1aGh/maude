@@ -102,17 +102,9 @@ const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const be32 = (b: Uint8Array, i: number) =>
   ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
 /** The chunks a canvas encoder writes (WebKit: IHDR sRGB eXIf IDAT… IEND); any other chunk refuses the still. */
-const PNG_ANCILLARY = new Set([
-  'sRGB',
-  'gAMA',
-  'cHRM',
-  'iCCP',
-  'pHYs',
-  'sBIT',
-  'bKGD',
-  'tRNS',
-  'eXIf',
-]);
+// Kept to what a canvas encoder writes: no iCCP (an untrusted compressed ICC profile the decoder would inflate and
+// parse), no text chunks. Interlace is refused too — a canvas encoder never writes Adam7.
+const PNG_ANCILLARY = new Set(['sRGB', 'gAMA', 'cHRM', 'pHYs', 'sBIT', 'bKGD', 'tRNS', 'eXIf']);
 /** APNG: a still is one image. */
 const PNG_ANIMATION = new Set(['acTL', 'fcTL', 'fdAT']);
 /** Bit depths allowed per colour type (PNG spec, table 11.1). */
@@ -161,8 +153,8 @@ export function checkStillPng(v: unknown): StillPngCheck {
       const depth = b[d + 8];
       const color = b[d + 9];
       if (!(PNG_DEPTHS[color] ?? []).includes(depth)) return { ok: false, reason: 'bad-chunk' };
-      // compression 0, filter 0, interlace 0 (none) or 1 (Adam7)
-      if (b[d + 10] !== 0 || b[d + 11] !== 0 || b[d + 12] > 1)
+      // compression 0, filter 0, interlace 0 (none — a canvas encoder never writes Adam7)
+      if (b[d + 10] !== 0 || b[d + 11] !== 0 || b[d + 12] !== 0)
         return { ok: false, reason: 'bad-chunk' };
       if (!(w > 0 && h > 0)) return { ok: false, reason: 'bad-chunk' };
       if (w > STILL_PERSIST_MAX_W || h > STILL_PERSIST_MAX_H)

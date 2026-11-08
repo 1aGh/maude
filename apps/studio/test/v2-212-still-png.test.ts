@@ -4,8 +4,8 @@
 // a persisted still with the MIME of its bytes. Contract: client/v2/contracts/212-still-cache.md §5 "Bytes".
 import { describe, expect, test } from 'bun:test';
 import { deflateSync } from 'node:zlib';
-import { STILL_STYLE_SEP, startStillPersist } from '../artboard-still-persist.ts';
 import { StillCache, StillController } from '../artboard-still.ts';
+import { STILL_STYLE_SEP, startStillPersist } from '../artboard-still-persist.ts';
 import { DGN_TABLE } from '../bridge/dgn-protocol.ts';
 import { checkStillImage, STILL_PERSIST_MAX_BYTES, stillMime } from '../bridge/still-webp.ts';
 import { createStillStore, memoryStillBackend } from '../client/v2/shell/still-store.js';
@@ -83,7 +83,7 @@ describe('bytes: a single-image PNG is a still as well (WebKit encodes no WebP)'
   test('a PNG the overview could have drawn passes, with its format and size from IHDR', () => {
     expect(checkStillImage(png(400, 900))).toEqual({ ok: true, format: 'png', w: 400, h: 900 });
     expect(checkStillImage(png(401, 1601))).toMatchObject({ ok: true, w: 401, h: 1601 });
-    expect(checkStillImage(png(20, 20, { head: ihdr(20, 20, 8, 2, 1) }))).toMatchObject({
+    expect(checkStillImage(png(20, 20, { head: ihdr(20, 20, 8, 2, 0) }))).toMatchObject({
       ok: true,
     });
     expect(stillMime(png(20, 20))).toBe('image/png');
@@ -382,4 +382,12 @@ describe('canvas: on WebKit the drawn PNG is persisted and a reload shows it', (
     expect(r2.takes()).toBe(0);
     expect(r2.decoded).toEqual(['image/png']);
   });
+});
+
+test('a still with an ICC profile chunk or Adam7 interlace is refused (decoder surface kept to what canvas encoders write)', () => {
+  const iccp = png(40, 40, { before: [chunk('iCCP', Buffer.from('p\0\0x'))] });
+  expect(checkStillImage(new Uint8Array(iccp)).ok).toBe(false);
+  const adam7 = png(40, 40, { head: ihdr(40, 40, 8, 6, 1) });
+  expect(checkStillImage(new Uint8Array(adam7)).ok).toBe(false);
+  expect(checkStillImage(new Uint8Array(png(40, 40))).ok).toBe(true);
 });
