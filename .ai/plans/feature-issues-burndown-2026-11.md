@@ -299,7 +299,7 @@ W5 and W6 use Opus.
 ### W7 — Features #122 and #113
 
 - [x] T7.1 A contract for each: the #122 cross-canvas clipboard (copy / cut / paste of artboards and elements, including assets and imports, plus undo on both canvases) and the #113 checklist as an annotation / sticky kind (sync, undo, export). They go through the action registry, so there are no new key handlers.
-- [ ] T7.2 Build #122, plus e2e.
+- [x] T7.2 Build #122, plus e2e.
 - [x] T7.3 Build #113, plus e2e, the What's New entry and docs.
 
 ### W8 — Performance and harness
@@ -310,7 +310,7 @@ W5 and W6 use Opus.
   - Chromium DS zoom: profile, then fix the per-frame layout;
   - the root cause of the 300×150 first frame;
   - make the describe-budget p95 load-independent.
-- [ ] T8.2 **#171, the rest:**
+- [x] T8.2 **#171, the rest:**
   - the 6 tests that are flaky under load (fix, or quarantine by name);
   - vendored WebDriver: `describe_ns_error`, `url_of` at `executor.rs:1654`, the held-handle waits;
   - a whitespace-tolerant `no_raw_webview_url_calls` that scans `vendor/`;
@@ -396,3 +396,4 @@ W5 and W6 use Opus.
 - 2026-11-08 merged T6.3g (8898fff67 49605d870 73a0f013f): Home Worktrees row (open_worktree by pid, home-only), every sign-in from a worktree tab refused 'Sign in from <main>' (contract reading; lead accepted), Move to cloud refused server-side, cli-reuse takeover case. #206 built; the cli-reuse lane run is owed in T9.1. T6.3/T6.4/T6.5 ticked (Linux lane first runs on push).
 - 2026-11-08 merged 113-B (e1ee5bd0b 06d6d46fd): checklist UI, registry keys + checkItemFocused, a11y, one undo per gesture, template/copy/delete carry entries, Turn into checklist, role-matrix row. 113-C (e2e from the scratch script, What's New, docs, +N more fade, ⌘Z label) next.
 - 2026-11-08 merged 113-C (d40ca748e 8ec7d3c6c): checklist e2e 6/6, '+N more' fade, checklist→comment keeps entries as task lines (one ⌘Z), docs + What's New. #113 built. Follow-up T7.3b: ⌘Z toast names the gesture (thread an optional label through ops → proposeLane → kernel; lead chose option A). Wave-2 push candidate 6867607ad on the mini.
+- 2026-11-08 merged 122-C (2f6969021 cf444ee9d; lead patch routes/index.ts designRoot; clip lane written) and T8.2 (4df8b78da 533252119 7eb7a8a79 0a45556f3: load-flaky fixes, vendored WebDriver describe_ns_error/url_of, raw-url check scans vendor, mini desktop-e2e refused with reason; acl-l17-people not reproduced; webkit-asset-drop hardening unverified). #122 built. Hub canary sweep row for render-jobs cancel → small fix running.
