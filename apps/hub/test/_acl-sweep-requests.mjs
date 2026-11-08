@@ -328,6 +328,10 @@ const ACCEPTED = {
   'render-jobs/:id/file': (tg) => [
     ['GET', `${V1}/render-jobs/i_00000000000000000001/file${q(tg)}`],
   ],
+  // #128 T3.7b — cancel a render job: a POST, bearer only (the export capability, like the submit).
+  'render-jobs/:id/cancel': (tg) => [
+    ['POST', `${V1}/render-jobs/i_00000000000000000001/cancel${q(tg)}`, json({ canvas: tg.path })],
+  ],
   // S10.18a — team libraries: a system's head, one revision, and a write that is never one.
   ds: (tg) => [
     ['GET', `${V1}/ds/${tg.slug.replace(/[^a-z]/g, '')}/head`],
@@ -363,6 +367,7 @@ const PATTERN_PROBES = {
   'render-jobs': `${V1}/render-jobs`,
   'render-jobs/:id': `${V1}/render-jobs/i_00000000000000000001`,
   'render-jobs/:id/file': `${V1}/render-jobs/i_00000000000000000001/file`,
+  'render-jobs/:id/cancel': `${V1}/render-jobs/i_00000000000000000001/cancel`,
   ds: `${V1}/ds/brand/head`,
   'ds-grants': `${V1}/ds-grants`,
 };

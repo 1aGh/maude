@@ -115,6 +115,9 @@ describe('the read-only allowlist is a decision, not a convenience', () => {
     // in the studio) and writes no project byte; the handler refuses a read-only PROJECT session
     // (403) and judges a canvas-only session's grant per target (test/render-jobs-route.test.mjs).
     String(/^\/api\/projects\/([A-Za-z0-9._-]{1,128})\/v1\/render-jobs$/),
+    // #128 T3.7b — cancel: stops the session's OWN unfinished job (the studio's job store is
+    // owner-scoped, a foreign id is a 404) and writes no project byte (test/render-jobs-route.test.mjs).
+    String(/^\/api\/projects\/([A-Za-z0-9._-]{1,128})\/v1\/render-jobs\/([^/]{1,128})\/cancel$/),
     '/auth/browser/signout',
     '/auth/logout',
   ];
