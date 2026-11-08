@@ -121,7 +121,10 @@ describe('asset-api / POST /_api/asset (endpoint round-trip)', () => {
       const a = await (await postAsset(port, PNG)).json();
       const b = await (await postAsset(port, PNG)).json();
       expect(a.path).toBe(b.path);
-      const files = readdirSync(join(designRoot, 'assets'));
+      // (#172: the `.added.json` record beside it is a companion, not a second copy of the bytes.)
+      const files = readdirSync(join(designRoot, 'assets')).filter(
+        (f) => !f.endsWith('.added.json')
+      );
       expect(files.length).toBe(1);
     });
   });

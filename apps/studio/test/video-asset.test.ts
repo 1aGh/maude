@@ -140,7 +140,10 @@ describe('video-asset / POST /_api/asset (streaming endpoint)', () => {
       const a = await (await postAsset(port, MP4)).json();
       const b = await (await postAsset(port, MP4)).json();
       expect(a.path).toBe(b.path);
-      const files = readdirSync(join(designRoot, 'assets')).filter((f) => !f.startsWith('.tmp-'));
+      // (#172: the `.added.json` record beside the file is a companion, not a second copy of the bytes.)
+      const files = readdirSync(join(designRoot, 'assets')).filter(
+        (f) => !f.startsWith('.tmp-') && !f.endsWith('.added.json')
+      );
       expect(files.length).toBe(1);
     });
   });

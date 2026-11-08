@@ -100,8 +100,11 @@ describe('chunked asset upload', () => {
       const sha8 = createHash('sha256').update(bytes).digest('hex').slice(0, 8);
       expect(path).toBe(`assets/${sha8}.mp4`);
       expect(new Uint8Array(readFileSync(join(designRoot, path)))).toEqual(bytes);
-      // Nothing but the final file under assets/, and no session left behind.
-      expect(readdirSync(join(designRoot, 'assets'))).toEqual([`${sha8}.mp4`]);
+      // Nothing but the final file under assets/ (and, when there is a name to give, its #172 `.added.json`
+      // record — a companion of the asset, not scratch), and no session left behind.
+      expect(
+        readdirSync(join(designRoot, 'assets')).filter((f) => f !== `${sha8}.added.json`)
+      ).toEqual([`${sha8}.mp4`]);
       expect(chunkDirs(designRoot)).toEqual([]);
     });
   });

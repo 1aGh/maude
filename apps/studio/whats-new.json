@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "assets-added-by-everywhere",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Who added a picture, for everyone",
+      "summary": "Assets › details now say who added a picture on every teammate's Mac, not just the one that imported it.",
+      "surface": "design-ui"
+    },
+    {
       "id": "annotations-checklist",
       "version": null,
       "date": null,
