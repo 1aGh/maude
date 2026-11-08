@@ -50,6 +50,7 @@ import {
   NoRenderServiceError,
   REMOTE_UNSUPPORTED_FORMATS,
   REMOTE_UNSUPPORTED_MESSAGE,
+  RENDER_WAITING_WORDS,
   type RemoteCanvasAccess,
   renderRemotely,
   resolveRenderService,
@@ -113,6 +114,11 @@ export interface ExportJob {
   options: ExportOptions;
   status: ExportJobStatus;
   progress?: { current: number; total: number };
+  /**
+   * #128 T3.7 — a running job the render service holds behind another video (one video at a
+   * time): the row's words for it. Cleared once the render runs or settles.
+   */
+  waiting?: string;
   createdAt: string;
   startedAt?: string;
   finishedAt?: string;
@@ -465,6 +471,8 @@ export interface ExportJobQueueDeps {
   runs?: () => AiRunReader | null;
   /** A clock for the render-seconds meter (ms); tests move it by hand. */
   now?: () => number;
+  /** #128 T3.7 — how often a remote render is asked for its status (ms); tests shorten it. */
+  remotePollMs?: number;
 }
 
 export function createExportJobQueue(
@@ -734,6 +742,18 @@ export function createExportJobQueue(
             // construction (the lane IS the presence of MAUDE_RENDER_URL).
             service: resolveRenderService()!,
             signal: controller.signal,
+            // #128 T3.7 — the service's frame progress and its "waiting for another video" line
+            // reach the row the same way the local lane's progress does.
+            pollMs: deps.remotePollMs,
+            onProgress: (update) => {
+              job.progress = update;
+              emit(job);
+            },
+            onWaiting: (waiting) => {
+              if (waiting) job.waiting = RENDER_WAITING_WORDS;
+              else delete job.waiting;
+              emit(job);
+            },
           })
         : await engine({
             format: args.format,

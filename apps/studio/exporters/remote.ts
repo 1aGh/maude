@@ -10,9 +10,12 @@
 // short-lived read-only render token, forwarded from the enqueue request.
 //
 // This module is deliberately dumb: one POST, the artifact (or a typed error)
-// back. Progress is coarse in v1 — queued → running → done; the per-frame
-// stream stays a local-lane feature until the service grows a progress channel.
+// back. While the POST is open the cell polls the service's `/_render/status`
+// by the job's random render id (#128 T3.7) — frame progress, and whether the
+// job still waits behind another video — and an aborted job is cancelled there
+// (`/_render/cancel`), so its slot frees.
 
+import { randomBytes } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -264,6 +267,50 @@ function pickRemoteOptions(options: ExportOptions): ExportOptions {
   return out;
 }
 
+// ── what a remote render says while it runs, and when it drops (#128 T3.7, CONTRACT §4) ──────────
+
+/** The service queued this video behind the one it is rendering (a queue of one). */
+export const RENDER_WAITING_WORDS = 'Waiting — another video is rendering first';
+/** Nothing answers: a sleeping container is the likely cause. */
+export const RENDER_WAKING_WORDS =
+  'The render service didn’t answer — it may still be waking up. Try the export again in a minute.';
+/** The service is up and full, or it dropped this job while busy with others. */
+export const RENDER_BUSY_WORDS =
+  'The render service is busy with other exports right now — try again shortly.';
+/** The service had this job, then stopped answering before the file came back. */
+export const RENDER_LOST_WORDS =
+  'The render service stopped answering during this export. Nothing was saved — export it again.';
+
+/** How often a running remote render is asked for its status. */
+const RENDER_POLL_MS = 2000;
+
+/** Frame progress from the (untrusted, DDR-230) service, clamped — or nothing. */
+function remoteProgress(v: unknown): { current: number; total: number } | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const { current, total } = v as { current?: unknown; total?: unknown };
+  if (typeof current !== 'number' || typeof total !== 'number') return undefined;
+  if (!Number.isFinite(current) || !Number.isFinite(total) || total <= 0) return undefined;
+  const t = Math.min(Math.floor(total), 1_000_000);
+  return { current: Math.min(Math.max(Math.floor(current), 0), t), total: t };
+}
+
+function bearer(service: RenderService): Record<string, string> {
+  return { authorization: `Bearer ${service.secret}` };
+}
+
+/** `running + queued` from the service's public `/_health`, or null when it does not answer. */
+async function renderLoad(service: RenderService): Promise<number | null> {
+  try {
+    const r = await fetch(`${service.url}/_health`, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return null;
+    const h = (await r.json()) as { running?: unknown; queued?: unknown };
+    const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+    return n(h.running) + n(h.queued);
+  } catch {
+    return null;
+  }
+}
+
 export async function renderRemotely(args: {
   format: Format;
   targets: Target[];
@@ -271,8 +318,18 @@ export async function renderRemotely(args: {
   canvas: RemoteCanvasAccess;
   service: RenderService;
   signal?: AbortSignal;
+  /** frame progress the service reports while it renders */
+  onProgress?: (update: { current: number; total: number }) => void;
+  /** true while the service holds the job behind another video; false once it runs or settles */
+  onWaiting?: (waiting: boolean) => void;
+  /** status poll interval (tests) */
+  pollMs?: number;
 }): Promise<ExportResult> {
   const { format, targets, options, canvas, service, signal } = args;
+  // The job's handle on the service: random, never logged, never the export job's id (members see
+  // that one). The ingress bearer is shared by every cell, so this is what keeps status and cancel
+  // to the cell that sent the job.
+  const renderId = randomBytes(18).toString('base64url');
   // S8.1b — the second line behind routes/export.ts: the option allowlist below would drop these two
   // keys, and the service would hand back an sRGB file / today's canvas as if it were what was asked.
   // A v1 worker cannot honour either, so neither crosses; the protocol stays unchanged.
@@ -300,6 +357,56 @@ export async function renderRemotely(args: {
     ...pickRemoteOptions(options),
     timeoutSec: Math.max(Number((options as { timeoutSec?: number }).timeoutSec) || 0, 60),
   };
+  // Follow the job while the POST is open: progress, and whether it still waits behind a video.
+  let heard = false;
+  let waiting = false;
+  const setWaiting = (w: boolean) => {
+    if (w === waiting) return;
+    waiting = w;
+    args.onWaiting?.(w);
+  };
+  let polling = true;
+  let pollTimer: ReturnType<typeof setTimeout> | undefined;
+  const pollMs = args.pollMs ?? RENDER_POLL_MS;
+  const poll = async () => {
+    try {
+      const r = await fetch(`${service.url}/_render/status?id=${encodeURIComponent(renderId)}`, {
+        headers: bearer(service),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (r.ok) {
+        const st = (await r.json()) as { state?: unknown; progress?: unknown };
+        if (polling && (st.state === 'waiting' || st.state === 'running')) {
+          heard = true;
+          setWaiting(st.state === 'waiting');
+          const p = remoteProgress(st.progress);
+          if (p) args.onProgress?.(p);
+        }
+      } else await r.body?.cancel().catch(() => {});
+    } catch {
+      /* a missed poll is not a failed render — the POST decides that */
+    }
+    if (polling) pollTimer = setTimeout(poll, pollMs);
+  };
+  pollTimer = setTimeout(poll, pollMs);
+  // An aborted job (its timeout) is stopped on the service too, or it would hold the one video slot.
+  const cancelRemote = () => {
+    void fetch(`${service.url}/_render/cancel`, {
+      method: 'POST',
+      headers: { ...bearer(service), 'content-type': 'application/json' },
+      body: JSON.stringify({ id: renderId }),
+      signal: AbortSignal.timeout(10_000),
+    })
+      .then((r) => r.body?.cancel())
+      .catch(() => {});
+  };
+  signal?.addEventListener('abort', cancelRemote, { once: true });
+  const stopPolling = () => {
+    polling = false;
+    if (pollTimer) clearTimeout(pollTimer);
+    signal?.removeEventListener('abort', cancelRemote);
+    setWaiting(false);
+  };
   let res: Response;
   try {
     // Bun's `fetch` has its OWN default ceiling — 300 s — independent of the
@@ -324,6 +431,7 @@ export async function renderRemotely(args: {
         targets,
         options: remoteOptions,
         canvas: remoteCanvasFor(canvas, targets),
+        renderId,
       }),
     };
     const postStart = Date.now();
@@ -331,16 +439,19 @@ export async function renderRemotely(args: {
     res = await fetch(`${service.url}/render`, init);
     console.error(`[remote] ${format} responded ${res.status} in ${Date.now() - postStart}ms`);
   } catch (err) {
+    stopPolling();
     if (signal?.aborted) throw err;
-    // DDR-231 T7 — the member sees this in the export dialog / notification
-    // center: name the LIKELY cause (a sleeping container waking) instead of
-    // leaking a bare fetch error.
-    throw new Error(
-      'The render service didn’t answer — it may still be waking up. Try the export again in a minute.'
-    );
+    // DDR-231 T7 + #128 T3.7 — the member sees this in the export dialog / notification center:
+    // name the LIKELY cause instead of leaking a bare fetch error. "Waking up" only when nothing
+    // answers; a service that is busy, or that had this job, says so.
+    if (heard) throw new Error(RENDER_LOST_WORDS);
+    const load = await renderLoad(service);
+    throw new Error(load !== null && load > 0 ? RENDER_BUSY_WORDS : RENDER_WAKING_WORDS);
+  } finally {
+    stopPolling();
   }
   if (res.status === 503) {
-    throw new Error('The render service is busy with other exports right now — try again shortly.');
+    throw new Error(RENDER_BUSY_WORDS);
   }
   if (!res.ok) {
     const detail = (await res.text().catch(() => '')) || `${res.status}`;

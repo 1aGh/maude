@@ -233,6 +233,9 @@ export function jobMeta(job, { now = Date.now(), eta = null } = {}) {
   if (job?.status === 'queued' && typeof job?.waiting === 'string' && job.waiting)
     return `${where} · ${job.waiting}`;
   if (job?.status === 'queued') return `${where} · Queued`;
+  // #128 T3.7 — the render service holds this video behind the one it is rendering
+  if (job?.status === 'running' && typeof job?.waiting === 'string' && job.waiting)
+    return `${where} · ${job.waiting}`;
   if (job?.status === 'running') return `${where} · ${progressWords(job, eta)}`;
   if (job?.status === 'failed') return `${where} · Failed`;
   const t = itemTally(job);
