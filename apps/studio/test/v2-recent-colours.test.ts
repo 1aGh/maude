@@ -5,6 +5,7 @@ import {
   createRecentStore,
   projectKeyOf,
   pushRecent,
+  RECENT_HERE,
   RECENT_MAX,
 } from '../client/v2/inspector/sections/recent-colours.js';
 import { validateUiPrefsPatch } from '../ui-prefs.ts';
@@ -38,9 +39,11 @@ describe('the store', () => {
     expect(s.get('C')).toEqual([]);
   });
 
-  test('projectKeyOf makes a safe prefs id', () => {
-    expect(projectKeyOf({ cfg: { name: 'My project (2)' } })).toBe('My-project--2-');
-    expect(projectKeyOf(undefined)).toBe('project');
+  // #168 G3 — the client no longer names the project: the server keys the list by its own root identity
+  test('projectKeyOf is the one "this project" key, whatever the project is called', () => {
+    expect(projectKeyOf({ cfg: { name: 'My project (2)' } })).toBe(RECENT_HERE);
+    expect(projectKeyOf({ cfg: { name: 'Other' } })).toBe(RECENT_HERE);
+    expect(projectKeyOf(undefined)).toBe(RECENT_HERE);
   });
 });
 

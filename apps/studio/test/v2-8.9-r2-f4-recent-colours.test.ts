@@ -5,17 +5,26 @@
 // viewer too — could plant entries editors then see and click.
 // Now: only `isCssColor` values or `var(--name[, <colour>])`, on the server AND on hydrate; a cell
 // refuses writing `recentColours` and serves none.
-// Not changed (said in the hand-back): the list key stays the project's NAME — no project id reaches
-// the Inspector without a new /_config field.
+// #168 G3 (below) then moved the key off the project's NAME: the server keys it by its own root identity.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Subprocess } from 'bun';
 
-import { createRecentStore, pushRecent } from '../client/v2/inspector/sections/recent-colours.js';
+import {
+  createRecentStore,
+  projectKeyOf,
+  pushRecent,
+  RECENT_HERE,
+} from '../client/v2/inspector/sections/recent-colours.js';
 import { isRecentColour } from '../edit-ops/words-paint.ts';
-import { validateUiPrefsPatch } from '../ui-prefs.ts';
+import {
+  RECENT_HERE as SERVER_RECENT_HERE,
+  scopeRecentColoursRead,
+  scopeRecentColoursWrite,
+  validateUiPrefsPatch,
+} from '../ui-prefs.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const BAD = [
@@ -113,5 +122,53 @@ describe('a cloud cell neither stores nor serves Recent colours', () => {
     expect(r.status).toBe(200);
     const body = (await r.json()) as Record<string, unknown>;
     expect('recentColours' in body).toBe(false);
+  });
+});
+
+// #168 G3 — the list was keyed by the project's NAME, which the client sent: two projects with one name shared a
+// list, and any page could read or write another project's. The client now sends only "this project" (RECENT_HERE);
+// the server re-keys the write by its OWN root identity (`rootIdentity`, http.ts) and serves only that root's list.
+describe('Recent colours are keyed by the server’s own root identity', () => {
+  test('a write of this project’s list is re-keyed by the root id; another key is refused', () => {
+    const ok = validateUiPrefsPatch({ recentColours: { [RECENT_HERE]: ['#fff'] } });
+    expect(ok.ok).toBe(true);
+    const patch = ok.ok ? ok.patch : {};
+    expect(scopeRecentColoursWrite(patch, 'abc123def456')).toBeNull();
+    expect(patch.recentColours).toEqual({ 'root:abc123def456': ['#fff'] });
+    const named = validateUiPrefsPatch({ recentColours: { alligators: ['#fff'] } });
+    const p2 = named.ok ? named.patch : {};
+    expect(scopeRecentColoursWrite(p2, 'abc123def456')).toBe(
+      'recentColours takes only this project’s list'
+    );
+    // a patch with no recentColours is untouched
+    const p3 = { panelsHidden: true };
+    expect(scopeRecentColoursWrite(p3, 'abc123def456')).toBeNull();
+    expect(p3).toEqual({ panelsHidden: true });
+  });
+
+  test('a read serves only this root’s list, as this project’s, never another project’s', () => {
+    const prefs: Record<string, unknown> = {
+      recentColours: {
+        'root:abc123def456': ['#111111'],
+        'root:ffffffffffff': ['#222222'],
+        alligators: ['#333333'],
+      },
+    };
+    scopeRecentColoursRead(prefs, 'abc123def456');
+    expect(prefs.recentColours).toEqual({ [RECENT_HERE]: ['#111111'] });
+    const none: Record<string, unknown> = { recentColours: { alligators: ['#333333'] } };
+    scopeRecentColoursRead(none, 'abc123def456');
+    expect(none.recentColours).toEqual({});
+  });
+
+  test('the page and the server agree on the one key', () => {
+    expect(RECENT_HERE).toBe(SERVER_RECENT_HERE);
+  });
+
+  test('the client pushes under the one key, whatever the project is called', () => {
+    const writes: unknown[] = [];
+    const s = createRecentStore({ persist: (p: unknown) => writes.push(p) });
+    s.push(projectKeyOf({ cfg: { name: 'Alligators' } }), '#1e6bff');
+    expect(writes).toEqual([{ recentColours: { [RECENT_HERE]: ['#1e6bff'] } }]);
   });
 });
