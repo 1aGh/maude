@@ -42,10 +42,11 @@ import {
   trashArtboardBody,
 } from '../edit-op-relay.ts';
 import {
+  CLIP_CONFIRM_ARM_MS,
   confirmedPasteBody,
   frameClipResult,
   noteClipResult,
-  notePasteIntent,
+  noteFramePasteIntent,
   shapeClipPaste,
 } from '../clipboard-relay.ts';
 import { clipWords } from '../../editing/clip-words.ts';
@@ -562,6 +563,8 @@ export function useCanvasBridge({
               kind: 'success',
               action: {
                 label: 'Paste',
+                // inert for a moment after it appears: a click the canvas lured lands on nothing
+                armAfterMs: CLIP_CONFIRM_ARM_MS,
                 onClick: () => {
                   // the canvas that asked is still open (the toast may be clicked later)
                   if (iframesRef.current.get(askedFile)?.contentWindow !== replyTo) return;
@@ -669,7 +672,11 @@ export function useCanvasBridge({
         };
         // #122 (122-C) — on the desktop a paste first asks the shell which copy is the latest on this Mac
         // (another project's tab may hold it); every other edit-op is shaped synchronously, as before.
-        const shapedNow = shapeClipPaste(asked, { cloudTab: !!cfg?.cloud });
+        const shapedNow = shapeClipPaste(asked, {
+          cloudTab: !!cfg?.cloud,
+          synced: !!cfg?.linkedHub?.url,
+          here: typeof cfg?.name === 'string' ? cfg.name : '',
+        });
         if (shapedNow instanceof Promise) shapedNow.then(onShaped, () => {});
         else onShaped(shapedNow);
       } else if (m.dgn === 'reorder-slot') {
@@ -1340,9 +1347,10 @@ export function useCanvasBridge({
         if (activeWin && e.source === activeWin && m.chord === '⌘V') {
           // V2-8.9 attacker L2 — a ⌘V in the canvas is a paste intent only while the active frame
           // holds the focus of a focused window (the sec-a undo-key gate): the shell's cross-canvas
-          // paste ask may follow it for ~1 s (client/clipboard-relay.ts). It runs no action.
+          // paste ask may follow it for ~1 s (client/clipboard-relay.ts). It runs no action. The frame
+          // relayed it, so it is noted as the frame's: never enough for a paste from another project.
           const frame = iframesRef.current.get(activePath);
-          if (document.hasFocus() && document.activeElement === frame) notePasteIntent();
+          if (document.hasFocus() && document.activeElement === frame) noteFramePasteIntent();
           return;
         }
         if (activeWin && e.source === activeWin) {

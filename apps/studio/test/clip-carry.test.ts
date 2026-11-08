@@ -145,6 +145,23 @@ describe('carryOf — the clip as kept (server only)', () => {
     ]);
     expect(read?.carry.assets).toEqual(['assets/0a1b2c3d.photo.json', 'assets/0a1b2c3d.png']);
   });
+
+  test('only media files are listed as assets — code under assets/ is not one', () => {
+    const src = A_SRC.replace(
+      '<p data-cd-id="plain">hello</p>',
+      '<img data-cd-id="pic" src="assets/0a1b2c3d.png" /><img src="assets/1a2b3c4d.tsx" /><img src="assets/2a2b3c4d.js" /><img src="assets/3a2b3c4d.svg" /><video src="assets/4a2b3c4d.mp4" />'
+    );
+    const from = src.indexOf('<DCArtboard id="desktop"');
+    const to = src.indexOf('</DCArtboard>', from) + '</DCArtboard>'.length;
+    const read = carryOf(src, [[from, to]], A, [src.slice(from, to)], {
+      text: (rel) => (rel === CARD ? CARD_SRC : null),
+    });
+    expect(read?.carry.assets).toEqual([
+      'assets/0a1b2c3d.png',
+      'assets/3a2b3c4d.svg',
+      'assets/4a2b3c4d.mp4',
+    ]);
+  });
 });
 
 describe('the §6 measured cases: carried, not pasted unresolved', () => {

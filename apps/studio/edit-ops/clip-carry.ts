@@ -37,6 +37,38 @@ import {
   scopeModule,
 } from './scope-names.ts';
 
+/**
+ * The file kinds a clip may carry as an asset: pictures, video, sound and fonts — never code, styles, data or a
+ * document (those could become a module or a canvas in the other project). Mirrored in Rust `clip_bridge.rs`
+ * `MEDIA_EXT`. An SVG also has to be what the import-asset sanitizer leaves (shell/clip-transfer.ts).
+ */
+export const CLIP_MEDIA_EXT = [
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'avif',
+  'svg',
+  'mp4',
+  'mov',
+  'm4v',
+  'webm',
+  'mp3',
+  'm4a',
+  'wav',
+  'ogg',
+  'aac',
+  'woff',
+  'woff2',
+  'ttf',
+  'otf',
+] as const;
+const MEDIA_RE = new RegExp(`\\.(?:${CLIP_MEDIA_EXT.join('|')})$`);
+
+/** `assets/….<media ext>` (lower-case extension). */
+export const isClipMedia = (rel: string): boolean => MEDIA_RE.test(rel);
+
 export interface Carry {
   /** source order */
   imports: CarriedImport[];
@@ -342,7 +374,8 @@ function assetsOf(texts: readonly string[], reader?: ModuleReader): string[] {
   for (const t of texts) {
     for (const ref of staticAssetRefs(t)) {
       const rel = ref.replace(/^(?:\.\.?\/|\.design\/|\/)+/, '');
-      if (!rel.startsWith('assets/') || rel.split('/').includes('..')) continue;
+      if (!rel.startsWith('assets/') || rel.split('/').includes('..') || !isClipMedia(rel))
+        continue;
       out.add(rel);
       const photo = rel.replace(/\.[^./]+$/, '.photo.json');
       if (reader && photo !== rel && reader.text(photo) !== null) out.add(photo);

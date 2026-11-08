@@ -372,6 +372,8 @@ export async function renderRemotely(args: {
     try {
       const r = await fetch(`${service.url}/_render/status?id=${encodeURIComponent(renderId)}`, {
         headers: bearer(service),
+        // the bearer goes to the service and nowhere else: a redirect fails the call
+        redirect: 'error',
         signal: AbortSignal.timeout(5000),
       });
       if (r.ok) {
@@ -395,6 +397,7 @@ export async function renderRemotely(args: {
       method: 'POST',
       headers: { ...bearer(service), 'content-type': 'application/json' },
       body: JSON.stringify({ id: renderId }),
+      redirect: 'error',
       signal: AbortSignal.timeout(10_000),
     })
       .then((r) => r.body?.cancel())
@@ -422,6 +425,8 @@ export async function renderRemotely(args: {
       method: 'POST',
       signal,
       timeout: false,
+      // the bearer goes to the service and nowhere else: a redirect fails the render
+      redirect: 'error',
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${service.secret}`,
