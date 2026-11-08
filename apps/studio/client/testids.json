@@ -16186,6 +16186,66 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-menu-item-cut-artboard",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One row of the artboard right-click menu: Cut ⌘X (`artboard.cut`: the copy and the move to the Trash in one write). Absent without a clipboard (viewer / read-only menu). Sits in the clipboard group with `canvas-menu-item-copy-artboard` and `canvas-menu-item-paste-artboard`.",
+    "producer": {
+      "file": "apps/studio/context-menu.tsx",
+      "symbol": "MenuItemRow"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "test-e2e:clipboard-cross-canvas.e2e.mjs"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-menu-item-copy-artboard",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The artboard menu's Copy ⌘C row (`artboard.copy`).",
+    "producer": {
+      "file": "apps/studio/context-menu.tsx",
+      "symbol": "MenuItemRow"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "test-e2e:clipboard-cross-canvas.e2e.mjs"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-menu-item-paste-artboard",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The artboard menu's Paste ⌘V row (`canvas.paste`, beside this board's row).",
+    "producer": {
+      "file": "apps/studio/context-menu.tsx",
+      "symbol": "MenuItemRow"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "test-e2e:clipboard-cross-canvas.e2e.mjs"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "notice-canvas-clip-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The shell's own ask before a paste of a clip copied in ANOTHER canvas: \"Paste the artboard copied in Home?\" with one action, Paste (`.maude-notice-action`). One reused slot; a click on it runs the paste. A canvas never confirms it itself.",
+    "producer": {
+      "file": "apps/studio/notifications.tsx",
+      "symbol": "NoticeCard"
+    },
+    "region": "notifications",
+    "consumers": [
+      "test-e2e:clipboard-cross-canvas.e2e.mjs"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "canvases-head-pinned",
     "kind": "testid",
     "pattern": false,
