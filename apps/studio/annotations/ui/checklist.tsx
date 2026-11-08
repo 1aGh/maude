@@ -189,7 +189,14 @@ export function ChecklistRows({ listId, title, paper, fontSize, inert }: Checkli
       className="dc-annot-checklist"
       data-testid={`checklist-${listId}`}
       {...(live ? { [CHECKLIST_ATTR]: '1' } : {})}
-      style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 4 }}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0,
+        marginTop: 4,
+        // `.dc-annot-el` takes no pointer (a sticky is hit through its paper); live rows take their own presses
+        pointerEvents: live ? 'auto' : undefined,
+      }}
     >
       {items.map((it) => {
         const done = isDone(it);
