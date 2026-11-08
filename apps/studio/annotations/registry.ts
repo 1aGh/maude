@@ -15,6 +15,7 @@ import { MAX_ELEMENT_BYTES, MAX_GROUPS_PER_ELEMENT } from './constants.ts';
 import { artboardIdField, sourceField, timeRangeField } from './elements/_shared.ts';
 import { arrow } from './elements/arrow.model.ts';
 import { ballot } from './elements/ballot.model.ts';
+import { checkitem } from './elements/checkitem.model.ts';
 import { image, link, mediaref } from './elements/media.model.ts';
 import { pen } from './elements/pen.model.ts';
 import { section } from './elements/section.model.ts';
@@ -55,6 +56,8 @@ const DEFS: readonly ElementDef[] = [
   stamp,
   vote,
   ballot,
+  // #113: a checklist is a sticky with these (one record per entry, no board version bump).
+  checkitem,
 ];
 
 const TYPES = new Map(DEFS.map((d) => [d.type, d]));
@@ -205,7 +208,12 @@ export function isKnownType(type: string): boolean {
 }
 
 /** Element types format 2 added (V2-1.12 R4). A format-1 peer keeps them as unknown types. */
-export const FORMAT2_TYPES: ReadonlySet<string> = new Set([stamp.type, vote.type, ballot.type]);
+export const FORMAT2_TYPES: ReadonlySet<string> = new Set([
+  stamp.type,
+  vote.type,
+  ballot.type,
+  checkitem.type,
+]);
 
 export type ElementResult =
   | { ok: true; el: AnnotationElement }

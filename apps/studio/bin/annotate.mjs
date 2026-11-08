@@ -88,6 +88,13 @@ or "@refs" minted earlier in the batch.
       Needs the host's geometry (--rects / --canvas-state) or the end's x/y as its cached point.
   { "op": "create", "type": "sticky"|"text"|"image", …, "to": "ab:…"|"el:…" }
       the new note also gets a bound arrow to that host (pass "from" only on arrows).
+  { "op": "create", "type": "sticky", "text": "Launch", "items": ["Write the post", { "text": "Demo", "done": true }] }
+      a CHECKLIST: a sticky whose text is the title and whose items are tickable entries. "items" is a
+      shorthand for one checkitem per entry (never stored on the sticky); at most 200 per list.
+  { "op": "create", "type": "checkitem", "list": <sticky|@ref>, "text"?, "done"?: true }   add one entry
+  { "op": "update", "id": <checkitem>, "done": true }   tick it (as the AI); "done": false (or null) unticks.
+      A locked checklist still ticks; its entries are not added, reworded, removed or reordered.
+      Deleting the sticky deletes its entries.
   { "op": "sticker", "sticker": "<pack>/<id>", x?, y?, w?, h?, "to"?, … }
       a Stickers-gallery picture (an image, 160 × 160 by default), authored by AI.
   { "op": "resolve", "id": <sticky> | "ids": [<sticky>, …] }   resolved by AI (a person's stays);
@@ -401,7 +408,8 @@ function createOp(batch, pl, op) {
     if (fields.fill === undefined) fields.fill = NODE_FILL;
     fields.width ??= 3;
   }
-  if (type === 'arrow' || type === 'pen') return batch.create(type, fields);
+  // An arrow / pen has no box to place; a checkitem has no place at all (it belongs to a sticky).
+  if (type === 'arrow' || type === 'pen' || type === 'checkitem') return batch.create(type, fields);
   // `to` makes a note point at something; `from` only means something on an arrow. Neither is a
   // field of a box element — silently dropping one would hide a mistake.
   const { to, from, ...boxFields } = fields;
@@ -724,7 +732,9 @@ async function main() {
         // Whatever this call put at the top level (arrows keep their hosts and stay out).
         ids = batch.created.filter((id) => {
           const e = batch.state.get(id);
-          return e && e.type !== 'arrow' && !batch.scene.effectiveParent(e);
+          return (
+            e && e.type !== 'arrow' && e.type !== 'checkitem' && !batch.scene.effectiveParent(e)
+          );
         });
       }
       sectionId = batch.wrapSection({ ids, text: args.title ?? undefined });

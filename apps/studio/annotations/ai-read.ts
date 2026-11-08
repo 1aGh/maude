@@ -25,6 +25,7 @@
 
 import type { HostLookup } from './ai-write.ts';
 import { parseHostRef } from './elements/_shared.ts';
+import { itemsByList, progressOf } from './elements/checkitem.model.ts';
 import { stripUnsafe } from './fields.ts';
 import { defOf } from './registry.ts';
 import { Scene } from './scene.ts';
@@ -165,7 +166,11 @@ function projectExtensions(el: AnnotationElement, out: ProjectedElement): void {
     const h = el[field];
     if (isRec(h)) out[key] = { ref: h.ref, label: h.label };
   }
-  if (el.type === 'stamp') {
+  if (el.type === 'checkitem') {
+    out.list = el.list;
+    out.done = isRec(el.done);
+    if (isRec(el.done)) out.doneBy = el.done.by;
+  } else if (el.type === 'stamp') {
     out.stamp = { kind: el.kind, ...(typeof el.target === 'string' ? { target: el.target } : {}) };
   } else if (el.type === 'vote') {
     out.vote = {
@@ -177,7 +182,28 @@ function projectExtensions(el: AnnotationElement, out: ProjectedElement): void {
   }
 }
 
-function projectOne(scene: Scene, el: AnnotationElement, full: boolean): ProjectedElement {
+/** A checklist sticky's entries and progress — the AI reads the list as one thing (#113). */
+function projectChecklist(
+  out: ProjectedElement,
+  entries: readonly AnnotationElement[] | undefined
+): void {
+  if (!entries?.length) return;
+  out.items = entries.map((e) => ({
+    id: e.id,
+    text: typeof e.text === 'string' ? e.text : '',
+    done: isRec(e.done),
+    ...(isRec(e.done) ? { doneBy: e.done.by } : {}),
+  }));
+  const p = progressOf(entries);
+  out.progress = `${p.done}/${p.total}`;
+}
+
+function projectOne(
+  scene: Scene,
+  el: AnnotationElement,
+  full: boolean,
+  lists: ReadonlyMap<string, AnnotationElement[]>
+): ProjectedElement {
   const out: ProjectedElement = { id: el.id, type: el.type };
   if (el.type === 'arrow') {
     const from = endHost(el.start);
@@ -205,12 +231,15 @@ function projectOne(scene: Scene, el: AnnotationElement, full: boolean): Project
   // #137 — an agent must see the lock before it tries to move the element.
   if (el.locked === true) out.locked = true;
   projectExtensions(el, out);
+  if (el.type === 'sticky') projectChecklist(out, lists.get(el.id));
   // Style of KNOWN types only: an unknown type's keys are arbitrary peer data.
   const known = defOf(el.type);
   if (full && known) {
     const style: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(el)) {
       if (STRUCTURAL.has(k) || !Object.hasOwn(known.fields, k)) continue;
+      // A checkitem's `list` / `done` are projected as `list` / `done` above (not a sticky's bullet style).
+      if (el.type === 'checkitem' && (k === 'list' || k === 'done')) continue;
       // The shape label's text is already `text`; keep only its styling.
       if (k === 'label' && defOf(el.type)?.caps.textSlot === 'label') {
         const { text: _t, ...rest } = (v ?? {}) as Record<string, unknown>;
@@ -306,10 +335,12 @@ export function projectBoard(
   elements: Iterable<AnnotationElement>,
   opts: ProjectOpts = {}
 ): Projection {
-  const scene = new Scene(elements);
+  const all = [...elements];
+  const scene = new Scene(all);
+  const lists = itemsByList(all);
   const full = opts.full === true;
   const build = (el: AnnotationElement): ProjectedElement => {
-    const out = projectOne(scene, el, full);
+    const out = projectOne(scene, el, full, lists);
     if (defOf(el.type)?.caps.container) out.members = readingOrder(scene, el.id).map(build);
     return out;
   };
@@ -321,10 +352,15 @@ export function projectBoard(
     }
     roots = [sec];
   } else {
-    roots = scene.childrenOf(null).filter((e) => e.type !== 'ballot'); // Q5: ballots stay secret
+    // Q5: ballots stay secret. A checkitem is part of its sticky (`items`), never a top-level element —
+    // unless asked for by `--type checkitem`, then only the genuine ones (an orphan is inert).
+    roots = scene.childrenOf(null).filter((e) => e.type !== 'ballot' && e.type !== 'checkitem');
+  }
+  const types = opts.types?.size ? opts.types : null;
+  if (!opts.within && types?.has('checkitem')) {
+    for (const entries of lists.values()) roots.push(...entries);
   }
   let tree = roots.map(build);
-  const types = opts.types?.size ? opts.types : null;
   if (types) tree = pruneTree(tree, (e) => types.has(e.type));
   return { untrusted: UNTRUSTED_NOTE, elements: tree };
 }

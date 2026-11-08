@@ -11,6 +11,9 @@
  *             `annotate: <message>` and exits 2, as it always did).
  */
 
+import { DEFAULT_FONT_SIZE } from './constants.ts';
+import { fitSticky } from './elements/sticky.model.ts';
+
 export class BoardSpecError extends Error {}
 
 /** One expanded op: the verb's op vocabulary, plus the relative `flowX/flowY` / `boardX/boardY` offsets. */
@@ -29,6 +32,8 @@ interface FlowEdge {
 interface Card {
   text?: unknown;
   color?: unknown;
+  /** #113 — a checklist card: `["entry", { text, done? }]`, expanded into checkitem records. */
+  items?: unknown;
 }
 interface Group {
   title?: unknown;
@@ -152,6 +157,26 @@ function cardText(card: unknown): string {
   return typeof t === 'string' ? t : '';
 }
 
+/** A card's checklist entries as the agent wrote them (validated when the sticky is created), or none. */
+function cardItems(card: unknown): unknown[] | undefined {
+  const i = card && typeof card === 'object' ? (card as Card).items : undefined;
+  return Array.isArray(i) ? i : undefined;
+}
+
+/** The card's height: the fixed card, grown to hold its checklist entries (same fit the layer applies). */
+function cardHeight(card: unknown): number {
+  const items = cardItems(card);
+  if (!items?.length) return BOARD_CARD_H;
+  const rows = items.map((e) => ({
+    text: typeof e === 'string' ? e : (e as { text?: unknown } | null)?.text,
+  }));
+  return fitSticky(
+    { w: BOARD_CARD_W, h: BOARD_CARD_H, fontSize: DEFAULT_FONT_SIZE },
+    cardText(card),
+    rows
+  ).h;
+}
+
 function cardColor(card: unknown): string | undefined {
   const c = card && typeof card === 'object' ? (card as Card).color : undefined;
   return typeof c === 'string' ? c : undefined;
@@ -218,8 +243,9 @@ function boardColumns(groups: Group[]): BoardOp[] {
   const ops: BoardOp[] = [];
   groups.forEach((g, i) => {
     const cards = cardsOf(g);
+    const heights = cards.map(cardHeight);
     const h = cards.length
-      ? BOARD_HEADER_H + cards.length * (BOARD_CARD_H + BOARD_CARD_GAP)
+      ? BOARD_HEADER_H + heights.reduce((sum, ch) => sum + ch + BOARD_CARD_GAP, 0)
       : BOARD_EMPTY_SECTION_H;
     const colX = i * (BOARD_COL_W + BOARD_COL_GAP);
     ops.push({
@@ -234,19 +260,23 @@ function boardColumns(groups: Group[]): BoardOp[] {
       h,
       parent: null,
     });
+    let y = BOARD_HEADER_H;
     cards.forEach((c, j) => {
+      const items = cardItems(c);
       ops.push({
         op: 'create',
         type: 'sticky',
         ref: `@sec${i}card${j}`,
         text: cardText(c),
         color: cardColor(c),
+        ...(items ? { items } : {}),
         boardX: colX + (BOARD_COL_W - BOARD_CARD_W) / 2,
-        boardY: BOARD_HEADER_H + j * (BOARD_CARD_H + BOARD_CARD_GAP),
+        boardY: y,
         w: BOARD_CARD_W,
-        h: BOARD_CARD_H,
+        h: heights[j],
         parent: `@sec${i}`,
       });
+      y += (heights[j] as number) + BOARD_CARD_GAP;
     });
   });
   return ops;
@@ -280,6 +310,7 @@ function boardRadial(spec: { title?: unknown }, groups: Group[]): BoardOp[] {
       ref: `@idea${i}`,
       text: cardText(c),
       color: cardColor(c),
+      ...(cardItems(c) ? { items: cardItems(c) } : {}),
       boardX: cx - BOARD_RADIAL_CARD_W / 2,
       boardY: cy - BOARD_RADIAL_CARD_H / 2,
       w: BOARD_RADIAL_CARD_W,

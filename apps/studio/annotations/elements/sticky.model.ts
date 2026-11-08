@@ -116,6 +116,15 @@ export function wrapLines(text: string, fontSize: number, innerW: number): numbe
   return Math.max(1, lines);
 }
 
+/** A checklist entry is indented by its 16 px box and an 8 px gap (contract 113-checklist §5.2). */
+export const CHECK_INDENT = 24;
+/** Vertical gap between two entries. */
+export const CHECK_ROW_GAP = 6;
+/** The footer row under the entries (the progress chip, the author line). */
+export const CHECK_FOOTER_H = 22;
+/** What an empty entry shows (and so measures as). */
+const CHECK_PLACEHOLDER = 'To do';
+
 export interface StickySize {
   w: number;
   h: number;
@@ -125,9 +134,14 @@ export interface StickySize {
 /**
  * The size a sticky needs for `text` (cell 1): square until the words need more, then it grows to five
  * lines, then wider (never a scrollbar), and the type gets smaller only past 120 words. GROWS ONLY — a
- * sticky the person made roomy never shrinks on a text edit (as `grownStickyBox` before it).
+ * sticky the person made roomy never shrinks on a text edit (as `grownStickyBox` before it). A checklist
+ * passes its `items`: each entry adds a row (wrapped inside `CHECK_INDENT`) and the footer.
  */
-export function fitSticky(cur: StickySize, text: string): StickySize {
+export function fitSticky(
+  cur: StickySize,
+  text: string,
+  items?: ReadonlyArray<{ text?: unknown }>
+): StickySize {
   let fontSize = cur.fontSize;
   const words = wordsOf(text);
   if (words > STICKY_SHRINK_WORDS) {
@@ -148,6 +162,18 @@ export function fitSticky(cur: StickySize, text: string): StickySize {
   }
   // 3. still more (a long essay at the ceiling): taller again, so nothing is clipped.
   if (hFor(lines) > h) h = Math.min(STICKY_MAX_GROWN_H, hFor(lines));
+  // 4. a checklist (#113): one row per entry under the title, wrapped inside the indent, plus the footer.
+  // Grows only, and stops at the ceiling (the layer clips the rest with "+N more").
+  if (items?.length) {
+    const rowW = w - PAD_X * 2 - CHECK_INDENT;
+    let rowsH = 0;
+    for (const it of items) {
+      const t = typeof it.text === 'string' && it.text ? it.text : CHECK_PLACEHOLDER;
+      rowsH += wrapLines(t, fontSize, rowW) * lineH + CHECK_ROW_GAP;
+    }
+    const need = Math.ceil(hFor(lines) + rowsH + CHECK_FOOTER_H);
+    if (need > h) h = Math.min(STICKY_MAX_GROWN_H, need);
+  }
   return { w, h, fontSize };
 }
 

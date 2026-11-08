@@ -29,6 +29,7 @@ const TYPES: Record<string, TypeWords> = {
   stamp: { one: 'Stamp', many: 'stamps' },
   vote: { one: 'Vote', many: 'votes' },
   ballot: { one: 'Ballot', many: 'ballots' },
+  checkitem: { one: 'Checklist item', many: 'checklist items' },
 };
 
 /** Housekeeping: never a visible change of the element. */
@@ -49,6 +50,7 @@ const TEXT_SLOT: Record<string, string> = {
   text: 'text',
   shape: 'label',
   section: 'label',
+  checkitem: 'text',
 };
 
 const typeOf = (t: string): TypeWords =>
@@ -147,6 +149,8 @@ export function describeAnnotations(ctx: LaneContext): Change[] {
     for (const k of keys) {
       if (k === 'resolved') {
         count(n.type, n[k] ? 'resolved' : 'reopened', artboards);
+      } else if (k === 'done' && n.type === 'checkitem') {
+        count(n.type, n[k] ? 'ticked' : 'unticked', artboards);
       } else if (k === 'locked') {
         count(n.type, n[k] ? 'locked' : 'unlocked', artboards);
       } else if (k === slot && typeof o[k] === 'string' && typeof n[k] === 'string') {

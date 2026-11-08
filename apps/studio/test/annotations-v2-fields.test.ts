@@ -208,9 +208,9 @@ describe('format-2 fields parse, round-trip, and are typed', () => {
     expect(parseHostRef('xy:hero')).toBeNull();
   });
 
-  test('stamp / vote / ballot are registered types and the strict schema accepts the canonical board', () => {
-    for (const t of ['stamp', 'vote', 'ballot']) expect(isKnownType(t)).toBe(true);
-    expect([...FORMAT2_TYPES].sort()).toEqual(['ballot', 'stamp', 'vote']);
+  test('stamp / vote / ballot / checkitem are registered types and the strict schema accepts the canonical board', () => {
+    for (const t of ['stamp', 'vote', 'ballot', 'checkitem']) expect(isKnownType(t)).toBe(true);
+    expect([...FORMAT2_TYPES].sort()).toEqual(['ballot', 'checkitem', 'stamp', 'vote']);
     const text = serializeBoard(V2_ELEMENTS.map(canon));
     const res = validateBoard(text, { strict: true, against: null });
     // Only the author rule may fire (a new element must be `author.kind: ai`).

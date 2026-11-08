@@ -34,7 +34,7 @@ type Put = { op: string; el: Record<string, unknown> };
 /** The dry-run ops with their random element ids (`s_xxxxxxxx`, also inside arrow binds) renamed by order of appearance. */
 function normalise(ops: Put[]): unknown {
   const names = new Map<string, string>();
-  const text = JSON.stringify(ops).replace(/s_[a-z0-9]{8}/g, (id) => {
+  const text = JSON.stringify(ops).replace(/(?:s|ck)_[a-z0-9]{8}/g, (id) => {
     if (!names.has(id)) names.set(id, `e${names.size}`);
     return names.get(id) as string;
   });
