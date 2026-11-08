@@ -197,7 +197,7 @@ W5 and W6 use Opus.
   - an HEVC / VFR / extra-audio-track warning at probe time;
   - an optional H.264 / CFR / single-AAC proxy next to the original;
   - before the frame-step fallback, a "no audio" warning that names the asset and codec.
-- [ ] T3.5 **#128 §4:** inserting a video into a `kind="video"` artboard replaces the placeholder, fills 100 %, sets the `objectFit="cover"` prop and keeps `durationInFrames` in sync.
+- [x] T3.5 **#128 §4:** inserting a video into a `kind="video"` artboard replaces the placeholder, fills 100 %, sets the `objectFit="cover"` prop and keeps `durationInFrames` in sync.
 - [ ] T3.6 **#128 §5:** a transform / crop handle for a selected `<Video>` layer, plus inspector fit / focus / scale fields that write back to the TSX. Reuse `editing/crop-mode.tsx`.
 - [ ] T3.7 **#128 cloud comments 2–3** (D7): `apps/render` gets scale 1 and JPEG intermediates for the cloud, one mp4 job at a time, progress, `POST /_render/cancel`, and the "render busy" vs "waking up" message. **The deploy goes out only with a release tag**, never a manual fleet change.
 
@@ -381,3 +381,4 @@ W5 and W6 use Opus.
 - 2026-11-08 merged #168 S2 (634f74bc6 4dab71489): gate evidence HMAC under a per-machine key (committed v2 gate records read stale until re-recorded); snapshots/bases verified against hook-state records; shots.jsonl in hook state; script files read for detaching. Follow-up patches → small slice.
 - 2026-11-08 merged #168 S3+S4 (a7bacb08b … 9265ce18d: 7 canvas→shell message fixes incl. copy-canvas-path, Image (I) via a shell chip (one extra click — Michal to confirm), drag token not path, tab stacking test; G2 mine-stamp, G3 Recent colours by project identity (lead http.ts patch, after role checks), G4 ds-check roles; ux-patterns exempt by ID). G1 lead decision: keep the account-name fallback (B). S2 follow-ups 4d3c72e3a. Boot check OK. #168 (T5.4) done.
 - 2026-11-08 merged T6.3c ac1c53d99 (cli.sock peer-uid checked, verbs ensure/status/show/lease/release/restart, native consent sheet per option A, Not now per run, leases keep tabs busy, Settings › General › Terminal switch). Left → T6.3e/f: worktree tab label/profile/not-in-session, lease→registry busy, branch mismatch, show element/mode routing, e2e debug answer for the native sheet.
+- 2026-11-08 merged T3.5 348cf4d31. T3.6: lead chose A (objectFit into mediaProps, real fit shown, visible Zoom/Focus rows) then B (on-canvas pan/zoom handle) as T3.6b.
