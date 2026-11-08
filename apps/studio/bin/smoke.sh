@@ -557,6 +557,29 @@ if [ -n "$REASONS" ]; then
   } >> "$MD"
 fi
 
+# ---------- files that will not reach the workspace (#158, advisory) ----------
+# A linked canvas that imports from a `_helpers/` folder, or whose stylesheet names a font outside
+# assets/, builds on this Mac and fails for the next person. The diagnostic reads the disk only and says
+# nothing for an unlinked project or a clean one. Never changes the exit code.
+if command -v bun >/dev/null 2>&1; then
+  UNSYNCED=$(bun "$(dirname "$0")/_unsynced-refs.mjs" --design-root "$DESIGN_ROOT" 2>/dev/null)
+  if [ -n "$UNSYNCED" ]; then
+    UNSYNCED_N=$(printf '%s\n' "$UNSYNCED" | sed -n '2,$p' | grep -c '·')
+    echo "⚠ files that won't reach the people you share with — advisory, see report" >&2
+    printf '%s\n' "$UNSYNCED" | sed 's/^/  /' >&2
+    {
+      echo
+      echo "## Files that won't sync"
+      echo
+      printf '%s\n' "$UNSYNCED" | sed -n '1p'
+      echo
+      printf '%s\n' "$UNSYNCED" | sed -n '2,$p' | sed 's/^/- /'
+      echo
+      echo "> Advisory — not a failure. $UNSYNCED_N reference(s) listed."
+    } >> "$MD"
+  fi
+fi
+
 TOTAL_FAIL=$((FAILED + LINT_FAILED))
 {
   echo

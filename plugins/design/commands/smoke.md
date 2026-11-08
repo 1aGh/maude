@@ -67,6 +67,10 @@ Violations print as `LINT-FAIL <file> — …` and land in `report.md`. The lint
 
 The helper exits `0` only if every canvas is `OK` **and** the import-graph lint is clean; `3` if any canvas is `BLANK` / `ERROR` / `UNSTYLED` or the lint finds a violation.
 
+### Files that won't sync (linked projects, advisory — issue #158)
+
+For a project linked to a workspace, smoke also reads the disk and lists every file a canvas imports or a stylesheet `url()`s that will not reach the people the project is shared with: a `_` folder, a font or module outside `assets/` while file sync is off, a file in a folder the project leaves out, a missing file, a link instead of a file. Each line names the canvas, the file, why and the way out; the same list is in `maude design status` and in Sync details. It lands in `report.md` under **Files that won't sync** and never changes the exit code — the canvas renders fine on this Mac, which is exactly why the report says it.
+
 ## Flags
 
 | Flag | Default | Notes |

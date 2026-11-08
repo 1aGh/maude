@@ -3,6 +3,8 @@
 //   POST /_api/sync/resync   → { ok, sync, resync? } · 409 busy · 200 { ok:false, reason } when there
 //                              is nothing to restart · 403 { ok:false, reason, detail } at the gates
 //   GET  /_api/sync/code-consent      → { consent: CodeConsentView | null } (fix/207)
+//   GET  /_api/sync/unsynced-refs     → { linked, syncFiles, canvases, refs[] } (#158: the files a canvas
+//                              uses that will not reach the workspace, each with its reason; a disk read)
 //   POST /_api/sync/code-consent/set  { allow } → { ok, consent } · 403 window-only / read-only ·
 //                              409 not-linked / not-signed-in / cell
 //   POST /_api/sync/held-deletes  { answer: delete|keep, folder? } → { ok, how, count } · 403
@@ -29,6 +31,7 @@
 import { currentAccess, notInScopeResponse } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
 import type { CodeConsentControl } from '../sync/code-module-consent.ts';
+import { unsyncedRefsOnDisk } from '../sync/unsynced-refs.ts';
 import type { AdoptHeldControl } from '../sync/adopt-held.ts';
 import type { HeldDeletesControl } from '../sync/held-deletes.ts';
 import type { LinkGate } from '../sync/link-consent.ts';
@@ -67,6 +70,8 @@ export interface SyncRouteDeps {
   link?: LinkGate;
   /** This request's session (default `currentAccess()`). */
   access?: () => Access;
+  /** #158 — the design root `GET /_api/sync/unsynced-refs` reads; absent = nothing to check. */
+  designRoot?: string;
 }
 
 const json = (status: number, body: unknown) =>
@@ -175,6 +180,22 @@ export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
         if (!access().can('read', null)) return notInScopeResponse();
         const consent = consentRuntime(deps.control())?.codeConsent?.() ?? null;
         return json(200, { consent: consent ? consent.view() : null });
+      },
+    },
+    // #158 — the files a canvas uses that will not reach the workspace. Sync details renders it as an
+    // issue row per canvas. A read of the disk against the sync set (sync/unsynced-refs.ts); it never
+    // changes what syncs. MAIN ORIGIN ONLY, project-class: a canvas-only session does not learn what
+    // else the project holds.
+    {
+      method: 'GET',
+      path: '/_api/sync/unsynced-refs',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: async () => {
+        if (!access().can('read', null)) return notInScopeResponse();
+        if (!deps.designRoot)
+          return json(200, { linked: false, syncFiles: true, canvases: 0, refs: [] });
+        return json(200, unsyncedRefsOnDisk(deps.designRoot));
       },
     },
     // fix/207 — the person's answer: "Allow shared code from <host>" / "Stop allowing shared code".

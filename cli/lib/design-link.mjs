@@ -31,6 +31,7 @@ import {
 import { deleteProjectLink, recordProjectLink } from './project-links.mjs';
 
 const DESIGN_CONFIG_PATH = '.design/config.json';
+const DESIGN_DIR = '.design';
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 
 // ---------------------------------------------------------------- link
@@ -472,7 +473,7 @@ export async function runBulkDeletes({ args, cwd = process.cwd() }) {
 
 // ---------------------------------------------------------------- status
 
-export async function runStatus({ args, cwd = process.cwd() }) {
+export async function runStatus({ args, cwd = process.cwd(), unsynced = null }) {
   const tail = args.slice(args.indexOf('status') + 1);
   const { flags } = parseArgs(tail, { booleans: ['json', 'watch'] });
   if (flags.watch) return await runStatusWatch({ cwd, intervalMs: watchInterval(flags) });
@@ -529,6 +530,15 @@ export async function runStatus({ args, cwd = process.cwd() }) {
     ownership: ownershipState(cwd, { linked: true }),
   };
 
+  // #158 — the files a canvas uses that will not reach the workspace. `unsynced` is the caller's
+  // reader (the bundled bun helper, commands/design.mjs): TypeScript over the sync classifier, so it
+  // cannot be imported here. Read-only; a helper that cannot run leaves this out.
+  const unsyncedReport = unsynced ? await unsynced(resolve(cwd, DESIGN_DIR)) : null;
+  if (unsyncedReport?.linked) {
+    const { lines: _lines, ...data } = unsyncedReport;
+    payload.unsynced = data;
+  }
+
   if (flags.json) {
     process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
     return;
@@ -570,6 +580,11 @@ export async function runStatus({ args, cwd = process.cwd() }) {
     `Maude design — linked mode\n  hub URL:      ${url}\n  linked at:    ${new Date(cfg.linkedHub.linkedAt).toISOString()}\n  adopt mode:   ${cfg.linkedHub.adopt ? 'yes (push-on-first-sync)' : 'no (hub-wins)'}\n  TSX sync:     ${cfg.linkedHub.syncTsx === false ? 'off (opted out — linkedHub.syncTsx: false)' : 'on (default — DDR-079)'}\n  token stored: ${hubRecord ? 'yes (~/.config/maude/hubs.json)' : "NO — re-run 'maude design link'"}\n  hub status:   ${probe.ok ? `up — v${probe.version}, ${uptimeS}s uptime, ${probe.tokenCount} token(s), ${probe.authMode}` : `UNREACHABLE — ${probe.error}`}\n  sync agent:   ${syncLine}\n`
   );
   if (filesLine) process.stdout.write(filesLine);
+  if (Array.isArray(unsyncedReport?.lines) && unsyncedReport.lines.length > 0) {
+    const [head, ...rest] = unsyncedReport.lines;
+    process.stdout.write(`  not shared:   ${head}\n`);
+    for (const line of rest) process.stdout.write(`                ${line}\n`);
+  }
   // DDR-102 — auth-rejected canvases (per-slug honesty).
   if (Array.isArray(sync?.rejectedSlugs) && sync.rejectedSlugs.length > 0) {
     const total = sync.docs?.rejected ?? sync.rejectedSlugs.length;

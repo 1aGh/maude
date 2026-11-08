@@ -3554,6 +3554,38 @@
     "v2": "new"
   },
   {
+    "hook": "sync-unsynced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Issue #158 — Sync details: the canvases that use files which will not reach the workspace (a `_` folder, a font outside `assets/`, a missing file…). Read-only; absent when the project is not linked or nothing is out.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "UnsyncedSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-unsynced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-unsynced-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One canvas in that section: its name, then each file with why and the way out (`GET /_api/sync/unsynced-refs`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "UnsyncedSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-unsynced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "sync-large-seq-<i>",
     "kind": "testid",
     "pattern": true,
