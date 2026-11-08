@@ -47,6 +47,9 @@ const SERVER_UP = join(REPO, 'apps', 'studio', 'bin', 'server-up.sh');
 const SERVER_TS = join(REPO, 'apps', 'studio', 'server.ts');
 const PRIMARY = process.env.MAUDE_PROJECT_ROOT as string;
 const REG = process.env.MAUDE_E2E_APP_REGISTRY as string;
+// sec-loopback-bearer §7.5 — a terminal-started (role cli) server writes its key file under the state dir:
+// a throwaway one, never the person's ~/.local/state
+const CLI_STATE = mkdtempSync(join(tmpdir(), 'maude-e2e-cli-state-'));
 
 type Run = { code: number | null; out: string; err: string };
 
@@ -54,6 +57,7 @@ function cliEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     MAUDE_APP_REGISTRY_FILE: REG,
+    XDG_STATE_HOME: CLI_STATE,
     NO_OPEN: '1',
     MAUDE_NO_AUTOBUILD: '1',
     ...extra,

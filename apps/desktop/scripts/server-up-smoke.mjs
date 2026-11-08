@@ -38,6 +38,8 @@ export async function serverUpSmoke({ binary, strippedPath, timeoutS = 30 }) {
     MAUDE_LOG_DIR: join(root, 'logs'),
     MAUDE_UI_PREFS_PATH: join(root, 'xdg', 'maude', 'prefs.json'),
     MAUDE_MACHINE_FILE: join(root, 'xdg', 'maude', 'machine.json'),
+    // sec-loopback-bearer §7.5 — the role-cli server's key file stays in the throwaway dir
+    XDG_STATE_HOME: join(root, 'state'),
     MAUDE_NO_AUTOBUILD: '1',
     // server-up sets it itself (T1.9); set here too so a regression there never pops a window
     NO_OPEN: '1',

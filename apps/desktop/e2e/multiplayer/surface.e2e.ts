@@ -22,6 +22,7 @@ import { $, browser } from '@wdio/globals';
 import { unresolvedRequirements } from '../../../../scripts/dev/sync-e2e/surface-requirements.mjs';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { sidecarHeaders } from '../helpers/sidecar-key';
 import { pinCurrentWindow } from '../helpers/windows';
 
 const runPath = process.env.MAUDE_SURFACE_CONFIG;
@@ -7401,9 +7402,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         // write → `edit/touched` → run/end {outcome}. A CLI request: no `origin` header (localClientRefusal).
         let hookN = 0;
         const hook = async (p: Surface, route: string, body: Record<string, unknown>) => {
-          const r = await fetch(`${studioUrl(p)}/_api/agent/${route}`, {
+          const base = studioUrl(p);
+          const r = await fetch(`${base}/_api/agent/${route}`, {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
+            // sec-loopback-bearer §7 — the native surface is the app's sidecar: its own API key
+            headers: sidecarHeaders(base, { 'content-type': 'application/json' }),
             body: JSON.stringify(body),
           });
           if (!r.ok) throw new Error(`agent/${route} at ${p.name}: HTTP ${r.status}`);

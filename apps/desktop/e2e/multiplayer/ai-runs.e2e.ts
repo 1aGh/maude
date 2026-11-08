@@ -34,6 +34,7 @@ import { $, $$, browser } from '@wdio/globals';
 import { clearComposer, openAssistant, requireAi } from '../helpers/assistant';
 import { focusShell, waitForCanvasOpened } from '../helpers/canvas-frame';
 import { capture } from '../helpers/evidence';
+import { sidecarHeaders } from '../helpers/sidecar-key';
 import { openApp } from '../helpers/target';
 import { canvasRow } from '../helpers/tree';
 
@@ -92,14 +93,18 @@ type Other = { runId: string; state: string; actor?: string; artboards?: { artbo
 
 /** The run states, read from the registry (`GET /_api/ai/runs` › mine) — the v1 start answer carries none. */
 async function runsOf(origin: string): Promise<Run[]> {
-  const v = (await fetch(`${origin}/_api/ai/runs`).then((r) => r.json())) as { mine?: Run[] };
+  const v = (await fetch(`${origin}/_api/ai/runs`, { headers: sidecarHeaders(origin) }).then((r) =>
+    r.json()
+  )) as { mine?: Run[] };
   return v.mine ?? [];
 }
 const runById = async (origin: string, id: string) =>
   (await runsOf(origin)).find((r) => r.runId === id) ?? null;
 /** Other people's runs this Mac sees (`GET /_api/ai/runs` › others). */
 async function othersOf(origin: string): Promise<Other[]> {
-  const v = (await fetch(`${origin}/_api/ai/runs`).then((r) => r.json())) as { others?: Other[] };
+  const v = (await fetch(`${origin}/_api/ai/runs`, { headers: sidecarHeaders(origin) }).then((r) =>
+    r.json()
+  )) as { others?: Other[] };
   return v.others ?? [];
 }
 
@@ -160,7 +165,7 @@ async function sendChat(text: string): Promise<void> {
 const post = (origin: string, path: string, body: unknown) =>
   fetch(`${origin}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', origin },
+    headers: sidecarHeaders(origin, { 'content-type': 'application/json', origin }),
     body: JSON.stringify(body),
   });
 
@@ -176,7 +181,7 @@ function selectPost(designRoot: string) {
 function v1(origin: string, path: '/_api/ai/start' | '/_api/ai/end') {
   return fetch(`${origin}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', origin },
+    headers: sidecarHeaders(origin, { 'content-type': 'application/json', origin }),
     body: JSON.stringify({ file: `.design/${REL}`, author: 'Claude' }),
   }).then((r) => r.json()) as Promise<{ cleared?: boolean }>;
 }
@@ -230,7 +235,7 @@ async function fakeRun(origin: string, designRoot: string, body: string, settleM
 const hook = async (origin: string, path: string, body: unknown) => {
   const r = await fetch(`${origin}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: sidecarHeaders(origin, { 'content-type': 'application/json' }),
     body: JSON.stringify(body),
   });
   return { status: r.status, body: (await r.json().catch(() => null)) as Record<string, unknown> };
@@ -414,7 +419,7 @@ describe('S5.15 — AI runs across two Macs', () => {
           ['Mac 2', mac2Origin],
         ] as const)
           console.log(
-            `[ai-runs] R1 round ${i} ${who}: ${JSON.stringify(await fetch(`${o}/_api/ai/runs`).then((r) => r.json()))}`
+            `[ai-runs] R1 round ${i} ${who}: ${JSON.stringify(await fetch(`${o}/_api/ai/runs`, { headers: sidecarHeaders(o) }).then((r) => r.json()))}`
           );
       }
       expect([a.state, b.state].sort()).toEqual(['running', 'waiting']);
@@ -675,9 +680,9 @@ describe('S5.15 — AI runs across two Macs', () => {
     type H = { history?: { kind?: string; who?: { kind?: string } }[] };
     await waitFor(
       async () => {
-        const h = (await fetch(`${mac1Origin}/_api/project/history?limit=200`).then((r) =>
-          r.json()
-        )) as H;
+        const h = (await fetch(`${mac1Origin}/_api/project/history?limit=200`, {
+          headers: sidecarHeaders(mac1Origin),
+        }).then((r) => r.json())) as H;
         return (h.history ?? []).some((r) => r.kind === 'ai' || r.who?.kind === 'ai');
       },
       'an AI version on Mac 1',
