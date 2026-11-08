@@ -233,7 +233,7 @@ W5 and W6 use Opus.
 
 ### W5 — Sync, undo, hub and security (Opus)
 
-- [ ] T5.1 **#164:**
+- [x] T5.1 **#164:**
   - the spike (D11): a pre/post hash diff for interpreter and `bash -c` calls, so a person's save during a long call is never folded into the run;
   - stage interpreter-created new canvases;
   - narrow the terminal lane;
@@ -375,3 +375,4 @@ W5 and W6 use Opus.
 - 2026-11-08 Michal chose #206 first-open trust **A** (ask once per new folder; known folders + their worktrees open silently; Settings switch). DDR-250 Accepted. T6.3a–f next.
 - 2026-11-08 merged T5.4 spike e65346c35 (contract 168-hardening.md: D10 one-origin-per-canvas NOT contained → named gap stays, item closes with measurements; slices S1–S4; S4 ux-patterns exempt-by-ID reverses Michal's 2026-10-31 'c' → needs his OK), T4.5 9d30a6a97 (+ lead patches: registry class, designRoot dep), T2.2 PNG 39a88e3bb (WebKit stills persist as validated PNG; PNG ~6× WebP vs caps), T4.1 (f7831e6f3 0d8e3b025 ad35b072f f7400e14f d81eb6c79 d560786e5; leftovers: per-instance layout, angular/diamond in SVG lane, REST --frames sharing, per-paint blend, docs for --one-canvas).
 - 2026-11-08 #164 re-review: no medium left; lows N1 (double-loaded plugin empty settle), N2 (lane-level claim tagging), N3 (board saves not noted as person), N4 (guide's undo --chat too broad) → fix slice.
+- 2026-11-08 merged #164 lows N1–N4 (00e76ceba 07c2e38c6 2dfa51f8b 2a17f73b1) and the PNG allowlist trim dc2429b2e. #164 (T5.1) done: security pair re-review clean.
