@@ -8618,9 +8618,7 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": [],
     "v2": "stable"
   },
   {
@@ -8634,7 +8632,6 @@
     },
     "region": "sidebar/tree",
     "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts",
       "apps/desktop/e2e/scenarios/file-tree-move.e2e.ts"
     ],
     "v2": "stable"

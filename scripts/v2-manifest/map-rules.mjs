@@ -29,6 +29,8 @@ export const V2_CODE_PATHS = [
 ];
 /** Late entries in a shared v1 file that are v2 features (named one by one, never by file). */
 export const V2_CODE_IDS = new Set([
+  'button:studio/client/generate-dialog.jsx#GenerateDialog/generate-approve', // burndown spend cap: approve a paid job over the confirm threshold
+  'testid:studio/client/generate-dialog.jsx#other/generate-approve', // burndown spend cap: approve a paid job over the confirm threshold
   'testid:studio/canvas-theme-pill.tsx#canvas/canvas-theme-path', // r5-8 the canvas path on the Light | Dark pill
   'testid:studio/canvas-theme-pill.tsx#canvas/canvas-theme-note', // r5-7 "This canvas has no Dark" on the pill
   'button:studio/client/shell/banners.jsx#FormatGateBanner/format-gate-update', // V2-1.12 file formats
