@@ -201,6 +201,12 @@ import {
 } from './generation/gemma-models.ts';
 import { type GenerationJobQueue, GenerationQueueFullError } from './generation/jobs.ts';
 import {
+  createSpendGuard,
+  estimateJobCost,
+  readSpendSettings,
+  type SpendGuard,
+} from './generation/spend.ts';
+import {
   configuredProviders,
   deleteProviderKey,
   getProviderKey,
@@ -1680,6 +1686,14 @@ export function createHttp(
    *  captured instance would hand one member another's open canvas. */
   const inspect = () => inspects.for(currentSession());
 
+  // The spend cap on paid media generation (generation/spend.ts): per-run + per-day caps for this project and a
+  // confirm above a threshold, the numbers from the per-Mac prefs. A new approval pushes to the app (WebSocket).
+  const spendGuard: SpendGuard = createSpendGuard({
+    designRoot: ctx.paths.designRoot,
+    settings: () => readSpendSettings(readUiPrefs().generateSpend),
+    onApproval: (a) => ctx.bus.emit('generate:approval', a),
+  });
+
   // V2-2.9 (T23) — the Diagnostics API's status providers for the sources this layer owns
   // (sync registers itself in server.ts). Cheap, synchronous snapshots; scrubbed on read.
   const countBy = (items: { status?: string }[]) =>
@@ -2733,6 +2747,7 @@ export function createHttp(
         return ab ? { w: ab.w, h: ab.h, label: ab.label } : null;
       },
       jobs: generateJobs,
+      spend: spendGuard,
       saveAsset: (bytes) => api.saveAsset(bytes),
       emit: (g) => ctx.bus.emit('generate:takes', g),
     }),
@@ -6637,7 +6652,7 @@ export function createHttp(
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       if (req.method === 'GET') {
         return Response.json(
-          { jobs: generateJobs.list() },
+          { jobs: generateJobs.list(), approvals: spendGuard.pending(), spent: spendGuard.spent() },
           { headers: { 'Cache-Control': 'no-store' } }
         );
       }
@@ -6646,6 +6661,22 @@ export function createHttp(
         return new Response('cross-origin write rejected', { status: 403 });
       const body = await readJson<Record<string, unknown>>(req, 64 * 1024);
       if (!body) return new Response('body required', { status: 400 });
+      // The person's answer to a "needs your OK" card. Only the app's page can give it: a browser always
+      // sends Origin on a POST, the `maude design generate` verb (curl) never does.
+      if (typeof body.approve === 'string' || typeof body.decline === 'string') {
+        if (!req.headers.get('origin'))
+          return Response.json(
+            { ok: false, message: 'This is answered in Maude, not from a command.' },
+            { status: 403, headers: { 'Cache-Control': 'no-store' } }
+          );
+        const id = (body.approve ?? body.decline) as string;
+        const done =
+          typeof body.approve === 'string' ? spendGuard.approve(id) : spendGuard.decline(id);
+        return Response.json(
+          { ok: done },
+          { status: done ? 200 : 404, headers: { 'Cache-Control': 'no-store' } }
+        );
+      }
       const check = validateGenRequest(body);
       if (!check.ok) return new Response(check.errors.join('; '), { status: 400 });
       const genReq = body as unknown as import('./generation/types.ts').GenRequest;
@@ -6657,6 +6688,32 @@ export function createHttp(
           status: 400,
         });
 
+      // The spend cap: estimate, check the per-run + per-day caps and the confirm threshold BEFORE anything is
+      // queued or sent. A stop is JSON (reason + message), never a plain string the verb has to scrape.
+      const estimate = estimateJobCost(genReq);
+      const admitted = spendGuard.admit({
+        key: new Bun.CryptoHasher('sha256')
+          .update(
+            JSON.stringify([
+              genReq.provider,
+              genReq.modality,
+              genReq.model ?? '',
+              genReq.prompt ?? '',
+              genReq.sourceAsset ?? '',
+              genReq.aspectRatio ?? '',
+              genReq.params ?? null,
+            ])
+          )
+          .digest('hex'),
+        estimate,
+        summary: `${genReq.modality === 'image' ? 'a picture' : `a ${genReq.modality} clip`} from ${descriptor?.label ?? genReq.provider}`,
+        approvalId: typeof body.approvalId === 'string' ? body.approvalId : undefined,
+      });
+      if (!admitted.ok) {
+        const { status, ...why } = admitted;
+        return Response.json(why, { status, headers: { 'Cache-Control': 'no-store' } });
+      }
+
       try {
         const { id } = generateJobs.enqueue({
           provider: genReq.provider,
@@ -6666,89 +6723,94 @@ export function createHttp(
           // per-request adapter context with the saveAsset-backed localizer, and
           // submit → result → localize each produced asset into assets/<sha8>.
           run: async (signal) => {
-            const apiKey = await getProviderKey(genReq.provider);
-            const adapter = createAdapter(genReq.provider, {
-              apiKey,
-              signal,
-              localize: (asset) => localizeGenAsset(asset, { saveAsset: api.saveAsset }),
-              // Task 1.2 — source-asset access for the maskless-edit / i2v flows
-              // (Nano Banana reads the source into an inlineData part). Contained
-              // to assets/ host-side; the adapter never touches the filesystem.
-              readSourceAsset: (rel) => api.readAssetBytes(rel),
-            });
-            const job = await adapter.submit(genReq);
-            const result = await job.result();
-            const assets: string[] = [];
-            for (const asset of result.assets) {
-              // Task 2.6 — a CLOUD STT result (ElevenLabs Scribe / Groq) is
-              // caption TEXT, not media: it lands as a `assets/<sha8>.srt|.vtt`
-              // sidecar next to its source (the SAME path the local whisper verb
-              // writes), never through the magic-byte media store. Everything
-              // else (image/video/audio) localizes into the content-addressed
-              // media store as before.
-              if (asset.kind === 'transcription' && typeof asset.text === 'string') {
-                if (!genReq.sourceAsset)
-                  throw new Error('transcription result has no source asset to sidecar');
-                const fmt = asset.mime === 'text/vtt' ? 'vtt' : 'srt';
-                const saved = await api.writeCaptionSidecar(genReq.sourceAsset, fmt, asset.text);
-                if (!saved.ok || !saved.path)
-                  throw new Error(`caption sidecar write failed: ${saved.error ?? 'unknown'}`);
-                assets.push(saved.path);
-                // #128 §7 — the SRT is reflowed segments; the WORDS go to the same
-                // `assets/<sha8>.transcript.json` the local engine writes, so word-by-word
-                // captions and the Transcript panel work for every engine.
-                const lang = (genReq.params as Record<string, unknown> | undefined)?.language;
-                const kept = persistCloudTranscript(
-                  ctx.paths.designRoot,
-                  {
-                    provider: genReq.provider,
-                    model: genReq.model,
-                    sourceAsset: genReq.sourceAsset,
-                    lang: typeof lang === 'string' ? lang : undefined,
-                  },
-                  asset
-                );
-                if (!kept.path)
-                  console.error(
-                    `[transcribe] no word-timing sidecar for ${genReq.sourceAsset}: ${kept.skipped}`
-                  );
-              } else {
-                assets.push(await localizeGenAsset(asset, { saveAsset: api.saveAsset }));
-              }
-            }
-            // Task 2.5 — record the AUDIO INTENT next to a generated audio asset
-            // (the durable, semantic reuse index) so a later near-identical
-            // request can offer the existing track instead of paying again.
-            if (genReq.modality === 'audio' && assets.length > 0) {
-              const kind = (genReq.params as Record<string, unknown> | undefined)?.audioKind;
-              await api.writeAudioIntent(assets[0], {
-                kind: typeof kind === 'string' ? kind : undefined,
-                prompt: genReq.prompt,
-                provider: genReq.provider,
-                model: genReq.model,
+            try {
+              const apiKey = await getProviderKey(genReq.provider);
+              const adapter = createAdapter(genReq.provider, {
+                apiKey,
+                signal,
+                localize: (asset) => localizeGenAsset(asset, { saveAsset: api.saveAsset }),
+                // Task 1.2 — source-asset access for the maskless-edit / i2v flows
+                // (Nano Banana reads the source into an inlineData part). Contained
+                // to assets/ host-side; the adapter never touches the filesystem.
+                readSourceAsset: (rel) => api.readAssetBytes(rel),
               });
-            }
-            // Task 3.2 — a generated VIDEO clip gets a provenance FootageAnalysis
-            // stub next to it (assets/<sha8>.footage.json), so it is immediately
-            // KNOWN to the footage/reel pipeline: the director sees the clip is
-            // synthetic (the `ai-generated` tag) and what it was made for (the
-            // prompt), and the footage-analyst later fills the real shots. A
-            // sidecar hiccup must NOT lose the (expensive) clip — best-effort.
-            if (genReq.modality === 'video' && assets.length > 0) {
-              try {
-                await footageStore.saveAnalysis(
-                  assets[0],
-                  generatedClipAnalysis(assets[0], {
-                    provider: genReq.provider,
-                    model: genReq.model,
-                    prompt: genReq.prompt,
-                  })
-                );
-              } catch {
-                /* provenance-only — the clip already landed in assets/ */
+              const job = await adapter.submit(genReq);
+              const result = await job.result();
+              const assets: string[] = [];
+              for (const asset of result.assets) {
+                // Task 2.6 — a CLOUD STT result (ElevenLabs Scribe / Groq) is
+                // caption TEXT, not media: it lands as a `assets/<sha8>.srt|.vtt`
+                // sidecar next to its source (the SAME path the local whisper verb
+                // writes), never through the magic-byte media store. Everything
+                // else (image/video/audio) localizes into the content-addressed
+                // media store as before.
+                if (asset.kind === 'transcription' && typeof asset.text === 'string') {
+                  if (!genReq.sourceAsset)
+                    throw new Error('transcription result has no source asset to sidecar');
+                  const fmt = asset.mime === 'text/vtt' ? 'vtt' : 'srt';
+                  const saved = await api.writeCaptionSidecar(genReq.sourceAsset, fmt, asset.text);
+                  if (!saved.ok || !saved.path)
+                    throw new Error(`caption sidecar write failed: ${saved.error ?? 'unknown'}`);
+                  assets.push(saved.path);
+                  // #128 §7 — the SRT is reflowed segments; the WORDS go to the same
+                  // `assets/<sha8>.transcript.json` the local engine writes, so word-by-word
+                  // captions and the Transcript panel work for every engine.
+                  const lang = (genReq.params as Record<string, unknown> | undefined)?.language;
+                  const kept = persistCloudTranscript(
+                    ctx.paths.designRoot,
+                    {
+                      provider: genReq.provider,
+                      model: genReq.model,
+                      sourceAsset: genReq.sourceAsset,
+                      lang: typeof lang === 'string' ? lang : undefined,
+                    },
+                    asset
+                  );
+                  if (!kept.path)
+                    console.error(
+                      `[transcribe] no word-timing sidecar for ${genReq.sourceAsset}: ${kept.skipped}`
+                    );
+                } else {
+                  assets.push(await localizeGenAsset(asset, { saveAsset: api.saveAsset }));
+                }
               }
+              // Task 2.5 — record the AUDIO INTENT next to a generated audio asset
+              // (the durable, semantic reuse index) so a later near-identical
+              // request can offer the existing track instead of paying again.
+              if (genReq.modality === 'audio' && assets.length > 0) {
+                const kind = (genReq.params as Record<string, unknown> | undefined)?.audioKind;
+                await api.writeAudioIntent(assets[0], {
+                  kind: typeof kind === 'string' ? kind : undefined,
+                  prompt: genReq.prompt,
+                  provider: genReq.provider,
+                  model: genReq.model,
+                });
+              }
+              // Task 3.2 — a generated VIDEO clip gets a provenance FootageAnalysis
+              // stub next to it (assets/<sha8>.footage.json), so it is immediately
+              // KNOWN to the footage/reel pipeline: the director sees the clip is
+              // synthetic (the `ai-generated` tag) and what it was made for (the
+              // prompt), and the footage-analyst later fills the real shots. A
+              // sidecar hiccup must NOT lose the (expensive) clip — best-effort.
+              if (genReq.modality === 'video' && assets.length > 0) {
+                try {
+                  await footageStore.saveAnalysis(
+                    assets[0],
+                    generatedClipAnalysis(assets[0], {
+                      provider: genReq.provider,
+                      model: genReq.model,
+                      prompt: genReq.prompt,
+                    })
+                  );
+                } catch {
+                  /* provenance-only — the clip already landed in assets/ */
+                }
+              }
+              return { assets, usage: result.usage };
+            } catch (err) {
+              admitted.refund(); // a job that failed was not paid for
+              throw err;
             }
-            return { assets, usage: result.usage };
           },
         });
         // Don't await the run — the job's own status (GET + the generate:job WS
@@ -6759,6 +6821,7 @@ export function createHttp(
           { status: 202, headers: { 'Cache-Control': 'no-store' } }
         );
       } catch (err) {
+        admitted.refund(); // never queued
         if (err instanceof GenerationQueueFullError)
           return new Response(err.message, { status: 429 });
         throw err;
@@ -6919,6 +6982,19 @@ export function createHttp(
           status: 403,
           headers: { 'Cache-Control': 'no-store' },
         });
+      // The spend limits on paid generation are the PERSON's: set in Settings (a browser page, which sends
+      // Origin), never from a command the AI runs, and only by a session that edits the project.
+      if (
+        'generateSpend' in patch &&
+        (!req.headers.get('origin') || !accessOf(req).can('edit', null))
+      )
+        return Response.json(
+          {
+            error: 'spend-limits-in-settings',
+            message: 'Generation spend limits are changed in Settings › Advanced, by you.',
+          },
+          { status: 403, headers: { 'Cache-Control': 'no-store' } }
+        );
       // V2-8.9 r2 F4 — in a cell any member (a viewer too) could plant swatches every editor then sees and
       // clicks: Recent colours stay in the page there (the Inspector's store keeps them for the page).
       if ('recentColours' in patch && isWorkspaceMode())

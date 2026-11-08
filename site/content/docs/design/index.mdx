@@ -73,6 +73,10 @@ Edits commit on blur and write back to the canvas source, so what you see in the
 
 **Convert children to absolute position.** When a generated flex or grid layout fights your manual tweaks, right-click the container and choose **Advanced › Convert children to absolute position** (Figma's "Remove auto layout"). Every child's box is frozen where it currently sits — rewritten to `position:absolute` — so you can drag them anywhere. One undo reverts the whole conversion. Works on plain containers; repeated (list) or component children are left alone.
 
+## Generating media, and what it costs
+
+`/design:generate` and the Ask AI dialog make pictures, sound and video with your own provider key, so each job costs you money. Maude estimates a job before it is sent (a deliberately high figure, not the invoice) and keeps a running total for the project. Three limits apply, set per Mac in **Settings › Advanced › Generation spend**: **$2 per session**, **$10 per day**, and **ask me before a single job over $1**. Over a session or day limit the job is stopped with nothing sent and nothing charged, and the message names the limit. A single job over the ask amount waits for your OK in Maude: the card shows the estimate, and `maude design generate` exits with "needs your OK" until you approve it there. AI cannot raise the limits or approve a job from a command; only the Settings page can.
+
 ## Dev server runtime files
 
 The server writes three runtime files into `<designRoot>/` that orchestrator commands rely on:

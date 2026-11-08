@@ -27,6 +27,7 @@ import { readGen } from '../generation/gen-sidecar.ts';
 import { type GenerationJobQueue, GenerationQueueFullError } from '../generation/jobs.ts';
 import { configuredProviders, getProviderKey } from '../generation/keys.ts';
 import { createAdapter, getProviderModels, providersForModality } from '../generation/registry.ts';
+import { estimateJobCost, type SpendGuard } from '../generation/spend.ts';
 import {
   aspectFor,
   COMMON_RATIOS,
@@ -83,6 +84,8 @@ export interface GenerateRouteDeps {
   concurrency: number;
   quotes: Quotes;
   groups: TakeGroups;
+  /** the spend cap (generation/spend.ts); absent = no cap (a test that builds its own deps) */
+  spend?: SpendGuard;
   /** run ONE take: resolve the key at run time, submit, land the result in assets/ */
   submit(req: GenRequest, signal: AbortSignal): Promise<{ assets: string[] }>;
   /** read a designRoot-relative text file (`assets/<sha8>.gen.json`), or null */
@@ -213,6 +216,10 @@ export function createGenerateRoutes(deps: GenerateRouteDeps): RouteSpec[] {
           aspect,
           artboard: { id: t.artboard, label: t.label },
           seconds: Math.round(seconds),
+          estimateUsd: estimateJobCost(
+            { modality: 'image', provider: p.descriptor.id, model: model.id },
+            n
+          ),
           lines: consentLines(p.descriptor, seconds),
         });
       },
@@ -256,6 +263,19 @@ export function createGenerateRoutes(deps: GenerateRouteDeps): RouteSpec[] {
           return json(409, { ok: false, reason: 'no-consent' });
         const chosen = pick(deps, { provider, model });
         if (!chosen) return json(409, { ok: false, reason: 'no-provider' });
+        // The spend cap. The quote the person just accepted IS the confirm for these takes (the app's consent
+        // card), so only the per-run and per-day caps apply; the whole group is counted up front and a take
+        // that fails gives its share back.
+        const each = estimateJobCost({ modality: 'image', provider, model });
+        const admitted = deps.spend?.admit({
+          key: `takes:${provider}:${model}:${n}`,
+          estimate: each * n,
+          confirmed: true,
+        });
+        if (admitted && !admitted.ok) {
+          const { status, ...why } = admitted;
+          return json(status, why);
+        }
         try {
           const g = deps.groups.start({
             prompt,
@@ -266,21 +286,28 @@ export function createGenerateRoutes(deps: GenerateRouteDeps): RouteSpec[] {
             target: { canvas: t.canvas, artboard: t.artboard },
             licence: chosen.p.descriptor.licence ?? null,
             by: deps.displayName?.(req) ?? null,
-            run: (take, signal) =>
-              deps.submit(
-                {
-                  modality: 'image',
-                  provider,
-                  model,
-                  prompt,
-                  aspectRatio: aspect,
-                  params: { take },
-                },
-                signal
-              ),
+            run: async (take, signal) => {
+              try {
+                return await deps.submit(
+                  {
+                    modality: 'image',
+                    provider,
+                    model,
+                    prompt,
+                    aspectRatio: aspect,
+                    params: { take },
+                  },
+                  signal
+                );
+              } catch (err) {
+                if (admitted?.ok) admitted.refund(each);
+                throw err;
+              }
+            },
           });
           return json(202, { ok: true, group: g.group, jobIds: g.jobIds, n: g.n });
         } catch (err) {
+          if (admitted?.ok) admitted.refund();
           if (err instanceof GenerationQueueFullError)
             return json(429, { ok: false, reason: 'busy', message: err.message });
           throw err;
@@ -365,6 +392,8 @@ export interface GenerateLiveDeps {
   access(req: Request): Access;
   artboard: GenerateRouteDeps['artboard'];
   jobs: GenerationJobQueue;
+  /** the spend cap */
+  spend?: SpendGuard;
   /** api.saveAsset — magic-byte sniff + content address (DDR-088) */
   saveAsset: LocalizeDeps['saveAsset'];
   emit?(g: TakeGroup): void;
@@ -411,6 +440,7 @@ export function generateDepsFor(o: GenerateLiveDeps): GenerateRouteDeps {
     concurrency: Math.max(1, Number(process.env.MAUDE_GENERATE_MAX_CONCURRENT) || 2),
     quotes: createQuotes(),
     groups,
+    spend: o.spend,
     submit: async (req, signal) => {
       // the key is resolved AT RUN TIME, never cached; the adapter never touches the filesystem
       const apiKey = await getProviderKey(req.provider);

@@ -440,6 +440,11 @@ export function createWs(
   // (queued → running → done/failed). Same privileged-data class + snapshot
   // shape as export:job; the notification center reuses the export-center chrome.
   ctx.bus.on('generate:job', (job: unknown) => broadcast({ type: 'generate:job', payload: job }));
+  // A paid generation above the person's confirm threshold waits for their OK (generation/spend.ts): the app
+  // shows a card with Approve / Not now. Amount + plain words only — never a prompt or a key.
+  ctx.bus.on('generate:approval', (a: unknown) =>
+    broadcast({ type: 'generate:approval', payload: a })
+  );
 
   // HMR broadcaster — turns fs:any change events into `canvas-hmr` messages.
   // The iframe-side client (in _shell.html) decides reload strategy from `mode`.
