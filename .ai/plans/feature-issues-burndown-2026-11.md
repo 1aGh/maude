@@ -282,15 +282,15 @@ W5 and W6 use Opus.
   - the branch-mismatch warning;
   - the handover when the desktop opens a root the CLI already serves (fixes the `sidecar.rs:419-441` delete race).
   - **Ask Michal** to approve the first-open consent before T6.3.
-- [ ] T6.3 Build:
+- [x] T6.3 Build:
   - reuse the desktop sidecar;
   - `maude design open` focuses the tab;
   - worktree tabs, counted against `RUNNING_CAP` and reaped on close.
-- [ ] T6.4 E2E:
+- [x] T6.4 E2E:
   - same root: one server, no browser;
   - worktree: a labelled tab that is reaped on close;
   - no desktop: today's fallback.
-- [ ] T6.5 **#208:**
+- [x] T6.5 **#208:**
   - read the private report attachments (logs, screenshots) as data;
   - reproduce on the Linux lane (D12);
   - fix the child-webview bounds on GTK (`tabs.rs:521` `layout`, `set_bounds`) and the zoom / pan fault;
@@ -393,3 +393,4 @@ W5 and W6 use Opus.
 - 2026-11-08 merged 122-A 876881be7 (freeRefsOf incl. JSX tags, clip-carry with rename on clash, importAllowed C4 check, artboard.cut as one Trash write; >32 carried items refuse only at a cross-canvas paste; one refusal message for any disallowed carried import). Not carried: side-effect CSS imports.
 - 2026-11-08 merged 122-B (abe93a2ec 7b909555c): artboard.cut ⌘X, artboard menu Cut/Copy/Paste, clip-words, cloud-tab refusal; e2e clipboard-cross-canvas X1–X3 green. 122-C (cross-project) next.
 - 2026-11-08 merged T6.5 91afb756d (#208 cause: Tauri packs child webviews into the GTK vbox with expand, set_bounds is a no-op there → strip and tab each took half; fix: Linux-only packing, strip 38 px, tab grows; new linux-shell-lane.yml (ubuntu-22.04, Xvfb, harness example) — first run on the wave push). Zoom/pan: partly explained (strip swallowed input); touchpad pinch on WebKitGTK unverified.
+- 2026-11-08 merged T6.3g (8898fff67 49605d870 73a0f013f): Home Worktrees row (open_worktree by pid, home-only), every sign-in from a worktree tab refused 'Sign in from <main>' (contract reading; lead accepted), Move to cloud refused server-side, cli-reuse takeover case. #206 built; the cli-reuse lane run is owed in T9.1. T6.3/T6.4/T6.5 ticked (Linux lane first runs on push).
