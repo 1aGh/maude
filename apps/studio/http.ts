@@ -6122,7 +6122,7 @@ export function createHttp(
           { status: result.status ?? 400, headers: { 'Cache-Control': 'no-store' } }
         );
       }
-      await recordUploadAdded(req, result.path);
+      if (result.path) await recordUploadAdded(req, result.path);
       return Response.json(
         { path: result.path },
         { status: 201, headers: { 'Cache-Control': 'no-store' } }
@@ -6206,7 +6206,7 @@ export function createHttp(
           { status: result.status ?? 400, headers: { 'Cache-Control': 'no-store' } }
         );
       }
-      await recordUploadAdded(req, result.path);
+      if (result.path) await recordUploadAdded(req, result.path);
       return Response.json(
         { path: result.path },
         { status: 201, headers: { 'Cache-Control': 'no-store' } }
