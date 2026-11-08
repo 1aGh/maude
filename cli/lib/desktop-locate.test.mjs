@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   appDataRegistryPath,
+  cleanName,
   ensureDesktop,
   isAppPid,
   locateDesktop,
@@ -400,6 +401,41 @@ describe('the app socket (ensure / show)', () => {
     next = { status: 'refused', reason: 'branch-changed-unsent' };
     const b = await ensureDesktop(root, { env: env() });
     assert.equal(b.state, 'refused');
+    reset();
+  });
+
+  test('too many sheets → fallback with a line that says what to do', async () => {
+    const root = project();
+    reset();
+    writeRegistry(REG, []);
+    await fakeSocket(join(REG_DIR, 'cli.sock'), () => ({
+      status: 'refused',
+      reason: 'too-many-sheets',
+    }));
+    const r = await ensureDesktop(root, { env: env() });
+    assert.equal(r.state, 'fallback');
+    assert.equal(r.reason, 'too-many-sheets');
+    assert.match(r.line, /separate server/);
+    assert.match(r.line, /Open project/);
+    reset();
+  });
+
+  test('a branch-changed warning prints no bidi or invisible characters', async () => {
+    const root = project();
+    const s = await fakeServer({ rootId: rootIdOf(root) });
+    reset();
+    writeRegistry(REG, [running(root, s.port)]);
+    await fakeSocket(join(REG_DIR, 'cli.sock'), () => ({
+      status: 'running',
+      port: s.port,
+      warning: { kind: 'branch-changed', was: 'ma\u202ein\u200b', now: 'fe\u2066at\u2069\nx' },
+    }));
+    const lines = [];
+    await ensureDesktop(root, { env: env(), log: (l) => lines.push(l) });
+    const w = lines.find((l) => l.includes('switched from'));
+    assert.ok(w, lines.join('|'));
+    assert.ok(w.includes('from main to feat x'), w);
+    assert.equal(cleanName('a\u00adb\u{e0041}c\ufeff'), 'abc');
     reset();
   });
 
