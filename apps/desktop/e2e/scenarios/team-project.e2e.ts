@@ -21,6 +21,7 @@ import {
   signInOnHubPage,
 } from '../helpers/hub-signin-page';
 import { isNativeShell } from '../helpers/native';
+import { waitShown } from '../helpers/poll';
 import { waitForSidecar } from '../helpers/sidecar';
 import { openSwitcher } from '../helpers/switcher';
 import { canvasRow } from '../helpers/tree';
@@ -297,7 +298,7 @@ describe('team-project (native-desktop)', () => {
       browser as unknown as { tauri?: { switchWindow(l: string): Promise<unknown> } }
     ).tauri?.switchWindow(HOME);
     expect(await isNativeShell()).toBe(true);
-    await (await $(tid('signin-card'))).waitForDisplayed({ timeout: 180_000 });
+    await waitShown(tid('signin-card'), 180_000);
     await (await $(tid('signin-advanced'))).click();
     const row = await $(tid('signin-adv-hub'));
     await row.waitForDisplayed({ timeout: 5_000 });
@@ -361,8 +362,10 @@ describe('team-project (native-desktop)', () => {
     await browser.switchToWindow(created);
     await pinCurrentWindow();
     await waitForSidecar();
-    await (await canvasRow('canvas-row-ui-welcome')).waitForDisplayed({ timeout: 120_000 });
-    await (await canvasRow('canvas-row-screens-home')).waitForDisplayed({ timeout: 60_000 });
+    await canvasRow('canvas-row-ui-welcome'); // waits (30 s) for the row to exist, expanding the tree
+    await waitShown(tid('canvas-row-ui-welcome'), 120_000);
+    await canvasRow('canvas-row-screens-home');
+    await waitShown(tid('canvas-row-screens-home'), 60_000);
     await capture('03h-home-project-open');
     const copy = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
     await eventually('the welcome canvas on disk in the managed copy', () => read(copy) !== null);
@@ -613,8 +616,7 @@ describe('team-project (native-desktop)', () => {
     // Menu › Diagnostics › Sync shows the Sync panel (the status bar's chip is gone — V2-4.8b).
     await openSyncDetails();
     await settleMotion();
-    const again = await $(tid('sync-signin-again'));
-    await again.waitForDisplayed({ timeout: 90_000 }).catch(async (error) => {
+    await waitShown(tid('sync-signin-again'), 90_000).catch(async (error) => {
       await capture('10-access-removed-no-sign-in-again');
       const seen = await browser.execute(() => ({
         note: document.querySelector('.sp-note')?.textContent ?? null,
@@ -632,7 +634,7 @@ describe('team-project (native-desktop)', () => {
     // to open and walks the browser's hops itself: the page, the password form, the hand-off
     // back to the tab's own loopback server.
     expect((await admin('/users/enable')).status).toBe(200);
-    await again.click();
+    await (await $(tid('sync-signin-again'))).click();
     await (await $(tid('team-hub-open'))).waitForDisplayed({ timeout: 10_000 });
     const url = await $(tid('team-hub-url'));
     if (!(await url.getValue())) await url.setValue(t.hub);
@@ -736,8 +738,7 @@ describe('team-project (native-desktop)', () => {
     writeFileSync(mine, canvas('Welcome, mine right after'));
 
     await openSyncDetails();
-    const card = await $(tid('diag-sync-conflict-ui-welcome'));
-    await card.waitForDisplayed({ timeout: 120_000 }).catch(() => {
+    await waitShown(tid('diag-sync-conflict-ui-welcome'), 120_000).catch(() => {
       const h1 = (p: string) => /<h1[^>]*>([^<]*)</.exec(read(p) ?? '')?.[1] ?? '(none)';
       const held = (root: string) =>
         JSON.stringify((syncFileOf(root)?.conflicts ?? []).map((c) => c.slug));
@@ -745,6 +746,7 @@ describe('team-project (native-desktop)', () => {
         `no conflict card here — this Mac: "${h1(mine)}" holds ${held(t.managedDir)}; teammate: "${h1(theirs)}" holds ${held(t.teammate)}`
       );
     });
+    const card = await $(tid('diag-sync-conflict-ui-welcome'));
     expect(await card.getText()).toContain('changed here and in the cloud.');
     expect(await card.getText()).toContain('Both versions are kept until you choose.');
     expect(await (await $(tid('diag-sync-need-word'))).getText()).toMatch(/need(s)? you/);
@@ -922,7 +924,7 @@ describe('team-project (native-desktop)', () => {
       made = canvasesIn(t.managedDir).find((c) => !before.includes(c)) ?? '';
       return made !== '';
     });
-    await (await $(tid('empty-canvas'))).waitForDisplayed({ timeout: 60_000 });
+    await waitShown(tid('empty-canvas'), 60_000);
     expect(canvasesIn(t.teammate)).not.toContain(made);
 
     // Ask AI stays on; the prompt waits in the outbox on the `hub` gate
@@ -1013,7 +1015,7 @@ describe('team-project (native-desktop)', () => {
       () => !intentsOf(t.managedDir).some((r) => r.kind === 'ai.prompt' && r.state === 'queued'),
       120_000
     );
-    await (await $(tid('ai-queued-line'))).waitForExist({ reverse: true, timeout: 60_000 });
+    await waitShown(tid('ai-queued-line'), 60_000, { exist: true, reverse: true });
     await capture('24-back-online-prompt-sent');
   });
 

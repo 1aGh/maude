@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { waitShown } from '../helpers/poll';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -73,8 +74,7 @@ describe('file-tree-move (native-desktop / WKWebView)', () => {
     await browser.setTimeout({ script: 60_000 });
     await waitForSidecar();
 
-    const list = await $('[data-testid="canvas-list"]');
-    await list.waitForDisplayed({ timeout: 120_000 });
+    await waitShown('[data-testid="canvas-list"]', 120_000);
     const smokeRow = await canvasRow('canvas-row-ui-smoke');
     await smokeRow.waitForDisplayed({ timeout: 30_000 });
     await capture('booted-with-smoke-canvas');

@@ -3,6 +3,7 @@ import { $, $$, browser, expect } from '@wdio/globals';
 import { openHistory } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
+import { waitShown } from '../helpers/poll';
 import { waitForSidecar } from '../helpers/sidecar';
 
 /**
@@ -37,8 +38,7 @@ describe('git-branch-switcher (native-desktop)', () => {
     expect(url).toMatch(/^http:\/\/(localhost|127\.0\.0\.1):\d+/);
 
     // 2 — the shell renders AT ALL (the project dock is up).
-    const trigger = await $('[data-testid="repo-switcher-trigger"]');
-    await trigger.waitForDisplayed({ timeout: 120_000 });
+    await waitShown('[data-testid="repo-switcher-trigger"]', 120_000);
     await capture('booted-into-git-repo');
 
     // 3 — confirm we're in the real native shell (now that the shell has mounted)
