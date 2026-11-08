@@ -177,6 +177,9 @@ describe('every helper that opens a page arms the park before its first open', (
     expect(src).toMatch(/process\.on\('exit', parkSession\)/);
     expect(src).toContain("[['open', 'about:blank'], ['close']]");
     // armed before the first open
-    expect(src.indexOf('opened = true;')).toBeLessThan(src.indexOf("ab(['open', opts.url])"));
+    // (the open's output is silenced since the loopback log redaction: `ab([...], true)`)
+    const open = src.indexOf("ab(['open', opts.url]");
+    expect(open).toBeGreaterThan(-1);
+    expect(src.indexOf('opened = true;')).toBeLessThan(open);
   });
 });
