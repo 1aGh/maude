@@ -113,6 +113,14 @@ import {
   sandboxFailureClass,
   withBuildSlot,
 } from './canvas-build-sandbox.ts';
+import {
+  invalidateSharedCanvasLib,
+  SHARED_LIB_SLUG_RE,
+  type SharedCanvasLib,
+  sharedCanvasLib,
+  sharedCanvasLibByHash,
+  withSharedCanvasLib,
+} from './canvas-lib-module.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
 import { budgetFromEnv, createModuleCache, moduleBytes } from './canvas-module-cache.ts';
 import { TranspileError } from './canvas-pipeline.ts';
@@ -902,6 +910,24 @@ export type CanvasInputsGate = ((inputs: readonly string[], entry: string) => Re
 // boot id in means a restart — the expected workflow after a dev-server source
 // edit (see CLAUDE.md) — changes every canvas etag, so a normal reload re-fetches
 // fresh chrome. (DDR-067.)
+/**
+ * #169 T8.1c — the shared `@maude/canvas-lib` module (canvas-lib-module.ts) for a canvas build served
+ * on this server, or null to inline canvas-lib as before: in a cell (the sandboxed build keeps
+ * inlining), with `MAUDE_SHARED_CANVAS_LIB=0`, or when the shared build failed. The shell maps the
+ * specifier under exactly the same answer (`serveCanvasShell`), which is sticky per chrome version,
+ * so a module that imports it is only ever served beside a shell that maps it.
+ */
+async function sharedLibForCanvas(): Promise<SharedCanvasLib | null> {
+  if (isWorkspaceMode() || process.env.MAUDE_SHARED_CANVAS_LIB === '0') return null;
+  return sharedCanvasLib().catch((err) => {
+    console.warn(
+      '[canvas-lib] shared module unavailable, inlining:',
+      err instanceof Error ? err.message : err
+    );
+    return null;
+  });
+}
+
 /** When this server process started — anything it wrote is stamped after it. */
 const PROCESS_STARTED_AT = Date.now();
 const RUNTIME_BOOT_ID = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -1075,8 +1101,10 @@ export async function serveCanvasTsx(
     try {
       // 2.0.7 (#3) — in one of the server's build slots, like the sandbox's workers: a design system
       // opening asks for many builds at once, and each in-process Bun.build holds its own module graph.
+      const sharedLib = await sharedLibForCanvas();
       result = await withBuildSlot(() =>
         buildCanvasModule(absPath, source, {
+          ...(sharedLib ? { sharedCanvasLib: sharedLib } : {}),
           designRoot: ctx.paths.designRoot,
           // UNCONDITIONAL, desktop included (feature-sync-file-plane, Task 9 —
           // the binding debate's CONDITION on the `code-module` class): a
@@ -1387,8 +1415,10 @@ async function serveHistoricalCanvas(
     const css = await laneAtRef(versionReaders(ctx), repoRel, sha, 'css', from);
     const cssSig = css == null ? todayCssSig(absPath) : null;
     try {
+      const sharedLib = await sharedLibForCanvas();
       const result = await withBuildSlot(() =>
         buildCanvasModule(absPath, source, {
+          ...(sharedLib ? { sharedCanvasLib: sharedLib } : {}),
           overrides: cssOverridesFor(absPath, css),
           designRoot: ctx.paths.designRoot,
           // Same unconditional allowlist as the live build above — a HISTORICAL
@@ -1706,6 +1736,7 @@ export function createHttp(
   ctx.bus.on('fs:any', (rel: string) => {
     if (rel.startsWith('_lib/')) {
       canvasCache.clear();
+      invalidateSharedCanvasLib();
       CHROME_EPOCH++;
     }
   });
@@ -1714,6 +1745,7 @@ export function createHttp(
   try {
     libWatcher = watch(canvasLibPath(), () => {
       canvasCache.clear();
+      invalidateSharedCanvasLib();
       CHROME_EPOCH++;
       ctx.bus.emit('fs:any', '_lib/canvas-lib.tsx');
     });
@@ -7343,6 +7375,23 @@ export function createHttp(
       // built once on first request, cached in-process for the session.
       if (pathname.startsWith('/_canvas-runtime/')) {
         const slugWithExt = decodeURIComponent(pathname.slice('/_canvas-runtime/'.length));
+        // #169 T8.1c — the shared canvas-lib module, by the content hash the shell's importmap
+        // names (the current build or one of the last few). Immutable: new bytes get a new URL.
+        const libHash = SHARED_LIB_SLUG_RE.exec(slugWithExt)?.[1];
+        if (libHash) {
+          const lib = sharedCanvasLibByHash(libHash);
+          if (!lib) return new Response('Not found', { status: 404 });
+          const etag = `"${lib.hash}"`;
+          const headers = {
+            'Content-Type': 'application/javascript; charset=utf-8',
+            ETag: etag,
+            'Cache-Control': 'public, max-age=31536000, immutable',
+            'X-Content-Type-Options': 'nosniff',
+          };
+          if (req.headers.get('if-none-match') === etag)
+            return new Response(null, { status: 304, headers });
+          return new Response(lib.bytes, { status: 200, headers });
+        }
         const pkg = packageForSlug(slugWithExt);
         if (!pkg) return new Response('Not found', { status: 404 });
         try {
@@ -7805,10 +7854,14 @@ export function createHttp(
     const mountV = (await mount.exists())
       ? `?v=${mount.size.toString(16)}-${Math.trunc(mount.lastModified).toString(16)}`
       : '';
-    const shellHtml = (await Bun.file(join(TEMPLATES_DIR, '_shell.html')).text()).replace(
+    const template = (await Bun.file(join(TEMPLATES_DIR, '_shell.html')).text()).replace(
       "'/_client/comment-mount.js'",
       `'/_client/comment-mount.js${mountV}'`
     );
+    // #169 T8.1c — `@maude/canvas-lib` → the shared module, under the same answer the canvas builds
+    // get (`sharedLibForCanvas`); before the CSP hashes the importmap script.
+    const sharedLib = await sharedLibForCanvas();
+    const shellHtml = sharedLib ? withSharedCanvasLib(template, sharedLib.url) : template;
     // Inject inspector overlay — Cmd+Click selection + add-comment flow, then the canvas
     // system's schema fallbacks (V2-1.13 §5.5 P-2: only the roles/classes it never declares,
     // inline — both canvas CSPs allow inline styles, so no new route).
