@@ -5,7 +5,12 @@ import { SYSTEM_TAB, isModuleCanvasPath } from '../shell/constants.js';
 import { acceptCanvasNotice } from '../../canvas-notice-message.ts';
 import { acceptFromCanvas, C2S_ACTIVE, DGN_TABLE } from '../../bridge/dgn-protocol.ts';
 import { layersSlot } from '../v2/inspector/layers-slot.jsx';
-import { notify, notifyCanvasText, notifyCanvasTriggered } from '../../notifications.tsx';
+import {
+  notify,
+  notifyCanvasText,
+  notifyCanvasTriggered,
+  setCanvasPopoverOpen,
+} from '../../notifications.tsx';
 import { isNativeApp } from '../github.js';
 import {
   annotationScopeOf,
@@ -178,6 +183,8 @@ export function useCanvasBridge({
   const newArtboardSelect = useRef(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: activePath is the trigger — another canvas, drop the ladder
   useEffect(() => () => newArtboardSelect.current?.(), [activePath]);
+  // #170 — a popover belongs to the canvas that said it: switching tabs (or closing the last) puts the toasts back
+  useEffect(() => () => setCanvasPopoverOpen(false), [activePath]);
   // S7.22 — the inspector's "Show on canvas" is the person's own view state (view.json, already stored); this tells the
   // open canvas to redraw its safe zones now. Only that one boolean is forwarded, and only to the canvas it names.
   useEffect(() => {
@@ -240,6 +247,16 @@ export function useCanvasBridge({
       // IT holds for the open tab and toasts the result; the message carries nothing
       if (m.dgn === 'copy-canvas-path') {
         menuRunner.run('canvas.copy-file-path');
+        return;
+      }
+      // #170 (T2.4b) — a toolbar popover opened / closed in the active canvas (checked above): the toast stack steps
+      // out of the dock while one is open. Only the parsed boolean reaches the store.
+      if (m.dgn === 'toolbar-popover') {
+        const msg = acceptFromCanvas(e, {
+          canvasOrigin: expectedOrigin,
+          active: iframesRef.current.get(activePath)?.contentWindow,
+        });
+        if (msg) setCanvasPopoverOpen(msg.open);
         return;
       }
       // rc3 r4-12 — a press in the active canvas: the shell's open menus close on it (use-dismiss-outside.js)

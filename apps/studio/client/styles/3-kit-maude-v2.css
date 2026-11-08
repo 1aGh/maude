@@ -238,6 +238,22 @@
     gap: 2px;
     padding: var(--space-1) var(--space-1) 2px;
   }
+  /* #170 R29: the body eases open (it mounts on open, so this runs once per opening) instead of snapping in */
+  @media (prefers-reduced-motion: no-preference) {
+    :where(.maude) .k-adv-body {
+      animation: k-adv-open var(--dur-soft) var(--ease-out);
+    }
+  }
+  @keyframes k-adv-open {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 
   /* ─── Switch (_components.css .switch) — Phase 8 C1-kit: ONE switch ───
      The shell had four (Canvases `.lp-switch` 30×18 with an fg-0 knob — black in light; Settings

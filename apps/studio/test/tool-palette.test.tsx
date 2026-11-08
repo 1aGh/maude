@@ -429,8 +429,10 @@ afterEach(() => {
   _resetReadOnlyCache();
 });
 
-// the provider also tells the shell its cursor on every tool change; that is not this toolbar's post
-const verbs = () => shellPosts.filter((m) => m.dgn !== 'tool-cursor');
+// the provider also tells the shell its cursor on every tool change, and the toolbar says when a popover opens or
+// closes (#170, gate-170-toolbar-popover-toast.test.tsx); neither is a verb
+const verbs = () =>
+  shellPosts.filter((m) => m.dgn !== 'tool-cursor' && m.dgn !== 'toolbar-popover');
 const q = (testid: string) => document.querySelector<HTMLElement>(`[data-testid="${testid}"]`);
 const slotIds = () =>
   [...document.querySelectorAll('[data-testid^="toolbar-slot-"]')].map((e) =>

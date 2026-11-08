@@ -388,12 +388,20 @@ describe('"?" — the shortcuts sheet', () => {
   });
 
   test('the Advanced fold holds View › Advanced and Diagnostics keys with their path', () => {
-    const inspector = sheet.advanced.find((r) => r.id === 'view.inspector');
-    expect(inspector?.path).toBe('Menu › View › Advanced › Inspector');
+    const keep = sheet.advanced.find((r) => r.id === 'view.timeline-keep-open');
+    expect(keep?.path).toBe('Menu › View › Advanced › Keep timeline open');
     expect(sheet.advanced.find((r) => r.id === 'canvas.reload')?.path).toBe(
       'Menu › Diagnostics › Reload canvas'
     );
-    expect(sheet.groups.flatMap((g) => g.rows).some((r) => r.id === 'view.inspector')).toBe(false);
+    expect(
+      sheet.groups.flatMap((g) => g.rows).some((r) => r.id === 'view.timeline-keep-open')
+    ).toBe(false);
+  });
+
+  test('#170 R25: the Inspector left View › Advanced — ⇧⌘I is a Panels and AI row', () => {
+    expect(sheet.advanced.some((r) => r.id === 'view.inspector')).toBe(false);
+    const panels = sheet.groups.find((g) => g.id === 'panels-ai');
+    expect(panels?.rows.some((r) => r.id === 'view.inspector')).toBe(true);
   });
 
   test('"Keys and tools that moved" lists CONTRACT §2 old → new, with live keys', () => {

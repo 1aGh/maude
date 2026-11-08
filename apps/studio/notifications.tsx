@@ -177,10 +177,27 @@ export function summarizeNoticeText(text: unknown): string {
   return compact.length > 280 ? `${compact.slice(0, 279)}…` : compact;
 }
 
+// #170 (T2.4b) — a toolbar popover is open inside the active canvas (`toolbar-popover`, use-canvas-bridge.jsx). The
+// popovers open upward into the dock, so while one is open the toast stack steps to the top instead of covering it.
+let canvasPopoverOpen = false;
+const popoverListeners = new Set<() => void>();
+export function setCanvasPopoverOpen(open: boolean): void {
+  if (canvasPopoverOpen === open) return;
+  canvasPopoverOpen = open;
+  for (const l of popoverListeners) l();
+}
+function subscribePopover(l: () => void): () => void {
+  popoverListeners.add(l);
+  return () => popoverListeners.delete(l);
+}
+const popoverSnapshot = () => canvasPopoverOpen;
+
 /** ONE rule (v2-p8-c4-toast-dock-or-top): the pill sits in the dock — bottom-centre above the canvas toolbar —
  *  unless the caller says it is a state of the app (`placement: 'top'`) or the video timeline occupies the dock
- *  (07: Split / Captions added), where a bottom pill would cover it. */
-function noticePlacement(entry: Notice): 'top' | 'bottom' {
+ *  (07: Split / Captions added), where a bottom pill would cover it. A canvas toolbar popover open in the dock
+ *  (#170) moves every pill to the top while it is open — it is transient, and covering it is the bug. */
+export function noticePlacement(entry: Notice): 'top' | 'bottom' {
+  if (canvasPopoverOpen) return 'top';
   if (entry.placement) return entry.placement;
   return typeof document !== 'undefined' && document.querySelector('.tl-track') ? 'top' : 'bottom';
 }
@@ -253,6 +270,8 @@ function MountedNotice({
   paused: boolean;
 }) {
   const duration = noticeDuration(entry);
+  // #170 — re-place a shown pill when a canvas popover opens or closes (Sonner moves a toast whose id it knows)
+  const popoverOpen = useSyncExternalStore(subscribePopover, popoverSnapshot, popoverSnapshot);
   const presentationId = useRef<string | null>(null);
   const remaining = useRef(duration);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new lifecycle phase gets a fresh duration.
@@ -272,6 +291,7 @@ function MountedNotice({
   }, [visible, paused, entry.paused, duration, entry.timerKey, entry.id]);
   // Sonner invokes onDismiss even for programmatic removal. Invalidate the
   // presentation before hiding so opening history never acknowledges a job.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: popoverOpen re-runs the placement (read inside noticePlacement)
   useEffect(() => {
     if (visible) {
       const token = presentationId.current ?? `${entry.id}:view-${++sequence}`;
@@ -289,7 +309,7 @@ function MountedNotice({
       presentationId.current = null;
       toast.dismiss(token);
     }
-  }, [entry, visible]);
+  }, [entry, visible, popoverOpen]);
   useEffect(
     () => () => {
       const token = presentationId.current;
