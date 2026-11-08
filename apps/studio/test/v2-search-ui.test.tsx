@@ -435,8 +435,9 @@ describe('"?", the real sheet', () => {
     );
     expect(el.querySelector('[data-testid="shortcuts-moved"]')?.textContent).toContain('Pen B');
     expect(
-      el.querySelector('[data-testid="shortcuts-row-view.inspector"] .so-adv-path')?.textContent
-    ).toBe('Menu › View › Advanced › Inspector');
+      el.querySelector('[data-testid="shortcuts-row-view.timeline-keep-open"] .so-adv-path')
+        ?.textContent
+    ).toBe('Menu › View › Advanced › Keep timeline open');
   });
 
   test('"Find a shortcut" narrows by the ⌘K fold, and says when nothing matches', async () => {

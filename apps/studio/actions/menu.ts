@@ -78,9 +78,14 @@ export const PROJECT_MENU: readonly MenuNode[] = [
     submenu: 'View',
     items: [
       { id: 'view.panels' },
+      // #170 R25 (D15): View names what it shows — Layers and the Inspector are first-level rows (the
+      // Inspector was under Advanced), and the AI chat has a row. Layers as a panel stays an Advanced switch.
+      { id: 'view.layers' },
+      { id: 'view.inspector' },
       { id: 'view.comments' },
       { id: 'view.assets' },
       { id: 'view.exports' },
+      { id: 'ai.chat' },
       { id: 'view.annotations' },
       // 2.0.7 B2 — Canvas | Pages (the pill's switch): checked while the canvas shows one artboard at a time
       { id: 'view.pages' },
@@ -102,7 +107,6 @@ export const PROJECT_MENU: readonly MenuNode[] = [
         advanced: true,
         items: [
           { id: 'view.layers-panel' },
-          { id: 'view.inspector' },
           { id: 'view.inspector-on-select' },
           { id: 'view.timeline-keep-open' },
           { id: 'view.minimap' },

@@ -354,6 +354,11 @@ export function createMenuHandlers(d) {
     'image.next-take': () => void runTakeStepNow('next'),
     'image.prev-take': () => void runTakeStepNow('prev'),
     'view.layers-panel': () => d.onToggleLayersMode(),
+    // #170 R25 — View › Layers: the Layers panel, or the Inspector when Layers lives inside it (the switch above)
+    'view.layers': () => {
+      panelLayout.show();
+      d.toggleRightPanel(d.layersMode === 'in-inspector' ? 'inspector' : 'layers');
+    },
     'view.trash': () => {
       panelLayout.show();
       d.openPanelExclusive('tree');

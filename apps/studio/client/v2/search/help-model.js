@@ -36,6 +36,8 @@ const HELP_FALLBACK = Object.freeze({
   'view.annotations': 'canvas',
   'view.panels': 'panels-ai',
   'view.comments': 'panels-ai',
+  // #170 R25 — the Inspector left View › Advanced, so its ⇧⌘I sits with the other panels
+  'view.inspector': 'panels-ai',
   'view.assets': 'panels-ai',
   'view.design-system': 'panels-ai',
   'ai.chat': 'panels-ai',
