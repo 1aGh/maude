@@ -16,7 +16,7 @@
 
 import { readFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { ensureDesktop } from './desktop-locate.mjs';
+import { ensureDesktop, waitDesktop } from './desktop-locate.mjs';
 import { DESIGN_REL, findProjectRoot, locateStudio, postStudio } from './studio-locate.mjs';
 
 export const OPEN_USAGE = `usage: maude design open <canvas>[#artboard][@element] [--mode edit|preview|present]
@@ -162,12 +162,24 @@ async function openPanel({ root, panel, json, out, err }) {
   return 0;
 }
 
+/** POST /_api/ui/open to a tab that may not have its page connected yet (409): retry ≤ 10 s. */
+async function postUntilWindow(port, payload, { waitMs = 10_000, pollMs = 500 } = {}) {
+  const studio = { port, base: `http://127.0.0.1:${port}` };
+  const until = Date.now() + waitMs;
+  for (;;) {
+    const r = await postStudio(studio, '/_api/ui/open', payload);
+    if (r?.status !== 409 || Date.now() >= until) return r;
+    await new Promise((res) => setTimeout(res, pollMs));
+  }
+}
+
 export async function runOpen({
   words,
   env = process.env,
   cwd = process.cwd(),
   out = process.stdout,
   err = process.stderr,
+  showFollowUpMs = 45_000,
 }) {
   if (words.includes('--help') || words.includes('-h')) {
     out.write(OPEN_USAGE);
@@ -210,7 +222,8 @@ export async function runOpen({
   const where = `${canvas}${payload.artboard ? `#${payload.artboard}` : ''}${payload.element ? `@${payload.element}` : ''}`;
   // #206 T6.3d (contract §4 `show`): while the desktop app runs, it brings the project's tab to the
   // front (opening it, asking the person once for a new folder) and shows the canvas there. No app,
-  // or no socket yet → the running studio, as before. A `--select` still goes to the studio after.
+  // or no socket yet → the running studio, as before. The app routes only the canvas and artboard:
+  // an element, a mode or a `--select` goes to the tab's own (attested) server after it.
   const { select: _select, ...showArgs } = payload;
   const app = await ensureDesktop(root, {
     env,
@@ -222,13 +235,23 @@ export async function runOpen({
     err.write(`maude design open: ${app.line}\n`);
     return 4;
   }
-  if (app.state === 'shown' && !payload.select) {
+  const shownOk = () => {
     out.write(
       a.json
         ? `${JSON.stringify({ ok: true, open: payload, ...(presentLink ? { presentationLink: presentLink } : {}) })}\n`
         : `→ showing ${where} in Maude\n`
     );
     return 0;
+  };
+  if (app.state === 'shown') {
+    if (!payload.element && !payload.mode && !payload.select) return shownOk();
+    const tab = await waitDesktop(root, { env, waitMs: showFollowUpMs });
+    const r = tab ? await postUntilWindow(tab.port, payload) : null;
+    if (r?.status === 200) return shownOk();
+    err.write(
+      `maude design open: Maude shows ${canvas}, but ${payload.element ? `@${payload.element}` : 'the rest'} could not be applied yet — run it again in a moment\n`
+    );
+    return 1;
   }
   const studio = await locateStudio(root, { timeoutMs: 1500 });
   if (!studio) return noWindow();

@@ -681,7 +681,10 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
  * the app serves the project (shell/cli-yield.ts). The root is the server's own order: --root,
  * $CLAUDE_PROJECT_DIR, the cwd (context.ts resolveRepoRoot).
  */
-export async function serveDesktopGuard(forwarded, { env = process.env, cwd = process.cwd() } = {}) {
+export async function serveDesktopGuard(
+  forwarded,
+  { env = process.env, cwd = process.cwd() } = {}
+) {
   const force = forwarded.includes('--force');
   const rest = forwarded.filter((a) => a !== '--force');
   const i = rest.indexOf('--root');

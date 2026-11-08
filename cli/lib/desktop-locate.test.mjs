@@ -67,6 +67,7 @@ function project() {
 function fakeServer({ key = KEY, rootId, health = {} } = {}) {
   return new Promise((res) => {
     const seen = [];
+    const posts = [];
     const srv = createServer((req, resp) => {
       const u = new URL(req.url, 'http://x');
       seen.push(u.pathname);
@@ -80,6 +81,15 @@ function fakeServer({ key = KEY, rootId, health = {} } = {}) {
         }
         return resp.end(JSON.stringify({ mac: mac(key, n, rootId, port) }));
       }
+      if (u.pathname === '/_api/ui/open' && req.method === 'POST') {
+        let b = '';
+        req.on('data', (d) => (b += d));
+        req.on('end', () => {
+          posts.push(JSON.parse(b));
+          resp.end(JSON.stringify({ open: JSON.parse(b) }));
+        });
+        return;
+      }
       if (u.pathname === '/_health')
         return resp.end(
           JSON.stringify({ ok: true, app: 'design', pid: process.pid, rootId, ...health })
@@ -89,7 +99,7 @@ function fakeServer({ key = KEY, rootId, health = {} } = {}) {
     });
     srv.listen(0, '127.0.0.1', () => {
       closers.push(() => new Promise((r) => srv.close(() => r())));
-      res({ port: srv.address().port, seen });
+      res({ port: srv.address().port, seen, posts });
     });
   });
 }
@@ -328,7 +338,7 @@ describe('the app socket (ensure / show)', () => {
     const s = await fakeServer({ rootId: rootIdOf(root) });
     reset();
     writeRegistry(REG, [{ root, rootId: rootIdOf(root), state: 'resting', kind: 'project' }]);
-    const sock = await fakeSocket(join(REG_DIR, 'cli.sock'), (req) => {
+    const sock = await fakeSocket(join(REG_DIR, 'cli.sock'), () => {
       writeRegistry(REG, [running(root, s.port)]); // the app woke the tab
       return { status: 'running', port: s.port, label: 'p-l0123456789abcdef' };
     });
@@ -531,6 +541,38 @@ describe('callers ask the app first', () => {
     assert.equal(r.out, '');
     assert.equal(sock.reqs[0].op, 'show');
     assert.equal(existsSync(join(root, '.design', '_server.log')), false);
+    reset();
+  });
+
+  test('maude design open: the app routes canvas+artboard; @element and --mode go to the attested tab', async () => {
+    const { runOpen } = await import('./design-open.mjs');
+    const root = project();
+    writeFileSync(join(root, '.design', 'home.tsx'), '');
+    const tab = await fakeServer({ rootId: rootIdOf(root) });
+    const planted = await fakeServer({ rootId: rootIdOf(root) });
+    plantServerJson(root, planted.port);
+    reset();
+    writeRegistry(REG, []);
+    const sock = await fakeSocket(join(REG_DIR, 'cli.sock'), () => {
+      writeRegistry(REG, [running(root, tab.port)]); // the shown tab's server comes up
+      return { status: 'shown', label: 'p-x' };
+    });
+    let out = '';
+    const code = await runOpen({
+      words: ['home.tsx#hero@cta', '--mode', 'preview'],
+      env: env(),
+      cwd: root,
+      out: { write: (s) => (out += s) },
+      err: { write: () => {} },
+      showFollowUpMs: 3000,
+    });
+    assert.equal(code, 0, out);
+    assert.equal(sock.reqs[0].op, 'show');
+    assert.equal(sock.reqs[0].element, 'cta');
+    assert.deepEqual(tab.posts, [
+      { canvas: 'home.tsx', artboard: 'hero', element: 'cta', mode: 'preview' },
+    ]);
+    assert.equal(planted.seen.length, 0, 'never the planted _server.json');
     reset();
   });
 

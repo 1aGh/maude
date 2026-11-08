@@ -82,7 +82,11 @@ export function registryPath(env = process.env, platform = process.platform, hom
 }
 
 /** The platform default alone (no override, no test guard): computed, never created. */
-export function appDataRegistryPath(env = process.env, platform = process.platform, home = homedir()) {
+export function appDataRegistryPath(
+  env = process.env,
+  platform = process.platform,
+  home = homedir()
+) {
   if (platform === 'darwin')
     return join(home, 'Library', 'Application Support', APP_IDENTIFIER, 'servers.json');
   if (platform === 'win32')
@@ -260,6 +264,20 @@ export async function locateDesktop(root, opts = {}) {
 }
 
 /**
+ * `locateDesktop`, waited for: a tab the app has just shown may still be booting its server (the
+ * app waits up to 45 s for one). Null once `waitMs` has passed or the app is gone.
+ */
+export async function waitDesktop(root, { waitMs = 45_000, pollMs = 500, ...opts } = {}) {
+  const until = Date.now() + waitMs;
+  for (;;) {
+    const p = await probeDesktop(root, opts);
+    if (p.state === 'running') return { port: p.port, label: p.label, kind: p.kind };
+    if (p.state === 'no-app' || Date.now() >= until) return null;
+    await sleep(pollMs);
+  }
+}
+
+/**
  * One request over the app socket: `{ v: 1, ...req }`, one JSON reply. Null when the app is not
  * running, there is no socket, or the exchange fails. Never throws.
  */
@@ -349,7 +367,9 @@ export async function ensureDesktop(
     show = null,
     lease = true,
     timeoutMs = 1500,
-    ensureTimeoutMs = 20_000,
+    // the app answers `ensure` (and a `status` whose sheet was answered Open) only once the tab's
+    // server is up — it waits up to 45 s for one (cli_channel.rs SERVER_WAIT_MS)
+    ensureTimeoutMs = 50_000,
     consentWaitMs = 60_000,
     pollMs = 1000,
     log = () => {},
@@ -377,7 +397,10 @@ export async function ensureDesktop(
     if (Date.now() >= until) return { state: 'fallback', reason: 'consent-timeout' };
     await sleep(pollMs);
     reply =
-      (await askApp({ op: 'status', ticket: reply.ticket }, { env, alive, timeoutMs })) ?? reply;
+      (await askApp(
+        { op: 'status', ticket: reply.ticket },
+        { env, alive, timeoutMs: ensureTimeoutMs }
+      )) ?? reply;
   }
   const warning = reply?.warning;
   if (warning?.kind === 'branch-changed') {
@@ -449,13 +472,20 @@ function argsOf(argv) {
   return o;
 }
 
-export async function main(argv, { env = process.env, out = process.stdout, err = process.stderr } = {}) {
+export async function main(
+  argv,
+  { env = process.env, out = process.stdout, err = process.stderr } = {}
+) {
   const a = argsOf(argv);
   if (a.error || !a.mode) {
     err.write(`${a.error ? `desktop-locate: ${a.error}\n` : ''}${USAGE}`);
     return 2;
   }
   const log = (l) => err.write(`${l}\n`);
+  const refuse = (line) => {
+    log(`✗ ${line}`);
+    return 4;
+  };
   if (a.mode === 'app-pid') return isAppPid(Number(a.pid), { env }) ? 0 : 1;
   if (!a.root) {
     err.write(`desktop-locate: --root is required\n${USAGE}`);
@@ -471,7 +501,7 @@ export async function main(argv, { env = process.env, out = process.stdout, err 
         log('✓ Maude is showing this project.');
         return 0;
       }
-      if (r.state === 'refused') return log(`✗ ${r.line}`), 4;
+      if (r.state === 'refused') return refuse(r.line);
       if (r.line) log(r.line);
     }
     if (p.state === 'running') {
@@ -491,7 +521,7 @@ export async function main(argv, { env = process.env, out = process.stdout, err 
       out.write(`${r.port}\n`);
       return 0;
     }
-    if (r.state === 'refused') return log(`✗ ${r.line}`), 4;
+    if (r.state === 'refused') return refuse(r.line);
     if (r.line) log(r.line);
     return 10;
   }
@@ -500,7 +530,7 @@ export async function main(argv, { env = process.env, out = process.stdout, err 
     for (const k of ['canvas', 'artboard', 'element', 'mode']) if (a[k]) show[k] = a[k];
     const r = await ensureDesktop(root, { env, purpose: 'show', show, log });
     if (r.state === 'shown') return 0;
-    if (r.state === 'refused') return log(`✗ ${r.line}`), 4;
+    if (r.state === 'refused') return refuse(r.line);
     return 10;
   }
   if (a.mode === 'restart') {
@@ -514,7 +544,10 @@ export async function main(argv, { env = process.env, out = process.stdout, err 
 
 const isMain = (() => {
   try {
-    return !!process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+    return (
+      !!process.argv[1] &&
+      realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+    );
   } catch {
     return false;
   }
