@@ -1218,6 +1218,8 @@ function compute(
       const side = `${base}${suffix}`;
       if (side !== asset && files.has(side) && !PER_USE_PHOTO_RE.test(side)) read.add(side);
     }
+    // The who-added record keyed by the asset's FULL name (burndown F6, asset-added.ts addedRelOf).
+    if (files.has(`${asset}.added.json`)) read.add(`${asset}.added.json`);
     assetUsers.set(asset, new Set());
   }
   // Only for an asset the closure already holds (the element's own `src` put it there).
@@ -1281,6 +1283,8 @@ function isAssetSidecar(rel: string, files: Set<string>): boolean {
   for (const suffix of ASSET_SIDECAR_SUFFIXES) {
     if (!rel.endsWith(suffix)) continue;
     const base = rel.slice(0, -suffix.length);
+    // `<asset name>.added.json` (burndown F6): its base IS the asset
+    if (suffix === '.added.json' && files.has(base)) return true;
     for (const f of files) if (f !== rel && f.startsWith(`${base}.`)) return true;
   }
   return false;

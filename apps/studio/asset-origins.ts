@@ -13,10 +13,11 @@
 // shell caller that holds one (`recordAssetOrigin`). Keyed by the picture's sha8, so the same bytes imported again
 // (same name) keep ONE record: the latest path wins (the person's newest copy is the one they can still find).
 //
-// Leaf module (node:fs / node:path only; erasable TypeScript) — the CLI imports it under bun, the route under bun.
+// Leaf module (node:fs / node:path + the leaf spoof-chars.ts; erasable TypeScript) — the CLI imports it under bun, the route under bun.
 
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { stripNameSpoofChars } from './spoof-chars.ts';
 
 export const ORIGINS_REL = '_canvas-state/asset-origins.json';
 /** Oldest entries are dropped past this. */
@@ -52,10 +53,11 @@ export function originKey(assetRel: unknown): string | null {
 /** Longest name kept for "Added by". */
 export const MAX_ORIGIN_BY = 80;
 
-/** A display name, or null: no control character, no `@` (an e-mail is not a name), a sane length. */
+/** A display name, or null: no control character, no `@` (an e-mail is not a name), a sane length. Bidi, zero-width
+ *  and Unicode tag characters are stripped first (burndown L4) — a peer-synced name must not reorder or hide text. */
 export function cleanOriginBy(v: unknown): string | null {
   if (typeof v !== 'string') return null;
-  const t = v.trim();
+  const t = stripNameSpoofChars(v).trim();
   if (!t || t.length > MAX_ORIGIN_BY || CONTROL.test(t) || t.includes('@')) return null;
   return t;
 }

@@ -42,7 +42,8 @@ const addedFiles = (designRoot: string): string[] => {
 };
 const readAdded = (designRoot: string, f: string) =>
   JSON.parse(readFileSync(join(designRoot, 'assets', f), 'utf8')) as Record<string, unknown>;
-const stemOf = (path: string) => path.replace(/^assets\//, '').split('.')[0];
+/** The asset's full file name: the record is keyed by it (burndown F6), not by the stem. */
+const stemOf = (path: string) => path.replace(/^assets\//, '');
 
 const post = (base: string, bytes: Uint8Array, headers: Record<string, string> = {}) =>
   fetch(`${base}/_api/asset`, {
