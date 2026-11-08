@@ -746,6 +746,49 @@ describe('#164 F1 — claimed bytes take along only their own call’s parked wr
   });
 });
 
+// #164 N2 — a settle claims FILES, and a canvas is several of them (source, layout, board). Only the
+// lanes whose files it claimed wait for their bytes; a sibling lane it did not claim (another app's
+// edit parked in the same window) goes out as outside at once, never tagged to join the run.
+describe('#164 N2 — a settle tags only the lanes whose files it claimed', () => {
+  const META = 'ui/Home.meta.json';
+  test('integration: the settle claims the layout; another app’s source edit in the window is outside at once', async () => {
+    const r = await rig();
+    await r.write(META, `${JSON.stringify({ title: 'Home' }, null, 2)}\n`);
+    const before = await r.kindsOf(HOME);
+    const t = await terminal(r);
+    await t.window(true, { all: true });
+    // the call rewrites the layout; another editor rewrites the source meanwhile
+    await r.write(META, `${JSON.stringify({ title: 'Home by AI' }, null, 2)}\n`);
+    const other = shorten(r.read(HOME));
+    await r.write(HOME, other);
+    expect(await r.kindsOf(HOME)).toEqual(before); // both parked
+    await t.settle([t.changedOf(META)]);
+    // the source lane was not claimed: released as outside now, not held for the layout's bytes
+    expect(await r.kindsOf(HOME)).toEqual([...before, OUTSIDE_KIND]);
+    expect(r.read(HOME)).toBe(other);
+  });
+
+  test('stage: a bare slug claims the source lane only; a claimed sibling lane is named with its lane', async () => {
+    const { stage, released } = bareStage();
+    const lane = (l: 'html' | 'meta', base: string, content: string, tx: string) =>
+      stage.capture('ui/A.tsx', 'ui/A.tsx', {
+        lane: l,
+        baseContent: base,
+        content,
+        stageable: true,
+        transactionId: tx,
+      });
+    stage.begin('run:r1', 'Fix', { runId: 'r1', shell: { call: 'c1', open: true, all: true } });
+    const person = lane('html', 'h0', 'h1', 'x1'); // another app's source edit
+    void lane('meta', 'm0', 'm1', 'x2'); // the call's layout write
+    stage.claim('r1', 'ui/A.tsx', sha('m2')); // the call's final layout bytes, not delivered yet
+    expect(stage.settleShellCall('r1', 'c1', [{ slug: 'ui/A.tsx', lane: 'meta' }])).toBe(true);
+    expect(await person).toMatchObject({ status: 'accepted' });
+    expect(released).toEqual([{ slug: 'ui/A.tsx', writes: [{ base: 'h0', content: 'h1' }] }]);
+    expect(stage.parked()).toEqual([{ slug: 'ui/A.tsx', lane: 'meta' }]); // waits for its bytes
+  });
+});
+
 describe('#164 F5 — a settle resolves only the caller’s own call', () => {
   test('two runs with the same call id: one’s settle leaves the other’s window parking', () => {
     const { stage } = bareStage();

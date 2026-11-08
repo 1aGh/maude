@@ -42,7 +42,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import path from 'node:path';
 
 import { hashBytes } from './echo-guard.ts';
-import type { LaneProposal, ProposalOutcome } from './projection.ts';
+import type { LaneProposal, ProposalLane, ProposalOutcome } from './projection.ts';
 import { mergeSource } from './source-merge.ts';
 import type { Operation, ProposalResult } from './transaction-client.ts';
 
@@ -215,6 +215,19 @@ interface ShellCall {
   staleTimer?: ReturnType<typeof setTimeout>;
   /** D4 — canvases it covered that left the disk while it was open (a settle may bind only these). */
   gone?: Set<string>;
+}
+
+/**
+ * #164 N2 — what a call's settle claimed: one lane of a canvas. A bare slug is its source (`html`) lane;
+ * a `.meta.json` / `.annotations.json` file claims only its own lane (`shellClaimLane`).
+ */
+export type ShellClaim = string | { slug: string; lane: ProposalLane };
+
+/** #164 N2 — the lane a claimed design file is: its layout, its board, else its source. */
+export function shellClaimLane(rel: string): ProposalLane {
+  if (/\.meta\.json$/i.test(rel)) return 'meta';
+  if (/\.annotations\.json$/i.test(rel)) return 'annotations';
+  return 'html';
 }
 
 /** #164 — an unclaimed outside write a window holds back until the call settles. */
@@ -755,7 +768,8 @@ export function createActionStage(opts: ActionStageOptions) {
     settle?: {
       run: RunStage;
       key: string;
-      claimed: ReadonlySet<string>;
+      /** N2 — slug → the lanes whose files the settle claimed */
+      claimed: ReadonlyMap<string, ReadonlySet<string>>;
       awaitKey: string;
     }
   ): void {
@@ -768,9 +782,17 @@ export function createActionStage(opts: ActionStageOptions) {
     }
     let waits = false;
     for (const slug of slugs) {
+      // N2 — only the lanes whose files the settle claimed (a create's other lanes follow its claimed
+      // source); an unclaimed sibling lane parked in the same window goes out as outside below
+      const ofClaim = settle?.claimed.get(slug);
       const mine =
-        settle?.claimed.has(slug) === true
-          ? parked.filter((e) => e.slug === slug && e.wins.has(settle.key))
+        settle && ofClaim
+          ? parked.filter(
+              (e) =>
+                e.slug === slug &&
+                e.wins.has(settle.key) &&
+                (ofClaim.has(e.p.lane) || (!!e.p.create && ofClaim.has('html')))
+            )
           : [];
       if (settle && mine.length) {
         const lanes = [...new Set(mine.map((e) => e.p.lane))];
@@ -810,16 +832,22 @@ export function createActionStage(opts: ActionStageOptions) {
   function settleShellCall(
     keyOrRun: string,
     call: string,
-    claimed: readonly string[] = []
+    claimed: readonly ShellClaim[] = []
   ): boolean {
     const r = runOf(keyOrRun);
     // a settle for a call this run has no window for is refused: it resolves nothing
     if (r?.state !== 'open' || !r.shellCalls?.has(call)) return false;
     const key = callKey(r.runId, call);
+    const lanes = new Map<string, Set<string>>();
+    for (const c of claimed) {
+      const slug = typeof c === 'string' ? c : c.slug;
+      const lane = typeof c === 'string' ? 'html' : c.lane;
+      lanes.set(slug, (lanes.get(slug) ?? new Set()).add(lane));
+    }
     resolveKeys(detachCall(r, call), {
       run: r,
       key,
-      claimed: new Set(claimed),
+      claimed: lanes,
       awaitKey: `${key}\u0000await\u0000${(++awaitSeq).toString(36)}`,
     });
     return true;
