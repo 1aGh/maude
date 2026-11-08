@@ -47,6 +47,10 @@ mod project_resolve;
 mod quit;
 mod server_json;
 mod sidecar;
+/// #208: the Linux shell lane's harness (`examples/shell_lane.rs`, CI `linux-shell-lane.yml`). Debug builds only.
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub mod shell_lane;
 mod tabs;
 mod updater;
 mod win_process;
