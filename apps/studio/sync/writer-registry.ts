@@ -572,6 +572,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/outbox/:id/cancel': { class: 'local' }, // this machine's queue (_state/outbox)
   '/_api/outbox/:id/retry': { class: 'local' },
   '/_api/shell/status': { class: 'read' }, // routes/shell.ts: the desktop shell's probe — four counts, no effect
+  '/_api/shell/attest': { class: 'read' }, // routes/shell.ts (#206): one MAC over a nonce, no effect
   '/_api/project/format': { class: 'read' }, // routes/project-format.ts
   '/_api/asset-state': { class: 'read' }, // routes/asset-state.ts (S8.19): disk + queue + hub presence, no effect
   // routes/asset-details.ts (S8.21): the details of one asset and the Generated runs — reads of the project's own sidecars

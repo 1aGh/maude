@@ -503,6 +503,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/thumbs/want': REFUSED,
   '/_api/ui/open': REFUSED, // V2-2.4b: desktop shells only (a cell answers "no window")
   '/_api/shell/status': REFUSED, // V2-3.4: the desktop shell's token-gated probe; a cell has no shell
+  '/_api/shell/attest': REFUSED, // #206: the terminal's check of a desktop sidecar; a cell has none
   // V2-2.4b: the hook routes serve a LOCAL Claude Code's hooks against the person's own studio
   '/_api/agent/run/begin': REFUSED,
   '/_api/agent/edit/check': REFUSED,
