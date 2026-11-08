@@ -10,7 +10,7 @@ import { createRoot, type Root } from 'react-dom/client';
 
 import { ACTIONS_BY_ID } from '../actions/index.ts';
 import type { EditOpResult } from '../edit-ops/types.ts';
-import { AlignBar, AlignBarView, barPlacement } from '../editing/align-bar.tsx';
+import { AlignBar, AlignBarView, barPlacement, holdAlignGuide } from '../editing/align-bar.tsx';
 import {
   ARRANGE_ACTIONS,
   alignGuide,
@@ -357,6 +357,29 @@ describe('the bar and the handle on a tree', () => {
     expect(document.querySelector('[data-testid="edit-align-bar"]')?.className).toContain(
       'dc-multi-artboard-tb'
     );
+  });
+
+  // Align's own write remounts the canvas a beat later (the soft reload re-renders from the file; the new DOM
+  // selects nothing). The guide that says where things landed is held across that, for its own time.
+  test('the guide outlives the remount its own write causes, with no selection after it', async () => {
+    const g = { axis: 'x' as const, at: 40, from: 10, to: 90, chip: 'X 24' };
+    holdAlignGuide(g, Date.now());
+    await mount(
+      <SelectionSetProvider postTarget={{ postMessage() {} }}>
+        <AlignBar />
+      </SelectionSetProvider>
+    );
+    expect(document.querySelector('[data-testid="edit-align-chip"]')?.textContent).toBe('X 24');
+    expect(document.querySelector('[data-testid="edit-align-bar"]')).toBeNull();
+    for (const r of roots.splice(0)) await act(async () => r.unmount());
+    // past its time it is gone
+    holdAlignGuide(g, Date.now() - 60_000);
+    await mount(
+      <SelectionSetProvider postTarget={{ postMessage() {} }}>
+        <AlignBar />
+      </SelectionSetProvider>
+    );
+    expect(document.querySelector('[data-testid="edit-align-chip"]')).toBeNull();
   });
 
   test('the live bar follows the selection, and a read-only canvas gets none', async () => {
