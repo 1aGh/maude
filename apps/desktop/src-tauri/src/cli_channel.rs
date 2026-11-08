@@ -394,6 +394,39 @@ impl Tickets {
     pub fn declined(&self, root: &Path) -> bool {
         self.declined.contains(root)
     }
+
+    /// The pending ticket raised first (debug e2e answers sheets in the order they came).
+    #[cfg_attr(not(debug_assertions), allow(dead_code))]
+    pub fn oldest_pending(&mut self, now: Instant) -> Option<String> {
+        self.prune(now);
+        self.by_id
+            .iter()
+            .filter(|(_, t)| t.answer == Answer::Pending)
+            .min_by_key(|(_, t)| t.created)
+            .map(|(id, _)| id.clone())
+    }
+}
+
+/// Debug-only e2e helper (`cli-reuse` lane): answer the terminal consent sheet — Open (`open: true`)
+/// or Not now — for the oldest pending ticket; returns its folder, or `null` when none waits. Only an
+/// e2e app started with `MAUDE_E2E_CLI_CONSENT=1` parks tickets (the native sheet is not
+/// DOM-reachable). Granted only by capabilities/debug/e2e-webdriver.json; a release build answers Err.
+#[tauri::command]
+pub fn e2e_cli_consent(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    open: bool,
+) -> Result<Option<String>, String> {
+    #[cfg(all(debug_assertions, unix))]
+    {
+        crate::windows::caller_any(&webview, false)?;
+        Ok(glue::e2e_answer_oldest(&app, open).map(|p| p.to_string_lossy().into_owned()))
+    }
+    #[cfg(not(all(debug_assertions, unix)))]
+    {
+        let _ = (app, webview, open);
+        Err("debug builds only".into())
+    }
 }
 
 // ── Leases (contract §6 "Busy") ─────────────────────────────────────────────
@@ -1019,8 +1052,11 @@ mod glue {
             Answer::Open => {
                 let root = t.root.to_string_lossy().into_owned();
                 if label_of(app, &root).is_none() {
-                    // Open was answered, but the tab is gone again (closed meanwhile): ask afresh.
-                    return Refusal::NotOpen.reply();
+                    // Open was answered and the tab is still being built (`on_answer` opens it off
+                    // the sheet's thread), or it was closed again: keep the CLI polling — it stops
+                    // by itself (≤ 60 s) and the ticket ends after TICKET_TTL. Answering not-open
+                    // here raced the build and failed the run the person had just allowed.
+                    return json!({ "status": "consent", "ticket": ticket });
                 }
                 answer_open(app, &root, t.purpose, None, None, t.lease.as_ref())
             }
@@ -1036,6 +1072,16 @@ mod glue {
         let path = crate::notify::sanitize_title(&real.to_string_lossy());
         let app2 = app.clone();
         let id = id.to_string();
+        // Desktop e2e (`cli-reuse`): a native sheet is not DOM-reachable, so a debug build started
+        // with MAUDE_E2E_CLI_CONSENT=1 parks the ticket instead and `e2e_cli_consent` answers it
+        // through the same `on_answer`. Never compiled into a release build.
+        #[cfg(debug_assertions)]
+        if e2e_consent_parked() {
+            crate::sidecar::log_line(&format!(
+                "[maude] e2e: the terminal consent sheet for {path} waits for e2e_cli_consent"
+            ));
+            return;
+        }
         app.dialog()
             .message(format!(
                 "Claude Code wants to show \u{201c}{name}\u{201d} in Maude.\n\n{path}\n\nOpening it runs this project\u{2019}s canvases in Maude."
@@ -1046,36 +1092,63 @@ mod glue {
                 "Not now".to_string(),
             ))
             .show(move |open| {
-                let Some(t) = TICKETS.lock().unwrap_or_else(|e| e.into_inner()).answer(&id, open) else {
-                    return;
-                };
-                if !open {
-                    crate::sidecar::log_line("[maude] terminal open: Not now");
-                    return;
-                }
-                // Open is remembered: the folder joins the project list (the person chose it, so it
-                // adopts the last sign-in's profile like any folder opened from Home). Off the
-                // dialog's thread, as File › Open does (`remember_and_open`): building a tab waits on it.
-                tauri::async_runtime::spawn(async move {
-                    let target = t.canvas.clone();
-                    let r = crate::windows::open_project_window(
-                        &app2,
-                        &t.root,
-                        None,
-                        target.as_deref(),
-                        crate::app_state::Binding::Adopt,
-                    );
-                    match r {
-                        Ok(o) => {
-                            park_target(&o, t.canvas, t.artboard);
-                            crate::windows::reveal_front(&app2);
-                        }
-                        Err(e) => crate::sidecar::log_line(&format!(
-                            "[maude] terminal open failed: {e}"
-                        )),
-                    }
-                });
+                on_answer(&app2, &id, open);
             });
+    }
+
+    /// The person answered the sheet for ticket `id` (or, in a debug e2e build, `e2e_cli_consent`).
+    /// Returns the folder when the answer was taken.
+    fn on_answer(app: &AppHandle, id: &str, open: bool) -> Option<PathBuf> {
+        let t = TICKETS
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .answer(id, open)?;
+        let root = t.root.clone();
+        if !open {
+            crate::sidecar::log_line("[maude] terminal open: Not now");
+            return Some(root);
+        }
+        // Open is remembered: the folder joins the project list (the person chose it, so it adopts
+        // the last sign-in's profile like any folder opened from Home). Off the dialog's thread, as
+        // File › Open does (`remember_and_open`): building a tab waits on it.
+        let app2 = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let target = t.canvas.clone();
+            let r = crate::windows::open_project_window(
+                &app2,
+                &t.root,
+                None,
+                target.as_deref(),
+                crate::app_state::Binding::Adopt,
+            );
+            match r {
+                Ok(o) => {
+                    park_target(&o, t.canvas, t.artboard);
+                    crate::windows::reveal_front(&app2);
+                }
+                Err(e) => crate::sidecar::log_line(&format!("[maude] terminal open failed: {e}")),
+            }
+        });
+        Some(root)
+    }
+
+    /// Debug builds only: the e2e app parks consent tickets instead of raising the native sheet.
+    #[cfg(debug_assertions)]
+    fn e2e_consent_parked() -> bool {
+        std::env::var("MAUDE_E2E_CLI_CONSENT").is_ok_and(|v| v == "1")
+    }
+
+    /// Debug builds only: answer the oldest pending sheet (`e2e_cli_consent`).
+    #[cfg(debug_assertions)]
+    pub(crate) fn e2e_answer_oldest(app: &AppHandle, open: bool) -> Option<PathBuf> {
+        if !e2e_consent_parked() {
+            return None;
+        }
+        let id = TICKETS
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .oldest_pending(Instant::now())?;
+        on_answer(app, &id, open)
     }
 
     fn park_target(o: &crate::windows::Opened, canvas: Option<String>, artboard: Option<String>) {
@@ -1685,6 +1758,31 @@ mod tests {
             l.live_roots(now + Duration::from_secs(6)).into_iter().collect::<Vec<_>>(),
             ["/b"]
         );
+    }
+
+    /// #206 T6.4 pin: the e2e answer to the consent sheet exists only in a debug build — the park
+    /// check, the answer helper and the command body are all behind `debug_assertions`, and a release
+    /// build's command answers Err.
+    #[test]
+    fn the_e2e_consent_answer_is_debug_only() {
+        let src = include_str!("cli_channel.rs");
+        let ask = &src[src.find("    fn ask(app: &AppHandle").unwrap()..];
+        let ask = &ask[..ask.find("\n    }\n").unwrap()];
+        let gate = ask.find("#[cfg(debug_assertions)]\n        if e2e_consent_parked()").expect("gated park");
+        assert!(gate < ask.find("app.dialog()").unwrap(), "the park is checked before the sheet");
+        for f in ["fn e2e_consent_parked()", "pub(crate) fn e2e_answer_oldest("] {
+            let at = src.find(f).unwrap_or_else(|| panic!("{f}"));
+            let before = &src[..at];
+            let attr = before.rfind("#[cfg(debug_assertions)]").expect("attribute");
+            assert!(!src[attr..at].contains("\n\n"), "{f} sits right under #[cfg(debug_assertions)]");
+        }
+        let cmd = &src[src.find("pub fn e2e_cli_consent(").unwrap()..];
+        let cmd = &cmd[..cmd.find("\n}\n").unwrap()];
+        assert!(cmd.contains("#[cfg(all(debug_assertions, unix))]"));
+        assert!(cmd.contains("#[cfg(not(all(debug_assertions, unix)))]"));
+        assert!(cmd.contains("Err(\"debug builds only\".into())"));
+        let release = include_str!("../capabilities/default.json");
+        assert!(!release.contains("e2e-cli-consent"), "never granted in a release capability");
     }
 
     /// Pins: a lease change republishes the registry and the strip; `ensure` reads the branch gate

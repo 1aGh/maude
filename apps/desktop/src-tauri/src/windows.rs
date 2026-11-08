@@ -4120,6 +4120,7 @@ mod tests {
             "allow-e2e-open-root",
             "allow-e2e-bind-profile",
             "allow-e2e-notification-click",
+            "allow-e2e-cli-consent",
             "allow-e2e-deliver-deep-link",
             "allow-e2e-shell-bounds",
         ];

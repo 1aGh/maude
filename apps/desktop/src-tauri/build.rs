@@ -134,6 +134,8 @@ fn main() {
                 // V2-3.5 (windows.rs, notify.rs), same rule.
                 "e2e_bind_profile",
                 "e2e_notification_click",
+                // #206 T6.4 (cli_channel.rs): answer the terminal consent sheet.
+                "e2e_cli_consent",
                 // V2-3.8 (oauth.rs): the real sign-in write path on a fake keychain.
                 "e2e_github_sign_in_as",
                 // V2-3.6 M5: e2e delivers a deep link through the shell (pages

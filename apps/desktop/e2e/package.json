@@ -19,6 +19,7 @@
     "e2e:pages-view": "wdio run ./wdio.pages-view.conf.ts",
     "e2e:tabs-identity": "wdio run ./wdio.tabs-identity.conf.ts",
     "e2e:tabs-cap": "wdio run ./wdio.tabs-cap.conf.ts",
+    "e2e:cli-reuse": "wdio run ./wdio.cli-reuse.conf.ts",
     "e2e:cell-tab": "wdio run ./wdio.cell-tab.conf.ts",
     "e2e:ai-quit": "wdio run ./wdio.ai-quit.conf.ts",
     "e2e:generate-takes": "wdio run ./wdio.generate-takes.conf.ts",

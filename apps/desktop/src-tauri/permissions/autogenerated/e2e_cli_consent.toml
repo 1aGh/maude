@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-e2e-cli-consent"
+description = "Enables the e2e_cli_consent command without any pre-configured scope."
+commands.allow = ["e2e_cli_consent"]
+
+[[permission]]
+identifier = "deny-e2e-cli-consent"
+description = "Denies the e2e_cli_consent command without any pre-configured scope."
+commands.deny = ["e2e_cli_consent"]
