@@ -494,7 +494,7 @@ try {
     writeFileSync(
       opt('--dump-replies', ''),
       JSON.stringify(
-        replies.map((m) => ({ id: m.id, ok: m.ok, ms: m.ms, phases: m.phases, error: m.error }))
+        replies.map((m) => ({ id: m.id, ok: m.ok, ms: m.ms, phases: m.phases, error: m.error, trace: m.trace }))
       )
     );
   svc.stop();

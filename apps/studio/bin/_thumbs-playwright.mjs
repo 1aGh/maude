@@ -442,6 +442,59 @@ async function shoot(page, job, index, target, runtime, left) {
   };
 }
 
+/** Debug only (MAUDE_THUMBS_TRACE): resource timings since navigation start + the top CPU self-times. */
+async function traceOf(page, cdp) {
+  const out = {};
+  out.res = await bounded(
+    page.evaluate(() => {
+      const nav = performance.getEntriesByType('navigation')[0];
+      const r = (n) => Math.round(n);
+      const rows = performance.getEntriesByType('resource').map((e) => ({
+        n: e.name.replace(location.origin, '').replace(/[?&](fc|t)=[^&]*/g, '').slice(0, 120),
+        s: r(e.startTime),
+        ttfb: r(e.responseStart - e.startTime),
+        end: r(e.responseEnd),
+        kb: Math.round((e.encodedBodySize || 0) / 1024),
+      }));
+      return {
+        nav: nav ? { dcl: r(nav.domContentLoadedEventEnd), ttfb: r(nav.responseStart) } : null,
+        now: r(performance.now()),
+        rows,
+      };
+    }),
+    2000
+  ).catch(() => null);
+  if (cdp) {
+    try {
+      const { profile } = await cdp.send('Profiler.stop');
+      const byId = new Map(profile.nodes.map((n) => [n.id, n]));
+      const self = new Map();
+      profile.samples.forEach((id, i) => {
+        const cf = byId.get(id)?.callFrame;
+        if (!cf) return;
+        const k = `${cf.functionName || '(anon)'} ${cf.url.split('/').slice(-1)[0].split('?')[0]}:${cf.lineNumber}`;
+        self.set(k, (self.get(k) || 0) + (profile.timeDeltas[i] || 0));
+      });
+      const byUrl = new Map();
+      profile.samples.forEach((id, i) => {
+        const cf = byId.get(id)?.callFrame;
+        const k = cf?.url ? cf.url.split('/').slice(-1)[0].split('?')[0] : `(${cf?.functionName || '?'})`;
+        byUrl.set(k, (byUrl.get(k) || 0) + (profile.timeDeltas[i] || 0));
+      });
+      const top = (m, n) =>
+        [...m.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, n)
+          .map(([k, v]) => [k, Math.round(v / 100) / 10]);
+      out.cpu = { self: top(self, 15), byUrl: top(byUrl, 10) };
+      await cdp.detach();
+    } catch (e) {
+      out.cpu = String(e?.message || e);
+    }
+  }
+  return out;
+}
+
 async function render(msg) {
   const t0 = Date.now();
   const deadline = t0 + Math.max(1000, Math.min(Number(msg.deadlineMs) || 20_000, 60_000));
@@ -475,9 +528,24 @@ async function render(msg) {
     phases[name] = n - mark;
     mark = n;
   };
+  // MAUDE_THUMBS_TRACE=1 (debug, the budget bench): the page's own resource timings, and with
+  // `=cpu` a CDP CPU profile of goto→mount, in the reply as `trace`. Never on by default.
+  const traceMode = process.env.MAUDE_THUMBS_TRACE || '';
+  let cdp = null;
   try {
     await page.setViewportSize({ width: 1440, height: 900 });
     lap('viewport');
+    if (traceMode === 'cpu') {
+      cdp = await page
+        .context()
+        .newCDPSession(page)
+        .catch(() => null);
+      if (cdp) {
+        await cdp.send('Profiler.enable');
+        await cdp.send('Profiler.setSamplingInterval', { interval: 200 });
+        await cdp.send('Profiler.start');
+      }
+    }
     await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: left() });
     lap('goto');
     assertOrigin(page, job);
@@ -503,7 +571,9 @@ async function render(msg) {
       throw err;
     }
     lap('mount');
-    const named = targets.map((t) => t?.artboard).filter((a) => typeof a === 'string');
+    let trace;
+    if (traceMode) trace = await traceOf(page, cdp);
+    const named =targets.map((t) => t?.artboard).filter((a) => typeof a === 'string');
     if (job.hasArtboards && named.length && named.length === targets.length) {
       // every target names its artboard (a version row, an on-demand shot): wait for exactly
       // those to mount — the count-settle below exists to pick a cover, which nothing asks for
@@ -580,6 +650,7 @@ async function render(msg) {
     lap('blank');
     return {
       phases,
+      ...(trace ? { trace } : {}),
       ok: true,
       runtime: {
         artboards: runtime.map(({ id, label, kind, w, h }) => ({ id, label, kind, w, h })),
@@ -590,6 +661,7 @@ async function render(msg) {
       launchMs,
     };
   } finally {
+    if (cdp) await cdp.detach().catch(() => {});
     jobsByPage.delete(page);
     await page.goto('about:blank').catch(() => {});
     releasePage(page);
