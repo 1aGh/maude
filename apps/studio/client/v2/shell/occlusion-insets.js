@@ -17,7 +17,24 @@ const EDGES = new Set(['top', 'right', 'bottom', 'left']);
 
 const boxOf = (el) => {
   const r = el?.getBoundingClientRect?.();
-  return r ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom } : null;
+  if (!r) return null;
+  const box = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+  // #170 R29 — an island that comes back grows out of its icon (scale 0.12 → 1, floating-panels.css), and
+  // getBoundingClientRect reads the scaled box: measured mid-grow it covered a tenth of itself. Read the layout box
+  // instead — the transform's fixed point (its origin) and the untransformed size. A scale is the only transform an
+  // island runs; with no layout size (display: contents, a fake) the drawn box stands.
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  if (!(w > 0 && h > 0) || (Math.abs(r.width - w) < 0.5 && Math.abs(r.height - h) < 0.5))
+    return box;
+  const origin = el.ownerDocument?.defaultView?.getComputedStyle?.(el)?.transformOrigin ?? '';
+  const [ox, oy] = origin.split(' ').map((v) => Number.parseFloat(v));
+  if (!Number.isFinite(ox) || !Number.isFinite(oy)) return box;
+  const sx = r.width / w;
+  const sy = r.height / h;
+  const left = r.left - ox * (1 - sx);
+  const top = r.top - oy * (1 - sy);
+  return { left, top, right: left + w, bottom: top + h };
 };
 
 /**

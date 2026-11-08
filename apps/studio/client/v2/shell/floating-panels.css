@@ -2633,7 +2633,20 @@
     flex-direction: column;
     overflow: hidden;
     pointer-events: auto;
-    animation: sh-island-in var(--dur-panel) var(--ease-out);
+    /* #170 R29: an island that comes back grows out of its corner icon — the fold (sh-island-fold) reversed */
+    animation: sh-island-grow var(--dur-panel) var(--ease-out);
+  }
+  .sh-body--float > .sh-dockslot--left > .sh-dockslot-inner {
+    transform-origin: top left;
+  }
+  .sh-body--float > .sh-dockslot--right > .sh-dockslot-inner {
+    transform-origin: top right;
+  }
+  .sh-body--float > .sh-dockslot--left > .sh-dockslot-ai {
+    transform-origin: bottom left;
+  }
+  .sh-body--float > .sh-dockslot--right > .sh-dockslot-ai {
+    transform-origin: bottom right;
   }
   .sh-body--float .sh-dockslot-inner > .sh-sidebar,
   .sh-body--float .sh-dockslot-inner > .sh-rpanel {
@@ -2870,6 +2883,16 @@
     to {
       opacity: 0;
       transform: scale(0.12);
+    }
+  }
+  @keyframes sh-island-grow {
+    from {
+      opacity: 0;
+      transform: scale(0.12);
+    }
+    to {
+      opacity: 1;
+      transform: none;
     }
   }
   @keyframes sh-island-in {
