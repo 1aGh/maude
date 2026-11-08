@@ -171,6 +171,10 @@ const server = Bun.spawn(
       MAUDE_NO_AUTOBUILD: '1',
       // p8-orphan-sidecars — the server ends by itself if this bench is SIGKILLed
       MAUDE_EXIT_WITH_PARENT: '1',
+      // #169 item 1 — the bench renders with its OWN thumbnail service and renderer; the server's
+      // background cover sweep (a second Chromium over every canvas of a fresh index) ran under every
+      // timed pass and was most of its noise. BENCH_BOOT_COVERS=1 keeps it, as before.
+      ...(process.env.BENCH_BOOT_COVERS === '1' ? {} : { MAUDE_NO_BOOT_COVERS: '1' }),
       ...stubClaudeEnv(scratch),
     },
     stdout: 'ignore',
@@ -494,7 +498,14 @@ try {
     writeFileSync(
       opt('--dump-replies', ''),
       JSON.stringify(
-        replies.map((m) => ({ id: m.id, ok: m.ok, ms: m.ms, phases: m.phases, error: m.error }))
+        replies.map((m) => ({
+          id: m.id,
+          ok: m.ok,
+          ms: m.ms,
+          phases: m.phases,
+          error: m.error,
+          trace: m.trace,
+        }))
       )
     );
   svc.stop();
