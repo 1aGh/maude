@@ -154,6 +154,7 @@ import {
 import { embedSignInPage, isEmbedPageRequest, parseEmbedOrigins } from './embed-page.mjs';
 import { endedSessionReason } from './ended-sessions.mjs';
 import {
+  ASSET_ADDED_CAPABILITY,
   FILE_CLASSES_V2_CAPABILITY,
   FILE_DEPTH_V2_CAPABILITY,
   FILE_DOOR_PREFIX,
@@ -1385,6 +1386,8 @@ export function createHub(config = {}) {
               FILE_CLASSES_V2_CAPABILITY,
               // fix/205: the doors take paths up to 32 segments (an older one stops at 8).
               FILE_DEPTH_V2_CAPABILITY,
+              // #172: the door takes the who-added sidecar `assets/<stem>.added.json`.
+              ASSET_ADDED_CAPABILITY,
               // T5.2 (#165): presence roles are stamped here (stampHubRole) — a studio trusts a relayed role only then.
               PRESENCE_ROLE_CAPABILITY,
               // Issue #204: `/studio/signin?client=desktop` + `/auth/desktop/exchange`. The

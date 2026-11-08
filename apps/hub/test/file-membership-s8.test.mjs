@@ -13,6 +13,7 @@ test('the per-use photo edit and the generation sidecar sync (companion-text)', 
     'assets/0a1b2c3d.9f8e7d6c.photo.json',
     'assets/0a1b2c3d.9f8e7d6c0b1a.photo.json',
     'assets/0a1b2c3d.gen.json',
+    'assets/0a1b2c3d.added.json', // #172 — who added the asset
     'assets/0a1b2c3d.photo.json', // the every-use file, unchanged
   ]) {
     assert.equal(classifyProjectFile(rel), 'companion-text', rel);
@@ -20,7 +21,12 @@ test('the per-use photo edit and the generation sidecar sync (companion-text)', 
 });
 
 test('the rejected `~` spelling, a bare suffix and a trailing extension stay never', () => {
-  for (const rel of ['assets/0a1b2c3d~9f8e7d6c.photo.json', 'gen.json', 'evil.gen.json.txt']) {
+  for (const rel of [
+    'assets/0a1b2c3d~9f8e7d6c.photo.json',
+    'gen.json',
+    'evil.gen.json.txt',
+    'evil.added.json.txt',
+  ]) {
     assert.equal(classifyProjectFile(rel), 'never', rel);
   }
 });
@@ -28,4 +34,6 @@ test('the rejected `~` spelling, a bare suffix and a trailing extension stay nev
 test('the per-Mac original path is runtime state, never on the plane', () => {
   assert.equal(isRuntimeStateRel('_canvas-state/asset-origins.json'), true);
   assert.equal(classifyProjectFile('_canvas-state/asset-origins.json'), 'never');
+  // #172 — the name travels in the versioned `.added.json`; the per-Mac path stays here
+  assert.equal(isRuntimeStateRel('assets/0a1b2c3d.added.json'), false);
 });

@@ -24,11 +24,14 @@ import {
   LEGACY_MAX_SEGMENTS,
   MAX_SEGMENTS,
   olderDoorRefuses,
+  olderDoorRefusesAdded,
   olderDoorRefusesDepth,
 } from '../sync/file-membership.ts';
 import {
+  ASSET_ADDED_CAPABILITY,
   FILE_CLASSES_V2_CAPABILITY,
   FILE_DEPTH_V2_CAPABILITY,
+  hasAssetAddedV1,
   hasFileClassesV2,
   hasFileDepthV2,
 } from '../sync/journal-client.ts';
@@ -70,6 +73,8 @@ describe('file-membership — the RCA miss-list flows', () => {
     ['assets/0a1b2c3d.9f8e7d6c.photo.json', 'companion-text'],
     ['assets/0a1b2c3d.9f8e7d6c0b1a.photo.json', 'companion-text'],
     ['assets/0a1b2c3d.gen.json', 'companion-text'],
+    // #172 — who added the asset (contract 172-asset-origins.md): versioned, rides with its asset.
+    ['assets/0a1b2c3d.added.json', 'companion-text'],
   ];
 
   test.each(missList)('%s → %s', (rel, expected) => {
@@ -432,6 +437,9 @@ describe('file-membership — studio ↔ hub parity (the doc-name precedent)', (
     'assets/0a1b2c3d~9f8e7d6c.photo.json',
     'evil.gen.json.txt',
     '_canvas-state/asset-origins.json',
+    // #172 — who added the asset: synced on both copies, never runtime state
+    'assets/0a1b2c3d.added.json',
+    'evil.added.json.txt',
     // V2-1.12 C1 / V2-1.6 / V2-1.10 — versioned v2 companions, both copies
     'system/ds/tokens.json',
     'system/ds/components.json',
@@ -517,6 +525,7 @@ describe('olderDoorRefuses — exactly what a 1.x door refuses that 2.0 syncs', 
     // the rest of what 2.0 added
     'assets/0f3a9c21.beats.json',
     'assets/0f3a9c21.gen.json',
+    'assets/0f3a9c21.added.json', // #172
     'system/ds/components.json',
     'system/ds/revisions/head.json',
     `system/ds/revisions/${'a'.repeat(64)}.json`,
@@ -625,5 +634,19 @@ describe('deep paths — the depth cap is 32, the same in both classifiers', () 
     expect(hasFileDepthV2(null)).toBe(false);
     expect(hasFileDepthV2(['ledger', 'file-classes-v2'])).toBe(false);
     expect(hasFileDepthV2(['ledger', 'file-classes-v2', 'file-depth-v2'])).toBe(true);
+  });
+});
+
+// #172 — the who-added sidecar came after `file-classes-v2`: its own word, its own hold.
+describe('asset-added-v1 — the who-added sidecar waits for a hub that takes it', () => {
+  test('exactly `.added.json` is held, and only for a hub without the word', () => {
+    expect(ASSET_ADDED_CAPABILITY).toBe('asset-added-v1');
+    expect(olderDoorRefusesAdded('assets/a1b2c3d4.added.json')).toBe(true);
+    expect(olderDoorRefusesAdded('assets/hero.ADDED.json')).toBe(true);
+    for (const rel of ['assets/a1b2c3d4.png', 'assets/a1b2c3d4.gen.json', 'assets/added.json'])
+      expect(olderDoorRefusesAdded(rel)).toBe(false);
+    expect(hasAssetAddedV1(null)).toBe(false);
+    expect(hasAssetAddedV1(['ledger', 'file-classes-v2', 'file-depth-v2'])).toBe(false);
+    expect(hasAssetAddedV1(['ledger', 'file-classes-v2', 'asset-added-v1'])).toBe(true);
   });
 });

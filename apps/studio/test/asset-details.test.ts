@@ -8,6 +8,7 @@ import path from 'node:path';
 import { resolveAccess } from '../access/scope.ts';
 import { assetDetails, boardsShowing, shellPath } from '../asset-details.ts';
 import { listGeneratedGroups } from '../asset-generated.ts';
+import { recordAssetAdded } from '../asset-added.ts';
 import { recordAssetOrigin } from '../asset-origins.ts';
 import { createAssetDetailsRoutes } from '../routes/asset-details.ts';
 
@@ -247,6 +248,25 @@ describe('assetDetails', () => {
     expect(assetDetails('assets/d34bb59d.jpg', base(r2))?.addedBy).toBeUndefined();
   });
 
+  test('#172 — Added by travels with the project: a peer with no origin record reads the synced `.added.json`', () => {
+    const root = project(); // another Mac: the picture and its sidecar arrived by sync, no _canvas-state here
+    put(root, 'assets/d34bb59d.jpg');
+    recordAssetAdded(root, 'assets/d34bb59d.jpg', 'Tereza');
+    for (const includeOriginal of [true, false]) {
+      const d = assetDetails('assets/d34bb59d.jpg', base(root, { includeOriginal }));
+      expect(d?.addedBy).toBe('Tereza');
+      expect(d?.advanced.original).toBeUndefined();
+    }
+    // the synced record wins over this Mac's own note (it is what every peer says)
+    recordAssetOrigin(root, 'assets/d34bb59d.jpg', '/Users/jonas/Pictures/IMG.jpg', 5, 'Jonas');
+    expect(assetDetails('assets/d34bb59d.jpg', base(root))?.addedBy).toBe('Tereza');
+    // untrusted synced text: an e-mail is never shown
+    put(root, 'assets/d34bb59d.added.json', '{"format":"maude.added","v":1,"by":"eve@evil.test"}');
+    expect(
+      assetDetails('assets/d34bb59d.jpg', base(root, { includeOriginal: false }))?.addedBy
+    ).toBe(undefined);
+  });
+
   test('a name that is not an asset, or is not there, has no details', () => {
     const root = project();
     put(root, 'assets/d34bb59d.photo.json');
@@ -348,7 +368,7 @@ describe('routes', () => {
       )) as Response;
       return { status: res.status, body: (await res.json()) as any };
     };
-    return { details, generated, get };
+    return { details, generated, get, root };
   }
 
   test('both are main-origin reads that every role may make', () => {
@@ -384,6 +404,15 @@ describe('routes', () => {
     expect(JSON.stringify(r.body)).not.toContain('Pictures');
     expect(JSON.stringify(r.body)).not.toContain('secret');
     expect((await get(generated!, '')).body.groups).toEqual([]);
+  });
+
+  test('#172 — a guest hears who added a picture its canvas shows; never the Original', async () => {
+    const { details, get, root } = wire(guest);
+    recordAssetAdded(root, 'assets/d34bb59d.jpg', 'Tereza');
+    const r = await get(details!, '?path=assets/d34bb59d.jpg');
+    expect(r.body.details.addedBy).toBe('Tereza');
+    expect(r.body.details.advanced.original).toBeUndefined();
+    expect(JSON.stringify(r.body)).not.toContain('Pictures');
   });
 
   test('a bad or unknown path is refused the same way for everyone', async () => {

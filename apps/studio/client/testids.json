@@ -12573,7 +12573,7 @@
     "hook": "assets-details-added-by",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Who added the file (\"Added by Tereza\"), from this Mac's origin record; a display name, never an e-mail. Not drawn when nobody is named.",
+    "meaning": "Who added the file (\"Added by Tereza\"), from the synced `assets/<stem>.added.json` (#172; every peer), else this Mac's origin record; a display name, never an e-mail. Not drawn when nobody is named.",
     "producer": {
       "file": "apps/studio/client/v2/assets/details.jsx",
       "symbol": "AssetDetails"

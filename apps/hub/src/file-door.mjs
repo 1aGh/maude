@@ -89,6 +89,14 @@ export const FILE_CLASSES_V2_CAPABILITY = 'file-classes-v2';
  */
 export const FILE_DEPTH_V2_CAPABILITY = 'file-depth-v2';
 
+/**
+ * Advertised on `/health` (#172): this door's classifier takes the who-added sidecar
+ * `assets/<stem>.added.json` (`maude.added` v1, a display name). A 2.0 door before it answers
+ * `400 invalid path`, so a desktop holds the file for a hub without this word — the asset itself
+ * still syncs; only the "Added by" line waits.
+ */
+export const ASSET_ADDED_CAPABILITY = 'asset-added-v1';
+
 /** One PUT body. Kept BELOW the platform's own body limit on purpose; a larger
  *  file goes up as an upload session (upload-sessions.mjs, plan T18). */
 const MAX_FILE_BYTES = SINGLE_PUT_BYTES;

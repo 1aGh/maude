@@ -229,6 +229,7 @@ const VERSIONED: Array<Row & { cls: FileClass }> = [
   { rel: 'assets/ab12cd34.beats.json', cls: 'companion-text', source: 'V2-1.10 §5.10' },
   { rel: 'assets/ab12cd34.9f8e7d6c.photo.json', cls: 'companion-text', source: 'S8 §5.1 per-use' },
   { rel: 'assets/ab12cd34.gen.json', cls: 'companion-text', source: 'S8 §5.2 maude.gen v1' },
+  { rel: 'assets/ab12cd34.added.json', cls: 'companion-text', source: '#172 maude.added v1' },
   // Vote stamps and section fold are annotation elements / fields (V2-1.12
   // §5.3): versioned, Plane A — no runtime path of their own.
   { rel: 'ui/home.annotations.json', cls: 'canvas-owned', source: 'votes + fold (V2-1.12)' },

@@ -22,7 +22,7 @@ maude design import-asset ./hero.png --kind raster --added-by "Tereza" # a PNG/J
   second copy. Say "already in Assets" and use it.
 - A logo loses scripts, links to other sites and anything else that is not drawing. The answer counts what was
   left out; tell the person in one line.
-- `--added-by` takes a display name, never an e-mail. An e-mail is dropped, and a known name is never erased by one.
+- `--added-by` takes a display name, never an e-mail. An e-mail is dropped, and a known name is never erased by one. The name travels with the project (`assets/<stem>.added.json`), so every teammate's Assets details say "Added by …"; the first person to bring the bytes in stays named. Never write that file yourself.
   The name shows as "Added by <name>" in the asset's details on this Mac.
 - The original path stays on this Mac. Do not copy it into a canvas, a chat message to others or a handoff.
 

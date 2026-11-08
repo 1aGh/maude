@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { resolveAccess } from '../access/scope.ts';
+import { readAssetAdded } from '../asset-added.ts';
 import { ImportAssetError, writeContainedAsset } from '../bin/_import-asset.mjs';
 import { createAssetImportRoutes, importDisplayName } from '../routes/assets.ts';
 
@@ -21,7 +22,10 @@ afterEach(() => {
 });
 const role = (r: 'owner' | 'member' | 'viewer' | 'observer') => resolveAccess({ v: 1, role: r });
 
-function setup(access = role('member')) {
+function setup(
+  access = role('member'),
+  addedBy?: (req: Request) => string | null | Promise<string | null>
+) {
   const root = mkdtempSync(join(tmpdir(), 'maude-s822-route-'));
   roots.push(root);
   const calls: string[] = [];
@@ -32,6 +36,7 @@ function setup(access = role('member')) {
     designRel: '.design',
     access: () => access,
     announce: (rel) => announced.push(rel),
+    ...(addedBy ? { addedBy } : {}),
     importSvg: async (text, o) => {
       calls.push('svg');
       if (text.includes('<!ENTITY'))
@@ -124,6 +129,31 @@ describe('POST /_api/import-asset (v2)', () => {
       readdirSync(join(root, '.design', 'assets')).filter((f) => !f.startsWith('.'))
     ).toHaveLength(1);
     expect(announced).toEqual([a.path]);
+  });
+
+  test('#172 — a fresh import says who added it (synced sidecar, write-once); the same bytes again keep the first name', async () => {
+    let who: string | null = 'tereza.novak@example.com'; // a cell's vouched member may be an e-mail: its words are written
+    const { post, root, announced } = setup(role('member'), () => who);
+    const a = (await (await post(PSD, { 'x-import-kind': 'psd' })).json()) as { path: string };
+    const design = join(root, '.design');
+    const sidecar = a.path.replace(/\.png$/, '.added.json');
+    expect(readAssetAdded(design, a.path)).toMatchObject({ by: 'Tereza Novak' });
+    expect(readFileSync(join(design, sidecar), 'utf8')).not.toContain('@');
+    expect(announced).toEqual([a.path, sidecar]);
+    who = 'Jonas';
+    await post(PSD, { 'x-import-kind': 'psd' });
+    expect(readAssetAdded(design, a.path)?.by).toBe('Tereza Novak');
+  });
+
+  test('#172 — nobody to name (no identity, a machine actor) writes no record', async () => {
+    for (const who of [null, 'local:abc']) {
+      const { post, root } = setup(role('member'), () => who);
+      const a = (await (await post(PSD, { 'x-import-kind': 'psd' })).json()) as { path: string };
+      expect(readAssetAdded(join(root, '.design'), a.path)).toBeNull();
+      expect(existsSync(join(root, '.design', a.path.replace(/\.png$/, '.added.json')))).toBe(
+        false
+      );
+    }
   });
 
   test('a name with a path in it shapes nothing: the file is stored by its fingerprint; the name is its last segment', async () => {

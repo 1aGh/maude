@@ -2508,6 +2508,31 @@ describe('a hub without file-classes-v2 is not offered the 2.0-only files', () =
   });
 });
 
+// #172 — who added an asset (`assets/<stem>.added.json`). A 2.0 hub without `asset-added-v1`
+// refuses it; the asset itself still goes up, the who-added record waits with the reason.
+describe('a hub without asset-added-v1 is not offered the who-added sidecar', () => {
+  test('held with the older-hub reason; the asset goes up', async () => {
+    const hub = fakeHub();
+    write('assets/a1b2c3d4.png', 'png');
+    write('assets/a1b2c3d4.added.json', '{"format":"maude.added","v":1,"by":"Tereza"}');
+    const res = await plane(hub, { hubTakesV2Files: true, hubTakesAddedFiles: false }).reconcile();
+    expect(hub.puts.map((x) => x.rel)).toEqual(['assets/a1b2c3d4.png']);
+    expect((res.hubRefused ?? []).map((h) => h.rel)).toEqual(['assets/a1b2c3d4.added.json']);
+    expect(ledger.row('assets/a1b2c3d4.added.json')?.reason).toMatch(/too old/);
+    expect(res.failed).toEqual([]);
+  });
+
+  test('offered the pass the hub says the word (absent = takes it, like every test hub)', async () => {
+    const hub = fakeHub();
+    write('assets/a1b2c3d4.added.json', '{"format":"maude.added","v":1,"by":"Tereza"}');
+    await plane(hub, { hubTakesAddedFiles: false }).reconcile();
+    expect(hub.puts).toEqual([]);
+    const res = await plane(hub, { hubTakesAddedFiles: true }).reconcile();
+    expect(res.pushed).toEqual(['assets/a1b2c3d4.added.json']);
+    expect(ledger.row('assets/a1b2c3d4.added.json')?.state).toBe('on-hub');
+  });
+});
+
 describe('2.0.3 — a Git LFS pointer is never uploaded as the media', () => {
   const POINTER = `version https://git-lfs.github.com/spec/v1\noid sha256:${'d'.repeat(64)}\nsize 48213\n`;
 

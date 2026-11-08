@@ -30,7 +30,8 @@ import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { Window } from 'happy-dom';
-import { recordAssetOrigin } from '../asset-origins.ts';
+import { recordAssetAdded } from '../asset-added.ts';
+import { cleanOriginBy, recordAssetOrigin } from '../asset-origins.ts';
 import { isValidSvg, optimizeSvg } from '../draw/optimize.ts';
 import { resolveAgentBrowserBin } from './_agent-browser-bin.mjs';
 
@@ -1328,15 +1329,19 @@ async function main() {
     }
     // S8.21 — where it came from, on THIS Mac only (`_canvas-state/asset-origins.json`, never synced): the details'
     // Advanced shows it as "Original". A record that cannot be kept never fails the import.
+    // #172 — who added it travels with the project (`assets/<stem>.added.json`, a display name only, write-once): an
+    // explicit `--added-by` that is a clean name — an e-mail there names nobody, as in the origin record.
+    const addedBy = cleanOriginBy(opts.addedBy);
     for (const r of results) {
-      if (r?.path)
-        recordAssetOrigin(
-          resolve(root, opts.designRoot),
-          r.path,
-          resolve(opts.file),
-          Date.now(),
-          opts.addedBy
-        );
+      if (!r?.path) continue;
+      recordAssetOrigin(
+        resolve(root, opts.designRoot),
+        r.path,
+        resolve(opts.file),
+        Date.now(),
+        opts.addedBy
+      );
+      if (addedBy) recordAssetAdded(resolve(root, opts.designRoot), r.path, addedBy);
     }
     if (opts.json) {
       process.stdout.write(`${JSON.stringify(results)}\n`);

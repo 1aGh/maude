@@ -266,6 +266,7 @@ const ASSET_SIDECAR_SUFFIXES = [
   '.transcript.json',
   '.beats.json',
   '.gen.json', // the generation provenance of a take (S8 §5.2) — rides with its image
+  '.added.json', // who brought the asset in (#172, a display name) — rides with its asset
   '.srt',
   '.vtt',
   '.json', // the bare whisper dump beside old captions (V2-1.10)

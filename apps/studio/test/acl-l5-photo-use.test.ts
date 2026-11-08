@@ -74,6 +74,9 @@ const FILES: Record<string, string> = {
   [`assets/${OTHER}.${EA}.photo.json`]: canonical(EDIT_A),
   [`assets/${B_ONLY}.png`]: 'png',
   [`assets/${B_ONLY}.gen.json`]: '{"format":"maude.gen","v":1}',
+  // #172 — who added it rides with its asset, like the generation record
+  [`assets/${IMG}.added.json`]: '{"format":"maude.added","v":1,"by":"Tereza"}',
+  [`assets/${B_ONLY}.added.json`]: '{"format":"maude.added","v":1,"by":"Jonas"}',
 };
 
 describe('acl-l5-photo-use — read closure', () => {
@@ -112,6 +115,13 @@ describe('acl-l5-photo-use — read closure', () => {
     expect(sees(a, cl, `assets/${B_ONLY}.gen.json`)).toBe(false);
     const b = grant('ui/B.tsx', 'viewer');
     expect(sees(b, closureFor(b, project), `assets/${B_ONLY}.gen.json`)).toBe(true);
+  });
+
+  test('.added.json follows its image’s access: a name inside the grant, none beyond it (#172)', () => {
+    expect(sees(a, cl, `assets/${IMG}.added.json`)).toBe(true);
+    expect(sees(a, cl, `assets/${B_ONLY}.added.json`)).toBe(false);
+    const b = grant('ui/B.tsx', 'viewer');
+    expect(sees(b, closureFor(b, project), `assets/${B_ONLY}.added.json`)).toBe(true);
   });
 
   test('a project role still reads everything (the existing gates apply)', () => {
@@ -172,5 +182,7 @@ describe('acl-l5-photo-use — create, never overwrite', () => {
     expect(writes(a, cl, `assets/${IMG}.photo.json`, { exists: true })).toBe(false);
     expect(writes(a, cl, `assets/${IMG}.gen.json`, { exists: true })).toBe(false);
     expect(writes(a, cl, `assets/${IMG}.gen.json`, { exists: false })).toBe(false);
+    // #172 — the studio writes who added it; canvas code under a grant never does
+    expect(writes(a, cl, `assets/${IMG}.added.json`, { exists: false })).toBe(false);
   });
 });
