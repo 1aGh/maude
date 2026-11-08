@@ -167,6 +167,11 @@ const CANVAS_ONLY_REFUSED = new Set([
   '/_api/cloud/move',
   '/_api/cloud/projects',
   '/_api/github/repos',
+  // #122 (122-C) — the desktop shell's clip carriage (shell-token routes, `project` class): they move a
+  // canvas's text and pictures between projects, so a canvas-only session is refused before the token gate
+  '/_api/shell/clip-export',
+  '/_api/shell/clip-asset',
+  '/_api/shell/clip-import',
 ]);
 
 /** Is `pathname` a project-level route a canvas-only session is refused outright (p8-c4)? */
