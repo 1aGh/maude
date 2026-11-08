@@ -127,6 +127,23 @@ describe('the panel lists the last 20, each saying where it runs', () => {
     m.unmount();
   });
 
+  test('#128 T3.7 — a cloud job held behind another video says so, then shows its progress', () => {
+    const held = job({
+      status: 'running',
+      runsOn: 'cloud',
+      waiting: 'Waiting — another video is rendering first',
+    });
+    expect(jobMeta(held, { now: NOW })).toBe(
+      'In the cloud · Waiting — another video is rendering first'
+    );
+    const rendering = job({
+      status: 'running',
+      runsOn: 'cloud',
+      progress: { current: 45, total: 90 },
+    });
+    expect(jobMeta(rendering, { now: NOW })).toBe('In the cloud · 50 %');
+  });
+
   test('a job that does not say ran on this Mac', () => {
     expect(jobMeta(job({ status: 'queued' }), { now: NOW })).toBe('On this Mac · Queued');
   });
