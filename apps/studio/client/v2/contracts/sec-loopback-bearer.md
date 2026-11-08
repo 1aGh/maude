@@ -101,12 +101,20 @@ separate listeners with their own frame-capability model and are untouched. Phas
 | Credential | Accepted when |
 | --- | --- |
 | `x-maude-api-key: <key>` or `Authorization: Bearer <key>` | it matches (constant time); a wrong one is 401 `api-key-invalid` |
-| the session cookie `maude_k_<12 hex>=<HMAC-SHA256(key, "maude-session/1")>` | it matches AND `Sec-Fetch-Site` is absent, `same-origin` or `none` — so the canvas origin (same host, other port: same-site to a cookie) never rides it |
+| the session cookie `maude_k_<12 hex>=<64 hex>` | the value names a live session of this process AND `Sec-Fetch-Site` is absent, `same-origin` or `none` AND any `Origin` is this server's host — so the canvas origin (same host, other port: same-site to a cookie) never rides it |
 
 Anything else → 401 `{ ok:false, error:'api-key-required' }` (`Cache-Control: no-store`).
 `Origin`/`Sec-Fetch-Site` alone never pass. The cookie is `HttpOnly; SameSite=Strict; Path=/`, no
 `Max-Age` (dies with the webview session); its name is derived from the key so two servers on
-`127.0.0.1` never overwrite each other's. The key itself is never placed in a URL or a log.
+`127.0.0.1` never overwrite each other's. Its **value is random** (32 bytes), held only in the
+server's memory as `sha256(value) → last use` (`api-key.ts` `SESSIONS`, at most 256): never derived
+from the key, gone after **12 h unused** (`SESSION_IDLE_MS`) or a restart. Every exchange mints a
+fresh one and drops the session the request presented (rotation); two windows of one project hold
+two sessions. The canvas and capture listeners never read it (the gate runs on the main listener
+only) and nothing logs it. The key itself is never placed in a URL or a log.
+
+The gate records what authenticated each request (`requestCredential(req)`: `'key'` | `'session'`,
+a `WeakMap` over the `Request`), on exempt paths too — §7.3 and §7.8 read it.
 
 ### 7.3 Exempt (answered without a credential)
 
@@ -116,10 +124,20 @@ Anything else → 401 `{ ok:false, error:'api-key-required' }` (`Cache-Control: 
   `GET|HEAD /_canvas-runtime/*` — the shipped dependency bundles (`runtime-health.sh` probes them).
 - `GET|HEAD /_canvas-shell`, `/_canvas-shell.html` — a 307 to the capture origin while the split
   is on (every headless capture follows it, §CLAUDE.md "Captures never render on the main origin").
+  **The 307 carries a frame capability only for a caller that sent the key or the session**
+  (`authenticatedCaller`, http.ts); a keyless caller gets the 307 frame-less, so the capture reads
+  nothing. With the split off (`MAUDE_CANVAS_ORIGIN_SPLIT=0`) a keyless caller gets the bare shell
+  (no past-version meta, no system fallbacks or aliases). Headless callers therefore authenticate:
+  the server's own captures (exporters, thumbnails) resolve the redirect in-process
+  (`shell/capture-url.ts` `localCaptureUrl`); the bash helpers (screenshot, canvas-rects,
+  draw-proof, smoke, visual-sanity, perf's bare page) ask with the key through `studio_capture_url`
+  (`_desktop-locate.sh`) and open the capture-origin URL it prints; a helper that drives the studio
+  page holds the session cookie from its opening link.
 - `/_api/shell/{status,attest,clip-export,clip-asset,clip-import}` — each carries its own
   credential (the per-spawn shell token, or the attest MAC).
 
 Everything else, every method, needs §7.2. `/_api/shell/session` (below) needs the header form.
+`POST /_api/shell/session` and the launch exchange answer a loopback `Host` only (C7).
 
 ### 7.4 How a page gets a session
 
@@ -134,7 +152,9 @@ Everything else, every method, needs §7.2. `/_api/shell/session` (below) needs 
   (hex), `ts` = unix seconds, `nonce` = 32 hex. `GET /` (or `/index.html`) with a valid token not
   older than 300 s and never used before → 303 to the same URL without the parameter +
   `Set-Cookie`. A used, expired or forged token → 401 page. Anyone holding the key can mint one
-  (the server at boot, `maude design browse`); the server remembers used nonces (bounded).
+  (the server at boot, `maude design server-up --open`); the server remembers used nonces with
+  their `ts` (at most 4096): when full it forgets only expired ones, and while it is still full of
+  live ones it answers 429 — a live token is never forgotten.
 
 ### 7.5 Terminal-started servers (phase 2b)
 
@@ -150,9 +170,15 @@ port whose `/_health` names the project. The AI chat agent's Read tool is denied
 (`credentialDenyRules`).
 
 Its opening URL carries a launch token (§7.4): the server opens the browser with one, and prints one
-only to a terminal (a nohup'd `server-up` log keeps the plain address). `maude design server-up --url`
-and `desktop-locate.mjs launch-url` mint a fresh one for `/design:browse` and the helpers that drive
-the studio page. A page that already holds the session and opens a launch link again (a reload, a
+only to a terminal (a nohup'd `server-up` log keeps the plain address). **No auto-tier verb prints a
+launch token or the key** — the AI chat reads their stdout and stderr: `maude design server-up --url`
+prints the plain address; `--open` (`/design:browse`) hands a fresh link to `open`/`xdg-open` and
+prints the plain address. `desktop-locate.mjs key|launch-url` are internal to the helpers (captured
+into a variable, never echoed; screenshot.sh's log lines redact `maude-launch=` and `fc=`).
+`maude design agent-browser-safe open` refuses any URL carrying `maude-launch` (decoded forms too),
+so the AI's own browser never holds a session. A link reaches a helper process through a 0600 file
+it reads and deletes, never argv: the bug-report capture (`screenshot.sh --url-file`) and the perf
+probes (`--launch-file`). A page that already holds the session and opens a launch link again (a reload, a
 helper navigating twice) gets a 303 without the parameter; its token is not spent.
 
 **A server started with neither a key nor role `cli`** (a bare `bun server.ts`, `npm run start`, the
@@ -182,3 +208,44 @@ every starter a person uses (the app, `serve`, `server-up`) asks for required mo
 `servers.json` entries gain `apiKey` (64 hex) beside `attestKey`, present only on a running entry,
 dropped on rest/reap with the attest key. Tests: `test/sec-loopback-bearer.test.ts` (§7.1–7.4),
 `sidecar.rs`/`cli_registry.rs` unit tests (§7.7), `cli/lib/desktop-locate.test.mjs` (§7.6).
+
+### 7.8 The person (decision `burndown-loopback-p2c-person-is-the-page-session`)
+
+Some routes are the person's alone: they spend money, publish, or share. In required mode they need
+**the page's session on a `Sec-Fetch-Site: same-origin` request whose `Origin` is this server**
+(`personRequest`, `api-key.ts`); a request authenticated only by the header key — what every helper
+and verb sends — gets 403. Outside required mode (phase 1, a cell behind its proxy) the old rule
+stands: `Origin` present.
+
+| Route | Where |
+| --- | --- |
+| spend approval / decline (`POST /_api/generate-jobs` with `approve`/`decline`) | http.ts |
+| spend limits (`generateSpend` in `POST /_api/ui-prefs`) | http.ts |
+| `POST /_api/git/push` | the gate (`PERSON_ONLY`) → 403 `person-only` |
+| `POST /_api/share/invites`, `…/invites/:id/resend` | the gate |
+| `POST /_api/cloud/attach`, `/attach/code`, `/move`, `/signin/start` | the gate |
+
+Left as they are, with the reason: pull, commit and file writes (project effects the verbs make on
+purpose); `cloud/detach`, `signout`, share revoke and role changes (they remove access, they send no
+data or money out); permission answers over `/_ws/acp` (no verb sends them; follow-up below).
+
+### 7.9 Accepted residuals
+
+- **A process holding the raw key can become the person.** It can trade the key for a session and
+  forge browser headers: §7.8 separates helpers and verbs from the page, not a raw-key holder. The
+  AI agent gets the raw key only through a command the person approves (Read is denied the registry
+  and the key files; no auto verb prints it). Closing it needs a page-only secret (a second key only
+  the Tauri command hands out) or a native confirm — follow-up, with the `/_ws/acp` answers.
+- **Browser cookies cross localhost ports.** In the terminal case the cookie rides to every
+  `localhost:<port>` the browser visits. Mitigated: random, server-held, 12 h idle expiry, rotation;
+  the canvas and capture listeners never read or log it. The desktop webviews have their own stores.
+- **Fetch Metadata on old WebKit.** The session and §7.8 rely on `Sec-Fetch-Site`; WebKit has had
+  wrong values on iframes (bugs 256472, 260284). Follow-up: a desktop e2e check of the headers a
+  canvas-iframe request to the main origin carries on the oldest supported macOS.
+- **A launch link on `open`/agent-browser argv** for the moment of the navigation, which spends it.
+- **An `XDG_STATE_HOME` the AI session does not know.** The Read deny covers the default
+  `~/.local/state/maude/servers` and the session env's own `XDG_STATE_HOME`, not an arbitrary one.
+- **The key-file reader trusts `/_health` + a live pid** (both CLI paths, the synchronous
+  `_write-claim.mjs` one included, check `/_health` first); a key-possession challenge before the key
+  is sent to a terminal server is a follow-up.
+- **The bg-remove harness redirect** still mints its capability on the harness nonce alone.
