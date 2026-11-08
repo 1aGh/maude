@@ -170,7 +170,8 @@ function isExempt(method: string, pathname: string): boolean {
     pathname === '/index.html' ||
     pathname === '/_canvas-shell' ||
     pathname === '/_canvas-shell.html' ||
-    pathname.startsWith('/_client/')
+    pathname.startsWith('/_client/') ||
+    pathname.startsWith('/_canvas-runtime/')
   );
 }
 

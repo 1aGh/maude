@@ -22,6 +22,11 @@
 //   • When the app is not running, or has no running server for this root, callers keep today's
 //     `_server.json` + pid + `/_health` rootId check (studio-locate.mjs, server-up.sh).
 //
+// sec-loopback-bearer §7 — an app server requires its per-spawn API key from every caller. The registry
+// entry carries it (`apiKey`); this module hands it out only with an ATTESTED port (never for an entry
+// whose server did not answer the challenge), and never reads a key from any project file. Callers send
+// it as `x-maude-api-key` (studio-locate.mjs `studioHeaders`; bash helpers through `key` mode below).
+//
 // The CLI → app socket (`cli.sock`, beside the registry): one JSON request per connection, one JSON
 // reply. Used only when it is a socket of this user; absent → today's behaviour. The CLI never
 // launches the app.
@@ -166,6 +171,7 @@ export function readRegistry(file) {
       if (validPort(s.port)) e.port = s.port;
       if (typeof s.attestKey === 'string' && ATTEST_KEY_RE.test(s.attestKey))
         e.attestKey = s.attestKey;
+      if (typeof s.apiKey === 'string' && ATTEST_KEY_RE.test(s.apiKey)) e.apiKey = s.apiKey;
       // a running entry without a port or a key cannot be verified: it reads as not running
       if (e.state === 'running' && (e.port === undefined || e.attestKey === undefined))
         e.state = 'starting';
@@ -285,6 +291,7 @@ export async function probeDesktop(
             label: e.label ?? null,
             kind: e.kind,
             socket: v.socket,
+            ...(e.apiKey ? { apiKey: e.apiKey } : {}),
           };
         }
       }
@@ -296,10 +303,26 @@ export async function probeDesktop(
   return { state: 'no-app' };
 }
 
-/** `{ port, label, kind }` of the attested app server for `root`, or null (contract §8). */
+const served = (p) => ({
+  port: p.port,
+  label: p.label,
+  kind: p.kind,
+  ...(p.apiKey ? { apiKey: p.apiKey } : {}),
+});
+
+/** `{ port, label, kind, apiKey? }` of the attested app server for `root`, or null (contract §8). */
 export async function locateDesktop(root, opts = {}) {
   const p = await probeDesktop(root, opts);
-  return p.state === 'running' ? { port: p.port, label: p.label, kind: p.kind } : null;
+  return p.state === 'running' ? served(p) : null;
+}
+
+/**
+ * sec-loopback-bearer §7.6 — the API key for `root`'s app server on `port`, or null (no app, another
+ * port, no key, or the server there did not attest). Never throws.
+ */
+export async function apiKeyFor(root, port, opts = {}) {
+  const p = await probeDesktop(root, opts);
+  return p.state === 'running' && p.port === Number(port) ? (p.apiKey ?? null) : null;
 }
 
 /**
@@ -310,7 +333,7 @@ export async function waitDesktop(root, { waitMs = 45_000, pollMs = 500, ...opts
   const until = Date.now() + waitMs;
   for (;;) {
     const p = await probeDesktop(root, opts);
-    if (p.state === 'running') return { port: p.port, label: p.label, kind: p.kind };
+    if (p.state === 'running') return served(p);
     if (p.state === 'no-app' || Date.now() >= until) return null;
     await sleep(pollMs);
   }
@@ -459,6 +482,7 @@ export async function ensureDesktop(
         port: reply.port,
         label: e.label ?? null,
         kind: e.kind,
+        ...(e.apiKey ? { apiKey: e.apiKey } : {}),
         ...(warning ? { warning } : {}),
       };
     }
@@ -491,8 +515,9 @@ const USAGE = `usage: desktop-locate.mjs <mode> --root <repo> [options]
   port     [--ensure capture|show] [--lease]   print the app server's port for the project
   show     [--canvas c] [--artboard a] [--element e] [--mode m]   ask the app to show the project
   restart                                      ask the app to restart its server for the project
+  key      --port N                            print the API key of the app server on port N (attested)
   app-pid  --pid N                             exit 0 when N is the app or one of its servers
-exit: 0 ok · 10 not the app's (use the project's own server) · 11 the app serves this project but
+exit: 0 ok · 10 not the app's (use the project's own server; no key) · 11 the app serves this project but
       it did not answer the check (do not use _server.json) · 4 refused (message on stderr) · 2 usage
 `;
 
@@ -503,7 +528,16 @@ function argsOf(argv) {
     const v = argv[i + 1];
     if (a === '--lease') o.lease = true;
     else if (
-      ['--root', '--ensure', '--canvas', '--artboard', '--element', '--mode', '--pid'].includes(a)
+      [
+        '--root',
+        '--ensure',
+        '--canvas',
+        '--artboard',
+        '--element',
+        '--mode',
+        '--pid',
+        '--port',
+      ].includes(a)
     ) {
       if (v === undefined) return { error: `${a} needs a value` };
       o[a.slice(2)] = v;
@@ -573,6 +607,15 @@ export async function main(
     if (r.state === 'shown') return 0;
     if (r.state === 'refused') return refuse(r.line);
     return 10;
+  }
+  if (a.mode === 'key') {
+    // stdout is the key and nothing else: a helper captures it into a shell variable and hands it to
+    // curl through a config on stdin, never argv (sec-loopback-bearer §7.6)
+    const p = await probeDesktop(root, { env });
+    if (p.state === 'unverified') return 11;
+    if (p.state !== 'running' || p.port !== Number(a.port) || !p.apiKey) return 10;
+    out.write(`${p.apiKey}\n`);
+    return 0;
   }
   if (a.mode === 'restart') {
     const r = await askApp({ op: 'restart', root: real(root) ?? root }, { env, timeoutMs: 5000 });

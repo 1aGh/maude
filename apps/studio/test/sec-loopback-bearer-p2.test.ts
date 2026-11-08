@@ -75,6 +75,7 @@ describe('mainOriginKeyRefusal (pure, required mode)', () => {
       '/index.html',
       '/_client/client.bundle.js',
       '/_client/fonts/inter.woff2',
+      '/_canvas-runtime/react.js',
       '/_canvas-shell.html',
       '/_api/shell/status',
       '/_api/shell/attest?n=00',

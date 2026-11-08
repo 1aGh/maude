@@ -112,7 +112,8 @@ Anything else → 401 `{ ok:false, error:'api-key-required' }` (`Cache-Control: 
 
 - `GET|HEAD /_health` — the CLI's locate probe (it names the root, nothing else).
 - `GET|HEAD /`, `/index.html` — the shell document (static HTML + CSP, the bootstrap that
-  fetches the key); `GET|HEAD /_client/*` — the shipped client bundle, styles, fonts.
+  fetches the key); `GET|HEAD /_client/*` — the shipped client bundle, styles, fonts;
+  `GET|HEAD /_canvas-runtime/*` — the shipped dependency bundles (`runtime-health.sh` probes them).
 - `GET|HEAD /_canvas-shell`, `/_canvas-shell.html` — a 307 to the capture origin while the split
   is on (every headless capture follows it, §CLAUDE.md "Captures never render on the main origin").
 - `/_api/shell/{status,attest,clip-export,clip-asset,clip-import}` — each carries its own

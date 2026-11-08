@@ -32,12 +32,13 @@ import {
   cleanName,
   ensureDesktop,
   isAppPid,
+  apiKeyFor,
   locateDesktop,
   probeDesktop,
   readRegistry,
   registryPath,
 } from './desktop-locate.mjs';
-import { probeStudio } from './studio-locate.mjs';
+import { postStudio, probeStudio, studioHeaders } from './studio-locate.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const KEY = 'ab'.repeat(32);
@@ -69,9 +70,11 @@ function fakeServer({ key = KEY, rootId, health = {} } = {}) {
   return new Promise((res) => {
     const seen = [];
     const posts = [];
+    const keys = [];
     const srv = createServer((req, resp) => {
       const u = new URL(req.url, 'http://x');
       seen.push(u.pathname);
+      keys.push(req.headers['x-maude-api-key'] ?? null);
       const port = srv.address().port;
       resp.setHeader('content-type', 'application/json');
       if (u.pathname === '/_api/shell/attest') {
@@ -100,7 +103,7 @@ function fakeServer({ key = KEY, rootId, health = {} } = {}) {
     });
     srv.listen(0, '127.0.0.1', () => {
       closers.push(() => new Promise((r) => srv.close(() => r())));
-      res({ port: srv.address().port, seen, posts });
+      res({ port: srv.address().port, seen, posts, keys });
     });
   });
 }
@@ -488,6 +491,84 @@ describe('the CLI mode the bash helpers call', () => {
     const bad = await fakeServer({ key: WRONG, rootId: rootIdOf(root) });
     writeRegistry(REG, [running(root, bad.port)]);
     const c = await run(['port', '--root', root]);
+    assert.equal(c.code, 11);
+    assert.equal(c.out, '');
+    reset();
+  });
+});
+
+// sec-loopback-bearer §7.6 — an app server requires its per-spawn API key from every caller. The CLI
+// takes it from the registry entry of the ATTESTED port only and sends it on every request.
+describe('the app server API key', () => {
+  const API = 'ef'.repeat(32);
+  const runMode = (args) =>
+    new Promise((res) => {
+      const c = spawn(process.execPath, [join(HERE, 'desktop-locate.mjs'), ...args], {
+        env: env(),
+      });
+      let out = '';
+      c.stdout.on('data', (d) => (out += d));
+      c.on('exit', (code) => res({ code, out }));
+    });
+
+  test('readRegistry keeps a well-formed apiKey and drops a malformed one', () => {
+    const root = project();
+    reset();
+    writeRegistry(REG, [running(root, 4100, KEY, { apiKey: API })]);
+    assert.equal(readRegistry(REG).servers[0].apiKey, API);
+    writeRegistry(REG, [running(root, 4100, KEY, { apiKey: 'short' })]);
+    assert.equal(readRegistry(REG).servers[0].apiKey, undefined);
+    reset();
+  });
+
+  test('an attested port hands out its key; a forged MAC or another port never does', async () => {
+    const root = project();
+    const good = await fakeServer({ rootId: rootIdOf(root) });
+    reset();
+    writeRegistry(REG, [running(root, good.port, KEY, { apiKey: API })]);
+    assert.equal((await locateDesktop(root, { env: env() })).apiKey, API);
+    assert.equal(await apiKeyFor(root, good.port, { env: env() }), API);
+    assert.equal(await apiKeyFor(root, good.port + 1, { env: env() }), null);
+    const bad = await fakeServer({ key: WRONG, rootId: rootIdOf(root) });
+    writeRegistry(REG, [running(root, bad.port, KEY, { apiKey: API })]);
+    assert.equal(await apiKeyFor(root, bad.port, { env: env() }), null);
+    reset();
+  });
+
+  test('studio-locate: verbs and hooks send the key to the app studio, none to a project server', async () => {
+    const root = project();
+    const app = await fakeServer({ rootId: rootIdOf(root) });
+    reset();
+    writeRegistry(REG, [running(root, app.port, KEY, { apiKey: API })]);
+    const { studio } = await probeStudio(root);
+    assert.equal(studio.owner, 'app');
+    assert.equal(studioHeaders(studio)['x-maude-api-key'], API);
+    await postStudio(studio, '/_api/ui/open', { panel: 'chat' });
+    assert.equal(app.keys.at(-1), API, 'the POST carried the key');
+    reset();
+    const own = await fakeServer({ rootId: rootIdOf(root) });
+    plantServerJson(root, own.port);
+    const { studio: cli } = await probeStudio(root);
+    assert.equal(cli.port, own.port);
+    assert.equal(studioHeaders(cli)['x-maude-api-key'], undefined);
+    await postStudio(cli, '/_api/ui/open', { panel: 'chat' });
+    assert.equal(own.keys.at(-1), null, 'no key to a server the app did not start');
+  });
+
+  test('key mode: the key on stdout when attested on that port; 10 otherwise; 11 when forged', async () => {
+    const root = project();
+    const good = await fakeServer({ rootId: rootIdOf(root) });
+    reset();
+    writeRegistry(REG, [running(root, good.port, KEY, { apiKey: API })]);
+    const a = await runMode(['key', '--root', root, '--port', String(good.port)]);
+    assert.equal(a.code, 0);
+    assert.equal(a.out.trim(), API);
+    const b = await runMode(['key', '--root', root, '--port', String(good.port + 1)]);
+    assert.equal(b.code, 10);
+    assert.equal(b.out, '');
+    const bad = await fakeServer({ key: WRONG, rootId: rootIdOf(root) });
+    writeRegistry(REG, [running(root, bad.port, KEY, { apiKey: API })]);
+    const c = await runMode(['key', '--root', root, '--port', String(bad.port)]);
     assert.equal(c.code, 11);
     assert.equal(c.out, '');
     reset();
