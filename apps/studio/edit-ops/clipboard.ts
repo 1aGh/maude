@@ -5,7 +5,12 @@
 //   object.copy    the selected objects' JSX (document order)       — a READ: nothing is written
 //   artboard.copy  params.artboards' whole `<DCArtboard>` ranges     — a READ
 //   object.cut     object.copy, then the objects leave the file       — one write, one ⌘Z
+//   artboard.cut   artboard.copy + artboard.trash's removal (#122)    — one write, `kind: 'trash'`, one ⌘Z
 //   canvas.paste   params.clip = the handle a copy / cut answered     — one write, one ⌘Z
+//
+// #122 (122-A): a copy also keeps what it READS from around it — the imports and module-level declarations
+// (edit-ops/clip-carry.ts) — and a paste on another canvas adds what the target lacks (re-pointed, reused or
+// renamed; every added import passes the C4 import rule). Function-scope names still refuse (`needs`).
 //
 // The BYTES never travel: a copy / cut keeps the copied text HERE (server memory, per project server)
 // and answers a handle `{ id, kind, count, from }` in `detail.clip`. The shell holds that handle (its
@@ -40,9 +45,18 @@ import {
   walkIdElements,
   withIdAttr,
 } from '../element-ids.ts';
+import { artboardTrash } from './artboard-trash.ts';
+import {
+  type CarriedSummary,
+  type Carry,
+  type CarryPlan,
+  carryOf,
+  planCarry,
+  renameRefs,
+} from './clip-carry.ts';
 import { artboardLabels, copyId, copyName } from './duplicate-at-width.ts';
 import { isCoord } from './layout-patch.ts';
-import { needsOf, scopeAt } from './scope-names.ts';
+import { scopeAt } from './scope-names.ts';
 import { lineIndent, reindent } from './siblings.ts';
 import type { ClipScope, EditOp, ElementRef, LayoutPatch, ResolvedEditOp } from './types.ts';
 
@@ -64,9 +78,13 @@ interface Clip extends ClipHandle {
   names: Array<{ id: string; label: string; width: number | null }>;
   /** objects: the artboard they came from (a paste with nowhere else to go lands there) */
   artboard: string | null;
-  /** objects: the names the copied code reads from around it (a component's values, a helper) — a paste where
-   *  they are not visible is refused (P8 C7), never landed as an error card */
-  needs?: string[];
+  /** the names the copied code reads that can not travel (a component's props / state, a `let`) — a paste where
+   *  they are not visible is refused (P8 C7), never landed as an error card; #122: artboards too */
+  needs: string[];
+  /** #122 (122-A) — the imports and module-level declarations the copy reads; a paste on another canvas adds them */
+  carry: Carry;
+  /** #122 — set when the carry was too big to keep: a paste on another canvas is refused with these words */
+  carryRefused: string | null;
   bytes: number;
 }
 
@@ -112,7 +130,11 @@ function shelfOf(subject: string): Map<string, Clip> {
 function keep(clip: Omit<Clip, 'id' | 'bytes' | 'count'>, scope: ClipScope): ClipHandle {
   const clips = shelfOf(scope.subject);
   const id = `c_${randomBytes(8).toString('hex')}`;
-  const bytes = clip.items.reduce((n, t) => n + t.length * 2, 0);
+  // #122: the carried text counts toward the shelf's bytes like the items
+  const carried =
+    clip.carry.decls.reduce((n, d) => n + d.text.length + d.name.length, 0) +
+    clip.carry.imports.reduce((n, i) => n + i.spec.length + i.local.length + i.imported.length, 0);
+  const bytes = clip.items.reduce((n, t) => n + t.length * 2, 0) + carried * 2;
   clips.set(id, { ...clip, id, bytes, count: clip.items.length });
   let total = 0;
   for (const c of clips.values()) total += c.bytes;
@@ -201,13 +223,33 @@ const widthOf = (attrs: string): number | null => {
   return m ? Number(m[1]) : null;
 };
 
+/** #122 — what the copied ranges read from around them: carried, or (function scope, `let`) needed. */
+function readsOf(
+  source: string,
+  req: ResolvedEditOp,
+  els: IdElement[],
+  items: string[]
+): Pick<Clip, 'needs' | 'carry' | 'carryRefused'> {
+  const read = carryOf(
+    source,
+    els.map((el) => [el.start, el.end] as const),
+    req.file,
+    items,
+    req.readFile ? { text: req.readFile } : undefined
+  );
+  if (!read) return fail(req.file, 'This canvas does not parse; fix it before editing.');
+  return { needs: read.needs, carry: read.carry, carryRefused: read.refused };
+}
+
 function readArtboards(source: string, req: ResolvedEditOp): Omit<Clip, 'id' | 'bytes' | 'count'> {
   const { els, all } = artboardsOf(source, req);
   const labels = artboardLabels(source);
+  const items = els.map((el) => itemOf(source, all, el));
   return {
     kind: 'artboards',
     from: req.file,
-    items: els.map((el) => itemOf(source, all, el)),
+    items,
+    ...readsOf(source, req, els, items),
     names: els.map((el) => {
       const id = el.artboard as string;
       const open = source.slice(el.start, source.indexOf('>', el.nameEnd) + 1);
@@ -219,15 +261,16 @@ function readArtboards(source: string, req: ResolvedEditOp): Omit<Clip, 'id' | '
 
 function readObjects(source: string, req: ResolvedEditOp) {
   const { els, all } = objectsOf(source, req);
+  const items = els.map((el) => itemOf(source, all, el));
   return {
     els,
     clip: {
       kind: 'objects' as const,
       from: req.file,
-      items: els.map((el) => itemOf(source, all, el)),
+      items,
       names: [],
       artboard: req.targets[0]?.artboard ?? null,
-      needs: [...new Set(els.flatMap((el) => needsOf(source, el.start, el.end) ?? []))].sort(),
+      ...readsOf(source, req, els, items),
     },
   };
 }
@@ -276,6 +319,36 @@ export const objectCut: EditOp = {
   },
 };
 
+/**
+ * #122 (122-A, contract §5.3) — `artboard.copy` + `artboard.trash`'s removal (the JSX spans and the
+ * `layout.remove`) in ONE write, `kind: 'trash'` with `origin.trashed`: a cut artboard that is never pasted is
+ * in the Trash, not only in this server's forgettable clip. The canvas keeps at least one artboard (trash's rule,
+ * its words); a refused cut keeps no clip.
+ */
+export const artboardCut: EditOp = {
+  id: 'artboard.cut',
+  artboards: (req) => artboardTrash.artboards?.(req) ?? [],
+  apply(source, req) {
+    const trash = artboardTrash.apply(source, req);
+    const clip = readArtboards(source, req);
+    const trashed = trash.action?.trashed ?? [];
+    const handle = keep(clip, req.clipScope ?? DESKTOP_SCOPE);
+    return {
+      source: trash.source,
+      ...(trash.layout ? { layout: trash.layout } : {}),
+      detail: { clip: handle },
+      action: {
+        kind: 'trash',
+        label:
+          trashed.length === 1
+            ? `Cut “${trashed[0]?.label ?? ''}”`
+            : `Cut ${trashed.length} artboards`,
+        trashed,
+      },
+    };
+  },
+};
+
 // ── the paste ─────────────────────────────────────────────────────────────────────────────────
 
 const WRAP_HEAD = 'const __maudeClip = (\n';
@@ -314,6 +387,41 @@ function clipOf(req: ResolvedEditOp): Clip {
   const clip = shelves.get(scope.subject)?.get(id);
   if (!clip || !scope.sees(clip.from)) return fail(req.file, 'That copy is gone; copy it again.');
   return clip;
+}
+
+/**
+ * What the paste at `at` needs from around it, and (#122, another canvas only) what it carries. The clip's
+ * `needs` the spot cannot see refuse it in today's words; on its own canvas nothing is carried (the names
+ * are already there). Null = nothing to carry.
+ */
+function readsAt(
+  source: string,
+  at: number,
+  req: ResolvedEditOp,
+  clip: Clip,
+  what: 'object' | 'artboard'
+): CarryPlan | null {
+  if (clip.needs.length) {
+    const seen = scopeAt(source, at);
+    const missing = seen ? clip.needs.filter((n) => !seen.has(n)) : [];
+    if (missing.length)
+      return fail(
+        req.file,
+        `That ${what} reads ${missing.slice(0, 3).join(', ')} from where it was copied; it can’t be pasted here. Copy the whole component instead.`
+      );
+  }
+  if (clip.from === req.file) return null;
+  if (clip.carryRefused) return fail(req.file, clip.carryRefused);
+  return planCarry(
+    source,
+    at,
+    clip.carry,
+    clip.from,
+    req.file,
+    what,
+    req.readFile ? { text: req.readFile } : undefined,
+    (message) => fail(req.file, message)
+  );
 }
 
 /** Where objects land inside an artboard: its page root when it has exactly one element child. */
@@ -364,22 +472,14 @@ function pasteObjects(source: string, req: ResolvedEditOp, clip: Clip) {
     artboard = board.artboard as string;
   }
 
-  if (clip.needs?.length) {
-    const seen = scopeAt(source, at);
-    const missing = seen ? clip.needs.filter((n) => !seen.has(n)) : [];
-    if (missing.length)
-      return fail(
-        req.file,
-        `That object reads ${missing.slice(0, 3).join(', ')} from where it was copied; it can’t be pasted here. Copy the whole component instead.`
-      );
-  }
+  const plan = readsAt(source, at, req, clip, 'object');
   const created: ElementRef[] = [];
   let block = '';
   for (const raw of clip.items) {
     const item = checkItem(raw, req.file);
     if (!item || ['DCArtboard', 'DCSection', 'DesignCanvas'].includes(item.root.tag))
       return fail(req.file, 'That copy can not be pasted here.');
-    let text = item.text;
+    let text = plan ? renameRefs(item.text, plan.renames, true) : item.text;
     if (/^[a-z]/.test(item.root.tag)) {
       const id = generateElementId(seedOf(item.root), used);
       text = withIdAttr(text, id);
@@ -388,8 +488,9 @@ function pasteObjects(source: string, req: ResolvedEditOp, clip: Clip) {
     block += `\n${indent}${reindent(text, '', indent)}`;
   }
   const s = new MagicString(source);
+  plan?.apply(s);
   s.appendLeft(at, block);
-  return { source: s.toString(), created };
+  return { source: s.toString(), created, carried: plan?.carried };
 }
 
 function pasteArtboards(source: string, req: ResolvedEditOp, clip: Clip) {
@@ -407,6 +508,8 @@ function pasteArtboards(source: string, req: ResolvedEditOp, clip: Clip) {
   const place = isRec(req.params.at) && isCoord(req.params.at.x) && isCoord(req.params.at.y);
   let x = place ? Math.round((req.params.at as { x: number }).x) : 0;
   const y = place ? Math.round((req.params.at as { y: number }).y) : 0;
+  // #122: an artboard gets the same needs / carry treatment as an object (it got none before)
+  const plan = readsAt(source, after.end, req, clip, 'artboard');
   let block = '';
   clip.items.forEach((raw, i) => {
     const item = checkItem(raw, req.file);
@@ -417,7 +520,8 @@ function pasteArtboards(source: string, req: ResolvedEditOp, clip: Clip) {
     ids.add(id);
     const label = copyName(name.label, labels);
     labels.add(label);
-    block += `\n${indent}${reindent(renameBoard(item.text, id, label, req.file), '', indent)}`;
+    const text = renameBoard(item.text, id, label, req.file);
+    block += `\n${indent}${reindent(plan ? renameRefs(text, plan.renames, true) : text, '', indent)}`;
     created.push({ artboard: id, element: id });
     if (place) {
       set.push({ id, x, y });
@@ -425,8 +529,14 @@ function pasteArtboards(source: string, req: ResolvedEditOp, clip: Clip) {
     }
   });
   const s = new MagicString(source);
+  plan?.apply(s);
   s.appendLeft(after.end, block);
-  return { source: s.toString(), created, layout: set.length ? { set } : undefined };
+  return {
+    source: s.toString(),
+    created,
+    layout: set.length ? { set } : undefined,
+    carried: plan?.carried,
+  };
 }
 
 /** `<DCArtboard id="…" label="…">` of a checked item with a new id and label (the opening tag only). */
@@ -470,13 +580,22 @@ export const canvasPaste: EditOp = {
       clip.kind === 'artboards'
         ? countWords(clip.items.length, 'artboard', 'artboards')
         : countWords(clip.items.length, 'object', 'objects');
+    // #122: on another canvas, what the paste added (the canvas's toast says it — counts only, never a handle)
+    const carried: CarriedSummary | undefined = done.carried;
     return {
       source: done.source,
       created: done.created,
       ...('layout' in done && done.layout ? { layout: done.layout } : {}),
+      ...(carried ? { detail: { carried } } : {}),
       action: { kind: 'edit', label: `Paste ${what}` },
     };
   },
 };
 
-export const CLIPBOARD_OPS: readonly EditOp[] = [objectCopy, artboardCopy, objectCut, canvasPaste];
+export const CLIPBOARD_OPS: readonly EditOp[] = [
+  objectCopy,
+  artboardCopy,
+  objectCut,
+  artboardCut,
+  canvasPaste,
+];

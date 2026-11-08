@@ -70,6 +70,12 @@ export interface ResolvedEditOp {
   ctx?: EditCtx;
   /** V2-8.9 L1 — whose clipboard a copy / paste uses; absent = the desktop's one person ('', sees all). */
   clipScope?: ClipScope;
+  /**
+   * #122 (122-A) — the text of another project file at a designRoot-relative path (the server's own read, never
+   * the request's); null = none. Only the clipboard asks, at paths clamped to the design root: what a carried
+   * import resolves to, and whether the C4 import rule allows it from the paste's canvas.
+   */
+  readFile?: (rel: string) => string | null;
 }
 
 /**
