@@ -109,6 +109,8 @@ fn main() {
                 "home_session",
                 "new_home_tab",
                 "take_pending_intent",
+                // sec-loopback-bearer §7: a project tab's server key (default.json, `p-*` only).
+                "project_api_session",
                 "index_search",
                 // S3.6a (present.rs): displays + the audience window.
                 "present_displays",

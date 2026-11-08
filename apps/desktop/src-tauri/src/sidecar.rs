@@ -131,6 +131,10 @@ pub struct SidecarInstance {
     pub attest_key: Option<String>,
     /// #206: wall-clock ms of the current spawn (the registry's `started`).
     pub started_ms: u64,
+    /// sec-loopback-bearer §7: the CURRENT child's API key (`MAUDE_SHELL_API_KEY`) — its server
+    /// requires it from every caller. Handed to this project's own tab (`project_api_session`)
+    /// and published in the app-owned registry for the CLI; it dies with its child.
+    pub api_key: Option<String>,
 }
 
 /// Where the shell's authenticated probe for ONE spawn goes (V2-1.1 decision 8):
@@ -141,7 +145,13 @@ pub struct SidecarInstance {
 pub struct ShellProbe {
     pub info_file: PathBuf,
     pub token: String,
+    /// sec-loopback-bearer §7 — the spawn's API key, which its server requires from every
+    /// main-origin caller; Rust sends it as `x-maude-api-key` on every sidecar request.
+    pub api_key: Option<String>,
 }
+
+/// The header a Rust caller sends the spawn's API key in (apps/studio/shell/api-key.ts).
+pub(crate) const API_KEY_HEADER: &str = "x-maude-api-key";
 
 /// What `GET /_api/shell/status` answers (apps/studio/routes/shell.ts).
 #[derive(Clone, Debug, Default, PartialEq, serde::Deserialize)]
@@ -613,7 +623,7 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
     // to the file (shell/info-file.ts) and answers `/_api/shell/status` only to
     // this token. No probe ⇒ no env: the server then has no shell route (404) and
     // every probe of it reads "no status".
-    let shell = mint_shell_probe(app, &project_root);
+    let mut shell = mint_shell_probe(app, &project_root);
     // p8-port-gc — the port is recorded from THIS spawn's app-owned info file, never from `_server.json`.
     let record_from = shell.as_ref().map(|p| p.info_file.clone());
     if let Some(p) = &shell {
@@ -629,6 +639,17 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
     let attest_key = mint_attest_key();
     if let Some(k) = &attest_key {
         command = command.env(crate::cli_registry::ATTEST_KEY_ENV, k.clone());
+    }
+    // sec-loopback-bearer §7 — the API key FOR THIS SPAWN: with it in its env the server requires
+    // it from every main-origin caller (its own page, the CLI, Rust). The page gets it from
+    // `project_api_session`, the CLI from the registry, Rust from the probe. No RNG ⇒ no key ⇒
+    // the server mints its own and keeps phase 1 (nothing can reach a credential route headless).
+    let api_key = mint_api_key();
+    if let Some(k) = &api_key {
+        command = command.env(crate::cli_registry::API_KEY_ENV, k.clone());
+        if let Some(p) = shell.as_mut() {
+            p.api_key = Some(k.clone());
+        }
     }
 
     // In a packaged .app the sidecar binary sits alone in Contents/MacOS/ with no
@@ -700,6 +721,7 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
             port: None,
             attest_key: None,
             started_ms: 0,
+            api_key: None,
         });
         // The previous child's key (a respawn, or a racing double spawn) dies
         // with that child; the new one carries its own.
@@ -712,6 +734,7 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
         entry.profile_id = profile_id.clone();
         // #206: the new child's own key and start time; its port comes with its info file.
         entry.attest_key = attest_key;
+        entry.api_key = api_key;
         entry.port = None;
         entry.started_ms = crate::cli_registry::now_ms();
         // CORRECTNESS (security-auditor A5) — `or_insert` overwrites an EXISTING
@@ -808,6 +831,7 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
                                 retire_shell_probe(inst.shell.take());
                                 // #206: the dead child's key and port vouch for nothing.
                                 inst.attest_key = None;
+                                inst.api_key = None;
                                 inst.port = None;
                                 log_line(&format!(
                                     "[maude] dev-server was up {}s before it died — restart {}/{}",
@@ -1165,12 +1189,43 @@ fn mint_shell_probe(app: &AppHandle, root: &str) -> Option<ShellProbe> {
     Some(ShellProbe {
         info_file: dir.join(format!("{pid}-{nonce}.json")),
         token,
+        api_key: None,
     })
 }
 
 /// #206: a 32-byte attest key for one spawn (64 hex), or `None` without an RNG.
 pub(crate) fn mint_attest_key() -> Option<String> {
     random_hex(32)
+}
+
+/// sec-loopback-bearer §7: a 32-byte API key for one spawn (64 hex), or `None` without an RNG.
+pub(crate) fn mint_api_key() -> Option<String> {
+    random_hex(32)
+}
+
+/// What `project_api_session()` answers: the calling tab's server key.
+#[derive(serde::Serialize)]
+pub struct ApiSession {
+    key: String,
+}
+
+/// `project_api_session()` — a project tab only (`p-*`, the `default` capability; the caller is
+/// resolved from the webview's label AND its current origin, never an argument): the API key of
+/// THAT tab's running server. The page trades it once for an HttpOnly session cookie
+/// (`POST /_api/shell/session`, apps/studio/shell/api-key.ts) and keeps no copy.
+#[tauri::command]
+pub fn project_api_session(webview: tauri::Webview) -> Result<ApiSession, String> {
+    let caller = crate::windows::caller_project(&webview, false)?;
+    let state = webview
+        .app_handle()
+        .try_state::<SidecarState>()
+        .ok_or_else(|| "Maude is still starting.".to_string())?;
+    let pool = state.instances.lock().unwrap_or_else(|e| e.into_inner());
+    pool.get(&caller.root)
+        .filter(|inst| inst.child.is_some())
+        .and_then(|inst| inst.api_key.clone())
+        .map(|key| ApiSession { key })
+        .ok_or_else(|| "This project's server is still starting.".to_string())
 }
 
 /// Delete a retired probe's info file. The token dies with the struct.
@@ -1743,6 +1798,52 @@ mod tests {
     // #206 (DDR-250, contract §3) — every project spawn mints its OWN attest key, passes it under
     // the `MAUDE_SHELL_*` name the server reads (and the agent scrub drops), stores it on the
     // instance, and publishes the registry; Home is never attestable.
+    // sec-loopback-bearer §7 — every project spawn mints its OWN API key, passes it as
+    // `MAUDE_SHELL_API_KEY` (the server then requires it from every caller), stores it on the
+    // instance and its shell probe (the Rust callers send it), drops it with a crashed child, and
+    // hands it to that project's own tab only (`project_api_session`, caller = label AND origin).
+    #[test]
+    fn project_spawn_mints_an_api_key_and_hands_it_to_its_own_tab_only() {
+        let src = include_str!("sidecar.rs");
+        let spawn = &src[src.find("pub fn spawn_for(").unwrap()..];
+        let spawn = &spawn[..spawn.find("\n}\n").unwrap()];
+        assert!(spawn.contains("let api_key = mint_api_key();"));
+        assert!(spawn.contains(".env(crate::cli_registry::API_KEY_ENV, k.clone())"));
+        assert!(spawn.contains("entry.api_key = api_key;"));
+        assert!(spawn.contains("p.api_key = Some(k.clone());"), "the probe carries it for Rust callers");
+        assert!(spawn.contains("inst.api_key = None;"), "a crashed child's key is dropped");
+        assert_eq!(crate::cli_registry::API_KEY_ENV, "MAUDE_SHELL_API_KEY");
+        assert!(!include_str!("home.rs").contains("API_KEY_ENV"), "Home has its own bearer");
+        let a = super::mint_api_key().expect("an RNG on the test machine");
+        assert_eq!(a.len(), 64);
+        assert_ne!(a, super::mint_api_key().unwrap(), "a key per spawn");
+        let cmd = &src[src.find("pub fn project_api_session(").unwrap()..];
+        let cmd = &cmd[..cmd.find("\n}\n").unwrap()];
+        assert!(cmd.contains("caller_project(&webview, false)?"), "its own tab, never app-local");
+        assert!(cmd.contains(".filter(|inst| inst.child.is_some())"), "a live child only");
+        assert!(include_str!("lib.rs").contains("sidecar::project_api_session,"));
+        assert!(include_str!("../build.rs").contains("\"project_api_session\","));
+        let default_cap = include_str!("../capabilities/default.json");
+        assert!(default_cap.contains("\"allow-project-api-session\""));
+        assert!(default_cap.contains("\"webviews\": [\"p-*\"]"), "project webviews only");
+        for other in [
+            include_str!("../capabilities/strip.json"),
+            include_str!("../capabilities/home-splash.json"),
+        ] {
+            assert!(!other.contains("project-api-session"));
+        }
+        assert!(!include_str!("home.rs").contains("project-api-session"), "not a Home permission");
+    }
+
+    // sec-loopback-bearer §7.6 — every Rust caller of a sidecar route sends the spawn's key.
+    #[test]
+    fn rust_callers_of_a_sidecar_send_the_api_key() {
+        assert!(include_str!("notify.rs").contains(".header(crate::sidecar::API_KEY_HEADER, k)"));
+        assert!(include_str!("quit.rs").contains(".header(crate::sidecar::API_KEY_HEADER, k)"));
+        assert!(include_str!("export_save.rs").contains(".header(sidecar::API_KEY_HEADER, k)"));
+        assert_eq!(super::API_KEY_HEADER, "x-maude-api-key");
+    }
+
     #[test]
     fn project_spawn_mints_a_fresh_attest_key_and_publishes_the_registry() {
         let src = include_str!("sidecar.rs");

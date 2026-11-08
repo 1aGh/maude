@@ -296,6 +296,7 @@ import {
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
+import { credentialRouteRefusal } from './shell/api-key.ts';
 import { resolveProfile } from './shell/profile.ts';
 import {
   cacheControlFor,
@@ -8364,10 +8365,13 @@ export function createHttp(
     return undefined;
   }
 
+  // sec-loopback-bearer — a credential route needs the per-spawn API key from a caller that is not
+  // a browser (shell/api-key.ts); it runs first, on the exact map and on the fall-through.
   const guardedRoutes = Object.fromEntries(
     Object.entries(routes).map(([path, handler]) => [
       path,
-      async (req: Request) => (await readOnlyRefusal(req)) ?? handler(req),
+      async (req: Request) =>
+        credentialRouteRefusal(req) ?? (await readOnlyRefusal(req)) ?? handler(req),
     ])
   ) as unknown as typeof routes;
   // F2 — the canvas listeners' copy of the hand-listed canvas-safe paths: the same guarded handler,
@@ -8380,7 +8384,7 @@ export function createHttp(
   ) as Http['unclaimed'];
 
   async function guardedFetch(req: Request): Promise<Response> {
-    return (await readOnlyRefusal(req)) ?? handleFallthrough(req);
+    return credentialRouteRefusal(req) ?? (await readOnlyRefusal(req)) ?? handleFallthrough(req);
   }
 
   /**

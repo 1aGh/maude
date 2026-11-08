@@ -272,6 +272,10 @@ export function mayRefusal(
 //     the two files this server's own profile env names (MAUDE_CLOUD_CONFIG / HUBS_CONFIG_PATH)
 //     wherever they are. The agent's env no longer carries those two pointers (acp/env.ts).
 //   • ~/.ssh, ~/.aws, ~/.gnupg, ~/Library/Keychains.
+//   • The desktop app's own data folder (#206): `servers.json` (every tab's port + attest key),
+//     `cli.sock`, `run/` (the token-bridge port), `shell-info/` and `home/`. Named entries, not the
+//     whole folder: a Maude Cloud project's managed copy lives in its `projects/` and its session
+//     must keep reading its own files.
 //
 // Two layers, as above: the deny rules (Read — Claude Code applies Read rules to Grep/Glob
 // best-effort) and the live gate (`credentialRefusal`) for a request that does reach the bridge — a
@@ -289,10 +293,27 @@ export interface CredentialPaths {
   files: string[];
 }
 
+/** The desktop app's identifier — its data folder's name (tauri.conf.json `identifier`). */
+const APP_IDENTIFIER = 'com.maude.app';
+
+/** The desktop app's data folder (Tauri `app_data_dir`) for a platform, or null when unknown. */
+export function appDataDirFor(
+  env: Record<string, string | undefined>,
+  home: string,
+  platform: NodeJS.Platform
+): string | null {
+  if (platform === 'darwin') return join(home, 'Library', 'Application Support', APP_IDENTIFIER);
+  if (platform === 'win32')
+    return env.APPDATA && isAbsolute(env.APPDATA) ? join(env.APPDATA, APP_IDENTIFIER) : null;
+  const data = env.XDG_DATA_HOME && isAbsolute(env.XDG_DATA_HOME) ? env.XDG_DATA_HOME : null;
+  return join(data ?? join(home, '.local', 'share'), APP_IDENTIFIER);
+}
+
 /** The credential folders/files for an env (absolute; the real path too when it differs). */
 export function credentialPathsFor(
   env: Record<string, string | undefined> = process.env,
-  home: string = env.HOME || homedir()
+  home: string = env.HOME || homedir(),
+  platform: NodeJS.Platform = process.platform
 ): CredentialPaths {
   const dirs = new Set<string>();
   const files = new Set<string>();
@@ -306,6 +327,16 @@ export function credentialPathsFor(
   const xdg = env.XDG_CONFIG_HOME;
   if (xdg && xdg.length > 0 && isAbsolute(xdg)) addDir(join(xdg, 'maude'));
   for (const d of ['.ssh', '.aws', '.gnupg', join('Library', 'Keychains')]) addDir(join(home, d));
+  const appData = appDataDirFor(env, home, platform);
+  if (appData) {
+    for (const d of ['run', 'shell-info', 'home']) addDir(join(appData, d));
+    for (const f of ['servers.json', 'cli.sock']) {
+      const abs = resolve(appData, f);
+      files.add(abs);
+      const real = resolveRealPath(abs, abs);
+      if (real !== abs) files.add(real);
+    }
+  }
   for (const k of ['MAUDE_CLOUD_CONFIG', 'HUBS_CONFIG_PATH']) {
     const f = env[k];
     if (!f || !isAbsolute(f)) continue;

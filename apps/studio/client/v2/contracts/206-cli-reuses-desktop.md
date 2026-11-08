@@ -108,7 +108,11 @@ change: spawn, ready, rest, wake, reap, quit (an empty list). It is per user and
 
 **Server side.** Rust mints `MAUDE_SHELL_ATTEST_KEY` per spawn, beside `MAUDE_SHELL_TOKEN`. It sits in the
 `MAUDE_SHELL_*` namespace, so `scrubAgentEnv` keeps it from the ACP agent. Rust also writes the key into the
-registry. `routes/shell.ts` gains `GET /_api/shell/attest`: main origin only (in neither canvas list), GET only,
+registry, so the env scrub alone does not keep it from the agent: the registry file is readable by anything that
+runs as the user. The ACP session's credential deny rules therefore name `servers.json`, `cli.sock`, `run/`,
+`shell-info/` and `home/` in the app data folder (`acp/may-scope.ts` `credentialPathsFor`; named entries, not the
+whole folder, because a Maude Cloud project's managed copy lives in its `projects/`). A shell command the person
+allowed that reads the file without naming it is not covered (the residual named in may-scope.ts). `routes/shell.ts` gains `GET /_api/shell/attest`: main origin only (in neither canvas list), GET only,
 `n` = exactly 32 hex characters, otherwise 400. It answers 404 when the env var is absent (a CLI server is never
 attestable). The key is read once, then deleted from `process.env`.
 
@@ -131,7 +135,8 @@ Each request is ≤ 8 KiB with a 2 s read timeout.
 | `restart` | `{v:1, op, root}` | `{status:'restarting'}`, the same path as "Try again" (DDR-235) |
 
 - `root` is an absolute path. Rust realpaths it, requires `<root>/.design/config.json`, and refuses anything under
-  the app's own data dirs or the profile config folders.
+  (or containing) the app's own data dirs, the profile config folders or the credential folders (`~/.ssh`,
+  `~/.aws`, `~/.gnupg`, `~/Library/Keychains` — the set the AI session's deny rules name).
 - `show` reuses the deep-link **routing** internals (`windows::open_window_for_root`, park per label,
   `shell://navigate {canvas, artboard}`), never the `maude://` **parser**. `canvas` goes through
   `project_resolve::validate_open_param`.
@@ -216,6 +221,16 @@ Each request is ≤ 8 KiB with a 2 s read timeout.
 >
 > **Profiles, for all three:** a worktree takes its main project's profile. A new folder takes the profile of your
 > most recent sign-in, as an unbound folder does today. The terminal can never pick a profile or make a new one.
+>
+> **As built (Michal chose A; security pass 2026-11-08).** The sheet reads "Claude Code wants to show the folder
+> “`<folder name>`” in Maude." with the folder's full real path under it, then: "Either way this project runs on
+> this Mac: Open shows it in a Maude tab, Not now lets the terminal run it in its own hidden server." The name is
+> the folder's own name, never a label from its config. **Not now** is the default button (Return); **Open**
+> counts only one second after the sheet showed — an earlier press raises the sheet again, so a keystroke already
+> on its way when Maude came to the front cannot answer it. At most three sheets per ten minutes across every
+> folder in one app run; past that the request is refused (`too-many-sheets`) and the terminal prints "Maude asked
+> about new folders too often just now — using a separate server for this run. Open the folder in Maude yourself
+> (File › Open project…) to skip the question." Not now is kept per folder for the run, as before.
 >
 > **Recommendation: A.** Known folders carry no new risk: you already opened them and the agent can already write in
 > them. The sheet appears exactly when it matters, for a folder Maude has never run, where a cloned repo's canvas

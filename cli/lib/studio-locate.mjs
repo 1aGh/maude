@@ -11,6 +11,10 @@
 // this root as running, ITS attested server is the studio and `_server.json` is never read; a server
 // there that does not attest means no studio (fail closed), not a fallback to the project file.
 //
+// sec-loopback-bearer §7 — an app server requires its per-spawn API key from every caller: the attested
+// app studio carries `apiKey` (from the app's registry, never from a project file), and every request a
+// verb or hook sends goes through `studioHeaders`. A terminal-started studio has none (phase 2b).
+//
 // Node built-ins + desktop-locate.mjs (itself a leaf).
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -60,7 +64,16 @@ export async function probeStudio(
     } catch {
       /* attested already; /_health is only informative here */
     }
-    return { studio: { port: app.port, base, health, owner: 'app', label: app.label } };
+    return {
+      studio: {
+        port: app.port,
+        base,
+        health,
+        owner: 'app',
+        label: app.label,
+        ...(app.apiKey ? { apiKey: app.apiKey } : {}),
+      },
+    };
   }
   let port;
   try {
@@ -95,12 +108,19 @@ export async function probeStudio(
   return { state: 'busy' };
 }
 
+export const API_KEY_HEADER = 'x-maude-api-key';
+
+/** The headers every request to `studio` carries (the app server's API key), merged over `extra`. */
+export function studioHeaders(studio, extra = {}) {
+  return studio?.apiKey ? { ...extra, [API_KEY_HEADER]: studio.apiKey } : { ...extra };
+}
+
 /** POST JSON to a located studio. `{ status, body }`, or null on any transport failure. */
 export async function postStudio(studio, route, payload, { timeoutMs = 1500 } = {}) {
   try {
     const res = await fetch(`${studio.base}${route}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: studioHeaders(studio, { 'content-type': 'application/json' }),
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(timeoutMs),
     });

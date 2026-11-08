@@ -416,11 +416,15 @@ async fn post_stop_all(app: &AppHandle, root: &str, reason: &str) -> bool {
     let Some(client) = crate::sidecar::probe_client() else {
         return false;
     };
-    client
+    let mut req = client
         .post(format!("{origin}/_api/ai/runs/stop-all"))
         .header("X-Maude-Shell", &probe.token)
-        .header("Content-Type", "application/json")
-        .body(serde_json::json!({ "reason": reason }).to_string())
+        .header("Content-Type", "application/json");
+    // sec-loopback-bearer §7 — the server requires the spawn's key from every caller
+    if let Some(k) = probe.api_key.as_deref() {
+        req = req.header(crate::sidecar::API_KEY_HEADER, k);
+    }
+    req.body(serde_json::json!({ "reason": reason }).to_string())
         .timeout(STOP_ALL_TIMEOUT)
         .send()
         .await

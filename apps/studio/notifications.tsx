@@ -28,12 +28,13 @@ export interface Notice {
   placement?: 'top' | 'bottom';
   /** A kit glyph name (STICONS) that overrides the kind's own. */
   icon?: string;
-  action?: { label: string; onClick: () => void };
+  /** `armAfterMs`: the action is inert (disabled, a click does nothing) that long after the notice appears. */
+  action?: { label: string; onClick: () => void; armAfterMs?: number };
   onDismiss?: () => void;
 }
 /** `canvasTriggered` — shell words raised in direct response to a canvas message (V2-8.9 r2 C1): they rank
  *  below the shell's own notices, never above them. Set only by `notifyCanvasTriggered`. */
-type Entry = Notice & { id: string; canvasTriggered?: boolean };
+type Entry = Notice & { id: string; canvasTriggered?: boolean; actionArmedAt?: number };
 let entries: Entry[] = [];
 let sequence = 0;
 const listeners = new Set<() => void>();
@@ -79,6 +80,9 @@ function upsert(input: Notice, canvasTriggered: boolean): string {
   };
   const id = notice.id ?? `notice-${++sequence}`;
   const next: Entry = canvasTriggered ? { ...notice, id, canvasTriggered } : { ...notice, id };
+  // every (re)show re-arms: a reused notice whose words changed is inert again for its delay
+  const arm = notice.action?.armAfterMs;
+  if (typeof arm === 'number' && arm > 0) next.actionArmedAt = Date.now() + arm;
   const existing = entries.findIndex((entry) => entry.id === id);
   if (existing < 0) entries = [...entries, next];
   else entries = entries.map((entry) => (entry.id === id ? next : entry));
@@ -214,6 +218,15 @@ const KIND_ICON: Partial<Record<NoticeKind, string>> = {
  *  carries a description or extra content wraps, but keeps the same pill. */
 export function NoticeCard({ entry }: { entry: Entry }) {
   const glyph = entry.icon ?? KIND_ICON[entry.kind ?? 'info'];
+  const armedAt = entry.actionArmedAt ?? 0;
+  const [armed, setArmed] = useState(() => Date.now() >= armedAt);
+  useEffect(() => {
+    const wait = armedAt - Date.now();
+    setArmed(wait <= 0);
+    if (wait <= 0) return;
+    const t = setTimeout(() => setArmed(true), wait);
+    return () => clearTimeout(t);
+  }, [armedAt]);
   return (
     <div
       className="maude-notice"
@@ -236,7 +249,10 @@ export function NoticeCard({ entry }: { entry: Entry }) {
         <button
           type="button"
           className="maude-notice-action"
+          disabled={!armed}
           onClick={(event) => {
+            // inert until armed, even if a click reaches it some other way
+            if (Date.now() < armedAt) return;
             event.currentTarget.blur();
             entry.action?.onClick();
             acknowledge(entry.id);

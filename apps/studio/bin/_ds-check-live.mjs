@@ -6,7 +6,7 @@
 // `_server.json` cannot point ds-check at another host or project. Any failure → "no studio": ds-check then
 // says so and prints the static reasons only.
 import { resolve } from 'node:path';
-import { locateStudio } from '../../../cli/lib/studio-locate.mjs';
+import { locateStudio, studioHeaders } from '../../../cli/lib/studio-locate.mjs';
 import { NO_STUDIO, refusedFromIndex } from '../ds/post-build.ts';
 
 /** The project root ds-check will use (`--root`, else $CLAUDE_PROJECT_DIR, else the cwd). */
@@ -27,6 +27,7 @@ export async function liveRefusals(root, { locate = locateStudio, timeoutMs = 15
     const studio = await locate(root, { timeoutMs });
     if (!studio) return NO_STUDIO;
     const res = await fetch(`${studio.base}/_index-data`, {
+      headers: studioHeaders(studio),
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) return NO_STUDIO;

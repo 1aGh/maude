@@ -287,6 +287,8 @@ fi
 #   /_api/export-preflight  — paper, back, fonts. Its safe-margin measure runs a
 #     headless canvas-rects render, so a cell is wired WITHOUT the rects runner
 #     (pinned below) and answers "unmeasured".
+#   /_api/export-jobs/cancel — (#128 T3.7b, DDR-251) aborts a session's own job;
+#     no body, no secret, no project write, no renderer reach from the cell.
 #   /_api/export-preview    — row pictures from the thumbnail service, which is
 #     constructed `enabled: !isWorkspaceMode()` (pinned below) and so answers
 #     `no-engine` in a cell.
@@ -296,7 +298,7 @@ EXCEPT_ACTUAL=$(node -e "
   const paths = m.flatMap((x) => [...x.matchAll(/'([^']+)'/g)].map((g) => g[1]));
   console.log(paths.sort().join(','));
 ")
-EXCEPT_EXPECTED="/_api/export-assemble,/_api/export-estimate,/_api/export-history,/_api/export-jobs,/_api/export-jobs/download,/_api/export-jobs/retry,/_api/export-preflight,/_api/export-preview,/_api/export-warmup"
+EXCEPT_EXPECTED="/_api/export-assemble,/_api/export-estimate,/_api/export-history,/_api/export-jobs,/_api/export-jobs/cancel,/_api/export-jobs/download,/_api/export-jobs/retry,/_api/export-preflight,/_api/export-preview,/_api/export-warmup"
 # The two excepted routes that sit next to a renderer stay render-free in a cell.
 HTTP_TS="apps/studio/http.ts"
 if ! node -e "

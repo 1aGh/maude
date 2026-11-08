@@ -10,7 +10,12 @@
 
 import { randomBytes } from 'node:crypto';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
-import { DESIGN_REL, findProjectRoot, probeStudio } from '../../../cli/lib/studio-locate.mjs';
+import {
+  DESIGN_REL,
+  findProjectRoot,
+  probeStudio,
+  studioHeaders,
+} from '../../../cli/lib/studio-locate.mjs';
 
 export { DESIGN_REL };
 
@@ -100,10 +105,10 @@ export async function call(studio, route, { method = 'GET', json, timeoutMs = 50
   try {
     const res = await fetch(`${studio.base}${route}`, {
       method,
-      headers: {
+      headers: studioHeaders(studio, {
         ...(json === undefined ? {} : { 'content-type': 'application/json' }),
         ...chatWriteHeaders(method),
-      },
+      }),
       body: json === undefined ? undefined : JSON.stringify(json),
       signal: AbortSignal.timeout(timeoutMs),
     });

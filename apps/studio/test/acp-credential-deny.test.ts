@@ -38,7 +38,30 @@ describe('credentialPathsFor — every credential store, for every profile', () 
       expect(p.dirs).toContain(`${HOME}/${d}`);
   });
   test('a profile pointer outside the config folders is denied as a file; one inside is covered', () => {
-    expect(p.files).toEqual(['/elsewhere/profiles/work/cloud.json']);
+    expect(p.files).toContain('/elsewhere/profiles/work/cloud.json');
+    expect(p.files.some((f) => f.endsWith('/hubs.json'))).toBe(false);
+  });
+  test('the desktop app data: the registry, the socket, run/, shell-info/, home/ — not projects/', () => {
+    const mac = credentialPathsFor(ENV, HOME, 'darwin');
+    const app = `${HOME}/Library/Application Support/com.maude.app`;
+    expect(mac.files).toContain(`${app}/servers.json`);
+    expect(mac.files).toContain(`${app}/cli.sock`);
+    for (const d of ['run', 'shell-info', 'home']) expect(mac.dirs).toContain(`${app}/${d}`);
+    expect(
+      [...mac.dirs, ...mac.files].some((x) => x === app || x.startsWith(`${app}/projects`))
+    ).toBe(false);
+    expect(credentialDenyRules(mac)).toContain(`Read(/${app}/servers.json)`);
+    expect(
+      credentialRefusal({ rawInput: { file_path: `${app}/servers.json` } }, mac, '/repo', HOME)
+    ).toBe('credentials');
+    const managed = `${app}/projects/abc`;
+    expect(
+      credentialRefusal({ rawInput: { file_path: `${managed}/a.tsx` } }, mac, managed, HOME)
+    ).not.toBe('credentials');
+    const linux = credentialPathsFor({ ...ENV, XDG_DATA_HOME: '/x/data' }, HOME, 'linux');
+    expect(linux.files).toContain('/x/data/com.maude.app/servers.json');
+    const win = credentialPathsFor({ ...ENV, APPDATA: '/w/AppData/Roaming' }, HOME, 'win32');
+    expect(win.files.includes('/w/AppData/Roaming/com.maude.app/servers.json')).toBe(true);
   });
   test('the deny rules are absolute Read rules', () => {
     const rules = credentialDenyRules(p);

@@ -267,16 +267,63 @@ pub fn current_branch(root: &Path) -> Option<String> {
     }
 }
 
-/// A git metadata file, capped at 4 KiB (they are one line; a huge one is not git's).
+/// A git metadata file, capped at 4 KiB (they are one line; a huge one is not git's). Only a regular
+/// file is read: a named pipe (or a device) planted in a checkout's git metadata would otherwise block
+/// the open — and with it the registry publish that holds the PUBLISH lock. Checked before the open
+/// and again on the opened handle, which is opened non-blocking so a swap in between cannot hang it.
 fn read_small(path: &Path) -> Option<String> {
     use std::io::Read;
+    if !std::fs::symlink_metadata(path).ok()?.is_file() {
+        return None;
+    }
+    let mut opts = std::fs::OpenOptions::new();
+    opts.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.custom_flags(libc::O_NONBLOCK | libc::O_NOFOLLOW);
+    }
+    let f = opts.open(path).ok()?;
+    if !f.metadata().ok()?.is_file() {
+        return None;
+    }
     let mut buf = String::new();
-    std::fs::File::open(path)
-        .ok()?
-        .take(4096)
-        .read_to_string(&mut buf)
-        .ok()?;
+    f.take(4096).read_to_string(&mut buf).ok()?;
     Some(buf)
+}
+
+/// `s` without the characters that reorder or hide the text around them: bidi embeddings, overrides,
+/// isolates and marks, zero-width and other invisible format characters, line/paragraph separators
+/// and Unicode tag characters. A branch name (or a folder name) never needs one, and every surface
+/// that draws it (the tab strip, `shell://branch-changed`, the terminal warning, a native sheet)
+/// would otherwise show what the planter wanted.
+pub(crate) fn strip_invisible(s: &str) -> String {
+    s.chars().filter(|c| !is_invisible(*c)).collect()
+}
+
+fn is_invisible(c: char) -> bool {
+    matches!(
+        c,
+        '\u{00AD}'
+            | '\u{034F}'
+            | '\u{061C}'
+            | '\u{115F}'
+            | '\u{1160}'
+            | '\u{17B4}'
+            | '\u{17B5}'
+            | '\u{180B}'..='\u{180F}'
+            | '\u{200B}'..='\u{200F}'
+            | '\u{2028}'..='\u{202E}'
+            | '\u{2060}'..='\u{206F}'
+            | '\u{3164}'
+            | '\u{FE00}'..='\u{FE0F}'
+            | '\u{FEFF}'
+            | '\u{FFA0}'
+            | '\u{FFF0}'..='\u{FFFB}'
+            | '\u{1BCA0}'..='\u{1BCA3}'
+            | '\u{1D173}'..='\u{1D17A}'
+            | '\u{E0000}'..='\u{E0FFF}'
+    )
 }
 
 fn parse_head(raw: Option<&str>) -> Head {
@@ -284,8 +331,9 @@ fn parse_head(raw: Option<&str>) -> Head {
         return Head::Unknown;
     };
     if let Some(b) = line.strip_prefix("ref: refs/heads/") {
-        let sane = !b.is_empty() && b.len() <= 255 && !b.chars().any(|c| c.is_control());
-        return if sane { Head::Branch(b.to_string()) } else { Head::Unknown };
+        let b = strip_invisible(b);
+        let sane = !b.trim().is_empty() && b.len() <= 255 && !b.chars().any(|c| c.is_control());
+        return if sane { Head::Branch(b) } else { Head::Unknown };
     }
     if (line.len() == 40 || line.len() == 64) && line.bytes().all(|c| c.is_ascii_hexdigit()) {
         return Head::Detached(line[..7].to_ascii_lowercase());
@@ -560,6 +608,42 @@ mod tests {
         );
         assert_eq!(worktree_of(&main), None);
         assert_eq!(branch_of(&main).as_deref(), Some("main"));
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    /// L6: a branch name reaches the strip, `shell://branch-changed` and the terminal warning — the
+    /// characters that reorder or hide text are dropped; a name made only of them is no name.
+    #[test]
+    fn branch_names_lose_bidi_and_invisible_characters() {
+        let raw = "ref: refs/heads/fe\u{202E}at\u{200B}-\u{2066}x\u{2069}\u{FEFF}\u{E0041}y\n";
+        assert_eq!(parse_head(Some(raw)).branch().as_deref(), Some("feat-xy"));
+        assert_eq!(
+            parse_head(Some("ref: refs/heads/\u{200B}\u{202E}\n")).branch(),
+            None
+        );
+        assert_eq!(strip_invisible("a\u{00AD}b\u{2060}c\u{061C}"), "abc");
+        assert_eq!(strip_invisible("caf\u{e9}-\u{65e5}\u{672c}"), "caf\u{e9}-\u{65e5}\u{672c}");
+    }
+
+    /// F5: a named pipe where git keeps HEAD (or any metadata file) is not read — reading it would
+    /// block until a writer came, and with it the registry publish.
+    #[cfg(unix)]
+    #[test]
+    fn a_fifo_in_git_metadata_does_not_hang() {
+        let base = std::env::temp_dir().join(format!("maude-fifo-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join(".git")).unwrap();
+        let head = base.join(".git/HEAD");
+        let c = std::ffi::CString::new(head.to_string_lossy().as_bytes()).unwrap();
+        assert_eq!(unsafe { libc::mkfifo(c.as_ptr(), 0o600) }, 0);
+        let (tx, rx) = std::sync::mpsc::channel();
+        let b2 = base.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(branch_of(&b2));
+        });
+        let got = rx.recv_timeout(std::time::Duration::from_secs(3));
+        assert_eq!(got, Ok(None), "branch_of must not block on a FIFO");
+        assert_eq!(read_small(&head), None);
         std::fs::remove_dir_all(base).unwrap();
     }
 }

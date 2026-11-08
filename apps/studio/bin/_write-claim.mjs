@@ -15,6 +15,7 @@ import {
   DESIGN_REL,
   findProjectRoot,
   locateStudio,
+  studioHeaders,
   rootIdentity,
 } from '../../../cli/lib/studio-locate.mjs';
 
@@ -37,7 +38,7 @@ export async function claimWrites(from, writes, { env = process.env, timeoutMs =
   try {
     const res = await fetch(`${studio.base}/_api/agent/write/claim`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: studioHeaders(studio, { 'content-type': 'application/json' }),
       body: JSON.stringify({
         chat,
         writes: list.map((w) => {

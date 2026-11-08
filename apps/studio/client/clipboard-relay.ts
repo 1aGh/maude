@@ -81,17 +81,31 @@ export type ClipShape =
 // (menu-runner), or a ⌘V the active frame relayed while it held the focus of a focused window (the
 // sec-a undo-key focus gate, use-canvas-bridge). One intent answers one ask. Planted canvas code that
 // sends `canvas.paste` on its own timing gets a refusal in the canvas's own words, never the shell's toast.
+// A ⌘V the frame relayed is still the CANVAS's say (its code can send that message while it has focus): it
+// may unlock a paste between two canvases of this project, never one from another project (`shapeClipPaste`).
 export const PASTE_INTENT_MS = 1000;
 let pasteIntentAt = Number.NEGATIVE_INFINITY;
+let pasteIntentFromShell = false;
 
-/** A paste the shell saw (its own ⌘V / menu / ⌘K, or a focused frame's relayed ⌘V). */
+/** The clip ask's Paste button is inert this long after the toast appears: a lured click lands on nothing. */
+export const CLIP_CONFIRM_ARM_MS = 600;
+
+/** A paste the shell itself saw: a keydown in its own document, its menu, its ⌘K row. */
 export function notePasteIntent(now: number = Date.now()): void {
   pasteIntentAt = now;
+  pasteIntentFromShell = true;
+}
+
+/** A ⌘V the active frame relayed while it held the focus of a focused window. */
+export function noteFramePasteIntent(now: number = Date.now()): void {
+  pasteIntentAt = now;
+  pasteIntentFromShell = false;
 }
 
 /** Tests only. */
 export function _resetPasteIntent(): void {
   pasteIntentAt = Number.NEGATIVE_INFINITY;
+  pasteIntentFromShell = false;
 }
 
 /** What the relay does with one canvas edit-op request. */
@@ -235,7 +249,17 @@ export function shapeClipPaste(
     now = Date.now(),
     cloudTab = false,
     bridge = tauriClipBridge(),
-  }: { now?: number; cloudTab?: boolean; bridge?: ClipBridge | null } = {}
+    synced = false,
+    here = '',
+  }: {
+    now?: number;
+    cloudTab?: boolean;
+    bridge?: ClipBridge | null;
+    /** this project syncs (a linked hub): the ask says the paste lands in a synced project */
+    synced?: boolean;
+    /** this project's name, for that line */
+    here?: string;
+  } = {}
 ): ClipShape | Promise<ClipShape> {
   if (body.op !== CLIP_PASTE_OP || cloudTab || !bridge)
     return shapeClipRequest(body, { now, cloudTab });
@@ -253,13 +277,22 @@ export function shapeClipPaste(
         kind: 'reply',
         result: { ok: false, code: 'invalid', message: `To paste ${named}, press ⌘V.` },
       };
+    // another project's copy: only a paste the shell itself saw, never a ⌘V the frame relayed
+    if (!pasteIntentFromShell)
+      return {
+        kind: 'reply',
+        result: { ok: false, code: 'invalid', message: `To paste ${named}, use Edit › Paste.` },
+      };
     pasteIntentAt = Number.NEGATIVE_INFINITY;
     const { clip: _theirs, ...params } = body.params ?? {};
     const seq = latest.seq;
+    const into = synced
+      ? ` into ${here.trim() ? `the synced project ${here.trim().slice(0, 80)}` : 'this synced project'}`
+      : '';
     return {
       kind: 'confirm',
       body: { ...body, params },
-      line: `Paste ${named}?`,
+      line: `Paste ${named}${into}?`,
       reply: { ok: true, actionId: null, writeId: '', rev: '', refs: [], queued: true },
       take: () => bridge.take(seq),
     };
