@@ -52,6 +52,7 @@ import { createKernel, EMPTY_HASH, PROTOCOL } from '../../hub/src/project-transa
 import { laneHash, mergeLane } from '../../hub/src/project-transactions/lanes.mjs';
 import { createStoreCore } from '../../hub/src/project-transactions/store-core.mjs';
 import { claimWrite, currentWriteClaim, recordClaim } from '../ai/write-claim.ts';
+import { cleanGestureLabel } from '../annotations/ops.ts';
 import { serializeBoard } from '../annotations/schema.ts';
 import {
   boardTextSlots,
@@ -64,7 +65,6 @@ import {
   TEXT_STEP_LOG,
   textStepLogHeader,
 } from '../annotations/text-steps.ts';
-import { cleanGestureLabel } from '../annotations/ops.ts';
 import { isDraftWriteId } from '../annotations/ui/text-session.ts';
 import { attributeArtboards } from '../attribute-artboards.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';

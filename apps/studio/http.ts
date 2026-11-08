@@ -105,6 +105,7 @@ import { actionsManifestVersion } from './actions/manifest-version.ts';
 import { createLocalLeaseHome } from './ai/lease-home.ts';
 import { createRunRegistry, type RunRegistry } from './ai/runs.ts';
 import { type Api, ASSET_CHUNK_BYTES, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
+import { addedRelOf, recordAssetAdded } from './asset-added.ts';
 import { importBrandRequest } from './bin/_brand-site.mjs';
 import { buildCanvasModule } from './canvas-build.ts';
 import {
@@ -329,7 +330,6 @@ import {
 } from './ui-prefs.ts';
 import { persistCloudTranscript } from './video/provider-transcript.ts';
 import { loadWhatsNew, resolveMaudeVersion } from './whats-new.ts';
-import { addedRelOf, recordAssetAdded } from './asset-added.ts';
 import { isWorkspaceMode, resolveRenderLane } from './workspace-mode.ts';
 import { isLoopbackHost } from './ws.ts';
 

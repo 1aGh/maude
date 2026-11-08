@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { resolveAccess } from '../access/scope.ts';
+import { recordAssetAdded } from '../asset-added.ts';
 import { assetDetails, boardsShowing, shellPath } from '../asset-details.ts';
 import { listGeneratedGroups } from '../asset-generated.ts';
-import { recordAssetAdded } from '../asset-added.ts';
 import { recordAssetOrigin } from '../asset-origins.ts';
 import { createAssetDetailsRoutes } from '../routes/asset-details.ts';
 

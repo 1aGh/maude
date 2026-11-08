@@ -21,8 +21,8 @@ import { createUndoProjection } from '../client/v2/undo/use-undo-projection.jsx'
 import { createRegistry } from '../collab/registry.ts';
 import type { RoomCallbacks } from '../collab/room.ts';
 import { type Context, createBus } from '../context.ts';
-import { createAcceptedLink } from '../sync/accepted-link.ts';
 import { createProjectUndoRoutes } from '../routes/project-undo.ts';
+import { createAcceptedLink } from '../sync/accepted-link.ts';
 import { type LocalHome, openLocalHome } from '../sync/local-kernel.ts';
 import type { TransactionClient } from '../sync/transaction-client.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
