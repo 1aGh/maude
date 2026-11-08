@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
 import {
@@ -209,25 +209,66 @@ describe('an-vote (native-desktop) — a vote between two people, secret until t
     );
     await capture('04-vote-two-done');
 
-    await (await $(tid('vote-bar-end'))).click();
-    await (await $(tid('vote-bar'))).waitForExist({
-      reverse: true,
-      timeout: 30_000,
-      timeoutMsg: 'the bar stayed after End vote',
+    // what End vote's request got back: a bar that stays names the answer, not just the wait
+    await browser.execute(() => {
+      const w = window as unknown as { __e2eEnd?: string[]; fetch: typeof fetch };
+      if (w.__e2eEnd) return;
+      w.__e2eEnd = [];
+      const real = w.fetch.bind(w);
+      w.fetch = async (...a: Parameters<typeof fetch>) => {
+        const r = await real(...a);
+        if (String(a[0]).includes('/_api/votes/end'))
+          void r
+            .clone()
+            .text()
+            .then((t) => w.__e2eEnd?.push(`${r.status} ${t.slice(0, 300)}`));
+        return r;
+      };
     });
+    await (await $(tid('vote-bar-end'))).click();
+    const endAnswers = () =>
+      browser.execute(() => (window as unknown as { __e2eEnd?: string[] }).__e2eEnd ?? []);
+    await browser
+      .waitUntil(async () => !(await (await $(tid('vote-bar'))).isExisting()), {
+        timeout: 30_000,
+        interval: 500,
+      })
+      .catch(async () => {
+        throw new Error(
+          `the bar stayed after End vote; the end request answered: ${JSON.stringify(await endAnswers())}`
+        );
+      });
+    console.log(`[an-vote] End vote answered: ${JSON.stringify(await endAnswers())}`);
     const ended = await bobVotes();
     const vote = ended.votes.find((x) => x.id === voteId);
     expect(vote?.state).toBe('ended');
     expect(vote?.tallies).toEqual({ 'ab:a': 3, 'ab:b': 1, 'ab:c': 1 });
 
-    // the result is on the board, and so is the vote's tally — and still no individual ballot
+    // the result is on the board, and so is the vote's tally — and still no individual ballot. The board travels as a
+    // synced doc: bob's end writes it in his copy and the cell carries it to alice's. This rig's cell has no studio
+    // child, so nothing writes a board into its checkout (the 4220307a6 run read it there and waited 120 s for a file
+    // no process writes): a board that IS there must still hold no ballot.
+    const boardAt = (root: string) => read(join(root, BOARD)) ?? '';
     await eventually(
-      'the result in the cell’s checkout',
-      () => (read(join(c.cellRepo, BOARD)) ?? '').includes('Vote · Helmy'),
+      'the result on bob’s board and, through the cell, on alice’s',
+      () => [c.designer, c.teammate].every((root) => boardAt(root).includes('Vote · Helmy')),
       120_000
-    );
-    expect(existsSync(join(c.cellRepo, BOARD))).toBe(true);
-    expect(read(join(c.cellRepo, BOARD)) ?? '').not.toContain('"ballot"');
+    ).catch((error: unknown) => {
+      const where = [c.designer, c.teammate, c.cellRepo].map((root) => {
+        const text = read(join(root, BOARD));
+        const state =
+          text === null
+            ? 'no board'
+            : text.includes('Vote · Helmy')
+              ? 'has the result'
+              : `no result (${text.length} B)`;
+        return `${root}: ${state}`;
+      });
+      throw new Error(`${String(error)}\n${where.join('\n')}`);
+    });
+    for (const root of [c.designer, c.teammate, c.cellRepo]) {
+      expect(boardAt(root)).not.toContain('"ballot"');
+    }
     await capture('05-vote-ended');
   });
 });

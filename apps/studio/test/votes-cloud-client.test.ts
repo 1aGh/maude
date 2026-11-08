@@ -51,8 +51,11 @@ function fakeHub(clock: () => number) {
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(String(input));
     const actor = String(new Headers(init?.headers).get('authorization')).replace(/^Bearer /, '');
-    const body = init?.body ? JSON.parse(String(init.body)) : {};
+    const body = init?.body ? JSON.parse(String(init.body)) : null;
     const now = clock();
+    // the hub's own rule (apps/hub/src/routes-v2/votes.mjs): every vote POST — end included — carries a JSON object
+    if (init?.method === 'POST' && (!body || typeof body !== 'object' || Array.isArray(body)))
+      return out(400, { code: 'invalid', error: 'a JSON object body is required' });
     const m = url.pathname.match(
       /^\/api\/projects\/[^/]+\/v1\/votes(?:\/([^/]+))?(?:\/(ballot|end))?$/
     );

@@ -435,7 +435,8 @@ export function createVoteRoutes(deps: VoteRouteDeps): RouteSpec[] {
             : hubRefusal(one.r);
         let row = one.row;
         if (row.state !== 'ended') {
-          const r = await hub(home, 'POST', `votes/${encodeURIComponent(id)}/end`);
+          // the hub reads a JSON object from every vote POST and answers `invalid` without one
+          const r = await hub(home, 'POST', `votes/${encodeURIComponent(id)}/end`, {});
           const ended = r.status === 200 ? asRow(r.json?.vote) : null;
           if (ended) row = ended;
           else if (r.status === 409) {
