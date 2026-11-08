@@ -33,6 +33,15 @@ describe('credentialPathsFor — every credential store, for every profile', () 
     expect(p.dirs).toContain(`${HOME}/.config/maude`);
     expect(p.dirs).toContain('/x/cfg/maude');
   });
+  // sec-loopback-bearer §7.5 — a terminal shell may set XDG_STATE_HOME when the app does not (or the
+  // other way round): both places a terminal server writes its key file are denied
+  test('terminal servers’ key files: the default state dir AND an XDG_STATE_HOME one', () => {
+    const plain = credentialPathsFor(ENV, HOME);
+    expect(plain.dirs).toContain(`${HOME}/.local/state/maude/servers`);
+    const xdg = credentialPathsFor({ ...ENV, XDG_STATE_HOME: '/x/state' }, HOME);
+    expect(xdg.dirs).toContain('/x/state/maude/servers');
+    expect(xdg.dirs).toContain(`${HOME}/.local/state/maude/servers`);
+  });
   test('ssh, aws, gnupg, keychains', () => {
     for (const d of ['.ssh', '.aws', '.gnupg', 'Library/Keychains'])
       expect(p.dirs).toContain(`${HOME}/${d}`);

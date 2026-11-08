@@ -156,7 +156,10 @@ OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 
 # ---------- screenshot every artboard ----------
 REL="_draw/$SLUG.proof.tsx"
-URL="http://localhost:$PORT/_canvas-shell.html?canvas=$REL"
+# sec-loopback-bearer §7.3 — a key-required server mints the capture's frame capability only for a caller
+# that sent the key: studio_capture_url asks with it and prints the capture-origin URL.
+. "$SCRIPT_DIR/_desktop-locate.sh"
+URL="$(studio_capture_url "$REPO" "$PORT" "/_canvas-shell.html?canvas=$REL")"
 echo "→ screenshotting proof ladder ($URL)" >&2
 
 bash "$SCRIPT_DIR/screenshot.sh" \

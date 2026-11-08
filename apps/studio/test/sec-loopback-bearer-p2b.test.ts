@@ -153,6 +153,37 @@ describe('a terminal-started server requires its own key', () => {
     expect((await fetch(`${base}/_config`, { headers: { cookie: c } })).status).toBe(200);
   });
 
+  // §7.3 — a helper's headless capture asks with the key, so its capture URL carries the frame
+  // capability; the keyless 307 carries none (sec-loopback-bearer-p2c)
+  test('studio_capture_url: the capture-origin URL with its capability, never the key', () => {
+    const port = new URL(base).port;
+    const r = Bun.spawnSync(
+      [
+        'bash',
+        '-c',
+        '. "$1/_desktop-locate.sh"; studio_capture_url "$2" "$3" "/_canvas-shell.html?canvas=ui/fixture.html"',
+        '_',
+        join(import.meta.dir, '..', 'bin'),
+        root,
+        port,
+      ],
+      {
+        env: {
+          ...process.env,
+          XDG_STATE_HOME: state,
+          MAUDE_APP_REGISTRY_FILE: join(state, 'no-app', 'servers.json'),
+        },
+      }
+    );
+    const out = r.stdout.toString().trim();
+    const loc = new URL(out);
+    expect(loc.port).not.toBe(port);
+    expect(loc.pathname).toBe('/_canvas-shell.html');
+    expect(loc.searchParams.has('fc')).toBe(true);
+    const { apiKey } = JSON.parse(readFileSync(keyFile(), 'utf8'));
+    expect(out + r.stderr.toString()).not.toContain(apiKey);
+  });
+
   test('the file goes away with the server', async () => {
     await killProc(proc);
     expect(existsSync(keyFile())).toBe(false);

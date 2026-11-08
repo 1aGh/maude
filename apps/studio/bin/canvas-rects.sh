@@ -94,7 +94,10 @@ fi
 # the canvas-origin sandbox is on (default since phase-9.1) — mirrors
 # screenshot.sh's URL construction.
 REL_ENC=$(printf '%s' "$DESIGN_REL/$REL" | sed 's/ /%20/g')
-URL="http://localhost:${PORT}/_canvas-shell.html?canvas=${REL_ENC}"
+# sec-loopback-bearer §7.3 — a key-required server mints the capture's frame capability only for a caller
+# that sent the key: studio_capture_url asks with it and prints the capture-origin URL.
+. "$SCRIPT_DIR/_desktop-locate.sh"
+URL="$(studio_capture_url "$REPO" "$PORT" "/_canvas-shell.html?canvas=${REL_ENC}")"
 . "$SCRIPT_DIR/_url-guard.sh" && maude_url_guard "$URL" || exit 2 # V2-8.9 B2 — http(s) to this Mac only
 
 # ---------- engine resolution (mirrors screenshot.sh) ----------

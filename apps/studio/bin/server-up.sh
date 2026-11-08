@@ -3,7 +3,7 @@
 # Canonical recipe (was inline in `edit.md` step 2, `new.md` step 2, etc.).
 #
 # Usage:
-#   server-up.sh [--root <repo>] [--timeout 10] [--allow-legacy] [--show] [--url]
+#   server-up.sh [--root <repo>] [--timeout 10] [--allow-legacy] [--show] [--url | --open]
 #
 # #206 T6.3d (DDR-250): while the Maude desktop app runs, ITS server for this project is the one to use. The
 # app's registry is asked first (_desktop-locate.sh; the port is believed only after an attest challenge), then
@@ -12,8 +12,10 @@
 # headless server — as role `cli` (MAUDE_SERVER_ROLE=cli), which steps down by itself once the app serves the
 # project. A planted `_server.json` is never used while the app's registry names the project.
 #   --show   (/design:browse) ask the app to show the project; when it does, print nothing and exit 0
-#   --url    print the studio's opening URL instead of its port: a server that requires its API key (the
-#            app's, or one started here — sec-loopback-bearer §7.5) opens with a one-time launch token
+#   --url    print the studio's address instead of its port (never a launch token: this verb is auto tier,
+#            and its stdout reaches the AI chat — sec-loopback-bearer §7.5)
+#   --open   (/design:browse) also open it in the system browser: a server that requires its API key (the
+#            app's, or one started here) opens with a one-time launch token handed to the browser only
 #
 # Reads / writes:
 #   $DESIGN_ROOT/_server.json   (PID + port the running server wrote)
@@ -37,6 +39,7 @@ TIMEOUT=10
 ALLOW_LEGACY=0
 SHOW=0
 EMIT_URL=0
+OPEN=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --root)    REPO="$2"; shift 2 ;;
@@ -44,8 +47,9 @@ while [ $# -gt 0 ]; do
     --allow-legacy) ALLOW_LEGACY=1; shift ;;
     --show) SHOW=1; shift ;;
     --url) EMIT_URL=1; shift ;;
+    --open) EMIT_URL=1; OPEN=1; shift ;;
     --help|-h)
-      sed -n '2,33p' "$0" | sed 's/^# \?//'
+      sed -n '2,36p' "$0" | sed 's/^# \?//'
       exit 0
       ;;
     *)
@@ -64,9 +68,17 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/_desktop-locate.sh"
 
-# The last stdout line: the port, or with --url the opening URL (one-time token when the server needs a key).
+# The last stdout line: the port, or with --url/--open the plain address. A launch token goes only to the
+# browser `--open` starts, never to stdout (sec-loopback-bearer §7.5).
 emit() {
-  if [ "$EMIT_URL" -eq 1 ]; then studio_launch_url "$REPO" "$1"; else echo "$1"; fi
+  if [ "$EMIT_URL" -ne 1 ]; then echo "$1"; return; fi
+  if [ "$OPEN" -eq 1 ]; then
+    local link
+    link="$(studio_launch_url "$REPO" "$1")"
+    open "$link" >/dev/null 2>&1 || xdg-open "$link" >/dev/null 2>&1 ||
+      echo "server-up.sh: no browser opener here; run \`maude design browse\` in a terminal" >&2
+  fi
+  printf 'http://localhost:%s/\n' "$1"
 }
 if [ $SHOW -eq 1 ]; then
   desktop_port "$REPO" --ensure show

@@ -5,7 +5,7 @@
 // rotates and expires; the launch-nonce store forgets only expired tokens.
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import type { Subprocess } from 'bun';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -161,6 +161,23 @@ describe('the used-nonce store (pure)', () => {
     expect(
       mainOriginKeyRefusal(req(`/?${LAUNCH_PARAM}=${later}`), { ...opts, now: NOW + 3 })?.status
     ).toBe(303);
+  });
+});
+
+describe('a one-time opening link never rides argv (static)', () => {
+  const read = (rel: string) => readFileSync(join(import.meta.dir, '..', rel), 'utf8');
+  test('the bug-report shell capture hands screenshot.sh a 0600 file, not --url', () => {
+    const http = read('http.ts');
+    expect(http).not.toMatch(/'--url',\s*`http:\/\/localhost:\$\{port\}\/\?maude-launch=/);
+    expect(http).toContain("target = ['--url-file', linkFile]");
+    expect(read('bin/screenshot.sh')).toMatch(
+      /--url-file\) URL="\$\(head -n1 "\$2"[^\n]*rm -f "\$2"/
+    );
+  });
+  test('perf.sh hands its probes a file, never --launch <token>', () => {
+    const perf = read('bin/perf.sh');
+    expect(perf).not.toContain('--launch "$(studio_launch_url');
+    expect(perf).toContain('--launch-file "$(launch_file)"');
   });
 });
 

@@ -164,6 +164,14 @@ DESIGN_ROOT="$REPO/.design"
 STATE="$DESIGN_ROOT/_server.json"
 # #206 T6.3d — the desktop app's attested server first; _server.json only when the app does not serve it.
 . "$(dirname "$0")/_desktop-locate.sh"
+# sec-loopback-bearer §7.4 — a one-time opening link reaches a probe through a 0600 file it reads and
+# deletes, never its argv (`ps` shows argv to every process of this user)
+launch_file() {
+  local f
+  f=$(mktemp "${TMPDIR:-/tmp}/maude-launch.XXXXXX") || return 1
+  studio_launch_url "$REPO" "$PORT" > "$f"
+  printf '%s' "$f"
+}
 PORT=""
 desktop_port "$REPO" --lease
 case $? in
@@ -252,6 +260,8 @@ if [ -n "${QUERY:-}" ]; then
   [ "$STUDIO" = "1" ] && { echo "perf.sh: --query applies to the bare canvas page, not --studio" >&2; exit 2; }
   URL="${URL}&${QUERY}"
 fi
+# sec-loopback-bearer §7.3 — the bare canvas page: asked with the key, so it gets its frame capability
+[ "$STUDIO" = "1" ] || URL="$(studio_capture_url "$REPO" "$PORT" "${URL#http://localhost:${PORT}}")"
 . "$SCRIPT_DIR/_url-guard.sh" && maude_url_guard "$URL" || exit 2 # V2-8.9 B2 — http(s) to this Mac only
 
 # ---------- history path ----------
@@ -288,7 +298,7 @@ if [ "$OPEN_LOAD" = "1" ]; then
   [ "$PROBE_ENGINE" = "safari" ] && OPEN_ENGINE="webkit"
   echo "→ perf --open-load: $REL_FULL | port: $PORT | engine: $OPEN_ENGINE" >&2
   # sec-loopback-bearer §7.4 — the studio page needs a session: the probe opens a one-time link first
-  ARGS=(--url "http://localhost:${PORT}/" --launch "$(studio_launch_url "$REPO" "$PORT")" --open "${REL_FULL#"$DESIGN_REL"/}" --engine "$OPEN_ENGINE" --timeout "$TIMEOUT")
+  ARGS=(--url "http://localhost:${PORT}/" --launch-file "$(launch_file)" --open "${REL_FULL#"$DESIGN_REL"/}" --engine "$OPEN_ENGINE" --timeout "$TIMEOUT")
   [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
   [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
   [ "$JSON" = "1" ] && ARGS+=(--json)
@@ -319,7 +329,7 @@ if [ "$PROBE_ENGINE" = "safari" ]; then
   echo "→ perf: $REL_FULL | port: $PORT | engine: webkit-safari${STUDIO:+ | studio}" >&2
   ARGS=(--url "$PROBE_URL" --label "$REL_FULL$([ "$STUDIO" = "1" ] && echo " (studio)")" --history "$HISTORY"
         --timeout "$TIMEOUT" --pan "$PAN" --zoom "$ZOOM" --repeat "$REPEAT")
-  [ "$STUDIO" = "1" ] && ARGS+=(--studio "$SLUG" --launch "$(studio_launch_url "$REPO" "$PORT")")
+  [ "$STUDIO" = "1" ] && ARGS+=(--studio "$SLUG" --launch-file "$(launch_file)")
   [ "$FIT_ALL" = "1" ] && ARGS+=(--fit-all)
   [ "$JSON" = "1" ] && ARGS+=(--json)
   [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
@@ -339,7 +349,7 @@ if [ "$PROBE_ENGINE" = "chromium" ] && [ "$STUDIO" = "1" ]; then
     | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
   ENGINE_TAG="${MAUDE_PERF_ENGINE_TAG:-blink-studio}"
   echo "→ perf: $REL_FULL | port: $PORT | engine: $ENGINE_TAG" >&2
-  ARGS=(--url "http://localhost:${PORT}/" --launch "$(studio_launch_url "$REPO" "$PORT")" --studio "$SLUG" --label "$REL_FULL" --history "$HISTORY"
+  ARGS=(--url "http://localhost:${PORT}/" --launch-file "$(launch_file)" --studio "$SLUG" --label "$REL_FULL" --history "$HISTORY"
         --engine-tag "$ENGINE_TAG" --timeout "$TIMEOUT" --pan "$PAN" --zoom "$ZOOM" --repeat "$REPEAT")
   [ "$FIT_ALL" = "1" ] && ARGS+=(--fit-all)
   [ "$JSON" = "1" ] && ARGS+=(--json)

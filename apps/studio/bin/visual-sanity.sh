@@ -179,7 +179,9 @@ declare -a FAILED=()
 for s in "${EXISTING[@]}"; do
   REL="system/$DS/preview/${s}.tsx"
   REL_ENC=$(printf '%s' "$REL" | sed 's/ /%20/g')
-  URL="http://localhost:${PORT}/_canvas-shell.html?canvas=${REL_ENC}"
+  # sec-loopback-bearer §7.3 — asked with the key, so the capture gets its frame capability
+  . "$SCRIPT_DIR/_desktop-locate.sh"
+  URL="$(studio_capture_url "$ROOT_ABS" "$PORT" "/_canvas-shell.html?canvas=${REL_ENC}")"
   . "$SCRIPT_DIR/_url-guard.sh" && maude_url_guard "$URL" || exit 2 # V2-8.9 B2 — http(s) to this Mac only
   OUT_PNG="$OUT_DIR/${s}.png"
   echo "→ screenshot: $s" >&2

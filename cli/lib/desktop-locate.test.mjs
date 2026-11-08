@@ -15,6 +15,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -628,6 +629,54 @@ describe('callers ask the app first', () => {
     assert.equal(r.out.trim(), String(app.port));
     assert.equal(planted.seen.length, 0);
     assert.equal(existsSync(join(root, '.design', '_server.log')), false, 'nothing spawned');
+    reset();
+  });
+
+  // sec-loopback-bearer §7.5 — an auto-tier verb never prints a launch token: the AI agent reads its
+  // stdout. `--url` prints the plain address; `--open` opens the browser itself with the link.
+  test('server-up --url / --open: no launch token on stdout; --open hands it to the browser', async () => {
+    const root = project();
+    const app = await fakeServer({ rootId: rootIdOf(root) });
+    reset();
+    writeRegistry(REG, [running(root, app.port, KEY, { apiKey: 'ab'.repeat(32) })]);
+    const run = (flag) =>
+      new Promise((res) => {
+        const bin = join(scratch(), 'bin');
+        mkdirSync(bin);
+        symlinkSync(process.execPath, join(bin, 'node'));
+        const seen = join(bin, 'opened.txt');
+        for (const name of ['open', 'xdg-open'])
+          writeFileSync(join(bin, name), `#!/bin/sh\nprintf '%s\\n' "$1" >> '${seen}'\n`, {
+            mode: 0o755,
+          });
+        const c = spawn('bash', [SERVER_UP, '--root', root, flag], {
+          env: {
+            ...env(),
+            PATH: `${bin}:/usr/bin:/bin:/usr/sbin:/sbin`,
+            NO_OPEN: '1',
+            MAUDE_NO_AUTOBUILD: '1',
+            MAUDE_FORCE_SOURCE: '1',
+            MAUDE_DEV_SERVER_BIN: '',
+            CLAUDE_PLUGIN_ROOT: '',
+          },
+        });
+        let out = '';
+        let err = '';
+        c.stdout.on('data', (d) => (out += d));
+        c.stderr.on('data', (d) => (err += d));
+        c.on('exit', (code) =>
+          res({ code, out, err, opened: existsSync(seen) ? readFileSync(seen, 'utf8') : '' })
+        );
+      });
+    for (const flag of ['--url', '--open']) {
+      const r = await run(flag);
+      assert.equal(r.code, 0, r.err);
+      assert.equal(r.out.trim(), `http://localhost:${app.port}/`);
+      assert.doesNotMatch(r.out + r.err, /maude-launch/);
+      if (flag === '--open')
+        assert.match(r.opened, /\/\?maude-launch=\d+\.[0-9a-f]{32}\.[0-9a-f]{64}/);
+      else assert.equal(r.opened, '');
+    }
     reset();
   });
 

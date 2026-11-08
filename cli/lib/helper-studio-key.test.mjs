@@ -32,6 +32,8 @@ const NOT_THE_STUDIO = {
   '_smart-frames.mjs': 'a local Ollama, not the studio',
   '_curl-local.mjs': 'the loopback-only curl verb itself (DDR-185): the caller names the request',
   'curl-local.sh': 'front for _curl-local.mjs',
+  '_desktop-locate.sh':
+    'defines studio_curl: its own curl lines are the keyed call (pinned by the argv test below)',
 };
 
 const files = readdirSync(BIN).filter(

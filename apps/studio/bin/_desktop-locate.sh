@@ -114,6 +114,22 @@ studio_curl() {
   fi
 }
 
+# studio_capture_url <repo> <port> <path?query>   prints the URL a headless browser opens to capture a
+#   canvas (`/_canvas-shell.html?canvas=…`). A key-required server mints the frame capability on that
+#   path's 307 only for a caller that sent the key (sec-loopback-bearer §7.3): this asks with the key
+#   and prints the capture-origin URL the redirect names. No redirect (the split off), no key, or an
+#   unexpected answer: the main-origin URL, as before. Never prints the key or a launch token.
+studio_capture_url() {
+  local repo="$1" port="$2" rel="$3" loc
+  loc=$(studio_curl "$repo" "$port" -s -o /dev/null --max-time 5 -w '%{redirect_url}' \
+    "http://localhost:${port}${rel}" 2>/dev/null)
+  if [[ "$loc" =~ ^http://(localhost|127\.0\.0\.1|\[::1\]):[0-9]{1,5}/_canvas-shell\.html(\?|$) ]]; then
+    printf '%s\n' "$loc"
+  else
+    printf 'http://localhost:%s%s\n' "$port" "$rel"
+  fi
+}
+
 studio_launch_url() {
   local repo="$1" port="$2" out
   out=$(_dl_node launch-url --root "$repo" --port "$port" 2>/dev/null)

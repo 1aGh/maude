@@ -203,6 +203,18 @@ export function validateArgv(argv) {
   if (sub === 'open') {
     const why = urlRefusal(rest[0]);
     if (why) return why;
+    // sec-loopback-bearer §7.5 — a one-time opening link is the person's: it opens a full studio
+    // session, which the AI's browser must never hold (encoded forms included)
+    let raw = String(rest[0]);
+    for (let i = 0; i < 3; i++) {
+      try {
+        raw = decodeURIComponent(raw);
+      } catch {
+        break;
+      }
+    }
+    if (/maude-launch/i.test(raw))
+      return "a Maude opening link (maude-launch) is for the person's own browser, never this one";
   }
   return null;
 }

@@ -29,25 +29,22 @@ the executable Studio runtime is resolved by `maude`.
 
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-URL=$(maude design server-up --root "$REPO_ROOT" --show --url) || exit $?
-if [ -n "$URL" ]; then
-  open "$URL" 2>/dev/null || xdg-open "$URL" 2>/dev/null || echo "Open $URL"
-fi
+URL=$(maude design server-up --root "$REPO_ROOT" --show --open) || exit $?
+[ -n "$URL" ] && echo "The studio is open in the browser at $URL"
 ```
 
 When the Maude app is running, `--show` asks it to bring this project's tab to the front (Maude asks
 once before it opens a folder it has never opened). Then `server-up` prints no port, and no browser
 window opens: the project is in Maude. Without the app, it starts the studio as below.
 
-`--url` prints the studio's address instead of its port. The address opens the studio once: a
-second visit needs a new one, so run the command again rather than reusing an old link.
+`--open` opens the studio in the system browser itself, with a link that works once, and prints the
+plain address. The address alone does not open a project that needs its key: to open it again, run
+the command again rather than reusing the address. Never paste the address into a browser tool.
 
 `server-up` is idempotent: it verifies the project's existing server and returns
 its port. It starts the server with `NO_OPEN=1` always, so opening the window is
-this command's job: the last line opens the Studio URL in the system browser
-(`open` on macOS, `xdg-open` on Linux) or, with neither, prints it. When the host
-has its own browser tools, open the same URL there instead. `server-up` does not
-accept `--port`.
+this command's job: `--open` opens the Studio in the system browser (`open` on
+macOS, `xdg-open` on Linux). `server-up` does not accept `--port`.
 
 For an explicit `--port <n>`, first check the project's `_server.json` and health.
 Reuse an existing healthy instance; do not start a second server for the project.

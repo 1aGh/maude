@@ -21,7 +21,18 @@ import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
 // top-level fall-through for paths Bun's `routes` field doesn't cover.
 
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { existsSync, readFileSync, realpathSync, unlinkSync, watch } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  unlinkSync,
+  watch,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
@@ -3622,17 +3633,30 @@ export function createHttp(
       const body = await readJson<{ canvas?: unknown }>(req);
       const canvas = typeof body?.canvas === 'string' ? body.canvas : '';
       const out = join(ctx.paths.designRoot, '_reports', `shell-${Date.now()}.png`);
+      // A key-required server (sec-loopback-bearer §7) answers the shell page only to a caller with
+      // its key: the capture gets a one-time launch link minted in-process, through a 0600 file in a
+      // 0700 folder (screenshot.sh reads and deletes it) — never argv, which `ps` shows to every
+      // process of this user.
+      let linkDir: string | null = null;
+      let target: string[] = ['--port', port];
+      if (apiKeyRequired()) {
+        linkDir = mkdtempSync(join(tmpdir(), 'maude-shot-'));
+        chmodSync(linkDir, 0o700);
+        const linkFile = join(linkDir, 'url');
+        writeFileSync(
+          linkFile,
+          `http://localhost:${port}/?maude-launch=${mintLaunchToken(bootApiKey())}\n`,
+          { mode: 0o600 }
+        );
+        target = ['--url-file', linkFile];
+      }
       try {
         const proc = Bun.spawn(
           [
             'bash',
             join(BIN_DIR, 'screenshot.sh'),
             '--shell',
-            // A key-required server (sec-loopback-bearer §7) answers the shell page only to a
-            // caller with its key: hand the capture a one-time launch link minted in-process.
-            ...(apiKeyRequired()
-              ? ['--url', `http://localhost:${port}/?maude-launch=${mintLaunchToken(bootApiKey())}`]
-              : ['--port', port]),
+            ...target,
             '--out',
             out,
             '--root',
@@ -3669,6 +3693,8 @@ export function createHttp(
         });
       } catch (e) {
         return Response.json({ error: `shell capture failed: ${String(e)}` }, { status: 502 });
+      } finally {
+        if (linkDir) rmSync(linkDir, { recursive: true, force: true });
       }
     },
 

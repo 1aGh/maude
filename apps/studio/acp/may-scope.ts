@@ -328,7 +328,10 @@ export function credentialPathsFor(
   const xdg = env.XDG_CONFIG_HOME;
   if (xdg && xdg.length > 0 && isAbsolute(xdg)) addDir(join(xdg, 'maude'));
   for (const d of ['.ssh', '.aws', '.gnupg', join('Library', 'Keychains')]) addDir(join(home, d));
-  // sec-loopback-bearer §7.5 — terminal-started servers' API key files (shell/key-file.ts)
+  // sec-loopback-bearer §7.5 — terminal-started servers' API key files (shell/key-file.ts): the
+  // default state dir AND this env's XDG_STATE_HOME one — a terminal shell may set it when the app
+  // does not, so a server started there writes where this session's own env would not point
+  addDir(serverKeyDir({ HOME: home }));
   addDir(serverKeyDir({ ...env, HOME: home }));
   const appData = appDataDirFor(env, home, platform);
   if (appData) {

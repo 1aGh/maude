@@ -74,6 +74,20 @@ describe('validateArgv — subcommand allow-list', () => {
   });
 });
 
+describe('validateArgv — never a Maude opening link (sec-loopback-bearer §7.5)', () => {
+  test('a launch token in any form is refused; a plain studio URL is not', () => {
+    const tok = `1800000000.${'a'.repeat(32)}.${'b'.repeat(64)}`;
+    for (const url of [
+      `http://localhost:4399/?maude-launch=${tok}`,
+      `http://127.0.0.1:4399/index.html?open=a.tsx&maude-launch=${tok}`,
+      `http://localhost:4399/?x=%6Daude-launch%3D${tok}`,
+      `http://localhost:4399/?MAUDE-LAUNCH=${tok}`,
+    ])
+      expect(validateArgv(['open', url])).toMatch(/maude-launch/);
+    expect(validateArgv(['open', 'http://localhost:4399/'])).toBeNull();
+  });
+});
+
 describe('validateArgv — fixed arity, NO flag vocabulary at all', () => {
   test('rejects an extra argument beyond the expected arity, whatever it looks like', () => {
     const reason = validateArgv(['open', 'http://localhost:1', 'extra']);

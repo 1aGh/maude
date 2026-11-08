@@ -76,6 +76,9 @@ while [ $# -gt 0 ]; do
     --canvas)   CANVAS_SET=1; ACTIVE="$2"; shift 2 ;;
     --all-screens) ALL_SCREENS=1; shift ;;
     --url)      URL="$2"; shift 2 ;;
+    # sec-loopback-bearer §7.4 — the URL from a 0600 file (a one-time opening link never rides argv);
+    # read once and deleted
+    --url-file) URL="$(head -n1 "$2" 2>/dev/null)"; rm -f "$2"; shift 2 ;;
     --port)     PORT="$2"; shift 2 ;;
     --out)      OUT="$2"; shift 2 ;;
     --out-dir)  OUT_DIR="$2"; shift 2 ;;
@@ -200,7 +203,9 @@ if [ -z "$URL" ]; then
     # the canvas-origin sandbox is on (default since phase-9.1); only
     # `/_canvas-shell.html?canvas=<rel>` renders the canvas (valid in both
     # split-on and legacy same-origin modes).
-    URL="http://localhost:${PORT}/_canvas-shell.html?canvas=${ACTIVE_ENC}"
+    # sec-loopback-bearer §7.3 — asked with the key, so the capture gets its frame capability
+    . "$(dirname "$0")/_desktop-locate.sh"
+    URL="$(studio_capture_url "$REPO" "$PORT" "/_canvas-shell.html?canvas=${ACTIVE_ENC}")"
   fi
 fi
 
@@ -275,7 +280,9 @@ fi
 # ---------- browser resolution for agent-browser (DDR-144 — bundled screenshots) ----------
 # chrome-headless-shell, resolved (desktop: provisioned once) by _ab-headless.sh — canvas-rects.sh uses the same.
 ab_headless_browser
-echo "→ screenshot engine: $ENGINE | url: $URL" >&2
+# A log line never carries a one-time opening link or a frame capability (stderr reaches the AI chat).
+shown_url() { printf '%s' "$1" | sed -E 's/(maude-launch|fc)=[^&]*/\1=…/g'; }
+echo "→ screenshot engine: $ENGINE | url: $(shown_url "$URL")" >&2
 
 # ---------- engine: agent-browser ----------
 ab_screenshot() {
@@ -455,14 +462,14 @@ navigate_once() {
     # screenshot" — which for the Report-a-Bug shell shot means a blank image
     # labelled "Maude window" lands in someone's bug report.
     if ! "$AB" open "$URL" >&2; then
-      echo "✗ navigation failed: $URL" >&2
+      echo "✗ navigation failed: $(shown_url "$URL")" >&2
       return 1
     fi
     # Shell mode lands on the studio root, which has no DC mount to poll for —
     # the canvas arrives only after we click a row.
     if [ "$MODE" = "shell" ]; then
       if ! await_studio_shell; then
-        echo "✗ the studio shell never mounted at $URL" >&2
+        echo "✗ the studio shell never mounted at $(shown_url "$URL")" >&2
         return 1
       fi
       open_active_in_shell
@@ -575,7 +582,7 @@ relive_url() {
       URL=$(printf '%s' "$URL" | sed -E "s#(://[^:/]+:)[0-9]+#\1${new}#")
     fi
     RELIVED=1
-    echo "→ dev-server bounced ports ($cur → $new); re-reading _server.json and retrying at $URL" >&2
+    echo "→ dev-server bounced ports ($cur → $new); re-reading _server.json and retrying at $(shown_url "$URL")" >&2
     return 0
   fi
   return 1
@@ -663,7 +670,7 @@ fi
 # relive_url its one shot before giving up rather than capturing a blank page.
 if ! navigate_once; then
   if ! relive_url || ! navigate_once; then
-    echo "✗ could not load $URL — no screenshot written" >&2
+    echo "✗ could not load $(shown_url "$URL") — no screenshot written" >&2
     rm -f "$OUT"
     exit 3
   fi
