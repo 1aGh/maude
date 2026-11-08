@@ -167,7 +167,7 @@ W5 and W6 use Opus.
   - why the `.ldm-hifi` components get no `data-cd-id` (stamping gap), and fix it;
   - D5 "Re-attach to element", with PATCH accepting the anchor;
   - a shared-cdId index survives edits, or is re-resolved.
-- [ ] T2.4 **#170, every item:**
+- [x] T2.4 **#170, every item:**
   - the Home `SHELL_NAVS` guard (Rust);
   - the comment card renders hidden until it is placed;
   - Inspector "+" gets the neutral grey and opens the picker;
@@ -180,9 +180,9 @@ W5 and W6 use Opus.
   - the docs save-mode line.
 - [ ] T2.4b **#170 leftovers:** R25 per D15; the toolbar popover under a shell toast (a new canvas→shell bridge message so the shell moves its toast stack — frame bridge, Opus); F35 panel padding reproduced on the Share and Version history panels (local cell + a project with history); R29 rest (islands growing out of their icon, Advanced folds snapping open); the Edit-video controls feel goes to Michal in the final report.
 - [x] T2.5b **#163 `/_api/ai/start`:** retire with 410 Gone on start/heartbeat/end for one release (keep `GET /_api/ai`); move the two-Mac e2e to `run/begin` with a `scope`; the ACL cell tests plant runs through a test-only registry seam that a `--release` build ignores (`release-build.ts` `IS_RELEASE_BUILD`); drop the unused `beginAction`/`endAction`; update comments, docs, What's New.
-- [ ] T2.5 **#163** (D1): implement each default, each with a test, plus the help, docs and What's New wording where it applies.
-- [ ] T2.6b **#172 rest:** ai-other-tab tab tooltip in fixed words ("<project> · AI is working on <canvas>" — `working_canvas` on the tab state from `scope.canvas`, strip `title`) and the "1 chat still running there · Show" toast (cross-tab event); desktop e2e specs for an-vote, co-mention-notify (cell), ve-footage, ia-more-ways (paste + video drop only) with their wdio lane confs, each run once alone; `ai-annotations.e2e.mjs` scenario for the `wrote` offer. Not planned (D13, Michal to OK in the final report): the hold tag with the ask's verb + element and the "Mobile — next" canvas ghost (both would put AI ask text on the untrusted canvas, against `v2-S5.11-neutral-ring-tags`); `dsWaitingText` device kind left (pinned). Separate Opus slice: `asset-origins.json` sync ("Added by Tereza").
-- [ ] T2.6 **#172** (D13):
+- [x] T2.5 **#163** (D1): implement each default, each with a test, plus the help, docs and What's New wording where it applies.
+- [x] T2.6b **#172 rest:** ai-other-tab tab tooltip in fixed words ("<project> · AI is working on <canvas>" — `working_canvas` on the tab state from `scope.canvas`, strip `title`) and the "1 chat still running there · Show" toast (cross-tab event); desktop e2e specs for an-vote, co-mention-notify (cell), ve-footage, ia-more-ways (paste + video drop only) with their wdio lane confs, each run once alone; `ai-annotations.e2e.mjs` scenario for the `wrote` offer. Not planned (D13, Michal to OK in the final report): the hold tag with the ask's verb + element and the "Mobile — next" canvas ghost (both would put AI ask text on the untrusted canvas, against `v2-S5.11-neutral-ring-tags`); `dsWaitingText` device kind left (pinned). Separate Opus slice: `asset-origins.json` sync ("Added by Tereza").
+- [x] T2.6 **#172** (D13):
   - write one spec line per state into the board's CONTRACT and build it: the Mobile-next ghost and step line; the hold tag with verb and element (`holdsFor`); "Put them in a section"; the ai-other-tab toast, tooltip and cf-busy; the ia-edges remainder, including `asset-origins.json` sync, which is a contract change and goes through the sync risk class; ds-make-filling;
   - drive the "not driven" scenarios as e2e.
 
