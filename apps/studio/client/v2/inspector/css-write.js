@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { diffPatch } from '../../../edit-ops/words-css.ts';
+import { declaredBackgroundOk } from '../../../editing/declared-background.ts';
 import { trackRecordableWrite } from '../../inspector/css-knobs.jsx';
 
 let chain = Promise.resolve();
@@ -47,9 +48,13 @@ const BG_PARTS = ['background', 'background-color', 'background-image'];
 export function declaredOf(t) {
   const out = { ...(t?.authored || {}) };
   const sh = t?.declared?.background;
-  if (sh && !BG_PARTS.some((k) => k in out)) out.background = sh;
+  if (declaredBackgroundOk(sh) && !BG_PARTS.some((k) => k in out)) out.background = sh;
   return out;
 }
+
+// #168 F4: the canvas is untrusted, so the shell re-checks the shorthand it reports (the same shape the canvas
+// side applies): at most 512 characters, a colour, a `var()` or a gradient — never a `url()`.
+export { declaredBackgroundOk };
 
 const keyOf = (t) => `${t?.id ?? ''}#${t?.index ?? 0}`;
 
