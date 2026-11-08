@@ -485,9 +485,48 @@ async function armAnnotationTool(p: Surface, tool: string) {
   await gesture(p, `[data-testid="toolbar-tip-${tool}"]`, 'click');
 }
 async function openCanvas(p: Surface, rel: string) {
-  if ((await p.read(`[data-testid="canvas-frame"][data-path=".design/${rel}"]`)) === null)
-    await p.click(selector(`canvas-row-${slug(rel.replace(/\.tsx$/, ''))}`));
+  if ((await p.read(`[data-testid="canvas-frame"][data-path=".design/${rel}"]`)) === null) {
+    const row = selector(`canvas-row-${slug(rel.replace(/\.tsx$/, ''))}`);
+    await revealRow(p, rel);
+    await p.click(row);
+  }
   await until(async () => !!(await p.probe('body'))?.visible);
+}
+/**
+ * A canvas row inside folders is drawn only once its folders are open (#124): open each ancestor folder below the
+ * canvas group (`ui/A/B/x.tsx` → `ui/A`, `ui/A/B`), then bring the row into the windowed list.
+ */
+async function revealRow(p: Surface, rel: string) {
+  const parts = rel.split('/');
+  for (let i = 2; i < parts.length; i++) {
+    const folder = selector(`tree-folder-${slug(parts.slice(0, i).join('/'))}`);
+    await scrollRowIntoList(p, folder);
+    if ((await p.read(`${folder}[aria-expanded="false"]`)) !== null) {
+      await p.click(folder);
+      await sleep(200);
+    }
+  }
+  await scrollRowIntoList(p, selector(`canvas-row-${slug(rel.replace(/\.tsx$/, ''))}`));
+}
+/**
+ * The Canvases panel is a windowed list (v2.0.7): a row scrolled out of view is not in the document, so a
+ * click on its test id waits for nothing (`ui/SurfaceText` sits below the fold in this fixture). Scroll the
+ * list the way a person does — from the top, most of a page at a time — until the row is drawn.
+ */
+async function scrollRowIntoList(p: Surface, row: string) {
+  if ((await p.count(row)) > 0) return;
+  for (let step = 0; step < 60; step++) {
+    const moved = await p.shell(`(() => {
+      const list = document.querySelector('[data-rows][data-drawn]');
+      if (!list) return false;
+      const before = list.scrollTop;
+      list.scrollTop = ${step === 0 ? '0' : 'before + Math.max(80, list.clientHeight * 0.8)'};
+      return ${step === 0 ? 'true' : 'list.scrollTop !== before'};
+    })()`);
+    await sleep(150);
+    if ((await p.count(row)) > 0) return;
+    if (!moved) return; // the end of the list: the click names the missing row
+  }
 }
 async function observeAll(
   all: Surface[],
@@ -1244,9 +1283,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       // is every participant's source file and the author's own notice.
       // Knob availability alone is not selection identity: it can describe a
       // previous canvas while a new selection is still crossing the frame.
-      const weight = 'select[aria-label="font-weight"]:not(:disabled)';
+      // v2 Inspector › Type › Size · weight: a native select (`insp-weight`) offering 400–700
+      const weight = '[data-testid="insp-weight"]:not(:disabled)';
+      const WEIGHTS = ['400', '500', '600', '700'];
       const weightIn = (p: Surface, rel: string, value: string) =>
-        new RegExp(`fontWeight:\\s*"${value}"`).test(bytes(p.root, rel).toString());
+        new RegExp(`fontWeight:\\s*"?${value}\\b`).test(bytes(p.root, rel).toString());
       const selectHeading = async (p: Surface) => {
         // Read-only ordering trace: a preparation failure must distinguish a
         // missed pointer from a later frame/selection message overwriting it.
@@ -1272,7 +1313,18 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         })()`);
         await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
         await p.click(selector('palette-mode-edit'));
-        const selectedValue = '[aria-label="Selected element"] .val';
+        // v2: the Inspector names the selection (`inspector-title`, its own text) and its kind; the selected
+        // element's selector is what the canvas last posted (`select-set`, recorded by the trace above)
+        const selectedValue = selector('inspector-title');
+        const lastSelector = () =>
+          p.shell(`(() => {
+            const t = window.__maudeSelectionPreparationTrace || [];
+            for (let i = t.length - 1; i >= 0; i--) {
+              if (t[i].kind === 'clear-select') return '';
+              if (t[i].kind === 'select-set') return String(t[i].selection?.selector ?? '');
+            }
+            return '';
+          })()`) as Promise<string>;
         // Discard the parked selection through the visible shell control.
         // Waiting for it to disappear prevents a same-id heading in the old
         // canvas from satisfying the new canvas's precondition.
@@ -1295,9 +1347,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await until(async () => {
             const selected = await p.read(selectedValue);
             return (
-              (await p.read('.insp-cp-idtag')) === 'h1' &&
-              !!selected?.includes(`[data-cd-id="${id}"]`) &&
-              selected.includes(headingText) &&
+              (await lastSelector()).includes(`[data-cd-id="${id}"]`) &&
+              !!selected?.includes(headingText) &&
               (await p.read(weight)) !== null
             );
           });
@@ -1317,7 +1368,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             )
           );
           throw new Error(
-            `Inspector did not select current h1 ${id} (selected: ${await p.read(selectedValue)}, tag: ${await p.read('.insp-cp-idtag')}): ${String(error)}`
+            `Inspector did not select current h1 ${id} (selected: ${await p.read(selectedValue)}, selector: ${await lastSelector()}): ${String(error)}`
           );
         }
       };
@@ -1334,7 +1385,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             // Three distinct values: what the undo would restore, the author's
             // edit, and the teammate's. A teammate value equal to the restore
             // target would make the undo a correct no-op, not a conflict.
-            const weights = ['300', '400', '500', '600', '700', '800'];
+            const weights = WEIGHTS;
             const restore = weights.find((v) => weightIn(from, rel, v)) ?? null;
             const [mine, theirs] = weights.filter((v) => v !== restore);
             await from.select(weight, mine as string);
@@ -1375,8 +1426,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L18.css-undo.own-value', from.name, async () => {
           const rel = 'ui/SurfaceText.tsx';
           await selectHeading(from);
-          const before =
-            ['300', '400', '500', '600', '700', '800'].find((v) => weightIn(from, rel, v)) ?? null;
+          const before = WEIGHTS.find((v) => weightIn(from, rel, v)) ?? null;
           const next = before === '500' ? '600' : '500';
           const mark = (kind: string) =>
             from.shell(
@@ -3389,8 +3439,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         for (const p of all) {
           const row = selector(`canvas-row-${slug(rel.replace(/\.tsx$/, ''))}`);
           try {
-            // A canvas that arrived by the project's own sync: its row first.
-            await until(async () => (await p.read(row)) !== null, 30000);
+            // A canvas that arrived by the project's own sync: its row first (drawn — the list is windowed).
+            await until(async () => {
+              await revealRow(p, rel);
+              return (await p.read(row)) !== null;
+            }, 30000);
             await openCanvas(p, rel);
             await until(async () => (await p.read('h1', true)) === title, 30000);
           } catch (error) {
@@ -5556,7 +5609,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await nativeSide.hover(rowOf(rel));
             await nativeSide.click(selector('tree-row-menu-ui-surfacemoveedit'));
             await nativeSide.menu('Move to…');
-            await nativeSide.menu('ui/MoveEditDest');
+            // v2: Move to… opens a folder sheet (a listbox of folders), not a submenu of menu items
+            await nativeSide.click(selector('canvas-move-target-ui-moveeditdest'));
             await until(
               () =>
                 [hubSide, nativeSide].every(
@@ -6739,12 +6793,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await selectHeading(from);
           await selectHeading(other);
           const start = performance.now();
-          await Promise.all([from.select(weight, '300'), other.select(weight, '800')]);
+          await Promise.all([from.select(weight, '500'), other.select(weight, '700')]);
           const settled = await until(() => {
             const vals = all.map((p) => readFileSync(join(p.root, '.design', rel), 'utf8'));
             return (
               vals.every((v) => v === vals[0]) &&
-              /fontWeight:\s*"(300|800)"/.test(vals[0] as string)
+              /fontWeight:\s*"?(500|700)\b/.test(vals[0] as string)
             );
           }, 30000)
             .then(() => true)
@@ -6759,7 +6813,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               return false;
             }
           });
-          const winner = /fontWeight:\s*"(300|800)"/.exec(
+          const winner = /fontWeight:\s*"?(500|700)\b/.exec(
             readFileSync(join(from.root, '.design', rel), 'utf8')
           )?.[1];
           for (const p of all)
@@ -6778,7 +6832,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       const selectEl = async (p: Surface, q: string) => {
         await p.click(selector('palette-mode-edit'));
         for (let level = 0; level < 6; level++) {
-          const chip = (await p.read(selector('inspector-selection'))) ?? '';
+          // v2: the Inspector's name for the selection (its own text); the selector line sits in › Advanced
+          const chip = (await p.read(selector('inspector-title'))) ?? '';
           if ((await p.read(weight)) !== null && chip.includes('Kept paragraph')) return;
           await gesture(p, q, level === 0 ? 'click' : 'doubleClick');
           await sleep(150);
@@ -6815,7 +6870,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             async (p) => (await p.read('h1', true)) === title,
             (p) =>
               src(p).includes(`>${title}</h1>`) &&
-              /<p\b[^>]*fontWeight:\s*"700"[^>]*>Kept paragraph<\/p>/.test(src(p)) &&
+              /<p\b[^>]*fontWeight:\s*"?700\b[^>]*>Kept paragraph<\/p>/.test(src(p)) &&
               src(p) === src(from)
           );
         });
@@ -7512,7 +7567,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             // Inspector, and lets the receiver prove its controls refresh after
             // a remote soft-HMR restore without a click/reselection.
             const inspectedWeight = (p: Surface) =>
-              p.shell('document.querySelector(\'select[aria-label="font-weight"]\')?.value');
+              p.shell('document.querySelector(\'[data-testid="insp-weight"]\')?.value');
             // Both preview documents through the same isolated, debug-only DOM
             // protocol as the main canvas. A frame that never answers reports
             // `{ error: 'no response' }`, distinct from `null` (answered, but the
