@@ -5,7 +5,8 @@
 //
 //   object.copy / artboard.copy   a read: nothing is written, nothing goes on the undo stack. The shell
 //                                 keeps the handle the server answers (client/clipboard-relay.ts).
-//   object.cut / canvas.paste     a write: ONE legacy revert record on THIS canvas's undo stack (the same
+//   object.cut / artboard.cut / canvas.paste
+//                                 a write: ONE legacy revert record on THIS canvas's undo stack (the same
 //                                 `editOpRecord` every edit-op pushes; on an op-log home the kernel
 //                                 action is the undo and nothing is pushed here).
 //
@@ -16,9 +17,16 @@
 import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
 import type { CommandRecord } from '../undo-stack.ts';
 import { type EditOpAsk, editOpRecord, runEditOp } from './edit-op.ts';
+import { clipWords } from './clip-words.ts';
 import { refusalLine } from './object-ops.ts';
 
-export const CLIP_ACTIONS = ['object.copy', 'object.cut', 'artboard.copy', 'canvas.paste'] as const;
+export const CLIP_ACTIONS = [
+  'object.copy',
+  'object.cut',
+  'artboard.copy',
+  'artboard.cut',
+  'canvas.paste',
+] as const;
 export type ClipAction = (typeof CLIP_ACTIONS)[number];
 
 export const isClipAction = (id: unknown): id is ClipAction =>
@@ -69,7 +77,8 @@ export function clipActionForEdit(
   if (id === 'edit.paste') return 'canvas.paste';
   if (id === 'edit.copy')
     return ctx.objects.length ? 'object.copy' : ctx.artboards.length ? 'artboard.copy' : null;
-  if (id === 'edit.cut') return ctx.objects.length ? 'object.cut' : null;
+  if (id === 'edit.cut')
+    return ctx.objects.length ? 'object.cut' : ctx.artboards.length ? 'artboard.cut' : null;
   return null;
 }
 
@@ -77,6 +86,7 @@ const LABEL: Record<ClipAction, string> = {
   'object.copy': 'Copy',
   'artboard.copy': 'Copy',
   'object.cut': 'Cut',
+  'artboard.cut': 'Cut',
   'canvas.paste': 'Paste',
 };
 
@@ -91,7 +101,7 @@ export async function runClipAction(
       ? 'artboard.copy'
       : action;
   let ask: EditOpAsk;
-  if (op === 'artboard.copy') {
+  if (op === 'artboard.copy' || op === 'artboard.cut') {
     if (ctx.artboards.length === 0) return null;
     ask = { op, targets: [], params: { artboards: [...ctx.artboards] } };
   } else if (op === 'canvas.paste') {
@@ -113,7 +123,7 @@ export async function runClipAction(
   // still being handled here, and a clipboard write after the await is refused (WebKit, and Chromium in the
   // cross-origin canvas frame). Without it ⌘V never knew the paste was ours.
   const early =
-    op === 'artboard.copy'
+    op === 'artboard.copy' || op === 'artboard.cut'
       ? clipMarker(ctx.artboards.length, 'artboards')
       : op === 'object.copy' || op === 'object.cut'
         ? clipMarker(ctx.objects.length, 'objects')
@@ -135,12 +145,17 @@ export async function runClipAction(
     deps.mark?.(clipMarker(clip.count, clip.kind));
   // a write (cut, paste) is ONE step on this canvas's undo stack; a copy wrote nothing
   if (
-    (op === 'object.cut' || op === 'canvas.paste') &&
+    (op === 'object.cut' || op === 'artboard.cut' || op === 'canvas.paste') &&
     result.actionId === null &&
     result.writeId
   ) {
     const rec = editOpRecord(result.writeId, LABEL[op]);
     if (rec) deps.record?.(rec);
+  }
+  // #122 — a paste that brought imports or declarations with it says so (a plain paste stays quiet)
+  if (op === 'canvas.paste') {
+    const line = clipWords(result);
+    if (line) deps.toast?.(line, 'info');
   }
   if (op === 'canvas.paste' && result.created?.length) {
     const boards = result.created.every((r) => r.artboard === r.element);

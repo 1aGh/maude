@@ -92,6 +92,18 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
+    id: 'artboard.cut',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['artboard'] },
+    keys: [
+      {
+        chord: '⌘X',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['artboard'] },
+      },
+    ],
+  },
+  {
     id: 'edit.copy-properties',
     exec: 'canvas',
     visible: { minRole: 'comment' },

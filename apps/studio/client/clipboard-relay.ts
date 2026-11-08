@@ -27,9 +27,12 @@ export const CLIP_COPY_OPS: ReadonlySet<string> = new Set([
   'object.copy',
   'object.cut',
   'artboard.copy',
+  'artboard.cut',
 ]);
 export const CLIP_PASTE_OP = 'canvas.paste';
 export const NOTHING_TO_PASTE = 'Nothing to paste. Copy an object or an artboard first.';
+/** #122 — a cloud tab's paste of a copy made elsewhere: the clip lives in a project on this Mac. */
+export const CELL_NO_CROSS_PROJECT = 'Paste between projects works for projects on this Mac.';
 
 const CLIP_ID_RE = /^c_[0-9a-f]{16}$/;
 
@@ -87,12 +90,19 @@ export function _resetPasteIntent(): void {
 /** What the relay does with one canvas edit-op request. */
 export function shapeClipRequest(
   body: EditOpRequest,
-  { now = Date.now() }: { now?: number } = {}
+  { now = Date.now(), cloudTab = false }: { now?: number; cloudTab?: boolean } = {}
 ): ClipShape {
   if (body.op !== CLIP_PASTE_OP) return { kind: 'forward', body };
   const { clip: _theirs, ...params } = body.params ?? {};
   if (!held)
-    return { kind: 'reply', result: { ok: false, code: 'invalid', message: NOTHING_TO_PASTE } };
+    return {
+      kind: 'reply',
+      result: {
+        ok: false,
+        code: 'invalid',
+        message: cloudTab ? CELL_NO_CROSS_PROJECT : NOTHING_TO_PASTE,
+      },
+    };
   const out: EditOpRequest = { ...body, params: { ...params, clip: held.id } };
   if (canvasKey(held.from) === canvasKey(body.file)) return { kind: 'forward', body: out };
   if (!(now - pasteIntentAt >= 0 && now - pasteIntentAt <= PASTE_INTENT_MS))

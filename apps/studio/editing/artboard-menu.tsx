@@ -4,7 +4,7 @@
 //
 //   Ask AI about “<artboard name>” ⌘/   (`labelOf` names it per click; the static label stays "this artboard")
 //   Duplicate ⌘D · Duplicate at another width ▸ Laptop 1280 · Tablet 834 · Mobile 390 · Custom width… · Rename
-//   Copy ⌘C · Paste ⌘V   (V2-clipboard-objects, editing/clipboard.ts)
+//   Cut ⌘X · Copy ⌘C · Paste ⌘V   (V2-clipboard-objects, editing/clipboard.ts; #122 added Cut)
 //   Export… ⇧⌘E
 //   Move to trash ⌫
 //
@@ -44,7 +44,8 @@ export interface ArtboardMenuDeps {
   customWidth(target: ContextTarget): void;
   rename(target: ContextTarget): void;
   resetPosition(target: ContextTarget): void;
-  /** V2-clipboard-objects — absent: no Copy / Paste rows */
+  /** V2-clipboard-objects — absent: no Cut / Copy / Paste rows */
+  cut?(target: ContextTarget): void;
   copy?(target: ContextTarget): void;
   paste?(target: ContextTarget): void;
 }
@@ -81,6 +82,9 @@ export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps):
     return it ? [{ ...it, ...over }] : [];
   };
   const clip: MenuItem[] = [
+    ...(deps.cut
+      ? [{ id: 'cut-artboard', label: 'Cut', shortcut: '⌘X', onSelect: deps.cut } as MenuItem]
+      : []),
     ...(deps.copy
       ? [{ id: 'copy-artboard', label: 'Copy', shortcut: '⌘C', onSelect: deps.copy } as MenuItem]
       : []),

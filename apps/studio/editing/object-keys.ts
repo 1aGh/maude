@@ -36,10 +36,10 @@ export function resolveObjectKey(e: KeyEventLike, s: ObjectKeyState): ObjectOpAc
   return (r?.action.id as ObjectOpAction | undefined) ?? null;
 }
 
-// V2-clipboard-objects — ⌘C / ⌘X on an object selection, ⌘C on an artboard selection (Edit mode). ⌘V is
-// WebKit's own paste event (editing/clipboard.ts), so it has no chord here.
-type ClipKeyAction = 'object.copy' | 'object.cut' | 'artboard.copy';
-const CLIP_KEYS = canvasKeyIndex(['object.copy', 'object.cut', 'artboard.copy']);
+// V2-clipboard-objects — ⌘C / ⌘X on an object selection, ⌘C / ⌘X on an artboard selection (Edit mode; #122
+// added the artboard cut). ⌘V is WebKit's own paste event (editing/clipboard.ts), so it has no chord here.
+type ClipKeyAction = 'object.copy' | 'object.cut' | 'artboard.copy' | 'artboard.cut';
+const CLIP_KEYS = canvasKeyIndex(['object.copy', 'object.cut', 'artboard.copy', 'artboard.cut']);
 
 /** The clipboard action a keydown runs, or null. */
 export function resolveClipKey(e: KeyEventLike, s: ObjectKeyState): ClipKeyAction | null {

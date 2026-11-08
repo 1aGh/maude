@@ -107,7 +107,9 @@ describe('runClipAction — one edit-op, one undo step', () => {
   test('Edit › Cut / Copy / Paste map to the clipboard for the selection', () => {
     expect(clipActionForEdit('edit.copy', { objects: [obj], artboards: [] })).toBe('object.copy');
     expect(clipActionForEdit('edit.copy', { objects: [], artboards: ['a'] })).toBe('artboard.copy');
-    expect(clipActionForEdit('edit.cut', { objects: [], artboards: ['a'] })).toBeNull();
+    // #122 — an artboard selection cuts too (artboard.cut: the copy and the move to the Trash in one write)
+    expect(clipActionForEdit('edit.cut', { objects: [], artboards: ['a'] })).toBe('artboard.cut');
+    expect(clipActionForEdit('edit.cut', { objects: [], artboards: [] })).toBeNull();
     expect(clipActionForEdit('edit.paste', { objects: [], artboards: [] })).toBe('canvas.paste');
   });
 });

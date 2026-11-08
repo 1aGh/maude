@@ -248,6 +248,11 @@ export function useArtboardActions(clipboard?: Clipboard): ArtboardActions {
       // V2-clipboard-objects — the artboard's Copy ⌘C / Paste ⌘V (a paste lands beside this board's row)
       ...(live.current.clipboard
         ? {
+            cut: (t: ContextTarget) =>
+              void live.current.clipboard?.run('artboard.cut', {
+                objects: [],
+                artboards: idsFor(t.artboardId),
+              }),
             copy: (t: ContextTarget) =>
               void live.current.clipboard?.run('artboard.copy', {
                 objects: [],

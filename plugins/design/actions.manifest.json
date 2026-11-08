@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "21f3c028a9dc",
+  "manifestVersion": "09acf9fc8157",
   "actions": [
     {
       "id": "search.open",
@@ -614,6 +614,19 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Read the artboard’s JSX in the source (the clipboard is the person’s)"
+      }
+    },
+    {
+      "id": "artboard.cut",
+      "label": "Cut artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the artboard’s JSX in the source (the clipboard is the person’s)"
       }
     },
     {
