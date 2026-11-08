@@ -38,6 +38,9 @@ import { crashGuard, subscribeCrashGuard } from '../v2/shell/canvas-crash-guard.
 import { TooHeavyCanvas } from '../v2/shell/too-heavy-card.jsx';
 import { OpeningSkeleton } from '../v2/shell/opening-skeleton.jsx';
 
+// The canvas frame's own geometry (#169 item 4): the `.viewport > iframe` rule, restated on the element.
+const FRAME_STYLE = { position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 };
+
 export function Viewport({
   tabs,
   activePath,
@@ -285,6 +288,14 @@ export function Viewport({
             }}
             src={stableSrc(t.path)}
             title={`Canvas: ${t.path}`}
+            // #169 item 4 — the frame carries its own size, so its first layout is the stage size even if the
+            // shell stylesheet (`.viewport > iframe`, in `@layer shell`) has not applied yet: without it the
+            // browser lays the frame out at the 300x150 iframe default plus the 2px default border (304x154).
+            // Same values as the rule; `display` stays with the stylesheet (it tracks `.active`).
+            width="100%"
+            height="100%"
+            frameBorder="0"
+            style={FRAME_STYLE}
             className={t.path === activePath ? 'active' : ''}
             data-path={t.path}
             data-testid={t.path === activePath ? 'canvas-frame' : undefined}
