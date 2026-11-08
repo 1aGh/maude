@@ -137,6 +137,73 @@ pub fn audience_url(origin: &str, canvas: &str, sid: &str) -> Result<tauri::Url,
     Ok(url)
 }
 
+// ── The launch token (sec-loopback-bearer §7.4) ────────────────────────────
+
+/// The query key a one-time launch token rides in (`apps/studio/shell/api-key.ts` `LAUNCH_PARAM`).
+pub const LAUNCH_PARAM: &str = "maude-launch";
+const LAUNCH_DOMAIN: &str = "maude-launch/1";
+
+/// HMAC-SHA256 (RFC 2104) over `sha2` — the one MAC this module needs, so no extra crate.
+fn hmac_sha256(key: &[u8], msg: &[u8]) -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    let mut block = [0u8; 64];
+    if key.len() > 64 {
+        block[..32].copy_from_slice(&Sha256::digest(key));
+    } else {
+        block[..key.len()].copy_from_slice(key);
+    }
+    let mut inner = Sha256::new();
+    inner.update(block.map(|b| b ^ 0x36));
+    inner.update(msg);
+    let mut outer = Sha256::new();
+    outer.update(block.map(|b| b ^ 0x5c));
+    outer.update(inner.finalize());
+    outer.finalize().into()
+}
+
+/// `<ts>.<nonce>.<hex(HMAC-SHA256(key, "maude-launch/1\n<ts>\n<nonce>"))>` — the token
+/// `GET /?maude-launch=` trades once for the server's session cookie. `key` is the spawn's API key
+/// as the server holds it (its 64 hex characters ARE the HMAC key bytes, as in `createHmac`).
+pub fn launch_token(key: &str, ts: u64, nonce: &str) -> String {
+    let mac = hmac_sha256(
+        key.as_bytes(),
+        format!("{LAUNCH_DOMAIN}\n{ts}\n{nonce}").as_bytes(),
+    );
+    let hex: String = mac.iter().map(|b| format!("{b:02x}")).collect();
+    format!("{ts}.{nonce}.{hex}")
+}
+
+/// A launch token's shape (`api-key.ts` `LAUNCH_RE`).
+fn launch_token_shaped(v: &str) -> bool {
+    let parts: Vec<&str> = v.split('.').collect();
+    let hex = |p: &str, n: usize| {
+        p.len() == n && p.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+    };
+    parts.len() == 3
+        && (1..=12).contains(&parts[0].len())
+        && parts[0].bytes().all(|b| b.is_ascii_digit())
+        && hex(parts[1], 32)
+        && hex(parts[2], 64)
+}
+
+/// The audience window's own webview (and cookie jar) opens the follower root with a fresh
+/// one-time token: the server answers 303 to the same URL without it, plus the session cookie.
+pub fn audience_launch_url(url: &tauri::Url, key: &str) -> Result<tauri::Url, String> {
+    let nonce = {
+        let mut b = [0u8; 16];
+        getrandom::getrandom(&mut b).map_err(|_| "No random source.".to_string())?;
+        b.iter().map(|x| format!("{x:02x}")).collect::<String>()
+    };
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| "The clock is before 1970.".to_string())?
+        .as_secs();
+    let mut out = url.clone();
+    out.query_pairs_mut()
+        .append_pair(LAUNCH_PARAM, &launch_token(key, ts, &nonce));
+    Ok(out)
+}
+
 /// The one page an audience window's main frame may show: the follower root
 /// Rust built for its entry (origin, canvas and presenter session).
 #[derive(Clone, Copy, Debug)]
@@ -161,7 +228,14 @@ pub fn audience_top_level_allowed(url: &tauri::Url, expect: Option<Expect<'_>>) 
     {
         return false;
     }
-    let pairs: Vec<(String, String)> = url.query_pairs().into_owned().collect();
+    let mut pairs: Vec<(String, String)> = url.query_pairs().into_owned().collect();
+    // the first load carries one launch token (sec-loopback-bearer §7.4); the server drops it
+    if let Some(i) = pairs.iter().position(|(k, _)| k == LAUNCH_PARAM) {
+        if !launch_token_shaped(&pairs[i].1) {
+            return false;
+        }
+        pairs.remove(i);
+    }
     if pairs.len() != AUDIENCE_QUERY_KEYS.len() {
         return false;
     }
@@ -542,6 +616,19 @@ pub async fn present_audience_open(
         }
     };
     let url = audience_url(&origin, &canvas, &sid)?;
+    // sec-loopback-bearer §7.4 — the audience window has its own webview and cookie jar, so the
+    // project tab's session does not reach it: it opens with a one-time launch token minted from
+    // THIS tab's server key (a server started without one opens the plain follower root)
+    let key = app.try_state::<SidecarState>().and_then(|state| {
+        let pool = state.instances.lock().unwrap_or_else(|e| e.into_inner());
+        pool.get(&caller.root)
+            .filter(|inst| inst.child.is_some())
+            .and_then(|inst| inst.api_key.clone())
+    });
+    let first = match key.as_deref() {
+        Some(k) => audience_launch_url(&url, k)?,
+        None => url.clone(),
+    };
     let label = audience_label(&caller.pid)
         .ok_or_else(|| "This window isn't showing a project.".to_string())?;
     let current = webview
@@ -588,12 +675,12 @@ pub async fn present_audience_open(
                 if crate::webview_url::url_of(w.as_ref()).as_ref() == Some(&url) {
                     Ok(())
                 } else {
-                    w.navigate(url.clone()).map_err(|e| e.to_string())
+                    w.navigate(first.clone()).map_err(|e| e.to_string())
                 }
             })
         }
         (OpenPlan::Reuse(_), None) => Err("the window went away".to_string()),
-        (OpenPlan::Build(id), _) => build(&app, &label, id, url, &monitor),
+        (OpenPlan::Build(id), _) => build(&app, &label, id, first, &monitor),
     };
     if let Err(e) = placed {
         close_audience(&app, &label, "it could not open");
@@ -895,6 +982,64 @@ mod tests {
         assert!(audience_url("https://evil.example", "ui/deck.tsx", "abcd1234").is_err());
         assert!(audience_url("http://localhost:4399/x", "ui/deck.tsx", "abcd1234").is_err());
         assert!(audience_url("not a url", "ui/deck.tsx", "abcd1234").is_err());
+    }
+
+    // sec-loopback-bearer §7.4 — the audience window opens with a one-time launch token. The vector
+    // is the TS side's own formula: createHmac('sha256', 'c3'.repeat(32))
+    //   .update('maude-launch/1\n1700000000\n0123456789abcdef0123456789abcdef').digest('hex')
+    #[test]
+    fn the_launch_token_matches_the_server_s_formula() {
+        assert_eq!(
+            launch_token(
+                &"c3".repeat(32),
+                1_700_000_000,
+                "0123456789abcdef0123456789abcdef"
+            ),
+            "1700000000.0123456789abcdef0123456789abcdef.\
+             d12aa40a93ad3fbf8945cf95be0e7ccb8baa2bb2950f73a620df53a9b9c040f7"
+        );
+        // RFC 4231 test case 2 — the HMAC itself
+        let mac = hmac_sha256(b"Jefe", b"what do ya want for nothing?");
+        let hex: String = mac.iter().map(|b| format!("{b:02x}")).collect();
+        assert_eq!(
+            hex,
+            "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"
+        );
+    }
+
+    #[test]
+    fn the_audience_window_opens_its_follower_root_with_one_launch_token() {
+        let plain = u(&follower(OPEN, SID));
+        let first = audience_launch_url(&plain, &"c3".repeat(32)).unwrap();
+        let tokens: Vec<String> = first
+            .query_pairs()
+            .filter(|(k, _)| k == LAUNCH_PARAM)
+            .map(|(_, v)| v.into_owned())
+            .collect();
+        assert_eq!(tokens.len(), 1);
+        assert!(launch_token_shaped(&tokens[0]));
+        // the guard lets the first load (with its token) and the redirect target through
+        assert!(audience_top_level_allowed(&first, x()));
+        assert!(audience_top_level_allowed(&plain, x()));
+        // a malformed token, two tokens, or the token on another page are still refused
+        let top = |s: &str| audience_top_level_allowed(&u(s), x());
+        let base = follower(OPEN, SID);
+        assert!(!top(&format!("{base}&maude-launch=nope")));
+        assert!(!top(&format!(
+            "{base}&{LAUNCH_PARAM}={0}&{LAUNCH_PARAM}={0}",
+            tokens[0]
+        )));
+        assert!(!top(&format!(
+            "http://localhost:4399/_config?{LAUNCH_PARAM}={}",
+            tokens[0]
+        )));
+        // the open command mints it from THIS tab's server key
+        let src = include_str!("present.rs");
+        let open = &src[src.find("pub async fn present_audience_open").unwrap()..];
+        let open = &open[..open.find("pub async fn present_audience_close").unwrap()];
+        assert!(open.contains("pool.get(&caller.root)"));
+        assert!(open.contains("audience_launch_url(&url, k)"));
+        assert!(open.contains("build(&app, &label, id, first, &monitor)"));
     }
 
     #[test]

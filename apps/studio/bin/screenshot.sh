@@ -187,7 +187,10 @@ if [ -z "$URL" ]; then
   # (it decides which file-tree row we click) rather than a precondition — a
   # chrome bug is worth capturing even with nothing open.
   if [ "$MODE" = "shell" ]; then
-    URL="http://localhost:${PORT}/"
+    # sec-loopback-bearer §7.4 — the studio page opens with a one-time launch token (a server that
+    # needs no key: the plain URL). Canvas captures below go to the capture origin through the 307.
+    . "$(dirname "$0")/_desktop-locate.sh"
+    URL="$(studio_launch_url "$REPO" "$PORT")"
   else
     [ -z "$ACTIVE" ] && { echo "screenshot.sh: no active canvas in _active.json (open one in browser first)" >&2; exit 1; }
 
@@ -565,7 +568,12 @@ relive_url() {
   new=$(read_state_port)
   [ -n "$new" ] || return 1
   if [ -n "$cur" ] && [ "$cur" != "$new" ]; then
-    URL=$(printf '%s' "$URL" | sed -E "s#(://[^:/]+:)[0-9]+#\1${new}#")
+    if [ "$MODE" = "shell" ]; then
+      # a launch token is for the server that minted it: ask the new one for its own
+      URL="$(studio_launch_url "$RELIVE_REPO" "$new")"
+    else
+      URL=$(printf '%s' "$URL" | sed -E "s#(://[^:/]+:)[0-9]+#\1${new}#")
+    fi
     RELIVED=1
     echo "→ dev-server bounced ports ($cur → $new); re-reading _server.json and retrying at $URL" >&2
     return 0

@@ -1,7 +1,8 @@
 // Internal shim behind index.sh (`maude design index`). See index.sh for usage.
-import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+
+import { locateStudio, studioHeaders } from '../../../cli/lib/studio-locate.mjs';
 
 const args = process.argv.slice(2);
 const opt = (k) => (args.includes(k) ? args[args.indexOf(k) + 1] : undefined);
@@ -15,25 +16,13 @@ if (!existsSync(path.join(designRoot, 'config.json'))) {
 
 async function fromServer(query) {
   try {
-    // The PORT only, on loopback — never the file's `url`: a planted or synced _server.json must
-    // not turn this verb into a fetch of any host (security review, Phase 1 gate).
-    const info = JSON.parse(readFileSync(path.join(designRoot, '_server.json'), 'utf8'));
-    const port = Number(info?.port);
-    if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
-    if (Number.isInteger(info?.pid)) {
-      try {
-        process.kill(info.pid, 0);
-      } catch {
-        return null; // a dead server's file
-      }
-    }
-    // and only a studio serving THIS root: a reused port may be another project's (server-up.sh's rule)
-    const health = await fetch(`http://127.0.0.1:${port}/_health`, {
-      signal: AbortSignal.timeout(1500),
-    }).then((r) => (r.ok ? r.json() : null));
-    const id = createHash('sha256').update(realpathSync(root)).digest('hex').slice(0, 12);
-    if (health?.app !== 'design' || health.rootId !== id) return null;
-    const res = await fetch(`http://127.0.0.1:${port}/_api/index${query}`, {
+    // locateStudio: the app's attested server, else `_server.json`'s PORT only on loopback — never the
+    // file's `url` — and only a studio whose /_health names THIS root (a reused port may be another
+    // project's). It carries the server's API key (sec-loopback-bearer §7.6); studioHeaders sends it.
+    const studio = await locateStudio(root, { timeoutMs: 1500 });
+    if (!studio) return null;
+    const res = await fetch(`${studio.base}/_api/index${query}`, {
+      headers: studioHeaders(studio),
       signal: AbortSignal.timeout(1500),
     });
     return res.ok ? await res.json() : null;

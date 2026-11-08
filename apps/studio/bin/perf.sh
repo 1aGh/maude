@@ -287,7 +287,8 @@ if [ "$OPEN_LOAD" = "1" ]; then
   OPEN_ENGINE="chromium"
   [ "$PROBE_ENGINE" = "safari" ] && OPEN_ENGINE="webkit"
   echo "→ perf --open-load: $REL_FULL | port: $PORT | engine: $OPEN_ENGINE" >&2
-  ARGS=(--url "http://localhost:${PORT}/" --open "${REL_FULL#"$DESIGN_REL"/}" --engine "$OPEN_ENGINE" --timeout "$TIMEOUT")
+  # sec-loopback-bearer §7.4 — the studio page needs a session: the probe opens a one-time link first
+  ARGS=(--url "http://localhost:${PORT}/" --launch "$(studio_launch_url "$REPO" "$PORT")" --open "${REL_FULL#"$DESIGN_REL"/}" --engine "$OPEN_ENGINE" --timeout "$TIMEOUT")
   [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
   [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
   [ "$JSON" = "1" ] && ARGS+=(--json)
@@ -318,7 +319,7 @@ if [ "$PROBE_ENGINE" = "safari" ]; then
   echo "→ perf: $REL_FULL | port: $PORT | engine: webkit-safari${STUDIO:+ | studio}" >&2
   ARGS=(--url "$PROBE_URL" --label "$REL_FULL$([ "$STUDIO" = "1" ] && echo " (studio)")" --history "$HISTORY"
         --timeout "$TIMEOUT" --pan "$PAN" --zoom "$ZOOM" --repeat "$REPEAT")
-  [ "$STUDIO" = "1" ] && ARGS+=(--studio "$SLUG")
+  [ "$STUDIO" = "1" ] && ARGS+=(--studio "$SLUG" --launch "$(studio_launch_url "$REPO" "$PORT")")
   [ "$FIT_ALL" = "1" ] && ARGS+=(--fit-all)
   [ "$JSON" = "1" ] && ARGS+=(--json)
   [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
@@ -338,7 +339,7 @@ if [ "$PROBE_ENGINE" = "chromium" ] && [ "$STUDIO" = "1" ]; then
     | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
   ENGINE_TAG="${MAUDE_PERF_ENGINE_TAG:-blink-studio}"
   echo "→ perf: $REL_FULL | port: $PORT | engine: $ENGINE_TAG" >&2
-  ARGS=(--url "http://localhost:${PORT}/" --studio "$SLUG" --label "$REL_FULL" --history "$HISTORY"
+  ARGS=(--url "http://localhost:${PORT}/" --launch "$(studio_launch_url "$REPO" "$PORT")" --studio "$SLUG" --label "$REL_FULL" --history "$HISTORY"
         --engine-tag "$ENGINE_TAG" --timeout "$TIMEOUT" --pan "$PAN" --zoom "$ZOOM" --repeat "$REPEAT")
   [ "$FIT_ALL" = "1" ] && ARGS+=(--fit-all)
   [ "$JSON" = "1" ] && ARGS+=(--json)

@@ -111,6 +111,9 @@ STATE="$DESIGN_ROOT/_server.json"
 [ -f "$STATE" ] || { echo "generate.sh: no _server.json (start the dev server first)" >&2; exit 1; }
 PORT=$(jq -r '.port // empty' "$STATE" 2>/dev/null)
 [ -n "$PORT" ] || { echo "generate.sh: could not read port from $STATE" >&2; exit 1; }
+# sec-loopback-bearer §7.6 — every call carries the studio's API key (studio_curl: curl's stdin config)
+. "$(dirname "$0")/_desktop-locate.sh"
+studio_key "$REPO" "$PORT" || { echo "generate.sh: Maude has this project open, but its server did not answer the check" >&2; exit 1; }
 
 # ── --take: ← → between a generated picture's takes, on the studio's selection ──
 if [ -n "$TAKE" ]; then
@@ -125,7 +128,7 @@ if [ -n "$TAKE" ]; then
     elif .id and .artboardId then ({ artboard: .artboardId, element: .id } + (if (.index // 0) > 0 then { occurrence: .index } else {} end))
     else empty end')
   [ -n "$ASSET" ] && [ -n "$REF" ] || { echo "generate.sh: the selection is not a picture" >&2; exit 2; }
-  OF=$(curl -s -G "http://127.0.0.1:$PORT/_api/generate-takes/of" --data-urlencode "asset=$ASSET" --data-urlencode "canvas=$CANVAS")
+  OF=$(studio_curl "$REPO" "$PORT" -s -G "http://127.0.0.1:$PORT/_api/generate-takes/of" --data-urlencode "asset=$ASSET" --data-urlencode "canvas=$CANVAS")
   NEXT=$(printf '%s' "$OF" | jq -r --arg a "$ASSET" --arg dir "$TAKE" '
     (.takes // []) as $t | ($t | index($a)) as $i
     | if $i == null or ($t | length) < 2 then empty
@@ -133,7 +136,7 @@ if [ -n "$TAKE" ]; then
   [ -n "$NEXT" ] || { echo "generate.sh: that picture has no other takes" >&2; exit 3; }
   BODY=$(jq -n --arg file "$CANVAS" --argjson ref "$REF" --arg asset "$NEXT" \
     '{ file: $file, op: "image.replace", targets: [$ref], params: { asset: $asset } }')
-  RESP=$(curl -s -X POST -H 'Content-Type: application/json' -d "$BODY" "http://127.0.0.1:$PORT/_api/edit-op")
+  RESP=$(studio_curl "$REPO" "$PORT" -s -X POST -H 'Content-Type: application/json' -d "$BODY" "http://127.0.0.1:$PORT/_api/edit-op")
   if [ "$(printf '%s' "$RESP" | jq -r '.ok // false' 2>/dev/null)" != "true" ]; then
     echo "generate.sh: not changed: $RESP" >&2
     exit 3
@@ -170,7 +173,7 @@ BODY=$(jq -n \
   + (if ($params|length) > 0 then { params: $params } else {} end)')
 
 echo "generate.sh: submitting to $PROVIDER ($MODALITY)…" >&2
-RESP=$(curl -s -X POST -H 'Content-Type: application/json' -d "$BODY" "$BASE")
+RESP=$(studio_curl "$REPO" "$PORT" -s -X POST -H 'Content-Type: application/json' -d "$BODY" "$BASE")
 JOB_ID=$(printf '%s' "$RESP" | jq -r '.jobId // empty' 2>/dev/null || echo "")
 if [ -z "$JOB_ID" ]; then
   REASON=$(printf '%s' "$RESP" | jq -r '.reason // empty' 2>/dev/null || echo "")
@@ -192,7 +195,7 @@ echo "generate.sh: job $JOB_ID queued — polling…" >&2
 # Poll the job list until this job is done/failed, or the timeout elapses.
 DEADLINE=$(( $(date +%s) + TIMEOUT ))
 while :; do
-  JOBS=$(curl -s "$BASE" 2>/dev/null || echo '{}')
+  JOBS=$(studio_curl "$REPO" "$PORT" -s "$BASE" 2>/dev/null || echo '{}')
   JOB=$(printf '%s' "$JOBS" | jq -c --arg id "$JOB_ID" '.jobs[]? | select(.id == $id)' 2>/dev/null || echo "")
   STATUS=$(printf '%s' "$JOB" | jq -r '.status // empty' 2>/dev/null || echo "")
   case "$STATUS" in

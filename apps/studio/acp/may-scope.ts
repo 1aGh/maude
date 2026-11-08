@@ -60,6 +60,7 @@ import { chmodSync, lstatSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
+import { serverKeyDir } from '../shell/key-file.ts';
 import { agentPath } from './agent-path.ts';
 import { isInsideRoot, resolveRealPath } from './write-scope.ts';
 
@@ -327,6 +328,8 @@ export function credentialPathsFor(
   const xdg = env.XDG_CONFIG_HOME;
   if (xdg && xdg.length > 0 && isAbsolute(xdg)) addDir(join(xdg, 'maude'));
   for (const d of ['.ssh', '.aws', '.gnupg', join('Library', 'Keychains')]) addDir(join(home, d));
+  // sec-loopback-bearer §7.5 — terminal-started servers' API key files (shell/key-file.ts)
+  addDir(serverKeyDir({ ...env, HOME: home }));
   const appData = appDataDirFor(env, home, platform);
   if (appData) {
     for (const d of ['run', 'shell-info', 'home']) addDir(join(appData, d));

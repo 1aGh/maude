@@ -78,6 +78,9 @@ STATE="$DESIGN_ROOT/_server.json"
 [ -f "$STATE" ] || { echo "photo-adjust.sh: no _server.json (start the dev server first)" >&2; exit 1; }
 PORT=$(jq -r '.port // empty' "$STATE" 2>/dev/null)
 [ -n "$PORT" ] || { echo "photo-adjust.sh: could not read port from $STATE" >&2; exit 1; }
+# sec-loopback-bearer §7.6 — every call carries the studio's API key (studio_curl: curl's stdin config)
+. "$(dirname "$0")/_desktop-locate.sh"
+studio_key "$REPO" "$PORT" || { echo "photo-adjust.sh: Maude has this project open, but its server did not answer the check" >&2; exit 1; }
 
 BASE_URL="http://127.0.0.1:$PORT/_api/photo-edit"
 # URL-encode the asset param minimally (slashes are safe as a query value here).
@@ -86,7 +89,7 @@ URL="$BASE_URL?asset=$ENC_ASSET"
 
 # --reset short-circuits: write a neutral sidecar.
 if [ "$RESET" -eq 1 ]; then
-  RESP=$(curl -s -X PUT -H 'Content-Type: application/json' -d '{}' "$URL")
+  RESP=$(studio_curl "$REPO" "$PORT" -s -X PUT -H 'Content-Type: application/json' -d '{}' "$URL")
   OK=$(printf '%s' "$RESP" | jq -r '.ok // false' 2>/dev/null || echo false)
   [ "$OK" = "true" ] || { echo "photo-adjust.sh: reset rejected: $RESP" >&2; exit 3; }
   printf '%s\n' "$(printf '%s' "$RESP" | jq -r '.path')"
@@ -149,12 +152,12 @@ if [ "$REPLACE" -eq 1 ]; then
 else
   # Merge onto the current sidecar (deep object merge via jq's `*`), dropping the
   # server-stamped `version` (it's re-stamped on write).
-  BASE=$(curl -s "$URL" 2>/dev/null || echo '{}')
+  BASE=$(studio_curl "$REPO" "$PORT" -s "$URL" 2>/dev/null || echo '{}')
   printf '%s' "$BASE" | jq -e . >/dev/null 2>&1 || BASE='{}'
   BODY=$(jq -n --argjson base "$BASE" --argjson patch "$PATCH" '($base | del(.version)) * $patch')
 fi
 
-RESP=$(curl -s -X PUT -H 'Content-Type: application/json' -d "$BODY" "$URL")
+RESP=$(studio_curl "$REPO" "$PORT" -s -X PUT -H 'Content-Type: application/json' -d "$BODY" "$URL")
 OK=$(printf '%s' "$RESP" | jq -r '.ok // false' 2>/dev/null || echo false)
 if [ "$OK" != "true" ]; then
   echo "photo-adjust.sh: server rejected the edit: $RESP" >&2

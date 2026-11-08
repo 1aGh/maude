@@ -10,10 +10,17 @@
 // `process.env` — nothing this server spawns inherits it (scrubAgentEnv also drops every
 // `MAUDE_SHELL_*`, acp/env.ts). Without it the server mints one per process and writes it nowhere.
 // It is never written to `_server.json` or anywhere in the project.
+//
+// Phase 2 (contract §7): a server whose starter handed it a key (the desktop app, for every
+// project spawn) is in REQUIRED mode — every main-origin request needs the key, the app's own
+// page included (`mainOriginKeyRefusal`, wired in server.ts on the main listener only). The page
+// trades the key for an HttpOnly session cookie once; a browser opened from the terminal trades a
+// one-time launch token in its opening URL for the same cookie.
 
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 import { isWorkspaceMode } from '../workspace-mode.ts';
+import { isCliRole } from './cli-yield.ts';
 
 export const API_KEY_ENV = 'MAUDE_SHELL_API_KEY';
 export const API_KEY_HEADER = 'x-maude-api-key';
@@ -38,7 +45,34 @@ export function takeApiKey(env: Record<string, string | undefined> = process.env
   return v;
 }
 
-const BOOT_KEY = takeApiKey(process.env) ?? randomBytes(32).toString('hex');
+const ENV_KEY = takeApiKey(process.env);
+const BOOT_KEY = ENV_KEY ?? randomBytes(32).toString('hex');
+/**
+ * §7.5 — a terminal-started server (role `cli`: `maude design serve`, `server-up`) mints its own
+ * key, writes it to the per-user key file (shell/key-file.ts) and opens with a launch token.
+ */
+const TERMINAL_REQUIRED = ENV_KEY === null && isCliRole(process.env);
+/**
+ * §7.1 — a starter handed this process its key (the desktop app), or a terminal starter asked
+ * for one (§7.5): every main-origin caller needs it. A server started with neither (a bare
+ * `bun server.ts`, a test harness) keeps phase 1: credential routes only.
+ */
+const BOOT_REQUIRED = ENV_KEY !== null || TERMINAL_REQUIRED;
+
+/** This process's key (in-process launch-URL minting, phase 2b). */
+export function bootApiKey(): string {
+  return BOOT_KEY;
+}
+
+/** §7.5 — did this server mint its own key as a terminal-started server (it writes the key file)? */
+export function terminalKeyMode(): boolean {
+  return TERMINAL_REQUIRED && !isWorkspaceMode();
+}
+
+/** §7.1 — is this server in required mode? */
+export function apiKeyRequired(): boolean {
+  return BOOT_REQUIRED && !isWorkspaceMode();
+}
 
 function presentedKey(req: Request): string | null {
   const h = req.headers.get(API_KEY_HEADER);
@@ -92,4 +126,180 @@ export function credentialRouteRefusal(
   if (site && site !== 'same-origin' && site !== 'none')
     return refuse(403, 'cross-origin rejected');
   return null;
+}
+
+/* ------------------------------------------------------------------ phase 2 (contract §7) */
+
+export const SESSION_PATH = '/_api/shell/session';
+export const LAUNCH_PARAM = 'maude-launch';
+const SESSION_DOMAIN = 'maude-session/1';
+const LAUNCH_DOMAIN = 'maude-launch/1';
+const COOKIE_NAME_DOMAIN = 'maude-cookie-name/1';
+export const LAUNCH_TTL_SEC = 300;
+const LAUNCH_RE = /^(\d{1,12})\.([0-9a-f]{32})\.([0-9a-f]{64})$/;
+const MAX_USED_NONCES = 4096;
+const SHELL_OWN_CREDENTIAL_RE =
+  /^\/_api\/shell\/(status|attest|clip-export|clip-asset|clip-import)$/;
+
+const hmacHex = (key: string, msg: string) => createHmac('sha256', key).update(msg).digest('hex');
+
+/** The session cookie a key mints; its name is per key, so two servers on 127.0.0.1 never collide. */
+export function sessionCookie(key: string): { name: string; value: string } {
+  return {
+    name: `maude_k_${hmacHex(key, COOKIE_NAME_DOMAIN).slice(0, 12)}`,
+    value: hmacHex(key, SESSION_DOMAIN),
+  };
+}
+
+function setCookieHeader(key: string): string {
+  const c = sessionCookie(key);
+  return `${c.name}=${c.value}; Path=/; HttpOnly; SameSite=Strict`;
+}
+
+/** A one-time launch token (§7.4): `<ts>.<nonce>.<mac>`. Anyone holding the key can mint one. */
+export function mintLaunchToken(key: string, nowSec = Math.floor(Date.now() / 1000)): string {
+  const nonce = randomBytes(16).toString('hex');
+  const ts = String(Math.floor(nowSec));
+  return `${ts}.${nonce}.${hmacHex(key, `${LAUNCH_DOMAIN}\n${ts}\n${nonce}`)}`;
+}
+
+const USED_NONCES = new Set<string>();
+
+function cookieValue(req: Request, name: string): string | null {
+  const raw = req.headers.get('cookie');
+  if (!raw) return null;
+  for (const part of raw.split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0 && part.slice(0, i).trim() === name) return part.slice(i + 1).trim();
+  }
+  return null;
+}
+
+/** §7.3 — answered without a credential. */
+function isExempt(method: string, pathname: string): boolean {
+  if (SHELL_OWN_CREDENTIAL_RE.test(pathname)) return true;
+  if (method !== 'GET' && method !== 'HEAD') return false;
+  return (
+    pathname === '/_health' ||
+    pathname === '/' ||
+    pathname === '/index.html' ||
+    pathname === '/_canvas-shell' ||
+    pathname === '/_canvas-shell.html' ||
+    pathname.startsWith('/_client/') ||
+    pathname.startsWith('/_canvas-runtime/')
+  );
+}
+
+/**
+ * The session cookie, counted only same-origin: the canvas origin is the same host on another port,
+ * which a cookie treats as same-site.
+ */
+function hasSessionCookie(req: Request, key: string): boolean {
+  const site = req.headers.get('sec-fetch-site');
+  if (site && site !== 'same-origin' && site !== 'none') return false;
+  const c = sessionCookie(key);
+  const got = cookieValue(req, c.name);
+  return got !== null && keyMatches(got, c.value);
+}
+
+function redirectWithoutLaunch(url: URL): Response {
+  url.searchParams.delete(LAUNCH_PARAM);
+  return new Response(null, {
+    status: 303,
+    headers: {
+      Location: `${url.pathname}${url.search}`,
+      'Referrer-Policy': 'no-referrer',
+      ...noStore,
+    },
+  });
+}
+
+type GateOpts = {
+  key?: string;
+  required?: boolean;
+  workspace?: boolean;
+  usedNonces?: Set<string>;
+  /** unix seconds */
+  now?: number;
+};
+
+const noStore = { 'Cache-Control': 'no-store' };
+
+function launchExchange(url: URL, key: string, opts: GateOpts): Response {
+  const used = opts.usedNonces ?? USED_NONCES;
+  const now = opts.now ?? Math.floor(Date.now() / 1000);
+  const m = LAUNCH_RE.exec(url.searchParams.get(LAUNCH_PARAM) ?? '');
+  const fresh = !!m && now - Number(m[1]) <= LAUNCH_TTL_SEC && Number(m[1]) - now <= 30;
+  if (
+    !m ||
+    !fresh ||
+    used.has(m[2]) ||
+    !keyMatches(m[3], hmacHex(key, `${LAUNCH_DOMAIN}\n${m[1]}\n${m[2]}`))
+  ) {
+    return new Response(
+      'This Maude link has expired or was already used. Open the project again from Maude, or run `maude design browse`.',
+      { status: 401, headers: { 'Content-Type': 'text/plain; charset=utf-8', ...noStore } }
+    );
+  }
+  // a cleared nonce is long past its 300 s lifetime by the time 4096 links were opened
+  if (used.size >= MAX_USED_NONCES) used.clear();
+  used.add(m[2]);
+  url.searchParams.delete(LAUNCH_PARAM);
+  return new Response(null, {
+    status: 303,
+    headers: {
+      Location: `${url.pathname}${url.search}`,
+      'Set-Cookie': setCookieHeader(key),
+      'Referrer-Policy': 'no-referrer',
+      ...noStore,
+    },
+  });
+}
+
+/**
+ * §7 — the required-mode gate for the MAIN listener (server.ts runs it first on the routes map and
+ * in `fetch`, before any WebSocket upgrade). `null` = pass on to the route. It answers the two
+ * exchanges itself: `POST /_api/shell/session` (key → cookie) and `GET /?maude-launch=` (one-time
+ * token → cookie). `opts` exists for tests; the server passes nothing.
+ */
+export function mainOriginKeyRefusal(req: Request, opts: GateOpts = {}): Response | null {
+  if (opts.workspace ?? isWorkspaceMode()) return null;
+  if (!(opts.required ?? BOOT_REQUIRED)) return null;
+  const key = opts.key ?? BOOT_KEY;
+  let url: URL;
+  try {
+    url = new URL(req.url);
+  } catch {
+    return refuse(401, 'api-key-required');
+  }
+  const { pathname } = url;
+  const method = req.method.toUpperCase();
+  const read = method === 'GET' || method === 'HEAD';
+
+  if (
+    read &&
+    (pathname === '/' || pathname === '/index.html') &&
+    url.searchParams.has(LAUNCH_PARAM)
+  ) {
+    // a page that already holds the session (a reload, a helper navigating twice) just drops the
+    // parameter — its token stays unspent and unchecked
+    if (hasSessionCookie(req, key)) return redirectWithoutLaunch(url);
+    return launchExchange(url, key, opts);
+  }
+
+  const presented = presentedKey(req);
+  if (pathname === SESSION_PATH) {
+    if (method !== 'POST') return new Response('Method not allowed', { status: 405 });
+    if (presented === null) return refuse(401, 'api-key-required');
+    if (!keyMatches(presented, key)) return refuse(401, 'api-key-invalid');
+    return new Response(null, {
+      status: 204,
+      headers: { 'Set-Cookie': setCookieHeader(key), ...noStore },
+    });
+  }
+
+  if (isExempt(method, pathname)) return null;
+  if (presented !== null) return keyMatches(presented, key) ? null : refuse(401, 'api-key-invalid');
+  if (hasSessionCookie(req, key)) return null;
+  return refuse(401, 'api-key-required');
 }

@@ -1,6 +1,6 @@
 # Loopback API key for credential routes
 
-Status: phase 1 built (GitHub routes); phase 2 open — see §6.
+Status: phase 1 built (GitHub routes); phase 2 decided 2026-11-08 (Michal) and specified in §7 — being built.
 Module: `apps/studio/shell/api-key.ts`. Pins: `test/sec-loopback-bearer.test.ts`, `test/acp-env.test.ts`.
 
 ## 1. The problem
@@ -70,18 +70,115 @@ Not credential routes: the Home server's `/_home/internal/*` (already bearer-gat
 - Rust: no direct call to any route in §4 (`managed.rs`, `oauth.rs`, `keychain.rs` only mention them).
 - CLI / bin: only the Sync and Paid-generation rows above. No caller of the phase-1 routes.
 
-## 6. Open — phase 2
+## 6. Phase 2 — decisions (Michal, 2026-11-08; decision `burndown-michal-loopback-key-every-caller`)
 
-1. **Header forgery.** `Origin` and `Sec-Fetch-Site` are forgeable by a non-browser caller, so
-   phase 1 stops only a caller that sends neither. Closing it needs the shell to send the key:
-   the desktop mints the key per spawn (`sidecar.rs`, env as above, plus `apiKey` in the 0600
-   `servers.json` entry for CLI callers), the project webview reads it through a Tauri command
-   scoped to that webview (as Home's page secret), and the client adds `x-maude-api-key` on
-   credential paths. Then, on a desktop-spawned server (key from env), the key is required from
-   every caller. A CLI-started server has no shell to hand it to; its browser page would need a
-   launch-URL token. Decision needed.
-2. **Paid generation is agent-reachable by design** (`maude design generate`). Gating it with the
-   key breaks the verb; leaving it open leaves money-spending reachable from any local process.
-   Options: (a) gate it and move the verb to a human-tier path; (b) keep it open and cap spend.
-3. **`maude design sync resync`** needs the key from `servers.json` / a 0600 file next to the
-   app-owned info file before `/_api/sync/*` is gated.
+1. **Header forgery — closed by requiring the key everywhere.** A server the desktop app starts
+   requires its per-spawn key from EVERY caller on the main origin, the app's own page included
+   (§7). The page gets the key through a Tauri command scoped to project webviews; CLI callers read
+   it from the app's 0600 registry. A server started from the terminal and opened in a browser gets
+   a one-time token in its opening URL (§7.4).
+2. **Paid generation stays open to the AI flow.** `maude design generate` keeps working: the verb
+   reads the key the same way every other verb does (§7.6). Not a separate gate.
+3. **`maude design sync resync`** reads the key like every other verb (§7.6).
+
+## 7. Phase 2 — the rule
+
+### 7.1 Required mode
+
+A server is in **required mode** when its starter handed it a key: `MAUDE_SHELL_API_KEY` in its
+environment (the desktop app does this for every project spawn). Phase 2b adds terminal-started
+servers (§7.5). A cell (`isWorkspaceMode()`) never is. The Home server is a different program
+(`--home`) with its own bearer and is not affected.
+
+In required mode the gate runs on the **main listener only** — first in the routes map wrapper
+and first in `fetch`, before WebSocket upgrades (`server.ts` `withSession` + `startServer`), so
+it covers every route, the fall-through and every socket. The canvas and capture listeners are
+separate listeners with their own frame-capability model and are untouched. Phase 1's
+`credentialRouteRefusal` keeps running behind it.
+
+### 7.2 What counts as the key
+
+| Credential | Accepted when |
+| --- | --- |
+| `x-maude-api-key: <key>` or `Authorization: Bearer <key>` | it matches (constant time); a wrong one is 401 `api-key-invalid` |
+| the session cookie `maude_k_<12 hex>=<HMAC-SHA256(key, "maude-session/1")>` | it matches AND `Sec-Fetch-Site` is absent, `same-origin` or `none` — so the canvas origin (same host, other port: same-site to a cookie) never rides it |
+
+Anything else → 401 `{ ok:false, error:'api-key-required' }` (`Cache-Control: no-store`).
+`Origin`/`Sec-Fetch-Site` alone never pass. The cookie is `HttpOnly; SameSite=Strict; Path=/`, no
+`Max-Age` (dies with the webview session); its name is derived from the key so two servers on
+`127.0.0.1` never overwrite each other's. The key itself is never placed in a URL or a log.
+
+### 7.3 Exempt (answered without a credential)
+
+- `GET|HEAD /_health` — the CLI's locate probe (it names the root, nothing else).
+- `GET|HEAD /`, `/index.html` — the shell document (static HTML + CSP, the bootstrap that
+  fetches the key); `GET|HEAD /_client/*` — the shipped client bundle, styles, fonts;
+  `GET|HEAD /_canvas-runtime/*` — the shipped dependency bundles (`runtime-health.sh` probes them).
+- `GET|HEAD /_canvas-shell`, `/_canvas-shell.html` — a 307 to the capture origin while the split
+  is on (every headless capture follows it, §CLAUDE.md "Captures never render on the main origin").
+- `/_api/shell/{status,attest,clip-export,clip-asset,clip-import}` — each carries its own
+  credential (the per-spawn shell token, or the attest MAC).
+
+Everything else, every method, needs §7.2. `/_api/shell/session` (below) needs the header form.
+
+### 7.4 How a page gets a session
+
+- **Desktop page.** The Tauri command `project_api_session` (project webviews `p-*` only — the
+  `default` capability; it checks the caller is a project tab whose URL is its own server) returns
+  `{ key }`. The page sends it once as `POST /_api/shell/session` with `x-maude-api-key`; the
+  server answers 204 + `Set-Cookie` (§7.2). The client does this before the shell renders, and a
+  fetch wrapper holds every same-origin `fetch` until it settles (`client/v2/shell/api-session.js`).
+  Images, media, fonts and WebSockets then carry the cookie by themselves; no key in any URL.
+- **Browser (terminal-started server, phase 2b).** The opening URL carries
+  `?maude-launch=<ts>.<nonce>.<mac>`, `mac = HMAC-SHA256(key, "maude-launch/1\n" + ts + "\n" + nonce)`
+  (hex), `ts` = unix seconds, `nonce` = 32 hex. `GET /` (or `/index.html`) with a valid token not
+  older than 300 s and never used before → 303 to the same URL without the parameter +
+  `Set-Cookie`. A used, expired or forged token → 401 page. Anyone holding the key can mint one
+  (the server at boot, `maude design browse`); the server remembers used nonces (bounded).
+
+### 7.5 Terminal-started servers (phase 2b)
+
+A server started by a terminal starter — role `cli` (`MAUDE_SERVER_ROLE=cli`, set by
+`maude design serve` and `maude design server-up`; `shell/cli-yield.ts` `isCliRole`) — that was
+handed no key mints its own and is in required mode (`api-key.ts` `terminalKeyMode`). Before it
+writes `_server.json` it writes `{ v:1, port, pid, rootId, apiKey }` to a 0600 file in a 0700
+directory outside the project, `<state>/maude/servers/<rootId>.json` (`<state>` = `$XDG_STATE_HOME`
+when absolute, else `~/.local/state`; `shell/key-file.ts`), and removes it on shutdown while it still
+names its pid. Only the CLI reads it (`desktop-locate.mjs` `terminalKeyFor`): a regular file of this
+user with nothing for group or others, naming the port being called and a live pid, and only for a
+port whose `/_health` names the project. The AI chat agent's Read tool is denied the folder
+(`credentialDenyRules`).
+
+Its opening URL carries a launch token (§7.4): the server opens the browser with one, and prints one
+only to a terminal (a nohup'd `server-up` log keeps the plain address). `maude design server-up --url`
+and `desktop-locate.mjs launch-url` mint a fresh one for `/design:browse` and the helpers that drive
+the studio page. A page that already holds the session and opens a launch link again (a reload, a
+helper navigating twice) gets a 303 without the parameter; its token is not spent.
+
+**A server started with neither a key nor role `cli`** (a bare `bun server.ts`, `npm run start`, the
+test harnesses) keeps phase 1: credential routes only, no key file. That is the starter's choice —
+every starter a person uses (the app, `serve`, `server-up`) asks for required mode.
+
+### 7.6 Callers
+
+- **Rust** (`export_save.rs` download, `notify.rs` runs poll, `quit.rs` stop-all) sends the
+  spawn's key as `x-maude-api-key`; the shell-token routes stay as they are.
+- **CLI** (`desktop-locate.mjs`, `studio-locate.mjs`, the in-process verbs, the design hook,
+  `_studio-verb.mjs`, the bash helpers through `_desktop-locate.sh`) sends the key of the
+  registry entry it attested (`apiKey` in `servers.json`), else a terminal server's key file
+  (§7.5) — never a key from any project file. A key is passed to `curl` through a config on stdin,
+  never argv (`studio_curl`); a JS helper builds its headers with `studioHeaders` /
+  `studioHeadersFor`. `cli/lib/helper-studio-key.test.mjs` fails on a helper that calls the studio
+  any other way. A browser a helper drives opens the page through `studio_launch_url`.
+- **Present audience window** (`present.rs`) — its own webview and cookie jar: Rust opens the
+  follower root with a launch token minted from the tab's server key.
+- **AI chat agent.** Its env never carries the key (`scrubAgentEnv` drops `MAUDE_SHELL_*`); it
+  reaches the server only through `maude design` verbs, which read the registry like any CLI
+  caller. `credentialDenyRules` keep its Read tool off the registry.
+- **Paid generation** stays open to that flow (§6.2).
+
+### 7.7 Registry
+
+`servers.json` entries gain `apiKey` (64 hex) beside `attestKey`, present only on a running entry,
+dropped on rest/reap with the attest key. Tests: `test/sec-loopback-bearer.test.ts` (§7.1–7.4),
+`sidecar.rs`/`cli_registry.rs` unit tests (§7.7), `cli/lib/desktop-locate.test.mjs` (§7.6).

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { $, browser } from '@wdio/globals';
 import { pointerClick } from './pointer';
 import { readServerInfo } from './sidecar';
+import { sidecarHeaders } from './sidecar-key';
 
 /**
  * P8 test round (G4 video + import): small helpers the video / import specs share. Additive; nothing here changes a
@@ -172,9 +173,11 @@ export const keyDown = (init: Record<string, unknown>) =>
 /** The running studio's origin, and a JSON POST against it (the hook routes a terminal Claude Code would call). */
 export const studioBase = (root: string) => readServerInfo(root).url.replace(/\/$/, '');
 export async function postJson(root: string, route: string, body: unknown) {
-  const r = await fetch(`${studioBase(root)}${route}`, {
+  const base = studioBase(root);
+  const r = await fetch(`${base}${route}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    // sec-loopback-bearer §7 — the app's sidecar answers its own API key only (helpers/sidecar-key.ts)
+    headers: sidecarHeaders(base, { 'content-type': 'application/json' }),
     body: JSON.stringify(body),
   });
   return { status: r.status, body: await r.json().catch(() => null) };

@@ -11,12 +11,18 @@
 // this root as running, ITS attested server is the studio and `_server.json` is never read; a server
 // there that does not attest means no studio (fail closed), not a fallback to the project file.
 //
+// sec-loopback-bearer §7 — an app server requires its per-spawn API key from every caller: the attested
+// app studio carries `apiKey` (from the app's registry, never from a project file), and every request a
+// verb or hook sends goes through `studioHeaders`. A terminal-started studio (§7.5) carries the key it
+// wrote to its per-user key file (desktop-locate.mjs `terminalKeyFor`), read only after `/_health`
+// named this root.
+//
 // Node built-ins + desktop-locate.mjs (itself a leaf).
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-import { probeDesktop, rootIdentity } from './desktop-locate.mjs';
+import { probeDesktop, rootIdentity, serverKeyFor, terminalKeyFor } from './desktop-locate.mjs';
 
 export { rootIdentity };
 
@@ -60,7 +66,16 @@ export async function probeStudio(
     } catch {
       /* attested already; /_health is only informative here */
     }
-    return { studio: { port: app.port, base, health, owner: 'app', label: app.label } };
+    return {
+      studio: {
+        port: app.port,
+        base,
+        health,
+        owner: 'app',
+        label: app.label,
+        ...(app.apiKey ? { apiKey: app.apiKey } : {}),
+      },
+    };
   }
   let port;
   try {
@@ -86,7 +101,9 @@ export async function probeStudio(
       const health = await res.json();
       if (health?.app !== 'design' || health.rootId !== rootIdentity(root))
         return { state: 'none' };
-      return { studio: { port, base, health } };
+      // §7.5 — a terminal-started server's own key, from its per-user key file (never the project)
+      const apiKey = terminalKeyFor(root, port);
+      return { studio: { port, base, health, ...(apiKey ? { apiKey } : {}) } };
     } catch (e) {
       // only a timeout is "busy": a refused connection is no server on that port
       if (e?.name !== 'TimeoutError' && e?.name !== 'AbortError') return { state: 'none' };
@@ -95,12 +112,29 @@ export async function probeStudio(
   return { state: 'busy' };
 }
 
+export const API_KEY_HEADER = 'x-maude-api-key';
+
+/** The headers every request to `studio` carries (the app server's API key), merged over `extra`. */
+export function studioHeaders(studio, extra = {}) {
+  return studio?.apiKey ? { ...extra, [API_KEY_HEADER]: studio.apiKey } : { ...extra };
+}
+
+/**
+ * The same headers for a helper that holds only a PORT (read from `_server.json` by a bash caller):
+ * the key of the server serving `root` there — the app's attested one, else a terminal-started one
+ * whose `/_health` names `root`. A port that is neither gets no key. Never throws.
+ */
+export async function studioHeadersFor(root, port, extra = {}) {
+  const r = await serverKeyFor(root, Number(port));
+  return r.key ? { ...extra, [API_KEY_HEADER]: r.key } : { ...extra };
+}
+
 /** POST JSON to a located studio. `{ status, body }`, or null on any transport failure. */
 export async function postStudio(studio, route, payload, { timeoutMs = 1500 } = {}) {
   try {
     const res = await fetch(`${studio.base}${route}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: studioHeaders(studio, { 'content-type': 'application/json' }),
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(timeoutMs),
     });

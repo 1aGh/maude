@@ -553,7 +553,9 @@ done <<< "$CANVASES"
 # say it here in the shell card's words, so the report is not a bare "error".
 REASONS=""
 if command -v bun >/dev/null 2>&1; then
-  REASONS=$(curl -fsS -m 5 "http://localhost:$PORT/_index-data" 2>/dev/null \
+  # sec-loopback-bearer §7.6 — /_index-data is a main-origin read: it carries the studio's API key
+  studio_key "$REPO" "$PORT" || true
+  REASONS=$(studio_curl "$REPO" "$PORT" -fsS -m 5 "http://localhost:$PORT/_index-data" 2>/dev/null \
     | bun "$(dirname "$0")/_canvas-reasons.mjs" 2>/dev/null)
 fi
 if [ -n "$REASONS" ]; then

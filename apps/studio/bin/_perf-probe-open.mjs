@@ -48,6 +48,7 @@ function parseArgs(argv) {
     const a = argv[i];
     const v = () => argv[++i];
     if (a === '--url') o.url = v();
+    else if (a === '--launch') o.launch = v();
     else if (a === '--open') o.open = v();
     else if (a === '--engine') o.engine = v();
     else if (a === '--window') o.window = v();
@@ -157,6 +158,9 @@ async function main() {
       for (const { name, value } of r?.metrics || []) m[name] = value;
       return m;
     };
+    // sec-loopback-bearer §7.4 — a one-time opening link (perf.sh `studio_launch_url`): visited first, it
+    // leaves the session cookie the studio page needs; every later URL is built from --url as before
+    if (o.launch) await page.goto(o.launch, { waitUntil: 'domcontentloaded' });
     const t0 = Date.now();
     const enc = o.open.split('/').map(encodeURIComponent).join('/');
     // --bare <query>: the canvas page on its own (top level — every artboard live unless the query says

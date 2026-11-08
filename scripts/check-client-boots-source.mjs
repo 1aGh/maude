@@ -30,6 +30,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mintLaunchToken, terminalKeyFor } from '../cli/lib/desktop-locate.mjs';
 import { DEAD_SHELL, failedSteps, PROBE } from './boot-gate/interaction-probe.mjs';
 import { stubClaudeEnv } from './lib/stub-claude.mjs';
 
@@ -98,8 +99,9 @@ process.on('exit', () => {
 });
 
 // Boot the SOURCE server exactly as `maude design serve` does in a dev tree —
-// `bun server.ts`. MAUDE_NO_AUTOBUILD=1 (per CLAUDE.md) so the self-heal can
-// never regenerate dev bundles over the release artifacts we are testing.
+// `bun server.ts` as role `cli`, so it requires its own API key (sec-loopback-bearer §7.5) and the page
+// opens through a one-time launch link, like a person's browser. MAUDE_NO_AUTOBUILD=1 (per CLAUDE.md) so
+// the self-heal can never regenerate dev bundles over the release artifacts we are testing.
 const serverLog = [];
 server = spawn('bun', [join(STUDIO, 'server.ts'), '--root', projectRoot], {
   env: {
@@ -110,6 +112,10 @@ server = spawn('bun', [join(STUDIO, 'server.ts'), '--root', projectRoot], {
     MAUDE_PORT_BASE: process.env.MAUDE_PORT_BASE ?? '48399', // never the person's 4399–4408 (port.ts)
     MAUDE_NO_AUTOBUILD: '1',
     MAUDE_SYNC_IN_CI: '1',
+    MAUDE_SERVER_ROLE: 'cli',
+    // its key file goes to the throwaway state dir; the app registry it watches is a path nothing writes
+    XDG_STATE_HOME: join(work, 'state'),
+    MAUDE_APP_REGISTRY_FILE: join(work, 'no-app', 'servers.json'),
     // S5.1b — the unlinked boot project stamps a machine id; keep it in the throwaway dir, never
     // ~/.config/maude/machine.json (and the person's prefs/config with it).
     XDG_CONFIG_HOME: join(work, 'config'),
@@ -143,6 +149,15 @@ if (!url) {
   die('the source dev-server never came up — cannot judge whether the UI renders.');
 }
 console.log(`  server up at ${url}`);
+// the server wrote its key before _server.json; a missing key file is a failure of §7.5, not a skip
+const port = Number(new URL(url).port);
+const apiKey = terminalKeyFor(projectRoot, port, { env: { XDG_STATE_HOME: join(work, 'state') } });
+if (!apiKey) {
+  console.error(serverLog.join('').slice(-1200));
+  await cleanup();
+  die('the terminal-started server wrote no key file — a browser could never open it.');
+}
+const launchUrl = `${url.replace(/\/$/, '')}/?maude-launch=${mintLaunchToken(apiKey)}`;
 
 // Same stub as the packaged gate: commands REJECT rather than resolve, so a UI
 // that only mounts when every native call succeeds fails here too.
@@ -167,11 +182,16 @@ page.on('console', (m) => {
 });
 await page.addInitScript(TAURI_STUB);
 if (PLANT_DEAD) await page.addInitScript(DEAD_SHELL);
-await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
+await page.goto(launchUrl, { waitUntil: 'load', timeout: 60_000 });
 await sleep(MOUNT_SETTLE_MS);
 
 const verdict = JSON.parse(await page.evaluate(PROBE));
 const failed = failedSteps(verdict);
+// §7.4 — a shell without its session still draws (every request then answers 401): ask the page
+const sessionStatus = await page.evaluate(() =>
+  fetch('/_config', { cache: 'no-store' }).then((r) => r.status)
+);
+if (sessionStatus !== 200) failed.push(`session (/_config answered ${sessionStatus})`);
 
 if (!failed.length) {
   console.log(

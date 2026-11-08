@@ -9,6 +9,7 @@ import {
   API_KEY_HEADER,
   credentialRouteRefusal,
   isCredentialRoute,
+  sessionCookie,
   takeApiKey,
 } from '../shell/api-key.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
@@ -106,8 +107,13 @@ describe('a booted server refuses a header-less caller on /_api/github/*', () =>
     expect((await invite({ [API_KEY_HEADER]: KEY })).status).toBe(409);
   });
 
+  // §7: a server started with a key is in required mode — a browser needs the session cookie too,
+  // and the phase-1 Origin check still runs behind it.
   test('a same-origin browser request runs the route; a cross-origin one is refused', async () => {
-    expect((await invite({ origin: base })).status).toBe(409);
-    expect((await invite({ origin: 'https://evil.example' })).status).toBe(403);
+    expect((await invite({ origin: base })).status).toBe(401);
+    const c = sessionCookie(KEY);
+    const cookie = `${c.name}=${c.value}`;
+    expect((await invite({ origin: base, cookie })).status).toBe(409);
+    expect((await invite({ origin: 'https://evil.example', cookie })).status).toBe(403);
   });
 });

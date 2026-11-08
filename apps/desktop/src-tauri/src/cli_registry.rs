@@ -29,6 +29,9 @@ pub(crate) const SOCKET_FILE: &str = "cli.sock";
 /// The env var a project spawn's attest key travels in. In the `MAUDE_SHELL_*` namespace on
 /// purpose: `scrubAgentEnv` (apps/studio/acp/env.ts) keeps every one of those from the AI agent.
 pub(crate) const ATTEST_KEY_ENV: &str = "MAUDE_SHELL_ATTEST_KEY";
+/// sec-loopback-bearer §7: the env var a project spawn's API key travels in (same namespace, same
+/// scrub). The server then requires it from every main-origin caller.
+pub(crate) const API_KEY_ENV: &str = "MAUDE_SHELL_API_KEY";
 pub(crate) const REGISTRY_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -80,6 +83,10 @@ pub struct ServerEntry {
     /// The CURRENT child's key; absent while resting.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attest_key: Option<String>,
+    /// sec-loopback-bearer §7.7: the CURRENT child's API key, which its server requires from every
+    /// caller. The CLI sends it only after the port attested. Absent while resting.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
     pub profile: String,
     pub kind: Kind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -99,6 +106,7 @@ pub struct RunningView {
     pub pid: u32,
     pub port: Option<u16>,
     pub attest_key: Option<String>,
+    pub api_key: Option<String>,
     pub profile: String,
     pub started_ms: u64,
     /// A live terminal lease keeps it in use (contract §6) — the entry's `busy`.
@@ -191,6 +199,7 @@ pub fn build_registry(
             port: r.port,
             pid: Some(r.pid),
             attest_key: r.attest_key.clone(),
+            api_key: r.api_key.clone(),
             profile: r.profile.clone(),
             kind,
             main_root,
@@ -213,6 +222,7 @@ pub fn build_registry(
             port: None,
             pid: None,
             attest_key: None,
+            api_key: None,
             profile: r.profile.clone(),
             kind,
             main_root,
@@ -307,6 +317,7 @@ pub(crate) fn publish(app: &AppHandle) {
                     pid: child.pid(),
                     port: inst.port,
                     attest_key: inst.attest_key.clone(),
+                    api_key: inst.api_key.clone(),
                     profile: inst.profile_id.clone(),
                     started_ms: inst.started_ms,
                     busy: crate::cli_channel::leased(root),
@@ -374,6 +385,7 @@ mod tests {
             pid: 5678,
             port,
             attest_key: Some(key.into()),
+            api_key: None,
             profile: "default".into(),
             started_ms: 1_762_560_123_456,
             busy: false,
@@ -435,6 +447,32 @@ mod tests {
         assert!(wb.get("port").is_none() && wb.get("attestKey").is_none() && wb.get("pid").is_none());
         assert_eq!(json["app"]["socket"], "/x/cli.sock");
         std::fs::remove_dir_all(base).unwrap();
+    }
+
+    // sec-loopback-bearer §7.7 — a running entry carries the spawn's `apiKey` beside `attestKey`;
+    // a resting one carries neither.
+    #[test]
+    fn a_running_entry_carries_its_api_key_and_a_resting_one_does_not() {
+        let mut ra = running("/tmp/maude-reg-apikey-a", Some(4400), &"a".repeat(64));
+        ra.api_key = Some("b".repeat(64));
+        let resting = [RestingView {
+            root: "/tmp/maude-reg-apikey-b".into(),
+            profile: "default".into(),
+            busy: false,
+        }];
+        let reg = build_registry(app_info(), &[ra], &resting, &|_| false);
+        let w = serde_json::to_value(&reg).unwrap();
+        let by_root = |r: &str| {
+            w["servers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|e| e["root"].as_str().unwrap().ends_with(r))
+                .unwrap()
+                .clone()
+        };
+        assert_eq!(by_root("apikey-a")["apiKey"], "b".repeat(64).as_str());
+        assert!(by_root("apikey-b").get("apiKey").is_none());
     }
 
     #[test]

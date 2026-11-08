@@ -23,6 +23,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { studioHeadersFor } from '../../../cli/lib/studio-locate.mjs';
+
 function parseArgs(argv) {
   const out = {};
   for (let i = 0; i < argv.length; i++) {
@@ -68,12 +70,14 @@ async function main() {
   const repo = args.root || process.env.CLAUDE_PROJECT_DIR || process.cwd();
   const port = resolvePort(repo);
   const base = `http://127.0.0.1:${port}/_api/generate`;
+  // sec-loopback-bearer §7.6 — the studio's API key (the app's attested server, or a terminal one's)
+  const keyed = await studioHeadersFor(repo, port);
 
   if (args.reuse) {
     try {
       const res = await fetch(`${base}/audio-reuse`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { ...keyed, 'content-type': 'application/json' },
         body: JSON.stringify({ id: args.reuse }),
       });
       const json = await res.json().catch(() => ({}));
@@ -94,7 +98,9 @@ async function main() {
 
   let data;
   try {
-    const res = await fetch(`${base}/audio-search?q=${encodeURIComponent(args.query)}`);
+    const res = await fetch(`${base}/audio-search?q=${encodeURIComponent(args.query)}`, {
+      headers: keyed,
+    });
     data = await res.json();
     if (!res.ok) {
       process.stderr.write(`audio-search: ${data?.error ?? res.status}\n`);

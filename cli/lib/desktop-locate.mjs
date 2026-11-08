@@ -22,6 +22,11 @@
 //   • When the app is not running, or has no running server for this root, callers keep today's
 //     `_server.json` + pid + `/_health` rootId check (studio-locate.mjs, server-up.sh).
 //
+// sec-loopback-bearer §7 — an app server requires its per-spawn API key from every caller. The registry
+// entry carries it (`apiKey`); this module hands it out only with an ATTESTED port (never for an entry
+// whose server did not answer the challenge), and never reads a key from any project file. Callers send
+// it as `x-maude-api-key` (studio-locate.mjs `studioHeaders`; bash helpers through `key` mode below).
+//
 // The CLI → app socket (`cli.sock`, beside the registry): one JSON request per connection, one JSON
 // reply. Used only when it is a socket of this user; absent → today's behaviour. The CLI never
 // launches the app.
@@ -166,6 +171,7 @@ export function readRegistry(file) {
       if (validPort(s.port)) e.port = s.port;
       if (typeof s.attestKey === 'string' && ATTEST_KEY_RE.test(s.attestKey))
         e.attestKey = s.attestKey;
+      if (typeof s.apiKey === 'string' && ATTEST_KEY_RE.test(s.apiKey)) e.apiKey = s.apiKey;
       // a running entry without a port or a key cannot be verified: it reads as not running
       if (e.state === 'running' && (e.port === undefined || e.attestKey === undefined))
         e.state = 'starting';
@@ -285,6 +291,7 @@ export async function probeDesktop(
             label: e.label ?? null,
             kind: e.kind,
             socket: v.socket,
+            ...(e.apiKey ? { apiKey: e.apiKey } : {}),
           };
         }
       }
@@ -296,10 +303,122 @@ export async function probeDesktop(
   return { state: 'no-app' };
 }
 
-/** `{ port, label, kind }` of the attested app server for `root`, or null (contract §8). */
+const served = (p) => ({
+  port: p.port,
+  label: p.label,
+  kind: p.kind,
+  ...(p.apiKey ? { apiKey: p.apiKey } : {}),
+});
+
+/** `{ port, label, kind, apiKey? }` of the attested app server for `root`, or null (contract §8). */
 export async function locateDesktop(root, opts = {}) {
   const p = await probeDesktop(root, opts);
-  return p.state === 'running' ? { port: p.port, label: p.label, kind: p.kind } : null;
+  return p.state === 'running' ? served(p) : null;
+}
+
+/* -------------------------------------------- terminal-started servers (sec-loopback-bearer §7.5) */
+
+const TERMINAL_KEY_MAX_BYTES = 4096;
+export const LAUNCH_PARAM = 'maude-launch';
+const LAUNCH_DOMAIN = 'maude-launch/1';
+
+/** apps/studio/shell/key-file.ts `serverKeyDir`, verbatim: `<state>/maude/servers`. */
+export function serverKeyDir(env = process.env, home = homedir()) {
+  const s = env.XDG_STATE_HOME;
+  const state = s && isAbsolute(s) ? s : join(env.HOME || home, '.local', 'state');
+  return join(state, 'maude', 'servers');
+}
+
+/**
+ * The key a terminal-started server for `root` wrote for itself (shell/key-file.ts), when it names
+ * `port` and a live pid; else null. Read only when the file is a regular file of this user, 0600
+ * (nothing for group or others) and small. Synchronous; never throws. The caller has already tied
+ * `port` to `root` (`/_health` rootId) — this never decides which server is the project's.
+ */
+export function terminalKeyFor(root, port, { env = process.env, alive = pidAlive } = {}) {
+  try {
+    const id = rootIdentity(root);
+    const file = join(serverKeyDir(env), `${id}.json`);
+    const st = lstatSync(file);
+    if (!st.isFile() || st.size > TERMINAL_KEY_MAX_BYTES) return null;
+    const uid = process.getuid?.();
+    if (uid !== undefined && st.uid !== uid) return null;
+    if (process.platform !== 'win32' && (st.mode & 0o077) !== 0) return null;
+    const rec = JSON.parse(readFileSync(file, 'utf8'));
+    if (rec?.v !== 1 || rec.rootId !== id || rec.port !== Number(port)) return null;
+    if (typeof rec.apiKey !== 'string' || !ATTEST_KEY_RE.test(rec.apiKey)) return null;
+    if (!Number.isInteger(rec.pid) || rec.pid <= 0 || !alive(rec.pid)) return null;
+    return rec.apiKey;
+  } catch {
+    return null;
+  }
+}
+
+/** A one-time launch token for a server holding `key` (shell/api-key.ts `mintLaunchToken`). */
+export function mintLaunchToken(key, nowSec = Math.floor(Date.now() / 1000)) {
+  const nonce = randomBytes(16).toString('hex');
+  const ts = String(Math.floor(nowSec));
+  const mac = createHmac('sha256', key).update(`${LAUNCH_DOMAIN}\n${ts}\n${nonce}`).digest('hex');
+  return `${ts}.${nonce}.${mac}`;
+}
+
+/** `/_health` on `port` names `root` (a reused port may be another project's). */
+async function healthNames(root, port, timeoutMs = 1500) {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/_health`, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) return false;
+    const h = await res.json();
+    return h?.app === 'design' && h.rootId === rootIdentity(root);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The key for whichever server serves `root` on `port`: the app's attested one (registry), else a
+ * terminal-started one (its key file, after `/_health` names this root). `{ key }` (null = that
+ * server needs none it told us about), or `{ unverified: true }` when the app serves this root but
+ * did not attest — fail closed, the same as `port` mode. Never throws.
+ */
+export async function serverKeyFor(root, port, opts = {}) {
+  const env = opts.env ?? process.env;
+  const p = await probeDesktop(root, { ...opts, env });
+  if (p.state === 'unverified') return { unverified: true };
+  if (p.state === 'running' && p.port === Number(port)) return { key: p.apiKey ?? null };
+  if (!(await healthNames(root, port, opts.timeoutMs))) return { key: null };
+  return { key: terminalKeyFor(root, port, { env }) };
+}
+
+/**
+ * `serverKeyFor` for a synchronous caller (`claimWritesSync`): the app's entry for `port` is believed
+ * only when `attest(port, nonce)` (the caller's own synchronous GET of `/_api/shell/attest?n=`)
+ * returns the MAC its attest key makes; else a terminal server's key file. Never throws.
+ */
+export function serverKeyForSync(root, port, { env = process.env, alive = pidAlive, attest } = {}) {
+  try {
+    const p = Number(port);
+    const view = appView(root, env, alive);
+    const e = view?.entries.find((x) => x.state === 'running' && x.port === p);
+    if (e) {
+      if (!e.apiKey || !e.attestKey || typeof attest !== 'function') return null;
+      const n = randomBytes(16).toString('hex');
+      return macMatches(attest(p, n), attestMac(e.attestKey, n, view.rootId, p)) ? e.apiKey : null;
+    }
+    return terminalKeyFor(root, p, { env, alive });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * sec-loopback-bearer §7.6 — the API key for `root`'s app server on `port`, or null (no app, another
+ * port, no key, or the server there did not attest). Never throws.
+ */
+export async function apiKeyFor(root, port, opts = {}) {
+  const p = await probeDesktop(root, opts);
+  return p.state === 'running' && p.port === Number(port) ? (p.apiKey ?? null) : null;
 }
 
 /**
@@ -310,7 +429,7 @@ export async function waitDesktop(root, { waitMs = 45_000, pollMs = 500, ...opts
   const until = Date.now() + waitMs;
   for (;;) {
     const p = await probeDesktop(root, opts);
-    if (p.state === 'running') return { port: p.port, label: p.label, kind: p.kind };
+    if (p.state === 'running') return served(p);
     if (p.state === 'no-app' || Date.now() >= until) return null;
     await sleep(pollMs);
   }
@@ -459,6 +578,7 @@ export async function ensureDesktop(
         port: reply.port,
         label: e.label ?? null,
         kind: e.kind,
+        ...(e.apiKey ? { apiKey: e.apiKey } : {}),
         ...(warning ? { warning } : {}),
       };
     }
@@ -491,8 +611,11 @@ const USAGE = `usage: desktop-locate.mjs <mode> --root <repo> [options]
   port     [--ensure capture|show] [--lease]   print the app server's port for the project
   show     [--canvas c] [--artboard a] [--element e] [--mode m]   ask the app to show the project
   restart                                      ask the app to restart its server for the project
+  key      --port N                            print the API key of the server on port N (the app's
+                                               attested one, else a terminal server's key file)
+  launch-url --port N [--host 127.0.0.1]       print a one-time opening URL for the server on port N
   app-pid  --pid N                             exit 0 when N is the app or one of its servers
-exit: 0 ok · 10 not the app's (use the project's own server) · 11 the app serves this project but
+exit: 0 ok · 10 not the app's (use the project's own server; no key) · 11 the app serves this project but
       it did not answer the check (do not use _server.json) · 4 refused (message on stderr) · 2 usage
 `;
 
@@ -503,7 +626,17 @@ function argsOf(argv) {
     const v = argv[i + 1];
     if (a === '--lease') o.lease = true;
     else if (
-      ['--root', '--ensure', '--canvas', '--artboard', '--element', '--mode', '--pid'].includes(a)
+      [
+        '--root',
+        '--ensure',
+        '--canvas',
+        '--artboard',
+        '--element',
+        '--mode',
+        '--pid',
+        '--port',
+        '--host',
+      ].includes(a)
     ) {
       if (v === undefined) return { error: `${a} needs a value` };
       o[a.slice(2)] = v;
@@ -573,6 +706,27 @@ export async function main(
     if (r.state === 'shown') return 0;
     if (r.state === 'refused') return refuse(r.line);
     return 10;
+  }
+  if (a.mode === 'key' || a.mode === 'launch-url') {
+    if (!validPort(Number(a.port))) {
+      err.write(`desktop-locate: ${a.mode} needs --port N\n${USAGE}`);
+      return 2;
+    }
+    // the app's attested server, else a terminal-started one's key file (sec-loopback-bearer §7.5)
+    const r = await serverKeyFor(root, Number(a.port), { env });
+    if (r.unverified) return 11;
+    if (a.mode === 'launch-url') {
+      // a browser opens the studio with a one-time token (a server that needs no key: the plain URL)
+      const host = a.host === '127.0.0.1' ? '127.0.0.1' : 'localhost';
+      const base = `http://${host}:${Number(a.port)}/`;
+      out.write(`${r.key ? `${base}?${LAUNCH_PARAM}=${mintLaunchToken(r.key)}` : base}\n`);
+      return 0;
+    }
+    if (!r.key) return 10;
+    // stdout is the key and nothing else: a helper captures it into a shell variable and hands it to
+    // curl through a config on stdin, never argv (sec-loopback-bearer §7.6)
+    out.write(`${r.key}\n`);
+    return 0;
   }
   if (a.mode === 'restart') {
     const r = await askApp({ op: 'restart', root: real(root) ?? root }, { env, timeoutMs: 5000 });

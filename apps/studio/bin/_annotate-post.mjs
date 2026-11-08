@@ -8,7 +8,9 @@
 // the exit code); returns `null` when the caller should write the board file itself.
 
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+
+import { findProjectRoot, studioHeadersFor } from '../../../cli/lib/studio-locate.mjs';
 
 export class PostOpsError extends Error {
   constructor(message, code = 1) {
@@ -63,12 +65,15 @@ export function runIdForChat(view, chatId) {
  * Claude, an outside write). Any failure to read the runs is "not inside a run" — the studio's
  * gate decides what a tag may do, this only names it.
  */
-export async function defaultActionId(base, env = process.env) {
+export async function defaultActionId(base, env = process.env, headers = {}) {
   const fallback = `ai-annotate-${Math.random().toString(36).slice(2, 12)}`;
   const chatId = env.MAUDE_CHAT_ID;
   if (typeof chatId !== 'string' || !CHAT_ID.test(chatId)) return fallback;
   try {
-    const res = await fetch(`${base}/_api/ai/runs`, { signal: AbortSignal.timeout(3_000) });
+    const res = await fetch(`${base}/_api/ai/runs`, {
+      headers,
+      signal: AbortSignal.timeout(3_000),
+    });
     if (!res.ok) return fallback;
     const runId = runIdForChat(await res.json(), chatId);
     return runId ? `run:${runId}` : fallback;
@@ -96,12 +101,16 @@ export async function postOps(designRoot, file, ops, actionId) {
   // `url` can't turn the verb into an exfiltration primitive. Anything else
   // silently falls back to the file write (the local intent still succeeds).
   if (!base || !isLoopbackHttpUrl(base)) return null;
-  const id = actionId ?? (await defaultActionId(base));
+  // sec-loopback-bearer §7.6 — the key of the server serving this project on that port (the app's
+  // attested one, or a terminal one whose /_health names the root); none for any other port
+  const root = findProjectRoot(designRoot) ?? dirname(designRoot);
+  const keyed = await studioHeadersFor(root, new URL(base).port || 80);
+  const id = actionId ?? (await defaultActionId(base, process.env, keyed));
   let res;
   try {
     res = await fetch(`${base}/_api/annotations/ops`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...keyed, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         file,
         actionId: id,

@@ -61,3 +61,65 @@ desktop_port() {
   fi
   return "$rc"
 }
+
+# ---------------------------------------------------------------------------------------------------------
+# sec-loopback-bearer §7.5–7.6 — a studio started by the app or from a terminal requires its API key from
+# every caller on its main origin. These are the ONLY way a helper talks to that origin (a static test,
+# cli/lib/helper-studio-key.test.mjs, fails on a bare `curl http://…:$PORT/_…` or `fetch` elsewhere).
+#
+#   studio_key <repo> <port>            sets STUDIO_KEY (empty: the server needs no key it told us about);
+#                                       returns 11 when the app serves the project but did not attest
+#   studio_curl <repo> <port> <curl args…>   curl with the key as a header, handed to curl through a
+#                                       config on stdin — never argv or the environment (`ps` shows both)
+#   studio_launch_url <repo> <port>     prints a one-time opening URL (`/?maude-launch=…`) for a browser
+#
+# The key is cached per (repo, port) in an UNEXPORTED shell variable, so a polling loop asks once and no
+# child process inherits it. A request whose body is on stdin cannot use studio_curl.
+
+_STUDIO_KEY_FOR=""
+STUDIO_KEY=""
+
+_dl_node() {
+  [ -f "$_DL_JS" ] || return 10
+  if command -v node >/dev/null 2>&1; then
+    node "$_DL_JS" "$@"
+  elif command -v bun >/dev/null 2>&1; then
+    bun "$_DL_JS" "$@"
+  else
+    return 10
+  fi
+}
+
+studio_key() {
+  local repo="$1" port="$2" out rc
+  if [ "$_STUDIO_KEY_FOR" = "$repo|$port" ]; then return 0; fi
+  STUDIO_KEY=""
+  out=$(_dl_node key --root "$repo" --port "$port" 2>/dev/null)
+  rc=$?
+  if [ "$rc" = 11 ]; then return 11; fi
+  if [ "$rc" = 0 ] && [[ "$out" =~ ^[0-9a-fA-F]{64}$ ]]; then STUDIO_KEY="$out"; fi
+  _STUDIO_KEY_FOR="$repo|$port"
+  return 0
+}
+
+studio_curl() {
+  local repo="$1" port="$2"
+  shift 2
+  # a subshell (`$(studio_curl …)`) cannot fill the caller's cache: call `studio_key` once first
+  studio_key "$repo" "$port" || return 7
+  if [ -n "$STUDIO_KEY" ]; then
+    printf 'header = "x-maude-api-key: %s"\n' "$STUDIO_KEY" | curl --config - "$@"
+  else
+    curl "$@"
+  fi
+}
+
+studio_launch_url() {
+  local repo="$1" port="$2" out
+  out=$(_dl_node launch-url --root "$repo" --port "$port" 2>/dev/null)
+  if [[ "$out" =~ ^http://localhost:[0-9]{1,5}/ ]]; then
+    printf '%s\n' "$out"
+  else
+    printf 'http://localhost:%s/\n' "$port"
+  fi
+}
