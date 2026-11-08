@@ -274,13 +274,13 @@ describe('a clip (07 ve-transition: Length · Speed · Volume · Framing)', () =
         reframe: { focus: [[0, 0.25, 0.8]], zoom: 2, fit: null, formats: {} },
       })
     );
-    const val = (id: string) => (q(framed, id)?.querySelector('input') as HTMLInputElement).value;
+    const val = (id: string) => (q(framed, id)!.querySelector('input') as HTMLInputElement).value;
     expect(val('insp-clip-zoom')).toBe('2×');
     expect(val('insp-clip-focus-x')).toBe('25');
     expect(val('insp-clip-focus-y')).toBe('80');
 
     const host = await frame(selection('clip', CLIP_SEQ));
-    expect((q(host, 'insp-clip-zoom')?.querySelector('input') as HTMLInputElement).value).toBe(
+    expect((q(host, 'insp-clip-zoom')!.querySelector('input') as HTMLInputElement).value).toBe(
       '1×'
     );
     await typeInto(q(host, 'insp-clip-zoom'), '3');

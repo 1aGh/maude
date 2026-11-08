@@ -6,7 +6,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { decodeFigArchive, rebuildTree } from './fig-decode.ts';
-import { MAX_NODE_COUNT, type FigmaNode, walkNodes } from './types.ts';
+import { type FigmaNode, MAX_NODE_COUNT, walkNodes } from './types.ts';
 
 const FIXTURES = new URL('../../../.ai/fixtures/figma/2026-08-03/', import.meta.url).pathname;
 

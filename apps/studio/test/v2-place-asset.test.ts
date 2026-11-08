@@ -2,8 +2,8 @@
 // makes (frame vs artboard, modes), the words it answers with, the undo record on a legacy link and none on the op log;
 // and the Assets tile's drag payload.
 import { describe, expect, test } from 'bun:test';
-import { placeAsset } from '../client/v2/assets/place-asset.js';
 import { assetDragSession } from '../client/v2/assets/asset-drop-session.js';
+import { placeAsset } from '../client/v2/assets/place-asset.js';
 import { ASSET_DRAG_MIME, startAssetDrag, tileDragProps } from '../client/v2/assets/tile-drag.js';
 import { parseAssetDrag } from '../editing/asset-drag.ts';
 

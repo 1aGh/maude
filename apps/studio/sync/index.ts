@@ -52,6 +52,7 @@ import { acceptedColdStart, localCreateLanes } from './accepted-cold-start.ts';
 import { type AcceptedLink, createAcceptedLink, type StructuralOutcome } from './accepted-link.ts';
 import { createAccessRelay } from './access-notices.ts';
 import { type RunFence, shellClaimLane } from './action-stage.ts';
+import { type AdoptHeldControl, createAdoptHeld } from './adopt-held.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from './agent.ts';
 import { isPushableAssetRel, pushAssets } from './asset-push.ts';
 import {
@@ -112,7 +113,6 @@ import {
   withFormatParam,
 } from './format-sync.ts';
 import { createFsReader, type FsReader } from './fs-mirror.ts';
-import { type AdoptHeldControl, createAdoptHeld } from './adopt-held.ts';
 import { createHeldDeletes, type HeldDeletesControl, heldDeleteDetail } from './held-deletes.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';

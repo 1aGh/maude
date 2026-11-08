@@ -40,13 +40,13 @@ import {
 import { createRoot } from 'react-dom/client';
 import { acceptFromShell } from './bridge/dgn-protocol.ts';
 import { annotationElement, annotationIdAt, clientToWorld } from './comment-anchor.ts';
-import { CommentsOverlay } from './comments-overlay.tsx';
 import {
   cancelReattach,
   listenForReattach,
   pendingReattach,
   pickForReattach,
 } from './comment-reattach.ts';
+import { CommentsOverlay } from './comments-overlay.tsx';
 import { commentSelectionFor, deriveFile, hoverTargetToSelection } from './dom-selection.ts';
 import { frameCaf, frameRaf } from './frame-clock.ts';
 import {

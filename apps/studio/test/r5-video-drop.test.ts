@@ -6,11 +6,11 @@
 import { describe, expect, test } from 'bun:test';
 import {
   _createSessionForTest,
+  assetDragSession,
   createCatcherLane,
   placeRequestFor,
 } from '../client/v2/assets/asset-drop-session.js';
 import { startAssetDrag, tileDragProps } from '../client/v2/assets/tile-drag.js';
-import { assetDragSession } from '../client/v2/assets/asset-drop-session.js';
 import { ASSET_DRAG_MIME } from '../editing/asset-drag.ts';
 
 const fakeDrag = () => {

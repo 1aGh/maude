@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
-  ACCEPTED_GIT_REFUSAL,
+  type ACCEPTED_GIT_REFUSAL,
   CHECKOUT_REWRITING_GIT_ROUTES,
   refuseCheckoutRewrite,
 } from '../git/accepted-guard.ts';

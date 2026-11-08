@@ -145,7 +145,10 @@ test('a same-element selection refresh preserves an open text editor and its com
     expect(asks[1]).toEqual(
       expect.objectContaining({
         op: 'text.set',
-        params: expect.objectContaining({ text: 'Cancelled typing', before: 'Uncommitted local typing' }),
+        params: expect.objectContaining({
+          text: 'Cancelled typing',
+          before: 'Uncommitted local typing',
+        }),
       })
     );
   } finally {

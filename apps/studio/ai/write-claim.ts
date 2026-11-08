@@ -21,10 +21,10 @@
 // A canvas-origin request never reaches either door — the table routes wrapped here are main-only (an
 // `origin: 'canvas'` spec is never wrapped), and the agent routes refuse any browser request.
 
+import { SETTLE_WAIT_MS, SHELL_STALE_MS } from '../sync/action-stage.ts';
 import { laneValueFromFile } from '../sync/codec.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
 import { CHAT_HEADER, type CreateClaimRuns, runForCreate } from './create-claim.ts';
-import { SETTLE_WAIT_MS, SHELL_STALE_MS } from '../sync/action-stage.ts';
 
 import {
   currentWriteClaim,

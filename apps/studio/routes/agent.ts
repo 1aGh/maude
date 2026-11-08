@@ -111,6 +111,7 @@ export interface SettleBracket {
 /** POST /_api/agent/write/claim — at most this many files per call, this many bytes in all. */
 export const CLAIM_MAX_FILES = 32;
 export { CLAIM_MAX_BYTES };
+
 /** The canvas lanes a claim may name: a canvas source (#164: `.jsx` too), its sidecar, its board. */
 const CLAIM_LANE_RE = /\.(?:tsx|jsx|meta\.json|annotations\.json)$/i;
 const SHA256_RE = /^[0-9a-f]{64}$/;

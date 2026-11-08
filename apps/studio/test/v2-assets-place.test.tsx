@@ -5,10 +5,9 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-
+import { assetDragSession } from '../client/v2/assets/asset-drop-session.js';
 import { runAssetsAction } from '../client/v2/assets/assets-bus.js';
 import { ASSET_DRAG_MIME } from '../client/v2/assets/tile-drag.js';
-import { assetDragSession } from '../client/v2/assets/asset-drop-session.js';
 
 const realFetch = globalThis.fetch;
 let calls: Array<{ url: string; body?: unknown }> = [];

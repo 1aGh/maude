@@ -30,12 +30,12 @@
 
 import { currentAccess, notInScopeResponse } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
-import type { CodeConsentControl } from '../sync/code-module-consent.ts';
-import { unsyncedRefsOnDisk } from '../sync/unsynced-refs.ts';
 import type { AdoptHeldControl } from '../sync/adopt-held.ts';
+import type { CodeConsentControl } from '../sync/code-module-consent.ts';
 import type { HeldDeletesControl } from '../sync/held-deletes.ts';
 import type { LinkGate } from '../sync/link-consent.ts';
 import type { ResyncTrace } from '../sync/resync-trace.ts';
+import { unsyncedRefsOnDisk } from '../sync/unsynced-refs.ts';
 import type { RouteSpec } from './table.ts';
 
 /** The slice of `ctx.syncControl` (sync/supervisor.ts SyncSupervisor) this route calls. */

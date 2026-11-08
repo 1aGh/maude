@@ -14,10 +14,9 @@
 
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-
-import { describeMedia, probeMedia } from './bin/_media-probe.mjs';
 import { homeShort, readAssetOrigin } from './asset-origins.ts';
 import { sidecarsOf } from './asset-trash.ts';
+import { describeMedia, probeMedia } from './bin/_media-probe.mjs';
 import { walkIdElements } from './element-ids.ts';
 import { readGen } from './generation/gen-sidecar.ts';
 import { assetKindOf } from './index/extractors/asset-usage.ts';

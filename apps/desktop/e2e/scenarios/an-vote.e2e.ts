@@ -1,18 +1,17 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
-
-import { capture, startReport } from '../helpers/evidence';
 import {
   alice,
   type Cell,
   canvasWithArtboards,
   cellOrNull,
-  bob as studio,
   eventually,
   read,
+  bob as studio,
 } from '../helpers/cell-peers';
 import { dismissNotices } from '../helpers/chrome';
+import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 import { pinCurrentWindow } from '../helpers/windows';

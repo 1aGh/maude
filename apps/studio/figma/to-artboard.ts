@@ -31,6 +31,7 @@
  *             asset resolution.
  */
 
+import { FontSubstitutions, type FontToken } from './codegen-fonts.ts';
 import {
   attrValue,
   clampIntoBounds,
@@ -41,7 +42,6 @@ import {
   identifierFromNodeId,
   jsxStringLiteral,
 } from './sanitize.ts';
-import { FontSubstitutions, type FontToken } from './codegen-fonts.ts';
 import {
   type DsToken,
   mapAutoLayout,

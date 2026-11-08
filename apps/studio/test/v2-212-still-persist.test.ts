@@ -6,8 +6,8 @@
 //     signature differs is never shown;
 //   - reload: a persisted still stands in before any drawing (restored from the seed, `takes` 0).
 import { describe, expect, test } from 'bun:test';
-import { STILL_STYLE_SEP, startStillPersist } from '../artboard-still-persist.ts';
 import { StillCache, StillController } from '../artboard-still.ts';
+import { STILL_STYLE_SEP, startStillPersist } from '../artboard-still-persist.ts';
 import { DGN_TABLE } from '../bridge/dgn-protocol.ts';
 import { checkStillWebp, STILL_PERSIST_MAX_BYTES } from '../bridge/still-webp.ts';
 import { frameCapFor } from '../client/frame-cap.js';

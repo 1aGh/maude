@@ -16,10 +16,10 @@
 //     Both need the ingress bearer AND the id, and the id is never logged — the bearer is shared
 //     by every cell, so the unguessable id is what keeps one cell off another's job.
 
+import { timingSafeEqual } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { timingSafeEqual } from 'node:crypto';
 
 import { startTokenProxy } from './proxy.ts';
 

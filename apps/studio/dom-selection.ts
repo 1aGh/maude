@@ -13,8 +13,8 @@
 import { clientToWorld } from './comment-anchor.ts';
 import { parsePathD, pointCount } from './edit-ops/path-model.ts';
 import type { TextInfo } from './edit-ops/text-style.ts';
-import { type KidsSummary, summarizeKids } from './editing/kids-summary.ts';
 import { declaredBackgroundOk } from './editing/declared-background.ts';
+import { type KidsSummary, summarizeKids } from './editing/kids-summary.ts';
 import { getPenPoint, penPointAttr } from './editing/pen/point-store.ts';
 import { probeTextInfo } from './editing/type-role.ts';
 import type { HoverTarget } from './input-router.tsx';

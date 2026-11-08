@@ -916,7 +916,7 @@ function hubsConfig(who) {
   return p;
 }
 
-let incarnation = { a: 0, b: 0, c: 0 };
+const incarnation = { a: 0, b: 0, c: 0 };
 async function startStudio(who, root) {
   incarnation[who] += 1;
   const name = `client-${who}-${incarnation[who]}`;

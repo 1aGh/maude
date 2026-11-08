@@ -21,13 +21,13 @@ import { join, posix, resolve } from 'node:path';
 
 import { IMPORTABLE_EXT_RE, relativeImportSpecs, specCandidates } from '../access/closure.ts';
 import { isCanvasSource } from '../skip-dirs.ts';
-import { isIgnoredRel, normalizeIgnoreFolders } from './file-plane.ts';
 import {
   classifyProjectFile,
   isFilePlaneClass,
   isProjectFileShape,
   isRuntimeStateRel,
 } from './file-membership.ts';
+import { isIgnoredRel, normalizeIgnoreFolders } from './file-plane.ts';
 
 export type UnsyncedReason =
   | 'runtime-state'

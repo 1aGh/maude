@@ -6,6 +6,7 @@
 // injected bracket, and claims live in this process: "one AI per artboard" (A4) is run vs run.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { createHash } from 'node:crypto';
 import {
   mkdirSync,
   mkdtempSync,
@@ -15,7 +16,6 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { changedArtboards, createAgentRuns } from '../agent-runs.ts';

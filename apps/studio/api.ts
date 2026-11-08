@@ -8439,14 +8439,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // These are non-HTML so they're listed but not openable in the iframe; the
     // sidebar can still display them as context (mirrors CV-08 mock).
     const projectFiles: string[] = [];
-    {
-      for (const e of rootEntries) {
-        if (!e.isFile()) continue;
-        if (e.name.startsWith('_')) continue;
-        if (e.name.startsWith('.')) continue;
-        if (!/\.(md|json|txt|yml|yaml|css)$/i.test(e.name)) continue;
-        projectFiles.push(path.posix.join(paths.designRel, e.name));
-      }
+    for (const e of rootEntries) {
+      if (!e.isFile()) continue;
+      if (e.name.startsWith('_')) continue;
+      if (e.name.startsWith('.')) continue;
+      if (!/\.(md|json|txt|yml|yaml|css)$/i.test(e.name)) continue;
+      projectFiles.push(path.posix.join(paths.designRel, e.name));
     }
     if (projectFiles.length) {
       head.push({

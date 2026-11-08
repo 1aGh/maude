@@ -37,7 +37,6 @@ import { type Op as AnnotationOp, applyOps } from '../annotations/ops.ts';
 import { parseBoard, serializeBoard } from '../annotations/schema.ts';
 import type { LaneChange, LanesOutcome } from '../api.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
-import { moduleOwningId } from '../imported-module-ids.ts';
 import { listPickerComponents, systemForPicker } from '../ds/component-list.ts';
 import { instanceInfoFor, pickerItems } from '../ds/instance-info.ts';
 import { CLIP_EDIT_VERBS } from '../edit-ops/clip/index.ts';
@@ -58,6 +57,7 @@ import {
 import type { ReferenceLanes } from '../edit-ops/references.ts';
 import { createWriteLog, type WriteLog } from '../edit-ops/revert.ts';
 import { type ClipScope, type EditOp, type LayoutPatch, MAX_BODY } from '../edit-ops/types.ts';
+import { moduleOwningId } from '../imported-module-ids.ts';
 import { sourceHold, type WriteHold } from '../sync/write-hold.ts';
 import { isWorkspaceMode } from '../workspace-mode.ts';
 import { heldByAi } from './agent.ts';

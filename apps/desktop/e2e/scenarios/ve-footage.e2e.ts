@@ -1,9 +1,8 @@
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
-
-import { type Answer, type Cell, cellOrNull, eventually, read } from '../helpers/cell-peers';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
+import { type Answer, type Cell, cellOrNull, eventually, read } from '../helpers/cell-peers';
 import { dismissNotices } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { TINY_MP4 } from '../helpers/fixture-media';
