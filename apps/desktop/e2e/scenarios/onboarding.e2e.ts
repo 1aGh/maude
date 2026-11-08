@@ -39,6 +39,8 @@ async function onHome(): Promise<void> {
 }
 
 describe('native-first-run (native-desktop)', () => {
+  // Steps 2–5 continue step 1's first run: when step 1 skips (not a first run on this Mac), so do they.
+  let firstRun = false;
   before(async function () {
     if (!PROJECTS_DIR) this.skip(); // wrong config
     startReport(
@@ -58,6 +60,7 @@ describe('native-first-run (native-desktop)', () => {
       await capture('01-no-first-run-card');
       this.skip(); // this Mac already has a project or a cloud account — not a first run
     }
+    firstRun = true;
     expect(await (await $(tid('signin-cloud'))).getText()).toContain('Sign in to Maude Cloud');
     expect(await (await $(tid('signin-local'))).getText()).toContain('Just a local project');
     expect(await card.getAttribute('data-state')).toBe('idle');
@@ -65,7 +68,8 @@ describe('native-first-run (native-desktop)', () => {
     await capture('01-first-launch-is-home');
   });
 
-  it('2 · Advanced options folds out the five rows', async () => {
+  it('2 · Advanced options folds out the five rows', async function () {
+    if (!firstRun) this.skip(); // step 1 found no first run
     await (await $(tid('signin-advanced'))).click();
     await (await $(tid('signin-advanced-menu'))).waitForDisplayed({ timeout: 5_000 });
     for (const row of ['hub', 'folder-github', 'ai', 'cli', 'figma']) {
@@ -79,7 +83,8 @@ describe('native-first-run (native-desktop)', () => {
     });
   });
 
-  it('3 · Just a local project → a name → the project opens as a tab on the empty card', async () => {
+  it('3 · Just a local project → a name → the project opens as a tab on the empty card', async function () {
+    if (!firstRun) this.skip(); // step 1 found no first run
     const before = await labels();
     await (await $(tid('signin-local'))).click();
     await (await $(tid('home-create-dialog'))).waitForDisplayed({ timeout: 10_000 });
@@ -120,7 +125,8 @@ describe('native-first-run (native-desktop)', () => {
     await capture('04-the-empty-project');
   });
 
-  it('4 · a sentence in the empty card makes the first canvas', async () => {
+  it('4 · a sentence in the empty card makes the first canvas', async function () {
+    if (!firstRun) this.skip(); // step 1 found no first run
     const prompt = await $(tid('empty-project-prompt'));
     await prompt.setValue('A one-page portfolio with six projects, calm and light');
     await browser.keys('Enter');
@@ -135,7 +141,8 @@ describe('native-first-run (native-desktop)', () => {
     await capture('05-first-canvas-from-the-sentence');
   });
 
-  it('5 · Help and guides adds the two guide canvases on request (S6.15, Q10)', async () => {
+  it('5 · Help and guides adds the two guide canvases on request (S6.15, Q10)', async function () {
+    if (!firstRun) this.skip(); // step 1 found no first run
     // A new project starts empty; the guides are one button away. F1 opens Help and guides.
     expect(await (await $(tid('canvas-row-ui-how-to-use-maude'))).isExisting()).toBe(false);
     await pressMenuRow('help.guides', 'help'); // Help › Help and guides (F1 is swallowed while the AI composer holds focus)

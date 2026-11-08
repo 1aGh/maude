@@ -30,6 +30,11 @@ export function e2ePointers(env: Record<string, string | undefined>): Record<str
   ] as const) {
     const cur = env[key];
     if (cur !== undefined && !isE2eConfigHome(dirname(cur))) out[key] = join(home, 'maude', file);
+    // An UNSET cloud pointer is not "no account": `cloudConfigPath()` (cloud/config-path.ts) then reads
+    // `$HOME/.config/maude/cloud.json` whatever XDG says — the person's real account, which Home showed (and asked
+    // the real cloud about) in every e2e app. The lane's own home holds it instead; a lane that seeds one sets it.
+    else if (cur === undefined && key === 'MAUDE_CLOUD_CONFIG')
+      out[key] = join(home, 'maude', file);
   }
   return out;
 }

@@ -107,6 +107,36 @@ interface Drag {
   at: Pt;
 }
 
+// Point editing outlives the remount its own write causes: each edit writes the file, and the soft reload re-renders
+// the canvas from it a beat later (~100 ms with the shared canvas-lib) — a fresh subtree whose svg is a new node and
+// whose selection is empty. The path and the selected point are held here, beside the module (one shared canvas-lib
+// per page), and a freshly mounted editor resumes on them once. ↵ / esc / leaving drops the hold.
+const RESUME_MS = 3000;
+let resume: { ref: ElementRef; sel: PointRef | null; until: number } | null = null;
+
+/** Hold point editing on `ref` (with `sel` selected) for a remount within RESUME_MS of `now`. */
+export function holdPointEdit(
+  ref: ElementRef,
+  sel: PointRef | null,
+  now: number = Date.now()
+): void {
+  resume = { ref, sel, until: now + RESUME_MS };
+}
+
+/** The path svg `ref` names in `doc`, or null. */
+function pathSvgOf(doc: Document, ref: ElementRef): Element | null {
+  for (const el of Array.from(doc.querySelectorAll(PATH_SELECTOR))) {
+    const r = refOfElement(el);
+    if (
+      r?.artboard === ref.artboard &&
+      r.element === ref.element &&
+      (r.occurrence ?? 0) === (ref.occurrence ?? 0)
+    )
+      return el;
+  }
+  return null;
+}
+
 export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
   const tm = useToolModeOptional();
   const tool = tm?.tool;
@@ -136,6 +166,7 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
 
   // `republish`: the path stays the selection (↵ / esc), so the shell is told the point is gone
   const leave = useCallback((republish = false) => {
+    resume = null;
     const svg = editRef.current?.svg;
     if (svg) {
       setPenPoint(svg, null);
@@ -144,6 +175,33 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
     setEdit(null);
     setDrag(null);
   }, []);
+
+  // A fresh editor (the reload after this editor's own write remounted it) resumes on the held path, once.
+  useEffect(() => {
+    if (readOnly || typeof document === 'undefined') return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tryResume = () => {
+      const r = resume;
+      if (!r || r.until <= Date.now()) {
+        resume = null;
+        return;
+      }
+      const svg = pathSvgOf(document, r.ref);
+      // the canvas may still be mounting its new subtree
+      if (!svg) {
+        timer = setTimeout(tryResume, 50);
+        return;
+      }
+      resume = null;
+      const model = modelOfSvg(svg);
+      if (!model || isLockedDom(svg)) return;
+      const sel = r.sel && model.subs[r.sel.sub]?.points[r.sel.i] ? r.sel : null;
+      ctx.current.selSet.replace(selectionOf(svg));
+      setEdit({ svg, ref: refOfElement(svg) ?? r.ref, model, sel });
+    };
+    tryResume();
+    return () => clearTimeout(timer);
+  }, [readOnly]);
 
   // Double-click a Pen path to edit its points.
   useEffect(() => {
@@ -228,6 +286,9 @@ export function PointEdit({ readOnly = false }: { readOnly?: boolean }) {
       const rec = editOpRecord(r.writeId, 'Edit path');
       if (rec) ctx.current.undo?.record(rec);
     }
+    // the write remounts the canvas a beat later: still editing this path → the fresh editor resumes on it
+    const cur = editRef.current;
+    if (cur && cur.svg === e.svg) holdPointEdit(cur.ref, cur.sel);
     return r;
   }, []);
 

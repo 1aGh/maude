@@ -20,7 +20,7 @@ import { test } from 'node:test';
 
 const E2E = new URL('../../apps/desktop/e2e/', import.meta.url);
 const read = (rel) => readFileSync(new URL(rel, E2E), 'utf8');
-const { isE2eConfigHome } = await import(new URL('helpers/config-home.ts', E2E).href);
+const { e2ePointers, isE2eConfigHome } = await import(new URL('helpers/config-home.ts', E2E).href);
 const { stopE2eApp } = await import(new URL('helpers/app-lifecycle.ts', E2E).href);
 
 test('only a maude-e2e-* home is the harness’s own — never ~/.config, never the lane wrapper’s', () => {
@@ -31,6 +31,29 @@ test('only a maude-e2e-* home is the harness’s own — never ~/.config, never 
   assert.equal(isE2eConfigHome(join(homedir(), '.config', 'maude-e2e-sneaky')), false);
   assert.equal(isE2eConfigHome(''), false);
   assert.equal(isE2eConfigHome(undefined), false);
+});
+
+test('an unset cloud pointer lands in the lane home — never the person’s ~/.config/maude/cloud.json', () => {
+  // cloud/config-path.ts reads $HOME/.config/maude/cloud.json when MAUDE_CLOUD_CONFIG is unset, whatever XDG says
+  const home = join(tmpdir(), 'maude-e2e-xdg-cloud1');
+  assert.equal(
+    e2ePointers({ XDG_CONFIG_HOME: home }).MAUDE_CLOUD_CONFIG,
+    join(home, 'maude', 'cloud.json')
+  );
+  // one a lane seeded in its own home stays
+  const own = join(tmpdir(), 'maude-e2e-xdg-cloud1', 'maude', 'cloud.json');
+  assert.equal(
+    e2ePointers({ XDG_CONFIG_HOME: home, MAUDE_CLOUD_CONFIG: own }).MAUDE_CLOUD_CONFIG,
+    undefined
+  );
+  // the person's own file never survives
+  const real = join(homedir(), '.config', 'maude', 'cloud.json');
+  assert.equal(
+    e2ePointers({ XDG_CONFIG_HOME: home, MAUDE_CLOUD_CONFIG: real }).MAUDE_CLOUD_CONFIG,
+    join(home, 'maude', 'cloud.json')
+  );
+  // not our home: nothing is decided here
+  assert.deepEqual(e2ePointers({ XDG_CONFIG_HOME: join(homedir(), '.config') }), {});
 });
 
 test('wdio.conf replaces an inherited home that is not ours (no `??=`), and its prefs/cloud pointers follow', () => {

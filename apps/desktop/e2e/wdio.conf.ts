@@ -138,6 +138,10 @@ const DEDICATED: Record<string, string> = {
   'cli-reuse.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:cli-reuse',
   // 2.0.3: a generated git project with Git LFS pointer media, the canvas-origin split ON, the real clipboard.
   'lfs-placeholder.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:lfs',
+  // sec-loopback-bearer §7.9: an export's own capture needs the canvas-origin split ON, as in every shipped app
+  // (wdio.exports.conf.ts).
+  'export-formats.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:exports',
+  'exports-panel.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:exports',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above

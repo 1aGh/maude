@@ -9,6 +9,7 @@ import { capture, startReport } from '../helpers/evidence';
 import { pointerClick } from '../helpers/pointer';
 import { selectUntilIsland } from '../helpers/select-artboard';
 import { readServerInfo, waitForSidecar } from '../helpers/sidecar';
+import { sidecarHeaders } from '../helpers/sidecar-key';
 import { canvasRow } from '../helpers/tree';
 
 /**
@@ -68,7 +69,8 @@ const base = () => readServerInfo(ROOT).url.replace(/\/$/, '');
 const post = async (route: string, body: unknown) => {
   const r = await fetch(`${base()}${route}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    // sec-loopback-bearer §7.6 — a Node-side caller sends the sidecar's key (the hook does too)
+    headers: sidecarHeaders(base(), { 'content-type': 'application/json' }),
     body: JSON.stringify(body),
   });
   return { status: r.status, body: await r.json().catch(() => null) };

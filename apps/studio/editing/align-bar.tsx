@@ -302,6 +302,20 @@ function boxOf(els: Element[]): { l: number; t: number; r: number; b: number } |
 
 const GUIDE_MS = 1800;
 
+// The guide outlives the remount its own write causes: Align writes the file, and the soft reload re-renders the
+// canvas from it a beat later (~100 ms with the shared canvas-lib) — a fresh subtree, whose DOM selects nothing. The
+// guide is held here, beside the module (one shared canvas-lib per page), until its time is up.
+let held: { guide: Guide; until: number } | null = null;
+
+/** Hold `guide` for GUIDE_MS from `now`; a remounted bar shows it for the rest of that time. */
+export function holdAlignGuide(guide: Guide, now: number = Date.now()): void {
+  held = { guide, until: now + GUIDE_MS };
+}
+
+function heldGuide(now: number = Date.now()): { guide: Guide; left: number } | null {
+  return held && held.until > now ? { guide: held.guide, left: held.until - now } : null;
+}
+
 /** Do the selected artboards (no element picked inside them) differ in kind? 08 ak-mixed-select draws no bar then. */
 export function boardsMixKinds(
   selected: ReadonlyArray<{ id?: unknown; artboardId?: string | null }>,
@@ -325,8 +339,14 @@ export function AlignBar({ readOnly = false }: { readOnly?: boolean }) {
     return m;
   }, [readOnly, selected, world]);
   const bar = useRef<HTMLDivElement | null>(null);
-  const [guide, setGuide] = useState<Guide | null>(null);
+  const [guide, setGuide] = useState<Guide | null>(() => heldGuide()?.guide ?? null);
   const guideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // a bar remounted by its own write's reload shows the held guide for the rest of its time
+  useEffect(() => {
+    const h = heldGuide();
+    if (!h) return;
+    guideTimer.current = setTimeout(() => setGuide(null), h.left);
+  }, []);
   const live = useRef({ selected, world, bus, undo, model });
   live.current = { selected, world, bus, undo, model };
 
@@ -375,6 +395,7 @@ export function AlignBar({ readOnly = false }: { readOnly?: boolean }) {
       }
     ).then((r) => {
       if (!r?.ok || !g) return;
+      holdAlignGuide(g);
       setGuide(g);
       if (guideTimer.current) clearTimeout(guideTimer.current);
       guideTimer.current = setTimeout(() => setGuide(null), GUIDE_MS);
@@ -461,17 +482,20 @@ export function AlignBar({ readOnly = false }: { readOnly?: boolean }) {
     return () => frameCaf(raf);
   }, [kind]);
 
-  if (!model) return null;
+  // the guide stays for its time when the selection is gone (the reload after the align selects nothing)
+  if (!model && !guide) return null;
   return (
     <>
       <style>{CSS_TEXT}</style>
-      <AlignBarView
-        model={model}
-        onAction={run}
-        onTidy={tidy}
-        onTidyPreview={previewTidy}
-        barRef={bar}
-      />
+      {model ? (
+        <AlignBarView
+          model={model}
+          onAction={run}
+          onTidy={tidy}
+          onTidyPreview={previewTidy}
+          barRef={bar}
+        />
+      ) : null}
       {guide ? (
         <div aria-hidden="true" data-testid="edit-align-guide">
           <span
