@@ -120,13 +120,36 @@ type Surface = {
   shell: (script: string) => Promise<unknown>;
 };
 
+/** A cloud browser (the hub participant) proposes under the cell's ONE credential, so the project cannot tell
+ *  one browser editor's action from another's: the cell refuses personal undo (`/_api/project/undo` and
+ *  `/undo-stack` are REFUSED in apps/hub/src/studio-manifest.mjs; CELL_UNSERVED in served-routes.js). Known gap
+ *  — per-person attribution for cloud editors — so a ⌘Z row authored there is unsupported, not failed. */
+const CELL_NO_PERSONAL_UNDO = {
+  status: 'unsupported',
+  reason:
+    'Cloud browser actions are attributed to the cell credential; personal Undo is not offered in a cloud browser yet.',
+} as const;
 /** Menu › Version history on one surface: the pill, then the row (the action toggles the panel). */
 async function toggleHistoryOf(p: Surface): Promise<void> {
   await p.click(selector('project-pill'));
   await p.click(selector('project-menu-row-history.open'));
 }
+/** v2: Version history is `vh-panel`; its project revisions ("Every version, with its id", `git-panel`) sit in
+ *  the panel's Advanced fold, which starts closed unless this Mac remembered it open. */
 async function openHistoryPanelOf(p: Surface): Promise<void> {
-  if ((await p.read(selector('git-panel'))) === null) await toggleHistoryOf(p);
+  await closeDiagnosticsOf(p);
+  if ((await p.read(selector('vh-panel'))) === null) await toggleHistoryOf(p);
+  await until(async () => (await p.read(selector('vh-panel'))) !== null, 15000);
+  const closedFold = `${selector('fold-history-toggle')}[aria-expanded="false"]`;
+  if ((await p.read(closedFold)) !== null) await p.click(closedFold);
+  await until(async () => (await p.read(selector('git-panel'))) !== null, 15000);
+}
+/** Put away a Diagnostics sheet an earlier row left open (it occludes the right panel: Version history,
+ *  the Inspector), the way a person closes it with its ×. */
+async function closeDiagnosticsOf(p: Surface): Promise<void> {
+  if ((await p.read(selector('diagnostics-sheet'))) === null) return;
+  await p.click(selector('diagnostics-close'));
+  await until(async () => (await p.read(selector('diagnostics-sheet'))) === null, 10000);
 }
 /** Menu › Diagnostics › Sync on one surface: today's Sync panel inside the Diagnostics sheet. */
 async function openSyncDetailsOf(p: Surface): Promise<void> {
@@ -400,6 +423,8 @@ const native: Surface = {
       (query, next) => {
         const element = document.querySelector(query) as HTMLSelectElement | null;
         if (!element) throw new Error(`Select absent: ${query}`);
+        // a pick leaves the keyboard on the control, as a person's does (⌘Z next goes to the shell)
+        element.focus();
         const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
         setter?.call(element, next);
         element.dispatchEvent(new Event('change', { bubbles: true }));
@@ -437,13 +462,26 @@ async function answerAsk(s: Surface): Promise<number> {
 async function answerName(s: Surface, value: string): Promise<number> {
   const field = selector('name-dialog-input');
   await until(async () => (await s.count(field)) === 1, 10000);
-  // Typed, not `fill` (the native driver's setValue clears through an unfocus): the dialog opens with the
-  // field focused and the current name selected, so the first key replaces it.
+  // Typed, not `fill` (the native driver's setValue clears through an unfocus). The dialog opens with the
+  // field focused and the current name selected (NameDialog), so for a person the first key replaces it —
+  // but the embedded WKWebView driver emulates a printable key as `value + key`, ignoring the selection
+  // (vendor executor.rs `dispatch_regular_key`). Clear it the way a person can too: ⌘A, then Delete
+  // (the driver's Backspace honours a selection).
+  const opened = await s.shell(
+    `(() => { const f = document.querySelector(${JSON.stringify(field)}); return f ? [document.activeElement === f, f.selectionStart, f.selectionEnd, f.value.length] : null })()`
+  );
+  console.log(
+    `[surface] name dialog opened (focused, selStart, selEnd, length): ${JSON.stringify(opened)}`
+  );
+  await s.press('Meta+a');
+  await s.press('Backspace');
   for (const key of value) await s.press(key);
   const typed = await s.shell(`document.querySelector(${JSON.stringify(field)})?.value ?? null`);
   if (typed !== value) throw new Error(`Name field holds ${JSON.stringify(typed)}`);
   const start = performance.now();
-  await s.press('Enter');
+  // The dialog's own button, not Enter: the embedded driver's Enter is a synthetic keydown, which never
+  // submits a form (implicit submission needs a trusted key), so the native dialog stayed open.
+  await s.click(selector('name-dialog-create'));
   return start;
 }
 /** Put away an ask a refusal left open (its words are read first). */
@@ -1088,7 +1126,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       await peerPage.goto(`http://127.0.0.1:${run.peerPort}/`);
       for (const p of all) {
         try {
-          await until(async () => (await p.read(selector('canvas-row-ui-home'))) !== null, 60000);
+          // The Canvases panel is a windowed list sorted by Recent: the fixture's folders can push
+          // the row below the fold, where it is not in the document until the list scrolls to it.
+          await until(async () => {
+            await scrollRowIntoList(p, selector('canvas-row-ui-home'));
+            return (await p.read(selector('canvas-row-ui-home'))) !== null;
+          }, 60000);
         } catch (error) {
           const diagnostic: Record<string, unknown> = { participant: p.name, error: String(error) };
           try {
@@ -1339,19 +1382,32 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const headingText = heading.text.slice(0, 60);
         // Cmd/Ctrl+click is the product's direct/deep selection gesture. A
         // bare click selects the section; double-click may enter text editing.
-        await gesture(p, 'h1', 'pointer', { meta: true });
-        await p.shell(
-          `window.__maudeSelectionPreparationTrace.push({ at: performance.now(), kind: 'pointer-returned' })`
-        );
+        const headingSelected = async () => {
+          const selected = await p.read(selectedValue);
+          return (
+            (await lastSelector()).includes(`[data-cd-id="${id}"]`) &&
+            !!selected?.includes(headingText) &&
+            (await p.read(weight)) !== null
+          );
+        };
+        // A click that lands while the canvas reloads (a teammate's edit arriving: the trace shows
+        // `loaded`) selects the artboard instead; a person clicks the heading again. Two tries, then the
+        // full wait.
+        for (let attempt = 0; attempt < 2; attempt++) {
+          await gesture(p, 'h1', 'pointer', { meta: true });
+          await p.shell(
+            `window.__maudeSelectionPreparationTrace.push({ at: performance.now(), kind: 'pointer-returned' })`
+          );
+          if (
+            await until(headingSelected, 4000).then(
+              () => true,
+              () => false
+            )
+          )
+            break;
+        }
         try {
-          await until(async () => {
-            const selected = await p.read(selectedValue);
-            return (
-              (await lastSelector()).includes(`[data-cd-id="${id}"]`) &&
-              !!selected?.includes(headingText) &&
-              (await p.read(weight)) !== null
-            );
-          });
+          await until(headingSelected);
         } catch (error) {
           await p.screenshot(join(run.out, `L18-select-${p.name}-no-inspector.png`));
           writeFileSync(
@@ -1378,6 +1434,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           'L18.css-undo.peer-value-kept',
           `${from.name}-after-${other.name}`,
           async () => {
+            if (from.name === 'hub') return CELL_NO_PERSONAL_UNDO;
             const rel = 'ui/SurfaceText.tsx';
             for (const p of all) await openCanvas(p, rel);
             for (const p of all) await until(async () => (await p.read('h1', true)) !== null);
@@ -1394,19 +1451,55 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await other.select(weight, theirs as string);
             await until(() => all.every((p) => weightIn(p, rel, theirs as string)));
             const start = performance.now();
-            await gesture(from, 'body', 'key', { key: 'z', meta: true });
+            // ⌘Z where the person's focus is — the weight control they just picked from. A keydown
+            // planted in the canvas document is not one: the shell takes the canvas's ⌘Z only while the
+            // canvas frame holds focus (use-undo-mode-lane.js, sec-a), so it was dropped without a word.
+            await from.press('Meta+z');
             // A refused undo changes nothing, so hold the observation window open
             // long enough for a wrong write to have propagated everywhere.
             let toldMs: number | null = null;
-            const told = await until(
-              async () => ((await from.read('body')) ?? '').includes('changed by someone else'),
-              8000
-            )
+            // The v2 words (use-undo-projection.jsx `undoWords`): "Can't undo <label> — <name> changed it
+            // since" for a refused undo, "Undid <label> — 1 part was changed by <name> since, kept" when
+            // the teammate's part is skipped. <name> is the teammate, or "someone else" when unknown.
+            const toldRe =
+              /(?:Can.t undo|Undid) .{0,120}?(?:changed it since|since, kept)|changed by someone else/;
+            let toldLine: string | null = null;
+            const told = await until(async () => {
+              toldLine = toldRe.exec((await from.read('body')) ?? '')?.[0] ?? null;
+              return toldLine !== null;
+            }, 8000)
               .then(() => {
                 toldMs = performance.now() - start;
                 return true;
               })
               .catch(() => false);
+            if (!told)
+              writeFileSync(
+                join(run.out, `L18-css-undo-${from.name}-after-${other.name}-diag.json`),
+                JSON.stringify(
+                  {
+                    mine,
+                    theirs,
+                    restore,
+                    authorLines: ((await from.read('body')) ?? '')
+                      .split('\n')
+                      .filter((l) => /undo|undid|changed|conflict|could not|can.t/i.test(l))
+                      .slice(0, 20),
+                    activeElement: await from
+                      .shell(
+                        `(() => { const a = document.activeElement; return a ? a.tagName + ' ' + (a.getAttribute('data-testid') ?? '') : null })()`
+                      )
+                      .catch((e) => String(e)),
+                    undoStack: await from
+                      .shell(
+                        `fetch('/_api/project/undo-stack?canvas=' + encodeURIComponent(${JSON.stringify(`.design/${rel}`)})).then(r => r.text()).then(t => t.slice(0, 4000))`
+                      )
+                      .catch((e) => String(e)),
+                  },
+                  null,
+                  2
+                )
+              );
             await sleep(3000);
             const kept = all.map((p) => ({
               receiver: p.name,
@@ -1419,11 +1512,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             return {
               status: told && kept.every((k) => k.peerValueKept) ? 'pass' : 'fail',
               authorToldMs: toldMs,
+              authorTold: toldLine,
               observations: kept,
             };
           }
         );
         await check('L18.css-undo.own-value', from.name, async () => {
+          if (from.name === 'hub') return CELL_NO_PERSONAL_UNDO;
           const rel = 'ui/SurfaceText.tsx';
           await selectHeading(from);
           const before = WEIGHTS.find((v) => weightIn(from, rel, v)) ?? null;
@@ -1438,7 +1533,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // No marker here: Cmd+Z immediately after the write reaches disk is
           // exactly the window this row exists to cover.
           const start = performance.now();
-          await gesture(from, 'body', 'key', { key: 'z', meta: true });
+          // ⌘Z where the focus is (the weight control), not a keydown planted in the canvas: see above.
+          await from.press('Meta+z');
           await mark('cmd-z-sent');
           const observed = await observeAll(
             all,
@@ -1467,6 +1563,17 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                     ])
                   ),
                   authorCanvasHeading: (await from.probe('h1'))?.markup?.slice(0, 300) ?? null,
+                  // What the author's ⌘Z reads: the shell's undo stack for this canvas.
+                  undoStack: await from
+                    .shell(
+                      `fetch('/_api/project/undo-stack?canvas=' + encodeURIComponent(${JSON.stringify(`.design/${rel}`)})).then(r => r.text()).then(t => t.slice(0, 4000))`
+                    )
+                    .catch((e) => String(e)),
+                  activeElement: await from
+                    .shell(
+                      `(() => { const a = document.activeElement; return a ? a.tagName + ' ' + (a.getAttribute('data-testid') ?? '') : null })()`
+                    )
+                    .catch((e) => String(e)),
                   trace: await from.shell('window.__maudeSelectionPreparationTrace ?? null'),
                 },
                 null,
@@ -5691,7 +5798,30 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                   (p) => text(p, rel) === null && text(p, moved) !== null
                 ),
               30000
-            );
+            ).catch(async (error) => {
+              await nativeSide.screenshot(join(run.out, 'L21-folder-edit-rename-native.png'));
+              writeFileSync(
+                join(run.out, 'L21-folder-edit-rename-diag.json'),
+                JSON.stringify(
+                  {
+                    disks: all.map((p) => ({
+                      receiver: p.name,
+                      old: text(p, rel) !== null,
+                      moved: text(p, moved) !== null,
+                    })),
+                    dialogOpen: await nativeSide.read(selector('name-dialog')),
+                    dialogError: await nativeSide.read(selector('name-dialog-error')),
+                    nativeLines: ((await nativeSide.read('body')) ?? '')
+                      .split('\n')
+                      .filter((l) => /folder|rename|could not|can.t/i.test(l))
+                      .slice(0, 20),
+                  },
+                  null,
+                  2
+                )
+              );
+              throw error;
+            });
             const start = performance.now();
             await fetch(`${control}/online`, { method: 'POST' });
             let settled = false;
@@ -7511,6 +7641,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             };
           });
           await check('L18.gesture-group.undo', `${from.name}-to-peers`, async () => {
+            if (from.name === 'hub') return CELL_NO_PERSONAL_UNDO;
             if (!beforeDrag || !dragged) throw new Unexercised('No drag to undo');
             const start = performance.now();
             await gesture(from, 'body', 'key', { key: 'z', meta: true });
@@ -7595,7 +7726,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 heading: await p.probe('h1'),
                 weight: await inspectedWeight(p),
                 inspectorSelected: await p.read(selector('inspector-panel')),
-                historySelected: await p.read(selector('git-panel')),
+                historySelected: await p.read(selector('vh-panel')),
                 previewOpen: (await p.read(selector('history-preview-version'))) !== null,
                 previewHeadings,
                 previewBodies: await p.shell(previewFrameProbe('body')).catch((e) => String(e)),
@@ -7625,7 +7756,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               // (V2-4.4b: one main right island at a time). Establish this case's
               // Inspector precondition explicitly after the previous direction
               // left History open: close it, so the selection below opens the Inspector.
-              if ((await p.read(selector('git-panel'))) !== null) await toggleHistoryOf(p);
+              await closeDiagnosticsOf(p);
+              if ((await p.read(selector('vh-panel'))) !== null) await toggleHistoryOf(p);
               await selectHeading(p);
               await until(async () => (await inspectedWeight(p)) === '700').catch((error) =>
                 failedStep('current-inspector', p, error)
