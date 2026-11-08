@@ -195,3 +195,69 @@ a real PNG (WebKit's chunk layout) passes, a bad or misplaced IHDR, oversize dim
 the buffer, trailing bytes, a missing IDAT/IEND or an unknown chunk is refused (bridge and store); on a canvas whose
 `toBlob` answers PNG to a WebP request the still is offered, kept and, after a reload, restored as `image/png` with
 no drawing.
+
+## T9.1 sweep (2026-11-08)
+
+The full-canvas sweep the 2026-11-07 note asked for, now a committed lane: `perf.sh --sweep` (`bin/_perf-sweep.mjs`,
+pure half `bin/_perf-sweep-shared.mjs`, pinned by `test/perf-sweep.test.ts`). Four phases on the bare canvas page, every
+camera move a synthetic wheel event (the viewport controller's own path), warm (two unmeasured world sweeps first, so
+the stills exist): **overview** = serpentine over the whole world at 10 % zoom, ×3; **fit** = the zoom with the most
+artboards on screen (fit-all), nudged in a small circle for 6 s; **zoom cycles** = fit-all ⇄ 10 % ×3, a zoom event
+every frame; **after zoom** = a serpentine started the instant a cycle ends (3 rows). Isolated copy of the mascot
+canvas (88 artboards, `linkedHub` / `_sync.json` / `_state` stripped, no fonts or pictures). `artboard-live=sleep`
+(Chromium also `artboard-still=on`). Each arm on its own private server (throwaway HOME / XDG, `MAUDE_NO_BOOT_COVERS=1`,
+ports 48500 / 48520); **tip** = `61323bbf9` (this change's base, origin/main), **base** = tag `v2.0.8` (`590cb83e5`). 3 runs
+(fresh page) × 3 passes = 9 passes per arm and engine, arms alternated A B / B A / A B. Window 2560×1340, dpr 1,
+machine load 1–6 (per run in the log; the Mac was otherwise idle). p95 is the median over the 9 passes with min..max;
+"worst 1 s" is the fewest frames in any 1 s window (fps floor). Blank = a frame where an on-screen artboard that had
+shown a still stood as an empty placeholder or cover: 0 in every arm, engine and phase.
+
+**Real Safari** (safaridriver, a real 2560×1288 inner window; artboards on screen avg/max 38/61 overview, 87/88 fit):
+
+| phase | arm | p50 | p95 (min..max) | p99 | worst 1 s (fps) | frames | blank |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| overview | tip | 14 | 54 (44..79) | 100 | 38 (12..44) | 1454 | 0 |
+| overview | base | 14 | 51 (40..78) | 99 | 37 (19..48) | 1475 | 0 |
+| fit | tip | 14 | 17 (16..18) | 34 | 64 (61..70) | 1269 | 0 |
+| fit | base | 14 | 16 (16..17) | 34 | 66 (58..71) | 1271 | 0 |
+| zoom cycles | tip | 14 | 45 (42..57) | 87 | 41 (31..45) | 753 | 0 |
+| zoom cycles | base | 14 | 56 (50..100) | 91 | 38 (14..44) | 721 | 0 |
+| after zoom | tip | 14 | 15 (15..16) | 19 | 72 (63..72) | 571 | 0 |
+| after zoom | base | 14 | 27 (17..38) | 61 | 63 (49..65) | 527 | 0 |
+
+**Chromium** (Playwright headless, software compositing; 40/62 overview, 87/88 fit on screen):
+
+| phase | arm | p50 | p95 (min..max) | p99 | worst 1 s (fps) | frames | blank |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| overview | tip | 16.7 | 17.1 (16.9..17.4) | 18.3 | 59 (59..60) | 1534 | 0 |
+| overview | base | 16.7 | 17.0 (16.8..17.7) | 18.3 | 60 (60..60) | 1539 | 0 |
+| fit | tip | 16.7 | 17.2 (16.8..17.6) | 18.3 | 60 (58..60) | 1080 | 0 |
+| fit | base | 16.7 | 17.0 (16.8..17.6) | 18.3 | 60 (60..60) | 1080 | 0 |
+| zoom cycles | tip | 16.7 | 18.6 (18.2..33.3) | 50 | 49 (46..51) | 725 | 0 |
+| zoom cycles | base | 16.7 | 34.6 (33.3..50.0) | 68 | 47 (46..48) | 710 | 0 |
+| after zoom | tip | 16.7 | 16.8 (16.8..17.5) | 18.4 | 60 (60..60) | 477 | 0 |
+| after zoom | base | 16.7 | 17.0 (16.8..17.9) | 18.5 | 60 (59..60) | 477 | 0 |
+
+**Verdict: the tip is not worse than v2.0.8 within the spread, in both engines.** The one Safari row where the tip's
+median is higher (overview 54 vs 51 ms) sits well inside both arms' 40..79 spread; fit is level; zoom cycles and the
+sweep right after a zoom are better on the tip (Safari 45 vs 56 and 15 vs 27 ms; Chromium zoom cycles 18.6 vs 34.6),
+and no artboard that had a still showed blank in the ~4 000 sampled frames per arm (Safari; 0 of ~3 800 in Chromium). The overview sweep is
+the one lane near the 50 ms line in Safari in BOTH arms (the worst 1 s window drops to 12..19 fps in one pass each), so
+that is where a future gain would show first.
+
+**Safari validity.** Screen unlocked and display kept awake (`caffeinate -d` already holding it; `pmset` displaysleep 0).
+`/private/tmp/t91x/safariprobe` (CGWindowListCopyWindowInfo, one line per 5 s: Safari windows on screen, the biggest
+one's size, frontmost layer-0 owner, session lock) logged 95 of 96 probes over the clean window 18:21:44–18:29:55Z as
+`safariOnScreen=1 biggest=2560x1340 front=Safari locked=false`; the one miss (18:25:12Z, `front=Claude`) is the
+seconds between two sessions. The harness also refuses a pass whose page reports `hidden` or under 50 Hz idle rAF
+(exit 3); none did.
+
+**What this run threw away** (kept out of the table, so nobody re-derives it): (1) a first set where every moving
+frame read ~250 ms in both engines and both arms — the harness timed itself on `window.requestAnimationFrame`, which
+the canvas's frame freeze holds (~250 ms per flush) while the camera moves; the other probes use
+`__maudeFrameFreeze.raf` and so does the sweep now (pinned in the test); an IntersectionObserver for on-screen counts
+was dropped in the same pass for the cost it adds. (2) a clean-looking second set that ran while each server's boot
+cover sweep (`_thumbs-playwright.mjs`, a second Chromium) was alive — restarted with `MAUDE_NO_BOOT_COVERS=1`, rerun
+in full. Limits: dpr 1 (the Retina eviction-then-no-blank case still needs the Tauri app at dpr 2), Chromium headless
+is software-composited and stills are opt-in there, absolute numbers are not comparable with the burst lane
+(`perf.sh` without `--sweep`, ~16 ms here) or with the 2.0.7 table (different gesture).

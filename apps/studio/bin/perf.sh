@@ -20,6 +20,8 @@
 #           [--window WxH] [--frame today|pinned|full|WxH] [--compare-frame <same>]
 #           [--variant <tag>] [--inject-css <css>] [--query <k=v&…>]
 #           [--history <path>] [--json]
+#           [--sweep [--repeat N] [--runs N] [--sweep-zoom Z] [--speed PXS] [--after-zoom-rows N]
+#                    [--sweeps N] [--warmup N] [--dpr D] [--gpu] [--out file.json]]
 #
 #   --engine safari measures WebKit through safaridriver (one-time
 #   `safaridriver --enable`, needs admin auth). Use it for anything the Tauri
@@ -40,6 +42,17 @@
 #              moment the first artboard is there, while it still loads (`_perf-probe-open.mjs`): open →
 #              first artboard / first drawn / all on-screen drawn, long tasks and long frames, placeholders
 #              left at the gesture's end, DOM size, JS heap. `--engine safari` runs it in Playwright WebKit.
+#   --sweep    (T9.1) The FULL-CANVAS sweep (`_perf-sweep.mjs`), the lane that reads what a person feels on a big
+#              board: four phases — a serpentine pan over the whole world at the overview zoom (--sweep-zoom,
+#              default 0.1), the same at the zoom with the most artboards on screen (fit-all, nudged), three
+#              fit-all <-> overview zoom cycles, and a serpentine started the instant a zoom cycle ends.
+#              Reports per phase: artboards on screen / mounted / standing in as a still, p50 / p95 / p99, the
+#              fewest frames in any 1 s window, and frames that showed an artboard which already had content
+#              as blank. --repeat is the passes per run, --runs the fresh page loads; the table is the median
+#              and min..max over every pass. --engine chromium (Playwright, headless, --window default
+#              1600x920, --dpr 2) or --engine safari (safaridriver, a real window of --window, e.g.
+#              2560x1340; refused with exit 3 while the page is occluded). The bare canvas page, both engines.
+#              Default --query artboard-live=sleep (+ artboard-still=on on chromium, where stills are opt-in).
 #   --studio   (chromium: Playwright, dpr-2 page at --window, V2-8.8) (safari) Measure inside the real studio shell, not the bare canvas
 #              page. Makes one real WebDriver click into the canvas frame first and
 #              proves it lifted WebKit's ~30 fps throttle on an untouched
@@ -86,6 +99,17 @@ PROBE_ENGINE="chromium"
 FIT_ALL=0
 STUDIO=0
 OPEN_LOAD=0
+SWEEP=0
+RUNS=1
+SWEEP_ZOOM=""
+SPEED=""
+SWEEPS=""
+WARMUP=""
+GPU=0
+AFTER_ZOOM_ROWS=""
+DPR=""
+OUT=""
+REPEAT_SET=0
 TIMEOUT=30
 HISTORY=""
 JSON=0
@@ -106,7 +130,17 @@ while [ $# -gt 0 ]; do
     --pan)      PAN="$2"; shift 2 ;;
     --zoom)     ZOOM="$2"; shift 2 ;;
     --timeout)  TIMEOUT="$2"; shift 2 ;;
-    --repeat)   REPEAT="$2"; shift 2 ;;
+    --repeat)   REPEAT="$2"; REPEAT_SET=1; shift 2 ;;
+    --sweep)    SWEEP=1; shift ;;
+    --runs)     RUNS="$2"; shift 2 ;;
+    --sweep-zoom) SWEEP_ZOOM="$2"; shift 2 ;;
+    --speed)    SPEED="$2"; shift 2 ;;
+    --sweeps)   SWEEPS="$2"; shift 2 ;;
+    --warmup)   WARMUP="$2"; shift 2 ;;
+    --gpu)      GPU=1; shift ;;
+    --after-zoom-rows) AFTER_ZOOM_ROWS="$2"; shift 2 ;;
+    --dpr)      DPR="$2"; shift 2 ;;
+    --out)      OUT="$2"; shift 2 ;;
     --engine)   PROBE_ENGINE="$2"; shift 2 ;;
     --fit-all)  FIT_ALL=1; shift ;;
     --studio)   STUDIO=1; shift ;;
@@ -140,12 +174,17 @@ if [ "$PROBE_ENGINE" != "safari" ] && { [ -n "$FRAME" ] || [ -n "$COMPARE_FRAME"
   echo "perf.sh: --frame / --compare-frame need --engine safari" >&2
   exit 2
 fi
-if [ "$PROBE_ENGINE" != "safari" ] && [ "$STUDIO" != "1" ] && [ -n "$WINDOW" ]; then
-  echo "perf.sh: --window needs --engine safari or --studio" >&2
+if [ "$PROBE_ENGINE" != "safari" ] && [ "$STUDIO" != "1" ] && [ "$SWEEP" != "1" ] && [ -n "$WINDOW" ]; then
+  echo "perf.sh: --window needs --engine safari, --studio or --sweep" >&2
   exit 2
 fi
 if { [ -n "$FRAME" ] || [ -n "$COMPARE_FRAME" ]; } && [ "$STUDIO" != "1" ]; then
   echo "perf.sh: --frame / --compare-frame need --studio (there is no canvas iframe on the bare page)" >&2
+  exit 2
+fi
+
+if [ "$SWEEP" = "1" ] && { [ "$STUDIO" = "1" ] || [ "$OPEN_LOAD" = "1" ]; }; then
+  echo "perf.sh: --sweep measures the bare canvas page; it does not combine with --studio / --open-load" >&2
   exit 2
 fi
 
@@ -253,7 +292,7 @@ if [ -n "${QUERY:-}" ]; then
     *[!A-Za-z0-9=\&_-]*) echo "perf.sh: --query takes letters, digits and = & _ - only" >&2; exit 2 ;;
   esac
   [ "$STUDIO" = "1" ] && { echo "perf.sh: --query applies to the bare canvas page, not --studio" >&2; exit 2; }
-  URL="${URL}&${QUERY}"
+  [ "$SWEEP" = "1" ] || URL="${URL}&${QUERY}"
 fi
 # sec-loopback-bearer §7.3 — the bare canvas page: asked with the key, so it gets its frame capability
 [ "$STUDIO" = "1" ] || URL="$(studio_capture_url "$REPO" "$PORT" "${URL#http://localhost:${PORT}}")"
@@ -284,6 +323,30 @@ mkdir -p "$(dirname "$HISTORY")"
 ENGINE_TAG="${MAUDE_PERF_ENGINE_TAG:-}"
 if [ -z "$ENGINE_TAG" ]; then
   if [ -n "$MAUDE_DESKTOP" ]; then ENGINE_TAG="webkit-desktop"; else ENGINE_TAG="blink-headless"; fi
+fi
+
+if [ "$SWEEP" = "1" ]; then
+  # T9.1 — the full-canvas sweep. The page is the bare canvas page (the capture URL resolved above); the
+  # driver adds the query itself, so one call is the same page on both engines.
+  SQ="${QUERY:-artboard-live=sleep}"
+  if [ -z "${QUERY:-}" ] && [ "$PROBE_ENGINE" = "chromium" ]; then SQ="artboard-live=sleep&artboard-still=on"; fi
+  SWEEP_TIMEOUT=900
+  [ "$TIMEOUT" -gt 30 ] && SWEEP_TIMEOUT="$TIMEOUT"
+  echo "→ perf --sweep: $REL_FULL | port: $PORT | engine: $PROBE_ENGINE" >&2
+  ARGS=(--url "$URL" --engine "$PROBE_ENGINE" --label "$REL_FULL" --runs "$RUNS" --query "$SQ" --timeout "$SWEEP_TIMEOUT")
+  [ "$REPEAT_SET" = "1" ] && ARGS+=(--passes "$REPEAT")
+  [ -n "$SWEEP_ZOOM" ] && ARGS+=(--zoom "$SWEEP_ZOOM")
+  [ -n "$SPEED" ] && ARGS+=(--speed "$SPEED")
+  [ -n "$SWEEPS" ] && ARGS+=(--sweeps "$SWEEPS")
+  [ -n "$WARMUP" ] && ARGS+=(--warmup "$WARMUP")
+  [ "$GPU" = "1" ] && ARGS+=(--gpu)
+  [ -n "$AFTER_ZOOM_ROWS" ] && ARGS+=(--after-zoom-rows "$AFTER_ZOOM_ROWS")
+  [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
+  [ -n "$DPR" ] && ARGS+=(--dpr "$DPR")
+  [ -n "$OUT" ] && ARGS+=(--out "$OUT")
+  [ "$JSON" = "1" ] && ARGS+=(--json)
+  # node, like the other Playwright lanes: Playwright's driver pipe is a Node contract
+  exec node "$SCRIPT_DIR/_perf-sweep.mjs" "${ARGS[@]}"
 fi
 
 if [ "$OPEN_LOAD" = "1" ]; then
