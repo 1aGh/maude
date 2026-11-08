@@ -2534,7 +2534,7 @@ export function createHttp(
     },
     // S11.11 — POST /_api/sync/resync (routes/sync.ts), moved from the legacy literal.
     // gate-b-sec4 — GET /_api/sync/link + POST /_api/sync/link/confirm: the parked committed link.
-    sync: { control: () => ctx.syncControl, trace: resyncTrace, link: createLinkGate(ctx) },
+    sync: { control: () => ctx.syncControl, trace: resyncTrace, link: createLinkGate(ctx), designRoot: ctx.paths.designRoot },
     // S11.13 — Settings › Advanced reads: the decision-memory count and the bundled plugin versions.
     settings: { repoRoot: ctx.paths.repoRoot },
     // S5.7 — the chat store's search / trash / resume-session routes (routes/chat.ts).
