@@ -80,7 +80,13 @@ function mount(comments: OverlayComment[]) {
   root = createRoot(host);
   act(() => root?.render(<CommentsOverlay />));
   act(() => {
-    window.dispatchEvent(new MessageEvent('message', { data: { dgn: 'comments-set', comments } }));
+    // #168 F3 (6532961ad) — the overlay hears only its shell: post from the parent frame
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { dgn: 'comments-set', comments },
+        source: window.parent as unknown as Window,
+      })
+    );
   });
 }
 
@@ -126,6 +132,23 @@ describe('#134/#136 — software never deletes a comment', () => {
     expect(pin('on-sticky')?.getAttribute('data-detached')).toBe('true');
     expect(pin('floating')?.getAttribute('data-detached')).toBe('false');
     expect(pin('lost-element')?.getAttribute('aria-label')).toContain('detached');
+  });
+});
+
+describe('#168 F3 — the overlay hears only its shell', () => {
+  test('a comments-set posted by another window (a sibling frame) draws no pin', async () => {
+    mount([]);
+    const sibling = { postMessage() {} } as unknown as Window;
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { dgn: 'comments-set', comments: [comment('planted', {})] },
+          source: sibling,
+        })
+      );
+    });
+    await wait(50);
+    expect(pin('planted')).toBeNull();
   });
 });
 
