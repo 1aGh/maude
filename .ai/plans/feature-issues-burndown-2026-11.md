@@ -198,7 +198,7 @@ W5 and W6 use Opus.
   - an optional H.264 / CFR / single-AAC proxy next to the original;
   - before the frame-step fallback, a "no audio" warning that names the asset and codec.
 - [x] T3.5 **#128 §4:** inserting a video into a `kind="video"` artboard replaces the placeholder, fills 100 %, sets the `objectFit="cover"` prop and keeps `durationInFrames` in sync.
-- [ ] T3.6 **#128 §5:** a transform / crop handle for a selected `<Video>` layer, plus inspector fit / focus / scale fields that write back to the TSX. Reuse `editing/crop-mode.tsx`.
+- [x] T3.6 **#128 §5:** a transform / crop handle for a selected `<Video>` layer, plus inspector fit / focus / scale fields that write back to the TSX. Reuse `editing/crop-mode.tsx`.
 - [ ] T3.7 **#128 cloud comments 2–3** (D7): `apps/render` gets scale 1 and JPEG intermediates for the cloud, one mp4 job at a time, progress, `POST /_render/cancel`, and the "render busy" vs "waking up" message. **The deploy goes out only with a release tag**, never a manual fleet change.
 
 ### W4 — Import, plugins and sync diagnostics
@@ -385,3 +385,4 @@ W5 and W6 use Opus.
 - 2026-11-08 merged T6.3d d9211b2d6 (desktop-locate.mjs, attest-checked port, cli.sock ensure/show/lease, server-up --show, MAUDE_SERVER_ROLE=cli; registry names the root + failed attest → exit 11, never falls back — lead confirmed). T6.3e/f + T6.4 running.
 - 2026-11-08 merged T7.1 47929ec20: contracts 122-cross-canvas-clipboard.md (carry imports+decls, artboard.cut as Trash, two undo actions, cross-project via Rust shell, marker-only clipboard) and 113-checklist.md (sticky + checkitem records, no board version bump, locked list still ticks). Defaults taken (Michal can overturn): Can comment cannot tick; no 'Move to canvas…'.
 - 2026-11-08 merged T3.7 (066ae6baf c96ba8724): render service.ts split, cloud video scale 1 + JPEG, one video + queue of one, /_render/status + /_render/cancel keyed by a cell-chosen random id, idle JOB_MAX_MS 135 min, busy vs waking-up wording. Deploys only with a release tag. Follow-ups → T3.7b.
+- 2026-11-08 merged T3.6 A ed4ce349d + T3.6b c8afc56a8 (on-canvas video handle), T2.4b, nothing-deleted fix 9cefe0180. HEAD gates green: lint, tsc, tsc coverage, gen-actions, plugin surfaces, parity, import coherence, nothing-deleted, styles fresh, site regen clean, boot check, opening-card smoke. Mini full suite next, then push wave 2.
