@@ -298,7 +298,7 @@ W5 and W6 use Opus.
 
 ### W7 — Features #122 and #113
 
-- [ ] T7.1 A contract for each: the #122 cross-canvas clipboard (copy / cut / paste of artboards and elements, including assets and imports, plus undo on both canvases) and the #113 checklist as an annotation / sticky kind (sync, undo, export). They go through the action registry, so there are no new key handlers.
+- [x] T7.1 A contract for each: the #122 cross-canvas clipboard (copy / cut / paste of artboards and elements, including assets and imports, plus undo on both canvases) and the #113 checklist as an annotation / sticky kind (sync, undo, export). They go through the action registry, so there are no new key handlers.
 - [ ] T7.2 Build #122, plus e2e.
 - [ ] T7.3 Build #113, plus e2e, the What's New entry and docs.
 
@@ -383,3 +383,4 @@ W5 and W6 use Opus.
 - 2026-11-08 merged T6.3c ac1c53d99 (cli.sock peer-uid checked, verbs ensure/status/show/lease/release/restart, native consent sheet per option A, Not now per run, leases keep tabs busy, Settings › General › Terminal switch). Left → T6.3e/f: worktree tab label/profile/not-in-session, lease→registry busy, branch mismatch, show element/mode routing, e2e debug answer for the native sheet.
 - 2026-11-08 merged T3.5 348cf4d31. T3.6: lead chose A (objectFit into mediaProps, real fit shown, visible Zoom/Focus rows) then B (on-canvas pan/zoom handle) as T3.6b.
 - 2026-11-08 merged T6.3d d9211b2d6 (desktop-locate.mjs, attest-checked port, cli.sock ensure/show/lease, server-up --show, MAUDE_SERVER_ROLE=cli; registry names the root + failed attest → exit 11, never falls back — lead confirmed). T6.3e/f + T6.4 running.
+- 2026-11-08 merged T7.1 47929ec20: contracts 122-cross-canvas-clipboard.md (carry imports+decls, artboard.cut as Trash, two undo actions, cross-project via Rust shell, marker-only clipboard) and 113-checklist.md (sticky + checkitem records, no board version bump, locked list still ticks). Defaults taken (Michal can overturn): Can comment cannot tick; no 'Move to canvas…'.
