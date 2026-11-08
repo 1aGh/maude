@@ -258,7 +258,7 @@ W5 and W6 use Opus.
   - a per-subtree depth cap and tombstoned rows dropped;
   - the held-row button through the registry.
   - The hub changes stay v1-compatible.
-- [ ] T5.4 **#168, the rest:**
+- [x] T5.4 **#168, the rest:**
   - command-gate evidence is signed or recomputed, not self-asserted;
   - recovery writes and `_history` symlink checks, plus the overlap-check cost;
   - hook state outside the design root (the run-base hashes), the element label in the id key, `shots.jsonl`, scripts run from a file;
@@ -379,3 +379,4 @@ W5 and W6 use Opus.
 - 2026-11-08 merged T6.3a 3c8b59e7f (single-writer _server.json, GET /_api/shell/attest HMAC, CLI step-down watcher, storeMode; MAUDE_APP_REGISTRY_FILE override). Lead fix: unsynced-refs classified in hub manifest + ACL classes (was red on main).
 - 2026-11-08 merged #168 S1 (f91e9abc4 103fc16b1 acee5a328 1fa796f63): canvas listener refuses service workers, recovery writes refuse symlinked paths, local-kernel seen sweep (head==entry==disk, idle), id-finding key covers the element. CLAUDE.md updated (SW sentence, gap measurement).
 - 2026-11-08 merged #168 S2 (634f74bc6 4dab71489): gate evidence HMAC under a per-machine key (committed v2 gate records read stale until re-recorded); snapshots/bases verified against hook-state records; shots.jsonl in hook state; script files read for detaching. Follow-up patches → small slice.
+- 2026-11-08 merged #168 S3+S4 (a7bacb08b … 9265ce18d: 7 canvas→shell message fixes incl. copy-canvas-path, Image (I) via a shell chip (one extra click — Michal to confirm), drag token not path, tab stacking test; G2 mine-stamp, G3 Recent colours by project identity (lead http.ts patch, after role checks), G4 ds-check roles; ux-patterns exempt by ID). G1 lead decision: keep the account-name fallback (B). S2 follow-ups 4d3c72e3a. Boot check OK. #168 (T5.4) done.
