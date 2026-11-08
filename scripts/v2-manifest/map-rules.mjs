@@ -70,6 +70,10 @@ export const V2_CODE_IDS = new Set([
   'testid:studio/canvas-pages-view.tsx#canvas/canvas-pages-prev', // 2.0.7 B2 the pager in Pages
   'testid:studio/canvas-pages-view.tsx#canvas/canvas-pages-next', // 2.0.7 B2 the pager in Pages
   'testid:studio/canvas-pages-view.tsx#canvas/canvas-pages-count', // 2.0.7 B2 the pager in Pages
+  'button:studio/comments-overlay.tsx#CommentThread/comment-reattach-comment-id', // #151 D5 Re-attach to element (v1 comments could not be re-anchored)
+  'button:studio/comments-overlay.tsx#CommentsOverlay/cancel-re-attach', // #151 D5 cancel a pending re-attach
+  'testid:studio/comments-overlay.tsx#canvas iframe chrome/comment-reattach-hint', // #151 D5 the line shown while a re-attach waits for its click
+  'testid:studio/comments-overlay.tsx#canvas iframe chrome/comment-reattach-id', // #151 D5 Re-attach in a thread header
 ]);
 
 /** Entries that are infrastructure, not features (lead decision, V2-4.gate-b): id → reason. Excluded
