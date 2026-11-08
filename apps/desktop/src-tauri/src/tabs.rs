@@ -379,6 +379,53 @@ pub fn overview_bounds(w: f64, h: f64) -> Rect {
     }
 }
 
+// ── Linux: the children live in a GtkBox (#208) ─────────────────────────────
+//
+// On macOS and Windows a child webview sits where `set_bounds` puts it. On GTK
+// Tauri does not make a positioned child: `add_child` packs every webview into
+// the window's default vertical GtkBox (tauri-runtime-wry `WindowChild` →
+// `build_gtk(default_vbox)` → `pack_start(expand, fill)`), and wry's
+// `set_bounds` only moves a webview that sits in a GtkFixed — so for us it does
+// nothing. Every shown child then got an equal share of the height: the strip
+// took the top half of the window (dark, its page only draws 38 px) and the
+// tab the bottom half (#208). The box is kept and told what we want instead:
+// the strip is 38 px tall and does not grow, the shown tab takes the rest
+// (hidden tabs take no space in a GtkBox), and while the tab overview is open
+// the strip grows to the whole window. GTK keeps this through every resize.
+
+/// How one child webview is packed in the shell's GtkBox.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GtkPack {
+    /// Takes a share of the height the fixed-height children leave.
+    pub expand: bool,
+    /// Its minimum height in logical px (`set_size_request`); -1 is "none".
+    pub min_height: i32,
+}
+
+/// Pure: the packing of the strip (`is_strip`) or of a tab, with the tab overview `overview` open or not.
+pub fn gtk_pack(is_strip: bool, overview: bool) -> GtkPack {
+    if is_strip {
+        GtkPack { expand: overview, min_height: STRIP_H as i32 }
+    } else {
+        GtkPack { expand: true, min_height: -1 }
+    }
+}
+
+/// Pack `wv` in the shell's GtkBox (#208). Linux only; elsewhere `set_bounds` places a child and this does nothing.
+pub fn pack_child<R: Runtime>(wv: &tauri::Webview<R>, pack: GtkPack) {
+    #[cfg(target_os = "linux")]
+    let _ = wv.with_webview(move |platform| {
+        use gtk::prelude::*;
+        let view = platform.inner();
+        view.set_size_request(-1, pack.min_height);
+        if let Some(vbox) = view.parent().and_then(|p| p.downcast::<gtk::Box>().ok()) {
+            vbox.set_child_packing(&view, pack.expand, true, 0, gtk::PackType::Start);
+        }
+    });
+    #[cfg(not(target_os = "linux"))]
+    let _ = (wv, pack);
+}
+
 // ── The tab overview (S1.22b: Show All Tabs ⇧⌘\, the strip's "N more") ──────
 //
 // The strip page draws it. A child webview cannot draw past its own bounds,
@@ -574,10 +621,13 @@ pub fn layout<R: Runtime>(app: &AppHandle<R>) {
     // S1.22b: while the tab overview is open the strip covers the whole window.
     let strip = if overview_open() { overview_bounds(w, h) } else { strip };
     for wv in shell.webviews() {
-        let r = if wv.label() == STRIP_LABEL { strip } else { tab };
+        let is_strip = wv.label() == STRIP_LABEL;
+        let r = if is_strip { strip } else { tab };
         if let Err(e) = wv.set_bounds(r) {
             crate::sidecar::log_line(&format!("[maude] could not lay out {}: {e}", wv.label()));
         }
+        // #208: on GTK the box places the child; `set_bounds` above does nothing there.
+        pack_child(&wv, gtk_pack(is_strip, overview_open()));
     }
 }
 
@@ -634,6 +684,7 @@ pub fn ensure_shell(app: &AppHandle) -> Result<tauri::Window, String> {
     let strip = shell
         .add_child(strip, strip_rect.position, strip_rect.size)
         .map_err(|e| format!("Couldn't open the tab bar: {e}"))?;
+    pack_child(&strip, gtk_pack(true, false));
     clear_background(&strip);
     if perf_knob("no-strip") {
         set_tab_shown(&strip, false);
@@ -657,6 +708,7 @@ pub fn add_tab(
     let wv = shell
         .add_child(builder, rect.position, rect.size)
         .map_err(|e| format!("Couldn't open a tab for this project: {e}"))?;
+    pack_child(&wv, gtk_pack(false, overview_open()));
     if !perf_knob("opaque") {
         clear_background(&wv);
     }
@@ -1939,6 +1991,76 @@ mod tests {
         // A degenerate size never goes negative.
         let (_, tab) = child_bounds(10.0, 5.0);
         assert_eq!(size(&tab), (10.0, 0.0));
+    }
+
+    /// A model of how GTK3's vertical GtkBox gives out height (`gtk_box_size_allocate`, homogeneous off, no
+    /// spacing): a hidden child gets nothing; a shown child first gets its minimum height (a webview's own
+    /// natural height is 0); what is left goes in equal shares to the shown children that expand. Answers
+    /// each child's `(y, height)`, `None` when hidden.
+    fn gtk_box_model(h: f64, kids: &[(GtkPack, bool)]) -> Vec<Option<(f64, f64)>> {
+        let min = |p: &GtkPack| f64::from(p.min_height.max(0));
+        let shown = || kids.iter().filter(|(_, v)| *v);
+        let fixed: f64 = shown().map(|(p, _)| min(p)).sum();
+        let growers = shown().filter(|(p, _)| p.expand).count();
+        let share = if growers == 0 { 0.0 } else { ((h - fixed).max(0.0) / growers as f64).floor() };
+        let mut y = 0.0;
+        kids.iter()
+            .map(|(p, visible)| {
+                if !visible {
+                    return None;
+                }
+                let height = min(p) + if p.expand { share } else { 0.0 };
+                let at = (y, height);
+                y += height;
+                Some(at)
+            })
+            .collect()
+    }
+
+    /// #208: on Linux the strip took the top half of the window and the tab the bottom half. The GtkBox
+    /// packing must give the same rects `child_bounds` gives every other platform, at any size, with hidden
+    /// tabs around; and while the tab overview is open the strip is the whole window.
+    #[test]
+    fn the_gtk_packing_puts_the_tab_below_the_strip_like_child_bounds() {
+        let lh = |r: &Rect| match (r.position, r.size) {
+            (tauri::Position::Logical(p), tauri::Size::Logical(s)) => (p.y, s.height),
+            _ => panic!("logical"),
+        };
+        for (w, h) in [(1280.0, 800.0), (1024.0, 680.0), (3008.0, 1692.0)] {
+            let (strip, tab) = child_bounds(w, h);
+            // The strip (added first), a hidden tab, the shown tab, another hidden tab.
+            let kids = [
+                (gtk_pack(true, false), true),
+                (gtk_pack(false, false), false),
+                (gtk_pack(false, false), true),
+                (gtk_pack(false, false), false),
+            ];
+            let got = gtk_box_model(h, &kids);
+            assert_eq!(got[0], Some(lh(&strip)), "the strip is {STRIP_H} px at the top ({w}x{h})");
+            assert_eq!(got[2], Some(lh(&tab)), "the shown tab fills the rest ({w}x{h})");
+            assert_eq!((got[1], got[3]), (None, None));
+            // The tab overview: the active tab is hidden and the strip covers the window.
+            let over = gtk_box_model(h, &[(gtk_pack(true, true), true), (gtk_pack(false, true), false)]);
+            assert_eq!(over[0], Some(lh(&overview_bounds(w, h))), "the overview strip is the window ({w}x{h})");
+        }
+    }
+
+    /// #208: `layout` and the two places a child is added re-pack it in the GtkBox on Linux — `set_bounds` alone
+    /// does nothing there. (Source check: this crate's tests run on macOS.)
+    #[test]
+    fn linux_children_are_packed_where_they_are_added_and_laid_out() {
+        let src = include_str!("tabs.rs");
+        let body = |name: &str| {
+            let at = src.find(name).unwrap_or_else(|| panic!("{name}"));
+            let rest = &src[at..];
+            &rest[..rest.find("\n}\n").unwrap()]
+        };
+        for f in ["pub fn layout<", "pub fn ensure_shell(", "pub fn add_tab("] {
+            assert!(body(f).contains("pack_child("), "{f} must pack its child on GTK");
+        }
+        let pack = body("fn pack_child<");
+        assert!(pack.contains("#[cfg(target_os = \"linux\")]"), "Linux only");
+        assert!(pack.contains("set_child_packing(") && pack.contains("set_size_request("));
     }
 
     /// Contract §8: Tauri grants a capability when the webview label OR the

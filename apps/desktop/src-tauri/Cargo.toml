@@ -14,6 +14,12 @@ edition = "2021"
 name = "maude_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+# #208: the Linux shell lane's harness (.github/workflows/linux-shell-lane.yml). Built only on request
+# (`cargo build --example shell_lane`), never by `cargo test` — it needs the debug-only `shell_lane` module.
+[[example]]
+name = "shell_lane"
+test = false
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -86,6 +92,12 @@ libc = "0.2"
 # of this file). `=1.2.0` so a lock refresh cannot drift off the version the
 # patch was written against.
 tauri-plugin-wdio-webdriver = "=1.2.0"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# #208 (tabs.rs `pack_child`): Tauri packs every child webview into the window's GtkBox on Linux, so the
+# strip's height and the tab's share are set on the box itself. Same 0.18 the lock already carries via
+# tao / wry / webkit2gtk, so no new crate is downloaded.
+gtk = "0.18"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # V2-3.5: a notification click focuses its project's window. The notification
