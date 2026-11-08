@@ -60,6 +60,7 @@ import { deriveTracks } from './tracks.js';
 import { isBand } from './transport.js';
 import { KeptStatus, SharedStatus, SizeButton } from './island-controls.jsx';
 import { OtherTakesHost } from './other-takes.jsx';
+import { FrameHandleHost } from './frame-handle.jsx';
 import { ReframeHost } from './reframe-island.jsx';
 import { bindClips } from './clip-search.js';
 import { FOLD_WORDS, FOLDABLE, trackFold, useFoldVersion } from './fold.js';
@@ -1248,6 +1249,8 @@ export default function TimelinePanel({
         titleMotion: selSeq.titleMotion ?? null,
         titleStyle: selSeq.titleStyle ?? null,
         fit: selSeq.fit ?? null,
+        // #128 §5: the inspector's Zoom / Focus rows read the clip's <Reframe>
+        reframe: selSeq.reframe ?? null,
         rowKind: rowKind(selSeq),
       },
       transitionAfter:
@@ -3082,6 +3085,18 @@ export default function TimelinePanel({
         frame={frame}
         name={selSeq ? displayNameOf(selSeq, selIndex) : ''}
         canvas={island?.canvas ?? null}
+        artboardId={comp?.artboardId ?? null}
+        canEdit={canEditHere && !!onClipVerb}
+        url={selSeq?.mediaSrc ? resolveUrl(selSeq.mediaSrc) : null}
+        run={(params) => selSeq && onClipVerb?.(refFor(selSeq, selIndex), 'video.reframe', params)}
+      />
+      {/* #128 §5 (T3.6b) — the selected clip's pan / zoom handle on the canvas (drawn there only while it is on) */}
+      <FrameHandleHost
+        seq={selSeq}
+        comp={comp}
+        fps={fps}
+        frame={frame}
+        name={selSeq ? displayNameOf(selSeq, selIndex) : ''}
         artboardId={comp?.artboardId ?? null}
         canEdit={canEditHere && !!onClipVerb}
         url={selSeq?.mediaSrc ? resolveUrl(selSeq.mediaSrc) : null}

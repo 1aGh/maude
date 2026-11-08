@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "1982b1fd1642",
+  "manifestVersion": "89ff79ca7c2d",
   "actions": [
     {
       "id": "search.open",
@@ -3822,6 +3822,25 @@
         "format": "canvas-tsx",
         "skill": "design-video:video-comp",
         "how": "Wrap the clip’s media in <Reframe focus zoom formats> (source-second keyframes, sorted)"
+      }
+    },
+    {
+      "id": "video.frame-handle",
+      "label": "Move and zoom on the canvas",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design-video:video-comp",
+        "how": "Move or zoom the clip’s picture: <Reframe focus zoom> on its media, the same write as video.reframe"
       }
     },
     {

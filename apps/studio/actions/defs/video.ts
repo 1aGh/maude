@@ -64,6 +64,15 @@ export const VIDEO_ACTIONS: ActionDef[] = [
       keywords: ['reframe', 'crop', 'framing', 'vertical', 'focus', 'window'],
     },
   },
+  // #128 §5 (T3.6b) — bound: the clip inspector's "Move on canvas" and ⌘K turn the on-canvas pan / zoom handle of the
+  // selected clip on and off (editing/video-frame-handle.tsx draws it; the write is video.reframe)
+  {
+    ...row('video.frame-handle', 'Move and zoom on the canvas', 'Timeline › Clip'),
+    search: {
+      where: 'Timeline › Clip',
+      keywords: ['move', 'zoom', 'pan', 'crop', 'position', 'scale', 'drag', 'video', 'framing'],
+    },
+  },
   // S7.8 — bound: the playhead's frame becomes the poster (`artboardMeta.poster`), from ⌘K and the Poster flag on
   // the ruler. The inspector's Poster section (S7.5+) places the same id.
   {

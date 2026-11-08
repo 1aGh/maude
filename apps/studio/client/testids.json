@@ -28281,6 +28281,86 @@
     "v2": "new"
   },
   {
+    "hook": "edit-video-frame",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#128 §5: the on-canvas pan / zoom handle of the video clip selected in the Timeline is up (frame, picture outline, corners, tag).",
+    "producer": {
+      "file": "apps/studio/editing/video-frame-handle.tsx",
+      "symbol": "VideoFrameHandle"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-frame-handle.test.tsx"
+    ],
+    "v2": "new in v2 (T3.6b)"
+  },
+  {
+    "hook": "edit-video-frame-box",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#128 §5: the frame the clip fills (its artboard's video), outlined while the pan / zoom handle is up.",
+    "producer": {
+      "file": "apps/studio/editing/video-frame-handle.tsx",
+      "symbol": "VideoFrameHandle"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-frame-handle.test.tsx"
+    ],
+    "v2": "new in v2 (T3.6b)"
+  },
+  {
+    "hook": "edit-video-frame-picture",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#128 §5: the whole picture's dashed outline, beyond the frame; drag it to move the picture inside the frame. One video.reframe on release.",
+    "producer": {
+      "file": "apps/studio/editing/video-frame-handle.tsx",
+      "symbol": "VideoFrameHandle"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-frame-handle.test.tsx"
+    ],
+    "v2": "new in v2 (T3.6b)"
+  },
+  {
+    "hook": "edit-video-frame-handle-<corner>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "#128 §5: one of the four corner handles of the picture (`nw` `ne` `se` `sw`); drag to zoom, the opposite corner stays.",
+    "producer": {
+      "file": "apps/studio/editing/video-frame-handle.tsx",
+      "symbol": "VideoFrameHandle"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-frame-handle.test.tsx"
+    ],
+    "v2": "new in v2 (T3.6b)"
+  },
+  {
+    "hook": "edit-video-frame-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#128 §5: the tag over the frame (\"<clip> · move and zoom\").",
+    "producer": {
+      "file": "apps/studio/editing/video-frame-handle.tsx",
+      "symbol": "VideoFrameHandle"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-frame-handle.test.tsx"
+    ],
+    "v2": "new in v2 (T3.6b)"
+  },
+  {
     "hook": "edit-drop-target",
     "kind": "testid",
     "pattern": false,
@@ -37380,6 +37460,22 @@
       "apps/studio/test/clip-inspector-rows.test.ts"
     ],
     "v2": "new in v2 (T3.6)"
+  },
+  {
+    "hook": "insp-clip-frame-handle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#128 §5: \"Move on canvas\" under the clip inspector's Framing: turns the on-canvas pan / zoom handle on and off (video.frame-handle).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "FramingRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (T3.6b)"
   },
   {
     "hook": "insp-clip-focus-x",

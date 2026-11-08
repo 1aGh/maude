@@ -463,6 +463,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'Wrap the clip’s media in <Reframe focus zoom formats> (source-second keyframes, sorted)'
     )
   ),
+  // #128 §5 (T3.6b) — the on-canvas pan / zoom handle writes exactly what video.reframe writes
+  'video.frame-handle': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design-video:video-comp',
+      'Move or zoom the clip’s picture: <Reframe focus zoom> on its media, the same write as video.reframe'
+    )
+  ),
   // S7.18 — a keyframe's curve: `{ easing: Easing.bezier(a, b, c, d) }` on the k-th interpolate(frame, …) of the clip's
   // component, `Easing` imported from remotion. The Timeline's Advanced draws it as cubic-bezier(a, b, c, d).
   'video.easing.set': VIDEO_OP(

@@ -291,6 +291,18 @@ describe('a clip (07 ve-transition: Length · Speed · Volume · Framing)', () =
     ]);
   });
 
+  test('"Move on canvas" turns the on-canvas pan / zoom handle on, and again off (#128 §5 T3.6b)', async () => {
+    const { frameHandleUi } = await import('../client/v2/timeline/frame-handle-model.js');
+    frameHandleUi.close();
+    const host = await frame(selection('clip', CLIP_SEQ));
+    const link = q(host, 'insp-clip-frame-handle');
+    expect(link?.textContent).toBe('Move on canvas');
+    await click(link, 'Move on canvas');
+    expect(frameHandleUi.get()).toEqual({ stableId: null });
+    await click(link, 'Move on canvas');
+    expect(frameHandleUi.get()).toBeNull();
+  });
+
   test('a focus that moves over time is read-only here: the Re-frame island owns it', async () => {
     const host = await frame(
       selection('clip', {
