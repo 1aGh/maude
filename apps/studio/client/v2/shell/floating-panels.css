@@ -293,6 +293,13 @@
       flex-basis var(--dur-panel) var(--ease-in-out);
     overflow: hidden;
   }
+  /* #170 F35: an overflow:hidden box is still a scroll container, and the New-folder tooltip (data-tip) lays out
+     16 px past the edge — a script or a focus scroll shifted the whole panel 8 px left. Clip it like the shell root. */
+  @supports (overflow: clip) {
+    .sh-sidebar {
+      overflow: clip;
+    }
+  }
 
   .sh-sidebar.is-collapsed {
     width: 0;
