@@ -51,6 +51,7 @@
     "e2e:acp-fake": "wdio run ./wdio.acp-fake.conf.ts",
     "e2e:parity": "wdio run ./wdio.parity.conf.ts",
     "e2e:sidecar-respawn": "wdio run ./wdio.sidecar-respawn.conf.ts",
+    "e2e:exports": "wdio run ./wdio.exports.conf.ts",
     "e2e:team-project": "wdio run ./wdio.team-project.conf.ts",
     "e2e:ai-runs": "wdio run ./wdio.ai-runs.conf.ts",
     "e2e:team-cell": "wdio run ./wdio.team-cell.conf.ts",
