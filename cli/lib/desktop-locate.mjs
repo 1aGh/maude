@@ -387,8 +387,13 @@ export async function serverKeyFor(root, port, opts = {}) {
   const p = await probeDesktop(root, { ...opts, env });
   if (p.state === 'unverified') return { unverified: true };
   if (p.state === 'running' && p.port === Number(port)) return { key: p.apiKey ?? null };
+  // A terminal server's key file is read first: with none there is nothing to send, so no probe
+  // goes out (a keyless server keeps answering the helpers exactly as before). With one, the key
+  // still leaves only after `/_health` names this project on that port.
+  const key = terminalKeyFor(root, port, { env });
+  if (!key) return { key: null };
   if (!(await healthNames(root, port, opts.timeoutMs))) return { key: null };
-  return { key: terminalKeyFor(root, port, { env }) };
+  return { key };
 }
 
 /**
