@@ -5,11 +5,13 @@ import { $, browser, expect } from '@wdio/globals';
 
 import {
   focusCanvasFrame,
+  focusShell,
   waitForArtboard,
   waitForCanvasOpened,
   waitForCanvasRects,
 } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
+import { Key } from '../helpers/parity';
 import { artboardLabelPoint, pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
@@ -21,7 +23,7 @@ import { focusTab, labels, openTab } from '../helpers/windows';
  * source = MAUDE_PROJECT_ROOT: `ui/Home.tsx`, artboard "Hero" reading `W`, an imported `<Card>` and a picture.
  * target = MAUDE_E2E_SECONDARY_ROOT: `ui/About.tsx`, the same `components/Card.tsx`, no picture.
  *
- * Copy Hero in the source tab, ⌘V on About in the target tab: nothing is pasted until the target shell's own toast
+ * Copy Hero in the source tab, ⌘K › Paste objects on About in the target tab: nothing is pasted until the target shell's own toast
  * ("Paste the artboard copied in Home · clip-source?") is clicked; then the artboard lands with its import and its
  * constant, the picture arrives in the target's `assets/` under the same content-addressed name, and the canvas
  * renders without an error card. ⌘Z on About takes the paste back; the picture stays (like an import).
@@ -79,32 +81,18 @@ async function canvasChord(key: string): Promise<void> {
 }
 
 /**
- * ⌘V in the canvas. The canvas takes a paste from WebKit's own `paste` event (the system clipboard still holding the
- * marker its copy left — editing/index.tsx); a keydown alone pastes nothing, and the embedded WebDriver cannot press
- * the real key. So: the keydown (the canvas tells the shell — the paste intent the shell's ask follows), then the paste
- * event WebKit would fire, carrying the marker text the copy put on the clipboard.
+ * The person's own paste: ⌘K › Paste objects (#206 T-F2). A paste from ANOTHER project needs a paste the shell
+ * itself saw (its menu, its ⌘K row, its own key), never a ⌘V the canvas frame relayed (clipboard-relay.ts
+ * `shapeClipPaste`): the frame's ⌘V gets "To paste …, use Edit › Paste." in the canvas's own words.
  */
-async function canvasPaste(): Promise<void> {
-  await browser.execute((mark: string) => {
-    const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-    const doc = frame.contentDocument as Document;
-    const win = frame.contentWindow as Window & typeof globalThis;
-    const at = doc.activeElement ?? doc.body;
-    at.dispatchEvent(
-      new win.KeyboardEvent('keydown', {
-        key: 'v',
-        code: 'KeyV',
-        metaKey: true,
-        bubbles: true,
-        cancelable: true,
-      })
-    );
-    const data = new win.DataTransfer();
-    data.setData('text/plain', mark);
-    at.dispatchEvent(
-      new win.ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })
-    );
-  }, 'Maude · 1 artboard · paste on a canvas (maude-clip)');
+async function shellPaste(): Promise<void> {
+  await focusShell();
+  await browser.keys([Key.Command, 'k']);
+  const input = await $('[data-testid="palette-input"]');
+  await input.waitForExist({ timeout: 10_000 });
+  await input.setValue('Paste objects');
+  await $('[data-testid="palette-row-action:canvas.paste"]').waitForExist({ timeout: 4000 });
+  await browser.keys(['\uE007']); // Enter
 }
 
 /** The latest copy on this Mac, as the desktop shell holds it (#122 `clip_latest`, caller-checked). */
@@ -160,11 +148,11 @@ describe('#122 122-C — paste between two project tabs', () => {
     await capture(report, 'copied-in-source');
   });
 
-  it('⌘V on About in the other project waits for the shell’s own toast', async () => {
+  it('Paste objects (⌘K) on About in the other project waits for the shell’s own toast', async () => {
     await focusTab(targetTab);
     await openCanvas('canvas-row-ui-about');
     await selectArtboard('about');
-    await canvasPaste();
+    await shellPaste();
     const ask = await $('//*[contains(normalize-space(.), "Paste the artboard copied in Home")]');
     await ask.waitForDisplayed({ timeout: 15_000 }).catch(async (e: unknown) => {
       throw new Error(
