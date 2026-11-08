@@ -20,6 +20,10 @@
 
 import { type ParsedHostRef, parseHostRef } from './elements/_shared.ts';
 import { anchorPoint, facingAnchor } from './elements/arrow.model.ts';
+import { guardLockedLists, withItemDeletes } from './checklist-ops.ts';
+import { DEFAULT_FONT_SIZE } from './constants.ts';
+import { itemsOf, MAX_CHECK_ITEMS } from './elements/checkitem.model.ts';
+import { fitSticky } from './elements/sticky.model.ts';
 import { compareOrder, keyBetween } from './fractional-index.ts';
 import { guardLockedOps, isLocked } from './lock.ts';
 import { type ApplyResult, applyOps, type Op } from './ops.ts';
@@ -92,6 +96,37 @@ export interface AiBatchOptions {
   artboards?: ReadonlyArray<{ id: string; x: number; y: number; w: number; h: number }>;
   /** `resolved.at` — injectable for tests. */
   now?: () => Date;
+}
+
+/** Entries of a new checklist, as the agent wrote them: `["text", { "text", "done"? }, …]`. */
+export interface ChecklistEntry {
+  text: string;
+  done: boolean;
+}
+
+/**
+ * The `items` shorthand of a sticky create (contract 113-checklist §5.7), validated: at most
+ * `MAX_CHECK_ITEMS` entries, each a string or `{ text, done? }`. It is expanded into `checkitem`
+ * records and never stored on the sticky.
+ */
+export function parseChecklistEntries(raw: unknown, what: string): ChecklistEntry[] {
+  if (!Array.isArray(raw)) throw new AiOpError(`${what}: items must be an array`);
+  if (raw.length > MAX_CHECK_ITEMS) {
+    throw new AiOpError(
+      `${what}: a checklist holds ${MAX_CHECK_ITEMS} items at most (got ${raw.length})`
+    );
+  }
+  return raw.map((e, i) => {
+    if (typeof e === 'string') return { text: e, done: false };
+    if (isRec(e) && (e.text === undefined || typeof e.text === 'string')) {
+      const done = e.done;
+      if (done !== undefined && typeof done !== 'boolean' && done !== null) {
+        throw new AiOpError(`${what}: items[${i}].done is true or false`);
+      }
+      return { text: typeof e.text === 'string' ? e.text : '', done: done === true };
+    }
+    throw new AiOpError(`${what}: items[${i}] is a string or { "text", "done"? }`);
+  });
 }
 
 export function mintId(prefix = 's'): string {
@@ -195,6 +230,16 @@ export class AiBatch {
           `unlock it first with {"op":"update","id":"${id}","locked":false} only if the user asked`
       );
     }
+    // #113 — a checklist's entries are their own records, so the sticky's lock does not cover them:
+    // a locked list still ticks, but its entries are not added, reworded, removed or reordered.
+    const lockedLists = guardLockedLists(this.state, ops);
+    if (lockedLists.blocked) {
+      throw new AiOpError(
+        `${what}: "${lockedLists.ids[0]}" is an item of a locked checklist — the user pinned it ` +
+          '(ticking is still allowed); unlock the checklist first with ' +
+          '{"op":"update","id":"<its sticky id>","locked":false} only if the user asked'
+      );
+    }
     const r = applyOps(this.state, ops);
     if (r.rejected.length) {
       const x = r.rejected[0] as ApplyResult['rejected'][number];
@@ -273,6 +318,13 @@ export class AiBatch {
       else set[k] = v;
     };
     for (const [k0, v] of Object.entries(raw)) {
+      if (k0 === 'items') {
+        // Only `create sticky` takes the shorthand (create() strips it first); it is never a field.
+        throw new AiOpError(
+          `${what}: "items" is only for creating a checklist sticky — to change one, ` +
+            'create / update / delete its checkitem records'
+        );
+      }
       if (v === undefined || PLUMBING.has(k0) || k0 === 'x' || k0 === 'y') continue;
       let k = k0;
       let val = v;
@@ -292,6 +344,11 @@ export class AiBatch {
           if (!('radius' in raw)) set.radius = 8;
         } else if (v === 'square') val = 'rect';
         else if (v === 'circle') val = 'ellipse';
+      }
+      if (type === 'checkitem' && k === 'list' && cur) {
+        throw new AiOpError(
+          `${what}: an item can't move to another checklist — add it there instead`
+        );
       }
       if (IMMUTABLE.has(k)) {
         throw new AiOpError(
@@ -322,6 +379,23 @@ export class AiBatch {
           );
         }
       }
+      if (type === 'checkitem' && k === 'done') {
+        // Like `resolved`: the agent says `true` (tick now, as the AI) or `false` / `null` (untick);
+        // it never forges who ticked or when.
+        if (val === true)
+          val = {
+            by: AI_RESOLVER,
+            at: this.now()
+              .toISOString()
+              .replace(/\.\d+Z$/, 'Z'),
+          };
+        else if (val === false) val = null;
+        else if (val !== null) {
+          throw new AiOpError(
+            `${what}: done is true (tick) or false (untick) — the board stamps who and when`
+          );
+        }
+      }
       const parser = extField ?? spec[k];
       if (val !== null && parser?.parse(val) === undefined) {
         throw new AiOpError(`${what}: invalid value for ${type}.${k}: ${JSON.stringify(val)}`);
@@ -344,12 +418,34 @@ export class AiBatch {
         `create: unknown type "${type}" (types: ${[...REGISTRY.keys()].join(', ')})`
       );
     }
+    // #113 — `items` is the checklist shorthand of a sticky: validated here, expanded into checkitem
+    // records after the sticky exists, and never stored. Any other type refuses it.
+    let entries: ChecklistEntry[] | null = null;
+    if (op.items !== undefined) {
+      if (type !== 'sticky') {
+        throw new AiOpError(
+          `${what}: "items" is only for a sticky (a checklist) — ${type} has no items`
+        );
+      }
+      entries = parseChecklistEntries(op.items, what);
+      const { items: _items, ...rest } = op;
+      op = rest;
+    }
+    if (type === 'checkitem') return this.createCheckItem(op, what);
     const { set } = this.fields(type, op, null, what);
     const world: Record<string, unknown> = { ...set };
     if (def.caps.box) {
       const size = CREATE_SIZE[type];
       let w = num(op.w) ? op.w : size?.w;
       let h = num(op.h) ? op.h : size?.h;
+      if (entries?.length && num(w) && num(h)) {
+        // Room for the entries (grows only) — the same fit the layer applies when a person adds one.
+        h = fitSticky(
+          { w, h, fontSize: num(op.fontSize) ? op.fontSize : DEFAULT_FONT_SIZE },
+          typeof op.text === 'string' ? op.text : '',
+          entries
+        ).h;
+      }
       if (type === 'text' && (w === undefined || h === undefined)) {
         const tb = textBox(
           typeof op.text === 'string' ? op.text : '',
@@ -393,6 +489,51 @@ export class AiBatch {
         `${what}: too small or empty to keep (a ${type} needs real content/size)`
       );
     }
+    this.apply([{ op: 'put', el: draft }], what);
+    if (typeof op.ref === 'string' && op.ref.startsWith('@')) this.refs.set(op.ref, id);
+    this.created.push(id);
+    for (const entry of entries ?? []) {
+      this.createCheckItem(
+        { list: id, text: entry.text, ...(entry.done ? { done: true } : {}) },
+        `${what} items`
+      );
+    }
+    return id;
+  }
+
+  /**
+   * Create one checklist entry (`{ "op":"create", "type":"checkitem", "list": <sticky|@ref>, "text"?,
+   * "done"? }`). It has no position: `list` names the sticky, and the entry is appended after the
+   * list's last one.
+   */
+  private createCheckItem(op: Record<string, unknown>, what: string): string {
+    if (op.list === undefined) {
+      throw new AiOpError(`${what}: needs list (the sticky id or @ref this item belongs to)`);
+    }
+    if (op.parent !== undefined && op.parent !== null) {
+      throw new AiOpError(`${what}: an item belongs to a list, not a section — use list`);
+    }
+    const list = this.resolve(op.list, what);
+    if (this.get(list).type !== 'sticky') {
+      throw new AiOpError(
+        `${what}: "${list}" is a ${this.get(list).type} — a checklist is a sticky`
+      );
+    }
+    const siblings = itemsOf(this.state.values(), list);
+    if (siblings.length >= MAX_CHECK_ITEMS) {
+      throw new AiOpError(
+        `${what}: "${list}" already has ${MAX_CHECK_ITEMS} items — the most a checklist holds`
+      );
+    }
+    const { set } = this.fields('checkitem', { ...op, list }, null, what);
+    const id = mintId('ck');
+    const draft = {
+      id,
+      type: 'checkitem',
+      index: keyBetween(siblings[siblings.length - 1]?.index ?? null, null),
+      ...set,
+      author: { kind: 'ai' },
+    } as AnnotationElement;
     this.apply([{ op: 'put', el: draft }], what);
     if (typeof op.ref === 'string' && op.ref.startsWith('@')) this.refs.set(op.ref, id);
     this.created.push(id);
@@ -800,7 +941,9 @@ export class AiBatch {
   /** Delete (a section's children move up; arrows bound to it keep their endpoint). */
   delete(op: Record<string, unknown>): void {
     const id = this.resolve(op.id, 'delete');
-    this.apply([{ op: 'delete', id }], `delete ${id}`);
-    this.deleted.push(id);
+    // A checklist sticky takes its entries with it, in the same batch (#113).
+    const ops = withItemDeletes(this.state, [{ op: 'delete', id }]);
+    this.apply(ops, `delete ${id}`);
+    for (const o of ops) if (o.op === 'delete') this.deleted.push(o.id);
   }
 }

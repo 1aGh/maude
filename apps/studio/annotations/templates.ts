@@ -34,7 +34,8 @@ export interface BoardTemplate {
 export interface BoardSpec {
   title?: string;
   layout?: 'columns' | 'radial' | 'flow';
-  groups?: { title: string; cards?: string[] }[];
+  /** A card is its text, or `{ text, items }` — a checklist sticky (#113). */
+  groups?: { title: string; cards?: (string | { text: string; items: string[] })[] }[];
   nodes?: { id: string; label: string; shape?: string }[];
   edges?: { from: string; to: string; label?: string }[];
 }
@@ -130,7 +131,8 @@ export const TEMPLATES: readonly BoardTemplate[] = Object.freeze([
     desc: 'One section, ticks',
     thumb: 'check',
     board: {
-      groups: [{ title: 'Checklist', cards: cards('☐', '☐', '☐', '☐') }],
+      // #113: one real checklist sticky — a title and three empty tickable entries (not ☐ text).
+      groups: [{ title: 'Checklist', cards: [{ text: 'Checklist', items: ['', '', ''] }] }],
     },
   },
   {

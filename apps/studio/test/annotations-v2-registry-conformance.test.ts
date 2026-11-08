@@ -97,6 +97,8 @@ const SAMPLES: Record<string, Record<string, unknown>> = {
   stamp: { x: 10, y: 20, w: 32, h: 32, kind: 'heart', target: 'sticky1' },
   vote: { targets: ['ab:dir-a', 'ab:dir-b'], title: 'Pick one' },
   ballot: { vote: 'vote1', voter: 'u_ana', picks: { 'ab:dir-a': 1 } },
+  // #113: one entry of a checklist sticky.
+  checkitem: { list: 'sticky1', text: 'Write the post' },
 };
 
 /** Types whose view lands in a later slice: they still draw as the placeholder
@@ -107,6 +109,7 @@ const VIEW_PENDING = new Set(['stamp']);
 const METADATA_PATCH: Record<string, Record<string, unknown>> = {
   vote: { title: 'Pick two' },
   ballot: { castAt: '2026-10-01T10:00:00.000Z' },
+  checkitem: { text: 'Write the launch post' },
 };
 
 const CTX: GeomCtx = { origin: { x: 0, y: 0 }, resolve: () => null };
@@ -200,9 +203,11 @@ describe.each(Object.keys(SAMPLES))('%s', (type) => {
   test('AI read shows it; AI write creates it through the registry', () => {
     const el = sample(type);
     const read = projectBoard([el]);
-    // A ballot is the voter's secret until the vote ends (Q5): the agent's read never prints one.
-    expect(read.elements.map((e) => e.id)).toEqual(type === 'ballot' ? [] : [el.id]);
-    if (type !== 'ballot') expect(read.elements[0]?.type).toBe(type);
+    // A ballot is the voter's secret until the vote ends (Q5): the agent's read never prints one. A checkitem
+    // is part of its sticky's `items` (#113): alone, with no sticky to hold it, it is an inert orphan.
+    const hidden = type === 'ballot' || type === 'checkitem';
+    expect(read.elements.map((e) => e.id)).toEqual(hidden ? [] : [el.id]);
+    if (!hidden) expect(read.elements[0]?.type).toBe(type);
     if (def.caps.box) {
       const batch = new AiBatch([]);
       const { id: _i, type: _t, index: _x, ...fields } = el;
