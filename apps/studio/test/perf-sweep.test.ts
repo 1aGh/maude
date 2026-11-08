@@ -4,13 +4,13 @@
 import { describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import {
-  DEFAULT_SWEEP,
-  SWEEP_PHASES,
   aggregateRuns,
+  DEFAULT_SWEEP,
   occlusionReason,
   parseSweepArgs,
   parseSweepResult,
   percentile,
+  SWEEP_PHASES,
   summarizePhase,
   sweepStartExpression,
   worstWindow,

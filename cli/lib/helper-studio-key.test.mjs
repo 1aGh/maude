@@ -29,6 +29,7 @@ const NOT_THE_STUDIO = {
   'runtime-health.sh': 'HEAD-probes /_canvas-runtime/* bundles only (exempt, §7.3)',
   'to-lottie.sh': 'its own python http.server on a random port, not the studio',
   '_perf-probe-safari.mjs': 'talks to safaridriver; the studio page opens through --launch',
+  '_perf-sweep.mjs': 'talks to safaridriver / Playwright; the canvas page is a browser navigation',
   '_smart-frames.mjs': 'a local Ollama, not the studio',
   '_curl-local.mjs': 'the loopback-only curl verb itself (DDR-185): the caller names the request',
   'curl-local.sh': 'front for _curl-local.mjs',

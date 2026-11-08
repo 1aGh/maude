@@ -16,13 +16,13 @@
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import {
-  SWEEP_POLL_EXPRESSION,
   aggregateRuns,
   occlusionReason,
   parseSweepArgs,
   parseSweepResult,
   parseWindow,
   renderSweepReport,
+  SWEEP_POLL_EXPRESSION,
   sweepStartExpression,
 } from './_perf-sweep-shared.mjs';
 
