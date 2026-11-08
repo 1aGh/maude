@@ -27,6 +27,7 @@ import { exportShimPath, resolveExportRuntime } from '../exporters/_runtime.ts';
 import { canvasShellUrl } from '../exporters/index.ts';
 import type { IndexService } from '../index/service.ts';
 import type { ArtboardKind, ArtboardRow, CanvasRow } from '../index/types.ts';
+import { localCaptureUrl } from '../shell/capture-url.ts';
 import {
   assetKey,
   dsCssHash,
@@ -43,7 +44,6 @@ import {
   thumbKey,
   versionLaneHashes,
 } from './keys.ts';
-import { localCaptureUrl } from '../shell/capture-url.ts';
 import { hasThumb, pruneThumbs, readThumb, writeThumb } from './store.ts';
 import { checkJpeg, coverWorthy, jpegSize } from './validate.ts';
 

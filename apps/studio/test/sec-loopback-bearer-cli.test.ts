@@ -2,11 +2,11 @@
 // (verbs, hooks) must take it from the app's registry entry of the attested port and send it. This
 // boots a real server the way the app does (both per-spawn keys in env) behind a registry fixture.
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import type { Subprocess } from 'bun';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { realpathSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { Subprocess } from 'bun';
 
 import { postStudio, probeStudio } from '../../../cli/lib/studio-locate.mjs';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';

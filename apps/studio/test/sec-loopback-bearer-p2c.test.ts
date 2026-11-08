@@ -4,10 +4,10 @@
 // limits, publishing, invitations, cloud); the session cookie is a random server-held value that
 // rotates and expires; the launch-nonce store forgets only expired tokens.
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import type { Subprocess } from 'bun';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import type { Subprocess } from 'bun';
 
 import {
   API_KEY_ENV,

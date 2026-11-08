@@ -18,8 +18,8 @@ import {
   DESIGN_REL,
   findProjectRoot,
   locateStudio,
-  studioHeaders,
   rootIdentity,
+  studioHeaders,
 } from '../../../cli/lib/studio-locate.mjs';
 
 const CHAT_ID = /^[A-Za-z0-9_-]{1,64}$/;

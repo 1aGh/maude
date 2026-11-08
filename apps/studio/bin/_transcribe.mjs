@@ -22,7 +22,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, resolve } from 'node:path';
-
+import { studioHeadersFor } from '../../../cli/lib/studio-locate.mjs';
 import { wordsToSrt, wordsToVtt } from '../generation/captions.ts';
 import { resolveWhisperModel, WHISPER_MODELS } from '../generation/whisper-models.ts';
 import { DecodeError } from '../video/decode.ts';
@@ -33,7 +33,6 @@ import {
   WhisperRunError,
   writeTranscriptSidecar,
 } from '../video/words-run.ts';
-import { studioHeadersFor } from '../../../cli/lib/studio-locate.mjs';
 import { chromiumDecoder } from './_transcribe-local.mjs';
 
 /** Read `.design/config.json` → generation.transcription.whisperModel, or null

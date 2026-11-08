@@ -7,6 +7,7 @@
 // replace them with real renderers.
 
 import path from 'node:path';
+import { localCaptureUrl } from '../shell/capture-url.ts';
 // DDR-148 — temporal formats (capture-spine encode). Named exports mp4/webm/gif.
 import { audio } from './audio.ts';
 import * as canva from './canva.ts';
@@ -25,7 +26,6 @@ import {
 } from './scope.ts';
 import * as svg from './svg.ts';
 import { gif, mp4, webm } from './video.ts';
-import { localCaptureUrl } from '../shell/capture-url.ts';
 import * as zip from './zip.ts';
 
 export type Format =

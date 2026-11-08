@@ -70,6 +70,13 @@ import { runStageHooks } from './routes/index.ts';
 import { bindShellRuntime, shellPendingWork } from './routes/shell.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import {
+  bootApiKey,
+  LAUNCH_PARAM,
+  mainOriginKeyRefusal,
+  mintLaunchToken,
+  terminalKeyMode,
+} from './shell/api-key.ts';
+import {
   isCliRole,
   registryPath,
   SERVER_ROLE_ENV,
@@ -77,15 +84,8 @@ import {
   yieldIntervalFrom,
   yieldRefusal,
 } from './shell/cli-yield.ts';
-import {
-  bootApiKey,
-  mainOriginKeyRefusal,
-  mintLaunchToken,
-  terminalKeyMode,
-  LAUNCH_PARAM,
-} from './shell/api-key.ts';
-import { removeServerKeyFile, writeServerKeyFile } from './shell/key-file.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
+import { removeServerKeyFile, writeServerKeyFile } from './shell/key-file.ts';
 import { exitWithParent } from './shell/parent-watch.ts';
 import { removeServerJsonIfOurs, writeServerJson } from './shell/server-json.ts';
 import { createActionFeed } from './sync/action-feed.ts';

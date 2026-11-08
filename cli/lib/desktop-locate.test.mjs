@@ -29,11 +29,11 @@ import { after, before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
+  apiKeyFor,
   appDataRegistryPath,
   cleanName,
   ensureDesktop,
   isAppPid,
-  apiKeyFor,
   locateDesktop,
   probeDesktop,
   readRegistry,
