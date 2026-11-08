@@ -162,12 +162,28 @@ export function applyReframe(
   const texts = propTexts(props);
   const empty = Object.values(texts).every((t) => t === null);
   const s = new MagicString(source);
+  // Fill is the default and writes nothing on the Reframe — but a bare `<Video>` renders `contain` unless it says
+  // `objectFit="cover"`, so choosing Fill must put that on the picture (#128 §5), or the clip stays letterboxed.
+  const fillMedia = (m: Node | undefined) => {
+    if (patch.fit !== 'fill' || !m || attrNode(m, 'objectFit')) return;
+    const tag = m.openingElement?.name?.name;
+    if (tag === 'Video' || tag === 'MaudeVideo') setProp(s, m, 'objectFit', '"cover"');
+  };
   if (rf) {
-    if (empty) s.overwrite(rf.start, rf.end, innerText(source, rf));
-    else for (const [k, t] of Object.entries(texts)) setProp(s, rf, k, t);
+    if (empty) {
+      // unwrap by dropping the two tags, so the picture between them stays editable below
+      if (rf.closingElement) {
+        s.remove(rf.start, rf.openingElement.end);
+        s.remove(rf.closingElement.start, rf.end);
+      } else s.overwrite(rf.start, rf.end, innerText(source, rf));
+      fillMedia(firstIn(els, rf.start, rf.end, MEDIA)?.el);
+    } else for (const [k, t] of Object.entries(texts)) setProp(s, rf, k, t);
   } else {
-    if (empty) return { source, reframed: false };
     const media = firstIn(els, clip.start, clip.end, MEDIA)?.el;
+    if (empty) {
+      fillMedia(media);
+      return { source: s.hasChanged() ? finish(file, s, stableId) : source, reframed: false };
+    }
     if (!media) bad(file, 'This clip has no picture to frame.', stableId);
     // A legacy crop wrapper (`<div data-mframe …><div …>MEDIA</div></div>`) is replaced.
     const wrapper = els.find(

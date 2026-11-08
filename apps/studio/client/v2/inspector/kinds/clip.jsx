@@ -27,7 +27,9 @@ import {
   NO_CROP,
   cropIsNeutral,
   filterToGradeParams,
-  framingValue,
+  focusOf,
+  focusParams,
+  framingOf,
   gradeMeaningful,
   hasSound,
   lengthWords,
@@ -35,6 +37,10 @@ import {
   speedOptions,
   srcInOut,
   volumeOf,
+  ZOOM_MAX,
+  ZOOM_MIN,
+  zoomOf,
+  zoomParams,
 } from './clip-model.js';
 import { MotionGrid, StyleRows, TextRows } from './title-rows.jsx';
 
@@ -142,7 +148,7 @@ function FramingRow({ t, ctx }) {
     <Row k="Framing" name="clip-framing">
       <span className="insp-framing">
         <Select
-          value={framingValue(t.seq.fit)}
+          value={framingOf(t.seq)}
           options={FRAMING_OPTIONS}
           ariaLabel="How the picture sits"
           testId="insp-clip-framing"
@@ -184,6 +190,58 @@ function FramingRow({ t, ctx }) {
   );
 }
 
+/** #128 §5: Zoom and where the picture is centred — plain numbers over `video.reframe` ("All formats"). */
+function ZoomFocusRows({ t }) {
+  const focus = focusOf(t.seq);
+  const axis = (k, label, name, id) => (
+    <Row k={label} name={name}>
+      {focus.animated ? (
+        <span className="k-mono" data-testid={id}>
+          {focus[k]}
+        </span>
+      ) : (
+        <span data-testid={id}>
+          <NumberField
+            value={focus[k]}
+            min={0}
+            max={100}
+            step={1}
+            scrub
+            ariaLabel={`${label} in percent of the picture`}
+            onCommit={(v) => v !== focus[k] && t.onOp('reframe', focusParams(t.seq, k, v))}
+          />
+        </span>
+      )}
+    </Row>
+  );
+  return (
+    <>
+      <Row k="Zoom" name="clip-zoom">
+        <span data-testid="insp-clip-zoom">
+          <NumberField
+            value={zoomOf(t.seq)}
+            min={ZOOM_MIN}
+            max={ZOOM_MAX}
+            step={0.05}
+            scrub
+            format={(n) => `${Math.round(n * 100) / 100}×`}
+            parse={(raw) => Number.parseFloat(String(raw).replace(',', '.'))}
+            ariaLabel="Zoom into the picture"
+            onCommit={(v) => v !== zoomOf(t.seq) && t.onOp('reframe', zoomParams(v))}
+          />
+        </span>
+      </Row>
+      {axis('x', 'Focus X', 'clip-focus-x', 'insp-clip-focus-x')}
+      {axis('y', 'Focus Y', 'clip-focus-y', 'insp-clip-focus-y')}
+      {focus.animated ? (
+        <Quiet testid="insp-clip-focus-note">
+          The focus moves over time. Change it in Re-frame…
+        </Quiet>
+      ) : null}
+    </>
+  );
+}
+
 function ClipRows({ el, ctx }) {
   const t = el?.timeline;
   if (!t) return null;
@@ -195,6 +253,7 @@ function ClipRows({ el, ctx }) {
       <SpeedRow t={t} />
       {hasSound(t.seq) ? <VolumeRow t={t} /> : null}
       {visual(t.seq) ? <FramingRow t={t} ctx={ctx} /> : null}
+      {visual(t.seq) ? <ZoomFocusRows t={t} /> : null}
       {ph ? <TextRows t={t} /> : null}
     </div>
   );

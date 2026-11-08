@@ -88,11 +88,14 @@ const CLIP_SEQ = {
     trimBefore: 60,
     filter: null,
     framing: null,
+    // a clip that fills its frame (#128 §5: the Framing select reads the real fit, not just the Reframe's)
+    objectFit: 'cover',
   },
   placeholder: null,
   text: null,
   titleMotion: null,
   fit: null,
+  reframe: null,
   rowKind: 'video',
 };
 const TITLE_SEQ = {
@@ -158,7 +161,7 @@ const openAdvanced = async (host: HTMLElement) => {
 };
 
 describe('a clip (07 ve-transition: Length · Speed · Volume · Framing)', () => {
-  test('the chip says Clip, then the four rows in the canvas’s order, in the canvas’s words', async () => {
+  test('the chip says Clip, then the rows in the canvas’s order, in the canvas’s words', async () => {
     const host = await frame(selection('clip', CLIP_SEQ));
     expect(q(host, 'inspector-kind')?.textContent).toBe('Clip');
     expect(q(host, 'inspector-title')?.textContent).toBe('Dron nad lajnou');
@@ -167,6 +170,9 @@ describe('a clip (07 ve-transition: Length · Speed · Volume · Framing)', () =
       'clip-speed = Speed',
       'clip-volume = Volume',
       'clip-framing = Framing',
+      'clip-zoom = Zoom',
+      'clip-focus-x = Focus X',
+      'clip-focus-y = Focus Y',
     ]);
     const len = q(host, 'insp-clip-length')?.querySelector('input') as HTMLInputElement;
     expect(len.value).toBe('2.5 s');
@@ -191,6 +197,9 @@ describe('a clip (07 ve-transition: Length · Speed · Volume · Framing)', () =
       'clip-length = Length',
       'clip-speed = Speed',
       'clip-framing = Framing',
+      'clip-zoom = Zoom',
+      'clip-focus-x = Focus X',
+      'clip-focus-y = Focus Y',
     ]);
     const aud = await frame(
       selection('clip', {
@@ -235,6 +244,73 @@ describe('a clip (07 ve-transition: Length · Speed · Volume · Framing)', () =
     expect((q(lit, 'insp-clip-framing') as HTMLSelectElement).selectedOptions[0]?.textContent).toBe(
       'Fit'
     );
+  });
+
+  test('Framing tells the truth about a letterboxed <Video>: no objectFit reads "Fit", and Fill writes video.fit', async () => {
+    const boxed = await frame(
+      selection('clip', { ...CLIP_SEQ, mediaProps: { ...CLIP_SEQ.mediaProps, objectFit: null } })
+    );
+    const sel = q(boxed, 'insp-clip-framing') as HTMLSelectElement;
+    expect(sel.selectedOptions[0]?.textContent).toBe('Fit');
+    await pick(sel, 'fill');
+    expect(calls).toEqual([['op', 'fit', { fit: 'fill' }]]);
+  });
+
+  const typeInto = async (field: Element | null, value: string) => {
+    const input = must(field, 'field').querySelector('input') as HTMLInputElement;
+    await act(async () => {
+      input.focus();
+      input.value = value;
+      input.dispatchEvent(new window.Event('input', { bubbles: true }));
+      input.blur();
+    });
+    await settle();
+  };
+
+  test('Zoom and Focus show the Reframe and write video.reframe', async () => {
+    const framed = await frame(
+      selection('clip', {
+        ...CLIP_SEQ,
+        reframe: { focus: [[0, 0.25, 0.8]], zoom: 2, fit: null, formats: {} },
+      })
+    );
+    const val = (id: string) => (q(framed, id)?.querySelector('input') as HTMLInputElement).value;
+    expect(val('insp-clip-zoom')).toBe('2×');
+    expect(val('insp-clip-focus-x')).toBe('25');
+    expect(val('insp-clip-focus-y')).toBe('80');
+
+    const host = await frame(selection('clip', CLIP_SEQ));
+    expect((q(host, 'insp-clip-zoom')?.querySelector('input') as HTMLInputElement).value).toBe(
+      '1×'
+    );
+    await typeInto(q(host, 'insp-clip-zoom'), '3');
+    await typeInto(q(host, 'insp-clip-focus-x'), '30');
+    expect(calls).toEqual([
+      ['op', 'reframe', { zoom: 3 }],
+      ['op', 'reframe', { focus: [[0, 0.3, 0.5]] }],
+    ]);
+  });
+
+  test('a focus that moves over time is read-only here: the Re-frame island owns it', async () => {
+    const host = await frame(
+      selection('clip', {
+        ...CLIP_SEQ,
+        reframe: {
+          focus: [
+            [0, 0.2, 0.5],
+            [2, 0.6, 0.5],
+          ],
+          zoom: 1,
+          fit: null,
+          formats: {},
+        },
+      })
+    );
+    // shown, not editable: no input to type a second, competing point into
+    expect(q(host, 'insp-clip-focus-x')?.textContent).toBe('20');
+    expect(q(host, 'insp-clip-focus-x')?.querySelector('input')).toBeNull();
+    expect(q(host, 'insp-clip-focus-y')?.textContent).toBe('50');
+    expect(q(host, 'insp-clip-focus-note')?.textContent).toContain('Re-frame');
   });
 
   test('Length types a fixed number and trims the END: clip.retime with whole frames', async () => {

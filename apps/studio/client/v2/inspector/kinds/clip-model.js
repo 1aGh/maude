@@ -188,3 +188,54 @@ export const gradeMeaningful = (g) =>
 /** The crop wrapper's neutral value. */
 export const NO_CROP = Object.freeze({ scale: 1, x: 0, y: 0 });
 export const cropIsNeutral = (f) => !f || (f.scale === 1 && f.x === 0 && f.y === 0);
+
+// ── #128 §5 (T3.6): how a clip really sits, and Zoom / Focus as numbers ──────────────────────────────────────
+const VIDEO_TAGS = ['Video', 'OffthreadVideo', 'MaudeVideo'];
+
+/**
+ * What the Framing select shows. A Reframe's `fit` wins; a clip with a Reframe and no fit is Fill. A bare `<Video>`
+ * (no Reframe) renders what its `objectFit` says — `cover` is Fill, and anything else, the default `contain` included,
+ * is Fit: the select used to say "All formats" for a clip that was letterboxed. A picture, or a clip whose media
+ * is not read (a wrapper component), keeps Fill as its default.
+ */
+export function framingOf(seq) {
+  if (seq?.fit) return framingValue(seq.fit);
+  if (seq?.reframe) return 'fill';
+  if (!VIDEO_TAGS.includes(seq?.mediaTag ?? '') || !seq?.mediaProps) return 'fill';
+  return seq.mediaProps.objectFit === 'cover' ? 'fill' : 'fit';
+}
+
+export const ZOOM_MIN = 1;
+export const ZOOM_MAX = 8;
+const clampNum = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+
+/** The clip's zoom (`<Reframe zoom>`); 1 when it has none. */
+export const zoomOf = (seq) => seq?.reframe?.zoom ?? 1;
+
+/** The `video.reframe` params for a zoom; 1 is the default and clears the prop. */
+export function zoomParams(zoom) {
+  const z = Math.round(clampNum(Number(zoom) || 1, ZOOM_MIN, ZOOM_MAX) * 100) / 100;
+  return { zoom: z === 1 ? null : z };
+}
+
+/** The shared ("All formats") focus point as whole percents of the picture; `animated` when it has several keys. */
+export function focusOf(seq) {
+  const keys = seq?.reframe?.focus ?? [];
+  const k = keys[0];
+  return {
+    x: k ? Math.round(k[1] * 100) : 50,
+    y: k ? Math.round(k[2] * 100) : 50,
+    animated: keys.length > 1,
+  };
+}
+
+/** The `video.reframe` params for moving one axis of the focus; the centre clears the framing. */
+export function focusParams(seq, axis, percent) {
+  const cur = focusOf(seq);
+  const v = Math.round(clampNum(Number(percent) || 0, 0, 100));
+  const x = axis === 'x' ? v : cur.x;
+  const y = axis === 'y' ? v : cur.y;
+  if (x === 50 && y === 50) return { focus: null };
+  const t = seq?.reframe?.focus?.[0]?.[0] ?? 0;
+  return { focus: [[t, x / 100, y / 100]] };
+}
