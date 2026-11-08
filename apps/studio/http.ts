@@ -329,6 +329,7 @@ import {
 } from './ui-prefs.ts';
 import { persistCloudTranscript } from './video/provider-transcript.ts';
 import { loadWhatsNew, resolveMaudeVersion } from './whats-new.ts';
+import { addedRelOf, recordAssetAdded } from './asset-added.ts';
 import { isWorkspaceMode, resolveRenderLane } from './workspace-mode.ts';
 import { isLoopbackHost } from './ws.ts';
 
@@ -2690,6 +2691,8 @@ export function createHttp(
       announce: (rel) => {
         if (isWorkspaceMode()) ctx.bus.emit('fs:any', rel);
       },
+      // #172 — "Added by" travels with the project: the vouched member in a cell, else this Mac's git user.
+      addedBy: (req) => assetAddedWho(req),
     },
     // S8.20 — /_api/describe* (routes/describe.ts): search in pictures — the consent, Stop, and what AI saw. A Mac only.
     describe: {
@@ -6119,6 +6122,7 @@ export function createHttp(
           { status: result.status ?? 400, headers: { 'Cache-Control': 'no-store' } }
         );
       }
+      await recordUploadAdded(req, result.path);
       return Response.json(
         { path: result.path },
         { status: 201, headers: { 'Cache-Control': 'no-store' } }
@@ -6202,6 +6206,7 @@ export function createHttp(
           { status: result.status ?? 400, headers: { 'Cache-Control': 'no-store' } }
         );
       }
+      await recordUploadAdded(req, result.path);
       return Response.json(
         { path: result.path },
         { status: 201, headers: { 'Cache-Control': 'no-store' } }
@@ -8032,6 +8037,30 @@ export function createHttp(
   // `x-maude-access` claim (DEFAULT CLOSED: no proven edit role = read-only); a
   // desktop reads the linked hub's stored claim (`accessFor`, re-read each call so
   // a sign-in lands on the next write); an unlinked project is the owner's.
+  /**
+   * #172 — who to write in `assets/<stem>.added.json` for a picture this request brings in. In a cell the proxy
+   * vouches the member (`x-maude-user`; the header is read ONLY in workspace mode, where the proxy sets it — on a Mac
+   * a browser could send any value, so it is never read there); on a Mac it is the git user. A server-derived value,
+   * never a body field, so canvas code cannot name someone else.
+   */
+  async function assetAddedWho(req: Request): Promise<string> {
+    const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
+    return vouched?.slice(0, 120) || (await api.gitCurrentUser());
+  }
+
+  /** #172 — write-once "Added by" record for a fresh upload; announced to peers in a cell. Never fails the upload. */
+  async function recordUploadAdded(req: Request, assetPath: string): Promise<void> {
+    try {
+      const who = await assetAddedWho(req);
+      if (recordAssetAdded(ctx.paths.designRoot, assetPath, who) && isWorkspaceMode()) {
+        const rel = addedRelOf(assetPath);
+        if (rel) ctx.bus.emit('fs:any', rel);
+      }
+    } catch {
+      /* a missing line, never a failed upload */
+    }
+  }
+
   function accessOf(req?: Request): Access {
     const base = isWorkspaceMode()
       ? accessFromProxy(req?.headers ?? new Headers())
