@@ -352,6 +352,8 @@ const PROJECT = [
   // fix/207 — this Mac's shared-code consent for the project's hub: about the whole project
   '/_api/sync/code-consent',
   '/_api/sync/code-consent/set',
+  // #158 — the files a linked project's canvases import that will not sync: about the whole project
+  '/_api/sync/unsynced-refs',
   // 2.0.7 #7b — the answer to this Mac's held deletes: about the whole project
   '/_api/sync/held-deletes',
   // #167 T5.3 — the owner's Adopt as code for one held file: about the whole project

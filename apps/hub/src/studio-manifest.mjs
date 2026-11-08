@@ -530,6 +530,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // infrastructure (and a member must not learn or change it)
   '/_api/sync/code-consent': REFUSED,
   '/_api/sync/code-consent/set': REFUSED,
+  // #158 — a disk read of this Mac's design root against its sync set; a cell has no such view to give
+  '/_api/sync/unsynced-refs': REFUSED,
   // 2.0.7 #7b — a PERSON's answer to their Mac's held deletes; a cell has no local deletes to hold
   '/_api/sync/held-deletes': REFUSED,
   // #167 T5.3 — Adopt as code: the desktop owner's answer to its own hub, never a member's in a cell.
