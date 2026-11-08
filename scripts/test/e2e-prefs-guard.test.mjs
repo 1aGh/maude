@@ -186,7 +186,10 @@ test('a lane that names its own e2e home first still gets prefs/cloud pointers i
     MAUDE_CLOUD_CONFIG: join(tmpdir(), 'maude-e2e-invite-x', 'cloud.json'),
   };
   assert.deepEqual(e2ePointers(env), { MAUDE_UI_PREFS_PATH: join(home, 'maude', 'prefs.json') });
-  assert.deepEqual(e2ePointers({ XDG_CONFIG_HOME: home }), {});
+  // an UNSET cloud pointer is pinned into the lane's home (the e2e app once read the person's real cloud.json)
+  assert.deepEqual(e2ePointers({ XDG_CONFIG_HOME: home }), {
+    MAUDE_CLOUD_CONFIG: join(home, 'maude', 'cloud.json'),
+  });
   assert.deepEqual(
     e2ePointers({
       XDG_CONFIG_HOME: home,

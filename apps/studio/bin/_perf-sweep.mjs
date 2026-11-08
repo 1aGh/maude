@@ -46,11 +46,11 @@ function pageUrl(opts) {
 // ---------- Chromium (Playwright) ----------
 
 async function chromiumRun(opts) {
-  const { chromium } = await import('playwright');
   const win = parseWindow(opts.window);
   // --gpu: the full Chromium build in its new headless mode with Metal-backed ANGLE, so frames are not bound by
   // the software rasteriser the default headless shell uses (which turns a heavy board into ~4 fps)
-  const browser = await chromium.launch(
+  const { launchChromium } = await import('./_pw-launch.mjs');
+  const browser = await launchChromium(
     opts.gpu
       ? {
           headless: true,

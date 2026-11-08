@@ -88,7 +88,11 @@ Na začátku bylo v `1aGh/maude` otevřených 21 issues, teď **0**. Každé zav
 | check-client-boots (zdroj + postavená `.app`) | OK |
 | check-bundle-completeness --smoke | OK, až po opravě. Smoke našel, že `server-up` z debug `.app` bral package root z `target/debug` (c7ba1cea8). |
 | Live render smoke (opening card) | OK po každé dávce |
-| Desktop e2e | **Červené.** Zelené: tabs 12, home 15, relaunch 5, cli-reuse 5, ai-runs 5, generate-takes 3, shell-panels 5, surface L01 14/14; default lane 49/55. **Oprava:** původně jsem psal, že červené nejsou platné (okno „vidět v 1 z 88 vzorků“). Moje sonda ale počítala jen window layer 0 a testovací okno je na layeru 5. Rerun s oknem prokazatelně na obrazovce červené potvrdil: edit-multi, edit-pen, export-formats (8), exports-panel, video-ai-cut-stop (ráno ještě prošel), shell-menus (drift po D15), clip 122-C a onboarding. Jde o regrese z dnešních merge. Opravuje je builder. **Tag čeká na opravu.** |
+| Desktop e2e | **Červené.** Zelené: tabs 12, home 15, relaunch 5, cli-reuse 5, ai-runs 5, generate-takes 3, shell-panels 5, surface L01 14/14; default lane 49/55. **Oprava:** původně jsem psal, že červené nejsou platné (okno „vidět v 1 z 88 vzorků“). Moje sonda ale počítala jen window layer 0 a testovací okno je na layeru 5. Rerun s oknem prokazatelně na obrazovce červené potvrdil: edit-multi, edit-pen, export-formats (8), exports-panel, video-ai-cut-stop (ráno ještě prošel), shell-menus (drift po D15), clip 122-C a onboarding. **Opraveno, každý spec samostatně zelený:**
+- Dvě skutečné produktové chyby: align guide a úprava bodů pera zmizely po rychlejším reloadu canvasu (sdílený canvas-lib).
+- Zastaralé testy: shell-menus po D15, clip po změně paste, video-ai-cut-stop bez klíče.
+- Prostředí: exporty teď běží ve vlastní lane se zapnutým origin splitem, jako ve shipped appce.
+- Onboarding: viz incident níže. |
 | Perf sweep Safari + Chromium | **Tip není horší než v2.0.8** (v rámci rozptylu). Kopie mascot canvasu (88 artboardů), 2560×1340, 3 načtení × 3 průchody, bez boot cover sweepu; okno Safari bylo vidět v 95 z 96 vzorků. p95 Safari tip/base: overview 54/51, fit 17/16, zoom cykly 45/56, po zoomu 15/27 ms. Chromium (headless): po zoomu 18,6/34,6 ms. Prázdné snímky 0. Nová lane `perf.sh --sweep` je commitnutá. Retina (dpr 2) v Tauri neměřena. |
 | Bezpečnostní pár | #206/#122-C, W2.2 stills, #164, loopback fáze 2 (3 kola) |
 | gen:roadmap / gen:stats | OK. CI drift byl lokální tag `v0.5.0`, který na originu chybí (opraveno 19b765f54). |
@@ -136,6 +140,14 @@ Na začátku bylo v `1aGh/maude` otevřených 21 issues, teď **0**. Každé zav
 ## Moje chyba, kterou musíš vědět
 
 Verifikátor perf sweepu při úklidu spustil `pkill -f chrom`. Shodil tím pomocné procesy `chrome_crashpad_handler` jiných Electron aplikací (Claude, Slack, 1Password). Claude je za minutu znovu spustil. Zkontroluj prosím, jestli Slack nebo 1Password o něco nepřišly. Pravidlo „zabíjet jen vlastní PID“ jsem do preamble pro buildery zdůraznil.
+
+## Incident: e2e appka četla tvůj skutečný Maude Cloud účet
+
+- **Co se stalo:** desktop e2e harness nenastavoval `MAUDE_CLOUD_CONFIG`. Server i debug appka proto četly `~/.config/maude/cloud.json` a izolovaný config home ignorovaly.
+- **Co to způsobilo:** Home v testech ukazoval tvůj účet a cloudový projekt „Brno Alligators · not on this Mac yet“. Cloud tedy nejspíš dostal čtecí volání s tvým tokenem (výpis projektů). Stalo se to v dopoledních bězích a v jednom onboarding běhu.
+- **Co zůstalo beze změny:** `cloud.json` (1. 11.) a `hubs.json` (4. 11.).
+- **Co nevím:** `prefs.json` se dnes v 17:23 změnil a příčinu neznám. Mohl to být tvůj Maude, nebo některý bundle smoke krok, který běží s tvým HOME (jen probe `--help`).
+- **Oprava:** harness teď cloudový pointer vždycky směruje do configu lane (6922b7f8f) a hlídá to test, který bez opravy padá.
 
 ## Co od tebe potřebuju
 
