@@ -315,6 +315,7 @@ export function JobRow({
             className="btn btn--sm ex-retry"
             data-testid={`export-job-cancel-${job.id}`}
             disabled={cancelling}
+            title={cancelling ? 'Stopping the export…' : undefined}
             onClick={async () => {
               setCancelling(true);
               try {
