@@ -569,7 +569,7 @@ capture_resilient() {
 }
 
 # ---------- Stop-gate evidence (V2-1.11 §5.4 step 2) ----------
-# One line per successful capture of a canvas → <designRoot>/_runs/…/shots.jsonl (_record-shot.sh).
+# One line per successful capture of a canvas → the design hooks' state, outside the project (_record-shot.sh).
 # The design plugin's Stop hook asks for a capture of every artboard the AI changed. Best effort.
 record_shot() {
   [ "$MODE" = "shell" ] && return 0

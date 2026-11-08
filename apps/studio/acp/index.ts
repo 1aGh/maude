@@ -555,7 +555,13 @@ export function createAgentActivityTracker(
         if (!named.length) shellAll.add(id);
         // p8-secfix-hook F2 — `nohup python3 w.py &` / `run_in_background` returns at once and
         // writes later: its window stays open until the turn ends (endTurn), not return + settle
-        if (shellOutlivesCall(u.rawInput)) shellOutlives.add(id);
+        if (
+          shellOutlivesCall(u.rawInput, {
+            root: ctx.paths.repoRoot,
+            cwd: ctx.paths.repoRoot,
+          })
+        )
+          shellOutlives.add(id);
         shellWindow(id, true);
       }
       if (

@@ -63,9 +63,19 @@ export function shellOpensWindow(command: unknown): boolean {
  * A trailing `&`, `nohup`, `setsid`, `disown` … (`bashBackgrounds`) or Claude Code's
  * `run_in_background`. Its window then stays open until the turn ends, not the call's return +
  * SHELL_SETTLE_MS: `nohup python3 w.py &` returns at once and writes later.
+ *
+ * #168 E4 — `where` is the project root and the shell's working directory (the ACP session's cwd is
+ * the repo root): with it, a script FILE the command runs (`bash go.sh`, `./go.sh`, `python3 w.py`) is
+ * read, and one that detaches counts too.
  */
-export function shellOutlivesCall(rawInput: unknown): boolean {
+export function shellOutlivesCall(
+  rawInput: unknown,
+  where?: { root: string; cwd?: string }
+): boolean {
   const input = rawInput as { command?: unknown; run_in_background?: unknown } | null | undefined;
   if (!input || typeof input !== 'object') return false;
-  return input.run_in_background === true || bashBackgrounds(input.command);
+  return (
+    input.run_in_background === true ||
+    bashBackgrounds(input.command, where ? { root: where.root, cwd: where.cwd ?? where.root } : {})
+  );
 }
