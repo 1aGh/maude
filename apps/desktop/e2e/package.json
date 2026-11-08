@@ -12,6 +12,7 @@
     "e2e:lifecycle": "wdio run ./wdio.lifecycle.conf.ts",
     "e2e:switchrepos": "wdio run ./wdio.switchrepos.conf.ts",
     "e2e:tabs": "wdio run ./wdio.tabs.conf.ts",
+    "e2e:clip": "wdio run ./wdio.clip.conf.ts",
     "e2e:shell-strip": "wdio run ./wdio.shell-strip.conf.ts",
     "e2e:remember": "wdio run ./wdio.remember.conf.ts",
     "e2e:shell-panels": "wdio run ./wdio.shell-panels.conf.ts",

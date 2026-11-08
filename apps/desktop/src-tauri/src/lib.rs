@@ -18,6 +18,7 @@
 mod app_state;
 mod bus;
 mod cli_channel;
+mod clip_bridge;
 mod cli_registry;
 mod crash_reporter;
 mod deep_link;
@@ -644,6 +645,10 @@ pub fn run() {
             notify::mention_notice,
             // V2-8.9 M1: a project tab's "AI may › Search the web" → its navigation gate.
             windows::set_tab_web,
+            // #122 122-C: the latest copy on this Mac, and a paste between two project tabs.
+            clip_bridge::clip_note,
+            clip_bridge::clip_latest,
+            clip_bridge::clip_take,
             windows::e2e_open_root,
             // V2-3.7 the tab strip (strip-only, capabilities/strip.json).
             tabs::tabs_state,
@@ -777,6 +782,8 @@ pub fn run() {
             let plan = resolve_boot_plan(&handle);
             sidecar::log_line(&format!("[maude] boot: {plan:?}"));
 
+            // #122 122-C: the latest copy on this Mac (live only, never on disk).
+            app.manage(clip_bridge::ClipBook::default());
             app.manage(SidecarState {
                 // Task 10 — a POOL, not a single child: switching projects now
                 // leaves the origin project's server (and its running chats)

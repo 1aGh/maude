@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-clip-take"
+description = "Enables the clip_take command without any pre-configured scope."
+commands.allow = ["clip_take"]
+
+[[permission]]
+identifier = "deny-clip-take"
+description = "Denies the clip_take command without any pre-configured scope."
+commands.deny = ["clip_take"]

@@ -27,6 +27,12 @@
 // MAUDE_SHELL_ATTEST_KEY (shell/attest.ts has the MAC). Gates, in order (test/shell-attest.test.ts):
 // no key → 404 (a terminal server is never attestable) · a browser → 403 · `n` not exactly 32 hex
 // characters → 400. No shell token: the key IS the credential, and the answer is one MAC.
+//
+// #122 (122-C) `GET /_api/shell/clip-export?id=` · `GET /_api/shell/clip-asset?id=&rel=` ·
+// `POST /_api/shell/clip-import`: the desktop shell (clip_bridge.rs) carrying a clip from one project's
+// server to another's, after the person said Paste in the target tab. The shell-token gates above, in the
+// same order (test/shell-clip-routes.test.ts); main origin only, never canvas-safe; shell/clip-transfer.ts
+// has every check (items re-checked, modules by sha256, assets against their `<sha8>` names).
 
 import { createHash, timingSafeEqual } from 'node:crypto';
 
@@ -37,6 +43,16 @@ import { saveHold } from '../ai/save-hold.ts';
 import type { Outbox } from '../outbox/index.ts';
 import { FINAL_STATES } from '../outbox/types.ts';
 import { ATTEST_NONCE_RE, attestMac, bootAttestKey } from '../shell/attest.ts';
+import {
+  assetForShell,
+  CLIP_FRAME_MAX_BYTES,
+  GONE as CLIP_GONE,
+  TOO_BIG as CLIP_TOO_BIG,
+  exportForShell,
+  importFromShell,
+  parseFrame,
+  type Refusal,
+} from '../shell/clip-transfer.ts';
 import { resolveMaudeVersion } from '../whats-new.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -79,6 +95,9 @@ export interface ShellRouteDeps {
   attest?: () => AttestFacts | null;
   /** #206 — injected in tests; default: the local store's mode, once bound */
   storeMode?: () => StoreMode | undefined;
+  /** #122 (122-C) — the design root the clip routes read modules / assets from and write assets to;
+   *  absent = the clip routes answer 404 (routes/index.ts passes it) */
+  designRoot?: string;
 }
 
 /**
@@ -187,6 +206,107 @@ export function shellPendingWork(): number {
 const fromBrowser = (req: Request) =>
   req.headers.has('origin') || req.headers.has('sec-fetch-site');
 
+/** The shell-token gates `/_api/shell/status` applies, in its order (404 · 403 · 401); null = the shell. */
+function shellGate(req: Request, deps: ShellRouteDeps): Response | null {
+  const want = (deps.token ?? (() => process.env.MAUDE_SHELL_TOKEN))();
+  if (!want) return new Response('Not found', { status: 404 });
+  if (fromBrowser(req)) return json(403, { error: 'browser-refused' });
+  if (!tokenMatches(req.headers.get(SHELL_TOKEN_HEADER), want))
+    return json(401, { error: 'shell-token' });
+  return null;
+}
+
+const refused = (r: Refusal) =>
+  json(r.status, { error: r.error, ...(r.message ? { message: r.message } : {}) });
+
+/** The body, aborted past `max` (a content-length that says more is refused before any read). */
+async function readCapped(req: Request, max: number): Promise<Uint8Array | null> {
+  const cl = Number(req.headers.get('content-length'));
+  if (Number.isFinite(cl) && cl > max) return null;
+  if (!req.body) return new Uint8Array(0);
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.byteLength;
+  }
+  return out;
+}
+
+/**
+ * #122 (122-C) — the three clip routes the desktop shell carries a clip between two project servers with
+ * (shell/clip-transfer.ts has the rules). Same gates as `/_api/shell/status`; main origin only, in neither
+ * canvas allowlist; a server with no design root wired answers 404 like one with no shell.
+ */
+function clipRoutes(deps: ShellRouteDeps): RouteSpec[] {
+  const root = () => deps.designRoot;
+  return [
+    {
+      method: 'GET',
+      path: '/_api/shell/clip-export',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: (req) => {
+        const gate = shellGate(req, deps);
+        if (gate) return gate;
+        const designRoot = root();
+        if (!designRoot) return new Response('Not found', { status: 404 });
+        const out = exportForShell(new URL(req.url).searchParams.get('id') ?? '', designRoot);
+        return out.ok ? json(200, out.body) : refused(out);
+      },
+    },
+    {
+      method: 'GET',
+      path: '/_api/shell/clip-asset',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: (req) => {
+        const gate = shellGate(req, deps);
+        if (gate) return gate;
+        const designRoot = root();
+        if (!designRoot) return new Response('Not found', { status: 404 });
+        const q = new URL(req.url).searchParams;
+        const abs = assetForShell(q.get('id') ?? '', q.get('rel') ?? '', designRoot);
+        if (!abs) return json(404, { error: 'gone', message: CLIP_GONE });
+        return new Response(Bun.file(abs), {
+          headers: { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' },
+        });
+      },
+    },
+    {
+      method: 'POST',
+      path: '/_api/shell/clip-import',
+      origin: 'main',
+      readOnly: 'refused',
+      handle: async (req) => {
+        const gate = shellGate(req, deps);
+        if (gate) return gate;
+        const designRoot = root();
+        if (!designRoot) return new Response('Not found', { status: 404 });
+        const buf = await readCapped(req, CLIP_FRAME_MAX_BYTES);
+        if (!buf) return json(413, { error: 'too-big', message: CLIP_TOO_BIG });
+        const frame = parseFrame(buf);
+        if (!frame) return json(400, { error: 'invalid' });
+        const out = importFromShell(frame, designRoot);
+        return out.ok ? json(200, { handle: out.handle }) : refused(out);
+      },
+    },
+  ];
+}
+
 export function createShellRoutes(deps: ShellRouteDeps): RouteSpec[] {
   liveDeps = deps;
   return [
@@ -224,5 +344,6 @@ export function createShellRoutes(deps: ShellRouteDeps): RouteSpec[] {
         return json(200, { mac: attestMac(facts.key, n, facts.rootId, facts.port) });
       },
     },
+    ...clipRoutes(deps),
   ];
 }

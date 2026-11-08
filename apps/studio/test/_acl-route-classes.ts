@@ -269,6 +269,11 @@ const CANVAS = [
 ];
 
 const PROJECT = [
+  // #122 (122-C) — the desktop shell's clip carriage between two projects: shell token only (a page never
+  // reaches it), and it moves canvas text + pictures, so a canvas-only session never gets a 2xx either
+  '/_api/shell/clip-export',
+  '/_api/shell/clip-asset',
+  '/_api/shell/clip-import',
   // S8.20 — search in pictures: the person's own consent, budget and describe search; canvas-only guests get no 2xx
   '/_api/describe',
   '/_api/describe/consent',

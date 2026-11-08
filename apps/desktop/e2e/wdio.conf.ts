@@ -69,6 +69,8 @@ const DEDICATED: Record<string, string> = {
   'project-tabs-identity.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:tabs-identity',
   // 2.0.4: the shipped running cap (3) and a shortened idle rest (MAUDE_E2E_IDLE_REST_SECS).
   'project-tabs-cap.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:tabs-cap',
+  // #122 122-C: two fixture projects (a picture, a shared component) and a paste between their tabs.
+  'clipboard-cross-project.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:clip',
   'shell-parity.e2e.ts': 'pnpm test:e2e:desktop:parity',
   // Needs the canvas-origin split ON, which this config forces OFF below.
   'sidecar-respawn-canvas-switch.e2e.ts': 'pnpm test:e2e:desktop:sidecar-respawn',

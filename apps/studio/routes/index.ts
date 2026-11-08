@@ -209,7 +209,11 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createOutboxRoutes(deps.outbox),
     ...createProjectFormatRoutes(deps.projectFormat),
     ...agentRouteSpecs(deps.agent),
-    ...createShellRoutes({ ...deps.shell, runs: deps.agent.runs }),
+    ...createShellRoutes({
+      ...deps.shell,
+      runs: deps.agent.runs,
+      designRoot: deps.pins.designRoot,
+    }),
     ...createPinsRoutes(deps.pins),
     ...createAiRoutes(deps.ai),
     ...createChatRoutes(deps.chat),
