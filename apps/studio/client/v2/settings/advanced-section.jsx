@@ -156,6 +156,114 @@ function AutoSetupRow() {
   );
 }
 
+/** Paid generation spend limits (generation/spend.ts): per Mac, bounded by the server. */
+const SPEND_FIELDS = [
+  {
+    key: 'perRun',
+    label: 'Stop after, per session',
+    hint: 'The most this project tab may spend on generating pictures, sound and video before it stops.',
+    min: 0.1,
+    max: 100,
+    def: 2,
+  },
+  {
+    key: 'perDay',
+    label: 'Stop after, per day',
+    hint: 'The most this project may spend in one day, across sessions.',
+    min: 0.1,
+    max: 500,
+    def: 10,
+  },
+  {
+    key: 'confirmOver',
+    label: 'Ask me before a job over',
+    hint: 'A single job estimated above this waits for your OK in Maude. 0 asks every time.',
+    min: 0,
+    max: 50,
+    def: 1,
+  },
+];
+
+function SpendLimits() {
+  const [vals, setVals] = useState(() =>
+    Object.fromEntries(SPEND_FIELDS.map((f) => [f.key, f.def]))
+  );
+  const [problem, setProblem] = useState('');
+  useEffect(() => {
+    let alive = true;
+    fetch('/_api/ui-prefs')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => {
+        const g = p && typeof p.generateSpend === 'object' ? p.generateSpend : null;
+        if (!alive || !g) return;
+        setVals((v) => {
+          const next = { ...v };
+          for (const f of SPEND_FIELDS)
+            if (typeof g[f.key] === 'number' && g[f.key] >= f.min && g[f.key] <= f.max)
+              next[f.key] = g[f.key];
+          return next;
+        });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const save = (f, raw) => {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < f.min || n > f.max) {
+      setProblem(`${f.label}: use a number from $${f.min} to $${f.max}.`);
+      return;
+    }
+    setProblem('');
+    setVals((v) => ({ ...v, [f.key]: n }));
+    fetch('/_api/ui-prefs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ generateSpend: { [f.key]: n } }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error('refused');
+      })
+      .catch(() => setProblem('That limit was not saved. Nothing changed.'));
+  };
+  return (
+    <Group title="Generation spend" testid="settings-generate-spend">
+      {SPEND_FIELDS.map((f) => (
+        <label className="v2s-row" key={f.key} data-testid={`settings-generate-spend-${f.key}`}>
+          <span className="v2s-row-t">
+            <span className="v2s-row-k">{f.label}</span>
+            <span className="v2s-hint">{f.hint}</span>
+          </span>
+          <span className="v2s-inline">
+            <span aria-hidden="true">$</span>
+            <input
+              type="number"
+              className="v2s-select"
+              min={f.min}
+              max={f.max}
+              step="0.5"
+              style={{ width: '5.5em' }}
+              aria-label={f.label}
+              value={vals[f.key]}
+              onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))}
+              onBlur={(e) => save(f, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+              }}
+            />
+          </span>
+        </label>
+      ))}
+      {problem && (
+        <p className="v2s-hint" role="alert" data-testid="settings-generate-spend-problem">
+          {problem}
+        </p>
+      )}
+    </Group>
+  );
+}
+
 /** One GET of a read-only route, `null` until it answers (and when it never does). */
 function useRead(url) {
   const [data, setData] = useState(null);
@@ -261,6 +369,8 @@ export default function AdvancedSection({ update, onUpdateLater, live }) {
             keyframes.
           </p>
         </Group>
+
+        <SpendLimits />
 
         <Group title="Privacy">
           <label className="v2s-row" data-testid="settings-report-logs">

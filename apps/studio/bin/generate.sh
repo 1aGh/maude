@@ -16,7 +16,7 @@
 #   generate.sh --prompt "<text>" [--provider gemini|elevenlabs] [--model <id>]
 #     [--modality image|audio|video] [--aspect 16:9] [--source assets/<sha8>.<ext>]
 #     [--kind music|sfx|tts] [--voice <voice_id>] [--duration <seconds>]
-#     [--root <repo>] [--timeout <sec>]
+#     [--approval <id>] [--root <repo>] [--timeout <sec>]
 #   generate.sh --take next|prev [--root <repo>]
 #
 # --take (S8.16) swaps the picture selected in the studio (_active.json) for its
@@ -49,14 +49,20 @@
 #
 # Stdout (last line): the produced asset path `/assets/<sha8>.<ext>` (for $(...)).
 # Stderr: progress / diagnostics.
-# Exit:   0 ok / 1 server problem / 2 bad args / 3 generation failed.
+# Exit:   0 ok / 1 server problem / 2 bad args / 3 generation failed /
+#         4 needs the person's OK in the app / 5 stopped by a spend limit.
+#
+# Spend limits: a paid job is estimated first. Over the per-session or per-day limit (Settings ›
+# Advanced › Generation spend) it is STOPPED (exit 5, nothing sent, nothing charged). A single job
+# above the confirm amount waits for the person: exit 4 prints an approval id, the person approves it
+# in the Maude window, then re-run the SAME command with --approval <id>. The verb cannot approve.
 
 set -euo pipefail
 
 PROMPT="" PROVIDER="gemini" MODEL="" MODALITY="image" ASPECT="" SOURCE="" REPO="" TIMEOUT="" TAKE=""
 # Audio params (Phase 2) — kind = music|sfx|tts; voice = an ElevenLabs voice_id
 # (required for tts); duration = seconds (music/sfx length).
-KIND="" VOICE="" DURATION=""
+KIND="" VOICE="" DURATION="" APPROVAL=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -72,7 +78,8 @@ while [ $# -gt 0 ]; do
     --root)     REPO="$2"; shift 2 ;;
     --timeout)  TIMEOUT="$2"; shift 2 ;;
     --take)     TAKE="$2"; shift 2 ;;
-    --help|-h)  sed -n '2,49p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    --approval) APPROVAL="$2"; shift 2 ;;
+    --help|-h)  sed -n '2,57p' "$0" | sed 's/^# \?//'; exit 0 ;;
     *) echo "generate.sh: unknown arg '$1'" >&2; exit 2 ;;
   esac
 done
@@ -152,19 +159,31 @@ PARAMS=$(jq -n --arg kind "$KIND" --arg voice "$VOICE" --arg dur "$DURATION" '
 # Build the request body — jq handles all prompt escaping. Omit empty optionals.
 BODY=$(jq -n \
   --arg modality "$MODALITY" --arg provider "$PROVIDER" --arg model "$MODEL" \
-  --arg prompt "$PROMPT" --arg aspect "$ASPECT" --arg source "$SOURCE" \
+  --arg prompt "$PROMPT" --arg aspect "$ASPECT" --arg source "$SOURCE" --arg approval "$APPROVAL" \
   --argjson params "$PARAMS" '
   { modality: $modality, provider: $provider }
   + (if $prompt != "" then { prompt: $prompt }      else {} end)
   + (if $model  != "" then { model: $model }        else {} end)
   + (if $aspect != "" then { aspectRatio: $aspect } else {} end)
   + (if $source != "" then { sourceAsset: $source } else {} end)
+  + (if $approval != "" then { approvalId: $approval } else {} end)
   + (if ($params|length) > 0 then { params: $params } else {} end)')
 
 echo "generate.sh: submitting to $PROVIDER ($MODALITY)…" >&2
 RESP=$(curl -s -X POST -H 'Content-Type: application/json' -d "$BODY" "$BASE")
 JOB_ID=$(printf '%s' "$RESP" | jq -r '.jobId // empty' 2>/dev/null || echo "")
 if [ -z "$JOB_ID" ]; then
+  REASON=$(printf '%s' "$RESP" | jq -r '.reason // empty' 2>/dev/null || echo "")
+  MSG=$(printf '%s' "$RESP" | jq -r '.message // empty' 2>/dev/null || echo "")
+  case "$REASON" in
+    needs-confirm)
+      echo "generate.sh: $MSG" >&2
+      echo "generate.sh: approval id $(printf '%s' "$RESP" | jq -r '.approvalId'); once approved, re-run with --approval <id>" >&2
+      exit 4 ;;
+    run-cap|day-cap)
+      echo "generate.sh: $MSG" >&2
+      exit 5 ;;
+  esac
   echo "generate.sh: enqueue rejected: $RESP" >&2
   exit 3
 fi

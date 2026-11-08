@@ -15403,6 +15403,70 @@
     "v2": "new"
   },
   {
+    "hook": "settings-generate-spend",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Generation spend group: the per-session and per-day limits on paid generation and the amount above which AI asks first (prefs.json `generateSpend`).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "SpendLimits"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/generate-spend.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-generate-spend-perRun",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Row for the per-session limit (also `-perDay`, `-confirmOver`).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "SpendLimits"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/generate-spend.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-generate-spend-problem",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line shown when a limit is out of range or was not saved.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "SpendLimits"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/generate-spend.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-approve",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Ask AI dialog's button that approves a job waiting for your OK and sends it.",
+    "producer": {
+      "file": "apps/studio/client/generate-dialog.jsx",
+      "symbol": "GenerateDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/generate-spend.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "settings-experimental-teams",
     "kind": "testid",
     "pattern": false,

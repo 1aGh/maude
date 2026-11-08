@@ -835,6 +835,28 @@ function ShellState({ children }) {
                 );
               } catch {}
             }
+          } else if (m.type === 'generate:approval' && m.payload) {
+            // A paid generation above the person's confirm amount waits for them (generation/spend.ts).
+            const ask = m.payload;
+            shellToast(
+              `AI needs your OK to make ${ask.summary} for about $${Number(ask.estimate).toFixed(2)}.`,
+              true,
+              {
+                label: 'Approve',
+                onClick: () => {
+                  fetch('/_api/generate-jobs', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ approve: ask.id }),
+                  })
+                    .then((r) => {
+                      if (!r.ok) throw new Error('expired');
+                      shellToast('Approved. Ask AI to try again.', true);
+                    })
+                    .catch(() => shellToast('That approval expired. Ask AI to try again.'));
+                },
+              }
+            );
           } else if (m.type === 'export:job' && m.payload) {
             // feature-background-export-notification-center — full-snapshot
             // job state on every queued/running/progress/done/failed change.
@@ -2611,9 +2633,18 @@ function ShellTimelinePanel() {
               headers: { 'content-type': 'application/json' },
               body: JSON.stringify({ provider: 'gemini', modality, prompt }),
             })
-              .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(await r.text()))))
+              .then(async (r) => {
+                if (r.ok) return r.json();
+                // a spend limit or a job waiting for the person's OK answers with a message to show as it is
+                const text = await r.text();
+                let msg = text;
+                try {
+                  msg = JSON.parse(text).message || text;
+                } catch {}
+                return Promise.reject(new Error(msg));
+              })
               .then((job) => {
-                const jobId = job?.id;
+                const jobId = job?.jobId ?? job?.id;
                 if (!jobId) throw new Error('no job id');
                 shellToast(`Generating ${ph.kind}… (runs in the background)`, true);
                 const stableId = clip.stableId;

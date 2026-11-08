@@ -2,6 +2,16 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "generation-spend-limits",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Spend limits on generated media",
+      "summary": "Generating pictures, sound and video now stops at $2 per session or $10 per day, and asks you first before a single job over $1. Change the amounts in Settings › Advanced › Generation spend.",
+      "learnMore": "https://maude.sh/docs/design",
+      "surface": "design-ui"
+    },
+    {
       "id": "assets-added-by-everywhere",
       "version": null,
       "date": null,

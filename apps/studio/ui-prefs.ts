@@ -31,6 +31,7 @@ import {
 } from './annotations/ui/tool-prefs.ts';
 import { verGt } from './client/whats-new-seen.js';
 import { isRecentColour } from './edit-ops/words-paint.ts';
+import { type SpendSettings, validateSpendSettings } from './generation/spend.ts';
 import { PRESET_ID_RE } from './kinds/presets.ts';
 import { PREFS_VERSION } from './ui-prefs-migrate.ts';
 
@@ -103,6 +104,12 @@ export interface UiPrefs {
    * on read by the catalogue.
    */
   recentSizes?: string[];
+  /**
+   * The spend cap on paid media generation (Settings › Advanced › Generation spend), per Mac: USD per run,
+   * USD per day, and the single-job amount above which the person is asked. Absent = the defaults
+   * (generation/spend.ts). Bounded on write; a stored out-of-bounds value falls back on read.
+   */
+  generateSpend?: Partial<SpendSettings>;
   migratedFrom?: number;
   /**
    * Lossless reader (V2-1.12): any top-level field this build does not know round-trips untouched
@@ -314,6 +321,11 @@ export function validateUiPrefsPatch(body: Record<string, unknown>): UiPrefsPatc
       return fail(`recentSizes must be a list of up to ${RECENT_SIZES_MAX} size ids`);
     patch.recentSizes = [...new Set(v as string[])];
   }
+  if ('generateSpend' in body) {
+    const r = validateSpendSettings(body.generateSpend);
+    if (!r.ok) return fail(r.error);
+    patch.generateSpend = r.value;
+  }
   if ('annotationPrefs' in body) {
     const r = checkAnnotationPrefsPatch(body.annotationPrefs);
     if (!r.ok) return fail(r.error);
@@ -506,6 +518,7 @@ export function writeUiPrefs(patch: Partial<UiPrefs>): UiPrefs {
     'canvasesSort',
     'recentColours',
     'annotationPrefs',
+    'generateSpend',
   ] as const) {
     if (patch[k] !== undefined) merged[k] = { ...plain(cur[k]), ...plain(patch[k]) } as never;
   }

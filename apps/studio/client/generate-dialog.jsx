@@ -59,6 +59,8 @@ export default function GenerateDialog({ onClose, onInsert }) {
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null); // { ok, msg }
+  // A job over the person's confirm amount waits for their OK (generation/spend.ts): { id, estimate } | null.
+  const [needsOk, setNeedsOk] = useState(null);
   const [resultAsset, setResultAsset] = useState(null);
   // feature-ai-media-generation Phase 1 (Task 1.1) — auto-insert the finished
   // image onto the canvas by default (generation is never a dead-end modal). The
@@ -164,10 +166,11 @@ export default function GenerateDialog({ onClose, onInsert }) {
     }, 180000);
   }, []);
 
-  async function generate() {
+  async function generate(approved) {
     if (!prompt.trim() || !provider) return;
     setBusy(true);
     setStatus(null);
+    setNeedsOk(null);
     setResultAsset(null);
     setPlaced(null);
     autoInsertedRef.current = null;
@@ -182,7 +185,7 @@ export default function GenerateDialog({ onClose, onInsert }) {
       const res = await fetch('/_api/generate-jobs', {
         method: 'POST',
         headers: { 'content-type': 'text/plain' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(approved ? { ...body, approvalId: approved } : body),
       });
       if (res.status === 202) {
         const { jobId } = await res.json();
@@ -190,12 +193,43 @@ export default function GenerateDialog({ onClose, onInsert }) {
         poll(jobId);
       } else {
         setBusy(false);
-        setStatus({ ok: false, msg: await res.text() });
+        const text = await res.text();
+        let why = null;
+        try {
+          why = JSON.parse(text);
+        } catch {}
+        // A spend limit (402) or a job that waits for the person (409): say what was kept safe.
+        if (why && typeof why.message === 'string') {
+          setStatus({ ok: false, msg: why.message });
+          if (why.reason === 'needs-confirm' && why.approvalId)
+            setNeedsOk({ id: why.approvalId, estimate: why.estimate });
+        } else {
+          setStatus({ ok: false, msg: text });
+        }
       }
     } catch (err) {
       setBusy(false);
       setStatus({ ok: false, msg: err && err.message ? err.message : 'request failed' });
     }
+  }
+
+  // The person's yes, from this window: the server only takes it from a browser page (it sends Origin).
+  async function approveAndGenerate() {
+    const ask = needsOk;
+    if (!ask) return;
+    try {
+      const r = await fetch('/_api/generate-jobs', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ approve: ask.id }),
+      });
+      if (!r.ok) throw new Error('approval expired');
+    } catch {
+      setNeedsOk(null);
+      setStatus({ ok: false, msg: 'That approval expired. Press Generate to ask again.' });
+      return;
+    }
+    generate(ask.id);
   }
 
   return (
@@ -338,11 +372,22 @@ export default function GenerateDialog({ onClose, onInsert }) {
             </div>
           )}
           <div className="sh-dialog-row" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
+            {needsOk && (
+              <button
+                type="button"
+                className="sh-btn"
+                disabled={busy}
+                onClick={approveAndGenerate}
+                data-testid="generate-approve"
+              >
+                Generate for about ${Number(needsOk.estimate).toFixed(2)}
+              </button>
+            )}
             <button
               type="button"
               className="sh-btn ai-gen-go"
               disabled={busy || !prompt.trim() || !provider}
-              onClick={generate}
+              onClick={() => generate()}
             >
               <Icon name="sparkle" size={14} /> {busy ? 'Generating…' : 'Generate'}
             </button>
