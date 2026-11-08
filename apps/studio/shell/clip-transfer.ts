@@ -29,7 +29,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
-
+import { sanitizeSvgAllowlist } from '../bin/_import-asset.mjs';
+import { CLIP_MEDIA_EXT, isClipMedia } from '../edit-ops/clip-carry.ts';
 import {
   type ClipHandle,
   type ClipTransfer,
@@ -38,8 +39,6 @@ import {
   isDesignRel,
   keepTransfer,
 } from '../edit-ops/clipboard.ts';
-import { CLIP_MEDIA_EXT, isClipMedia } from '../edit-ops/clip-carry.ts';
-import { sanitizeSvgAllowlist } from '../bin/_import-asset.mjs';
 
 /** Picture bytes one clip may bring (the server's own body bound is ~108 MB; the header rides under it). */
 export const CLIP_ASSETS_MAX_BYTES = 80 * 1024 * 1024;

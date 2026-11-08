@@ -20,8 +20,8 @@ import { createRoot } from 'react-dom/client';
 import {
   _resetPasteIntent,
   _setHeldClip,
-  type ClipBridge,
   CLIP_CONFIRM_ARM_MS,
+  type ClipBridge,
   noteFramePasteIntent,
   notePasteIntent,
   shapeClipPaste,

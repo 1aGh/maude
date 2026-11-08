@@ -7,12 +7,11 @@
 // and journals the bytes on disk as the owner's code.
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
-
-import { createHash } from 'node:crypto';
 
 import {
   heldCodeEntries,
