@@ -18,6 +18,7 @@ import { test } from 'node:test';
 
 import {
   isPkgRoot,
+  pkgRootFromExecDir,
   resolveAppSidecar,
   resolvePkgRoot,
   resolveTauriResourcePkgRoot,
@@ -186,5 +187,27 @@ test('resolveAppSidecar: null for a repo / npm install, a missing server, or ano
     assert.equal(resolveAppSidecar({ pkgRoot: other, execPath: join(tmp, 'nope', 'maude') }), null);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test("a binary inside <X>.app/Contents/MacOS takes the bundle's Resources over a package root above the .app", () => {
+  // A debug build sits in target/debug/bundle/macos/Maude.app, and target/debug itself holds
+  // staged apps/ + cli/ + package.json: the walk-up reached that tree first and server-up then ran
+  // the staged source with no node_modules. The bundle's own Resources must win.
+  const base = mkdtempSync(join(tmpdir(), 'maude-app-nested-'));
+  try {
+    makeRealRoot(base); // the decoy package root above the .app
+    const app = join(base, 'bundle', 'macos', 'Maude.app');
+    const macosDir = join(app, 'Contents', 'MacOS');
+    const resources = join(app, 'Contents', 'Resources');
+    mkdirSync(macosDir, { recursive: true });
+    makeRealRoot(resources);
+    assert.equal(pkgRootFromExecDir(macosDir), resources);
+    // Outside an .app layout the walk-up is unchanged.
+    const plain = join(base, 'target', 'debug');
+    mkdirSync(plain, { recursive: true });
+    assert.equal(pkgRootFromExecDir(plain), base);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
   }
 });

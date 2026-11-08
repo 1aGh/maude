@@ -13,7 +13,7 @@
 // decoupled from the dev-server's module graph.
 
 import { existsSync, realpathSync, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 function isVirtualBunfsPath(p) {
@@ -132,6 +132,29 @@ export function resolveAppSidecar({ pkgRoot, execPath }) {
   return { bin, devServerRoot: join(sibling, 'apps', 'studio'), pkgRoot: sibling };
 }
 
+/**
+ * The package root for a running executable in `execDir`. Inside `<X>.app/Contents/MacOS` the
+ * bundle's own `Contents/Resources` wins: a debug build sits under `target/debug/`, which also
+ * holds staged `apps/` + `cli/` + `package.json`, and the walk-up used to reach that tree first (so
+ * `server-up` ran the staged source with no node_modules). Otherwise walk up (up to 10 levels),
+ * then fall back to the Tauri sibling probe. Null when nothing matches.
+ */
+export function pkgRootFromExecDir(execDir) {
+  if (basename(execDir) === 'MacOS' && basename(dirname(execDir)) === 'Contents') {
+    const res = join(execDir, '..', 'Resources');
+    if (isPkgRoot(res)) return res;
+  }
+  let cur = execDir;
+  for (let i = 0; i < 10; i++) {
+    if (isPkgRoot(cur)) return cur;
+    const parent = dirname(cur);
+    if (parent === cur) break;
+    cur = parent;
+  }
+  // Tauri `.app` sibling probe — the packaged layout the walk-up can't reach.
+  return resolveTauriResourcePkgRoot(execDir);
+}
+
 export function resolvePkgRoot() {
   const override = process.env.MAUDE_PKG_ROOT;
   if (override && !isVirtualBunfsPath(override) && isPkgRoot(override)) return override;
@@ -155,17 +178,8 @@ export function resolvePkgRoot() {
   } catch {
     execDir = dirname(process.execPath);
   }
-  let cur = execDir;
-  for (let i = 0; i < 10; i++) {
-    if (isPkgRoot(cur)) return cur;
-    const parent = dirname(cur);
-    if (parent === cur) break;
-    cur = parent;
-  }
-
-  // (3) Tauri `.app` sibling probe — the packaged layout the walk-up can't reach.
-  const sibling = resolveTauriResourcePkgRoot(execDir);
-  if (sibling) return sibling;
+  const found = pkgRootFromExecDir(execDir);
+  if (found) return found;
 
   // Final fallback for unanchored test contexts — callers should expect
   // existsSync-based lookups to fail and surface a clear error, same
