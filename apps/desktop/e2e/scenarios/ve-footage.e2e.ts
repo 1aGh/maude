@@ -190,7 +190,10 @@ describe('ve-footage (native-desktop) — footage on another device waits quietl
     // the clip's drawn name carries the state: "dron · waiting for Alice's device"
     await browser.waitUntil(
       async () =>
-        /waiting for alice.s device/i.test((await first.getAttribute('aria-label')) ?? ''),
+        // the state is in the drawn name (the block's text) and its description; the aria-label is the name + times only
+        /waiting for alice.s device/i.test(
+          `${await first.getText()} ${(await first.getAttribute('aria-description')) ?? ''}`
+        ),
       {
         timeout: 60_000,
         interval: 500,
@@ -229,8 +232,37 @@ describe('ve-footage (native-desktop) — footage on another device waits quietl
         timeoutMsg: 'the second clip never filled the footage block',
       }
     );
-    const status = (await (await $(tid('insp-footage-status'))).getText()).trim();
-    expect(status).toMatch(/^(Missing — no device has it|Not here yet)$/);
+    // The hub turns a path Missing only once every device SWEPT AFTER the first ask for it (hub asset-presence.mjs): alice's
+    // sweep in step 1 predates bob's first ask for this clip and her studio is held, so until she sweeps again the honest
+    // answer is the quiet "Not here yet". Let her finish one more sweep (no bytes for it), then wait for the studio to ask again.
+    const c = CELL as Cell;
+    const hubs = JSON.parse(
+      read(join(dirname(c.teammate), 'teammate-cfg', 'hubs.json')) ?? '{}'
+    ) as { hubs?: Record<string, { token?: string }> };
+    const sweep = await fetch(`${c.hub}/_asset-probe`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${hubs.hubs?.[c.hub]?.token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        paths: [HELD],
+        held: true,
+        sweep: { id: 'e2e-alice-footage-2', final: true },
+      }),
+    });
+    expect(sweep.status).toBe(200);
+    const statusEl = await $(tid('insp-footage-status'));
+    await browser.waitUntil(
+      async () =>
+        /^Missing — no device has it$/.test((await statusEl.getText().catch(() => '')).trim()),
+      {
+        timeout: 180_000,
+        interval: 2_000,
+        timeoutMsg: 'the clip no device holds never turned Missing after alice’s second sweep',
+      }
+    );
+    const status = (await statusEl.getText()).trim();
     expect(status).not.toMatch(/waiting for/i);
     expect(await block.getAttribute('data-state')).not.toBe('waiting');
     await capture('02-footage-missing');

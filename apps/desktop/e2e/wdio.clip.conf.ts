@@ -72,7 +72,9 @@ export default function About() {
 }
 `;
 
-process.env.MAUDE_PROJECT_ROOT ??= project('clip-source', 'Home', SOURCE, PICTURE);
+// `=`, not `??=`: the base conf already assigned its fixture project at import time, so `??=` kept the default fixture
+// (no ui/Home.tsx) and the whole lane failed at canvas-row-ui-home.
+process.env.MAUDE_PROJECT_ROOT = project('clip-source', 'Home', SOURCE, PICTURE);
 process.env.MAUDE_E2E_SECONDARY_ROOT ??= project('clip-target', 'About', TARGET);
 
 const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');

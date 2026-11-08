@@ -126,6 +126,17 @@ async function setUp(): Promise<string> {
   useStubClaude();
   const scratch = mkdtempSync(join(tmpdir(), 'maude-e2e-cell-'));
 
+  // WHO EACH PERSON IS. The studio names a comment's author, a voter and "me" from the local git identity
+  // (`/_api/git-user`) — a plain sidecar is not a workspace-mode one that takes the proxy's vouched name — so without this
+  // alice's studio, bob's app and the developer all read as the developer's own `git config user.name`: "@bob" names
+  // nobody, the toast says "<developer> mentioned you", and a vote between two people is a vote by one. One throwaway
+  // global git config per person; nothing of the developer's own is read.
+  const gitConfig = (who: string) => {
+    const file = join(scratch, `gitconfig-${who}`);
+    writeFileSync(file, `[user]\n\tname = ${who}\n\temail = ${who}@example.test\n`);
+    return file;
+  };
+
   // ── The cell: a hub that owns a checkout ──────────────────────────────────
   const cellRepo = join(scratch, 'cell');
   mkdirSync(join(cellRepo, '.design', 'ui'), { recursive: true });
@@ -176,6 +187,8 @@ async function setUp(): Promise<string> {
         MAUDE_CLOUD_CONFIG: join(scratch, 'teammate-cfg', 'cloud.json'),
         MAUDE_NO_AUTOBUILD: '1',
         NO_OPEN: '1',
+        GIT_CONFIG_GLOBAL: gitConfig('alice'),
+        GIT_CONFIG_NOSYSTEM: '1',
       },
       stdio: ['ignore', 'ignore', 'pipe'],
     }
@@ -215,6 +228,8 @@ async function setUp(): Promise<string> {
   );
   process.env.MAUDE_CLOUD_CONFIG = join(scratch, 'designer-cfg', 'cloud.json');
   process.env.MAUDE_PROJECT_ROOT = designer;
+  process.env.GIT_CONFIG_GLOBAL = gitConfig('bob'); // the app under test is bob
+  process.env.GIT_CONFIG_NOSYSTEM = '1';
 
   process.env.MAUDE_E2E_TEAM_CELL = JSON.stringify({
     hub: hub.http,

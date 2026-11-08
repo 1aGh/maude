@@ -134,6 +134,8 @@ const DEDICATED: Record<string, string> = {
   'co-mention-notify.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:co-mention-notify',
   // T2.6c — 07 ve-footage: a clip alice's device holds, on a cell, with the canvas-origin split OFF for the app.
   've-footage.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ve-footage',
+  // #206 T6.4: a terminal design run reuses the running app's server (needs MAUDE_E2E_CLI_CONSENT=1 + the e2e registry).
+  'cli-reuse.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:cli-reuse',
   // 2.0.3: a generated git project with Git LFS pointer media, the canvas-origin split ON, the real clipboard.
   'lfs-placeholder.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:lfs',
 };

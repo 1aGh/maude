@@ -8,6 +8,7 @@ import {
   exitToTop,
   focusCanvasFrame,
   waitForCanvasOpened,
+  waitForCanvasRects,
 } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -42,16 +43,27 @@ async function openCanvas(row: string): Promise<void> {
   await el.waitForDisplayed({ timeout: 120_000 });
   await el.click();
   await waitForCanvasOpened();
+  await waitForCanvasRects(); // the card going is not the first layout: wait for elements + a settled, full-size frame
 }
 
 /** Click an artboard's name strip inside the canvas frame (selects the artboard), keyboard focus in the frame. */
 async function selectArtboard(id: string): Promise<void> {
-  await focusCanvasFrame();
-  await enterCanvasFrame();
-  const label = await $(`[data-dc-screen="${id}"] .dc-artboard-label`);
-  await label.waitForDisplayed({ timeout: 30_000 });
-  await label.click();
-  await browser.pause(300);
+  // the frame can reload under us once (a rebuild after the open): a stale frame handle is retried from the top
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await focusCanvasFrame();
+      await enterCanvasFrame();
+      const label = await $(`[data-dc-screen="${id}"] .dc-artboard-label`);
+      await label.waitForDisplayed({ timeout: 30_000 });
+      await label.click();
+      await browser.pause(300);
+      return;
+    } catch (error) {
+      if (attempt >= 3) throw error;
+      await exitToTop().catch(() => {});
+      await browser.pause(1_000);
+    }
+  }
 }
 
 describe('#122 122-C — paste between two project tabs', () => {

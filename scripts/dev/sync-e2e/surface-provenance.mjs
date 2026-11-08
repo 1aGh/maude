@@ -21,6 +21,8 @@ export function sourceManifest(root) {
       execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
         cwd: root,
         encoding: 'utf8',
+        // the tracked-file list outgrew execFileSync's 1 MiB default (ENOBUFS killed every surface run before it started)
+        maxBuffer: 64 * 1024 * 1024,
       })
         .split('\0')
         .filter((p) => relevant.test(p) && !denied.test(p))

@@ -39,6 +39,12 @@ import { pinCurrentWindow } from '../helpers/windows';
  * else. WRITTEN, NOT RUN in the T2.6c hand-back — the lead runs it once, alone.
  */
 const tid = (s: string) => `[data-testid="${s}"]`;
+// the done count carries the faces of who has voted ("A\n1 done"): compare the count words, not the faces' letters
+const doneWords = (t: string) =>
+  t
+    .replace(/\s+/g, ' ')
+    .trim()
+    .match(/\d+ done$/)?.[0] ?? t.trim();
 const CANVAS = 'jerseys.tsx';
 const FILE = `.design/ui/${CANVAS}`;
 const BOARD = '.design/ui-jerseys.annotations.json';
@@ -116,7 +122,12 @@ describe('an-vote (native-desktop) — a vote between two people, secret until t
     const line = await $(tid('vote-sheet-line'));
     await line.waitForExist({ timeout: 10_000 });
     expect(await line.getText()).toContain('Nobody sees the others’ votes until the end.');
-    for (const id of ['a', 'b', 'c']) await (await $(tid(`vote-sheet-target-${id}`))).click();
+    // the sheet opens with the first three artboards ALREADY picked (vote-sheet.jsx `picked` initial state): click only the
+    // ones that are not, or a click UNpicks them and "Pick at least one artboard" blocks Start vote
+    for (const id of ['a', 'b', 'c']) {
+      const box = await $(`${tid(`vote-sheet-target-${id}`)} input`);
+      if (!(await box.isSelected())) await (await $(tid(`vote-sheet-target-${id}`))).click();
+    }
     await (await $(tid('vote-sheet-title'))).setValue('Helmy');
     await capture('01-vote-sheet');
     await (await $(tid('vote-sheet-start'))).click();
@@ -158,7 +169,7 @@ describe('an-vote (native-desktop) — a vote between two people, secret until t
 
     // the bar re-reads every few seconds while a vote is open
     await browser.waitUntil(
-      async () => (await (await $(tid('vote-bar-done'))).getText()).trim() === '1 done',
+      async () => doneWords(await (await $(tid('vote-bar-done'))).getText()) === '1 done',
       { timeout: 30_000, interval: 500, timeoutMsg: 'the bar never counted alice’s ballot' }
     );
     const v = await bobVotes();
@@ -189,7 +200,7 @@ describe('an-vote (native-desktop) — a vote between two people, secret until t
     });
     expect(cast.status).toBe(200);
     await browser.waitUntil(
-      async () => (await (await $(tid('vote-bar-done'))).getText()).trim() === '2 done',
+      async () => doneWords(await (await $(tid('vote-bar-done'))).getText()) === '2 done',
       { timeout: 30_000, interval: 500, timeoutMsg: 'the bar never counted bob’s own ballot' }
     );
     // his own dots are his to see: two spent of three
