@@ -18,7 +18,9 @@
 //            .ai/scenarios/maude-v2/gates/<id>.json { pass, head, ts, log }
 //   attest   needs an agent or a person — `--attest` writes the same file, pointing at the reports
 // Recorded evidence counts only while it is FRESH: nothing outside `.ai/` changed between the
-// evidence's commit and HEAD (committing the evidence itself does not stale it).
+// evidence's commit and HEAD (committing the evidence itself does not stale it). A command record also
+// needs its MAC under this machine's gate key, kept outside the tree (#168 A, scripts/lib/gate-evidence.mjs:
+// $V2_GATES_KEY_FILE || ~/.claude/maude-gates/evidence.key, created by the first --record).
 // Exit 0 = every gate green; 1 = at least one red (printed); 2 = usage error.
 
 import { spawnSync } from 'node:child_process';
@@ -26,6 +28,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { evidenceMac, evidenceSigned, readGateKey } from './lib/gate-evidence.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const EVIDENCE = process.env.V2_GATES_EVIDENCE_DIR ?? join(ROOT, '.ai/scenarios/maude-v2/gates');
@@ -241,6 +245,11 @@ function fresh(ev, g) {
     return `product files changed since ${ev.head.slice(0, 8)}`;
   if (ev.qualityHash !== QUALITY_HASH) return 'the quality gate definitions changed';
   if (g?.kind === 'command' && ev.cmd !== g.cmd) return 'recorded for a different command';
+  if (g?.kind === 'command') {
+    const key = gateKey();
+    if (!Buffer.isBuffer(key)) return key.error;
+    if (!evidenceSigned(key, ev)) return 'not signed by this machine’s gate key (--record it here)';
+  }
   if (g?.kind === 'attest') {
     const hashes = ev.reportHashes ?? {};
     for (const r of ev.reports ?? []) {
@@ -264,6 +273,22 @@ function reportVerdict(p) {
     } catch {}
   }
   return null;
+}
+// #168 A — the key that signs command records: read once; created only by the record paths
+let gateKeyMemo = null;
+function gateKey({ create = false } = {}) {
+  if (!gateKeyMemo || (create && !Buffer.isBuffer(gateKeyMemo)))
+    gateKeyMemo = readGateKey({ repoRoot: ROOT, create });
+  return gateKeyMemo;
+}
+/** A command record with its MAC, or exits 2 when there is no usable key. */
+function signedRecord(data) {
+  const key = gateKey({ create: true });
+  if (!Buffer.isBuffer(key)) {
+    console.error(key.error);
+    process.exit(2);
+  }
+  return { ...data, mac: evidenceMac(key, data) };
 }
 function writeEvidence(id, data) {
   mkdirSync(EVIDENCE, { recursive: true });
@@ -320,19 +345,28 @@ if (opt('--record')) {
     console.error('uncommitted product changes — commit first, evidence is tied to a commit');
     process.exit(2);
   }
+  // the key first: a run that cannot be signed is not started
+  if (!Buffer.isBuffer(gateKey({ create: true }))) {
+    console.error(gateKey().error);
+    process.exit(2);
+  }
   const t0 = Date.now();
   const r = sh(g.cmd);
   const log = `${r.stdout ?? ''}${r.stderr ?? ''}`.slice(-20000);
-  writeEvidence(g.id, {
-    gate: g.id,
-    pass: r.status === 0,
-    head: git('rev-parse HEAD'),
-    ts: new Date().toISOString(),
-    seconds: Math.round((Date.now() - t0) / 1000),
-    cmd: g.cmd,
-    qualityHash: QUALITY_HASH,
-    log,
-  });
+  writeEvidence(
+    g.id,
+    signedRecord({
+      gate: g.id,
+      pass: r.status === 0,
+      exit: r.status,
+      head: git('rev-parse HEAD'),
+      ts: new Date().toISOString(),
+      seconds: Math.round((Date.now() - t0) / 1000),
+      cmd: g.cmd,
+      qualityHash: QUALITY_HASH,
+      log,
+    })
+  );
   console.log(`${r.status === 0 ? 'PASS' : 'FAIL'}  ${g.id} recorded → ${evidencePath(g.id)}`);
   process.exit(r.status === 0 ? 0 : 1);
 }
@@ -397,6 +431,14 @@ if (opt('--carry')) {
     process.exit(2);
   }
   const ev = readEvidence(g.id);
+  // #168 A — only a record this machine signed is carried (a forged "green run" never is)
+  const key = gateKey();
+  if (ev && !(Buffer.isBuffer(key) && evidenceSigned(key, ev))) {
+    console.error(
+      `${g.id}: the recorded run is not signed by this machine’s gate key${Buffer.isBuffer(key) ? '' : ` (${key.error})`} — --record it`
+    );
+    process.exit(1);
+  }
   const full = gitArgs('rev-parse', '--verify', `${from}^{commit}`).stdout.trim();
   // a carried record can be carried again, but always from its ORIGINAL full run: the diff is measured from there
   const run = ev?.carriedFrom ? { ...ev, ...ev.carriedFrom } : ev;
@@ -424,18 +466,22 @@ if (opt('--carry')) {
     );
     process.exit(1);
   }
-  writeEvidence(g.id, {
-    gate: g.id,
-    pass: true,
-    head: git('rev-parse HEAD'),
-    ts: new Date().toISOString(),
-    cmd: g.cmd,
-    qualityHash: QUALITY_HASH,
-    carriedFrom: { head: run.head, ts: run.ts, seconds: run.seconds },
-    scoped: { diff: changed, allowed: allow, checks },
-    note: opt('--note') ?? '',
-    log: ev.log,
-  });
+  writeEvidence(
+    g.id,
+    signedRecord({
+      gate: g.id,
+      pass: true,
+      ...(Number.isInteger(run.exit) ? { exit: run.exit } : {}),
+      head: git('rev-parse HEAD'),
+      ts: new Date().toISOString(),
+      cmd: g.cmd,
+      qualityHash: QUALITY_HASH,
+      carriedFrom: { head: run.head, ts: run.ts, seconds: run.seconds },
+      scoped: { diff: changed, allowed: allow, checks },
+      note: opt('--note') ?? '',
+      log: ev.log,
+    })
+  );
   console.log(
     `PASS  ${g.id} carried ${from.slice(0, 9)} → HEAD (scoped: ${checks}) → ${evidencePath(g.id)}`
   );
