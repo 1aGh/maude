@@ -304,7 +304,7 @@ W5 and W6 use Opus.
 
 ### W8 — Performance and harness
 
-- [ ] T8.1 **#169:**
+- [x] T8.1 **#169:**
   - version pictures: share one canvas-lib module between canvas modules and speed up the first wave (budget 300 ms warm p50);
   - re-measure the LOD hand-over frame after W2;
   - Chromium DS zoom: profile, then fix the per-frame layout;
@@ -402,3 +402,4 @@ W5 and W6 use Opus.
 - 2026-11-08 merged T8.1b 77e3e67ea (decision A: an artboard with a kept still holds it until zoom settle; artboards without a still still mount mid-gesture per v2-207). Measured: no regression (Chromium p95 ~17.5, WebKit 25→24 ms, 0 long frames); the fixed path was rarely hit by the harness. Remaining long frames come from first mounts of still-less artboards during zoom-out — left per 2.0.7 decision.
 - 2026-11-08 PUSHED wave 2: origin/main d93680b17..e020171b7 (cac60c8d5 + 403 fix + Cancel title + docs wording). Closed with evidence: #127 #128 #151 #155 #158 #163 #164 #165 #167 #168 #170 #171 #212 (and #150 #156 earlier). Open: #113 (T7.3b in next push), #122 (desktop clip lane to run), #169 (T8.1c merged; item 4 + budget), #172 (Michal OK on not-planned states), #206 (cli-reuse lane), #208 (Linux CI lane). Merged after the push: T7.3b, T8.1b, T8.1c (shared canvas-lib module; closure generation ignores runtime-state writes; warm p50 ~1006→~674 ms under load).
 - 2026-11-08 Michal: #172 two states closed as not planned (neutral ring tags stand); #168 F1 Image chip OK.
+- 2026-11-08 merged #169 item 4 32cca4cd1 (canvas iframe carries its own geometry; root cause of the late stylesheet not found — the T9.1 desktop lane logs the first observed frame size). T8.1 ticked; #169 closes after the desktop lane confirms.
