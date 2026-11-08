@@ -178,6 +178,10 @@ async fn sweep_once(app: &AppHandle) {
         if v.front || v.label.is_none() {
             continue;
         }
+        // #206: a live terminal lease is in use (status stays unknown = in use).
+        if crate::cli_channel::leased(&v.root) {
+            continue;
+        }
         v.booting = crate::sidecar::shell_origin(app, &v.root).is_none();
         if !v.booting {
             v.status = crate::sidecar::shell_status(app, &v.root).await;

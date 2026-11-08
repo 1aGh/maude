@@ -632,6 +632,8 @@ impl Opened {
 /// Open `root` once: focus the window that already shows it, else create one.
 /// The book entry is written BEFORE the window is built so the `Focused` event
 /// the build fires finds it; a failed build takes the entry back out.
+/// (The app opens through `open_in_as` since #206; the open-once tests drive this form.)
+#[cfg(test)]
 pub fn open_in(
     host: &impl WindowHost,
     book: &Mutex<WindowBook>,
@@ -1512,6 +1514,18 @@ pub fn open_window_for_root(
     caller: Option<&str>,
     open: Option<&str>,
 ) -> Result<Opened, String> {
+    open_window_for_root_as(app, root, caller, open, false)
+}
+
+/// `open_window_for_root`; `background` builds a new tab without activating it and leaves an open
+/// one where it is — a terminal capture (#206, `cli_channel.rs`) never moves the person's view.
+pub fn open_window_for_root_as(
+    app: &AppHandle,
+    root: &str,
+    caller: Option<&str>,
+    open: Option<&str>,
+    background: bool,
+) -> Result<Opened, String> {
     let state = app.state::<SidecarState>();
     let caller = caller.map(str::to_string).or_else(|| {
         state
@@ -1522,13 +1536,14 @@ pub fn open_window_for_root(
     });
     let tick = state.tick.fetch_add(1, Ordering::SeqCst);
     let name = project_display_name(root);
-    let opened = open_in(
+    let opened = open_in_as(
         &TauriHost { app },
         &state.windows,
         root,
         &name,
         caller.as_deref(),
         tick,
+        background,
     )?;
     if let Opened::New(label) = &opened {
         // Server after the window: the splash shows at once, and a server that

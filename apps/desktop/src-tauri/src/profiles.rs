@@ -103,14 +103,14 @@ fn config_root_from(xdg: Option<String>, home: &Path) -> PathBuf {
 }
 
 /// Node's `os.homedir()`: `$HOME` on unix, `%USERPROFILE%` on Windows.
-fn home_dir() -> PathBuf {
+pub(crate) fn home_dir() -> PathBuf {
     let var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
     std::env::var_os(var)
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-fn config_root() -> PathBuf {
+pub(crate) fn config_root() -> PathBuf {
     config_root_from(std::env::var("XDG_CONFIG_HOME").ok(), &home_dir())
 }
 

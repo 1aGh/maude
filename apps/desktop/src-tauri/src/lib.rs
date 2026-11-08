@@ -17,6 +17,7 @@
 
 mod app_state;
 mod bus;
+mod cli_channel;
 mod cli_registry;
 mod crash_reporter;
 mod deep_link;
@@ -692,6 +693,8 @@ pub fn run() {
             prefs::prefs_set_crash_reporting,
             prefs::prefs_get_claude_auto_setup,
             prefs::prefs_set_claude_auto_setup,
+            prefs::prefs_get_terminal_opens,
+            prefs::prefs_set_terminal_opens,
             crash_reporter::list_crash_logs,
             crash_reporter::read_crash_log,
             deep_link::take_pending_deep_link,
@@ -865,6 +868,9 @@ pub fn run() {
             home::spawn_index_watch(&handle);
             // S1.19: a tab whose folder moved on disk shows the card.
             tabs::spawn_root_watch(&handle);
+            // #206 (DDR-250): the terminal's channel to this app (`cli.sock`), once the boot tabs
+            // exist, so a terminal open never races the restored session.
+            cli_channel::start(&handle);
 
             // The bundled app parks maude:// links; the client validates and
             // opens a file locally or asks before a project switch.
