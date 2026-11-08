@@ -1004,6 +1004,12 @@
   .home-root .chip.home-prow-copy {
     font-size: var(--type-xs);
   }
+  /* #206 T6.3g: the Worktrees row's word before its branch chips */
+  .home-prow-wt-h {
+    align-self: center;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
   /* live state on a project row (V2-3.3): AI working · Needs you · Resting (canvas 11 pn-bmore-st) */
   .home-root .chip.home-prow-ai {
     flex: none;

@@ -217,6 +217,8 @@ fn to_caller<S: Serialize>(label: &str, kind: &str, payload: S) {
 #[tauri::command]
 pub async fn github_sign_in(app: AppHandle, webview: tauri::Webview) -> Result<String, String> {
     let caller = crate::windows::caller_project(&webview, false)?;
+    // #206 §5: a worktree tab talks as its main project — "Sign in from <main>", before any flow.
+    crate::app_state::refuse_worktree_sign_in(&app, &caller.root)?;
     let profile = crate::app_state::profile_for(&app, &caller.root);
     if !crate::profiles::exists(&profile) {
         return Err("That account profile doesn't exist.".to_string());

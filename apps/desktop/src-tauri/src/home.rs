@@ -60,6 +60,8 @@ pub const HOME_PERMISSIONS: &[&str] = &[
     "allow-shell-subscribe",
     "allow-shell-state",
     "allow-open-project",
+    // #206 T6.3g: a Worktrees row opens its tab (never the registry).
+    "allow-open-worktree",
     "allow-open-project-folder",
     "allow-new-home-tab",
     "allow-relink-project",
@@ -778,11 +780,73 @@ pub struct ShellProfile {
     pub github: Option<String>,
 }
 
+/// #206 T6.3g (contract 206 §5 "Home and Recent") — a worktree folder this Mac opened as a tab,
+/// listed on Home under its main project (`mainPid`) while it is still a worktree of it. Never a
+/// project of its own: it opens through `open_worktree({pid})`, which never touches the registry.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShellWorktree {
+    pub pid: String,
+    pub root: String,
+    pub main_pid: String,
+    /// The branch (`feat-x`), the short sha + "detached", or the folder's name.
+    pub branch: String,
+    /// `tab` | `resting` | `closed`.
+    pub place: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct ShellState {
     pub projects: Vec<ShellProject>,
     pub profiles: Vec<ShellProfile>,
     pub recent: Vec<String>,
+    /// #206 T6.3g — Home's Worktrees rows (newest first).
+    pub worktrees: Vec<ShellWorktree>,
+}
+
+/// Pure: a worktree's branch words for its Home row.
+pub fn worktree_branch_words(head: &crate::project_resolve::Head, root: &str) -> String {
+    use crate::project_resolve::Head;
+    let b = match head {
+        Head::Branch(b) => b.clone(),
+        Head::Detached(sha) => format!("{sha} detached"),
+        Head::Unknown => Path::new(root)
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+    };
+    crate::notify::sanitize_title(&b)
+}
+
+/// Pure: the Home rows of the remembered worktrees that are still worktrees of a known project.
+fn shell_worktrees(st: &AppState, book: &WindowBook) -> Vec<ShellWorktree> {
+    st.seen_worktrees()
+        .into_iter()
+        .map(|(root, wt)| {
+            let pid = windows::pid_for_root(&root);
+            let (place, label) = place_of(book, &pid);
+            ShellWorktree {
+                main_pid: windows::pid_for_root(&wt.main_root.to_string_lossy()),
+                branch: worktree_branch_words(&wt.head, &root),
+                pid,
+                root,
+                place,
+                label,
+            }
+        })
+        .collect()
+}
+
+/// Pure half of `open_worktree`: the folder for a worktree pid Home was shown — only one this
+/// Mac remembers that is still a worktree of a known project (never a page-supplied path).
+pub fn worktree_open_target(st: &AppState, pid: &str) -> Result<PathBuf, String> {
+    st.seen_worktrees()
+        .into_iter()
+        .find(|(root, _)| windows::pid_for_root(root) == pid)
+        .map(|(root, _)| PathBuf::from(root))
+        .ok_or_else(|| "That worktree isn’t there any more.".to_string())
 }
 
 /// Pure: the registry (newest first) placed against the live windows.
@@ -834,10 +898,13 @@ pub fn build_shell_state(
         projects,
         profiles,
         recent,
+        worktrees: shell_worktrees(st, book),
     }
 }
 
 fn current_shell_state(app: &AppHandle) -> ShellState {
+    // #206 T6.3g: a worktree folder that is gone drops its Home row at the next Home load.
+    crate::app_state::prune_worktrees(app);
     let st = crate::app_state::load(app);
     let profiles = crate::profiles::list_all()
         .into_iter()
@@ -1232,6 +1299,22 @@ async fn attach_thumbs(client: &reqwest::Client, base: &str, token: &str, groups
 pub fn shell_state(app: AppHandle, webview: tauri::Webview) -> Result<ShellState, String> {
     caller_home(&webview, false)?;
     Ok(current_shell_state(&app))
+}
+
+/// `open_worktree({pid})` — Home only (#206 T6.3g): open a Worktrees row as its own tab, by the pid
+/// `shell_state` listed it under. The folder comes from this Mac's own list, never the page; the
+/// open never touches the registry (a worktree is never a project, in Recent or restored) — the
+/// tab takes its main project's profile and name, exactly as a terminal-opened one does.
+#[tauri::command]
+pub async fn open_worktree(
+    app: AppHandle,
+    webview: tauri::Webview,
+    pid: String,
+) -> Result<windows::OpenedProject, String> {
+    caller_home(&webview, false)?;
+    let root = worktree_open_target(&crate::app_state::load(&app), &pid)?;
+    let opened = windows::open_window_for_root(&app, &root.to_string_lossy(), Some(webview.label()), None)?;
+    Ok(windows::OpenedProject::from(&opened))
 }
 
 /// What `home_session()` answers: the Home page secret.
@@ -1989,6 +2072,71 @@ mod tests {
         );
         let v = serde_json::to_value(&s.projects[0]).unwrap();
         assert!(v.get("label").is_none() && v.get("ai").is_none());
+    }
+
+    /// #206 T6.3g — Home lists a remembered worktree under its main project (placed against the
+    /// windows), opens it only by a pid it listed, and drops it once the folder is gone.
+    #[test]
+    fn shell_state_lists_worktrees_under_their_main_project() {
+        let base = std::env::temp_dir().join(format!("maude-home-wt-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let (main, wt) = crate::app_state::tests::make_worktree(&base, "feat-x");
+        let (main_s, wt_s) = (main.to_string_lossy().into_owned(), wt.to_string_lossy().into_owned());
+        let mut st = AppState::default();
+        let main_pid = st.upsert(&main_s, 1);
+        assert!(st.note_worktree(&wt_s));
+        let wt_pid = windows::pid_for_root(&wt_s);
+        let mut book = WindowBook::default();
+        book.insert(HOME_LABEL, Role::Home, 1);
+        book.insert(
+            "p-wt",
+            Role::Project {
+                pid: wt_pid.clone(),
+                root: wt_s.clone(),
+            },
+            2,
+        );
+        let s = build_shell_state(&st, &book, Vec::new(), |_, n| n.to_string(), |_| None, |_| None);
+        assert_eq!(s.projects.len(), 1, "a worktree is never a project row");
+        assert_eq!(
+            s.worktrees,
+            vec![ShellWorktree {
+                pid: wt_pid.clone(),
+                root: wt_s.clone(),
+                main_pid: main_pid.clone(),
+                branch: "feat-x".into(),
+                place: "tab",
+                label: Some("p-wt".into()),
+            }]
+        );
+        let v = serde_json::to_value(&s).unwrap();
+        assert_eq!(v["worktrees"][0]["mainPid"], json!(main_pid));
+        assert_eq!(worktree_open_target(&st, &wt_pid).unwrap(), wt);
+        assert!(worktree_open_target(&st, &main_pid).is_err(), "a project pid is not a worktree");
+        assert!(worktree_open_target(&st, "nope").is_err());
+        std::fs::remove_dir_all(&wt).unwrap();
+        let s = build_shell_state(&st, &book, Vec::new(), |_, n| n.to_string(), |_| None, |_| None);
+        assert!(s.worktrees.is_empty(), "a vanished folder drops its row");
+        assert!(worktree_open_target(&st, &wt_pid).is_err());
+        assert_eq!(
+            worktree_branch_words(&crate::project_resolve::Head::Detached("abc1234".into()), "/x/wt"),
+            "abc1234 detached"
+        );
+        assert_eq!(worktree_branch_words(&crate::project_resolve::Head::Unknown, "/x/wt-2"), "wt-2");
+        // The command: Home only, by pid, through the remembered list, and never the registry.
+        let src = include_str!("home.rs");
+        let i = src.find("pub async fn open_worktree(").unwrap();
+        let body = &src[i..i + src[i + 1..].find("#[tauri::command").unwrap() + 1];
+        for needle in ["caller_home(&webview, false)?", "worktree_open_target(", "open_window_for_root("] {
+            assert!(body.contains(needle), "open_worktree lost {needle}");
+        }
+        for banned in ["root: String", "open_project_window(", "upsert"] {
+            assert!(!body.contains(banned), "open_worktree has {banned}");
+        }
+        assert!(HOME_PERMISSIONS.contains(&"allow-open-worktree"));
+        let default = include_str!("../capabilities/default.json");
+        assert!(!default.contains("allow-open-worktree"), "a project tab never opens a Worktrees row");
+        let _ = std::fs::remove_dir_all(base);
     }
 
     #[test]
