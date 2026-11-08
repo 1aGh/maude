@@ -41,6 +41,7 @@ export function isAssetDrag(e) {
  */
 function createSession(opts = {}) {
   let drag = null;
+  let token = null;
   let idle = null;
   let detach = null;
   const subs = new Set();
@@ -54,6 +55,7 @@ function createSession(opts = {}) {
     detach = null;
     if (!drag) return;
     drag = null;
+    token = null;
     emit();
   };
   const touch = () => {
@@ -66,13 +68,20 @@ function createSession(opts = {}) {
     if (!win?.addEventListener) return null;
     const onEnd = () => end();
     const onDrop = () => setTimeout(end, 0);
+    // #168 F6: a hidden window (another app tab, a minimised window) ends the drag; nothing waits for its return
+    const doc = win.document;
+    const onVisibility = () => {
+      if (doc?.hidden) end();
+    };
     win.addEventListener('dragend', onEnd, true);
     win.addEventListener('pointerdown', onEnd, true);
     win.addEventListener('drop', onDrop, true);
+    doc?.addEventListener?.('visibilitychange', onVisibility);
     return () => {
       win.removeEventListener('dragend', onEnd, true);
       win.removeEventListener('pointerdown', onEnd, true);
       win.removeEventListener('drop', onDrop, true);
+      doc?.removeEventListener?.('visibilitychange', onVisibility);
     };
   };
   return {
@@ -93,6 +102,7 @@ function createSession(opts = {}) {
       }
       if (detach) detach();
       drag = d;
+      token = newToken();
       detach = attach();
       touch();
       // after the dragstart handler returns: a DOM change inside dragstart can cancel the drag in some engines.
@@ -106,11 +116,20 @@ function createSession(opts = {}) {
     /** The drag is still alive (a dragover): push the idle timeout out. */
     touch,
     current: () => drag,
+    /** #168 F6: the opaque id the drag data carries instead of the path (null when no drag is in flight). */
+    token: () => (drag ? token : null),
     subscribe(fn) {
       subs.add(fn);
       return () => subs.delete(fn);
     },
   };
+}
+
+/** An opaque drag id: what a drop target outside the shell could read from the drag data, never the path. */
+function newToken() {
+  const bytes = new Uint8Array(9);
+  globalThis.crypto.getRandomValues(bytes);
+  return `dg_${Array.from(bytes, (b) => b.toString(36).padStart(2, '0')).join('')}`;
 }
 
 export const assetDragSession = createSession();
@@ -155,6 +174,10 @@ export function placeRequestFor(drag, target, canvas) {
  * @param deps.place    (req) => Promise<{ok, created?, message?}> — `placeAsset`
  * @param deps.preview  () => boolean — the canvas is in Preview: a drop adds an annotation, never a design edit
  */
+/** #168 F6: the canvas each drag was first over — kept per drag (not per lane), so a catcher remounted for the new
+ *  tab cannot adopt a drag that began over another canvas. The open canvas changing under a live drag ends it. */
+const DRAG_CANVAS = new WeakMap();
+
 export function createCatcherLane(deps) {
   let seq = 0;
   let pending = null; // { requestId, drag, canvas, timer }
@@ -162,9 +185,21 @@ export function createCatcherLane(deps) {
     if (pending?.timer) clearTimeout(pending.timer);
     pending = null;
   };
+  /** The drag in flight, or null — ending it when the open canvas is no longer the one it was over. */
+  const liveDrag = () => {
+    const drag = deps.session.current();
+    if (!drag) return null;
+    const canvas = deps.canvas();
+    if (!DRAG_CANVAS.has(drag)) DRAG_CANVAS.set(drag, canvas);
+    else if (DRAG_CANVAS.get(drag) !== canvas) {
+      deps.session.end();
+      return null;
+    }
+    return drag;
+  };
   return {
     over(x, y) {
-      if (!deps.session.current()) return false;
+      if (!liveDrag()) return false;
       deps.session.touch?.();
       deps.post({ dgn: 'asset-drag-over', x: Math.round(x), y: Math.round(y) });
       return true;
@@ -174,7 +209,7 @@ export function createCatcherLane(deps) {
     },
     /** The tile was dropped at (x, y) in frame coordinates. Returns the requestId asked, or null. */
     drop(x, y) {
-      const drag = deps.session.current();
+      const drag = liveDrag();
       const canvas = deps.canvas();
       if (!drag || !canvas) return null;
       clearPending();

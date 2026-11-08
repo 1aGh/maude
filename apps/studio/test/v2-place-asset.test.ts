@@ -3,6 +3,7 @@
 // and the Assets tile's drag payload.
 import { describe, expect, test } from 'bun:test';
 import { placeAsset } from '../client/v2/assets/place-asset.js';
+import { assetDragSession } from '../client/v2/assets/asset-drop-session.js';
 import { ASSET_DRAG_MIME, startAssetDrag, tileDragProps } from '../client/v2/assets/tile-drag.js';
 import { parseAssetDrag } from '../editing/asset-drag.ts';
 
@@ -159,7 +160,8 @@ describe('an Assets tile’s drag', () => {
     };
   };
 
-  test('starts a copy that carries the path and the natural size under its own type', () => {
+  // #168 F6 — the path and size live in the shell's session; the drag data carries only its opaque token
+  test('starts a copy whose session carries the path and natural size; the data only a token', () => {
     const d = dt();
     const ok = startAssetDrag({ dataTransfer: d }, 'assets/ab12cd34.jpg', {
       naturalWidth: 4032,
@@ -167,11 +169,13 @@ describe('an Assets tile’s drag', () => {
     });
     expect(ok).toBe(true);
     expect(d.effectAllowed).toBe('copy');
-    expect(parseAssetDrag(d.data.get(ASSET_DRAG_MIME))).toEqual({
+    expect(assetDragSession.current()).toEqual({
       asset: 'assets/ab12cd34.jpg',
       w: 4032,
       h: 3024,
     });
+    expect(d.data.get(ASSET_DRAG_MIME)).toBe(assetDragSession.token() ?? 'none');
+    expect(parseAssetDrag(d.data.get(ASSET_DRAG_MIME))).toBeNull();
   });
 
   test('a path that is not a project asset does not start a drag', () => {
@@ -195,10 +199,7 @@ describe('an Assets tile’s drag', () => {
       dataTransfer: d,
       currentTarget: { querySelector: () => ({ naturalWidth: 10, naturalHeight: 20 }) },
     });
-    expect(parseAssetDrag(d.data.get(ASSET_DRAG_MIME))).toEqual({
-      asset: 'assets/ab12cd34.jpg',
-      w: 10,
-      h: 20,
-    });
+    expect(assetDragSession.current()).toEqual({ asset: 'assets/ab12cd34.jpg', w: 10, h: 20 });
+    expect(d.data.get(ASSET_DRAG_MIME)).toBe(assetDragSession.token() ?? 'none');
   });
 });
