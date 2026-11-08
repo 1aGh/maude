@@ -176,6 +176,12 @@ export function declaredRoles(text: string, idx: RegistryIndex): Set<string> {
     const name = m[2] ?? m[3];
     if (name && idx.roles.has(name)) out.add(name);
   }
+  // #168 G4 — the same, at runtime: `style.setProperty('--bg-3', …)` (any quote) declares the role with no style key.
+  // A computed name (`setProperty(name, …)`) cannot be read statically and stays out of reach of this sniff.
+  for (const m of text.matchAll(/\bsetProperty\s*\(\s*(["'`])(--[A-Za-z0-9_-]+)\1/g)) {
+    const name = m[2];
+    if (name && idx.roles.has(name)) out.add(name);
+  }
   return out;
 }
 
