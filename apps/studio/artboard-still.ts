@@ -818,7 +818,10 @@ export class StillController {
     const kept = this.cache.get(id);
     if (kept?.el) this.putStill(e, kept.el);
     const small = this.small(e, this.zoom);
-    if (small && !e.pinned && !e.eager) {
+    // #169 T8.1b (decision A): mid-zoom, a mount over the cut that has a kept still shows that still and is handed
+    // over at the settle (reconcileAll queues it) — a hand-over now would lay out and paint the body mid-zoom
+    const held = !!kept && this.zooming;
+    if ((small || held) && !e.pinned && !e.eager) {
       this.setView(e, kept?.el ? 'still' : 'cover');
       // a still the decoded tier let go of: decoded again from the encoded copy, never drawn again (#212)
       if (kept && !kept.el) this.restoreFor(e);
@@ -934,6 +937,17 @@ export class StillController {
     this.zooming = false;
     this.reconcileAll();
     this.schedulePump();
+  }
+
+  /**
+   * #169 T8.1b (decision A) — may this artboard's first mount wait for the settle? While a zoom is in flight, one
+   * with a kept still keeps showing it (its placeholder holds that still), so its body mounts, lays out and paints
+   * only at the settle: still → live is a settle change, never a mid-zoom one. No still: never (a placeholder with
+   * nothing better is a block the user sees — v2-207-drop-undercut-midgesture-wait); a pure pan: never. The mount
+   * ring keeps the exemptions (the active artboard, a video one).
+   */
+  holdsForSettle(id: string): boolean {
+    return this.zooming && !!this.cache.peek(id);
   }
 
   /** Is the zoom in flight (diagnostics)? */

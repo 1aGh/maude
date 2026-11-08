@@ -272,6 +272,9 @@ function getRuntime(): Runtime | null {
     // 2.0.7 — no mid-gesture wait for artboards under the cut (decision v2-207-drop-undercut-midgesture-wait): in Safari
     // the wait alone put the 10 % sweep's tail over base (p99 ~80 -> ~120 ms, worst second 52 -> 31 frames), since the
     // waiting artboards stayed on screen as placeholders through the pan; the ring's mid-gesture hold stays
+    // #169 T8.1b (decision A) — what waits is narrower: mid-ZOOM, an artboard that HAS a kept still (its placeholder
+    // shows it) mounts at the settle, so still → live never happens mid-zoom. No still, or a pan: it mounts as before.
+    registry.setMayWait((id) => st.holdsForSettle(id));
     stills = st;
     // #212 §5 — the stills persist across sessions, through the shell (it picks the key; the frame only offers)
     startStillPersist(st);
