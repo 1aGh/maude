@@ -25,14 +25,15 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
-import { canvasLibPath, canvasLibResolver } from './canvas-lib-resolver.ts';
+import { realOrSelf } from './canvas-lib-module.ts';
+import { CANVAS_LIB_SPECIFIER, canvasLibPath, canvasLibResolver } from './canvas-lib-resolver.ts';
 import {
   importedModuleScope,
   stampImportedModule,
   transpileCanvasSource,
 } from './canvas-pipeline.ts';
 import { CanvasBuildError, errorAt, fromBuildLogs, scrubPaths } from './canvas-source/errors.ts';
-import { dsResolver, usesDs } from './ds/ds-resolver.ts';
+import { dsResolver, importsDsBoard, usesDs } from './ds/ds-resolver.ts';
 import type { LocatorMap } from './locator.ts';
 import { hasMacroImport, macroImportRefusal } from './macro-guard.ts';
 import { isUnderOrEqual } from './path-containment.ts';
@@ -87,6 +88,11 @@ export interface CanvasBundleResult {
    * canvas's board, a canvas the opener cannot read — fails the serve closed.
    */
   inputs: string[];
+  /**
+   * #169 T8.1c — the module imports `@maude/canvas-lib` (the shell's shared module) instead of
+   * inlining it. Always false without `BuildCanvasOptions.sharedCanvasLib`.
+   */
+  sharedLib: boolean;
 }
 
 /** The build's metafile `inputs` as absolute paths (Bun reports them relative to the cwd). */
@@ -99,6 +105,15 @@ function metafileInputs(metafile: { inputs?: Record<string, unknown> } | undefin
 }
 
 export interface BuildCanvasOptions {
+  /**
+   * #169 T8.1c — leave `@maude/canvas-lib` EXTERNAL: the shell's importmap maps it to the one
+   * shared module (canvas-lib-module.ts), so a canvas module carries only its own code. Pass the
+   * shared module's `inputs` only when the shell this module is served to carries that mapping.
+   * A build that would still inline one of those files (a module the canvas reaches by path, e.g.
+   * the DS board's) is redone with canvas-lib inlined — a second copy of a canvas-lib module is a
+   * second copy of its state.
+   */
+  sharedCanvasLib?: { inputs: ReadonlySet<string> };
   /**
    * Absolute path to the design root. Per DDR-025 canvas-lib is dev-server
    * bundled, so this value is no longer required to resolve `@maude/canvas-lib`
@@ -323,13 +338,40 @@ function cssUrlAssets(designRoot: string, base: string): import('bun').BunPlugin
 /**
  * Build a single canvas TSX file end-to-end. Identity pass is from
  * canvas-pipeline.ts; the module pass is Bun.build with React externalised
- * and `@maude/canvas-lib` resolved to the dev-server-bundled canvas-lib.
+ * and `@maude/canvas-lib` resolved to the dev-server-bundled canvas-lib — or,
+ * with `sharedCanvasLib`, left external for the shell's shared module.
  */
 export async function buildCanvasModule(
   canvasAbsPath: string,
   source: string,
   options: BuildCanvasOptions = {}
 ): Promise<CanvasBundleResult> {
+  const shared = options.sharedCanvasLib;
+  // #169 T8.1c — a DS board imports the board code, which shares canvas-lib's own modules
+  // (`canvas-theme.ts`, …) by path: it always inlines, so skip the build that would be thrown away.
+  if (!shared || importsDsBoard(source)) {
+    return {
+      ...(await buildCanvasModuleOnce(canvasAbsPath, source, options, false)),
+      sharedLib: false,
+    };
+  }
+  const built = await buildCanvasModuleOnce(canvasAbsPath, source, options, true);
+  // A file of the shared module inlined here would be a SECOND instance of its module state beside
+  // the shared one (two theme registries, two frame clocks) — redo the build the old way.
+  if (!built.inputs.some((p) => shared.inputs.has(p) || shared.inputs.has(realOrSelf(p))))
+    return { ...built, sharedLib: true };
+  return {
+    ...(await buildCanvasModuleOnce(canvasAbsPath, source, options, false)),
+    sharedLib: false,
+  };
+}
+
+async function buildCanvasModuleOnce(
+  canvasAbsPath: string,
+  source: string,
+  options: BuildCanvasOptions,
+  shareLib: boolean
+): Promise<Omit<CanvasBundleResult, 'sharedLib'>> {
   // gate-b-c4n — a Bun macro import runs at build time, in THIS process (or the sandbox worker):
   // pass 1's Bun.Transpiler and Bun.build below both evaluate it. Refuse it before either sees the
   // text; `macroGuard` (first plugin) does the same for every file the bundle loads.
@@ -353,7 +395,7 @@ export async function buildCanvasModule(
 
   // Sanity-check the dev-server-bundled canvas-lib once per process — if the
   // install is corrupt, fail loud before Bun.build collapses plugin throws.
-  if (/@maude\/canvas-lib/.test(source)) {
+  if (!shareLib && /@maude\/canvas-lib/.test(source)) {
     verifyCanvasLibPresence();
   }
 
@@ -372,6 +414,8 @@ export async function buildCanvasModule(
   // in the bundle). The flatMap legacy alias for `react-dom` is no longer
   // needed; RUNTIME_PACKAGES already lists every specifier the importmap covers.
   const externalSpecifiers = new Set<string>(RUNTIME_PACKAGES);
+  // #169 T8.1c — the shell's importmap maps it to the shared module (canvas-lib-module.ts).
+  if (shareLib) externalSpecifiers.add(CANVAS_LIB_SPECIFIER);
   const denials: Array<{ specifier: string; reason: string }> = [];
   const macroRefusals: string[] = [];
   const allowlist = options.restrictImportsTo
@@ -441,8 +485,9 @@ export async function buildCanvasModule(
         },
       },
       // Resolve `@maude/canvas-lib` BEFORE exact-externals — we want the bare
-      // specifier to map to the dev-server-bundled lib, not get marked external.
-      canvasLibResolver(),
+      // specifier to map to the dev-server-bundled lib, not get marked external
+      // (unless it is shared: then exact-externals below leaves it external).
+      ...(shareLib ? [] : [canvasLibResolver()]),
       // `@maude/ds` — per canvas: the system's override or the defaults, and the system registered
       ...(options.designRoot && usesDs(source)
         ? [dsResolver(options.designRoot, canvasAbsPath)]
