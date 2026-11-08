@@ -1,6 +1,6 @@
 // Bounded recovery slots, outside the rolling snapshot queue: a corrupt peer
 // cannot evict the last valid source by flooding rejected updates (#121).
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { atomicWrite } from './atomic-write.ts';
 import { MAX_HTML_BYTES } from './limits.ts';
@@ -22,6 +22,43 @@ export interface RecoveryCandidate {
 
 function candidatePath(historyDir: string, file: string): string {
   return path.join(historyDir, 'sync-recovery', `candidate${path.extname(file)}.json`);
+}
+
+/**
+ * #168 T5.4 S1 — the recovery folder a WRITE may use, or a throw (callers report it as
+ * `snapshotFailed`). `historyDir` is `<designRoot>/_history/<slug>`: no folder from the design
+ * root down to `sync-recovery` may be a symlink, and the folder must resolve inside the design
+ * root, so a link planted under `_history` (a cloned repo can carry one) never carries the bytes
+ * elsewhere. The design root itself may sit behind a link (a shared design folder). The design
+ * root is the parent of the path's last `_history` segment; a path without one is anchored at
+ * `historyDir`'s parent.
+ */
+function writableRecoveryDir(historyDir: string): string {
+  const dir = path.resolve(historyDir, 'sync-recovery');
+  const parts = dir.split(path.sep);
+  const at = parts.lastIndexOf('_history');
+  const anchor =
+    at > 0 ? parts.slice(0, at).join(path.sep) || path.sep : path.dirname(path.resolve(historyDir));
+  let cur = anchor;
+  let deepest = anchor;
+  for (const seg of path.relative(anchor, dir).split(path.sep)) {
+    cur = path.join(cur, seg);
+    let st: ReturnType<typeof lstatSync>;
+    try {
+      st = lstatSync(cur);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') break; // created as plain folders
+      throw error;
+    }
+    if (st.isSymbolicLink()) throw new Error('Recovery folder is a symlink; not written');
+    if (!st.isDirectory()) throw new Error('Recovery folder is not a folder; not written');
+    deepest = cur;
+  }
+  const root = realpathSync(anchor);
+  const real = realpathSync(deepest);
+  if (real !== root && !real.startsWith(`${root}${path.sep}`))
+    throw new Error('Recovery folder is outside the design root; not written');
+  return dir;
 }
 
 function boundedBody(body: unknown): body is string | null {
@@ -66,6 +103,7 @@ export function preserveRecoveryCandidate(
     throw new Error('Recovery source exceeds size limit');
   const previous = readRecoveryCandidate(historyDir, file);
   if (previous && !previous.resolved) return;
+  writableRecoveryDir(historyDir);
   atomicWrite(
     candidatePath(historyDir, file),
     JSON.stringify({ version: 1, original, base, resolved: false })
@@ -76,6 +114,7 @@ export function preserveRecoveryCandidate(
 export function resolveRecoveryCandidate(historyDir: string, file: string): void {
   const previous = readRecoveryCandidate(historyDir, file);
   if (!previous || previous.resolved) return;
+  writableRecoveryDir(historyDir);
   atomicWrite(candidatePath(historyDir, file), JSON.stringify({ ...previous, resolved: true }));
 }
 
@@ -88,6 +127,7 @@ export function saveRecoveryBody(
   if (Buffer.byteLength(body, 'utf8') > MAX_HTML_BYTES)
     throw new Error('Recovery source exceeds size limit');
   const target = path.join(historyDir, 'sync-recovery', `${slot}${path.extname(file)}`);
+  writableRecoveryDir(historyDir);
   if (!existsSync(target) || readFileSync(target, 'utf8') !== body) atomicWrite(target, body);
   return target;
 }
