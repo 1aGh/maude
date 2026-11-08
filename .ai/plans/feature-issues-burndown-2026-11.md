@@ -404,3 +404,4 @@ W5 and W6 use Opus.
 - 2026-11-08 Michal: #172 two states closed as not planned (neutral ring tags stand); #168 F1 Image chip OK.
 - 2026-11-08 merged #169 item 4 32cca4cd1 (canvas iframe carries its own geometry; root cause of the late stylesheet not found — the T9.1 desktop lane logs the first observed frame size). T8.1 ticked; #169 closes after the desktop lane confirms.
 - 2026-11-08 merged #172 asset origins b5c8df590 + upload wiring 64b9d1c05 (.added.json write-once sidecar, asset-added-v1 hub capability, name only, cell header only in workspace mode). #172 code complete; closes after the e2e lanes for its scenarios run.
+- 2026-11-08 merged #172 asset origins b5c8df590 + upload wiring 64b9d1c05 + tsc narrow b0a2a25ad (.added.json write-once sidecar, asset-added-v1 hub capability, name only; the cell member header read only in workspace mode). #172 code complete; closes after its e2e lanes run.
