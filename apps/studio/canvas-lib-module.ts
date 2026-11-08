@@ -183,10 +183,11 @@ export function withSharedCanvasLib(
   } catch {
     return shellHtml;
   }
-  const next = { ...map, imports: { ...(map.imports ?? {}), '@maude/canvas-lib': url } };
+  const imports: Record<string, string> = { ...(map.imports ?? {}), '@maude/canvas-lib': url };
+  const next = { ...map, imports };
   const have = new Set([...shellHtml.matchAll(PRELOAD_RE)].map((p) => p[1]));
   const links: string[] = [];
-  for (const href of [url, ...staticImports.map((s) => next.imports[s])]) {
+  for (const href of [url, ...staticImports.map((s) => imports[s])]) {
     if (typeof href !== 'string' || !RUNTIME_URL_RE.test(href) || have.has(href)) continue;
     have.add(href);
     links.push(`\n    <link rel="modulepreload" href="${href}" />`);
