@@ -261,7 +261,11 @@ describe('assetDetails', () => {
     recordAssetOrigin(root, 'assets/d34bb59d.jpg', '/Users/jonas/Pictures/IMG.jpg', 5, 'Jonas');
     expect(assetDetails('assets/d34bb59d.jpg', base(root))?.addedBy).toBe('Tereza');
     // untrusted synced text: an e-mail is never shown
-    put(root, 'assets/d34bb59d.added.json', '{"format":"maude.added","v":1,"by":"eve@evil.test"}');
+    put(
+      root,
+      'assets/d34bb59d.jpg.added.json',
+      '{"format":"maude.added","v":1,"by":"eve@evil.test"}'
+    );
     expect(
       assetDetails('assets/d34bb59d.jpg', base(root, { includeOriginal: false }))?.addedBy
     ).toBe(undefined);

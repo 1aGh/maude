@@ -16,6 +16,8 @@ import { ADOPT_NOT_HELD, ADOPT_NOT_OWNER, createAdoptHeld } from '../sync/adopt-
 const HUB = 'https://hub.test';
 const ROUTE = '/_api/sync/adopt-held';
 const FROM_WINDOW = { 'sec-fetch-site': 'same-origin' };
+/** The version the held list showed (burndown F4: the hub adopts only that one). */
+const SHA = 'a1b2c3d4'.repeat(8);
 
 function hub(status: number) {
   const calls: { url: string; body: unknown; auth: string | null }[] = [];
@@ -73,22 +75,26 @@ describe('POST /_api/sync/adopt-held', () => {
 
   test('the owner’s answer reaches the hub’s adopt door with the path and starts a pass', async () => {
     const h = harness(200);
-    const r = await h.post({ path: 'brand/x.tsx' });
+    const r = await h.post({ path: 'brand/x.tsx', sha256: SHA });
     expect(r.status).toBe(200);
     expect(await r.json()).toEqual({ ok: true });
     expect(h.calls).toEqual([
-      { url: `${HUB}/api/journal/adopt`, body: { path: 'brand/x.tsx' }, auth: 'Bearer owner-tok' },
+      {
+        url: `${HUB}/api/journal/adopt`,
+        body: { path: 'brand/x.tsx', sha256: SHA },
+        auth: 'Bearer owner-tok',
+      },
     ]);
     expect(h.passes()).toBe(1);
   });
 
   test('the hub’s 403 is "only the owner", its 404 is "not held"; neither starts a pass', async () => {
     const no = harness(403);
-    const r = await no.post({ path: 'brand/x.tsx' });
+    const r = await no.post({ path: 'brand/x.tsx', sha256: SHA });
     expect(r.status).toBe(403);
     expect((await r.json()).detail).toBe(ADOPT_NOT_OWNER);
     const gone = harness(404);
-    const g = await gone.post({ path: 'brand/x.tsx' });
+    const g = await gone.post({ path: 'brand/x.tsx', sha256: SHA });
     expect(g.status).toBe(409);
     expect((await g.json()).detail).toBe(ADOPT_NOT_HELD);
     expect(no.passes() + gone.passes()).toBe(0);
@@ -107,7 +113,7 @@ describe('POST /_api/sync/adopt-held', () => {
   });
 
   test('no linked hub: 409 not-linked', async () => {
-    const r = await harness(200, { runtime: false }).post({ path: 'brand/x.tsx' });
+    const r = await harness(200, { runtime: false }).post({ path: 'brand/x.tsx', sha256: SHA });
     expect(r.status).toBe(409);
     expect((await r.json()).reason).toBe('not-linked');
   });

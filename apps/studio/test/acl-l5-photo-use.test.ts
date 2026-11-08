@@ -77,6 +77,9 @@ const FILES: Record<string, string> = {
   // #172 — who added it rides with its asset, like the generation record
   [`assets/${IMG}.added.json`]: '{"format":"maude.added","v":1,"by":"Tereza"}',
   [`assets/${B_ONLY}.added.json`]: '{"format":"maude.added","v":1,"by":"Jonas"}',
+  // burndown F6 — the record keyed by the asset's FULL name rides the same way
+  [`assets/${IMG}.png.added.json`]: '{"format":"maude.added","v":1,"by":"Tereza"}',
+  [`assets/${B_ONLY}.png.added.json`]: '{"format":"maude.added","v":1,"by":"Jonas"}',
 };
 
 describe('acl-l5-photo-use — read closure', () => {
@@ -122,6 +125,10 @@ describe('acl-l5-photo-use — read closure', () => {
     expect(sees(a, cl, `assets/${B_ONLY}.added.json`)).toBe(false);
     const b = grant('ui/B.tsx', 'viewer');
     expect(sees(b, closureFor(b, project), `assets/${B_ONLY}.added.json`)).toBe(true);
+    // the full-name record (burndown F6) follows the same grant
+    expect(sees(a, cl, `assets/${IMG}.png.added.json`)).toBe(true);
+    expect(sees(a, cl, `assets/${B_ONLY}.png.added.json`)).toBe(false);
+    expect(sees(b, closureFor(b, project), `assets/${B_ONLY}.png.added.json`)).toBe(true);
   });
 
   test('a project role still reads everything (the existing gates apply)', () => {

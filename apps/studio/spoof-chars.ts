@@ -15,3 +15,12 @@ const SPOOF_CHARS_RE = new RegExp(`[${SPOOF_CHARS_CLASS}]`, 'gu');
 export function stripSpoofChars(s: string): string {
   return s.replace(SPOOF_CHARS_RE, '');
 }
+
+/** Invisible formatting characters a name never needs either: soft hyphen, Arabic letter mark, Mongolian vowel
+ *  separator, zero-width space / non-joiner / joiner, LRM / RLM, word joiner + invisible operators, BOM. */
+const INVISIBLE_CHARS_RE = /[\u00ad\u061c\u180e\u200b-\u200f\u2060-\u2064\ufeff]/gu;
+
+/** A person's name with every spoofing AND invisible character removed (burndown L4: "Added by"). */
+export function stripNameSpoofChars(s: string): string {
+  return stripSpoofChars(s).replace(INVISIBLE_CHARS_RE, '');
+}

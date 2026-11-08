@@ -50,10 +50,13 @@ function hubWith(extra: Record<string, unknown>) {
   }) as unknown as typeof fetch;
 }
 
+// Burndown F4: the hub names each held file's version; "Adopt as code" sends it back.
+const V1 = { sha256: 'a'.repeat(64), size: 40 };
+const V2 = { sha256: 'b'.repeat(64), size: 2048 };
 const OWNER_PAGE = {
   held: [
-    { path: 'brand/x.tsx', reason: 'canvas-before-folders' },
-    { path: 'components/Button.tsx', reason: 'changed-as-canvas' },
+    { path: 'brand/x.tsx', reason: 'canvas-before-folders', ...V1 },
+    { path: 'components/Button.tsx', reason: 'changed-as-canvas', ...V2 },
   ],
   heldCount: 2,
 };
@@ -64,8 +67,8 @@ describe('the journal read parses the owner-only held list', () => {
     expect(page?.held).toEqual({
       count: 2,
       paths: [
-        { path: 'brand/x.tsx', reason: 'canvas-before-folders' },
-        { path: 'components/Button.tsx', reason: 'changed-as-canvas' },
+        { path: 'brand/x.tsx', reason: 'canvas-before-folders', ...V1 },
+        { path: 'components/Button.tsx', reason: 'changed-as-canvas', ...V2 },
       ],
     });
   });
@@ -158,6 +161,10 @@ describe('a file-plane pass reports it, and Sync details shows it with its reaso
       kind: 'code-held',
       count: 2,
       paths: ['brand/x.tsx', 'components/Button.tsx'],
+      files: [
+        { path: 'brand/x.tsx', ...V1 },
+        { path: 'components/Button.tsx', ...V2 },
+      ],
       detail: codeHeldDetail(2),
     });
     // The reason, in the user's words (CONTRACT §4: what happened · what is safe · one verb).
@@ -188,6 +195,7 @@ describe('a file-plane pass reports it, and Sync details shows it with its reaso
         kind: 'code-held',
         detail: codeHeldDetail(2),
         paths: ['brand/x.tsx', 'components/Button.tsx'],
+        versions: { 'brand/x.tsx': V1, 'components/Button.tsx': V2 },
       },
     ]);
     host = document.createElement('div');

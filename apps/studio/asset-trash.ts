@@ -88,7 +88,11 @@ export function sidecarsOf(designRoot: string, rel: string): string[] {
   for (const n of names) {
     if (n === name) continue;
     const perUse = PER_USE.exec(n);
-    const own = (perUse && perUse[1] === stem) || SIDECAR_SUFFIXES.some((s) => n === `${base}${s}`);
+    const own =
+      (perUse && perUse[1] === stem) ||
+      SIDECAR_SUFFIXES.some((s) => n === `${base}${s}`) ||
+      // the who-added record keyed by the FULL name (burndown F6, asset-added.ts addedRelOf)
+      n === `${name}.added.json`;
     // another PICTURE with the same stem is not a sidecar — only the known companion shapes ride along
     if (own && !assetKindOf(n)) out.push(`assets/${n}`);
   }

@@ -1,20 +1,24 @@
 // asset-added.ts — who brought an asset into the project, as every peer sees it (#172; contract
 // client/v2/contracts/172-asset-origins.md).
 //
-// `assets/<sha8>.added.json` — `{ "format": "maude.added", "v": 1, "by": "Tereza", "at": "2026-11-08T09:12:00Z" }`
+// `assets/<name>.added.json` — `{ "format": "maude.added", "v": 1, "by": "Tereza", "at": "2026-11-08T09:12:00Z" }`
+// (`<name>` = the asset's full file name, `d34bb59d.jpg`; records written before burndown F6 used the stem up to the
+// first dot, `d34bb59d.added.json` — still read, see `legacyAddedRelOf`).
 //
 // Versioned project content: a companion sidecar of the asset (file plane `companion-text`, both classifier copies), so
 // it syncs, moves to the Trash and renames with its asset. It holds a DISPLAY NAME only — never a path (that stays in
 // the per-Mac `_canvas-state/asset-origins.json`), never an e-mail, never an account id. Write-once: the first person who
 // brought the bytes in is the one who added them; the same bytes again are the same asset and keep the record.
 //
-// Peer-synced, so untrusted on read: small, the right format and version, a clean name — else absent.
+// Peer-synced, so untrusted on read: small, the right format and version, a clean name — else absent. It is a CLAIM by
+// someone who could write the project, not a proof (contract 172 § Trust).
 //
 // Leaf module (node:fs / node:path + the leaf asset-origins.ts; erasable TypeScript) — the CLI imports it under bun.
 
-import { readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { cleanOriginBy } from './asset-origins.ts';
+import { assetKindOf } from './index/extractors/asset-usage.ts';
 
 export const ADDED_SUFFIX = '.added.json';
 export const ADDED_FORMAT = 'maude.added';
@@ -33,15 +37,53 @@ const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 /** A flat file under assets/ (asset-details.ts DETAIL_ASSET_REL): no folder, no `..`, no leading dot. */
 const ASSET_REL = /^assets\/([A-Za-z0-9_][A-Za-z0-9 ._-]*)$/;
 
+const assetNameOf = (assetRel: unknown): string | null => {
+  if (typeof assetRel !== 'string') return null;
+  return ASSET_REL.exec(assetRel.replace(/^\.?\/+/, ''))?.[1] ?? null;
+};
+
 /**
- * `assets/<stem>.<ext>` → `assets/<stem>.added.json` (the asset-trash stem rule, so a rename carries it); null for
- * anything that is not a flat asset name. An import names the asset by its sha8; a renamed one keeps its record.
+ * `assets/<name>` → `assets/<name>.added.json`, keyed by the FULL file name (burndown F6: `logo.png` and `logo.v2.svg`
+ * share the stem `logo`, so a stem key let one asset's record speak for the other). It rides trash and rename as a
+ * sidecar (asset-trash `sidecarsOf`, asset-rename's `<base>.` rule). Null for anything that is not a flat asset name.
  */
 export function addedRelOf(assetRel: unknown): string | null {
-  if (typeof assetRel !== 'string') return null;
-  const m = ASSET_REL.exec(assetRel.replace(/^\.?\/+/, ''));
-  const stem = m?.[1]?.split('.')[0] ?? '';
+  const name = assetNameOf(assetRel);
+  return name ? `assets/${name}${ADDED_SUFFIX}` : null;
+}
+
+/** The pre-F6 name `assets/<stem>.added.json` (stem = up to the first dot); read, never written. */
+export function legacyAddedRelOf(assetRel: unknown): string | null {
+  const stem = assetNameOf(assetRel)?.split('.')[0] ?? '';
   return stem ? `assets/${stem}${ADDED_SUFFIX}` : null;
+}
+
+/** Does another asset in `assets/` share `name`'s stem? Then a stem-keyed record cannot say whose it is. */
+function stemShared(designRoot: string, name: string): boolean {
+  const stem = name.split('.')[0];
+  try {
+    return readdirSync(path.join(designRoot, 'assets')).some(
+      (n) => n !== name && n.split('.')[0] === stem && assetKindOf(n) !== null
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Where this asset's record is: the full-name file, else an older stem-keyed one that no other asset could claim.
+ * Null when there is none to read.
+ */
+function recordFileOf(designRoot: string, assetRel: string): string | null {
+  const rel = addedRelOf(assetRel);
+  const name = assetNameOf(assetRel);
+  if (!rel || !name) return null;
+  const file = path.join(designRoot, ...rel.split('/'));
+  if (existsSync(file)) return file;
+  const legacy = legacyAddedRelOf(assetRel);
+  if (!legacy || legacy === rel || stemShared(designRoot, name)) return null;
+  const old = path.join(designRoot, ...legacy.split('/'));
+  return existsSync(old) ? old : null;
 }
 
 /**
@@ -67,9 +109,8 @@ export function addedByName(raw: unknown): string | null {
 
 /** The record beside `assets/<sha8>.<ext>`, or null (none, unreadable, or not one this version reads). */
 export function readAssetAdded(designRoot: string, assetRel: string): AssetAdded | null {
-  const rel = addedRelOf(assetRel);
-  if (!rel) return null;
-  const file = path.join(designRoot, ...rel.split('/'));
+  const file = recordFileOf(designRoot, assetRel);
+  if (!file) return null;
   try {
     const st = statSync(file);
     if (!st.isFile() || st.size > ADDED_MAX_BYTES) return null;
@@ -98,6 +139,8 @@ export function recordAssetAdded(
   const rel = addedRelOf(assetRel);
   const by = addedByName(who);
   if (!rel || !by) return false;
+  // Write-once across both names: an older stem-keyed record that is this asset's is the first person.
+  if (recordFileOf(designRoot, assetRel) !== null) return false;
   const file = path.join(designRoot, ...rel.split('/'));
   try {
     const doc = { format: ADDED_FORMAT, v: 1, by, at: new Date(now).toISOString() };

@@ -176,6 +176,9 @@ export interface FilePlaneStatus {
     paths: string[];
     /** Issue #207 (7b) — `delete-out`: the folders the held deletes sit in, largest first. */
     folders?: { folder: string; count: number }[];
+    /** `code-held`: the version of each listed file on the hub (an older hub names none) — the row
+     *  shows it and "Adopt as code" sends the sha, so the hub adopts exactly what was shown. */
+    files?: { path: string; sha256: string; size: number }[];
     /** #167 T5.3 — `code-held`: the hub could not name every held file (more are held than listed). */
     overflow?: true;
     /** One sentence, in the user's terms, about what is waiting and why. */

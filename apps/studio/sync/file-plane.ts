@@ -81,7 +81,7 @@ import {
 } from './file-membership.ts';
 import {
   fetchJournal,
-  type HeldReason,
+  type HeldEntry,
   type JournalEntry,
   type JournalPage,
 } from './journal-client.ts';
@@ -491,7 +491,7 @@ export interface FilePlaneResult {
    * canvases before the owner set the canvas folders). Only an owner's journal
    * read carries it; absent otherwise. A count of 0 means nothing is held.
    */
-  codeHeld?: { count: number; paths: { path: string; reason: HeldReason }[]; overflow?: true };
+  codeHeld?: { count: number; paths: HeldEntry[]; overflow?: true };
   /**
    * Issue #175 — files the hub's door will not take, from the LEDGER (so a pass
    * that skipped them still reports them). `older` = held before asking, because

@@ -707,9 +707,12 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
      * re-uploads, an idempotent sweep, and a rewrite of identical bytes all
      * cost zero journal churn and zero peer wakeups.
      *
+     * `expectSha256` (optional): append only when the bytes on disk hash to it — the caller
+     * decided about that version and no other (else `null`, nothing appended).
+     *
      * @returns {null | { seq: number, sha256: string|null, noop: boolean, deleted: boolean }}
      */
-    recordWrite({ designRoot, path: rel, source, deleted = false }) {
+    recordWrite({ designRoot, path: rel, source, deleted = false, expectSha256 = null }) {
       if (!designRoot || typeof rel !== 'string' || rel.length === 0) return null;
       if (!JOURNAL_SOURCES.includes(source)) {
         console.error(`[journal] refusing an append with unknown source '${source}'`);
@@ -755,6 +758,8 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
 
       const stat = handle.shaOf(designRoot, rel);
       if (stat === null) return null; // gone, unreadable, or implausible
+      // The caller recorded a decision about ONE version (the owner's adopt): other bytes get no row.
+      if (expectSha256 !== null && stat.sha256 !== expectSha256) return null;
 
       if (prev && prev.deleted === 0 && prev.sha256 === stat.sha256) {
         return { seq: prev.seq, sha256: stat.sha256, noop: true, deleted: false };
@@ -1382,8 +1387,10 @@ export function handleJournalRoutes({
  * Only a path that is held NOW is adopted: folders declared, the path code under them, a regular
  * file on this disk, and a hold, a ghost, or the overflow flag in force. It drops the hold (no ghost
  * — the file is there), clears a ghost, and journals the bytes on THIS disk as the owner's code
- * (`owner-adopt`): the caller names a path, never content. Anything else is one 404, so the answer
- * is the same for "not held" and "not there".
+ * (`owner-adopt`): the caller names a path and the sha of the version it was shown (the held list's
+ * `sha256`), never content. Bytes that differ are 409 and stay held; a caller with no sha (an older
+ * client) is 428 "update Maude" — never adopted blind. Anything else is one 404, so the answer is
+ * the same for "not held" and "not there".
  *
  * Not wake-durable by design: the release rides the tail as a plain `released` path, and a tail is
  * never trusted to lift a hold whose file exists — a wake from a generation taken before the adopt
@@ -1431,16 +1438,48 @@ function adoptAsCode({ method, bearer, verify, designRoot, journal, body, respon
     notHeld();
     return;
   }
-  journal.releaseHold(rel);
-  journal.clearGhost(rel);
-  const row = journal.recordWrite({ designRoot, path: rel, source: 'owner-adopt' });
-  if (row === null) {
-    // Unreadable or implausible bytes: the hold is gone, the file has no row (the walk retries).
+  // The version the owner was shown (the held list's sha). Without it the door would adopt
+  // whatever bytes sit here at click time — a teammate could swap them in between.
+  const shown = body?.sha256;
+  if (typeof shown !== 'string' || !SHA256_HEX.test(shown)) {
+    respondJson(428, {
+      error: 'update Maude to adopt a held file — this version cannot say which version it showed',
+      reason: 'version-required',
+    });
+    return;
+  }
+  const changed = () =>
+    respondJson(409, {
+      error: 'the file changed since it was shown — look at it again before adopting',
+      reason: 'changed',
+    });
+  const onDisk = journal.shaOf(designRoot, rel);
+  if (onDisk === null) {
     respondJson(409, { error: 'the file could not be read' });
     return;
   }
-  respondJson(200, { adopted: true, seq: row.seq });
+  if (onDisk.sha256 !== shown) {
+    changed();
+    return;
+  }
+  journal.releaseHold(rel);
+  journal.clearGhost(rel);
+  const row = journal.recordWrite({
+    designRoot,
+    path: rel,
+    source: 'owner-adopt',
+    expectSha256: shown,
+  });
+  if (row === null) {
+    // Bytes changed between the check and the read (or became unreadable): held again, no row.
+    journal.reholdGhost(rel);
+    changed();
+    return;
+  }
+  respondJson(200, { adopted: true, seq: row.seq, sha256: row.sha256 });
 }
+
+const SHA256_HEX = /^[0-9a-f]{64}$/;
 
 /* ------------------------------------------------------- the R2 tail ----- */
 

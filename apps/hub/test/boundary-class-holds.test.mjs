@@ -11,6 +11,7 @@
 // canvas; no tombstone is written and its last code row stays, so desktops keep it.
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -205,9 +206,16 @@ function journalRead(token, { designRoot = root, j = journal, path = JOURNAL_PAT
   return out;
 }
 
+/** The version the held list names for a file (burndown F4: Adopt as code adopts only that one). */
+const versionOf = (text) => ({
+  sha256: createHash('sha256').update(text).digest('hex'),
+  size: Buffer.byteLength(text),
+});
+const TEAMMATE_X = 'export default () => <i>teammate</i>;\n';
+
 describe('p8-held-surface — the owner is told what is held, and only the owner', () => {
   async function holdOne() {
-    put('brand/x.tsx', 'export default () => <i>teammate</i>;\n');
+    put('brand/x.tsx', TEAMMATE_X);
     walk();
     await ownerDeclares(['ui']);
     walk();
@@ -217,7 +225,9 @@ describe('p8-held-surface — the owner is told what is held, and only the owner
     await holdOne();
     const got = journalRead(owner);
     assert.equal(got.status, 200);
-    assert.deepEqual(got.payload.held, [{ path: 'brand/x.tsx', reason: 'canvas-before-folders' }]);
+    assert.deepEqual(got.payload.held, [
+      { path: 'brand/x.tsx', reason: 'canvas-before-folders', ...versionOf(TEAMMATE_X) },
+    ]);
     assert.equal(got.payload.heldCount, 1);
   });
 
@@ -286,7 +296,11 @@ describe('p8-held-surface — the owner is told what is held, and only the owner
     await ownerDeclares(['ui']);
     walk();
     assert.deepEqual(heldCodeEntries(root), [
-      { path: 'components/Button.tsx', reason: 'changed-as-canvas' },
+      {
+        path: 'components/Button.tsx',
+        reason: 'changed-as-canvas',
+        ...versionOf('export const Button = () => <b>teammate</b>;\n'),
+      },
     ]);
   });
 
