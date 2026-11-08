@@ -11,17 +11,18 @@
 //   another user is closed without a byte;
 // - a request is ≤ 8 KiB and must arrive within 2 s;
 // - `root` is absolute, exists, realpaths to a folder with `.design/config.json`, and is neither inside
-//   nor an ancestor of the app's own data dirs or the profile config folders;
+//   nor an ancestor of the app's own data dirs, the profile config folders or the credential folders;
 // - a folder Maude already knows (ever opened / Recent) and a verified worktree of one opens silently;
 //   any other folder brings Maude to the front with a native sheet ("Open" / "Not now"). Open adds it
 //   to the project list, so the next request is silent; Not now answers `denied` (the CLI uses its own
-//   hidden server) and is kept for this app run so a looping agent cannot raise the sheet again;
+//   hidden server) and is kept for this app run; at most MAX_SHEETS_PER_WINDOW sheets per ten minutes
+//   across every folder, Not now is the default button and Open counts only after SHEET_OPEN_DELAY;
 // - Settings › General "Let the terminal open projects in Maude" (prefs `terminal_opens`, default on)
 //   off ⇒ nothing is opened from the terminal (a tab already open still answers);
 // - the terminal never picks or creates a profile: a new folder adopts the last sign-in's profile
 //   exactly as an unbound folder opened from Home does, and a worktree never enters the project list.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -42,6 +43,15 @@ pub(crate) const LEASE_MAX_SECS: u64 = 600;
 pub(crate) const TICKET_TTL: Duration = Duration::from_secs(120);
 /// At most this many sheets wait at once; more requests for new folders are refused.
 pub(crate) const MAX_PENDING_TICKETS: usize = 4;
+/// At most this many consent sheets per `SHEET_WINDOW` across EVERY folder (not per folder): an agent
+/// cycling through new folders cannot keep bringing Maude to the front. Past it: `too-many-sheets`.
+pub(crate) const MAX_SHEETS_PER_WINDOW: usize = 3;
+pub(crate) const SHEET_WINDOW: Duration = Duration::from_secs(600);
+/// Open counts only this long after the sheet showed: a key or click already on its way when Maude
+/// came to the front cannot answer it (the sheet is raised again instead).
+pub(crate) const SHEET_OPEN_DELAY: Duration = Duration::from_secs(1);
+pub(crate) const SHEET_OPEN: &str = "Open";
+pub(crate) const SHEET_NOT_NOW: &str = "Not now";
 /// At most this many connections are handled at once; more are closed.
 pub(crate) const MAX_CONNECTIONS: usize = 16;
 const MAX_ROOT_LEN: usize = 4096;
@@ -275,6 +285,74 @@ pub fn validate_root(raw: &str, forbidden: &[PathBuf]) -> Result<PathBuf, Refusa
     Ok(real)
 }
 
+/// The credential folders under `home` no terminal-supplied root may be in or contain — the same set
+/// the AI session's deny rules name (`apps/studio/acp/may-scope.ts` `credentialPathsFor`).
+pub(crate) fn credential_dirs(home: &Path) -> Vec<PathBuf> {
+    [".ssh", ".aws", ".gnupg", "Library/Keychains"]
+        .iter()
+        .map(|d| home.join(d))
+        .collect()
+}
+
+// ── The consent sheet (contract §7) ─────────────────────────────────────────
+
+/// The sheet's `(title, message)` for the realpath `real`: the folder's own name and full path —
+/// never a label from the folder's config, which the folder's author picks.
+pub(crate) fn sheet_text(real: &Path) -> (String, String) {
+    let full = real.to_string_lossy();
+    let base = real
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| full.clone().into_owned());
+    // One line, nothing that reorders or hides text; the path is never cut short in its middle —
+    // a very long one keeps its tail, the part that names the folder.
+    let clean = |s: &str| -> String {
+        crate::project_resolve::strip_invisible(s)
+            .chars()
+            .map(|c| if c.is_control() { ' ' } else { c })
+            .collect()
+    };
+    let name: String = clean(&base).chars().take(120).collect();
+    let path = clean(&full);
+    let n = path.chars().count();
+    let path = if n > 600 {
+        format!("\u{2026}{}", path.chars().skip(n - 599).collect::<String>())
+    } else {
+        path
+    };
+    (
+        "Open a folder from the terminal?".to_string(),
+        format!(
+            "Claude Code wants to show the folder \u{201c}{name}\u{201d} in Maude.\n\n{path}\n\nEither way this project runs on this Mac: Open shows it in a Maude tab, Not now lets the terminal run it in its own hidden server."
+        ),
+    )
+}
+
+/// The sheet's buttons in the order the OS draws them; the FIRST is the default (Return): Not now.
+pub(crate) fn sheet_buttons() -> (&'static str, &'static str) {
+    (SHEET_NOT_NOW, SHEET_OPEN)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SheetAnswer {
+    Open,
+    NotNow,
+    /// Open, but sooner than `SHEET_OPEN_DELAY` after the sheet showed: ask again.
+    TooSoon,
+}
+
+/// What a press means. `pressed`: the label of the button pressed (`None`: the sheet closed any other
+/// way, which is Not now). `shown`: when the sheet was raised.
+pub(crate) fn sheet_answer(pressed: Option<&str>, shown: Instant, at: Instant) -> SheetAnswer {
+    if pressed != Some(SHEET_OPEN) {
+        return SheetAnswer::NotNow;
+    }
+    if at.saturating_duration_since(shown) < SHEET_OPEN_DELAY {
+        return SheetAnswer::TooSoon;
+    }
+    SheetAnswer::Open
+}
+
 // ── First-open trust (option A) ─────────────────────────────────────────────
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -339,6 +417,8 @@ pub struct Tickets {
     by_id: HashMap<String, Ticket>,
     /// Folders the person answered Not now for, this app run.
     declined: HashSet<PathBuf>,
+    /// When each sheet of the last `SHEET_WINDOW` was raised (every folder together).
+    sheets: VecDeque<Instant>,
 }
 
 impl Tickets {
@@ -358,6 +438,16 @@ impl Tickets {
         {
             return Ok((existing.clone(), false));
         }
+        while self
+            .sheets
+            .front()
+            .is_some_and(|s| now.saturating_duration_since(*s) >= SHEET_WINDOW)
+        {
+            self.sheets.pop_front();
+        }
+        if self.sheets.len() >= MAX_SHEETS_PER_WINDOW {
+            return Err(Refusal::TooManySheets);
+        }
         if self
             .by_id
             .values()
@@ -367,6 +457,7 @@ impl Tickets {
         {
             return Err(Refusal::TooManySheets);
         }
+        self.sheets.push_back(now);
         self.by_id.insert(id.clone(), t);
         Ok((id, true))
     }
@@ -798,8 +889,8 @@ mod glue {
             });
     }
 
-    /// The dirs no terminal-supplied root may be in (or contain): every app dir and the profile
-    /// config folders (both the XDG one and the legacy `~/.config/maude`).
+    /// The dirs no terminal-supplied root may be in (or contain): every app dir, the profile config
+    /// folders (both the XDG one and the legacy `~/.config/maude`) and the credential folders.
     fn forbidden(app: &AppHandle) -> Vec<PathBuf> {
         let p = app.path();
         let mut v: Vec<PathBuf> = [
@@ -813,7 +904,9 @@ mod glue {
         .filter_map(Result::ok)
         .collect();
         v.push(crate::profiles::config_root());
-        v.push(crate::profiles::home_dir().join(".config").join("maude"));
+        let home = crate::profiles::home_dir();
+        v.push(home.join(".config").join("maude"));
+        v.extend(credential_dirs(&home));
         v
     }
 
@@ -1063,14 +1156,13 @@ mod glue {
         }
     }
 
-    /// The one sheet (contract §7 option A). Maude comes to the front first.
+    /// The one sheet (contract §7 option A). Maude comes to the front first. The default button is
+    /// Not now; an Open pressed sooner than `SHEET_OPEN_DELAY` after the sheet showed raises it again.
     fn ask(app: &AppHandle, real: &Path, id: &str) {
         crate::windows::reveal_front(app);
-        let name = crate::notify::sanitize_title(&crate::windows::project_display_name(
-            &real.to_string_lossy(),
-        ));
-        let path = crate::notify::sanitize_title(&real.to_string_lossy());
+        let (title, message) = sheet_text(real);
         let app2 = app.clone();
+        let real2 = real.to_path_buf();
         let id = id.to_string();
         // Desktop e2e (`cli-reuse`): a native sheet is not DOM-reachable, so a debug build started
         // with MAUDE_E2E_CLI_CONSENT=1 parks the ticket instead and `e2e_cli_consent` answers it
@@ -1078,21 +1170,43 @@ mod glue {
         #[cfg(debug_assertions)]
         if e2e_consent_parked() {
             crate::sidecar::log_line(&format!(
-                "[maude] e2e: the terminal consent sheet for {path} waits for e2e_cli_consent"
+                "[maude] e2e: the terminal consent sheet for {} waits for e2e_cli_consent",
+                crate::notify::sanitize_title(&real.to_string_lossy())
             ));
             return;
         }
+        let (first, second) = sheet_buttons();
+        let shown = Instant::now();
         app.dialog()
-            .message(format!(
-                "Claude Code wants to show \u{201c}{name}\u{201d} in Maude.\n\n{path}\n\nOpening it runs this project\u{2019}s canvases in Maude."
-            ))
-            .title("Open a project from the terminal?")
+            .message(message)
+            .title(title)
             .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
-                "Open".to_string(),
-                "Not now".to_string(),
+                first.to_string(),
+                second.to_string(),
             ))
-            .show(move |open| {
-                on_answer(&app2, &id, open);
+            .show_with_result(move |res| {
+                let pressed = match &res {
+                    tauri_plugin_dialog::MessageDialogResult::Custom(s) => Some(s.as_str()),
+                    _ => None,
+                };
+                match sheet_answer(pressed, shown, Instant::now()) {
+                    SheetAnswer::Open => {
+                        on_answer(&app2, &id, true);
+                    }
+                    SheetAnswer::NotNow => {
+                        on_answer(&app2, &id, false);
+                    }
+                    SheetAnswer::TooSoon => {
+                        let pending = TICKETS
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .get(&id, Instant::now())
+                            .is_some_and(|t| t.answer == Answer::Pending);
+                        if pending {
+                            ask(&app2, &real2, &id);
+                        }
+                    }
+                }
             });
     }
 
@@ -1534,7 +1648,7 @@ mod tests {
         // The same folder again while its sheet is up: the same ticket, no second sheet.
         let (a2, raise) = t.open("b".repeat(32), ticket("/x", now), now).unwrap();
         assert_eq!((a2.as_str(), raise), (a.as_str(), false));
-        for (i, r) in ["/y", "/z", "/w"].iter().enumerate() {
+        for (i, r) in ["/y", "/z"].iter().enumerate() {
             t.open(format!("{i:032}"), ticket(r, now), now).unwrap();
         }
         assert_eq!(
@@ -1758,6 +1872,97 @@ mod tests {
             l.live_roots(now + Duration::from_secs(6)).into_iter().collect::<Vec<_>>(),
             ["/b"]
         );
+    }
+
+    /// F3: three sheets per ten minutes across every folder — answering one does not free a slot,
+    /// a different folder does not either; the window slides.
+    #[test]
+    fn sheets_are_capped_per_app_run_not_per_folder() {
+        let now = Instant::now();
+        let mut t = Tickets::default();
+        for (i, r) in ["/a", "/b", "/c"].iter().enumerate() {
+            let (id, raise) = t.open(format!("{i:032}"), ticket(r, now), now).unwrap();
+            assert!(raise);
+            t.answer(&id, false).unwrap();
+        }
+        let later = now + Duration::from_secs(60);
+        assert_eq!(
+            t.open("d".repeat(32), ticket("/d", later), later).err(),
+            Some(Refusal::TooManySheets),
+            "a fourth folder within ten minutes is refused, though no sheet waits"
+        );
+        let after = now + SHEET_WINDOW + Duration::from_secs(1);
+        assert!(t.open("e".repeat(32), ticket("/e", after), after).unwrap().1);
+    }
+
+    /// F3: the sheet names the folder by its own name and full path, never by a label from its
+    /// config, and says plainly that Not now still runs the project (in the terminal's server).
+    #[test]
+    fn the_sheet_shows_the_real_folder_and_honest_words() {
+        let base = std::env::temp_dir().join(format!("maude-sheet-{}", std::process::id()));
+        let root = base.join("acme-real");
+        std::fs::create_dir_all(root.join(".design")).unwrap();
+        std::fs::write(
+            root.join(".design/config.json"),
+            r#"{"name":"Your Bank","projectLabel":"Your Bank"}"#,
+        )
+        .unwrap();
+        let (_title, msg) = sheet_text(&root);
+        assert!(msg.contains("\u{201c}acme-real\u{201d}"), "{msg}");
+        assert!(msg.contains(&*root.to_string_lossy()), "{msg}");
+        assert!(!msg.contains("Your Bank"), "{msg}");
+        assert!(msg.contains("hidden server"), "{msg}");
+        assert!(!msg.contains("Opening it runs"), "{msg}");
+        let (_, msg) = sheet_text(&base.join("ev\u{202e}il"));
+        assert!(!msg.contains('\u{202e}'));
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    /// F3: Not now is the default button; Open counts only after the delay; anything else is Not now.
+    #[test]
+    fn the_sheet_defaults_to_not_now_and_open_waits() {
+        assert_eq!(sheet_buttons().0, SHEET_NOT_NOW, "the first button is the default");
+        assert_eq!(sheet_buttons().1, SHEET_OPEN);
+        let shown = Instant::now();
+        let soon = shown + Duration::from_millis(200);
+        let late = shown + SHEET_OPEN_DELAY + Duration::from_millis(1);
+        assert!(SHEET_OPEN_DELAY >= Duration::from_millis(800));
+        assert_eq!(sheet_answer(Some(SHEET_OPEN), shown, soon), SheetAnswer::TooSoon);
+        assert_eq!(sheet_answer(Some(SHEET_OPEN), shown, late), SheetAnswer::Open);
+        assert_eq!(sheet_answer(Some(SHEET_NOT_NOW), shown, late), SheetAnswer::NotNow);
+        assert_eq!(sheet_answer(None, shown, late), SheetAnswer::NotNow);
+        assert_eq!(sheet_answer(Some("OK"), shown, late), SheetAnswer::NotNow);
+        // The sheet is wired to these and to the button's label, not to "first button pressed".
+        let src = include_str!("cli_channel.rs");
+        let ask = &src[src.find("    fn ask(app: &AppHandle").unwrap()..];
+        let ask = &ask[..ask.find("\n    }\n").unwrap()];
+        for needle in ["sheet_text(real)", "sheet_buttons()", "sheet_answer(", ".show_with_result("] {
+            assert!(ask.contains(needle), "{needle}");
+        }
+        assert!(!ask.contains("project_display_name"));
+    }
+
+    /// L5: a root inside (or containing) a credential folder is refused like the app's own data.
+    #[test]
+    fn credential_folders_are_forbidden_roots() {
+        let base = std::env::temp_dir().join(format!("maude-cred-roots-{}", std::process::id()));
+        let home = base.join("home");
+        let forbidden = credential_dirs(&home);
+        for d in [".ssh", ".aws", ".gnupg", "Library/Keychains"] {
+            let p = project(&home.join(d).join("x"));
+            assert_eq!(
+                validate_root(&p.to_string_lossy(), &forbidden),
+                Err(Refusal::AppData),
+                "{d}"
+            );
+        }
+        project(&home);
+        assert_eq!(
+            validate_root(&home.to_string_lossy(), &forbidden),
+            Err(Refusal::AppData),
+            "a root containing ~/.ssh"
+        );
+        std::fs::remove_dir_all(base).unwrap();
     }
 
     /// #206 T6.4 pin: the e2e answer to the consent sheet exists only in a debug build — the park

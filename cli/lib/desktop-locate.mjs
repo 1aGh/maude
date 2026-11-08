@@ -49,6 +49,45 @@ export const CAP_FULL_LINE =
   'Maude has 3 busy projects open — using a separate server for this run.';
 export const BRANCH_UNSENT_LINE =
   'Maude has unsaved changes for another branch in this folder; save or discard them first.';
+export const SHEET_LIMIT_LINE =
+  'Maude asked about new folders too often just now — using a separate server for this run. Open the folder in Maude yourself (File › Open project…) to skip the question.';
+
+// The characters that reorder or hide the text around them (bidi controls and marks, zero-width and
+// other invisible format characters, line/paragraph separators, tag characters) — the same set the
+// app strips from a branch name (project_resolve.rs `is_invisible`). A branch name from the app or the
+// registry is printed in the terminal; it never needs one.
+const INVISIBLE = [
+  [0xad, 0xad],
+  [0x34f, 0x34f],
+  [0x61c, 0x61c],
+  [0x115f, 0x1160],
+  [0x17b4, 0x17b5],
+  [0x180b, 0x180f],
+  [0x200b, 0x200f],
+  [0x2028, 0x202e],
+  [0x2060, 0x206f],
+  [0x3164, 0x3164],
+  [0xfe00, 0xfe0f],
+  [0xfeff, 0xfeff],
+  [0xffa0, 0xffa0],
+  [0xfff0, 0xfffb],
+  [0x1bca0, 0x1bca3],
+  [0x1d173, 0x1d17a],
+  [0xe0000, 0xe0fff],
+];
+const isInvisible = (cp) => INVISIBLE.some(([lo, hi]) => cp >= lo && cp <= hi);
+const isControl = (cp) => cp <= 0x1f || (cp >= 0x7f && cp <= 0x9f);
+
+/** A branch name (or any app-supplied one-line name) fit for the terminal: one line, nothing hidden. */
+export function cleanName(s) {
+  let out = '';
+  for (const ch of String(s)) {
+    const cp = ch.codePointAt(0);
+    if (isInvisible(cp)) continue;
+    out += isControl(cp) ? ' ' : ch;
+  }
+  return out;
+}
 
 /** http.ts rootIdentity, verbatim: sha256(realpath(root)) hex, first 12. */
 export function rootIdentity(root) {
@@ -122,7 +161,7 @@ export function readRegistry(file) {
       if (typeof s.rootId === 'string') e.rootId = s.rootId;
       if (typeof s.label === 'string' && LABEL_RE.test(s.label)) e.label = s.label;
       e.kind = s.kind === 'worktree' ? 'worktree' : 'project';
-      if (typeof s.branch === 'string') e.branch = s.branch;
+      if (typeof s.branch === 'string') e.branch = cleanName(s.branch);
       if (Number.isInteger(s.pid) && s.pid > 0) e.pid = s.pid;
       if (validPort(s.port)) e.port = s.port;
       if (typeof s.attestKey === 'string' && ATTEST_KEY_RE.test(s.attestKey))
@@ -404,8 +443,8 @@ export async function ensureDesktop(
   }
   const warning = reply?.warning;
   if (warning?.kind === 'branch-changed') {
-    const was = typeof warning.was === 'string' ? warning.was : '?';
-    const now = typeof warning.now === 'string' ? warning.now : '?';
+    const was = typeof warning.was === 'string' ? cleanName(warning.was) : '?';
+    const now = typeof warning.now === 'string' ? cleanName(warning.now) : '?';
     log(`! This folder switched from ${was} to ${now}; Maude relabelled its tab.`);
   }
   switch (reply?.status) {
@@ -430,6 +469,8 @@ export async function ensureDesktop(
     case 'refused':
       if (reply.reason === 'branch-changed-unsent')
         return { state: 'refused', reason: reply.reason, line: BRANCH_UNSENT_LINE };
+      if (reply.reason === 'too-many-sheets')
+        return { state: 'fallback', reason: reply.reason, line: SHEET_LIMIT_LINE };
       return { state: 'fallback', reason: 'refused' };
     default:
       return { state: 'fallback', reason: 'bad-reply' };
