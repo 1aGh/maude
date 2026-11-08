@@ -318,7 +318,7 @@ W5 and W6 use Opus.
 
 ### W9 — Final gates and close-out
 
-- [ ] T9.1 On the merged tip:
+- [x] T9.1 On the merged tip (desktop e2e reds parked: the test window was off screen — rerun with a visible window owed):
   - the full `apps/studio` suite on the mini;
   - the hub suite;
   - the desktop e2e lanes;
@@ -328,16 +328,16 @@ W5 and W6 use Opus.
   - a full-canvas perf sweep in Safari and Chromium;
   - the security pair over the W2.2, W5 and W6 diffs;
   - `gen:roadmap` and `gen:stats`.
-- [ ] T9.2 Close every issue with an evidence comment.
-- [ ] T9.3 Report to Michal in Czech: what was closed and how, every D-default taken, and the release proposal (2.1.0). **Do not tag without his OK.**
+- [x] T9.2 Close every issue with an evidence comment.
+- [x] T9.3 Report to Michal in Czech: what was closed and how, every D-default taken, and the release proposal (2.1.0). **Do not tag without his OK.**
 
 ## Acceptance Criteria
 
-- [ ] `gh issue list --state open` returns no issue from this plan's list.
-- [ ] Every closed issue carries a comment with the commit(s) and the evidence.
-- [ ] Every not-planned item has a recorded reason and was listed in the final report.
-- [ ] All quality gates pass on the merged tip of main (T9.1).
-- [ ] Every default from the D-list is recorded in kg and named in the final report.
+- [x] `gh issue list --state open` returns no issue from this plan's list.
+- [x] Every closed issue carries a comment with the commit(s) and the evidence.
+- [x] Every not-planned item has a recorded reason and was listed in the final report.
+- [ ] All quality gates pass on the merged tip of main (T9.1). — all green except the WebKit desktop e2e reds, which ran with the test window off screen (invalid); rerun owed with Michal.
+- [x] Every default from the D-list is recorded in kg and named in the final report.
 
 ## Progress log
 
@@ -422,3 +422,4 @@ W5 and W6 use Opus.
 - 2026-11-08 merged re-review fixes A–H (2db8e3c55 86b050d5d 5e0e19e89 607693e24): launch links off agent-readable paths (also closed an arbitrary read/delete in screenshot --url-file), maude-launch refusal in _url-guard, 24 h session max age, helper session kind, log redaction, split-off terminal keyless. Residuals in contract §7.9.
 - 2026-11-08 wave 6 pushed (61323bbf9): loopback re-review fixes A–H. Mini on f0389aad3: studio 24048/24049 (one stale static pin fixed), hub 2215/2215, cli 801/801, scripts 397/398 (env-only tag). Also: CI site drift was a local-only v0.5.0 tag (19b765f54). Desktop e2e on the debug app: tabs/home/relaunch/cli-reuse/ai-runs/generate-takes/shell-panels green, default 49/55, surface L01 14/14; reds ran with the test window off screen → parked for a visible-window rerun.
 - 2026-11-08 T9.1: check-client-boots on the built .app OK; check-bundle-completeness --smoke found server-up resolving the package root above a debug .app → fixed c7ba1cea8 (bundle Resources first, red→green), smoke now fully green. All 15 D-defaults recorded in kg (burndown-d1…d15). Perf sweep verifier running.
+- 2026-11-08 merged T9.1 perf sweep (beae15252 + test exemption): tip not worse than v2.0.8 in Safari or Chromium (Safari p95 tip/base overview 54/51, zoom cycles 45/56, after zoom 15/27; 0 blank frames; Safari window on screen 95/96 probes). Final report: .ai/scenarios/issues-burndown/final-report.md. Run disarmed; one acceptance box stays open (WebKit e2e rerun with a visible window).
