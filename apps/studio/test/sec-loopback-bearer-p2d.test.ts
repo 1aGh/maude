@@ -8,11 +8,101 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-
+// @ts-expect-error — plain ESM CLI module without types
+import { mintLaunchToken as cliMint } from '../../../cli/lib/desktop-locate.mjs';
 // @ts-expect-error — plain ESM helper without types
 import { linkFileDir, readLaunchFd, takeLinkFile } from '../bin/_url-guard.mjs';
-import { LAUNCH_PARAM, mainOriginKeyRefusal } from '../shell/api-key.ts';
+import {
+  API_KEY_HEADER,
+  LAUNCH_PARAM,
+  mainOriginKeyRefusal,
+  mintLaunchToken,
+  SESSION_MAX_AGE_MS,
+  SESSION_PATH,
+  type SessionStore,
+} from '../shell/api-key.ts';
 import { serverLinkDir, writeLinkFile } from '../shell/key-file.ts';
+
+const KEY = 'a7'.repeat(32);
+const NOW = 1_800_000_000;
+const BASE = 'http://127.0.0.1:4400';
+const gate = (
+  path: string,
+  headers: Record<string, string>,
+  s: SessionStore,
+  now: number,
+  method = 'GET'
+) =>
+  mainOriginKeyRefusal(
+    new Request(`${BASE}${path}`, { method, headers: { host: '127.0.0.1:4400', ...headers } }),
+    { key: KEY, required: true, workspace: false, usedNonces: new Map(), sessions: s, now }
+  );
+const keySession = (s: SessionStore, now: number) => {
+  const r = gate(SESSION_PATH, { [API_KEY_HEADER]: KEY }, s, now, 'POST');
+  expect(r?.status).toBe(204);
+  return (r?.headers.get('set-cookie') ?? '').split(';')[0];
+};
+const launchSession = (s: SessionStore, now: number, token: string) => {
+  const r = gate(`/?${LAUNCH_PARAM}=${token}`, {}, s, now);
+  expect(r?.status).toBe(303);
+  return (r?.headers.get('set-cookie') ?? '').split(';')[0];
+};
+
+describe('D — a session has an absolute lifetime of 24 h on top of its idle expiry', () => {
+  test('used every hour, it still ends 24 h after it was opened', () => {
+    const s: SessionStore = new Map();
+    const c = keySession(s, NOW);
+    expect(SESSION_MAX_AGE_MS).toBe(24 * 60 * 60 * 1000);
+    let t = NOW;
+    for (; t < NOW + 24 * 3600 - 3600; t += 3600)
+      expect(gate('/_config', { cookie: c }, s, t)).toBeNull();
+    expect(gate('/_config', { cookie: c }, s, NOW + 24 * 3600 - 1)).toBeNull();
+    expect(gate('/_config', { cookie: c }, s, NOW + 24 * 3600 + 1)?.status).toBe(401);
+    // a fresh trade opens a new one
+    const d = keySession(s, NOW + 24 * 3600 + 2);
+    expect(gate('/_config', { cookie: d }, s, NOW + 24 * 3600 + 3)).toBeNull();
+  });
+});
+
+describe('G — helper sessions never evict the person', () => {
+  test('300 helper captures later, the idle person session is still there', () => {
+    const s: SessionStore = new Map();
+    const person = keySession(s, NOW);
+    for (let i = 0; i < 300; i++)
+      launchSession(s, NOW + 60 + i, mintLaunchToken(KEY, NOW + 60 + i, 'helper'));
+    expect(s.size).toBeLessThanOrEqual(1 + 32);
+    expect(gate('/_config', { cookie: person }, s, NOW + 400)).toBeNull();
+  });
+  test('a helper session ends after 30 min unused; the person keeps 12 h', () => {
+    const s: SessionStore = new Map();
+    const person = keySession(s, NOW);
+    const helper = launchSession(s, NOW, mintLaunchToken(KEY, NOW, 'helper'));
+    expect(gate('/_config', { cookie: helper }, s, NOW + 29 * 60)).toBeNull();
+    expect(gate('/_config', { cookie: helper }, s, NOW + 60 * 60)?.status).toBe(401);
+    expect(gate('/_config', { cookie: person }, s, NOW + 60 * 60)).toBeNull();
+  });
+  test('the CLI mints the same helper tokens the server reads; a person token is not a helper one', () => {
+    const s: SessionStore = new Map();
+    const t = cliMint(KEY, NOW, 'helper');
+    expect(t.startsWith('h')).toBe(true);
+    launchSession(s, NOW, t);
+    expect([...s.values()].map((r) => r.helper)).toEqual([true]);
+    // the "h" mark cannot be added to a person token (its MAC covers the domain)
+    const forged = `h${mintLaunchToken(KEY, NOW)}`;
+    expect(gate(`/?${LAUNCH_PARAM}=${forged}`, {}, s, NOW)?.status).toBe(401);
+    launchSession(s, NOW, cliMint(KEY, NOW));
+    expect([...s.values()].map((r) => r.helper).sort()).toEqual([false, true]);
+  });
+  test('every helper mints a helper link; server-up --open keeps the person one', () => {
+    expect(read('bin/perf.sh').match(/studio_launch_url "\$REPO" "\$PORT" --helper/g)?.length).toBe(
+      3
+    );
+    const shot = read('bin/screenshot.sh');
+    expect(shot).not.toMatch(/studio_launch_url "[^"]+" "[^"]+"\)/);
+    expect(read('http.ts')).toContain("mintLaunchToken(bootApiKey(), undefined, 'helper')");
+    expect(read('bin/server-up.sh')).toContain('link="$(studio_launch_url "$REPO" "$1")"');
+  });
+});
 
 const STUDIO = join(import.meta.dir, '..');
 const BIN = join(STUDIO, 'bin');
@@ -25,7 +115,7 @@ describe('A — the perf probes get their opening link on a pipe, never a file',
     expect(perf).not.toContain('--launch-file');
     expect(perf).not.toMatch(/maude-launch\.X/);
     expect(perf.match(/ARGS.*--launch-fd 3/g)?.length).toBe(3);
-    expect(perf.match(/ 3< <\(studio_launch_url "\$REPO" "\$PORT"\)/g)?.length).toBe(3);
+    expect(perf.match(/ 3< <\(studio_launch_url "\$REPO" "\$PORT" --helper\)/g)?.length).toBe(3);
   });
   test.each([
     '_perf-probe-open.mjs',

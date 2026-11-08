@@ -73,7 +73,7 @@ describe('a launch link opened twice (a reload, a helper navigating again)', () 
       required: true,
       workspace: false,
       usedNonces: used,
-      sessions: new Map<string, number>(),
+      sessions: new Map(),
     };
     const session = mainOriginKeyRefusal(
       new Request(`http://127.0.0.1:4400${SESSION_PATH}`, {

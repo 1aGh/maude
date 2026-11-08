@@ -30,7 +30,7 @@ describe('mainOriginKeyRefusal (pure, required mode)', () => {
     required: true,
     workspace: false,
     usedNonces: used,
-    sessions: new Map<string, number>(),
+    sessions: new Map(),
   };
   const gate = (r: Request, now?: number) => mainOriginKeyRefusal(r, { ...opts, now });
   const cookieName = sessionCookieName(KEY);

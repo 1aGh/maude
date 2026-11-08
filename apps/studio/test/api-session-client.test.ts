@@ -71,3 +71,87 @@ describe('installApiSession', () => {
     expect(calls.map((c) => c.url)).toEqual(['/_config']);
   }, 5000);
 });
+
+// re-check D — a session has an absolute lifetime (24 h) on top of its idle expiry, so a long-open
+// tab's session ends while the person works: the page trades its key again, once, without them noticing.
+describe('an ended session is re-traded transparently', () => {
+  const keyRequired = () =>
+    Response.json({ ok: false, error: 'api-key-required' }, { status: 401 });
+
+  test('a 401 api-key-required re-trades the key once and resends the request', async () => {
+    const asked: string[] = [];
+    const urls: string[] = [];
+    let expired = false;
+    const win: Record<string, unknown> = {
+      location: { href: 'http://127.0.0.1:4400/', origin: 'http://127.0.0.1:4400' },
+      fetch: (input: string) => {
+        urls.push(String(input));
+        if (input === '/_api/shell/session') {
+          expired = false;
+          return Promise.resolve(new Response(null, { status: 204 }));
+        }
+        return Promise.resolve(expired ? keyRequired() : new Response('ok'));
+      },
+      __TAURI_INTERNALS__: { metadata: { currentWebview: { label: 'p-1' } } },
+      __TAURI__: {
+        core: {
+          invoke: (cmd: string) => {
+            asked.push(cmd);
+            return Promise.resolve({ key: 'k'.repeat(64) });
+          },
+        },
+      },
+    };
+    await installApiSession(win as unknown as Window);
+    expired = true;
+    const res = await (win.fetch as (u: string) => Promise<Response>)('/_config');
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('ok');
+    expect(asked).toEqual(['project_api_session', 'project_api_session']);
+    expect(urls).toEqual(['/_api/shell/session', '/_config', '/_api/shell/session', '/_config']);
+  });
+
+  test('still refused after the re-trade: the 401 comes back, no loop', async () => {
+    const urls: string[] = [];
+    const win: Record<string, unknown> = {
+      location: { href: 'http://127.0.0.1:4400/', origin: 'http://127.0.0.1:4400' },
+      fetch: (input: string) => {
+        urls.push(String(input));
+        return Promise.resolve(
+          input === '/_api/shell/session' ? new Response(null, { status: 204 }) : keyRequired()
+        );
+      },
+      __TAURI_INTERNALS__: { metadata: { currentWebview: { label: 'p-1' } } },
+      __TAURI__: { core: { invoke: () => Promise.resolve({ key: 'k'.repeat(64) }) } },
+    };
+    await installApiSession(win as unknown as Window);
+    const res = await (win.fetch as (u: string) => Promise<Response>)('/_config');
+    expect(res.status).toBe(401);
+    expect(urls).toEqual(['/_api/shell/session', '/_config', '/_api/shell/session', '/_config']);
+  });
+
+  test('another 401 (a route of its own) and a streamed body are not retried', async () => {
+    const urls: string[] = [];
+    const win: Record<string, unknown> = {
+      location: { href: 'http://127.0.0.1:4400/', origin: 'http://127.0.0.1:4400' },
+      fetch: (input: string) => {
+        urls.push(String(input));
+        if (input === '/_api/shell/session')
+          return Promise.resolve(new Response(null, { status: 204 }));
+        if (input === '/_api/github/me')
+          return Promise.resolve(Response.json({ error: 'not signed in' }, { status: 401 }));
+        return Promise.resolve(keyRequired());
+      },
+      __TAURI_INTERNALS__: { metadata: { currentWebview: { label: 'p-1' } } },
+      __TAURI__: { core: { invoke: () => Promise.resolve({ key: 'k'.repeat(64) }) } },
+    };
+    await installApiSession(win as unknown as Window);
+    await (win.fetch as (u: string) => Promise<Response>)('/_api/github/me');
+    const stream = new ReadableStream({ start: (c) => c.close() });
+    await (win.fetch as (u: string, i: RequestInit) => Promise<Response>)('/_api/x', {
+      method: 'POST',
+      body: stream,
+    });
+    expect(urls).toEqual(['/_api/shell/session', '/_api/github/me', '/_api/x']);
+  });
+});

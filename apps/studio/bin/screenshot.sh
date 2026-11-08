@@ -202,7 +202,7 @@ if [ -z "$URL" ]; then
     # sec-loopback-bearer §7.4 — the studio page opens with a one-time launch token (a server that
     # needs no key: the plain URL). Canvas captures below go to the capture origin through the 307.
     . "$(dirname "$0")/_desktop-locate.sh"
-    URL="$(studio_launch_url "$REPO" "$PORT")"
+    URL="$(studio_launch_url "$REPO" "$PORT" --helper)"
     LAUNCH_OK=1
   else
     [ -z "$ACTIVE" ] && { echo "screenshot.sh: no active canvas in _active.json (open one in browser first)" >&2; exit 1; }
@@ -595,7 +595,7 @@ relive_url() {
   if [ -n "$cur" ] && [ "$cur" != "$new" ]; then
     if [ "$MODE" = "shell" ]; then
       # a launch token is for the server that minted it: ask the new one for its own
-      URL="$(studio_launch_url "$RELIVE_REPO" "$new")"
+      URL="$(studio_launch_url "$RELIVE_REPO" "$new" --helper)"
     elif [ -n "$CAPTURE_REL" ]; then
       # re-check F — the capture URL names the old server's capture origin and capability: ask the new one
       URL="$(studio_capture_url "$RELIVE_REPO" "$new" "$CAPTURE_REL")"

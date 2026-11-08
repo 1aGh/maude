@@ -297,7 +297,7 @@ if [ "$OPEN_LOAD" = "1" ]; then
   [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
   [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
   [ "$JSON" = "1" ] && ARGS+=(--json)
-  exec node "$SCRIPT_DIR/_perf-probe-open.mjs" "${ARGS[@]}" 3< <(studio_launch_url "$REPO" "$PORT")
+  exec node "$SCRIPT_DIR/_perf-probe-open.mjs" "${ARGS[@]}" 3< <(studio_launch_url "$REPO" "$PORT" --helper)
 fi
 
 if [ "$PROBE_ENGINE" = "safari" ]; then
@@ -334,7 +334,7 @@ if [ "$PROBE_ENGINE" = "safari" ]; then
   [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
   [ "$STUDIO" = "1" ] && ARGS+=(--open "${REL_FULL#"$DESIGN_REL"/}")
   if [ "$STUDIO" = "1" ]; then
-    exec "$JS_RUNTIME" "$SCRIPT_DIR/_perf-probe-safari.mjs" "${ARGS[@]}" 3< <(studio_launch_url "$REPO" "$PORT")
+    exec "$JS_RUNTIME" "$SCRIPT_DIR/_perf-probe-safari.mjs" "${ARGS[@]}" 3< <(studio_launch_url "$REPO" "$PORT" --helper)
   fi
   exec "$JS_RUNTIME" "$SCRIPT_DIR/_perf-probe-safari.mjs" "${ARGS[@]}"
 fi
@@ -356,7 +356,7 @@ if [ "$PROBE_ENGINE" = "chromium" ] && [ "$STUDIO" = "1" ]; then
   [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
   # a canvas the Canvases panel does not list (the Design system canvas under system/) opens by its path
   ARGS+=(--open "${REL_FULL#"$DESIGN_REL"/}")
-  exec node "$SCRIPT_DIR/_perf-probe-studio.mjs" "${ARGS[@]}" 3< <(studio_launch_url "$REPO" "$PORT")
+  exec node "$SCRIPT_DIR/_perf-probe-studio.mjs" "${ARGS[@]}" 3< <(studio_launch_url "$REPO" "$PORT" --helper)
 fi
 
 AB="${MAUDE_AGENT_BROWSER:-agent-browser}"

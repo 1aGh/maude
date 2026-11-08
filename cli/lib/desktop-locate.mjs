@@ -321,6 +321,7 @@ export async function locateDesktop(root, opts = {}) {
 const TERMINAL_KEY_MAX_BYTES = 4096;
 export const LAUNCH_PARAM = 'maude-launch';
 const LAUNCH_DOMAIN = 'maude-launch/1';
+const HELPER_LAUNCH_DOMAIN = 'maude-launch-helper/1';
 
 /** apps/studio/shell/key-file.ts `serverKeyDir`, verbatim: `<state>/maude/servers`. */
 export function serverKeyDir(env = process.env, home = homedir()) {
@@ -354,12 +355,18 @@ export function terminalKeyFor(root, port, { env = process.env, alive = pidAlive
   }
 }
 
-/** A one-time launch token for a server holding `key` (shell/api-key.ts `mintLaunchToken`). */
-export function mintLaunchToken(key, nowSec = Math.floor(Date.now() / 1000)) {
+/**
+ * A one-time launch token for a server holding `key` (shell/api-key.ts `mintLaunchToken`, verbatim).
+ * `helper` (a capture helper's own browser): `h<ts>.<nonce>.<mac>` under its own domain, so the
+ * server keeps that session in the helpers' small budget and it never evicts the person's.
+ */
+export function mintLaunchToken(key, nowSec = Math.floor(Date.now() / 1000), kind = 'person') {
   const nonce = randomBytes(16).toString('hex');
   const ts = String(Math.floor(nowSec));
-  const mac = createHmac('sha256', key).update(`${LAUNCH_DOMAIN}\n${ts}\n${nonce}`).digest('hex');
-  return `${ts}.${nonce}.${mac}`;
+  const helper = kind === 'helper';
+  const domain = helper ? HELPER_LAUNCH_DOMAIN : LAUNCH_DOMAIN;
+  const mac = createHmac('sha256', key).update(`${domain}\n${ts}\n${nonce}`).digest('hex');
+  return `${helper ? 'h' : ''}${ts}.${nonce}.${mac}`;
 }
 
 /** `/_health` on `port` names `root` (a reused port may be another project's). */
@@ -613,7 +620,8 @@ const USAGE = `usage: desktop-locate.mjs <mode> --root <repo> [options]
   restart                                      ask the app to restart its server for the project
   key      --port N                            print the API key of the server on port N (the app's
                                                attested one, else a terminal server's key file)
-  launch-url --port N [--host 127.0.0.1]       print a one-time opening URL for the server on port N
+  launch-url --port N [--host 127.0.0.1] [--helper]   print a one-time opening URL for the server on
+                                               port N (--helper: for a capture helper's own browser)
   app-pid  --pid N                             exit 0 when N is the app or one of its servers
 exit: 0 ok · 10 not the app's (use the project's own server; no key) · 11 the app serves this project but
       it did not answer the check (do not use _server.json) · 4 refused (message on stderr) · 2 usage
@@ -625,6 +633,7 @@ function argsOf(argv) {
     const a = argv[i];
     const v = argv[i + 1];
     if (a === '--lease') o.lease = true;
+    else if (a === '--helper') o.helper = true;
     else if (
       [
         '--root',
@@ -719,7 +728,8 @@ export async function main(
       // a browser opens the studio with a one-time token (a server that needs no key: the plain URL)
       const host = a.host === '127.0.0.1' ? '127.0.0.1' : 'localhost';
       const base = `http://${host}:${Number(a.port)}/`;
-      out.write(`${r.key ? `${base}?${LAUNCH_PARAM}=${mintLaunchToken(r.key)}` : base}\n`);
+      const token = r.key ? mintLaunchToken(r.key, undefined, a.helper ? 'helper' : 'person') : '';
+      out.write(`${token ? `${base}?${LAUNCH_PARAM}=${token}` : base}\n`);
       return 0;
     }
     if (!r.key) return 10;

@@ -3632,7 +3632,7 @@ export function createHttp(
       let target: string[] = ['--port', port];
       if (apiKeyRequired()) {
         linkFile = writeLinkFile(
-          `http://localhost:${port}/?maude-launch=${mintLaunchToken(bootApiKey())}`
+          `http://localhost:${port}/?maude-launch=${mintLaunchToken(bootApiKey(), undefined, 'helper')}`
         );
         if (!linkFile)
           return Response.json(
