@@ -411,6 +411,81 @@ pub fn gtk_pack(is_strip: bool, overview: bool) -> GtkPack {
     }
 }
 
+/// Pure (#208, the overview closing): the minimum height to hold every tab at while the strip's natural height
+/// is still above [`STRIP_H`]; -1 is "no hold". `room` is the height the box has for its webviews.
+///
+/// A GtkBox gives each shown child its minimum, then the rest up to each child's NATURAL height, and only then
+/// shares out what is left among the children that expand. WebKitGTK reports its page's content size as its
+/// natural height, and a page's content follows the height it was last given — so after the overview the strip
+/// still asks for the whole window, and the box split the window between it and the tab (strip 379 px, tab
+/// 341 px at 720 px) and kept that, because each page's content then followed its share. Holding the tab at
+/// `room - STRIP_H` leaves nothing to share out: the strip gets exactly its 38 px, its page shrinks to that, and
+/// once its natural height is back to 38 the hold is let go (`settle_strip`). The hold never asks for more than
+/// `room`, so the window is never made to grow.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub fn tab_hold(room: i32, strip_natural: i32, overview: bool) -> i32 {
+    if overview || strip_natural <= STRIP_H as i32 {
+        -1
+    } else {
+        (room - STRIP_H as i32).max(0)
+    }
+}
+
+/// How long `settle_strip` holds the tabs at most, and how often it looks again.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const SETTLE_FOR: Duration = Duration::from_secs(3);
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const SETTLE_EVERY: Duration = Duration::from_millis(50);
+
+/// #208: the tab overview just closed — hold every tab at [`tab_hold`] until the strip's page is back to 38 px,
+/// looking again every 50 ms (a resize's `layout` lets go of the hold, the next look puts it back) and letting go
+/// after 3 s at the latest. Linux only; elsewhere `set_bounds` places a child and this does nothing.
+pub fn settle_strip<R: Runtime>(app: &AppHandle<R>) {
+    #[cfg(target_os = "linux")]
+    if let Some(strip) = app.get_webview(STRIP_LABEL) {
+        let _ = strip.with_webview(|platform| {
+            use gtk::glib::{self, ControlFlow};
+            use gtk::prelude::*;
+            let strip: gtk::Widget = platform.inner().upcast();
+            let Some(vbox) = strip.parent().and_then(|p| p.downcast::<gtk::Box>().ok()) else {
+                return;
+            };
+            let deadline = std::time::Instant::now() + SETTLE_FOR;
+            let look = move || {
+                let is_webview = |c: &gtk::Widget| c.type_().name() == "WebKitWebView";
+                let kids = vbox.children();
+                // The room the webviews share: the box less anything else shown in it (a menu bar).
+                let others: i32 =
+                    kids.iter().filter(|c| c.is_visible() && !is_webview(*c)).map(|c| c.allocated_height()).sum();
+                let room = vbox.allocated_height() - others;
+                // Ask WebKit again rather than read GTK's cached answer.
+                strip.queue_resize();
+                let (_, natural) = strip.preferred_height_for_width(vbox.allocated_width().max(1));
+                let late = std::time::Instant::now() >= deadline;
+                let hold = if late { -1 } else { tab_hold(room, natural, overview_open()) };
+                for tab in kids.iter().filter(|c| is_webview(*c) && **c != strip) {
+                    if tab.size_request().1 != hold {
+                        tab.set_size_request(-1, hold);
+                    }
+                }
+                if late && natural > STRIP_H as i32 {
+                    crate::sidecar::log_line("[maude] the tab bar did not shrink back after the tab overview");
+                }
+                if hold == -1 {
+                    ControlFlow::Break
+                } else {
+                    ControlFlow::Continue
+                }
+            };
+            if look() == ControlFlow::Continue {
+                glib::timeout_add_local(SETTLE_EVERY, look);
+            }
+        });
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = app;
+}
+
 /// Pack `wv` in the shell's GtkBox (#208). Linux only; elsewhere `set_bounds` places a child and this does nothing.
 pub fn pack_child<R: Runtime>(wv: &tauri::Webview<R>, pack: GtkPack) {
     #[cfg(target_os = "linux")]
@@ -418,6 +493,8 @@ pub fn pack_child<R: Runtime>(wv: &tauri::Webview<R>, pack: GtkPack) {
         use gtk::prelude::*;
         let view = platform.inner();
         view.set_size_request(-1, pack.min_height);
+        // The box also grows a child whose own `vexpand` says so; pin it to the packing so only `expand` decides.
+        view.set_vexpand(pack.expand);
         if let Some(vbox) = view.parent().and_then(|p| p.downcast::<gtk::Box>().ok()) {
             vbox.set_child_packing(&view, pack.expand, true, 0, gtk::PackType::Start);
         }
@@ -455,6 +532,10 @@ pub fn set_overview(app: &AppHandle, open: bool) {
                 let _ = wv.set_focus();
             }
         }
+    }
+    // #208: on GTK the strip's page still asks for the whole window; hold the tab until it is 38 px again.
+    if was && !open {
+        settle_strip(app);
     }
     changed(app);
 }
@@ -1994,27 +2075,92 @@ mod tests {
     }
 
     /// A model of how GTK3's vertical GtkBox gives out height (`gtk_box_size_allocate`, homogeneous off, no
-    /// spacing): a hidden child gets nothing; a shown child first gets its minimum height (a webview's own
-    /// natural height is 0); what is left goes in equal shares to the shown children that expand. Answers
-    /// each child's `(y, height)`, `None` when hidden.
+    /// spacing) with every webview's natural height 0 — `gtk_box_alloc` with natural heights: a hidden child
+    /// gets nothing; a shown child first gets its minimum height; what is left goes in equal shares to the shown
+    /// children that expand. Answers each child's `(y, height)`, `None` when hidden.
     fn gtk_box_model(h: f64, kids: &[(GtkPack, bool)]) -> Vec<Option<(f64, f64)>> {
-        let min = |p: &GtkPack| f64::from(p.min_height.max(0));
-        let shown = || kids.iter().filter(|(_, v)| *v);
-        let fixed: f64 = shown().map(|(p, _)| min(p)).sum();
-        let growers = shown().filter(|(p, _)| p.expand).count();
-        let share = if growers == 0 { 0.0 } else { ((h - fixed).max(0.0) / growers as f64).floor() };
-        let mut y = 0.0;
-        kids.iter()
-            .map(|(p, visible)| {
-                if !visible {
+        let with_natural: Vec<(GtkPack, bool, i32)> = kids.iter().map(|(p, v)| (*p, *v, 0)).collect();
+        gtk_box_alloc(h as i32, &with_natural)
+            .into_iter()
+            .map(|a| a.map(|(y, height)| (f64::from(y), f64::from(height))))
+            .collect()
+    }
+
+    /// GTK3's `gtk_box_size_allocate` (vertical, homogeneous off, no spacing) with each child's NATURAL height
+    /// (`kids`: packing, shown, natural): every shown child gets its minimum, then what is left goes up to the
+    /// natural heights (`gtk_distribute_natural_allocation` — smallest gap first, fair shares), and only then in
+    /// equal shares (remainder to the first) to the children that expand. `(y, height)` per child, `None` hidden.
+    fn gtk_box_alloc(h: i32, kids: &[(GtkPack, bool, i32)]) -> Vec<Option<(i32, i32)>> {
+        let shown: Vec<usize> = (0..kids.len()).filter(|&i| kids[i].1).collect();
+        let mut size: Vec<i32> = kids.iter().map(|(p, _, _)| p.min_height.max(0)).collect();
+        let mut extra = h - shown.iter().map(|&i| size[i]).sum::<i32>();
+        let mut spreading = shown.clone();
+        let gap = |i: usize, size: &[i32]| (kids[i].2 - size[i]).max(0);
+        spreading.sort_by(|&a, &b| gap(b, &size).cmp(&gap(a, &size)).then(a.cmp(&b)));
+        for n in (0..spreading.len()).rev() {
+            if extra <= 0 {
+                break;
+            }
+            let i = spreading[n];
+            let glue = (extra + n as i32) / (n as i32 + 1);
+            let add = glue.min(gap(i, &size));
+            size[i] += add;
+            extra -= add;
+        }
+        let growers: Vec<usize> = shown.iter().copied().filter(|&i| kids[i].0.expand).collect();
+        if !growers.is_empty() && extra > 0 {
+            let (share, mut rest) = (extra / growers.len() as i32, extra % growers.len() as i32);
+            for &i in &growers {
+                size[i] += share + i32::from(rest > 0);
+                rest -= 1;
+            }
+        }
+        let mut y = 0;
+        (0..kids.len())
+            .map(|i| {
+                if !kids[i].1 {
                     return None;
                 }
-                let height = min(p) + if p.expand { share } else { 0.0 };
-                let at = (y, height);
-                y += height;
+                let at = (y, size[i]);
+                y += size[i];
                 Some(at)
             })
             .collect()
+    }
+
+    /// #208 (the Linux shell lane's first run): after the tab overview closed, the strip stayed 379 px and the
+    /// tab got 341 px at 720 px. A webview's natural height is its page's content size, which follows the height
+    /// it was last given: the overview left the strip asking for the whole window, the box shared the room
+    /// between the strip and the tab, and each page's content then followed its share. Closing the overview —
+    /// through every step the strip's page takes to shrink — must give the strip exactly 38 px and the tab the
+    /// rest, never ask the window for more room than it has, and end with no hold left on the tab.
+    #[test]
+    fn closing_the_overview_gives_the_strip_back_exactly_38_px() {
+        let strip_h = STRIP_H as i32;
+        for h in [720, 800, 680, 1692] {
+            // The overview was open: the strip expanded over the whole window, its page as tall as that.
+            let over = gtk_box_alloc(h, &[(gtk_pack(true, true), true, 0), (gtk_pack(false, true), false, 0)]);
+            assert_eq!(over[0], Some((0, h)), "the overview strip is the window ({h})");
+            let (mut strip_nat, mut tab_nat) = (h, h - strip_h);
+            // Closed: the packing `layout` sets, plus the hold `settle_strip` re-asserts each tick while the
+            // strip's page catches up (its content follows its allocation one step later).
+            let mut hold = -1;
+            for step in 0..6 {
+                hold = tab_hold(h, strip_nat, false);
+                let tab = GtkPack { min_height: hold, ..gtk_pack(false, false) };
+                assert!(strip_h + hold.max(0) <= h, "the hold never asks for more room than the window has");
+                let got = gtk_box_alloc(h, &[(gtk_pack(true, false), true, strip_nat), (tab, true, tab_nat)]);
+                assert_eq!(got[0], Some((0, strip_h)), "step {step}: the strip is {strip_h} px ({h})");
+                assert_eq!(got[1], Some((strip_h, h - strip_h)), "step {step}: the tab fills the rest ({h})");
+                (strip_nat, tab_nat) = (got[0].unwrap().1, got[1].unwrap().1);
+            }
+            assert_eq!(hold, -1, "the hold is let go once the strip's page is back to {strip_h} px ({h})");
+        }
+        // Without a hold the box shares the room — exactly what the lane saw at 1100x720.
+        let stuck = gtk_box_alloc(720, &[(gtk_pack(true, false), true, 720), (gtk_pack(false, false), true, 682)]);
+        assert_eq!((stuck[0], stuck[1]), (Some((0, 379)), Some((379, 341))));
+        // While the overview is open nothing is held.
+        assert_eq!(tab_hold(720, 720, true), -1);
     }
 
     /// #208: on Linux the strip took the top half of the window and the tab the bottom half. The GtkBox
@@ -2061,6 +2207,15 @@ mod tests {
         let pack = body("fn pack_child<");
         assert!(pack.contains("#[cfg(target_os = \"linux\")]"), "Linux only");
         assert!(pack.contains("set_child_packing(") && pack.contains("set_size_request("));
+        assert!(pack.contains("set_vexpand(pack.expand)"), "only the packing decides who grows");
+        // Closing the overview holds the tab until the strip's page is 38 px again (the lane's overview-closed).
+        let close = body("pub fn set_overview(");
+        assert!(close.contains("if was && !open {") && close.contains("settle_strip(app)"));
+        let settle = body("pub fn settle_strip<");
+        assert!(settle.contains("#[cfg(target_os = \"linux\")]"), "Linux only");
+        for call in ["tab_hold(", "queue_resize()", "preferred_height_for_width(", "set_size_request(-1, hold)"] {
+            assert!(settle.contains(call), "settle_strip must call {call}");
+        }
     }
 
     /// Contract §8: Tauri grants a capability when the webview label OR the
