@@ -119,7 +119,7 @@ W5 and W6 use Opus.
 - [x] T1.4 **#128 §10** (native-rust, Opus):
   - `install_name_tool -add_rpath @loader_path` on the staged `kg` in `sync-kg.mjs`, before codesign;
   - a `kg --version` smoke in `check-bundle-completeness.mjs`.
-- [ ] T1.5 **#155 §1, §2, §8, §9, §10 (small items):**
+- [x] T1.5 **#155 §1, §2, §8, §9, §10 (small items):**
   - the offline board uses `resolveArchiveAssets`;
   - skip hidden wrappers;
   - descend into SECTION and GROUP;
