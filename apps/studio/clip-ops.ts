@@ -306,6 +306,27 @@ function clipNameAttr(cc: { clips: Array<{ stableId: string }> }, raw: unknown):
   return ` name="${escapeAttr(name)}"`;
 }
 
+interface StorylineMedia {
+  tag: string;
+  src: string;
+  importName: string;
+  specifier: string;
+  /** a moving picture (`Video` / `OffthreadVideo`) — fills its beat */
+  visual: boolean;
+}
+
+/**
+ * The media element a storyline beat holds. A video fills the comp (`width/height: 100%`) and says how with the
+ * `objectFit` PROP — `cover`, so a clip whose aspect differs from the artboard's crops instead of letterboxing
+ * (#128 §3/§4: the prop is what `@remotion/media`'s `<Video>` reads; a style would be ignored).
+ */
+function storylineMediaEl(media: StorylineMedia): string {
+  const src = `src="${escapeAttr(media.src)}"`;
+  return media.visual
+    ? `<${media.tag} ${src} objectFit="cover" style={{ width: '100%', height: '100%' }} />`
+    : `<${media.tag} ${src} />`;
+}
+
 const PLACEHOLDER_KINDS = new Set(['veo', 'motion', 'image']);
 
 function placeholderChildText(
@@ -366,9 +387,15 @@ export function applyInsertClipAt(
   const dur = Math.max(1, Math.round(opts.durationInFrames));
   const nameAttr = clipNameAttr(cc, opts.name);
   const srcTrim = (opts.src ?? '').trim();
-  const media: { tag: string; src: string; importName: string; specifier: string } | null =
+  const media: StorylineMedia | null =
     opts.mediaTag && INSERTABLE_MEDIA.has(opts.mediaTag) && srcTrim
-      ? { tag: opts.mediaTag, src: srcTrim, importName: opts.mediaTag, specifier: 'remotion' }
+      ? {
+          tag: opts.mediaTag,
+          src: srcTrim,
+          importName: opts.mediaTag,
+          specifier: 'remotion',
+          visual: opts.mediaTag === 'Video' || opts.mediaTag === 'OffthreadVideo',
+        }
       : null;
   if (media) {
     assertContainedSrc(canvasAbsPath, media.src, artboardId ?? '');
@@ -433,7 +460,7 @@ export function applyInsertClipAt(
             dur
           ).trimEnd()
         : media
-          ? `\n${indent}    <${media.tag} src="${escapeAttr(media.src)}" />`
+          ? `\n${indent}    ${storylineMediaEl(media)}`
           : '';
       s2.appendLeft(
         rootClose,
@@ -441,6 +468,18 @@ export function applyInsertClipAt(
           `${gfChild}\n` +
           `${indent}  </TransitionSeries.Sequence>\n${indent}</TransitionSeries>\n${indent.slice(2)}`
       );
+      // #128 §4: the comp's own length follows its first beat (an empty comp takes it, a comp that already holds
+      // overlays only ever grows) — the 150-frame default of a fresh comp must not cut a 1255-frame clip.
+      for (const m of source.matchAll(/<VideoComp\b/g)) {
+        const at = m.index as number;
+        const comp = attrSpanInTag(source, at, 'component');
+        if (comp?.valueText?.replace(/[{}\s]/g, '') !== cc.compName) continue;
+        const len = attrSpanInTag(source, at, 'durationInFrames');
+        const current = numAttrText(source, at, 'durationInFrames');
+        if (!len || current == null || !/^\{\s*\d+\s*\}$/.test(len.valueText ?? '')) continue;
+        const next = cc.clips.length === 0 ? dur : Math.max(current, dur);
+        if (next !== current) s2.overwrite(len.start, len.end, ` durationInFrames={${next}}`);
+      }
       ensureImportPublic(s2, source, 'TransitionSeries', '@remotion/transitions');
       if (opts.placeholder) ensureNamedImport(s2, source, 'AIPlaceholder', '@maude/canvas-lib');
       if (media) ensureNamedImport(s2, source, media.importName, media.specifier);
@@ -463,7 +502,7 @@ export function applyInsertClipAt(
     const mediaText = opts.placeholder
       ? placeholderChildText(canvasAbsPath, artboardId, opts.placeholder, indent, dur)
       : media
-        ? `\n${indent}  <${media.tag} src="${escapeAttr(media.src)}" />\n${indent}`
+        ? `\n${indent}  ${storylineMediaEl(media)}\n${indent}`
         : '';
     if (opts.placeholder) ensureNamedImport(s, source, 'AIPlaceholder', '@maude/canvas-lib');
     if (media) ensureNamedImport(s, source, media.importName, media.specifier);
@@ -1723,6 +1762,83 @@ export function applyResolvePlaceholder(
   return { source: out };
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: oxc's ESTree nodes are walked structurally
+type AstNode = any;
+
+const jsxName = (el: AstNode): string => el?.openingElement?.name?.name ?? '';
+
+/** `style={{ width: "100%", height: "100%" }}` on the element (both literally 100 %). */
+function isFullSizeStyle(el: AstNode): boolean {
+  const attr = (el.openingElement.attributes ?? []).find(
+    (a: AstNode) => a.type === 'JSXAttribute' && a.name?.name === 'style'
+  );
+  const obj = attr?.value?.expression;
+  if (obj?.type !== 'ObjectExpression') return false;
+  const full = (key: string) =>
+    (obj.properties ?? []).some(
+      (p: AstNode) =>
+        p.type === 'Property' &&
+        (p.key?.name === key || p.key?.value === key) &&
+        p.value?.type === 'Literal' &&
+        p.value.value === '100%'
+    );
+  return full('width') && full('height');
+}
+
+/** Only `<div>`s, text and string literals below it — a card of words, not a design. */
+function isWordsOnly(el: AstNode): boolean {
+  for (const c of el.children ?? []) {
+    if (c.type === 'JSXText') continue;
+    if (c.type === 'JSXExpressionContainer') {
+      if (c.expression?.type === 'Literal' && typeof c.expression.value === 'string') continue;
+      return false;
+    }
+    if (c.type === 'JSXElement' && jsxName(c) === 'div' && isWordsOnly(c)) continue;
+    return false;
+  }
+  return true;
+}
+
+/**
+ * The span of the artboard's placeholder: its ONLY child is a full-size `<div>` (width and height literally
+ * "100%") holding nothing but nested `<div>`s and words — the brief board's empty-state card. Null for anything
+ * that could be a real design (an image, a component, a computed child, a second sibling).
+ */
+function fullSizePlaceholder(
+  canvasAbsPath: string,
+  source: string,
+  artboardStart: number
+): { start: number; end: number } | null {
+  const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  let found: { start: number; end: number } | null = null;
+  const walk = (n: AstNode): void => {
+    if (found || !n || typeof n !== 'object') return;
+    if (Array.isArray(n)) {
+      for (const c of n) walk(c);
+      return;
+    }
+    if (n.type === 'JSXElement' && n.start === artboardStart) {
+      const kids = (n.children ?? []).filter(
+        (c: AstNode) => !(c.type === 'JSXText' && !String(c.value).trim())
+      );
+      const only = kids[0];
+      if (
+        kids.length === 1 &&
+        only.type === 'JSXElement' &&
+        jsxName(only) === 'div' &&
+        isFullSizeStyle(only) &&
+        isWordsOnly(only)
+      ) {
+        found = { start: only.start, end: only.end };
+      }
+      return;
+    }
+    for (const k of Object.keys(n)) if (k !== 'parent') walk(n[k]);
+  };
+  walk(parsed.program);
+  return found;
+}
+
 /**
  * Dogfood fix — an artboard marked `kind="video"` in the Inspector IS the
  * user's "this is a video" intent, but without a `<VideoComp>` inside it the
@@ -1763,10 +1879,12 @@ export function applyEnsureVideoComp(
   for (let i = 2; new RegExp(`\\b${compName}\\b`).test(source); i += 1) compName = `VideoCut${i}`;
   const indent = lineStartInfo(source, closeIdx).indent;
   const s = new MagicString(source);
-  s.appendLeft(
-    closeIdx,
-    `  <VideoComp component={${compName}} durationInFrames={150} fps={30} width={${width}} height={${height}} />\n${indent}`
-  );
+  const compText = `<VideoComp component={${compName}} durationInFrames={150} fps={30} width={${width}} height={${height}} />`;
+  // #128 §4: a brief board's full-size empty-state card would push a SIBLING comp out of the fixed
+  // artboard — the card is the placeholder, so the comp takes its place.
+  const placeholder = fullSizePlaceholder(canvasAbsPath, source, target.start);
+  if (placeholder) s.overwrite(placeholder.start, placeholder.end, compText);
+  else s.appendLeft(closeIdx, `  ${compText}\n${indent}`);
   // The comp body — an AbsoluteFill root so the first storyline drop can
   // author its <TransitionSeries> inside (the greenfield insert contract).
   const exportM = source.match(/^export default function\b/m) ?? source.match(/^export default\b/m);

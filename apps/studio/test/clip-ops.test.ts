@@ -804,7 +804,10 @@ describe('applyEnsureVideoComp — kind="video" artboard upgrade', () => {
     // The canvas declares `export default function Video()`, so the inserted
     // media element is ALIASED to dodge the collision — it is no longer
     // rewritten to <OffthreadVideo>, which silently cost the audio track.
-    expect(r.source).toContain('<MaudeVideo src="assets/x.mp4" />');
+    // (#128 §4: and it fills the artboard, with the objectFit PROP.)
+    expect(r.source).toContain(
+      `<MaudeVideo src="assets/x.mp4" objectFit="cover" style={{ width: '100%', height: '100%' }} />`
+    );
     expect(r.source).toContain(`import { Video as MaudeVideo } from '@remotion/media';`);
     const cc = enumerateClips('/abs/Video.tsx', r.source, 'brief');
     expect(cc.compName).toBe('VideoCut');
