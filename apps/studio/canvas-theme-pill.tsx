@@ -96,10 +96,12 @@ export function CanvasThemePill({
     return () => clearTimeout(t);
   }, [copied]);
   const file = canvasFilePath();
-  const copyPath = async () => {
+  // #168 F5 — the pill only asks: `__canvas_meta_file__` is a global any canvas code can overwrite, so the shell
+  // copies the path it holds for this (active) frame and says so itself if the copy fails
+  const copyPath = () => {
     if (!file) return;
     try {
-      await navigator.clipboard.writeText(file);
+      window.parent.postMessage({ dgn: 'copy-canvas-path' }, '*');
       setCopied('ok');
     } catch {
       setCopied('failed');
@@ -133,7 +135,7 @@ export function CanvasThemePill({
             title={`Copy relative path — ${file}`}
             aria-label={`Copy relative path ${file}`}
             aria-live="polite"
-            onClick={() => void copyPath()}
+            onClick={copyPath}
           >
             {copied === 'ok'
               ? 'Copied'

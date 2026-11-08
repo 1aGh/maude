@@ -236,6 +236,12 @@ export function useCanvasBridge({
             : null;
         if (!activeWin || e.source !== activeWin) return;
       }
+      // #168 F5 — the Light/Dark pill's path button (active frame only, checked above): the shell copies the path
+      // IT holds for the open tab and toasts the result; the message carries nothing
+      if (m.dgn === 'copy-canvas-path') {
+        menuRunner.run('canvas.copy-file-path');
+        return;
+      }
       // rc3 r4-12 — a press in the active canvas: the shell's open menus close on it (use-dismiss-outside.js)
       if (m.dgn === 'canvas-pointerdown') {
         announceCanvasPointer();
