@@ -2000,6 +2000,15 @@ function collectNumericConsts(program: AnyNode): Record<string, number> {
 }
 
 /** Resolve a numeric JSX attribute (`from={20}` / `durationInFrames={A}`). */
+/** A literal string prop: `name="x"` or `name={"x"}`. */
+function stringAttr(opening: AnyNode, name: string): string | null {
+  let v = findAttribute(opening, name)?.value;
+  if (v?.type === 'JSXExpressionContainer') v = v.expression;
+  return (v?.type === 'Literal' || v?.type === 'StringLiteral') && typeof v.value === 'string'
+    ? v.value
+    : null;
+}
+
 function numAttr(opening: AnyNode, name: string, consts: Record<string, number>): number | null {
   const a = findAttribute(opening, name);
   let v = a?.value;
@@ -2468,6 +2477,9 @@ export interface ClipInfo {
     filter: string | null;
     /** Crop/reposition wrapper marker (`data-mframe="scale,x,y"`). */
     framing: { scale: number; x: number; y: number } | null;
+    /** #128 §5 — the fit the media declares: the `objectFit` PROP, else a literal `style.objectFit` (the build maps
+     *  it to the prop, T1.2). Null = not declared, which a `<Video>` renders as `contain`. */
+    objectFit: string | null;
   } | null;
   /** S7.10 — the title's entrance (`<TitleMotion preset frames>` around its content), read as literal text
    *  like `data-mframe`; null when the clip has none. The clip inspector's Motion row shows it. */
@@ -2683,6 +2695,7 @@ export function enumerateClips(
     if (direct) {
       const mo = direct.openingElement;
       let filter: string | null = null;
+      let styleFit: string | null = null;
       const st = findAttribute(mo, 'style');
       if (
         st?.value?.type === 'JSXExpressionContainer' &&
@@ -2696,6 +2709,12 @@ export function enumerateClips(
           ) {
             filter = String(p.value.value);
           }
+          if (
+            key === 'objectFit' &&
+            (p.value?.type === 'Literal' || p.value?.type === 'StringLiteral')
+          ) {
+            styleFit = String(p.value.value);
+          }
         }
       }
       let framing: { scale: number; x: number; y: number } | null = null;
@@ -2708,6 +2727,7 @@ export function enumerateClips(
         trimBefore: numAttr(mo, 'trimBefore', consts) ?? numAttr(mo, 'startFrom', consts),
         filter,
         framing,
+        objectFit: stringAttr(mo, 'objectFit') ?? styleFit,
       };
     }
     return {

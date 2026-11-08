@@ -646,7 +646,13 @@ describe('the clip inspector offers it', () => {
       } as never)
     );
     const rows = rowsOf(host, 'clip');
-    expect(rows.slice(-1)).toEqual(['clip-framing = Framing']);
+    // Framing, then (#128 §5) Zoom and Focus X / Y as plain numbers
+    expect(rows.slice(-4)).toEqual([
+      'clip-framing = Framing',
+      'clip-zoom = Zoom',
+      'clip-focus-x = Focus X',
+      'clip-focus-y = Focus Y',
+    ]);
     await click(q(host, 'insp-clip-reframe'), 'Re-frame…');
     expect(asked).toEqual(['video.reframe']);
   });

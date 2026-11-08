@@ -37366,6 +37366,70 @@
     "v2": "new in v2 (S7.10)"
   },
   {
+    "hook": "insp-clip-zoom",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#128 §5: the clip inspector's Zoom field (1× to 8×) under Framing. Writes video.reframe zoom; 1× clears it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "ZoomFocusRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (T3.6)"
+  },
+  {
+    "hook": "insp-clip-focus-x",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#128 §5: the clip inspector's Focus X (0–100 % across the picture, 50 = centre). Writes the shared video.reframe focus; read-only text when the focus moves over time.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "ZoomFocusRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (T3.6)"
+  },
+  {
+    "hook": "insp-clip-focus-y",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#128 §5: the clip inspector's Focus Y (0–100 % down the picture, 50 = centre). Same write as Focus X.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "ZoomFocusRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (T3.6)"
+  },
+  {
+    "hook": "insp-clip-focus-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#128 §5: the quiet line that says a clip's focus moves over time and is changed in Re-frame…. Drawn only then.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "ZoomFocusRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (T3.6)"
+  },
+  {
     "hook": "insp-adv-clip",
     "kind": "testid",
     "pattern": false,

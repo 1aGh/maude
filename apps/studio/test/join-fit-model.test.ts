@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test } from 'bun:test';
 
 import {
   FRAMING_OPTIONS,
+  framingOf,
   framingValue,
   isSilentVideo,
   lengthWords,
@@ -198,6 +199,11 @@ describe('the clip inspector’s numbers', () => {
     ]);
     expect(framingValue(null)).toBe('fill');
     expect(framingValue('blur')).toBe('blur');
+    // #128 §5: that is the Reframe's fit alone. What the select SHOWS also reads the media's own objectFit
+    // (framingOf, pinned in video-fit-truth.test.ts): a bare <Video> without `cover` is letterboxed, so it reads Fit.
+    expect(framingOf({ fit: null, mediaTag: 'Video', mediaProps: { objectFit: null } })).toBe(
+      'fit'
+    );
   });
 
   test('a title is plain JSX on its own; a beat, a picture and a slate are clips', () => {

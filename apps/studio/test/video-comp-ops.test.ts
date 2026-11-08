@@ -119,9 +119,11 @@ describe('video.reframe / video.fit', () => {
   test('video.fit writes fit on the clip’s Reframe; fill (the default) unwraps', () => {
     const a = src(SRC, 'video.fit', { stableId: 'name:three', fit: 'blur' });
     expect(a).toContain('<Reframe fit="blur"><Video src="c.mp4" /></Reframe>');
+    // #128 §5: back to Fill unwraps AND says so on the picture — a bare <Video> renders `contain` otherwise, which
+    // would turn "Fill" into letterbox. That one prop is the only difference from the original.
     expect(
       src(a, 'video.fit', { stableId: 'name:three', fit: 'fill' }).replace(', Reframe', '')
-    ).toBe(SRC);
+    ).toBe(SRC.replace('<Video src="c.mp4" />', '<Video src="c.mp4" objectFit="cover" />'));
     expect(() => run(SRC, 'video.fit', { stableId: 'name:three', fit: 'stretch' })).toThrow(
       /fill, fit or blur/
     );
