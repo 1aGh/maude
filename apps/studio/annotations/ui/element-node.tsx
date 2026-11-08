@@ -453,7 +453,11 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
       {items.length && !edit ? (
         <ChecklistMore
           listId={el.id}
-          hidden={hiddenCheckItems({ w, h, fontSize: fmt.fontSize }, text, items)}
+          hidden={hiddenCheckItems(
+            { w, h, fontSize: fmt.fontSize },
+            text,
+            items as ReadonlyArray<{ text?: unknown }>
+          )}
           paper={fill}
         />
       ) : null}
