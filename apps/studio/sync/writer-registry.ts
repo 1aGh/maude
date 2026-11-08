@@ -574,6 +574,15 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/outbox/:id/retry': { class: 'local' },
   '/_api/shell/status': { class: 'read' }, // routes/shell.ts: the desktop shell's probe — four counts, no effect
   '/_api/shell/attest': { class: 'read' }, // routes/shell.ts (#206): one MAC over a nonce, no effect
+  // #122 (122-C) — the desktop shell carrying a clip between two project servers (shell/clip-transfer.ts):
+  // export / asset read a clip this server holds; import writes the clip's pictures into `assets/` (the
+  // Assets writer's content-addressed names, joining the file plane like any import) and keeps the clip
+  '/_api/shell/clip-export': { class: 'read' },
+  '/_api/shell/clip-asset': { class: 'read' },
+  '/_api/shell/clip-import': {
+    class: 'file-plane',
+    rows: 'S28/I08 (assets/<sha8> from another project)',
+  },
   '/_api/project/format': { class: 'read' }, // routes/project-format.ts
   '/_api/asset-state': { class: 'read' }, // routes/asset-state.ts (S8.19): disk + queue + hub presence, no effect
   // routes/asset-details.ts (S8.21): the details of one asset and the Generated runs — reads of the project's own sidecars

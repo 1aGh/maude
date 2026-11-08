@@ -55,7 +55,7 @@ const canvasKey = (f: string) => f.replace(/^\.design\//, '').replace(/^\/+/, ''
 export const canvasName = (f: string) =>
   (canvasKey(f).split('/').pop() ?? f).replace(/\.(tsx|jsx)$/, '');
 
-const what = (h: ClipHandle) =>
+const what = (h: Pick<ClipHandle, 'kind' | 'count'>) =>
   h.kind === 'artboards'
     ? h.count === 1
       ? 'the artboard'
@@ -67,7 +67,14 @@ const what = (h: ClipHandle) =>
 export type ClipShape =
   | { kind: 'forward'; body: EditOpRequest }
   | { kind: 'reply'; result: EditOpResult }
-  | { kind: 'confirm'; body: EditOpRequest; line: string; reply: EditOpResult };
+  | {
+      kind: 'confirm';
+      body: EditOpRequest;
+      line: string;
+      reply: EditOpResult;
+      /** #122 (122-C) — a copy from another project: Rust carries it after the click (clip_take) */
+      take?: () => Promise<ClipHandle>;
+    };
 
 // V2-8.9 attacker L2 — the ask below is trusted chrome, so it fires on the PERSON's schedule: only
 // within PASTE_INTENT_MS of a paste the shell itself saw — its own ⌘V / Edit › Paste / ⌘K row
@@ -124,19 +131,31 @@ export function shapeClipRequest(
   };
 }
 
-/** After the server answered: a copy / cut's handle becomes the clipboard. */
-export function noteClipResult(body: EditOpRequest, result: EditOpResult): void {
+const isHandle = (h: Partial<ClipHandle> | null | undefined): h is ClipHandle =>
+  !!h &&
+  typeof h.id === 'string' &&
+  CLIP_ID_RE.test(h.id) &&
+  (h.kind === 'objects' || h.kind === 'artboards') &&
+  typeof h.count === 'number' &&
+  typeof h.from === 'string';
+
+/** After the server answered: a copy / cut's handle becomes the clipboard (and, on the desktop, the shell's). */
+export function noteClipResult(
+  body: EditOpRequest,
+  result: EditOpResult,
+  bridge: ClipBridge | null = tauriClipBridge()
+): void {
   if (!result.ok || !CLIP_COPY_OPS.has(body.op)) return;
   const h = (result.detail as { clip?: Partial<ClipHandle> } | undefined)?.clip;
-  if (
-    !h ||
-    typeof h.id !== 'string' ||
-    !CLIP_ID_RE.test(h.id) ||
-    (h.kind !== 'objects' && h.kind !== 'artboards') ||
-    typeof h.count !== 'number' ||
-    typeof h.from !== 'string'
-  )
-    return;
+  if (!isHandle(h)) return;
+  // #122 (122-C) — the desktop shell keeps the latest copy on this Mac, so another project's tab can paste it
+  try {
+    Promise.resolve(bridge?.note({ id: h.id, kind: h.kind, count: h.count, from: h.from })).catch(
+      () => {}
+    );
+  } catch {
+    /* an older app without the command — same-project paste is unaffected */
+  }
   held = { id: h.id, kind: h.kind, count: h.count, from: h.from };
 }
 
@@ -151,4 +170,119 @@ export function frameClipResult(body: EditOpRequest, result: EditOpResult): Edit
   const clip = detail?.clip as Partial<ClipHandle> | undefined;
   if (!detail || !clip || typeof clip !== 'object') return result;
   return { ...result, detail: { ...detail, clip: { kind: clip.kind, count: clip.count } } };
+}
+
+// ── #122 (122-C) — a paste between two projects on this Mac (contract §5.6) ──────────────────────────
+//
+// The desktop shell (Rust, clip_bridge.rs) keeps the latest copy made in ANY project tab — in memory, never on
+// disk — and answers each tab only kind / count / where (`clip_latest`). A paste whose latest copy was made
+// in another project's tab is asked in this shell's own words, on the person's schedule only (the same 1 s
+// intent as a cross-canvas paste); after Paste, Rust reads the clip from that project's server and hands it
+// to this one's over shell-token routes (`clip_take`), and the paste names the handle Rust brought. The tab
+// that copied last wins, like the system clipboard. Cloud tabs and the browser have no bridge.
+
+/** What Rust says about the latest copy on this Mac (never a handle of another tab). */
+export interface ClipLatest {
+  seq: number;
+  /** the latest copy was made in this tab: paste with the shell's own handle */
+  mine: boolean;
+  kind: ClipHandle['kind'];
+  count: number;
+  from: string;
+  /** the project it was copied in */
+  project: string;
+}
+
+export interface ClipBridge {
+  note(h: ClipHandle): unknown;
+  latest(): Promise<ClipLatest | null>;
+  take(seq: number): Promise<ClipHandle>;
+}
+
+type TauriWin = { __TAURI__?: { core?: { invoke?: (cmd: string, args?: unknown) => unknown } } };
+
+/** The desktop's three caller-checked commands; null outside the app (the browser, a test). */
+export function tauriClipBridge(win: unknown = globalThis): ClipBridge | null {
+  const invoke = (win as TauriWin | null)?.__TAURI__?.core?.invoke;
+  if (typeof invoke !== 'function') return null;
+  return {
+    note: (h) => invoke('clip_note', { id: h.id, kind: h.kind, count: h.count, from: h.from }),
+    latest: async () => (await invoke('clip_latest')) as ClipLatest | null,
+    take: async (seq) => ((await invoke('clip_take', { seq })) as { handle: ClipHandle }).handle,
+  };
+}
+
+const isLatest = (l: unknown): l is ClipLatest => {
+  const v = l as Partial<ClipLatest> | null;
+  return (
+    !!v &&
+    typeof v.seq === 'number' &&
+    typeof v.mine === 'boolean' &&
+    (v.kind === 'objects' || v.kind === 'artboards') &&
+    typeof v.count === 'number' &&
+    typeof v.from === 'string' &&
+    typeof v.project === 'string'
+  );
+};
+
+/**
+ * `shapeClipRequest`, but on the desktop a paste first asks the shell which copy is the latest on this Mac.
+ * Synchronous for everything but a desktop paste (so no other edit-op changes its order).
+ */
+export function shapeClipPaste(
+  body: EditOpRequest,
+  {
+    now = Date.now(),
+    cloudTab = false,
+    bridge = tauriClipBridge(),
+  }: { now?: number; cloudTab?: boolean; bridge?: ClipBridge | null } = {}
+): ClipShape | Promise<ClipShape> {
+  if (body.op !== CLIP_PASTE_OP || cloudTab || !bridge)
+    return shapeClipRequest(body, { now, cloudTab });
+  return (async (): Promise<ClipShape> => {
+    let latest: unknown = null;
+    try {
+      latest = await bridge.latest();
+    } catch {
+      latest = null;
+    }
+    if (!isLatest(latest) || latest.mine) return shapeClipRequest(body, { now, cloudTab });
+    const named = `${what(latest)} copied in ${canvasName(latest.from)} · ${latest.project}`;
+    if (!(now - pasteIntentAt >= 0 && now - pasteIntentAt <= PASTE_INTENT_MS))
+      return {
+        kind: 'reply',
+        result: { ok: false, code: 'invalid', message: `To paste ${named}, press ⌘V.` },
+      };
+    pasteIntentAt = Number.NEGATIVE_INFINITY;
+    const { clip: _theirs, ...params } = body.params ?? {};
+    const seq = latest.seq;
+    return {
+      kind: 'confirm',
+      body: { ...body, params },
+      line: `Paste ${named}?`,
+      reply: { ok: true, actionId: null, writeId: '', rev: '', refs: [], queued: true },
+      take: () => bridge.take(seq),
+    };
+  })();
+}
+
+const GONE_WORDS = 'That copy is gone; copy it again.';
+
+/** After Paste on the shell's toast: the body to run — with the handle Rust brought, for another project's copy. */
+export async function confirmedPasteBody(
+  shape: Extract<ClipShape, { kind: 'confirm' }>
+): Promise<{ ok: true; body: EditOpRequest } | { ok: false; message: string }> {
+  if (!shape.take) return { ok: true, body: shape.body };
+  let h: unknown;
+  try {
+    h = await shape.take();
+  } catch (e) {
+    const message = typeof e === 'string' ? e : e instanceof Error ? e.message : '';
+    return { ok: false, message: message || GONE_WORDS };
+  }
+  if (!isHandle(h as Partial<ClipHandle>)) return { ok: false, message: GONE_WORDS };
+  return {
+    ok: true,
+    body: { ...shape.body, params: { ...shape.body.params, clip: (h as ClipHandle).id } },
+  };
 }

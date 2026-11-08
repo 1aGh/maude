@@ -51,6 +51,7 @@ import {
   type Carry,
   type CarryPlan,
   carryOf,
+  MAX_CARRIED,
   planCarry,
   renameRefs,
 } from './clip-carry.ts';
@@ -85,6 +86,8 @@ interface Clip extends ClipHandle {
   carry: Carry;
   /** #122 — set when the carry was too big to keep: a paste on another canvas is refused with these words */
   carryRefused: string | null;
+  /** #122 (122-C) — set on a clip that came from ANOTHER project (the shell's clip-import): never "this canvas" */
+  project?: string;
   bytes: number;
 }
 
@@ -410,7 +413,7 @@ function readsAt(
         `That ${what} reads ${missing.slice(0, 3).join(', ')} from where it was copied; it can’t be pasted here. Copy the whole component instead.`
       );
   }
-  if (clip.from === req.file) return null;
+  if (clip.from === req.file && !clip.project) return null;
   if (clip.carryRefused) return fail(req.file, clip.carryRefused);
   return planCarry(
     source,
@@ -455,7 +458,7 @@ function pasteObjects(source: string, req: ResolvedEditOp, clip: Clip) {
     const boards = all.filter((e) => e.tag === 'DCArtboard' && e.artboard);
     const want =
       (typeof req.params.artboard === 'string' && req.params.artboard) ||
-      (clip.from === req.file ? clip.artboard : null);
+      (clip.from === req.file && !clip.project ? clip.artboard : null);
     const board =
       (want ? boards.find((b) => b.artboard === want) : undefined) ??
       (typeof req.params.artboard === 'string' ? undefined : boards[0]);
@@ -599,3 +602,176 @@ export const CLIPBOARD_OPS: readonly EditOp[] = [
   artboardCut,
   canvasPaste,
 ];
+
+// ── #122 (122-C) — a clip between two projects on this Mac ────────────────────────────────────
+//
+// The desktop shell (Rust, clip_bridge.rs) carries a clip from the server it was copied on to the server of
+// the tab it is pasted in, over the shell-token routes (routes/shell.ts, shell/clip-transfer.ts). Only a
+// clip this server read from its OWN disk is exported (never one that came in from elsewhere), and an
+// imported clip is checked item by item with the paste's own `checkItem` before it is kept — on the
+// desktop shelf, marked with the project it came from so no paste treats it as "this canvas".
+
+/** What crosses between two project servers: the text, never another shelf's handle. */
+export interface ClipTransfer {
+  kind: ClipKind;
+  /** designRoot-relative canvas in the SOURCE project */
+  from: string;
+  items: string[];
+  names: Array<{ id: string; label: string; width: number | null }>;
+  artboard: string | null;
+  needs: string[];
+  carry: Carry;
+  carryRefused: string | null;
+}
+
+/** A desktop-shelf clip this server read itself, as it crosses; null = no such clip (gone, foreign, a cell's). */
+export function exportClip(id: string): ClipTransfer | null {
+  if (typeof id !== 'string' || !CLIP_ID_RE.test(id)) return null;
+  const clip = shelves.get(DESKTOP_SCOPE.subject)?.get(id);
+  if (!clip || clip.project !== undefined) return null;
+  return {
+    kind: clip.kind,
+    from: clip.from,
+    items: [...clip.items],
+    names: clip.names.map((n) => ({ ...n })),
+    artboard: clip.artboard,
+    needs: [...clip.needs],
+    carry: {
+      imports: clip.carry.imports.map((i) => ({ ...i })),
+      decls: clip.carry.decls.map((d) => ({ ...d })),
+      assets: [...clip.carry.assets],
+    },
+    carryRefused: clip.carryRefused,
+  };
+}
+
+const IDENT = /^[A-Za-z_$][\w$]*$/;
+const NAME_MAX = 200;
+const PATH_MAX = 512;
+const DECL_KINDS = new Set(['const', 'function', 'class', 'type']);
+const DECL_NODES = new Set([
+  'VariableDeclaration',
+  'FunctionDeclaration',
+  'ClassDeclaration',
+  'TSTypeAliasDeclaration',
+  'TSInterfaceDeclaration',
+]);
+const str = (v: unknown, max: number): v is string =>
+  typeof v === 'string' && v.length <= max && !v.includes('\0');
+/** A designRoot-relative path: no root, no `..`, no backslash, no empty segment. */
+export const isDesignRel = (v: unknown): v is string =>
+  str(v, PATH_MAX) &&
+  v.length > 0 &&
+  !v.startsWith('/') &&
+  !v.includes('\\') &&
+  !v.split('/').some((seg) => seg === '..' || seg === '' || seg === '.');
+
+/** One carried declaration's text: exactly one top-level declaration statement. */
+function declParses(text: string): boolean {
+  try {
+    const parsed = parseSync('decl.tsx', text, { sourceType: 'module' }) as {
+      program?: { body?: Array<{ type?: string }> };
+      errors?: unknown[];
+    };
+    const body = parsed.program?.body ?? [];
+    return !parsed.errors?.length && body.length === 1 && DECL_NODES.has(body[0]?.type ?? '');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A clip that came from another project, checked as strictly as a paste checks its own (every item re-parsed
+ * as one element of the right kind, the carry's shapes and bounds). Null = refused; nothing is kept.
+ */
+export function checkTransfer(v: unknown): ClipTransfer | null {
+  if (!isRec(v)) return null;
+  const { kind, from, items, names, artboard, needs, carry, carryRefused } = v;
+  if (kind !== 'objects' && kind !== 'artboards') return null;
+  if (!isDesignRel(from) || !/\.(tsx|jsx)$/.test(from)) return null;
+  if (!Array.isArray(items) || items.length === 0 || items.length > MAX_CLIP_ITEMS) return null;
+  let chars = 0;
+  for (const item of items) {
+    if (typeof item !== 'string') return null;
+    chars += item.length;
+    const checked = checkItem(item, from);
+    if (!checked) return null;
+    const tag = checked.root.tag;
+    if (
+      kind === 'artboards'
+        ? tag !== 'DCArtboard'
+        : /^(DCArtboard|DCSection|DesignCanvas)$/.test(tag)
+    )
+      return null;
+  }
+  if (!Array.isArray(names) || names.length !== (kind === 'artboards' ? items.length : 0))
+    return null;
+  for (const n of names)
+    if (
+      !isRec(n) ||
+      !str(n.id, NAME_MAX) ||
+      !str(n.label, NAME_MAX) ||
+      !(n.width === null || (typeof n.width === 'number' && Number.isFinite(n.width)))
+    )
+      return null;
+  if (!(artboard === null || str(artboard, NAME_MAX))) return null;
+  if (
+    !Array.isArray(needs) ||
+    needs.length > 256 ||
+    !needs.every((n) => str(n, NAME_MAX) && IDENT.test(n))
+  )
+    return null;
+  if (!(carryRefused === null || str(carryRefused, 400))) return null;
+  if (!isRec(carry) || !Array.isArray(carry.imports) || !Array.isArray(carry.decls)) return null;
+  if (!Array.isArray(carry.assets) || carry.assets.length > 512) return null;
+  if (carry.imports.length + carry.decls.length > MAX_CARRIED) return null;
+  for (const i of carry.imports as unknown[]) {
+    if (!isRec(i) || !str(i.local, NAME_MAX) || !IDENT.test(i.local)) return null;
+    if (!str(i.imported, NAME_MAX) || !str(i.spec, PATH_MAX) || i.spec.length === 0) return null;
+    if (!(i.module === null || isDesignRel(i.module))) return null;
+    if (!(i.typeOnly === undefined || typeof i.typeOnly === 'boolean')) return null;
+    chars += i.spec.length + i.local.length + i.imported.length;
+  }
+  for (const d of carry.decls as unknown[]) {
+    if (!isRec(d) || !str(d.name, NAME_MAX) || !IDENT.test(d.name)) return null;
+    if (typeof d.text !== 'string' || !DECL_KINDS.has(d.kind as string)) return null;
+    if (!declParses(d.text)) return null;
+    chars += d.text.length + d.name.length;
+  }
+  for (const a of carry.assets as unknown[])
+    if (!isDesignRel(a) || !a.startsWith('assets/')) return null;
+  if (chars * 2 > MAX_CLIP_BYTES) return null;
+  return {
+    kind,
+    from,
+    items: items as string[],
+    names: (names as ClipTransfer['names']).map((n) => ({
+      id: n.id,
+      label: n.label,
+      width: n.width,
+    })),
+    artboard: artboard as string | null,
+    needs: needs as string[],
+    carry: {
+      imports: (carry.imports as Carry['imports']).map((i) => ({
+        local: i.local,
+        imported: i.imported,
+        spec: i.spec,
+        module: i.module,
+        ...(i.typeOnly ? { typeOnly: true } : {}),
+      })),
+      decls: (carry.decls as Carry['decls']).map((d) => ({
+        name: d.name,
+        text: d.text,
+        kind: d.kind,
+      })),
+      assets: [...(carry.assets as string[])],
+    },
+    carryRefused: carryRefused as string | null,
+  };
+}
+
+/** Keep a checked transfer on the desktop shelf; its handle is what the shell pastes with. */
+export function keepTransfer(t: ClipTransfer, project: string): ClipHandle {
+  return keep({ ...t, project: project.slice(0, NAME_MAX) }, DESKTOP_SCOPE);
+}

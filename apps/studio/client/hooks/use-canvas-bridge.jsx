@@ -42,10 +42,11 @@ import {
   trashArtboardBody,
 } from '../edit-op-relay.ts';
 import {
+  confirmedPasteBody,
   frameClipResult,
   noteClipResult,
   notePasteIntent,
-  shapeClipRequest,
+  shapeClipPaste,
 } from '../clipboard-relay.ts';
 import { clipWords } from '../../editing/clip-words.ts';
 import { exportRegionOf } from '../export-region.ts';
@@ -546,111 +547,130 @@ export function useCanvasBridge({
         // V2-clipboard-objects — the clipboard is the shell's (client/clipboard-relay.ts): a paste names the
         // shell's handle, never the canvas's; a clip from ANOTHER canvas waits for a click on the shell's toast.
         // (#122: a cloud tab holds no copy made in another project — its refusal says so, not "nothing to paste")
-        const shaped = shapeClipRequest(asked, { cloudTab: !!cfg?.cloud });
-        if (shaped.kind === 'reply') {
-          reply(shaped.result);
-          return;
-        }
-        if (shaped.kind === 'confirm') {
-          reply(shaped.reply);
-          const askedFile = asked.file;
-          // V2-8.9 r2 C1 — asked by the canvas: one reused, rate-limited notice, below the shell's own
-          notifyCanvasTriggered({
-            id: 'canvas-clip-confirm',
-            title: shaped.line,
-            kind: 'success',
-            action: {
-              label: 'Paste',
-              onClick: () => {
-                // the canvas that asked is still open (the toast may be clicked later)
-                if (iframesRef.current.get(askedFile)?.contentWindow !== replyTo) return;
-                editApplyChainRef.current = editApplyChainRef.current
-                  .catch(() => {})
-                  .then(() =>
-                    fetch('/_api/edit-op', {
-                      method: 'POST',
-                      headers: { 'content-type': 'application/json' },
-                      body: JSON.stringify(shaped.body),
-                    })
-                      .then(readEditOpAnswer)
-                      .then((r) => {
-                        if (!r.ok) {
-                          replyTo?.postMessage(
-                            { dgn: 'op-toast', message: r.message },
-                            expectedOrigin
-                          );
-                          return;
-                        }
-                        const payload = legacyRecordPayload(r, 'Paste');
-                        if (payload)
-                          replyTo?.postMessage({ dgn: 'record-edit', payload }, expectedOrigin);
-                        // #122 — said where the paste landed: what came along ("· added 2 imports")
-                        const said = clipWords(r);
-                        if (said) replyTo?.postMessage({ dgn: 'op-toast', message: said }, expectedOrigin);
+        const onShaped = (shaped) => {
+          if (shaped.kind === 'reply') {
+            reply(shaped.result);
+            return;
+          }
+          if (shaped.kind === 'confirm') {
+            reply(shaped.reply);
+            const askedFile = asked.file;
+            // V2-8.9 r2 C1 — asked by the canvas: one reused, rate-limited notice, below the shell's own
+            notifyCanvasTriggered({
+              id: 'canvas-clip-confirm',
+              title: shaped.line,
+              kind: 'success',
+              action: {
+                label: 'Paste',
+                onClick: () => {
+                  // the canvas that asked is still open (the toast may be clicked later)
+                  if (iframesRef.current.get(askedFile)?.contentWindow !== replyTo) return;
+                  editApplyChainRef.current = editApplyChainRef.current
+                    .catch(() => {})
+                    // #122 (122-C) — another project's copy: Rust carries it now, after the click
+                    .then(() => confirmedPasteBody(shaped))
+                    .then((ready) => {
+                      if (!ready.ok) {
+                        replyTo?.postMessage(
+                          { dgn: 'op-toast', message: ready.message },
+                          expectedOrigin
+                        );
+                        return;
+                      }
+                      return fetch('/_api/edit-op', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify(ready.body),
                       })
-                      .catch(() => {})
-                  );
+                        .then(readEditOpAnswer)
+                        .then((r) => {
+                          if (!r.ok) {
+                            replyTo?.postMessage(
+                              { dgn: 'op-toast', message: r.message },
+                              expectedOrigin
+                            );
+                            return;
+                          }
+                          const payload = legacyRecordPayload(r, 'Paste');
+                          if (payload)
+                            replyTo?.postMessage({ dgn: 'record-edit', payload }, expectedOrigin);
+                          // #122 — said where the paste landed: what came along ("· added 2 imports")
+                          const said = clipWords(r);
+                          if (said)
+                            replyTo?.postMessage(
+                              { dgn: 'op-toast', message: said },
+                              expectedOrigin
+                            );
+                        });
+                    })
+                    .catch(() => {});
+                },
               },
-            },
-          });
-          return;
-        }
-        // p8-sweep-close — built from the tree of now; sent once the writes before it answered, by which time
-        // one of them may have stamped an object this request still names by its computed id.
-        const follow = stampFollowRef.current;
-        const builtAt = follow.generation();
-        let body = shaped.body;
-        editApplyChainRef.current = editApplyChainRef.current
-          .catch(() => {})
-          .then(() => {
-            body = follow.rewrite(body, builtAt);
-          })
-          .then(() =>
-            fetch('/_api/edit-op', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify(body),
+            });
+            return;
+          }
+          // p8-sweep-close — built from the tree of now; sent once the writes before it answered, by which time
+          // one of them may have stamped an object this request still names by its computed id.
+          const follow = stampFollowRef.current;
+          const builtAt = follow.generation();
+          let body = shaped.body;
+          editApplyChainRef.current = editApplyChainRef.current
+            .catch(() => {})
+            .then(() => {
+              body = follow.rewrite(body, builtAt);
             })
-              .then(readEditOpAnswer)
-              .then((result) => {
-                if (result?.ok) follow.record(body.file, body.targets, result.refs);
-                noteClipResult(body, result);
-                // V2-8.9 attacker L3 — the canvas hears kind + count, never the handle
-                reply(frameClipResult(body, result));
-                // S7.21 — "Tablet and Mobile are beside Desktop." + Undo, when the inspector asked for the copies
-                const added = settleAddedWidths(body, result);
-                if (added) shellToast(added.message, true, added.action, DUPLICATE_TOAST);
-                else {
-                  // S6.16b (01 cf-duplicate-done) — the artboard menu's "Duplicate at another width ▸": the
-                  // shell says it, off the request it forwarded and the server's answer, with its own ⌘Z.
-                  const done = settleDuplicateAtWidth(body, result, () =>
-                    menuRunner.run('edit.undo')
-                  );
-                  if (done)
-                    shellToast(done.message, true, done.action, {
-                      ...DUPLICATE_TOAST,
-                      id: done.id,
-                    });
-                }
-                // S2.24 G1 — a write to the selected text changes what the inspector measured (the style it wears,
-                // what differs from it, the size): put the selection back so the canvas probes it again.
-                if (result?.ok && /^text\./.test(body.op) && body.file) {
-                  // S2.25 G1 — and a write that gives the text an authored name (`Use a style` on a text that had only a
-                  // content-hash id) leaves the id the shell holds naming nothing: follow it to the new one.
-                  const map = renamedIdsRef.current;
-                  if (map.size > 64) map.clear();
-                  for (const [k, v] of renamesOf(body.targets, result.refs)) map.set(k, v);
-                  restoreSelectionOn(body.file, RESTORE_LEAD_MS);
-                }
+            .then(() =>
+              fetch('/_api/edit-op', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(body),
               })
-              .catch(() =>
-                reply({
-                  ok: false,
-                  code: 'invalid',
-                  message: 'The studio could not be reached; try again.',
+                .then(readEditOpAnswer)
+                .then((result) => {
+                  if (result?.ok) follow.record(body.file, body.targets, result.refs);
+                  noteClipResult(body, result);
+                  // V2-8.9 attacker L3 — the canvas hears kind + count, never the handle
+                  reply(frameClipResult(body, result));
+                  // S7.21 — "Tablet and Mobile are beside Desktop." + Undo, when the inspector asked for the copies
+                  const added = settleAddedWidths(body, result);
+                  if (added) shellToast(added.message, true, added.action, DUPLICATE_TOAST);
+                  else {
+                    // S6.16b (01 cf-duplicate-done) — the artboard menu's "Duplicate at another width ▸": the
+                    // shell says it, off the request it forwarded and the server's answer, with its own ⌘Z.
+                    const done = settleDuplicateAtWidth(body, result, () =>
+                      menuRunner.run('edit.undo')
+                    );
+                    if (done)
+                      shellToast(done.message, true, done.action, {
+                        ...DUPLICATE_TOAST,
+                        id: done.id,
+                      });
+                  }
+                  // S2.24 G1 — a write to the selected text changes what the inspector measured (the style it wears,
+                  // what differs from it, the size): put the selection back so the canvas probes it again.
+                  if (result?.ok && /^text\./.test(body.op) && body.file) {
+                    // S2.25 G1 — and a write that gives the text an authored name (`Use a style` on a text that had only a
+                    // content-hash id) leaves the id the shell holds naming nothing: follow it to the new one.
+                    const map = renamedIdsRef.current;
+                    if (map.size > 64) map.clear();
+                    for (const [k, v] of renamesOf(body.targets, result.refs)) map.set(k, v);
+                    restoreSelectionOn(body.file, RESTORE_LEAD_MS);
+                  }
                 })
-              )
-          );
+                .catch(() =>
+                  reply({
+                    ok: false,
+                    code: 'invalid',
+                    message: 'The studio could not be reached; try again.',
+                  })
+                )
+            );
+        };
+        // #122 (122-C) — on the desktop a paste first asks the shell which copy is the latest on this Mac
+        // (another project's tab may hold it); every other edit-op is shaped synchronously, as before.
+        const shapedNow = shapeClipPaste(asked, { cloudTab: !!cfg?.cloud });
+        if (shapedNow instanceof Promise) shapedNow.then(onShaped, () => {});
+        else onShaped(shapedNow);
       } else if (m.dgn === 'reorder-slot') {
         // S2.11b — the slot a lifted card would land in; Layers draws the same numbered place.
         // The row is parsed through the typed table (a planted canvas sends whatever it likes).
