@@ -19,10 +19,11 @@ export const IDLE_AFTER_MS = 10 * 60 * 1000;
 
 /**
  * The longest one job may legitimately hold a request open: server.ts's flat
- * RENDER_TIMEOUT_MS ceiling (60 min) plus a margin for the container's own
- * cold start in front of it.
+ * RENDER_TIMEOUT_MS ceiling (60 min) twice — a video may first wait out the one
+ * running ahead of it (the queue of one, service.ts, #128 T3.7) — plus a margin
+ * for the container's own cold start in front of it.
  */
-export const JOB_MAX_MS = 75 * 60 * 1000;
+export const JOB_MAX_MS = (2 * 60 + 15) * 60 * 1000;
 
 /**
  * @param {object} o

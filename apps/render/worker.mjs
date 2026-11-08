@@ -7,10 +7,11 @@
 // for nothing. Tenancy isolation lives in the JOB (the token), not in the
 // instance.
 //
-// AUTH IS IN THE CONTAINER, deliberately. The Worker forwards `/render` and
-// `/_health` verbatim; server.ts checks the bearer with a timing-safe compare
-// and refuses when unset. Doing it here too would mean the secret living in
-// two runtimes — one more place to rotate, no additional door closed.
+// AUTH IS IN THE CONTAINER, deliberately. The Worker forwards `/render`,
+// `/_health` and `/_render/{status,cancel}` (routes.mjs) verbatim; server.ts
+// checks the bearer with a timing-safe compare and refuses when unset. Doing it
+// here too would mean the secret living in two runtimes — one more place to
+// rotate, no additional door closed.
 //
 // SCALE NOTE: `idFromName('render-v1')` pins a single container instance —
 // one Chromium, one render at a time (+ a short in-process queue). That is
@@ -21,6 +22,7 @@
 import { Container } from '@cloudflare/containers';
 
 import { renderIdleExpired } from './idle-policy.mjs';
+import { isRenderServiceRoute } from './routes.mjs';
 
 const RENDER_PORT = 8790;
 
@@ -138,9 +140,7 @@ export class MaudeRender extends Container {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const isHealth = url.pathname === '/_health' && request.method === 'GET';
-    const isRender = url.pathname === '/render' && request.method === 'POST';
-    if (!isHealth && !isRender) {
+    if (!isRenderServiceRoute(request.method, url.pathname)) {
       // The same posture the cells take: an unrouted path looks like the
       // feature never existed.
       return new Response('not found', { status: 404 });
