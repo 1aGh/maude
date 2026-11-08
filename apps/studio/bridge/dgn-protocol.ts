@@ -387,6 +387,10 @@ export interface CanvasToShell {
     cause: 'key' | 'esc' | 'inspect' | 'toolbar' | 'link';
   };
   'toolbar-rect': { mode: CanvasModeV2; rect: Rect | null };
+  // #170 (T2.4b) — one of the toolbar's popovers (Shape kinds, More, Sticky colours, Marker tips) is open: they open
+  // upward into the dock where the shell's toast pill sits, so the shell moves its toasts to the top while one is.
+  // One boolean, no rect and no text — nothing here is rendered by the shell.
+  'toolbar-popover': { open: boolean };
   'tool-panel-open': {
     // r2-p1 TD10: 'image' = Image (I), the shell's picture picker; 'generate' = the Generate… slot next to it
     panel: 'stickers' | 'components' | 'templates' | 'assets' | 'sizes' | 'image' | 'generate';
@@ -1887,6 +1891,12 @@ const c2s: C2S = {
     status: 'live',
     owner: 'tool-palette (V2-4.5a); shell tool panels (V2-4.5c)',
     parse: p({ mode, rect: nul(rect) }),
+  },
+  'toolbar-popover': {
+    gate: 'active',
+    status: 'live',
+    owner: 'tool-palette (#170 T2.4b); h/use-canvas-bridge → notifications (toast placement)',
+    parse: p({ open: bool }),
   },
   'tool-panel-open': {
     gate: 'active',

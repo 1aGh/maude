@@ -177,6 +177,9 @@ export function resolveInsertAnchor(
   return artboardId ? { artboardId, position: 'inside-end' } : null;
 }
 
+/** #170 — the toolbar's popovers (Shape kinds, More, Sticky colours, Marker tips). */
+const POPOVER_SELECTOR = '.dc-tp-shape-popover, .dc-tp-list-popover, .dc-tp-opts-popover';
+
 /** Fire a verb at the shell (a main-origin write; DDR-054 keeps the canvas itself write-free). */
 function postShell(msg: object): void {
   try {
@@ -572,6 +575,26 @@ export function ToolPalette() {
       document.removeEventListener('keydown', onKey, true);
     };
   }, [open]);
+
+  // #170 (T2.4b) — the popovers open upward into the dock, where the shell's toast pill sits: tell the shell when one
+  // is in the DOM and when none is, so it moves its toasts out of the way (notifications.tsx). Said only on a change.
+  const popoverSaid = useRef(false);
+  useEffect(() => {
+    const shown = !!rootRef.current?.querySelector(POPOVER_SELECTOR);
+    if (shown === popoverSaid.current) return;
+    popoverSaid.current = shown;
+    if (typeof window !== 'undefined' && window.parent !== window)
+      postShell({ dgn: 'toolbar-popover', open: shown });
+  });
+  useEffect(
+    () => () => {
+      if (!popoverSaid.current) return;
+      popoverSaid.current = false;
+      if (typeof window !== 'undefined' && window.parent !== window)
+        postShell({ dgn: 'toolbar-popover', open: false });
+    },
+    []
+  );
 
   if (!mounted || slots.length === 0) return null;
 
