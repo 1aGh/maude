@@ -238,6 +238,8 @@ const fakeHub = {
   holds: false,
   calls: [] as string[],
   caps: ['format-v2'] as string[],
+  hubFormat: undefined as undefined | number,
+  setFormat: 200,
   workspace: undefined as undefined | { checkout: string },
 };
 const fake = Bun.serve({
@@ -249,12 +251,16 @@ const fake = Bun.serve({
     if (pathname === '/health')
       return Response.json({
         ok: true,
-        formatVersion: fakeHub.formatVersion,
+        formatVersion: fakeHub.hubFormat ?? fakeHub.formatVersion,
         capabilities: fakeHub.caps,
         ...(fakeHub.workspace ? { workspace: fakeHub.workspace } : {}),
       });
     if (req.headers.get('authorization') !== 'Bearer hubtok_secret-token')
       return Response.json({ error: 'sign in' }, { status: 401 });
+    if (pathname === '/api/project-format' && req.method === 'POST')
+      return Response.json(fakeHub.setFormat === 200 ? { epoch: 2 } : { code: 'not-owner' }, {
+        status: fakeHub.setFormat,
+      });
     if (pathname === '/api/projects/current/v1/bootstrap')
       return Response.json({
         docs: fakeHub.holds
@@ -275,6 +281,8 @@ describe('POST /_api/hub/link-folder — refusals write nothing', () => {
     fakeHub.calls = [];
     fakeHub.caps = ['format-v2'];
     fakeHub.workspace = undefined;
+    fakeHub.hubFormat = undefined;
+    fakeHub.setFormat = 200;
   });
 
   test('not from the Maude window → 403 window-only, before the body or the server', async () => {
@@ -349,6 +357,41 @@ describe('POST /_api/hub/link-folder — refusals write nothing', () => {
     expect(r.status).toBe(409);
     expect(r.body.reason).toBe('format-newer');
     expect(attached).toBe(0);
+  });
+
+  test('2.1.1 T14 — a member linking to a server still on format 1: only its owner can raise it, and the words say so', async () => {
+    const f = makeFolder('a', { 'ui/mine.tsx': canvasSrc('Mine') }, { formatVersion: 2 });
+    saveHubCredential(FAKE, 'hubtok_secret-token', 'member');
+    recordProjectLink(join(tmp, 'elsewhere'), { url: FAKE }, 'link'); // a first link asks first (T8)
+    fakeHub.hubFormat = 1;
+    fakeHub.setFormat = 403; // a member's bearer is not the owner's
+    let attached = 0;
+    const r = await routeFor(f, {
+      attachStored: async () => {
+        attached++;
+        return { status: 200, json: { ok: true, url: FAKE } };
+      },
+    }).post({ url: FAKE });
+    expect(r.status).toBe(409);
+    expect(r.body.reason).toBe('format-owner');
+    const host = `127.0.0.1:${fake.port}`;
+    expect(r.body.error).toBe(
+      `${host} is on an older format. Its owner needs to open it in Maude 2.1 once before this folder can sync. Nothing was linked.`
+    );
+    expect(r.body.error).not.toMatch(/needs an update/);
+    expect(attached).toBe(0);
+    expect(readCfg(f.designRoot).linkedHub).toBeUndefined();
+  });
+
+  test('a server whose software predates the new format still says it needs an update', async () => {
+    const f = makeFolder('a', { 'ui/mine.tsx': canvasSrc('Mine') }, { formatVersion: 2 });
+    saveHubCredential(FAKE, 'hubtok_secret-token', 'member');
+    recordProjectLink(join(tmp, 'elsewhere'), { url: FAKE }, 'link');
+    fakeHub.hubFormat = 1;
+    fakeHub.caps = [];
+    const r = await routeFor(f).post({ url: FAKE });
+    expect(r.body.reason).toBe('format');
+    expect(r.body.error).toMatch(/needs an update/);
   });
 
   test('a server that holds work → needs-confirm; a wrong or reused code is refused', async () => {
