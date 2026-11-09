@@ -132,3 +132,11 @@ Fixing a broken or missing sign-in takes one click.
 
   T8 Rust merged (d58db2740).
 - 2026-11-09: T8 studio merged (31d037dad, with the http.ts repoRoot patch and the link-server-model conflict resolved). Two What's New entries pending (41fd71ed5). Running: T14 (Sync details gaps, survey media line, S1 repro test, format-1 member words, team-cell-missing offline words) and the security re-review.
+- 2026-11-09: T14 merged (b9735cef7).
+  - A kept conflict copy stays visible in Sync details until it is gone.
+  - Set-aside layout rows.
+  - The confirm screen gets its own line for media a server can't store.
+  - Owner-only format words.
+  - A first-link outcome table test.
+  - team-cell-missing now expects "Can't reach".
+  - Re-review fix builder (N1 retire the migration lane, N2–N6) is running.
