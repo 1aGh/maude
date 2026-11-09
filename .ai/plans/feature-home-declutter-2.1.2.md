@@ -39,7 +39,7 @@
   - the duplicate or orphaned design.studyfi.com rows;
   - the button overlap;
   - which accounts count as "stale" (unreachable + no projects).
-- [ ] **H2** Design:
+- [x] **H2** Design:
   - run design-critic on the current Home (2.1.1);
   - produce a revised Home artboard set in canvas 17 or a new canvas: main surface, collapsed accounts summary, action-needed banner, slim project rows, stale-server handling (collapsed + Remove).
   - Show it to Michal (AskUserQuestion) before building.
@@ -52,7 +52,7 @@
 
 ## Acceptance Criteria
 
-- [ ] Michal approved the Home design before building.
+- [x] Michal approved the Home design before building.
 - [ ] Home's main surface is Recent canvases + Projects; accounts are a compact summary that opens on demand; only an action-needed problem is raised at the top.
 - [ ] Unreachable servers with no projects are collapsed and offer Remove; nothing is removed without the person's click.
 - [ ] A Maude Cloud cell is never shown as "your server"; it belongs to its Maude Cloud account.
@@ -74,3 +74,8 @@ Same as `.ai/scenarios/accounts-2.1.1/builder-brief.md`. Never read or write Mic
   - Overlap: the `.home-sw` state word doesn't truncate (home.css ~1988), and the busy label is too long.
   - The project row inventory went to the designer.
   - Marked H1 done.
+- 2026-11-09: H2 design merged: canvas 17, artboards 15–19, two design-critic passes with no blockers.
+  Michal approved: "Ano, stavěj". His answers to the open questions:
+  - the chip shows text + dot ("1 needs sign-in");
+  - add "Forget all" for old servers;
+  - a project row DOES show a quiet last-opened time on the right.
