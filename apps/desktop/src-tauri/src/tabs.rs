@@ -1100,7 +1100,8 @@ pub fn lease_dot(dot: Option<Dot>, active: bool, leased: bool) -> Option<Dot> {
 pub enum TabMenuItem {
     /// Rename… — the name this Mac shows for the project (`tab_rename`).
     Rename,
-    /// Sign in as another account… — the tab's own `account.switch`.
+    /// Switch account… — the tab's own `account.switch` (2.1.1 T4: opens the avatar menu's list of
+    /// the accounts already on this Mac; it never moves the project to a fresh, empty one).
     SwitchAccount,
     /// Close tab — the user close path (`close_tab_by_user`).
     Close,
@@ -1123,7 +1124,7 @@ impl TabMenuItem {
     pub fn label(self) -> &'static str {
         match self {
             TabMenuItem::Rename => "Rename…",
-            TabMenuItem::SwitchAccount => "Sign in as another account…",
+            TabMenuItem::SwitchAccount => "Switch account…",
             TabMenuItem::Close => "Close tab",
         }
     }

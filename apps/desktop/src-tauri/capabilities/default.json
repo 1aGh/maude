@@ -19,6 +19,7 @@
     "allow-github-sign-out",
     "allow-cloud-sign-in-prepare",
     "allow-team-sign-in-prepare",
+    "allow-project-use-account",
     "allow-cloud-signed-in",
     "allow-pick-directory",
     "allow-resolve-dev-server-url",

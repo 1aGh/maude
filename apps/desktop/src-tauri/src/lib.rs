@@ -686,6 +686,7 @@ pub fn run() {
             oauth::e2e_github_sign_in_as,
             profiles::cloud_sign_in_prepare,
             profiles::team_sign_in_prepare,
+            profiles::project_use_account,
             profiles::cloud_signed_in,
             profiles::home_cloud_sign_in_prepare,
             profiles::home_cloud_sign_in_open,

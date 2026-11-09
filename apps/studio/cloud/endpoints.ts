@@ -30,7 +30,7 @@ import { browserDoorOf } from '../client/v2/cloud/browser-door.js';
 import { asFormat, formatToKeep } from '../format.ts';
 import { deleteHubCredential, saveHubCredential } from '../sync/hub-link.ts';
 import { getHubRecord, getHubToken, normalizeUrl } from '../sync/hubs-config.ts';
-import { deleteProjectLink, linksPath, recordProjectLink } from '../sync/link-consent.ts';
+import { deleteProjectLink, linksPath, normHub, recordProjectLink } from '../sync/link-consent.ts';
 import { boundCloudToken, cloudConfigPath } from './config-path.ts';
 
 /**
@@ -238,6 +238,24 @@ interface Ctx {
   };
 }
 
+/**
+ * 2.1.1 T2 — where the project at `repoRoot` lives: `{ kept: true }` for a copy Maude keeps (the app
+ * bound it to a server: `MAUDE_APP_BOUND_HUB`, set by the desktop shell per spawn, never by a repo),
+ * else `{ kept: false, folder }` — the folder, with the home directory as `~`.
+ */
+export function placeOf(
+  repoRoot: string,
+  env: Record<string, string | undefined> = process.env
+): { kept: true } | { kept: false; folder: string } {
+  if (normHub(env.MAUDE_APP_BOUND_HUB)) return { kept: true };
+  const home = env.HOME || '';
+  const folder =
+    home && (repoRoot === home || repoRoot.startsWith(home.endsWith(sep) ? home : home + sep))
+      ? `~${repoRoot.slice(home.replace(/[\\/]+$/, '').length)}`
+      : repoRoot;
+  return { kept: false, folder };
+}
+
 export function createCloudEndpoints(ctx: Ctx) {
   const cfgFile = () => ctx.cloudConfigPath ?? cloudConfigPath();
   /** gate-b-sec4 — the per-Mac link record, beside the same profile's hubs.json. */
@@ -269,6 +287,10 @@ export function createCloudEndpoints(ctx: Ctx) {
           url: file ? file.url : cloudUrl(),
           project: basename(ctx.paths.repoRoot),
           linkedHub: readLinkedHub(),
+          // 2.1.1 T2 — where the project lives (canvas 17 · ac-model): a copy Maude keeps for a
+          // server the APP bound it to (`MAUDE_APP_BOUND_HUB`, which a repo cannot set), else the
+          // person's own folder, home-abbreviated. Main origin only, like the rest of this answer.
+          place: placeOf(ctx.paths.repoRoot),
         },
       };
     },
