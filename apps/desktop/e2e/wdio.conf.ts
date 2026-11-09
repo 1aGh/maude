@@ -142,6 +142,11 @@ const DEDICATED: Record<string, string> = {
   // (wdio.exports.conf.ts).
   'export-formats.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:exports',
   'exports-panel.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:exports',
+  // 2.1.1 T7: each spec on a project of its own, with loopback team servers and a silent Maude Cloud tripwire
+  // (wdio.accounts.conf.ts).
+  'hub-signin-return.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:accounts',
+  'broken-signin.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:accounts',
+  'send-local-project.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:accounts',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above

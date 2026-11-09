@@ -60,6 +60,7 @@
     "test:e2e:desktop:parity": "pnpm --filter @maude/desktop-e2e e2e:parity",
     "test:e2e:desktop:sidecar-respawn": "pnpm --filter @maude/desktop-e2e e2e:sidecar-respawn",
     "test:e2e:desktop:exports": "pnpm --filter @maude/desktop-e2e e2e:exports",
+    "test:e2e:desktop:accounts": "pnpm --filter @maude/desktop-e2e e2e:accounts",
     "test:e2e:desktop:team-project": "pnpm --filter @maude/desktop-e2e e2e:team-project",
     "test:e2e:desktop:ai-runs": "pnpm --filter @maude/desktop-e2e e2e:ai-runs",
     "test:e2e:desktop:team-cell": "pnpm --filter @maude/desktop-e2e e2e:team-cell",
