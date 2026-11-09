@@ -117,6 +117,13 @@ export function createHubSigninRoutes(deps: HubSigninRouteDeps = {}): RouteSpec[
       readOnly: 'allowed',
       async handle(req) {
         const b = await body(req);
+        // 2.1.1 N5 — the same target refusal as `/check`: start probes the server too
+        const target = hubAddress(b.url);
+        if (target.ok && checkTargetRefusal(target.url, deps.refusedLocalPort))
+          return json(
+            { ok: false, reason: 'bad-address', error: "That isn't a team server address." },
+            400
+          );
         let invite: string | undefined;
         if (b.invite !== undefined && b.invite !== null && b.invite !== '') {
           const at = hubAddress(b.url);
