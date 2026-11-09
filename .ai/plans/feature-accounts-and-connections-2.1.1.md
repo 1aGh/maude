@@ -152,3 +152,7 @@ Fixing a broken or missing sign-in takes one click.
   - Hub: 2222/0.
   - Studio: 24325 pass, 2 fail. Both are fixed in 14468ef77: a curl-local entry guard that is now reachable from the compiled server, and a status pin that now knows `confirmed`. The 1 error is the `v2-gate-focus` happy-dom teardown, identical at v2.1.0 (pre-existing).
   - CLI/scripts: 1018/1 (`version-above-stable`, the mini slot's tag state; it passes locally and clears with the bump).
+- 2026-11-09: The first desktop e2e run on bc78617fa failed in all 5 lanes: "webview never navigated".
+  - Root cause: T8 imported `bin/_curl-local.mjs` into the server for the address check. That file still used the bare argv[1] entry guard, so the packaged `maude-server` booted as curl-local ("unrecognized flag --root").
+  - This was release-blocking. It was caught by `compiled-entry-guard.test.ts` on the mini and confirmed by booting the built sidecar. Fixed in 14468ef77.
+  - Rebuilt; the lanes are rerunning.
