@@ -148,3 +148,7 @@ Fixing a broken or missing sign-in takes one click.
   N7/N8 are deferred to 2.1.2. All fast gates pass (lint, tsc, tsc coverage, the generators, nothing-deleted, AI and shell parity, version, imports). The release bundle is rebuilt (bc78617fa); the boot check and the opening-card smoke pass. CHANGELOG 2.1.1 is drafted.
 
   Running: the mini suites (hub, studio, cli and scripts) and the desktop e2e lanes (accounts, team-project, team-cell-missing, home, cloud).
+- 2026-11-09: Mini suites on bc78617fa.
+  - Hub: 2222/0.
+  - Studio: 24325 pass, 2 fail. Both are fixed in 14468ef77: a curl-local entry guard that is now reachable from the compiled server, and a status pin that now knows `confirmed`. The 1 error is the `v2-gate-focus` happy-dom teardown, identical at v2.1.0 (pre-existing).
+  - CLI/scripts: 1018/1 (`version-above-stable`, the mini slot's tag state; it passes locally and clears with the bump).
