@@ -165,7 +165,8 @@ describe('⌘K, the real palette', () => {
     const row = el.querySelector('.sh-pal-item.is-active');
     expect(row?.querySelector('.sh-pal-where')?.textContent).toMatch(/^Settings › /);
     await key(input, 'Enter');
-    expect(spies.ran).toEqual(['settings:connections']);
+    // 2.1.1 T6: the row's section, and the card that holds it
+    expect(spies.ran).toEqual(['settings:general']);
     expect(ids[ids.length - 1]).toBe('ask-ai');
   });
 

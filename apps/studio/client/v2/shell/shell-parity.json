@@ -453,7 +453,18 @@
             },
             {
               "testid": "cloud-account",
-              "section": "connections"
+              "section": "general",
+              "conditional": true
+            },
+            {
+              "testid": "settings-hub-address",
+              "section": "general",
+              "conditional": true
+            },
+            {
+              "testid": "settings-team-server-add",
+              "section": "general",
+              "conditional": true
             },
             {
               "testid": "settings-github",
@@ -465,14 +476,6 @@
             },
             {
               "testid": "figma-connect-card",
-              "section": "connections"
-            },
-            {
-              "testid": "settings-hub-address",
-              "section": "connections"
-            },
-            {
-              "testid": "settings-team-server-add",
               "section": "connections"
             },
             {
@@ -517,19 +520,23 @@
             },
             {
               "testid": "sync-setting-syncFiles",
-              "section": "advanced"
+              "section": "general",
+              "conditional": true
             },
             {
               "testid": "sync-setting-syncFiles",
-              "section": "advanced"
+              "section": "general",
+              "conditional": true
             },
             {
               "testid": "sync-setting-firstAnchor",
-              "section": "advanced"
+              "section": "general",
+              "conditional": true
             },
             {
               "testid": "sync-ownership-adopt",
-              "section": "advanced"
+              "section": "general",
+              "conditional": true
             },
             {
               "testid": "settings-runtime",
@@ -841,7 +848,18 @@
             },
             {
               "testid": "cloud-account",
-              "section": "connections"
+              "section": "general",
+              "conditional": true
+            },
+            {
+              "testid": "settings-hub-address",
+              "section": "general",
+              "conditional": true
+            },
+            {
+              "testid": "settings-team-server-add",
+              "section": "general",
+              "conditional": true
             },
             {
               "testid": "settings-github",
@@ -853,14 +871,6 @@
             },
             {
               "testid": "figma-connect-card",
-              "section": "connections"
-            },
-            {
-              "testid": "settings-hub-address",
-              "section": "connections"
-            },
-            {
-              "testid": "settings-team-server-add",
               "section": "connections"
             },
             {
@@ -901,19 +911,23 @@
             },
             {
               "testid": "sync-setting-syncFiles",
-              "section": "advanced"
+              "section": "general",
+              "conditional": true
             },
             {
               "testid": "sync-setting-syncFiles",
-              "section": "advanced"
+              "section": "general",
+              "conditional": true
             },
             {
               "testid": "sync-setting-firstAnchor",
-              "section": "advanced"
+              "section": "general",
+              "conditional": true
             },
             {
               "testid": "sync-ownership-adopt",
-              "section": "advanced"
+              "section": "general",
+              "conditional": true
             },
             {
               "testid": "settings-runtime",

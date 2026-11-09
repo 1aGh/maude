@@ -1,4 +1,6 @@
-// client/v2/settings/account.jsx — S9.20: Settings › General › Account (02 ob-settings, left card).
+// client/v2/settings/account.jsx — S9.20: the account block (02 ob-settings, left card). 2.1.1 T6: on the
+// desktop it sits in Settings › General › This project › Sync details › Maude Cloud; a cloud tab (no This
+// project card) keeps it as General's Account card.
 //
 //   Account
 //   (Y) you@studio.cz · Signed in to cloud.maude.sh
@@ -107,7 +109,7 @@ export function AccountBlock({
       {ownAccount && (
         <Row
           label={signedIn ? (who ?? 'You') : host}
-          hint={signedIn ? undefined : 'Sign in under Connections to sync projects.'}
+          hint={signedIn ? undefined : 'Sign in to Maude Cloud above to sync projects.'}
         >
           <span data-testid="settings-account-state">
             {signedIn ? `Signed in to ${host}` : 'Not signed in'}

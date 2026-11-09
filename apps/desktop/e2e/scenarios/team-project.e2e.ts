@@ -416,30 +416,23 @@ describe('team-project (native-desktop)', () => {
     await closeHistory();
   });
 
-  it('4c · Settings › Connections: the team server reads like the cloud; its token only as the last four', async () => {
-    // S11.14 (06 ad-edge-hub) — the server-add leg's other end: the folder this copy syncs is the
-    // team server's row, "Connected …" with Sign out, and its Advanced names the address, the access
-    // token as •••• •••• <last 4> (never more) and Replace…. Read-only here: nothing is replaced.
+  it('4c · Settings › General › This project: the team server reads like the cloud; its token only as the last four', async () => {
+    // S11.14 (06 ad-edge-hub), moved by 2.1.1 T6 (canvas 17 · 08): the server-add leg's other end. The folder
+    // this copy syncs is This project's link — "Connected …" — and its Sync details hold the server block with
+    // Sign out, the address, the access token as •••• •••• <last 4> (never more) and Replace…. Read-only here:
+    // nothing is replaced.
     const t = TEAM as NonNullable<typeof TEAM>;
     await settleMotion();
     await (await $(tid('project-pill'))).click();
     const row = await $(tid('project-menu-row-settings.open'));
     await row.waitForDisplayed({ timeout: 10_000 });
     await row.click();
-    await (await $(tid('settings-tab-connections'))).click();
-    const status = await $(tid('settings-conn-hub-status'));
-    await status.waitForDisplayed({ timeout: 15_000 });
-    expect(await status.getText()).toMatch(/^Connected/);
-    // P8 G1b (06 ad-edge-hub): the team server's row reads like any connection — its own name, the
-    // same Sign out — between the other four rows; the window itself says Saved, like a cloud project.
-    expect(await (await $(tid('settings-conn-hub'))).getText()).toMatch(/own server/i);
-    for (const row of [
-      'settings-cloud',
-      'settings-github',
-      'settings-ai-keys',
-      'figma-connect-card',
-    ])
-      expect(await (await $(tid(row))).isExisting()).toBe(true);
+    await (await $(tid('settings-tab-general'))).click();
+    const card = await $(tid('settings-card-this-project-toggle'));
+    await card.waitForDisplayed({ timeout: 15_000 });
+    if ((await card.getAttribute('aria-expanded')) !== 'true') await card.click();
+    const connection = await $(tid('settings-project-connection'));
+    await connection.waitForDisplayed({ timeout: 15_000 });
     await eventually(
       'the save word to settle on Saved',
       async () => (await statusWord())?.status === 'saved',
@@ -448,9 +441,18 @@ describe('team-project (native-desktop)', () => {
     const word = await statusWord();
     expect(word?.status).toBe('saved');
     expect(word?.text).toBe('Saved');
+    expect(await connection.getText()).toMatch(/^Connected/);
+    const fold = await $(tid('fold-settings.project-toggle'));
+    const wasOpen = (await fold.getAttribute('aria-expanded')) === 'true';
+    if (!wasOpen) await fold.click();
+    const status = await $(tid('settings-conn-hub-status'));
+    await status.waitForDisplayed({ timeout: 15_000 });
+    expect(await status.getText()).toMatch(/^Connected/);
+    expect(await (await $(tid('settings-conn-hub'))).getText()).toMatch(/Your server/);
+    // Connections keeps the person's own integrations; the project's link is not there any more
+    for (const id of ['settings-cloud', 'settings-hub-sign-out'])
+      expect(await (await $(tid(id))).isExisting()).toBe(true);
     expect(await (await $(tid('settings-hub-sign-out'))).isDisplayed()).toBe(true);
-    const fold = await $(tid('fold-connections.hub-toggle'));
-    if ((await fold.getAttribute('aria-expanded')) !== 'true') await fold.click();
     const token = await $(tid('settings-hub-token'));
     await token.waitForDisplayed({ timeout: 10_000 });
     expect(await token.getText()).toMatch(/•••• •••• (\S{4}|••••)/);
@@ -467,7 +469,10 @@ describe('team-project (native-desktop)', () => {
         stored.slice(0, -4)
       );
     await capture('06c-connections-team-server');
-    await fold.click(); // remembered per Mac: leave it as it was
+    if (!wasOpen) await fold.click(); // remembered per Mac: leave it as it was
+    await (await $(tid('settings-tab-connections'))).click();
+    for (const id of ['settings-github', 'settings-ai-keys', 'figma-connect-card'])
+      expect(await (await $(tid(id))).isExisting()).toBe(true);
     const close = await $(tid('settings-close'));
     if (await close.isExisting()) await close.click();
   });

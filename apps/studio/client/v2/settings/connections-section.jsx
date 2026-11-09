@@ -1,229 +1,48 @@
-// client/v2/settings/connections-section.jsx — S11.14: Settings › Connections (06 ad-edge-hub; D11, D12, D14).
+// client/v2/settings/connections-section.jsx — S11.14: Settings › Connections (06 ad-edge-hub; D12, D14).
+// 2.1.1 T6 (canvas 17 · 10): one column of cards, only the person's own integrations —
 //
-//   ☁  Maude Cloud                Signed in as You                        [Sign out]   › Advanced
-//      Cloud projects on this Mac: Connect · Disconnect (D11)
-//   ▣  Studio site — your team's own server   ● Connected · saved 1 min ago [Sign out] › Advanced
-//         Address  https://hub.studio-brno.cz  [Copy]
-//         Access token  •••• •••• a91f  [Replace…]
-//         Hub version  maude-hub 2.0.0
-//   ⌁  GitHub                     Not connected                           [Connect]    › Advanced
-//   ✦  AI images, video and voice 2 keys · Gemini, ElevenLabs             [Manage]     › Advanced
-//   ▢  Figma                      Connected · for imports          [Test] [Disconnect] › Advanced
+//   ✦  AI — your Claude account     Pro or Max, or an API key.     ● Connected        [Change…]  ›
+//   ▢  Figma                        For Import from Figma.         ● Not connected    [Add token…] ›
+//   ⌁  GitHub                       GitHub projects and invites…   ● Connected as @…  [Disconnect] ›
+//   ▣  AI images, video and voice   Your own keys for pictures…    ● 2 keys · …       [Manage…]  ›
+//   Which account a project uses, and where it lives, is in General › This project.
 //
-// A self-hosted hub looks exactly like the cloud: the window says Saved like any cloud project, and
-// the address and the token appear only under that connection's Advanced. Every row runs on the hooks
-// in use-connections.js — the v1 rows (CloudBar / IdentityBar / FigmaConnectCard / ProviderKeys) are
-// no longer mounted here. The token is never rendered beyond its last four characters, and Replace…
-// writes through the existing credential route only.
+// Claude, Figma, GitHub and the AI providers follow the person into every project. Maude Cloud and your
+// team's own server belong to a project, so they moved to General › This project (this-project-card.jsx):
+// the cloud account and its projects on this Mac (D11), the server's address, masked token and Replace…
+// (D12), its Sign out. Every card runs on the hooks in use-connections.js; the mono words live only under
+// a card's own Advanced fold (`connections.<row>`).
 //
 // Desktop only (`cloud === null`): a browser tab has no keychain, and the routes behind these rows are
 // refused in a cell by design (DDR-209 D1). The sheet doesn't render this section there.
 
 import { useState } from 'react';
 
-import {
-  CloudDeviceDialog,
-  isLinkedProjectRow,
-  openExternal,
-  shareViewUrl,
-} from '../../panels/CloudBar.jsx';
+import { openExternal } from '../../panels/CloudBar.jsx';
 import { GitHubDeviceDialog } from '../../panels/IdentityBar.jsx';
 import { ProviderCard } from '../../panels/SettingsPanel.jsx';
-import { TeamProjectsDialog } from '../../panels/TeamProjects.jsx';
 import { ConnectSheet } from '../ai/ConnectSheet.jsx';
-import { ConnectionRow, ConnField } from './connection-row.jsx';
+import { reasonProps } from '../access/disabled-reason.js';
+import { ConnField } from './connection-row.jsx';
 import {
   claudeRow,
-  cloudRow,
+  connectionFoldId,
   figmaRow,
   figmaTestWords,
   githubRow,
-  hubRow,
-  maskedToken,
   providerSummary,
 } from './connections-model.js';
+import { SettingsCard } from './settings-card.jsx';
 import {
   useClaudeAccount,
-  useCloudConnection,
   useFigmaConnection,
   useGitHubConnection,
-  useHubDetails,
   useProviderKeys,
 } from './use-connections.js';
-import { reasonProps } from '../access/disabled-reason.js';
+import { useOpenCard } from './use-open-card.js';
 
 const btn = 'btn btn--sm';
-
-function CloudProjects({ c }) {
-  const { projects, local, cloudUrl, busy } = c;
-  if (projects === null)
-    return (
-      <div className="v2s-conn-li" aria-disabled="true">
-        Loading projects…
-      </div>
-    );
-  if (projects.length === 0)
-    return (
-      <div className="v2s-conn-li" aria-disabled="true">
-        No projects yet — start one on the dashboard.
-      </div>
-    );
-  return projects.map((p) => {
-    const name = p.name || p.id;
-    // Viewer dignity (Phase 17 T4): no dead Connect that would 403 at the workspace — viewing has a
-    // first-class home in the browser, and the label says why.
-    if (p.role === 'viewer')
-      return (
-        <div className="v2s-conn-li" key={p.id}>
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={() => openExternal(shareViewUrl(p.url, p.id))}
-            title="Viewing works in the browser. Editing in the app needs the member role — ask whoever runs the project."
-            data-testid={`cloud-project-${p.id}`}
-          >
-            {`View ${name} in the browser`}
-          </button>
-        </div>
-      );
-    const linked = isLinkedProjectRow({
-      projectUrl: p.url,
-      linkedHubUrl: local.linkedHub?.url,
-      linkedHubCredentialed: local.linkedHub?.credentialed,
-      cloudUrl,
-    });
-    return linked ? (
-      <div className="v2s-conn-li is-connected" key={p.id} data-testid={`cloud-project-${p.id}`}>
-        <span>{name}</span>
-        <span className="v2s-conn-s v2s-conn-s--ok">Connected</span>
-        <button
-          type="button"
-          className="btn btn--ghost btn--sm"
-          disabled={busy === 'disconnect'}
-          onClick={c.disconnect}
-          aria-label={`Disconnect this folder from ${name}`}
-          data-testid={`cloud-disconnect-${p.id}`}
-        >
-          {busy === 'disconnect' ? 'Disconnecting…' : 'Disconnect'}
-        </button>
-      </div>
-    ) : (
-      <div className="v2s-conn-li" key={p.id}>
-        <span>{name}</span>
-        <button
-          type="button"
-          className="btn btn--ghost btn--sm"
-          disabled={busy === p.id}
-          onClick={() => c.connect(p.id)}
-          title={`Connect this folder to ${name}`}
-          data-testid={`cloud-project-${p.id}`}
-        >
-          {busy === p.id ? 'Connecting…' : `Connect ${name}`}
-        </button>
-      </div>
-    );
-  });
-}
-
-/** Replace… — a password field, sent once through `POST /_api/hub/link`, then cleared. */
-function ReplaceToken({ hub }) {
-  const [open, setOpen] = useState(false);
-  const [value, setValue] = useState('');
-  if (!open)
-    return (
-      <button
-        type="button"
-        className="btn btn--ghost btn--sm"
-        onClick={() => setOpen(true)}
-        data-testid="settings-hub-token-replace"
-      >
-        Replace…
-      </button>
-    );
-  const done = async () => {
-    const ok = await hub.replace(value);
-    setValue('');
-    if (ok) setOpen(false);
-  };
-  return (
-    <span className="v2s-conn-replace">
-      <input
-        className="input"
-        type="password"
-        autoComplete="off"
-        spellCheck={false}
-        value={value}
-        placeholder="Paste the new token"
-        aria-label="New access token"
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') done();
-          if (e.key === 'Escape') {
-            setValue('');
-            setOpen(false);
-          }
-        }}
-        data-testid="settings-hub-token-input"
-      />
-      <button
-        type="button"
-        className={btn}
-        disabled={hub.busy || !value.trim()}
-        onClick={done}
-        data-testid="settings-hub-token-save"
-      >
-        {hub.busy ? 'Saving…' : 'Replace'}
-      </button>
-      <button
-        type="button"
-        className="btn btn--ghost btn--sm"
-        onClick={() => {
-          setValue('');
-          setOpen(false);
-        }}
-      >
-        Cancel
-      </button>
-    </span>
-  );
-}
-
-/** The linked workspace's address + masked token — under the row the link belongs to. */
-function HubFields({ url, hub, replace, credentialed }) {
-  const d = hub.details;
-  // Until the details answer, the link's own corroboration says whether a token is stored at all.
-  const stored = d ? d.credentialed : !!credentialed;
-  return (
-    <div data-testid="settings-hub-address">
-      <ConnField k="Address" mono copy={url}>
-        {url}
-      </ConnField>
-      <ConnField k="Access token" mono testid="settings-hub-token">
-        <span className="v2s-conn-inline">
-          {stored ? maskedToken(d?.tokenLast4) : 'None saved for this folder'}
-          {replace && stored ? <ReplaceToken hub={hub} /> : null}
-        </span>
-      </ConnField>
-      {/* P8-T G1b-3 (06 ad-edge-hub): who this credential signed in as. A credential from before the
-          field existed carries none — no line, never an error. */}
-      {typeof d?.account === 'string' && d.account ? (
-        <ConnField k="Signed in as" mono testid="settings-hub-account">
-          {d.account}
-        </ConnField>
-      ) : null}
-      {d?.version ? (
-        <ConnField k="Hub version" mono testid="settings-hub-version">
-          {d.version}
-        </ConnField>
-      ) : null}
-      {hub.error ? (
-        <p className="v2s-conn-err" role="alert">
-          {hub.error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
+const swOf = (tone) => (tone === 'ok' ? 'ok' : 'off');
 
 export function FigmaToken({ f }) {
   const [value, setValue] = useState('');
@@ -279,199 +98,55 @@ export function FigmaToken({ f }) {
   );
 }
 
-export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncStatus }) {
-  const cloud = useCloudConnection({ onLinkedHub, onLocalProject, syncStatus });
+export default function ConnectionsSection({ focus = null }) {
   const gh = useGitHubConnection();
   const keys = useProviderKeys();
   const figma = useFigmaConnection();
   const claude = useClaudeAccount();
-  const [tokenOpen, setTokenOpen] = useState(false);
-  const [claudeOpen, setClaudeOpen] = useState(false);
-  const [teamOpen, setTeamOpen] = useState(false);
-  const [keysOpen, setKeysOpen] = useState(false);
+  const { open, toggle, show } = useOpenCard('connections', focus);
+  const [connecting, setConnecting] = useState(false);
 
-  const linkedUrl = cloud.local.linkedHub?.url ?? null;
-  const team = hubRow({
-    linkedHub: cloud.local.linkedHub,
-    cloudUrl: cloud.cloudUrl,
-    project: cloud.local.project,
-    lastSyncAt: syncStatus?.lastSyncAt,
-  });
-  const hub = useHubDetails(linkedUrl);
-  const cr = cloudRow({ state: cloud.state, email: cloud.email });
   const gr = githubRow({ native: gh.native, state: gh.state, login: gh.login });
   const cl = claudeRow(claude.state);
   const fr = figmaRow(figma.status);
   const tested = figmaTestWords(figma.test);
-
-  if (cloud.state === 'loading') return null;
+  const card = (id) => ({ open: open === id, onToggle: toggle, reveal: focus?.card === id });
 
   return (
-    <div className="v2s-conns" data-testid="settings-connections">
-      <ConnectionRow
-        row="cloud"
-        testid="settings-cloud"
-        icon="cloud"
-        title="Maude Cloud"
-        desc="Where your projects live."
-        rowTestid={cloud.state === 'in' ? 'cloud-account' : undefined}
-        status={cr.status}
-        tone={cr.tone}
-        action={
-          cr.action === 'sign-out' ? (
-            <button
-              type="button"
-              className={btn}
-              disabled={cloud.busy === 'signout'}
-              onClick={cloud.signOut}
-              data-testid="cloud-sign-out"
-            >
-              Sign out
-            </button>
-          ) : cr.action === 'sign-in' ? (
-            <button
-              type="button"
-              className={btn}
-              onClick={cloud.startSignIn}
-              data-testid="cloud-signin"
-            >
-              Sign in
-            </button>
-          ) : null
-        }
-        advanced={
-          <>
-            {cloud.cloudUrl ? (
-              <ConnField k="Address" mono copy={cloud.cloudUrl}>
-                {cloud.cloudUrl}
-              </ConnField>
-            ) : null}
-            {cloud.email ? (
-              <ConnField k="Signed in as" mono>
-                {cloud.email}
-              </ConnField>
-            ) : null}
-            {linkedUrl && !team.linked ? (
-              <HubFields
-                url={linkedUrl}
-                hub={hub}
-                credentialed={cloud.local.linkedHub?.credentialed}
-              />
-            ) : null}
-          </>
-        }
-      >
-        {/* `cloud-bar`: the account's own words — the projects, the Connect outcome, an error. */}
-        <div className="v2s-conn-body" data-testid="cloud-bar">
-          {cloud.state === 'in' ? (
-            <div className="v2s-conn-list">
-              <p className="v2s-conn-h">Cloud projects on this Mac</p>
-              <div data-testid="settings-cloud-projects">
-                <CloudProjects c={cloud} />
-              </div>
-              {cloud.note ? (
-                <p
-                  className="v2s-hint"
-                  role="status"
-                  aria-live="polite"
-                  data-testid="cloud-connect-note"
-                >
-                  {cloud.note.text}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-          {cloud.error ? (
-            <p className="v2s-conn-err" role="alert">
-              {cloud.error}
-            </p>
-          ) : null}
-        </div>
-      </ConnectionRow>
-
-      <ConnectionRow
-        row="hub"
-        icon="box"
-        title={team.title}
-        desc="A self-hosted server, beside Maude Cloud."
-        status={team.status}
-        tone={team.tone}
-        action={
-          team.action === 'sign-out' ? (
-            <button
-              type="button"
-              className={btn}
-              disabled={cloud.busy === 'disconnect'}
-              onClick={cloud.disconnect}
-              data-testid="settings-hub-sign-out"
-            >
-              Sign out
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={btn}
-              onClick={() => setTeamOpen(true)}
-              data-testid="settings-team-server-add"
-            >
-              {team.action === 'sign-in' ? 'Sign in…' : 'Add a team server…'}
-            </button>
-          )
-        }
-        advanced={
-          team.linked ? (
-            <HubFields
-              url={linkedUrl}
-              hub={hub}
-              replace
-              credentialed={cloud.local.linkedHub?.credentialed}
-            />
-          ) : null
-        }
-      >
-        {team.action === 'sign-out' ? (
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm v2s-conn-more"
-            onClick={() => setTeamOpen(true)}
-            data-testid="settings-team-server-add"
-          >
-            Add another team server…
-          </button>
-        ) : null}
-        {teamOpen ? (
-          <TeamProjectsDialog
-            serverOnly
-            title="Add a team server"
-            onClose={() => setTeamOpen(false)}
-          />
-        ) : null}
-      </ConnectionRow>
-
-      <ConnectionRow
-        row="claude"
+    <div className="v2s-cards" data-testid="settings-connections">
+      <SettingsCard
+        id="claude"
+        summaryTestid="settings-conn-claude-status"
         testid="settings-claude"
         icon="sparkle"
         title="AI — your Claude account"
         desc="Pro or Max, or an API key."
-        status={cl.status}
-        tone={cl.tone}
+        summary={cl.status}
+        sw={swOf(cl.tone)}
         action={
           cl.action ? (
             <button
               type="button"
               className={btn}
-              aria-expanded={claudeOpen}
+              aria-expanded={connecting}
               aria-controls="v2s-claude-connect"
-              onClick={() => setClaudeOpen((v) => !v)}
+              onClick={() => {
+                setConnecting((v) => !v);
+                show('claude');
+              }}
               data-testid="settings-claude-action"
             >
               {cl.action === 'change' ? 'Change…' : 'Connect…'}
             </button>
           ) : null
         }
+        {...card('claude')}
       >
-        {claudeOpen ? (
+        <p className="v2s-hint">
+          Maude’s AI runs on this account. Sign in through your browser; Claude Code is set up for
+          you.
+        </p>
+        {connecting ? (
           <div id="v2s-claude-connect" className="v2s-conn-keys">
             <ConnectSheet
               inline
@@ -486,26 +161,27 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
               fine={null}
               onConnect={async () => {
                 const ok = await claude.connect({ force: cl.action === 'change' });
-                if (ok) setClaudeOpen(false);
+                if (ok) setConnecting(false);
               }}
               onCancel={() => {
                 claude.cancel();
                 claude.setError('');
-                setClaudeOpen(false);
+                setConnecting(false);
               }}
             />
           </div>
         ) : null}
-      </ConnectionRow>
+      </SettingsCard>
 
-      <ConnectionRow
-        row="figma"
+      <SettingsCard
+        id="figma"
+        summaryTestid="settings-conn-figma-status"
         testid="figma-connect-card"
-        icon="image"
+        icon="vector"
         title="Figma"
         desc="For Import from Figma."
-        status={fr.status}
-        tone={fr.tone}
+        summary={fr.status}
+        sw={swOf(fr.tone)}
         action={
           fr.configured ? (
             <>
@@ -513,7 +189,10 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
                 type="button"
                 className={btn}
                 disabled={figma.busy}
-                onClick={figma.runTest}
+                onClick={() => {
+                  show('figma');
+                  figma.runTest();
+                }}
                 data-testid="figma-test"
               >
                 Test
@@ -532,18 +211,23 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
             <button
               type="button"
               className={btn}
-              aria-expanded={tokenOpen}
+              aria-expanded={open === 'figma'}
               aria-controls="v2s-figma-token"
-              onClick={() => setTokenOpen((v) => !v)}
+              onClick={() => toggle('figma')}
               data-testid="figma-add-token"
             >
               Add token…
             </button>
           ) : null
         }
-        advanced={fr.configured ? <FigmaToken f={figma} /> : null}
+        fold={
+          fr.configured
+            ? { panel: connectionFoldId('figma'), body: <FigmaToken f={figma} /> }
+            : undefined
+        }
+        {...card('figma')}
       >
-        {!fr.configured && figma.status && tokenOpen ? (
+        {!fr.configured && figma.status ? (
           <div id="v2s-figma-token" className="v2s-conn-keys">
             <FigmaToken f={figma} />
           </div>
@@ -562,16 +246,17 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
             {figma.error}
           </p>
         ) : null}
-      </ConnectionRow>
+      </SettingsCard>
 
-      <ConnectionRow
-        row="github"
+      <SettingsCard
+        id="github"
+        summaryTestid="settings-conn-github-status"
         testid="settings-github"
         icon="link"
         title="GitHub"
         desc="GitHub projects and invites by username."
-        status={gr.status}
-        tone={gr.tone}
+        summary={gr.status}
+        sw={swOf(gr.tone)}
         action={
           gr.action === 'connect' ? (
             <button
@@ -594,69 +279,77 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
             </button>
           ) : null
         }
-        advanced={
-          gh.native ? (
-            <>
-              {gh.login ? (
-                <ConnField k="Signed in as" mono>
-                  @{gh.login}
-                </ConnField>
-              ) : null}
-              <ConnField k="Token">Kept in this Mac’s keychain — never shown</ConnField>
-            </>
-          ) : null
+        fold={
+          gh.native
+            ? {
+                panel: connectionFoldId('github'),
+                body: (
+                  <>
+                    {gh.login ? (
+                      <ConnField k="Signed in as" mono>
+                        @{gh.login}
+                      </ConnField>
+                    ) : null}
+                    <ConnField k="Token">Kept in this Mac’s keychain — never shown</ConnField>
+                  </>
+                ),
+              }
+            : undefined
         }
+        {...card('github')}
       >
         {gh.error ? (
           <p className="v2s-conn-err" role="alert">
             {gh.error}
           </p>
         ) : null}
-      </ConnectionRow>
+      </SettingsCard>
 
-      <ConnectionRow
-        row="ai"
+      <SettingsCard
+        id="ai"
+        summaryTestid="settings-conn-ai-status"
         testid="settings-ai-keys"
-        icon="sparkle"
+        icon="image"
         title="AI images, video and voice"
-        status={providerSummary(keys.providers)}
+        desc="Your own keys for pictures, video and voice."
+        summary={providerSummary(keys.providers)}
+        sw={
+          Array.isArray(keys.providers) && keys.providers.some((p) => p?.configured) ? 'ok' : 'off'
+        }
         action={
           <button
             type="button"
             className={btn}
-            aria-expanded={keysOpen}
+            aria-expanded={open === 'ai'}
             aria-controls="v2s-ai-keys"
-            onClick={() => setKeysOpen((v) => !v)}
+            onClick={() => toggle('ai')}
             data-testid="settings-ai-keys-toggle"
           >
-            {keysOpen ? 'Hide' : 'Manage'}
+            {open === 'ai' ? 'Hide' : 'Manage…'}
           </button>
         }
-        advanced={
-          <ConnField k="Where the keys are">
-            On this Mac only — never sent anywhere but the provider, never shown to a canvas.
-          </ConnField>
-        }
+        fold={{
+          panel: connectionFoldId('ai'),
+          body: (
+            <ConnField k="Where the keys are">
+              On this Mac only — never sent anywhere but the provider, never shown to a canvas.
+            </ConnField>
+          ),
+        }}
+        {...card('ai')}
       >
-        {keysOpen ? (
-          <div id="v2s-ai-keys" className="v2s-conn-keys">
-            {keys.error ? <p className="v2s-conn-err">{keys.error}</p> : null}
-            {(keys.providers ?? []).map((p) => (
-              <ProviderCard key={p.id} provider={p} onChanged={keys.reload} />
-            ))}
-          </div>
-        ) : null}
-      </ConnectionRow>
+        <div id="v2s-ai-keys" className="v2s-conn-keys">
+          {keys.error ? <p className="v2s-conn-err">{keys.error}</p> : null}
+          {(keys.providers ?? []).map((p) => (
+            <ProviderCard key={p.id} provider={p} onChanged={keys.reload} />
+          ))}
+        </div>
+      </SettingsCard>
 
-      {cloud.device ? (
-        <CloudDeviceDialog
-          device={cloud.device}
-          cloudUrl={cloud.cloudUrl}
-          openFailed={cloud.openFailed}
-          onOpenResult={(s) => cloud.setOpenFailed(s === 'ok' ? '' : s)}
-          onCancel={cloud.cancelSignIn}
-        />
-      ) : null}
+      <p className="v2s-hint v2s-cards-foot" data-testid="settings-connections-foot">
+        Which account a project uses, and where it lives, is in General › This project.
+      </p>
+
       {gh.device ? <GitHubDeviceDialog device={gh.device} onClose={gh.closeDevice} /> : null}
     </div>
   );

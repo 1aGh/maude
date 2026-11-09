@@ -324,8 +324,9 @@ function settingsPart({ native, cloud, readOnly }) {
   ).map((r) => ({
     testid: r.testid,
     section: r.section,
-    // The account row needs an address the shell may not have (a desktop not signed in, a hub with no dashboard).
-    ...(r.account ? { conditional: true } : {}),
+    // The account row needs an address the shell may not have (a desktop not signed in, a hub with no dashboard);
+    // a row under a fold (2.1.1 T6: This project › Sync details) is drawn once that fold is open.
+    ...(r.account || r.fold ? { conditional: true } : {}),
   }));
   return {
     present: true,

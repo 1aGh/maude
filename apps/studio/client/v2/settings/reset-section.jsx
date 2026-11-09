@@ -97,7 +97,18 @@ function ConfirmResetAll({ onCancel, onConfirm }) {
   );
 }
 
-export default function ResetSection({ live = {} }) {
+/** `bare`: inside Advanced's Reset card (2.1.1 T6), whose own title already says Reset — no group heading. */
+function Shell({ bare, children }) {
+  return bare ? (
+    <div data-testid="settings-reset">{children}</div>
+  ) : (
+    <Group title="Reset" testid="settings-reset">
+      {children}
+    </Group>
+  );
+}
+
+export default function ResetSection({ live = {}, bare = false }) {
   const [layoutDone, setLayoutDone] = useState(false);
   const [foldsDone, setFoldsDone] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -105,7 +116,7 @@ export default function ResetSection({ live = {} }) {
   // 06 ad-settings › Reset: ONE wrapping row of three buttons (the third in the warning colour) and a hint —
   // no row labels, no per-fold switch list (each panel's own Advanced fold is where a fold opens or closes).
   return (
-    <Group title="Reset" testid="settings-reset">
+    <Shell bare={bare}>
       <div className="v2s-acts">
         <span data-testid="settings-reset-panel-layout">
           <button
@@ -159,6 +170,6 @@ export default function ResetSection({ live = {} }) {
           }}
         />
       )}
-    </Group>
+    </Shell>
   );
 }

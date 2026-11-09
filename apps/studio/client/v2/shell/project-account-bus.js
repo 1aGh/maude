@@ -5,7 +5,7 @@
 //                        list; the Share cluster host hears it (share-cluster-host.jsx).
 //   LINK_SERVER_EVENT    `account.link-server` — "Link your server…" / "Sign in with custom server…". The one
 //                        team-server dialog (2.1.1 T5) hears it and calls `preventDefault()`. Nobody did → the
-//                        row opens Settings › Connections, where today's team-server dialog lives — a row never
+//                        row opens Settings › General › This project, where today's team-server dialog lives — a row never
 //                        does nothing.
 
 export const ACCOUNT_MENU_EVENT = 'maude:account-menu';
@@ -30,6 +30,7 @@ export function runLinkServer(params, d) {
   const ev = new CustomEvent(LINK_SERVER_EVENT, { detail, cancelable: true });
   window.dispatchEvent(ev);
   if (ev.defaultPrevented) return 'dialog';
-  d?.setSettingsOpen?.('connections');
+  // 2.1.1 T6: the project's link lives in General › This project (canvas 17 · 10)
+  d?.setSettingsOpen?.('general#this-project');
   return 'settings';
 }

@@ -65,10 +65,13 @@ const ATTACH_NOTE = /Connecting to|Syncing with|Connected to|Synced with/;
 
 const fixtures = createFixtureGuard('cloud-attach', [FIXTURE_CONFIG]);
 
-/** Settings › Connections, opened from the one menu (project pill → Settings…) unless it is up. */
+/**
+ * Settings › General › This project › Sync details (2.1.1 T6: the project's link — the Maude Cloud account and
+ * its projects on this Mac — left Connections), opened from the one menu (project pill → Settings…) unless it
+ * is up. The card and its fold are opened when closed; the fold is remembered per Mac.
+ */
 async function openConnections() {
-  const panel = await $(tid('settings-panel-connections'));
-  if (await panel.isDisplayed().catch(() => false)) return;
+  const panel = await $(tid('settings-panel-general'));
   if (!(await (await $(tid('settings-sheet'))).isExisting())) {
     await (await $(tid('project-pill'))).click();
     const row = await $(tid('project-menu-row-settings.open'));
@@ -76,8 +79,16 @@ async function openConnections() {
     await row.click();
     await (await $(tid('settings-sheet'))).waitForDisplayed({ timeout: 10_000 });
   }
-  await (await $(tid('settings-tab-connections'))).click();
-  await panel.waitForDisplayed({ timeout: 10_000 });
+  if (!(await panel.isDisplayed().catch(() => false))) {
+    await (await $(tid('settings-tab-general'))).click();
+    await panel.waitForDisplayed({ timeout: 10_000 });
+  }
+  const card = await $(tid('settings-card-this-project-toggle'));
+  await card.waitForDisplayed({ timeout: 15_000 });
+  if ((await card.getAttribute('aria-expanded')) !== 'true') await card.click();
+  const fold = await $(tid('fold-settings.project-toggle'));
+  await fold.waitForDisplayed({ timeout: 10_000 });
+  if ((await fold.getAttribute('aria-expanded')) !== 'true') await fold.click();
 }
 
 /** Close the sheet so a deep-link dialog (from the footer's host) is the top layer. */
@@ -148,11 +159,11 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     fixtures.restore();
   });
 
-  it('1 · signed out: Settings › Connections offers Maude Cloud sign-in', async () => {
+  it('1 · signed out: Settings › General › This project offers Maude Cloud sign-in', async () => {
     await openConnections();
     const signin = await $(tid('cloud-signin'));
     await signin.waitForDisplayed({ timeout: 30_000 });
-    await capture('signed-out, Settings › Connections');
+    await capture('signed-out, Settings › General › This project');
   });
 
   it('2 · sign-in completes without a human — the stub approves the first poll', async () => {
@@ -214,14 +225,9 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await capture('moved to the cloud');
     await (await $(tid('share-close'))).click();
 
-    // Settings › General › Account: the plan words are the cloud's (stub /api/home), never a sum.
-    await (await $(tid('project-pill'))).click();
-    const row = await $(tid('project-menu-row-settings.open'));
-    await row.waitForDisplayed({ timeout: 10_000 });
-    await row.click();
-    // The sheet re-opens on the section it was left on (settings-sheet.jsx `remembered()`) — Connections, after
-    // steps 1–2 — and the Account block with the plan is General's.
-    await (await $(tid('settings-tab-general'))).click();
+    // Settings › General › This project › Sync details › Maude Cloud: the plan words are the cloud's (stub
+    // /api/home), never a sum (2.1.1 T6: the account block moved there with the project's link).
+    await openConnections();
     const plan = await $(tid('settings-account-plan'));
     await plan.waitForDisplayed({ timeout: 15_000 });
     expect(await plan.getText()).toBe('Free trial · 12 days left');
@@ -229,7 +235,7 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await closeSettings();
 
     // Back to a local folder so step 3's picker still connects from scratch — the way a person does it, the linked
-    // row's Disconnect in Settings › Connections (`connections.cloud-project-disconnect` → POST /_api/cloud/detach).
+    // row's Disconnect in Settings › General › This project (`connections.cloud-project-disconnect` → POST /_api/cloud/detach).
     // A detach posted from the page behind the panel's back left the panel's own link state on "Connected", so
     // step 3 read "Stub Project · Connected · Disconnect" where Connect should be.
     await openConnections();

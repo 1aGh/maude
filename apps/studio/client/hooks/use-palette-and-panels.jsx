@@ -28,6 +28,7 @@ import { useLayersTreeRequest } from '../v2/layers/layers-request.js';
 import { bindPaletteEnv, sendToAskAI } from '../v2/search/search-env.js';
 import { desktopProjectsEnv } from '../v2/search/search-projects.js';
 import { actionSearchRows, settingsSearchRows } from '../v2/search/search-model.js';
+import { settingsTarget } from '../v2/settings/settings-cards.js';
 import { isNativeApp, onMenuAction } from '../github.js';
 import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
@@ -439,7 +440,8 @@ export function usePaletteAndPanels({
       ...settingsSearchRows({
         cloud: cfg.cloud,
         readOnly: viewerMode,
-        run: (section) => setSettingsOpen(section),
+        // 2.1.1 T6: the tab AND the card that holds the row ("advanced#privacy"), so a closed card opens
+        run: (section, row) => setSettingsOpen(settingsTarget(section, row)),
       }),
       // S10.13 — the Design system and everything in it by name (a converted system opens its canvas, an
       // older one its v1 view)

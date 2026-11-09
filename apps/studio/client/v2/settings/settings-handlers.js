@@ -25,13 +25,14 @@ export function createSettingsHandlers(d, io = {}) {
     toast(next ? onSay : offSay);
   };
   return {
-    'settings.reset-panel-layout': () => d.setSettingsOpen?.('advanced'),
-    'settings.reset-all': () => d.setSettingsOpen?.('advanced'),
+    'settings.reset-panel-layout': () => d.setSettingsOpen?.('advanced#reset'),
+    'settings.reset-all': () => d.setSettingsOpen?.('advanced#reset'),
     // S11.14 — the Connections rows open where their words are; nothing is typed or linked from ⌘K.
-    'connections.replace-hub-token': () => d.setSettingsOpen?.('connections'),
-    'connections.figma-test': () => d.setSettingsOpen?.('connections'),
-    'connections.cloud-project-connect': () => d.setSettingsOpen?.('connections'),
-    'connections.cloud-project-disconnect': () => d.setSettingsOpen?.('connections'),
+    // 2.1.1 T6: the project's link (cloud projects, your server's token) is General › This project now.
+    'connections.replace-hub-token': () => d.setSettingsOpen?.('general#this-project'),
+    'connections.figma-test': () => d.setSettingsOpen?.('connections#figma'),
+    'connections.cloud-project-connect': () => d.setSettingsOpen?.('general#this-project'),
+    'connections.cloud-project-disconnect': () => d.setSettingsOpen?.('general#this-project'),
     'settings.use-own-plugin-copy': flip(
       OWN_PLUGIN_COPY_PREF,
       'Using your own plugin copy. Takes effect when the AI chat next starts.',

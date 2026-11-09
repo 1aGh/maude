@@ -33,7 +33,11 @@ import {
 // ── the model (pure) ────────────────────────────────────────────────────────────────────────────
 
 describe('the model carries 06 ad-settings', () => {
-  const ids = SETTINGS_ROWS.filter((r) => r.section === 'advanced').map((r) => r.testid);
+  // 2.1.1 T6 (canvas 17 · 11): 06's This project rows moved to General › This project › Sync details
+  const MOVED = ['sync-setting-syncFiles', 'sync-ownership-adopt'];
+  const ids = SETTINGS_ROWS.filter(
+    (r) => r.section === 'advanced' || (r.section === 'general' && MOVED.includes(r.testid))
+  ).map((r) => r.testid);
 
   test('every Advanced row 06 draws has a home, a testid and a where', () => {
     for (const want of [
@@ -62,6 +66,11 @@ describe('the model carries 06 ad-settings', () => {
       expect(ids, want).toContain(want);
     for (const r of SETTINGS_ROWS.filter((x) => x.section === 'advanced'))
       expect(r.where?.startsWith('Settings › Advanced'), r.testid).toBe(true);
+    for (const r of SETTINGS_ROWS.filter((x) => MOVED.includes(x.testid)))
+      expect(
+        r.where?.startsWith('Settings › General › This project › Sync details'),
+        r.testid
+      ).toBe(true);
   });
 
   test('C34: no row for usage data or "Faster canvas engine" — not hidden, not disabled, absent', () => {
@@ -391,8 +400,10 @@ describe('Settings › Advanced, rendered', () => {
   });
 
   test('the words of This project are 06’s', async () => {
-    await mount();
-    const text = q('settings-this-project')?.textContent ?? '';
+    // 2.1.1 T6: under General › This project › Sync details now
+    foldStore.set('settings.project', true);
+    await mount({ initialTab: 'general' });
+    const text = q('settings-sync-details')?.textContent ?? '';
     expect(text).toContain('Follow the trash from other devices');
     expect(text).toContain('Trash keeps it until you clear it out');
     expect(text).not.toContain('Propagate deletions');
@@ -584,6 +595,7 @@ describe('⌘K runs the four registry actions', () => {
     const h = createSettingsHandlers({ setSettingsOpen: (t: unknown) => opened.push(t) }, {});
     h['settings.reset-panel-layout']();
     h['settings.reset-all']();
-    expect(opened).toEqual(['advanced', 'advanced']);
+    // 2.1.1 T6: on the Reset card that holds them
+    expect(opened).toEqual(['advanced#reset', 'advanced#reset']);
   });
 });

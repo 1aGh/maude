@@ -487,21 +487,6 @@
     /* room under the last row, so a scrolled sheet never ends mid-row at its edge */
     padding: var(--space-4) var(--space-5) var(--space-7, 32px);
   }
-  /* Advanced: This Mac · Engines · This project (06 .ad-sg-cols) */
-  .v2s-cols {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-6, 24px);
-    align-items: start;
-  }
-  .v2s-col {
-    min-width: 0;
-  }
-  @media (max-width: 1100px) {
-    .v2s-cols {
-      grid-template-columns: minmax(0, 1fr);
-    }
-  }
   .v2s-panel[hidden] {
     display: none;
   }
@@ -749,6 +734,375 @@
   }
 }
 
+/* ── 2.1.1 T6 (canvas 17 · 08 · 10 · 11): one column of cards in every tab — the Connections row made
+   expandable (settings-card.jsx). Lifted from the canvas's `.ac-card*`; the tokens are the shell's. ── */
+@layer components {
+  .v2s-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .v2s-card {
+    border-radius: var(--radius-lg, 10px);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .v2s-card[data-open] {
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-strong);
+  }
+  .v2s-card-r {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 72px;
+    padding: var(--space-3) var(--space-4) var(--space-3) var(--space-3);
+  }
+  /* the header is one button: the icon, the words, the status — Enter / Space toggle it */
+  .v2s-card-h {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .v2s-card-h:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 4px;
+  }
+  .v2s-card-ic {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .v2s-card-ic--bare {
+    background: none;
+  }
+  .v2s-card-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .v2s-card-tt {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .v2s-card-q {
+    margin-left: var(--space-1);
+    font-weight: var(--w-regular, 400);
+    color: var(--fg-2);
+  }
+  .v2s-card-d,
+  .v2s-card-s {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+  }
+  .v2s-card-d {
+    color: var(--fg-2);
+  }
+  .v2s-card-s {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    color: var(--fg-1);
+  }
+  .v2s-card-s-t {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* a status is a word with a dot, never hue alone (canvas 17 `StatusWord`) */
+  .v2s-dot {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--fg-3);
+  }
+  .v2s-card-s[data-sw="ok"] .v2s-dot {
+    background: var(--status-success);
+  }
+  .v2s-card-s[data-sw="busy"] .v2s-dot {
+    background: var(--accent);
+  }
+  .v2s-card-s[data-sw="warn"] .v2s-dot {
+    background: var(--status-warn);
+  }
+  .v2s-card-s[data-sw="error"] .v2s-dot {
+    background: var(--status-error);
+  }
+  .v2s-card--bad .v2s-card-t .v2s-card-s,
+  .v2s-card-s[data-sw="error"] {
+    color: var(--status-error-text);
+  }
+  .v2s-card-a {
+    display: flex;
+    flex: none;
+    gap: var(--space-1);
+  }
+  .v2s-card-ch {
+    display: grid;
+    flex: none;
+    color: var(--fg-2);
+    cursor: pointer;
+    transition: rotate var(--dur-flip, 120ms) var(--ease-out, ease-out);
+  }
+  .v2s-card[data-open] .v2s-card-ch {
+    rotate: 90deg;
+  }
+  .v2s-card-b {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 var(--space-4) var(--space-4) 60px;
+  }
+  .v2s-card-b[hidden] {
+    display: none;
+  }
+  .v2s-card-fold {
+    margin-top: var(--space-2);
+    border-top: 1px solid var(--border-subtle);
+    padding-top: var(--space-1);
+  }
+  .v2s-card-cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-6, 24px);
+  }
+  @media (max-width: 900px) {
+    .v2s-card-cols {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  .v2s-card-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 32px;
+    font-size: var(--type-sm);
+  }
+  .v2s-card-row-k {
+    flex: none;
+    width: 112px;
+    color: var(--fg-1);
+    white-space: nowrap;
+  }
+  .v2s-card-row-v {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    color: var(--fg-0);
+  }
+  .v2s-card-row-a {
+    flex: none;
+  }
+  .v2s-cards-foot {
+    padding: var(--space-1) var(--space-3) 0;
+  }
+
+  /* This project (08 · 09): the project's square, the account's face, the place chip, the broken-sign-in callout */
+  .v2s-sq {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: var(--accent-soft);
+    color: var(--fg-0);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+  }
+  .v2s-face {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-right: var(--space-2);
+    border-radius: 50%;
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-size: 10px;
+    font-weight: var(--w-semibold);
+  }
+  .v2s-face--mac {
+    border-radius: var(--radius-sm);
+  }
+  .v2s-place {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    max-width: 100%;
+    height: 22px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .v2s-place-path {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    color: var(--fg-2);
+  }
+  .v2s-callout {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--status-error-soft, color-mix(in oklch, var(--status-error) 12%, transparent));
+  }
+  .v2s-callout-ic {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--status-error);
+    color: var(--status-error-fg, #fff);
+  }
+  .v2s-callout-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .v2s-callout-t strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .v2s-card-b .v2s-acts .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  /* Change… — where the project lives (09) */
+  .v2s-menu-host {
+    position: relative;
+  }
+  .v2s-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 5;
+    min-width: 260px;
+    padding: var(--space-1);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    box-shadow:
+      var(--shadow-md, var(--shadow-sm)),
+      inset 0 0 0 0.5px var(--border-strong);
+  }
+  .v2s-menu-h {
+    margin: 0;
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .v2s-menu-i {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    font: inherit;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+    text-align: left;
+  }
+  button.v2s-menu-i {
+    cursor: pointer;
+  }
+  button.v2s-menu-i:hover,
+  button.v2s-menu-i:focus-visible {
+    background: var(--bg-3);
+  }
+  .v2s-menu-ck {
+    display: grid;
+    place-items: center;
+    width: 14px;
+    flex: none;
+    color: var(--fg-1);
+  }
+  .v2s-menu-d {
+    margin-left: auto;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .v2s-menu-sep {
+    display: block;
+    height: 1px;
+    margin: var(--space-1) 0;
+    background: var(--border-subtle);
+  }
+  /* Sync details: the switches, then Maude Cloud, then your server */
+  .v2s-sync-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .v2s-sub {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .v2s-sub-t {
+    margin: 0;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .v2s-sub-r {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .v2s-sub .v2s-conn-body {
+    margin-left: 0;
+  }
+  .v2s-card-b .v2s-group {
+    margin: var(--space-2) 0 0;
+  }
+}
+
 /* The v1 cards Settings reuses (provider keys, engines, theme radios, model list, readiness) carry
    `font-family: var(--font-mono)` in the components layer, which a shell-layer rule cannot beat. Same
    layer, one class more of specificity; `:where()` keeps the list from adding any. Commands, paths and
@@ -816,43 +1170,8 @@
     cursor: pointer;
   }
 
-  /* ── S11.14 Connections (06 ad-edge-hub): one row per connection, each with its own Advanced ── */
-  .v2s-conns {
-    display: flex;
-    flex-direction: column;
-  }
-  .v2s-conn {
-    padding: var(--space-3) 0;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-  .v2s-conn-r {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-  }
-  .v2s-conn-ic {
-    flex: none;
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-sm);
-    background: var(--bg-2);
-    color: var(--fg-1);
-  }
-  .v2s-conn-t {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 1;
-    font-size: var(--type-sm);
-    color: var(--fg-0);
-  }
-  .v2s-conn-d {
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-  }
+  /* ── S11.14 Connections (06 ad-edge-hub) — the parts that live on inside the cards (2.1.1 T6): the cloud
+     project list, the key cards, the mono "k · value" lines under a card's Advanced ── */
   .v2s-conn-s {
     font-size: var(--type-xs);
     color: var(--fg-2);
@@ -867,22 +1186,13 @@
     background: var(--status-success);
     vertical-align: middle;
   }
-  .v2s-conn-a {
-    flex: none;
-    display: inline-flex;
-    gap: var(--space-2);
-  }
-  .v2s-conn-fold,
   .v2s-conn-list,
   .v2s-conn-keys,
-  .v2s-conn > .v2s-conn-replace,
-  .v2s-conn > .v2s-hint,
-  .v2s-conn > .v2s-conn-err,
   .v2s-conn-more {
-    margin: var(--space-2) 0 0 calc(28px + var(--space-3));
+    margin: var(--space-2) 0 0;
   }
-  .v2s-conn-body {
-    margin-left: calc(28px + var(--space-3));
+  .v2s-conn-more {
+    align-self: flex-start;
   }
   .v2s-conn-body > .v2s-conn-list {
     margin-left: 0;
