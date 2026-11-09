@@ -301,6 +301,11 @@ const PERSON_ONLY: readonly (readonly [string, RegExp])[] = [
   ['POST', /^\/_api\/cloud\/(attach|attach\/code|move|signin\/start)$/],
   // 2.1.1 — THIS folder joins the person's team server (routes/hub-link-folder.ts)
   ['POST', /^\/_api\/hub\/link-folder$/],
+  // 2.1.1 T8 — a team-server sign-in, and saving a team-server credential, are the person's acts like
+  // the Maude Cloud sign-in above: the return hop needs no key, so starting it must need a person.
+  // The address check is the dialog's own step, so a key holder never uses it as a network probe.
+  ['POST', /^\/_api\/hub\/link$/],
+  ['POST', /^\/_api\/hub-signin\/(start|check)$/],
 ];
 
 export function isPersonOnlyRoute(method: string, pathname: string): boolean {

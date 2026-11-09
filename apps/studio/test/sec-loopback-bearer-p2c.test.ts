@@ -247,7 +247,15 @@ describe('a key-required server (split on)', () => {
   });
 
   test('publishing, invitations and cloud attach are the page’s, never the header key’s', async () => {
-    for (const path of ['/_api/git/push', '/_api/share/invites', '/_api/cloud/attach']) {
+    for (const path of [
+      '/_api/git/push',
+      '/_api/share/invites',
+      '/_api/cloud/attach',
+      // 2.1.1 T8 — a team-server sign-in, its address check, and saving a server credential
+      '/_api/hub-signin/start',
+      '/_api/hub-signin/check',
+      '/_api/hub/link',
+    ]) {
       const r = await post(path, keyed(), {});
       expect(r.status).toBe(403);
       expect(((await r.json()) as { error: string }).error).toBe('person-only');
