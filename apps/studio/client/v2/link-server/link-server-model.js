@@ -102,7 +102,26 @@ export function confirmLines(counts, host) {
     });
   const same = countOf(n(c.same), n(f.same));
   if (same) lines.push({ id: 'same', text: `${same} already the same on both — nothing changes` });
+  const stay = stayLine(counts, host);
+  if (stay) lines.push(stay);
   return lines;
+}
+
+/**
+ * 2.1.1 T14 — pictures and videos only this Mac has that the server has no place for. They are not in the
+ * "sent up" count (`counts.stayHere`, sync/link-survey.ts): they stay here, said on a line of their own.
+ * `null` when there are none.
+ */
+export function stayLine(counts, host) {
+  const k = counts?.stayHere;
+  if (!(Number.isFinite(k) && k > 0)) return null;
+  return {
+    id: 'stay',
+    text:
+      k === 1
+        ? `1 picture or video stays on this Mac — ${host} doesn’t store it`
+        : `${k} pictures and videos stay on this Mac — ${host} doesn’t store them`,
+  };
 }
 
 function differOutcome(canvases, files, host) {
@@ -119,9 +138,10 @@ function differOutcome(canvases, files, host) {
 export function firstLead(counts, host) {
   const n = (v) => (Number.isFinite(v) && v > 0 ? v : 0);
   const up = countOf(n(counts?.canvases?.onlyHere), n(counts?.files?.onlyHere));
-  return up
-    ? `${up} will go to ${host}.`
-    : `This folder is empty. What you add here will go to ${host}.`;
+  if (up) return `${up} will go to ${host}.`;
+  // pictures and videos the server can't store are not "empty": nothing goes up, and the next line says why
+  if (stayLine(counts, host)) return `Nothing from this folder will go to ${host}.`;
+  return `This folder is empty. What you add here will go to ${host}.`;
 }
 
 const SCHEME_RE = /^[a-z][a-z0-9+.-]*:\/\//i;

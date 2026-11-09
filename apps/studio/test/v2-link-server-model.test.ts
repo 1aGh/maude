@@ -15,6 +15,7 @@ import {
   canSubmit,
   checkLine,
   confirmLines,
+  firstLead,
   hostOf,
   initialLink,
   LINK_WORDS,
@@ -22,6 +23,7 @@ import {
   primaryLabel,
   runConfirm,
   runLink,
+  stayLine,
   whyNotSubmit,
 } from '../client/v2/link-server/link-server-model.js';
 
@@ -373,6 +375,30 @@ describe('B5 — this folder joins the server (a project tab)', () => {
     expect(at(0, 0, 3)).toEqual([
       { id: 'same', text: '3 canvases already the same on both — nothing changes' },
     ]);
+  });
+
+  test('2.1.1 T14 — pictures and videos the server cannot store: their own line, not "sent up"', () => {
+    const counts = (stay: number, up = 0) => ({
+      canvases: { onlyHere: 0, onlyThere: 0, differ: 0, same: 0 },
+      files: { onlyHere: up, onlyThere: 0, differ: 0, same: 0 },
+      stayHere: stay,
+    });
+    expect(stayLine(counts(3), 'design.example.com')).toEqual({
+      id: 'stay',
+      text: '3 pictures and videos stay on this Mac — design.example.com doesn’t store them',
+    });
+    expect(stayLine(counts(1), 'x.test')?.text).toBe(
+      '1 picture or video stays on this Mac — x.test doesn’t store it'
+    );
+    expect(stayLine(counts(0), 'x.test')).toBeNull();
+    expect(stayLine(null, 'x.test')).toBeNull();
+    // the confirm list carries it after the "sent up" line, which no longer counts them
+    expect(confirmLines(counts(2, 4), 'x.test').map((l) => l.id)).toEqual(['here', 'stay']);
+    expect(confirmLines(counts(2, 4), 'x.test')[0]?.text).toBe(
+      '4 files only on this Mac — sent up to x.test'
+    );
+    // an empty server with only such media: nothing goes up, and the lead says so
+    expect(firstLead(counts(2), 'x.test')).toBe('Nothing from this folder will go to x.test.');
   });
 
   test('Sync this folder sends the one-time code back once; an error returns to the form', async () => {

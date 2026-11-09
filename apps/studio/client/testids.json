@@ -34317,7 +34317,7 @@
     "hook": "link-server-count-<line>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One count line of the confirm step: here (only on this Mac) · there (only on the server) · differ (on both, different) · same.",
+    "meaning": "One count line of the confirm step: here (only on this Mac) · there (only on the server) · differ (on both, different) · same · stay (pictures and videos the server cannot store, which stay on this Mac).",
     "producer": {
       "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
       "symbol": "LinkServerDialog"
