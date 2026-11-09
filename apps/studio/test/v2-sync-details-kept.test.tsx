@@ -34,7 +34,7 @@ afterEach(() => {
   (window as { __TAURI__?: unknown }).__TAURI__ = undefined;
 });
 
-const COPY = 'components/both.maude-conflict-2026-11-09T18-01-14-837-Michals-MacBook-Airlocal.css';
+const COPY = 'components/both.maude-conflict-2026-11-09T18-01-14-837-Alices-MacBooklocal.css';
 const status = (over: Record<string, unknown> = {}, files: Record<string, unknown> = {}) => ({
   state: 'online',
   queuedOps: 0,
