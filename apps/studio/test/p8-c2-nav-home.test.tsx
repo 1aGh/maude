@@ -356,8 +356,8 @@ describe('Recent canvases: one row of six, See all (11 pn-home)', () => {
   });
 });
 
-describe('Projects: Find a project + sort + trailing square (11 pn-home)', () => {
-  test('typing narrows the list; Name sorts; every row ends in the project square', async () => {
+describe('Projects: Find a project (11 pn-home; 2.1.2 artboard 15)', () => {
+  test('typing narrows the list; no sort and no trailing square (the row is slim)', async () => {
     many();
     mount();
     await flush();
@@ -369,19 +369,13 @@ describe('Projects: Find a project + sort + trailing square (11 pn-home)', () =>
     expect(rows().length).toBe(1);
     expect(rows()[0]).toContain('Studio site');
     type($('home-project-find'), '');
-    const sort = $('home-project-sort') as HTMLSelectElement;
-    act(() => {
-      sort.value = 'name';
-      sort.dispatchEvent(new Event('change', { bubbles: true }));
-    });
     await flush();
-    expect(rows()[0]).toContain('Alligators');
-    expect(rows()[2]).toContain('Studio');
+    expect($('home-project-sort')).toBeNull();
     const first = host.querySelector('[data-testid^="home-project-row-"]') as HTMLElement;
-    expect(first.querySelector('.home-sq')).not.toBeNull();
+    expect(first.querySelector('.home-sq')).toBeNull();
   });
 
-  test('Pinned says where to pin (the board words)', async () => {
+  test('Pinned joined Recent canvases: pinning keeps the card in Recent with its pin on', async () => {
     many();
     routes['/_home/pins'] = () => [200, { ok: true }];
     mount();
@@ -390,7 +384,10 @@ describe('Projects: Find a project + sort + trailing square (11 pn-home)', () =>
       $(`home-pin-${P1}-ui-c0`)?.click();
     });
     await flush();
-    expect(host.textContent).toContain('pin any canvas from its row or its menu');
+    expect(host.textContent).not.toContain('pin any canvas from its row or its menu');
+    expect($(`home-pin-${P1}-ui-c0`)?.getAttribute('aria-pressed')).toBe('true');
+    const first = host.querySelector('[data-testid^="home-recent-row-"]');
+    expect(first?.getAttribute('data-testid')).toBe(`home-recent-row-${P1}-ui-c0`);
   });
 });
 

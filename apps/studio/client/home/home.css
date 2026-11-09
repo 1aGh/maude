@@ -2080,4 +2080,193 @@
       animation: none;
     }
   }
+
+  /* ─── 2.1.2 Home declutter · slim project rows (canvas 17, artboards 15/16/19) ───────────────
+     name · where it lives · a state only when it isn't fine · a quiet time · "…" (its menu) */
+  .home-prows--slim {
+    gap: 0;
+  }
+  .home-prows--slim > .home-prow-li {
+    position: relative;
+  }
+  .home-prows--slim > .home-prow-li + .home-prow-li {
+    border-top: 1px solid var(--border-subtle);
+  }
+  .home-root .row-item.home-prow--slim {
+    gap: var(--space-1);
+    min-height: 44px;
+    padding: 0 var(--space-1) 0 0;
+  }
+  .home-root .row-item.home-prow--slim:hover,
+  .home-prow-li[data-menu="open"] > .row-item.home-prow--slim {
+    background: var(--bg-3);
+  }
+  .home-prow-main {
+    appearance: none;
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 44px minmax(96px, 1.3fr) minmax(96px, 1fr) minmax(0, 1.2fr) 72px;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 44px;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font: inherit;
+    color: var(--fg-0);
+    text-align: left;
+    cursor: pointer;
+  }
+  .home-root button[disabled].home-prow-main {
+    cursor: default;
+  }
+  .home-prow-main:focus-visible,
+  .home-root .icon-btn.home-prow-more:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: -2px;
+  }
+  .home-prow-name {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .home-prow-name strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .home-prow-name--two > span {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .home-prow-lives {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .home-prow-lives svg {
+    flex: none;
+    color: var(--fg-2);
+  }
+  .home-prow-lives-w {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .home-prow-flag {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    overflow: hidden;
+  }
+  .home-prow-flag .home-sw {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .home-prow-quiet {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .home-prow-when {
+    justify-self: end;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .home-root .icon-btn.home-prow-more {
+    flex: none;
+    opacity: 0;
+  }
+  .home-prow-more-gap {
+    flex: none;
+    width: 28px;
+  }
+  .home-prow-li:hover .home-prow-more,
+  .home-prow-li:focus-within .home-prow-more,
+  .home-root .home-prow-more[aria-expanded="true"] {
+    opacity: 1;
+  }
+  .home-prow-menu {
+    position: absolute;
+    z-index: 30;
+    right: var(--space-1);
+    top: calc(100% - var(--space-1));
+    width: 280px;
+  }
+  .home-prow-menu-h {
+    margin: var(--space-1) var(--space-2) 2px;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .home-prow-menu-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    min-height: 28px;
+  }
+  .home-prow-menu-note {
+    margin-left: auto;
+    min-width: 0;
+    max-width: 55%;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* a folder that moved: one quiet row with its two ways out */
+  .home-root .row-item.home-prow--gone {
+    padding: var(--space-1) var(--space-2);
+    gap: var(--space-3);
+  }
+  .home-prow-gone {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 30px;
+    border-radius: var(--radius-xs);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
+    color: var(--fg-2);
+  }
+  .home-prow--gone .home-prow-name {
+    flex: 1;
+  }
+  .home-prow--gone .home-prow-name strong {
+    font-weight: var(--w-regular, 400);
+  }
+  .home-prow-acts {
+    flex: none;
+    display: inline-flex;
+    gap: var(--space-1);
+  }
+  .home-h-n {
+    font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 720px) {
+    .home-prow-main {
+      grid-template-columns: 44px minmax(0, 1fr) auto;
+    }
+    .home-prow-main .home-prow-lives,
+    .home-prow-main .home-prow-when {
+      display: none;
+    }
+  }
 }

@@ -475,17 +475,15 @@ describe('the shelves (05 es-home-*, 11 pn-home)', () => {
 
   // 2.0.5 W5 (decision:maude/v2-205-shared-empty-glyph): the ghost tiles read as failed thumbnails, so the
   // empty state is one quiet people glyph and its line in a lone card — still no button.
-  test('Shared with you before anyone shares: one glyph, its line, and no button at all', async () => {
+  // 2.1.2 (artboard 15): Shared with you shows only when something is shared — before anyone shares,
+  // Home draws no shelf at all (the empty card's glyph + line stay in Shelves.jsx, unused on Home).
+  test('Shared with you before anyone shares: no shelf on Home', async () => {
     fetchAnswers['/_home/cloud'] = [200, CLOUD_IN];
     mount();
     await flush();
-    const shelf = $('home-shared');
-    expect(shelf?.textContent).toContain('Shared with you');
-    expect(shelf?.textContent).toContain('Nothing shared with you yet.');
-    const empty = $('home-shared-empty');
-    expect(empty?.querySelectorAll('.es-glyph')).toHaveLength(1);
-    expect(shelf?.querySelectorAll('.home-ghosts > i')).toHaveLength(0);
-    expect(shelf?.querySelectorAll('button')).toHaveLength(0);
+    expect($('home-shared')).toBeNull();
+    expect($('home-shared-empty')).toBeNull();
+    expect(host.querySelector('.home-two')).toBeNull();
   });
 
   test('Shared with you lists the grants in people words, "1 new this week", and opens one', async () => {
@@ -522,7 +520,9 @@ describe('the shelves (05 es-home-*, 11 pn-home)', () => {
     expect($('home-shared')?.textContent).not.toContain('new this week');
   });
 
-  test('Projects are grouped by account, each with the person’s face circle', async () => {
+  // 2.1.2 (artboard 15): no account headers over Projects — one list; a row wears an account's face only
+  // when this Mac has two Maude Cloud accounts (home-212-rows-model.test.ts covers that rule)
+  test('Projects are one list with no account headers; local rows wear no face', async () => {
     shellOverride = {
       ...SHELL,
       profiles: [
@@ -533,11 +533,9 @@ describe('the shelves (05 es-home-*, 11 pn-home)', () => {
     };
     mount();
     await flush();
-    const personal = $('home-profile-default');
-    const work = $('home-profile-work');
-    expect(personal?.textContent).toContain('Personal · me@gmail.com');
-    expect(work?.textContent).toContain('Work · me@work-studio.cz');
-    expect(work?.querySelector('.home-acctf')?.textContent).toBe('W');
-    expect(personal?.querySelector('.home-acctf')?.textContent).toBe('P');
+    expect($('home-profile-default')).toBeNull();
+    expect($('home-profile-work')).toBeNull();
+    expect($('home-project-list')?.querySelectorAll('.home-face')).toHaveLength(0);
+    expect(host.querySelectorAll('[data-testid^="home-project-row-"]')).toHaveLength(2);
   });
 });

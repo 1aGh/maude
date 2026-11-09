@@ -341,22 +341,27 @@ describe('Home page in the desktop app', () => {
     expect(u.searchParams.get('running')).toBe(P1);
     expect($('home-root')?.getAttribute('class')).toContain('maude-v2');
     expect($('home-root')?.getAttribute('data-theme')).toMatch(/^(light|dark)$/);
-    expect($(`home-pinned-row-${P1}-ui-uniformy-2027`)).not.toBeNull();
-    // Recent by openedAt: Homepage (30), Uniformy (20), Plakat (5)
+    // 2.1.2 (artboard 15): Pinned joined Recent canvases — the pinned card leads (its pin shows on the
+    // card), then by openedAt: Uniformy (pinned), Homepage (30), Plakat (5)
+    expect($('home-h-pinned')).toBeNull();
     const recent = [...host.querySelectorAll('[data-testid^="home-recent-row-"]')].map((e) =>
       e.getAttribute('data-testid')
     );
     expect(recent).toEqual([
-      `home-recent-row-${P2}-ui-homepage`,
       `home-recent-row-${P1}-ui-uniformy-2027`,
+      `home-recent-row-${P2}-ui-homepage`,
       `home-recent-row-${P1}-ui-plakat`,
     ]);
-    expect($(`home-project-row-${P1}`)?.textContent).toContain('in a tab');
-    // 2.1.1 (artboard 14): a project only on this Mac says where it lives and that nothing connects
-    expect($(`home-project-row-${P2}`)?.textContent).toContain('Only on this Mac');
+    expect($(`home-pin-${P1}-ui-uniformy-2027`)?.getAttribute('aria-pressed')).toBe('true');
+    // 2.1.2 (artboard 19): a row is a name, where it lives, and a state only when it isn't fine —
+    // no "in a tab", no "Only on this Mac", no path, no canvas count
+    expect($(`home-project-row-${P1}`)?.textContent).not.toContain('in a tab');
+    expect($(`home-project-row-${P2}`)?.textContent).not.toContain('Only on this Mac');
+    expect($(`home-project-row-${P2}`)?.textContent).not.toContain('canvas');
     expect($(`home-project-where-${P2}`)?.getAttribute('data-kind')).toBe('folder');
-    expect($(`home-project-where-${P2}`)?.textContent).toContain('Your folder');
+    expect($(`home-project-where-${P2}`)?.textContent).toBe('Your folder');
     expect($(`home-project-conn-${P2}`)?.getAttribute('data-state')).toBe('local');
+    expect($(`home-project-conn-${P2}`)?.textContent).toBe('');
   });
 
   test('picking a canvas calls open_project({pid, target:{canvas}}); Open project… calls open_project_folder', async () => {
@@ -421,7 +426,8 @@ describe('Home page in the desktop app', () => {
   });
 
   test('a long Projects list shows its first rows and "N more"; the foot opens the rest', async () => {
-    const many = Array.from({ length: 9 }, (_, i) => ({
+    // 2.1.2 (artboard 15): slim rows — the list shows ten before "N more"
+    const many = Array.from({ length: 13 }, (_, i) => ({
       pid: `l0000000000000${String(i).padStart(4, '0')}`,
       root: `/x/m${i}`,
       name: `Many ${i}`,
@@ -434,11 +440,11 @@ describe('Home page in the desktop app', () => {
     await flush();
     const rows = () => host.querySelectorAll('[data-testid^="home-project-row-"]').length;
     const before = rows();
-    expect(before).toBe(6);
+    expect(before).toBe(10);
     expect($('home-projects-more')?.textContent).toBe('3 more');
     act(() => $('home-projects-more')?.click());
     await flush();
-    expect(rows()).toBe(9);
+    expect(rows()).toBe(13);
     expect($('home-projects-more')).toBeNull();
   });
 
@@ -493,13 +499,17 @@ describe('Home page in the desktop app', () => {
     } as unknown as typeof SHELL;
     mount();
     await flush();
-    const row = $(`home-project-worktrees-${P1}`);
-    expect(row?.textContent).toContain('Worktrees');
-    expect($(`home-project-worktrees-${P2}`)).toBeNull();
+    // 2.1.2 (artboard 19): worktrees moved off the row into its "…" menu
+    expect($(`home-worktree-${WT}`)).toBeNull();
+    act(() => $(`home-project-more-${P2}`)?.click());
+    await flush();
+    expect(host.querySelectorAll('[data-testid^="home-worktree-"]').length).toBe(0);
+    act(() => $(`home-project-more-${P1}`)?.click());
+    await flush();
     const chips = host.querySelectorAll('[data-testid^="home-worktree-"]');
     expect(chips.length).toBe(1);
     const chip = $(`home-worktree-${WT}`);
-    expect(chip?.textContent).toBe('feat-x');
+    expect(chip?.textContent).toContain('feat-x');
     expect(chip?.getAttribute('aria-label')).toBe('Open the feat-x worktree of Alligators brand');
     expect(host.querySelectorAll('[data-testid^="home-project-row-"]').length).toBe(2);
     act(() => chip?.click());
@@ -508,6 +518,93 @@ describe('Home page in the desktop app', () => {
       { pid: WT },
     ]);
     expect(invokes.some((i) => i.cmd === 'open_project')).toBe(false);
+  });
+
+  // 2.1.2 (artboard 19): the row's "…" is a keyboard-reachable menu — Show in Finder by pid, and
+  // Remove from list only after the person's yes; Cancel changes nothing.
+  test('the row menu: ↓ opens it, Show in Finder reveals by pid, Remove from list asks first', async () => {
+    mount();
+    await flush();
+    const more = $(`home-project-more-${P2}`) as HTMLButtonElement;
+    expect(more.getAttribute('aria-haspopup')).toBe('menu');
+    act(() => {
+      more.focus();
+      more.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    });
+    await flush();
+    expect(more.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement?.getAttribute('data-testid')).toBe('home-project-menu-open');
+    expect($('home-project-menu-reveal')?.textContent).toContain('/x/b');
+    act(() => $('home-project-menu-reveal')?.click());
+    await flush();
+    expect(invokes.filter((i) => i.cmd === 'reveal_project_folder').map((i) => i.args)).toEqual([
+      { pid: P2 },
+    ]);
+    expect($('home-project-menu')).toBeNull();
+
+    act(() => $(`home-project-more-${P2}`)?.click());
+    await flush();
+    act(() => $('home-project-menu-forget')?.click());
+    await flush();
+    expect($('home-forget-dialog')?.textContent).toContain('Remove Studio site from this list?');
+    expect($('home-forget-dialog')?.textContent).toContain(
+      'The folder and its files stay where they are.'
+    );
+    act(() => $('home-forget-cancel')?.click());
+    await flush();
+    expect($('home-forget-dialog')).toBeNull();
+    expect(invokes.some((i) => i.cmd === 'forget_project')).toBe(false);
+
+    act(() => $(`home-project-more-${P2}`)?.click());
+    await flush();
+    act(() => $('home-project-menu-forget')?.click());
+    await flush();
+    act(() => $('home-forget-confirm')?.click());
+    await flush();
+    expect(invokes.filter((i) => i.cmd === 'forget_project').map((i) => i.args)).toEqual([
+      { pid: P2 },
+    ]);
+    expect($('home-forget-dialog')).toBeNull();
+  });
+
+  // 2.1.2 (artboard 19, H1 #3): a folder that moved is one quiet row with its two ways out
+  test('a lone orphan: one quiet row — Find the folder… or Remove from list (after a yes)', async () => {
+    const P3 = 'l00000000000000c9';
+    shellOverride = {
+      ...SHELL,
+      projects: [
+        ...SHELL.projects,
+        { ...SHELL.projects[1], pid: P3, root: '/x/old', name: 'Landing 2025' },
+      ],
+      recent: [P1, P2, P3],
+    };
+    const real = INDEX.projects;
+    INDEX.projects = [...real, { pid: P3, state: 'gone', stale: false } as (typeof real)[number]];
+    try {
+      mount();
+      await flush();
+    } finally {
+      INDEX.projects = real;
+    }
+    const row = $(`home-project-row-${P3}`);
+    expect(row?.textContent).toContain('Landing 2025');
+    expect(row?.textContent).toContain('The folder isn’t where it was.');
+    expect(host.querySelectorAll(`[data-testid="home-project-row-${P3}"]`)).toHaveLength(1);
+    const rows = Array.from(host.querySelectorAll('[data-testid^="home-project-row-"]'));
+    expect(rows.at(-1)).toBe(row);
+    act(() => $(`home-relink-${P3}`)?.click());
+    await flush();
+    expect(invokes.filter((i) => i.cmd === 'relink_project').map((i) => i.args)).toEqual([
+      { pid: P3 },
+    ]);
+    act(() => $(`home-project-forget-${P3}`)?.click());
+    await flush();
+    expect($('home-forget-dialog')?.textContent).toContain('Remove Landing 2025 from this list?');
+    act(() => $('home-forget-confirm')?.click());
+    await flush();
+    expect(invokes.filter((i) => i.cmd === 'forget_project').map((i) => i.args)).toEqual([
+      { pid: P3 },
+    ]);
   });
 
   // 2.1.1 B4 (artboard 14): the accounts row sits on top of Home; a Maude Cloud sign-in that stopped
@@ -536,8 +633,10 @@ describe('Home page in the desktop app', () => {
     expect($('home-accounts-row')).not.toBeNull();
     expect($('home-account-state-default-cloud')?.textContent).toBe('Sign-in stopped working');
     expect($(`home-project-state-${P1}`)?.textContent).toBe('Sign-in stopped working');
-    expect($(`home-project-where-${P1}`)?.textContent).toContain('alice@example.com');
-    expect($(`home-project-state-${P2}`)?.textContent).toBe('Only on this Mac');
+    // 2.1.2: the place is the name, "Maude Cloud" (the address shows only on account rows); a row
+    // that is fine says nothing
+    expect($(`home-project-where-${P1}`)?.textContent).toBe('Maude Cloud');
+    expect($(`home-project-state-${P2}`)).toBeNull();
     act(() => $('home-account-signin-default-cloud')?.click());
     await flush(10);
     expect(
@@ -548,7 +647,8 @@ describe('Home page in the desktop app', () => {
     ).toEqual([{ profile: 'default' }]);
   });
 
-  test('the account whose project was used last leads the Projects list (Work above Personal)', async () => {
+  // 2.1.2 (artboard 15): no account headers — one list across accounts, last used first
+  test('one Projects list across accounts, the project used last first', async () => {
     shellOverride = {
       ...SHELL,
       projects: [
@@ -563,10 +663,11 @@ describe('Home page in the desktop app', () => {
     };
     mount();
     await flush();
-    const heads = Array.from(host.querySelectorAll('[data-testid^="home-profile-"]')).map((e) =>
+    expect(host.querySelectorAll('[data-testid^="home-profile-"]').length).toBe(0);
+    const rows = Array.from(host.querySelectorAll('[data-testid^="home-project-row-"]')).map((e) =>
       e.getAttribute('data-testid')
     );
-    expect(heads).toEqual(['home-profile-work', 'home-profile-default']);
+    expect(rows).toEqual([`home-project-row-${P2}`, `home-project-row-${P1}`]);
   });
 
   test('pin toggles POST /_home/pins {pid, canvas, pinned}', async () => {
@@ -577,7 +678,7 @@ describe('Home page in the desktop app', () => {
     const pin = calls.find((c) => c.url === '/_home/pins');
     expect(pin?.method).toBe('POST');
     expect(pin?.body).toEqual({ pid: P1, canvas: 'ui/Plakat.tsx', pinned: true });
-    expect($(`home-pinned-row-${P1}-ui-plakat`)).not.toBeNull();
+    expect($(`home-pin-${P1}-ui-plakat`)?.getAttribute('aria-pressed')).toBe('true');
   });
 
   test('index://changed refetches only the changed pids', async () => {
@@ -639,7 +740,7 @@ describe('Home page in the desktop app', () => {
     const u = new URL(ix[0]?.url ?? '', 'http://x');
     expect(u.searchParams.get('pids')).toBe(P2);
     expect(u.searchParams.get('running')).toBe(P2);
-    expect($(`home-project-row-${P2}`)?.textContent).toContain('in a tab');
+    expect($(`home-project-row-${P2}`)?.getAttribute('data-place')).toBe('tab');
   });
 
   // 2.0.5 W4b — the face lists every profile with its accounts; Sign out asks, then signs ONE
@@ -931,7 +1032,8 @@ describe('Home reads maude:// links', () => {
 describe('Home shows each tab’s live state', () => {
   beforeEach(() => installTauri('home'));
 
-  test('AI working · Needs you · Resting chips on project rows', async () => {
+  // 2.1.2 (artboard 19): live work is a row's state; Resting no longer is (the strip shows it)
+  test('AI working · Needs you chips on project rows; Resting says nothing', async () => {
     shellOverride = {
       ...SHELL,
       projects: [
@@ -943,7 +1045,8 @@ describe('Home shows each tab’s live state', () => {
     await flush();
     expect($(`home-project-ai-${P1}`)?.textContent).toBe('AI working');
     expect($(`home-project-ai-${P1}`)?.getAttribute('data-ai')).toBe('running');
-    expect($(`home-project-resting-${P2}`)?.textContent).toBe('Resting');
+    expect($(`home-project-resting-${P2}`)).toBeNull();
+    expect($(`home-project-conn-${P2}`)?.textContent).toBe('');
     expect($(`home-project-ai-${P2}`)).toBeNull();
     // the one that asks for you wins
     await act(async () =>
@@ -1032,7 +1135,7 @@ describe('home-api', () => {
           'shellInvoke',
           'shellListen',
         ].includes(name) &&
-        !/^(shellState|openProject|openProjectFolder|openWorktree|relinkProject|managedProjectOpen|openCloudUrl|openCellDoor|takePendingDeepLink|takePendingInvite|openTeamServerSignIn|pickProjectLocation|signInPrepare|signInOpenBrowser|signInDone)$/.test(
+        !/^(shellState|openProject|openProjectFolder|openWorktree|relinkProject|forgetProject|revealProjectFolder|managedProjectOpen|openCloudUrl|openCellDoor|takePendingDeepLink|takePendingInvite|openTeamServerSignIn|pickProjectLocation|signInPrepare|signInOpenBrowser|signInDone)$/.test(
           name
         )
     );
