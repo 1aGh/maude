@@ -308,6 +308,13 @@ export const FIRST_ANCHOR_STORM_LIMIT = 10;
  * into everyone's; inbound turns a hostile or broken hub into a local wipe.
  */
 export const DELETE_BREAKER_MAX = 10;
+
+/** A door's 409 that names a tombstone (`deleted` + `seq`, 2.1.1 T9). Hub-supplied: shape-checked. */
+function tombstoneOf(body: Record<string, unknown> | null | undefined): { tombstoneSeq?: number } {
+  return body?.deleted === true && Number.isInteger(body.seq) && (body.seq as number) > 0
+    ? { tombstoneSeq: body.seq as number }
+    : {};
+}
 export const DELETE_BREAKER_MAX_FRACTION = 0.25;
 
 /**
@@ -1809,10 +1816,12 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
    */
   async function push(
     local: SyncableLocalFile,
-    expect: string | null
+    expect: string | null,
+    /** The tombstone seq this push decides over (2.1.1 T9) — the door asks it of an owner purge. */
+    expectSeq?: number
   ): Promise<
     | { ok: true; seq: number | null }
-    | { ok: false; conflict: true; current: string | null }
+    | { ok: false; conflict: true; current: string | null; tombstoneSeq?: number }
     | {
         ok: false;
         conflict?: false;
@@ -1860,7 +1869,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       };
     }
     // T18 — past one request: a resumable session, in verified parts.
-    if (local.size > singlePutCeiling()) return pushSession(local, expect);
+    if (local.size > singlePutCeiling()) return pushSession(local, expect, expectSeq);
     // ISSUE #207 — A LARGE BODY STREAMS FROM DISK. Handing fetch the whole file
     // as one buffer cost TWICE the file in memory over TLS (measured: 532 MB of
     // RSS for a 256 MB body; a `Bun.file` body is no better there), copied on
@@ -1906,6 +1915,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
             'content-type': 'application/octet-stream',
             'x-maude-content-sha256': local.hash,
             'x-maude-expect-hash': expect ?? 'none',
+            ...(expectSeq !== undefined ? { 'x-maude-expect-seq': String(expectSeq) } : {}),
             // A stream has no length of its own; the door and every proxy in
             // front of it see the same one a buffer would have carried.
             'content-length': String(local.size),
@@ -1915,11 +1925,12 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         }
       );
       if (res.status === 409) {
-        const body = (await res.json().catch(() => ({}))) as { current?: unknown };
+        const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         return {
           ok: false,
           conflict: true,
           current: typeof body?.current === 'string' ? body.current : null,
+          ...tombstoneOf(body),
         };
       }
       if (!res.ok) return await refusal(res, { final: true });
@@ -1941,7 +1952,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
    */
   async function pushSession(
     local: SyncableLocalFile,
-    expect: string | null
+    expect: string | null,
+    expectSeq?: number
   ): Promise<Awaited<ReturnType<typeof push>>> {
     const json = async (res: Response) =>
       (await res.json().catch(() => ({}))) as Record<string, unknown>;
@@ -1957,6 +1969,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           size: local.size,
           sha256: local.hash,
           expectHash: expect ?? 'none',
+          ...(expectSeq !== undefined ? { expectSeq } : {}),
         }),
         signal: AbortSignal.timeout(GET_TIMEOUT_MS),
       });
@@ -2020,6 +2033,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           ok: false,
           conflict: true,
           current: typeof body.current === 'string' ? body.current : null,
+          ...tombstoneOf(body),
         };
       }
       if (!done.ok) return await refusal(done);
@@ -2400,7 +2414,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         delta.delete(rel);
         continue;
       }
-      ledger.noteRemote(rel, row.deleted ? null : row.sha256, row.seq);
+      ledger.noteRemote(rel, row.deleted ? null : row.sha256, row.seq, row.deleted === true);
     }
     // Only a COMPLETE full read may say "the hub does not have this". A
     // truncated one is silent about every path past its last page, and
@@ -2502,12 +2516,16 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           continue;
         }
       }
+      // THE HUB'S LATEST WORD IS A TOMBSTONE — said on this page, or on an earlier one this
+      // machine did not act on (2.1.1 T9: the inbound breaker held it). Remembered by the ledger,
+      // so a held delete stays a delete instead of reading as "the hub lost it" next pass.
+      const tombstoned = row ? row.deleted === true : ledger.remoteTombstoned(rel);
       // A DELETE IS A TRANSFER TOO. The code-module gate below only sees a
       // non-null remote, so a tombstone walked past it: an ancestor this peer
       // recorded (by push, or by agreement) was all `tombstone-agreed` needed
       // to quarantine a code module on the word of a hub that may not move
       // one. Refuse it here, reported, with the file and its row untouched.
-      if (row?.deleted && here && !mayReceiveCode()) {
+      if (tombstoned && here && !mayReceiveCode()) {
         const cls = classifyProjectFile(rel, {
           canvasGroups: opts.canvasGroups,
           hasFile: (r) => local.has(r) || existsSync(path.join(designRoot, r)),
@@ -2688,7 +2706,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       // this decision — the ledger's ancestor moves only after bytes land (`adoptAfter`).
       const ancestor =
         ledger.ancestorOf(rel) ??
-        (!here && remoteHash !== null && !row?.deleted && kept?.lastSeenHash === remoteHash
+        (!here && remoteHash !== null && !tombstoned && kept?.lastSeenHash === remoteHash
           ? remoteHash
           : null);
       const state: FileState = {
@@ -2696,7 +2714,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         local: here?.hash ?? null,
         remote: remoteHash,
         ancestor,
-        ...(row?.deleted ? { remoteTombstone: true } : {}),
+        ...(tombstoned ? { remoteTombstone: true } : {}),
         ...(degraded ? { epochChanged: true } : {}),
         ...(remoteHash && ledger.outboxHas(remoteHash) ? { selfInFlight: true } : {}),
         ...(propagateDeletes ? { propagateDeletes: true } : {}),
@@ -3324,8 +3342,16 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         }
         ledger.setState(rel, 'pushing');
         const expect = decision.action === 'revive' ? null : remoteHash;
-        const res = await push(here, expect);
+        // Over a tombstone this machine knows of, say which one (2.1.1 T9).
+        const overTombstone = ledger.remoteTombstoned(rel);
+        const res = await push(
+          here,
+          expect,
+          overTombstone ? ledger.row(rel)?.remoteSeq : undefined
+        );
         if (res.ok) {
+          // The hub holds these bytes now; the tombstone this push decided over is history.
+          if (overTombstone) ledger.noteRemote(rel, here.hash, res.seq ?? undefined);
           await ledger.adoptAfter(rel, here.hash, () => {}, {
             ...(res.seq !== null ? { remoteSeq: res.seq } : {}),
             size: here.size,
@@ -3353,6 +3379,18 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           });
           ledger.noteRemote(rel, here.hash);
           out.synced += 1;
+          return true;
+        }
+        if (res.conflict && res.current === null && res.tombstoneSeq !== undefined) {
+          // THE PATH IS TOMBSTONED, and this push did not decide over that tombstone (an owner
+          // purge asks it be named — 2.1.1 T9). Remember it, so the next pass decides against the
+          // delete (agreed → quarantine, held by the breaker; changed here → revive naming it)
+          // instead of offering the same stale write again.
+          ledger.noteRemote(rel, null, res.tombstoneSeq, true);
+          ledger.setState(rel, 'conflict', {
+            reason: 'the project deleted this file since this Mac last looked — deciding again',
+          });
+          out.conflicts.push({ rel, copy: null });
           return true;
         }
         if (res.conflict) {
