@@ -72,17 +72,20 @@ export async function chipState(): Promise<{
 /** Wait until the chip says one of `states`; the error names what it said last. */
 export async function waitConn(states: string[], timeout = 60_000): Promise<void> {
   let last: unknown = null;
-  await browser.waitUntil(
-    async () => {
-      last = await chipState();
-      return !!last && states.includes(String((last as { conn: string }).conn));
-    },
-    {
-      timeout,
-      interval: 500,
-      timeoutMsg: `the account chip never said ${states.join(' / ')} — last ${JSON.stringify(last)}`,
-    }
-  );
+  try {
+    await browser.waitUntil(
+      async () => {
+        last = await chipState();
+        return !!last && states.includes(String((last as { conn: string }).conn));
+      },
+      { timeout, interval: 500 }
+    );
+  } catch {
+    // the message is built here: a `timeoutMsg` string is fixed before the first sample
+    throw new Error(
+      `the account chip never said ${states.join(' / ')} — last ${JSON.stringify(last)}`
+    );
+  }
 }
 
 /** Open the account menu from the chip (it toggles: opens only when closed). */
