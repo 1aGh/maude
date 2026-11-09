@@ -368,6 +368,9 @@ export const UNREACHABLE_HOLD_MS = 30_000;
  */
 export const MAX_DORUCEKA_ROWS = 300;
 
+/** How many conflict copies one payload names (the rest are in the folder, and in the counts). */
+export const MAX_CONFLICT_COPIES = 50;
+
 /** The last delete-hold we logged, so the same hold is not re-announced every
  *  pass. Observed 47 times in a 72-line log, burying everything else. */
 let lastDeleteHoldKey = '';
@@ -1058,6 +1061,11 @@ export interface FilePlane {
   /** How many rows the ledger holds, before the doručenka's cap. */
   dorucekaTotal(): number;
   /**
+   * 2.1.1 T14 — files in conflict whose copy of this Mac's version still sits beside them: file →
+   * copy (both designRoot-relative). What Sync details names; a row clears when the copy is gone.
+   */
+  conflictCopies(): Record<string, string>;
+  /**
    * The media this machine cannot place, in BYTES as well as files — T29.
    * `null` when nothing is blocked, so a healthy project carries no field.
    */
@@ -1187,7 +1195,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
    * Capped at one per `REANCHOR_HOLD_RECOVERY_MS`, like the re-anchor storm,
    * so a hub answering `conflict` to every push cannot farm full reads.
    */
-  let fullReadOwed = Object.values(ledger.rows()).some((r) => r.state === 'conflict');
+  // 2.1.1 T14 — a conflict that already parked its copy owes nothing: it stays in `conflict` on purpose
+  let fullReadOwed = Object.values(ledger.rows()).some(
+    (r) => r.state === 'conflict' && !r.conflictCopy
+  );
   let lastOwedFullReadAt = Number.NEGATIVE_INFINITY;
 
   /**
@@ -2810,6 +2821,16 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         continue;
       }
       if (decision.action === 'noop' && !decision.parkRemote) {
+        // 2.1.1 T14 — A FILE IN CONFLICT STAYS IN CONFLICT WHILE ITS COPY IS BESIDE IT. The pass that
+        // parked this Mac's version also moved the ancestor to the server's bytes, so the next pass
+        // reads the pair as agreement and `adoptAfter` below used to turn the row `on-hub` — the
+        // conflict vanished from Sync details with the copy still on disk and nothing said where.
+        // The row clears when the copy is gone (the person kept one and removed the other) or this
+        // path changes again; the bytes themselves have nothing left to move.
+        if (here && keepsConflictCopy(kept, here.hash)) {
+          out.synced += 1;
+          continue;
+        }
         if (decision.adoptAncestor && here) {
           // Record agreement so the next pass is a stat and nothing more.
           //
@@ -3668,6 +3689,13 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     }
   }
 
+  /** A row whose conflict copy still sits beside it and whose bytes are the ones the conflict settled on. */
+  function keepsConflictCopy(kept: LedgerRow | null | undefined, hereHash: string): boolean {
+    if (!kept || kept.state !== 'conflict' || !kept.conflictCopy) return false;
+    if (kept.syncedHash !== hereHash) return false;
+    return existsSync(path.join(designRoot, kept.conflictCopy));
+  }
+
   function restat(rel: string): void {
     try {
       const st = statSync(path.join(designRoot, rel));
@@ -3708,6 +3736,23 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     },
     dorucekaTotal() {
       return Object.keys(ledger.rows()).length;
+    },
+    conflictCopies() {
+      // 2.1.1 T14 — the file → the copy of this Mac's version parked beside it, for every row still
+      // in conflict. Bounded like the doručenka, and only copies that are still on disk.
+      const out: Record<string, string> = {};
+      for (const [rel, row] of Object.entries(ledger.rows()).sort((a, b) =>
+        a[0].localeCompare(b[0])
+      )) {
+        if (Object.keys(out).length >= MAX_CONFLICT_COPIES) break;
+        if (
+          row.state === 'conflict' &&
+          row.conflictCopy &&
+          existsSync(path.join(designRoot, row.conflictCopy))
+        )
+          out[rel] = row.conflictCopy;
+      }
+      return out;
     },
     heldDeletes() {
       // What still waits for an answer: an answered row (being sent, or purged) is not asked again.

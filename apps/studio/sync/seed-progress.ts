@@ -225,6 +225,12 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
       delivered += 1;
       continue;
     }
+    // 2.1.1 T14 — a conflict that already parked this Mac's version beside the file has nothing left to
+    // move (the hub holds both): delivered, though it stays listed for a person to look at.
+    if (state === 'conflict' && row.conflictCopy) {
+      delivered += 1;
+      continue;
+    }
     if (state === 'ignored') {
       ignored += 1;
       continue;

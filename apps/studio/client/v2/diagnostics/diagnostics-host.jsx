@@ -185,6 +185,7 @@ export default function DiagnosticsHost({ toast }) {
         cloud: cfg?.cloud ?? null,
         groupPaths: (groups || []).map((g) => g.path).filter(Boolean),
         names: canvasNamesBySlug(groups),
+        designRel: cfg?.designRel,
         behind: gitStatus?.behind || 0,
         onGetLatest: gitGetLatest,
         resync,

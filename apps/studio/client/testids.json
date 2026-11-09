@@ -3922,6 +3922,102 @@
     "v2": "new"
   },
   {
+    "hook": "sync-kept",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sync details › Kept on this Mac: the copies a first link kept of this Mac's side (a file's other version, a replaced layout, sticky notes or comments). Absent when nothing is kept.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "KeptSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-kept.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-kept-said",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sentence after Show in Finder on a kept copy refused to open.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "KeptSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-kept.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-file-conflict-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One file whose versions differed: the server's is the file, this Mac's is kept beside it (names the copy).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "KeptSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-kept.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-file-conflict-reveal-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Show in Finder on a file-conflict row (the Mac app only).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "KeptSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-kept.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-set-aside-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One canvas whose layout, sticky notes or comments the server's version replaced after a first link; this Mac's are kept in its recovery folder.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "KeptSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-kept.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-set-aside-reveal-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Show in Finder on a set-aside row (the Mac app only).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "KeptSection"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-kept.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "sync-assets-stay",
     "kind": "testid",
     "pattern": false,
