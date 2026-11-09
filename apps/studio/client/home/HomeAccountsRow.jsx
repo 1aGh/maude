@@ -201,6 +201,7 @@ export function HomeAccountsRow({
                   className="btn btn--primary btn--sm"
                   data-testid={`home-account-signin-${id}`}
                   disabled={!native || busy === c.key}
+                  title={native ? undefined : 'Sign in from the Maude app on your Mac.'}
                   onClick={() => fix(c)}
                 >
                   {busy === c.key ? 'Waiting for the browser…' : c.fix.label}
