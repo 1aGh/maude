@@ -384,6 +384,18 @@ async fn probe_and_ask(app: &AppHandle) {
 fn show_native(app: &AppHandle, nonce: u64, chats: u32) {
     let (title, body) = dialog_text(chats);
     let app2 = app.clone();
+    let on_answer = move |quit: bool| {
+        let answer = if quit { Answer::Quit } else { Answer::Cancel };
+        if with_book(|b| b.answer(NATIVE, nonce, answer, Instant::now())) == Outcome::StopAll {
+            let app = app2.clone();
+            tauri::async_runtime::spawn(async move { stop_all_then_exit(&app).await });
+        }
+    };
+    // 2.1.1: an e2e lane never puts this over the person's screen — logged, and "Cancel" is the answer.
+    if crate::sidecar::dialog_suppressed_logged(title, &body) {
+        on_answer(false);
+        return;
+    }
     let mut dialog =
         app.dialog()
             .message(body)
@@ -395,13 +407,7 @@ fn show_native(app: &AppHandle, nonce: u64, chats: u32) {
     if let Some(shell) = app.get_window(crate::tabs::SHELL_LABEL) {
         dialog = dialog.parent(&shell);
     }
-    dialog.show(move |quit| {
-        let answer = if quit { Answer::Quit } else { Answer::Cancel };
-        if with_book(|b| b.answer(NATIVE, nonce, answer, Instant::now())) == Outcome::StopAll {
-            let app = app2.clone();
-            tauri::async_runtime::spawn(async move { stop_all_then_exit(&app).await });
-        }
-    });
+    dialog.show(on_answer);
 }
 
 /// `POST /_api/ai/runs/stop-all {reason}` to `root`'s own studio (the app-owned info file's

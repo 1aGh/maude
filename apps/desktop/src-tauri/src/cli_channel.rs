@@ -1175,6 +1175,12 @@ mod glue {
             ));
             return;
         }
+        // 2.1.1: an e2e lane that did not park the ticket still never puts this over the person's screen —
+        // logged, and "Not now" is the answer.
+        if crate::sidecar::dialog_suppressed_logged(&title, &message) {
+            on_answer(app, &id, false);
+            return;
+        }
         let (first, second) = sheet_buttons();
         let shown = Instant::now();
         app.dialog()

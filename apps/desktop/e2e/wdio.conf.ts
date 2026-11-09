@@ -216,6 +216,12 @@ process.env.MAUDE_E2E_FAKE_KEYCHAIN ??= '1';
 // "Open a team project from <host>?" confirm (V2-3.6 M3) answers Open under
 // `debug_assertions` only (managed.rs).
 process.env.MAUDE_E2E_CONFIRM_TEAM_SERVER = '1';
+// 2.1.1 — a lane never raises a native dialog over the person's screen (the 2026-11-09 incident: crash-looping
+// sidecars each popped "Maude's server for “X” stopped 3 times in a row…" over Michal's work). A debug build logs
+// what it would have asked to shell.log and takes the dialog's dismiss answer (sidecar.rs `e2e_no_dialogs`); a
+// release build never reads it. Set unconditionally — every lane config reaches this module, and no lane may opt out
+// (scripts/test/desktop-e2e-no-dialogs.test.mjs).
+process.env.MAUDE_E2E_NO_DIALOGS = '1';
 // The service's direct-eval client reads this env var independently of
 // embeddedPort. Keep both aligned and allow concurrent worktrees to choose a port.
 process.env.TAURI_WEBDRIVER_PORT ??= '4455';
@@ -364,6 +370,10 @@ if (!process.env.WDIO_WORKER_ID) {
  * override used to skip it, which left the baseline sidecar for the next lane to "repair" from.
  */
 export async function completeLane(): Promise<void> {
+  // 2.1.1 — no app outlives the lane: a lane config deletes its fixture roots only AFTER this (its `onComplete`), so a
+  // tab can never be left open on a folder that is gone (its sidecar would crash-loop and give up). `onWorkerEnd`
+  // normally stopped it already; this is idempotent (nothing listens → nothing to stop).
+  await stopE2eApp(Number(process.env.TAURI_WEBDRIVER_PORT));
   stopPrefsGuard();
   await reapE2eAgentBrowsers(resolveAppPath());
   // p8-e2e-isolation-r13 — sidecars (and their ACP agent / claude children) launchd adopted when an e2e app died

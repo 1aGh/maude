@@ -865,6 +865,10 @@ where
 async fn ask_native(window: tauri::Window, q: SwitchQuestion) -> bool {
     use tauri::Manager;
     use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+    // 2.1.1: an e2e lane never puts this over the person's screen — logged, and "Cancel" is the answer.
+    if crate::sidecar::dialog_suppressed_logged(&q.title, &q.body) {
+        return false;
+    }
     let (tx, rx) = tokio::sync::oneshot::channel();
     window
         .app_handle()

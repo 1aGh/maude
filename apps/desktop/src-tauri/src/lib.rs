@@ -537,10 +537,15 @@ fn pick_and_open_folder(app: &tauri::AppHandle, caller: Option<String>) {
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
+        let body = format!(
+            "“{name}” isn’t a Maude project yet. Set up a Maude project here so you can start designing?"
+        );
+        // 2.1.1: an e2e lane never puts this over the person's screen — logged, and "Cancel" is the answer.
+        if sidecar::dialog_suppressed_logged("Set up Maude", &body) {
+            return;
+        }
         app.dialog()
-            .message(format!(
-                "“{name}” isn’t a Maude project yet. Set up a Maude project here so you can start designing?"
-            ))
+            .message(body)
             .title("Set up Maude")
             .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
                 "Set it up".to_string(),

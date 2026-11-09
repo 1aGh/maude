@@ -1820,38 +1820,44 @@ pub fn close_guard(app: &AppHandle, label: &str) -> CloseGuard {
         let name = project_display_name(&root);
         let app2 = app.clone();
         let label2 = label.clone();
+        let on_answer = move |stop: bool| {
+            let state = app2.state::<SidecarState>();
+            state
+                .windows
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .end_close(&label2);
+            if !stop {
+                crate::tabs::changed(&app2);
+                return;
+            }
+            let _ = crate::tabs::close_tab(&app2, &label2);
+            crate::sidecar::log_line(&format!(
+                "[maude] {label2} closed with AI running — stopping {root} now"
+            ));
+            // S5.14: stop the runs (partial versions, leases, "Stopped" divider) first.
+            tauri::async_runtime::spawn(async move {
+                crate::quit::stop_project(&app2, &root, "close-tab").await;
+                crate::sidecar::shutdown_instance(&app2, &root);
+            });
+        };
+        const BODY: &str = "AI stops where it is. Everything AI finished so far is kept as a version, and each chat can carry on next time.";
+        let title = format!("Close {name} while AI is working?");
+        // 2.1.1: an e2e lane never puts this over the person's screen — logged, and "Cancel" is the answer.
+        if crate::sidecar::dialog_suppressed_logged(&title, BODY) {
+            on_answer(false);
+            return;
+        }
         // S5.14 (V2-1.15 §5.8, 03 `ai-quit` "Closing a project tab asks the same").
         app.dialog()
-            .message(
-                "AI stops where it is. Everything AI finished so far is kept as a version, and each chat can carry on next time.",
-            )
-            .title(format!("Close {name} while AI is working?"))
+            .message(BODY)
+            .title(title)
             .parent(&window)
             .buttons(MessageDialogButtons::OkCancelCustom(
                 "Close tab".to_string(),
                 "Cancel".to_string(),
             ))
-            .show(move |stop| {
-                let state = app2.state::<SidecarState>();
-                state
-                    .windows
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .end_close(&label2);
-                if !stop {
-                    crate::tabs::changed(&app2);
-                    return;
-                }
-                let _ = crate::tabs::close_tab(&app2, &label2);
-                crate::sidecar::log_line(&format!(
-                    "[maude] {label2} closed with AI running — stopping {root} now"
-                ));
-                // S5.14: stop the runs (partial versions, leases, "Stopped" divider) first.
-                tauri::async_runtime::spawn(async move {
-                    crate::quit::stop_project(&app2, &root, "close-tab").await;
-                    crate::sidecar::shutdown_instance(&app2, &root);
-                });
-            });
+            .show(on_answer);
     });
     CloseGuard::Hold
 }

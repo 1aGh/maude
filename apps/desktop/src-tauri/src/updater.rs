@@ -175,12 +175,14 @@ async fn check_and_apply(handle: &AppHandle, interactive: bool) {
                     // Unlike the sibling Ok(None)/Err(check) branches below, this used to
                     // swallow the failure — a manual click that finds an update but can't
                     // install it looked identical to a click that did nothing at all.
-                    if interactive {
+                    let body = format!("Found Maude {version}, but couldn’t install it.\n\n{e}");
+                    // 2.1.1: an e2e lane never puts this over the person's screen — logged instead.
+                    if interactive
+                        && !crate::sidecar::dialog_suppressed_logged("Update failed", &body)
+                    {
                         handle
                             .dialog()
-                            .message(format!(
-                                "Found Maude {version}, but couldn’t install it.\n\n{e}"
-                            ))
+                            .message(body)
                             .title("Update failed")
                             .kind(MessageDialogKind::Error)
                             .show(|_| {});
@@ -192,14 +194,14 @@ async fn check_and_apply(handle: &AppHandle, interactive: bool) {
             // Quiet for background checks; for a manual check the user expects
             // feedback that the click did something. Linux .deb builds have no
             // updater artifact, so `None` there does not verify currency.
-            if interactive {
+            let body = up_to_date_message(std::env::consts::OS, env!("CARGO_PKG_VERSION"));
+            let title = up_to_date_title(std::env::consts::OS);
+            // 2.1.1: an e2e lane never puts this over the person's screen — logged instead.
+            if interactive && !crate::sidecar::dialog_suppressed_logged(title, &body) {
                 handle
                     .dialog()
-                    .message(up_to_date_message(
-                        std::env::consts::OS,
-                        env!("CARGO_PKG_VERSION"),
-                    ))
-                    .title(up_to_date_title(std::env::consts::OS))
+                    .message(body)
+                    .title(title)
                     .kind(MessageDialogKind::Info)
                     .show(|_| {});
             }
@@ -237,9 +239,14 @@ fn up_to_date_title(os: &str) -> &'static str {
 
 /// Native error dialog for a manual check that couldn't reach / verify the feed.
 fn notify_check_failed(handle: &AppHandle, err: &str) {
+    let body = format!("Couldn’t check for updates.\n\n{err}");
+    // 2.1.1: an e2e lane never puts this over the person's screen — logged instead.
+    if crate::sidecar::dialog_suppressed_logged("Update check failed", &body) {
+        return;
+    }
     handle
         .dialog()
-        .message(format!("Couldn’t check for updates.\n\n{err}"))
+        .message(body)
         .title("Update check failed")
         .kind(MessageDialogKind::Error)
         .show(|_| {});
