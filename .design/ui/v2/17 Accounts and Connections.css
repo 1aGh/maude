@@ -241,3 +241,80 @@
 .ac-hrow-where { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .ac-hrow-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--type-xs); color: var(--fg-2); }
 .ac-hrow-st { display: flex; align-items: center; gap: var(--space-2); }
+
+/* ─── I · Home, decluttered (2.1.2) — prefix ac-nh- ─── */
+.ac-nh-stage .k-stage-win { height: 1260px; }
+.ac-nh { position: absolute; left: 50%; top: 72px; width: 880px; translate: -50% 0; display: flex; flex-direction: column; gap: var(--space-5); }
+.ac-nh-hero { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.ac-nh-hero .k-home-spark { margin-bottom: var(--space-2); }
+.ac-callout.ac-nh-banner { margin-top: 0; padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3); box-shadow: inset 0 0 0 0.5px var(--status-error); }
+.ac-nh-banner .ac-callout-t { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-2); }
+.ac-nh-banner .btn { flex: none; }
+.ac-nh-sec { display: flex; flex-direction: column; gap: var(--space-2); }
+.ac-nh-h { display: flex; align-items: center; justify-content: space-between; min-height: 30px; font-size: var(--type-sm); font-weight: var(--weight-semibold); }
+.ac-nh-n { margin-left: var(--space-2); font-weight: var(--weight-regular); color: var(--fg-2); }
+.ac-nh-tools { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: var(--weight-regular); }
+.ac-nh-tools .btn { gap: var(--space-1); }
+.ac-nh-find.input { display: inline-flex; align-items: center; gap: var(--space-2); width: 200px; height: 28px; font-size: var(--type-xs); color: var(--fg-2); }
+.ac-nh-pin { position: absolute; right: var(--space-2); top: var(--space-2); display: grid; place-items: center; width: 22px; height: 22px; border-radius: var(--radius-sm); background: var(--bg-2); color: var(--fg-1); box-shadow: var(--shadow-sm); }
+
+/* the slim project row: picture · name · where · state (only when not fine) · when · "…" on hover */
+.ac-nh-list { display: flex; flex-direction: column; border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default); overflow: hidden; }
+.ac-nh-row { display: grid; grid-template-columns: 40px minmax(160px, 280px) 180px minmax(0, 1fr) 28px; align-items: center; gap: var(--space-3); min-height: 44px; padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); box-shadow: inset 0 -0.5px 0 var(--border-subtle); }
+.ac-nh-row:last-child { box-shadow: none; }
+.ac-nh-row[data-hl] { background: var(--bg-2); }
+.k-thumb.ac-nh-pic { width: 40px; height: 28px; }
+.ac-nh-name { display: flex; flex-direction: column; min-width: 0; }
+.ac-nh-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--type-sm); font-weight: var(--weight-semibold); }
+.ac-nh-name span { font-size: var(--type-xs); color: var(--fg-2); }
+.ac-nh-place { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; font-size: var(--type-xs); color: var(--fg-1); white-space: nowrap; }
+.ac-nh-place > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.ac-nh-place > .k-ic, .ac-nh-place .ac-kept-g { color: var(--fg-2); }
+.ac-nh-st { display: flex; align-items: center; min-width: 0; }
+.ac-nh-bad .k-sw { color: var(--status-error-text); }
+.ac-nh-quiet { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--type-xs); color: var(--fg-2); }
+.ac-nh-more { width: 28px; height: 28px; color: var(--fg-1); opacity: 0; }
+/* "…" shows on hover and on keyboard focus anywhere in the row */
+.ac-nh-row[data-hl] .ac-nh-more, .ac-nh-row:hover .ac-nh-more, .ac-nh-row:focus-within .ac-nh-more { opacity: 1; }
+.ac-nh-more:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 1px; }
+.ac-nh-row--moved { grid-template-columns: 40px minmax(0, 1fr) auto 28px; }
+.ac-nh-acts .btn { font-weight: var(--weight-regular); color: var(--fg-1); }
+.ac-nh-row--moved .ac-nh-name strong { font-weight: var(--weight-medium); color: var(--fg-1); }
+.ac-nh-gone { display: grid; place-items: center; width: 40px; height: 28px; border-radius: var(--radius-xs); color: var(--fg-2); box-shadow: inset 0 0 0 1px var(--border-default); }
+.ac-nh-acts { display: inline-flex; gap: var(--space-1); }
+
+/* the accounts chip in the top right, and its list */
+.ac-nh-tr { gap: var(--space-1); }
+.ac-nh-sum { display: inline-flex; align-items: center; gap: var(--space-2); height: 32px; padding: 0 var(--space-2) 0 var(--space-1); border-radius: var(--radius-md); font-size: var(--type-xs); font-weight: var(--weight-medium); color: var(--fg-1); white-space: nowrap; }
+.ac-nh-sum > .k-ic { color: var(--fg-2); }
+.ac-nh-sum[data-open] { background: var(--bg-4); color: var(--fg-0); }
+.ac-col > .ac-nh-sum { align-self: flex-end; background: var(--bg-2); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--island-edge); }
+.ac-nh-sum-dot { width: 7px; height: 7px; margin-left: var(--space-1); border-radius: var(--radius-pill); background: var(--status-error); }
+.ac-nh-sum-bad { margin-left: calc(var(--space-1) * -1); color: var(--status-error-text); }
+.k-menu.ac-nh-pop { position: relative; width: 380px; }
+.ac-nh-acct { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2); border-radius: var(--radius-md); }
+.ac-nh-acct--bad { background: var(--status-error-soft); }
+.ac-nh-acct-hd { display: flex; align-items: center; gap: var(--space-3); }
+.ac-nh-acct-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ac-nh-acct-t strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--type-sm); font-weight: var(--weight-semibold); }
+.ac-nh-acct-t > span:not(.k-sw) { font-size: var(--type-xs); color: var(--fg-2); }
+.ac-nh-acct--bad .k-sw { color: var(--status-error-text); }
+.ac-nh-acct .btn { flex: none; }
+.ac-nh-acct-more { width: 26px; height: 26px; color: var(--fg-2); }
+.ac-nh-acct-ps { display: flex; flex-direction: column; margin-left: 36px; }
+.ac-nh-acct-p { display: flex; align-items: center; gap: var(--space-2); min-height: 22px; font-size: var(--type-xs); color: var(--fg-1); }
+.ac-nh-acct-p--bad { flex-wrap: wrap; margin: 2px 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--status-error-soft); }
+.ac-nh-acct-p--bad .k-sw { flex: 1; color: var(--status-error-text); }
+.ac-nh-acct-pn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-nh-acct-p--bad .ac-nh-acct-pn { flex-basis: 100%; font-weight: var(--weight-semibold); color: var(--fg-0); }
+.ac-nh-old { gap: var(--space-2); }
+.ac-nh-old-ch { color: var(--fg-2); }
+.ac-nh-old[data-open] .ac-nh-old-ch { rotate: 90deg; }
+.ac-nh-olds { display: flex; flex-direction: column; padding: 0 var(--space-1) var(--space-1) var(--space-5); }
+.ac-nh-oldr { display: flex; align-items: center; gap: var(--space-2); min-height: 30px; padding: 0 var(--space-1); border-radius: var(--radius-sm); }
+.ac-nh-oldr[data-hl] { background: var(--accent-muted); }
+.ac-nh-oldt.ac-tile--server { background: var(--bg-3); color: var(--fg-2); }
+.ac-nh-oldh { flex: 1; min-width: 0; font-size: var(--type-xs); color: var(--fg-1); }
+.ac-nh-oldr .btn { font-weight: var(--weight-regular); color: var(--fg-2); }
+.k-menu.ac-nh-rmenu, .k-menu.ac-nh-rsub { position: relative; width: 280px; }
+.k-menu.ac-nh-rsub { width: 220px; align-self: flex-end; margin-top: calc(var(--space-1) * -1); }.ac-nh-rmenu .ac-face { scale: 0.9; }
