@@ -121,6 +121,7 @@ if (!process.env.MAUDE_E2E_TEAM) {
   } catch (err) {
     // a failed set-up never reaches onComplete: the teammate studio must not outlive the launcher
     for (const c of children) c.kill('SIGTERM');
+    for (const h of hubs) h.stop(); // T7: a stale-bundle refusal after the hub started left it running
     throw err;
   }
 }
