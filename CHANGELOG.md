@@ -1,5 +1,17 @@
 # @1agh/maude
 
+## 2.1.1
+
+### Patch Changes
+
+- **Signing in to your own server works again.** In 2.1.0 every sign-in to a self-hosted server failed when the browser handed back (`api-key-required`). The browser's return now lands, protected by its one-time state and PKCE.
+- **See where each project lives.** The account button shows which account a project uses, where it lives (your folder, a copy Maude keeps, or your server) and whether it connects. When a sign-in this Mac made stops working, a toast and the account menu offer Sign in again with the address filled in. A server address that only comes from a project's files, never linked on this Mac, is shown as not linked and needs Review before any sign-in.
+- **Switch account** lists the accounts already on this Mac plus No account, and switching to another account asks in a Mac dialog the project page can't answer. It never strands a project on a new empty account.
+- **Link your server** is one dialog: it checks the address as you type, signs in in your browser, takes an invite link or a sign-in key, and links this folder. The first link to a server always asks first and says what goes up, what comes down and what happens to anything that differs; a first link keeps your comments, sticky notes and layout.
+- The Sync popup of a project only on this Mac offers Create project on Maude Cloud and Link your server. Sync details shows copies kept beside a file and layouts set aside, and incoming or outgoing deletes act only on the list you saw.
+- Settings is one column of cards in every tab; General opens with This project (where it lives, account, connection, Sync details). Home shows each account's state and where each project lives.
+- Self-hosted servers: an owner's purge stays purged (a peer that missed it no longer puts the files back, and the server no longer restores them at boot); the server no longer spins re-announcing the same files or re-adopting a moved canvas; its own studio never holds a conflict it can't resolve. An AI edit to a canvas another run created is no longer silently undone.
+
 ## 2.1.0
 
 ### Minor Changes
