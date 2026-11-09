@@ -6,7 +6,8 @@
  * @stack       React 19 · TSX · Bun.build
  * @history     .design/_history/ui-v2-17_accounts_and_connections
  * @artboards   ac-model | ac-states | ac-toast | ac-menu-broken | ac-menus | ac-switch | ac-sync |
- *              ac-general | ac-general-states | ac-connections | ac-advanced | ac-link-a | ac-link-b | ac-home
+ *              ac-general | ac-general-states | ac-connections | ac-advanced | ac-link-a | ac-link-b | ac-home |
+ *              nh-ok | nh-problem | nh-accounts | nh-old | nh-row  (2.1.2 Home declutter, plan feature-home-declutter-2.1.2 H2)
  * @brief       Plan .ai/plans/feature-accounts-and-connections-2.1.1.md, task T1 (Michal, 2026-11-09): "Several accounts on
  *              cloud.maude.sh, several projects under each. A project is either connected to the person's own local repo, or
  *              Maude keeps a copy somewhere in the background. Plus projects on the person's own servers. The person must find
@@ -42,7 +43,7 @@ import "./_kit.css";
 import "./17 Accounts and Connections.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 import type { CSSProperties, ReactNode } from "react";
-import { Artboard, Avatar, Canvas, Dialog, HeroMock, Icon, Mark, ModeSwitch, Note, ProjectPill, Stage, StatusWord, Thumb, Toolbar, V2, Veil, Window, ZoomUndo } from "./_kit";
+import { Artboard, Avatar, Canvas, Dialog, HeroMock, Icon, Kbd, Mark, ModeSwitch, Note, ProjectPill, Spark, Stage, StatusWord, Thumb, Toolbar, V2, Veil, Window, ZoomUndo } from "./_kit";
 import type { Art, Tab, Tone } from "./_kit";
 
 const W = 1440;
@@ -660,6 +661,315 @@ function SettingsStage({ tab, note, children }: { tab: STab; note: ReactNode; ch
   );
 }
 
+/* ═══ I · Home, decluttered (2.1.2) ═════════════════════════════════════════════════════════════
+   Michal (2026-11-09): "a bit too much information on one page"; Accounts on this Mac is secondary.
+   The main surface is Recent canvases + Projects. Accounts fold into one chip in the top right that
+   opens a list. The top of the page carries only a problem the person must act on, and nothing at
+   all when every sign-in works. A row says name · where it lives · a state only when it isn't fine;
+   copies, worktrees and the path moved into the row's "…" menu. */
+
+const HT = 1360; // a whole Home page, top to bottom, in one artboard (window 1260 + the note)
+const STALE = ["127.0.0.1:1234", "[::1]:1234", "localhost", "localhost:8420", "localhost:18500", "localhost:1234"];
+
+type NState = "ai" | "needs" | "broken" | "away" | "moved";
+type NRowP = { p: Proj; st?: NState; when: string };
+const P_WINTER: Proj = { name: "Winter catalogue", ini: "W", tone: "sky", a: "alice", place: { k: "kept" }, conn: "ok", arts: ["gator-print", "blank", "blank"], when: "3 Nov", canvases: 4 };
+const P_OLD: Proj = { name: "Landing 2025", ini: "L", tone: "grey", a: "mac", place: { k: "folder", path: "~/Old/landing-2025" }, conn: "local", arts: ["blank", "blank", "blank"], when: "Aug", canvases: 3 };
+
+/** The rows in recency order; `broken` = the server sign-in stopped working (artboard 16 only). */
+function nhRows(broken: boolean): NRowP[] {
+  return [
+    { p: P_BRAND, st: "ai", when: "2 min ago" },
+    { p: P_DS, st: broken ? "broken" : undefined, when: "1 h ago" },
+    { p: P_LOGO, st: "needs", when: "today" },
+    { p: P_PORT, when: "yesterday" },
+    { p: P_APP, when: "Monday" },
+    { p: P_WEB, st: broken ? "broken" : undefined, when: "1 Nov" },
+    { p: P_SPRING, when: "3 Nov" },
+    { p: P_MOOD, when: "28 Oct" },
+    { p: P_WINTER, st: "away", when: "3 Nov" },
+    { p: P_OLD, st: "moved", when: "Aug" },
+  ];
+}
+
+/** Where a project lives, as one short name: the Maude Cloud account's face + "Maude Cloud", your
+ *  server's host, or — a project on no account — Your folder / Kept by Maude. The local copy of a
+ *  synced project (folder or kept) is in the "…" menu, not on the row. */
+function NPlace({ p }: { p: Proj }) {
+  const a = ACCTS[p.a];
+  if (a.kind === "cloud") return <span className="ac-nh-place" title={`Maude Cloud · ${a.email}`}><Face a={p.a} size="sm" /><span>Maude Cloud</span></span>;
+  if (a.kind === "server") return <span className="ac-nh-place" title={`Your server · ${a.email}`}><Face a={p.a} size="sm" /><span>{a.where}</span></span>;
+  return <span className="ac-nh-place"><PlaceIcon p={p.place} size={13} /><span>{placeLabel(p.place)}</span></span>;
+}
+
+function NStateTag({ st }: { st?: NState }) {
+  if (st === "ai") return <span className="chip chip--spark"><Spark size={9} />AI working</span>;
+  if (st === "needs") return <span className="chip chip--accent">Needs you</span>;
+  if (st === "broken") return <span className="ac-nh-bad"><StatusWord state="error">Sign-in stopped working</StatusWord></span>;
+  if (st === "away") return <span className="ac-nh-quiet"><Icon name="cloud" size={12} />Not on this Mac yet</span>;
+  return null;
+}
+
+function NRow({ r, hl = false }: { r: NRowP; hl?: boolean }) {
+  const { p, st } = r;
+  if (st === "moved") {
+    return (
+      <span className="ac-nh-row ac-nh-row--moved">
+        <span className="ac-nh-gone"><Icon name="folder" size={14} /></span>
+        <span className="ac-nh-name"><strong>{p.name}</strong><span>The folder isn’t where it was.</span></span>
+        <span className="ac-nh-acts"><Btn ghost>Find the folder…</Btn><Btn ghost>Remove from list</Btn></span>
+        <span />
+      </span>
+    );
+  }
+  return (
+    <span className="ac-nh-row" data-hl={hl ? "true" : undefined}>
+      <Thumb art={p.arts[0]} className="ac-nh-pic" />
+      <span className="ac-nh-name"><strong>{p.name}</strong></span>
+      <NPlace p={p} />
+      <span className="ac-nh-st"><NStateTag st={st} /></span>
+      <span className="icon-btn ac-nh-more" role="button" tabIndex={0} aria-label={`More for ${p.name}`}><Icon name="more" size={14} /></span>
+    </span>
+  );
+}
+
+function NProjects({ broken = false, hl }: { broken?: boolean; hl?: string }) {
+  return (
+    <div className="ac-nh-sec">
+      <p className="ac-nh-h">
+        <span>Projects<span className="ac-nh-n">10</span></span>
+        <span className="ac-nh-tools">
+          <span className="input ac-nh-find"><Icon name="search" size={12} />Find a project</span>
+          <Btn ghost icon="folder">Open project…</Btn>
+          <Btn icon="plus">New project</Btn>
+        </span>
+      </p>
+      <div className="ac-nh-list">{nhRows(broken).map((r) => <NRow key={r.p.name} r={r} hl={r.p.name === hl} />)}</div>
+    </div>
+  );
+}
+
+const NH_RECENT: { name: string; art: Art; meta: string; pin?: boolean; ai?: boolean }[] = [
+  { name: "Homepage", art: "home", meta: "Brand site · 2 min ago", pin: true, ai: true },
+  { name: "Tokens", art: "brand", meta: "Design system · 1 h ago" },
+  { name: "Logo ideas", art: "board", meta: "Logo ideas · today" },
+  { name: "Moodboard", art: "moodboard", meta: "Portfolio 2026 · yesterday" },
+];
+function NRecent() {
+  return (
+    <div className="ac-nh-sec">
+      <p className="ac-nh-h">
+        <span>Recent canvases</span>
+        <span className="ac-nh-tools"><span className="chip">All projects<Icon name="chevron" size={12} /></span><Btn ghost>See all</Btn></span>
+      </p>
+      <div className="k-cards">
+        {NH_RECENT.map((c) => (
+          <span className="k-card" key={c.name}>
+            <span className="k-card-pic">
+              <Thumb art={c.art} className="k-thumb--card" />
+              {c.ai ? <span className="chip chip--spark k-card-ai"><Spark size={9} />AI working</span> : null}
+              {c.pin ? <span className="ac-nh-pin" title="Pinned"><Icon name="pin" size={12} /></span> : null}
+            </span>
+            <strong>{c.name}</strong>
+            <span className="k-card-meta">{c.meta}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The accounts chip — the one place accounts show on Home. Faces, a count, and a problem in words. */
+function AcctSum({ problem = false, open = false }: { problem?: boolean; open?: boolean }) {
+  return (
+    <span className="ac-nh-sum" data-open={open ? "true" : undefined} data-bad={problem ? "true" : undefined}>
+      <Icon name="people" size={14} />
+      <span>3 accounts</span>
+      {problem ? <i className="ac-nh-sum-dot" aria-hidden="true" /> : null}
+      {problem ? <span className="ac-nh-sum-bad">1 needs sign-in</span> : null}
+      <Icon name="chevron" size={12} />
+    </span>
+  );
+}
+
+/** The Home top right: Search, then the accounts chip (it replaces the avatar and the accounts row). */
+function NTopRight({ problem = false, open = false }: { problem?: boolean; open?: boolean }) {
+  return (
+    <div className="island k-home-tr ac-nh-tr">
+      <span className="icon-btn"><Icon name="search" /></span>
+      <Kbd>⌘K</Kbd>
+      <span className="ac-tr-div" />
+      <AcctSum problem={problem} open={open} />
+    </div>
+  );
+}
+
+/** The one thing at the top of Home: a problem the person must act on. Absent when all is fine. */
+function NBanner() {
+  return (
+    <div className="ac-callout ac-nh-banner" role="alert">
+      <span className="ac-callout-ic"><BrokenLink size={13} /></span>
+      <span className="ac-callout-t"><strong>Your sign-in to design.example.com stopped working.</strong>Changes to Design system and Website 2027 wait on this Mac.</span>
+      <Btn primary>Sign in again</Btn>
+    </div>
+  );
+}
+
+/** The Home question, lifted from _kit Home (CONTRACT §5) — unchanged. */
+function NHero() {
+  return (
+    <div className="ac-nh-hero">
+      <span className="k-home-spark"><Spark size={40} /></span>
+      <p className="k-home-title">What shall we make?</p>
+      <p className="k-home-sub">Describe it in a sentence. AI puts a first draft on a new canvas — you take it from there.</p>
+      <div className="island island--pad k-home-ask">
+        <div className="ask k-ask-lg">
+          <span className="k-ask-in k-ask-ph">A calm landing page, light and airy</span>
+          <span className="send"><Spark size={14} color="var(--spark-fg)" /></span>
+        </div>
+        <div className="k-home-askfoot">
+          <span className="chip">Starts a new canvas in <strong>Brand site</strong><Icon name="chevron" size={12} /></span>
+          <span className="k-home-hint"><Kbd>↵</Kbd> to send</span>
+        </div>
+      </div>
+      <div className="k-starters">
+        {([["A design system", "for Brand site", "brand"], ["A pricing page", "with a yearly toggle", "price"], ["An onboarding flow", "four screens, mobile", "onb"]] as [string, string, Art][]).map(([t, l, art]) => (
+          <span className="k-starter" key={t}><Thumb art={art} className="k-thumb--starter" /><span><strong>{t}</strong><span>{l}</span></span></span>
+        ))}
+      </div>
+      <span className="btn btn--ghost btn--sm k-home-empty">Start with an empty canvas <Kbd>⌘N</Kbd></span>
+    </div>
+  );
+}
+
+/** A whole Home page in a tall window. */
+function NHomePage({ problem = false, note, children }: { problem?: boolean; note: ReactNode; children?: ReactNode }) {
+  return (
+    <V2 className="k-stage ac-nh-stage">
+      <div className="k-stage-win">
+        <Window tabs={TABS_DS} activeTab={0} height={1260}>
+          <Canvas dots={false}>
+            <div className="k-home-bg">
+              <ProjectPill project="Home" home />
+              <NTopRight problem={problem} />
+              <div className="ac-nh">
+                {problem ? <NBanner /> : null}
+                <NHero />
+                <NRecent />
+                <NProjects broken={problem} />
+              </div>
+              {children}
+            </div>
+          </Canvas>
+        </Window>
+      </div>
+      <div className="k-stage-note">{note}</div>
+    </V2>
+  );
+}
+
+/* ─── The accounts list (the chip, open) ─── */
+function NAcctRow({ a, conn = "ok", sub, projects, fix, projFix }: { a: AcctKey; conn?: Conn; sub: string; projects: string[]; fix?: boolean; projFix?: string }) {
+  const acct = ACCTS[a];
+  return (
+    <div className={`ac-nh-acct${fix ? " ac-nh-acct--bad" : ""}`}>
+      <div className="ac-nh-acct-hd">
+        <Face a={a} conn={conn} size="md" />
+        <span className="ac-nh-acct-t">
+          <strong>{acct.email}</strong>
+          <span>{sub}</span>
+          {fix ? <StatusWord state="error">Sign-in stopped working</StatusWord> : null}
+        </span>
+        {fix ? <Btn primary>Sign in again</Btn> : <span className="icon-btn ac-nh-acct-more" title="Sign out…"><Icon name="more" size={14} /></span>}
+      </div>
+      {projFix && projects.includes(projFix) ? (
+        <div className="ac-nh-acct-ps">
+          <span className="ac-nh-acct-p ac-nh-acct-p--bad">
+            <span className="ac-nh-acct-pn">{projFix}</span>
+            <StatusWord state="error">Sign-in stopped working</StatusWord>
+            <Btn primary>Sign in again</Btn>
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function NOldFold({ open = false, confirm }: { open?: boolean; confirm?: string }) {
+  return (
+    <>
+      <span className="row-item k-mi ac-nh-old" data-open={open ? "true" : undefined}>
+        <span className="k-mi-ic ac-nh-old-ch"><Icon name="submenu" size={12} /></span>
+        <span className="k-mi-lab">6 old servers</span>
+        <span className="k-mi-note">Not answering, no projects</span>
+      </span>
+      {open ? (
+        <div className="ac-nh-olds">
+          {STALE.map((h) => (
+            <span key={h} className="ac-nh-oldr" data-hl={confirm === h ? "true" : undefined}>
+              <span className="ac-tile ac-tile--server ac-tile--sm ac-nh-oldt"><Icon name="server" size={10} /></span>
+              <span className="k-mono ac-nh-oldh">{h}</span>
+              <span className="btn btn--sm btn--ghost">Forget…</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function NAcctPop({ problem = false, cellProblem = false, oldOpen = false, confirm, style }: { problem?: boolean; cellProblem?: boolean; oldOpen?: boolean; confirm?: string; style?: CSSProperties }) {
+  return (
+    <div className="k-menu ac-nh-pop" style={style}>
+      <span className="k-mgroup">Accounts on this Mac</span>
+      <NAcctRow a="alice" conn={cellProblem ? "rejected" : "ok"} sub="Maude Cloud · 4 projects" projects={["Brand site", "Portfolio 2026", "Winter catalogue"]} projFix={cellProblem ? "Portfolio 2026" : undefined} />
+      <NAcctRow a="bright" sub="Maude Cloud · 2 projects" projects={["Brightside app", "Spring campaign"]} />
+      <NAcctRow a="server" conn={problem ? "rejected" : "ok"} sub="design.example.com · 2 projects" projects={["Design system", "Website 2027"]} fix={problem} />
+      <span className="k-msep" />
+      <NOldFold open={oldOpen} confirm={confirm} />
+      <span className="k-msep" />
+      <MRow icon={<Icon name="plus" size={14} />} label="Add an account…" />
+    </div>
+  );
+}
+
+/* ─── The project row's "…" menu ─── */
+function NRowMenus() {
+  return (
+    <>
+      <Col label="“…” on Brand site — Maude Cloud, in your folder" w={280}>
+        <div className="k-menu ac-nh-rmenu">
+          <MRow label="Open" keys="↵" />
+          <span className="k-msep" />
+          <span className="k-mgroup">Brand site</span>
+          <MRow icon={<Face a="alice" size="sm" />} label="Maude Cloud" note="alice@example.com" />
+          <MRow icon={<Icon name="folder" size={14} />} label="Show in Finder" note="~/git/brand-site" />
+          <MRow icon={<Icon name="tab" size={14} />} label="Worktrees" note="1" sub hl />
+          <span className="k-msep" />
+          <MRow icon={<Icon name="pin" size={14} />} label="Pin to Home" />
+          <MRow label="Remove from list" />
+        </div>
+        <div className="k-menu ac-nh-rsub">
+          <MRow icon={<Icon name="tab" size={14} />} label="logo-v2" note="opened yesterday" />
+        </div>
+      </Col>
+      <Col label="“…” on Website 2027 — your server" w={280}>
+        <div className="k-menu ac-nh-rmenu">
+          <MRow label="Open" keys="↵" />
+          <span className="k-msep" />
+          <span className="k-mgroup">Website 2027</span>
+          <MRow icon={<Face a="server" size="sm" />} label="design.example.com" note="alice@example.com" />
+          <MRow icon={<KeptGlyph size={13} />} label="Kept by Maude" note="this Mac’s copy" />
+          <MRow icon={<Icon name="folder" size={14} />} label="Also in a folder" note="~/git/website-2027" />
+          <span className="k-msep" />
+          <MRow icon={<Icon name="pin" size={14} />} label="Pin to Home" />
+          <MRow label="Remove from list" />
+        </div>
+      </Col>
+    </>
+  );
+}
+
 /* ═══ The canvas ════════════════════════════════════════════════════════════════════════════════ */
 
 export default function AccountsAndConnections() {
@@ -871,6 +1181,53 @@ export default function AccountsAndConnections() {
               </Canvas>
             </Window>
           </Stage>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ── I · Home, decluttered (2.1.2) ─────────────────────────────────────────────────── */}
+      <DCSection id="home-212" title="Home, decluttered — 2.1.2" subtitle="Recent canvases and Projects are the page. Accounts fold into one chip; the top carries only a problem that needs you; a row says name, where it lives, and a state only when something isn’t fine">
+        <DCArtboard id="nh-ok" label="15 · Home — every sign-in works" width={W} height={HT} fixed>
+          <NHomePage note={<Note n={15} title="Nothing above the question when all is well.">Accounts are one chip, top right. Recent canvases and Projects are the page; Pinned joined Recent (the pin is on the card); Shared with you shows only when something is shared. A row: name · where it lives · a state only when it isn’t fine. An account face shows on a row only when this Mac has two Maude Cloud accounts.</Note>} />
+        </DCArtboard>
+        <DCArtboard id="nh-problem" label="16 · Home — one sign-in stopped working" width={W} height={HT} fixed>
+          <NHomePage problem note={<Note n={16} title="One problem, one line, one button.">The banner names the server, what waits on this Mac, and the fix; the chip adds a dot; the rows on that server keep the word while it lasts. Two problems → one banner, “2 sign-ins stopped working”, with Review opening the accounts list. An old server is never a banner.</Note>} />
+        </DCArtboard>
+        <DCArtboard id="nh-accounts" label="17 · The accounts chip, open" width={W} height={H} fixed>
+          <Closeup title="Accounts on this Mac — on demand, from the chip" sub="One line per account: its e-mail, where it is, how many projects. A Maude Cloud project belongs to its Maude Cloud account — never a server card of its own; it shows here by name only when it needs you."
+            note={<Note n={17} title="The fix sits on the thing that broke.">A server sign-in that stopped working puts Sign in again on the account. A Maude Cloud project whose own sign-in stopped working puts it on that project, under its account, and its banner reads “Your sign-in to Portfolio 2026 on Maude Cloud stopped working.” Sign out… is in each account’s “…”.</Note>}>
+            <div className="ac-cols">
+              <Col label="Every sign-in works" w={380}><AcctSum open /><NAcctPop /></Col>
+              <Col label="Your server’s sign-in stopped working" w={380}><AcctSum open problem /><NAcctPop problem /></Col>
+              <Col label="A Maude Cloud project’s sign-in stopped working" w={380}><AcctSum open problem /><NAcctPop cellProblem /></Col>
+            </div>
+          </Closeup>
+        </DCArtboard>
+        <DCArtboard id="nh-old" label="18 · Old servers — folded, opened, Forget" width={W} height={H} fixed>
+          <Closeup title="Servers that don’t answer and hold no projects fold into one line" sub="Folded by default, at the foot of the accounts list. Opened, each server has its own Forget… — one click each, by the person, behind a question. A server that holds a project, or whose sign-in needs you, never folds here."
+            note={<Note n={18} title="Forget removes the saved sign-in, nothing else.">The server and every project stay as they are; signing in again brings the server back. Nothing is forgotten on its own.</Note>}>
+            <div className="ac-cols">
+              <Col label="Folded" w={380}><NAcctPop /></Col>
+              <Col label="Opened" w={380}><NAcctPop oldOpen /></Col>
+              <Col label="Forget… on localhost:8420" w={380}>
+                <Dialog title="Forget this server?" primary="Forget this server" width={380} style={FLOW}>
+                  The saved sign-in for <span className="k-mono">localhost:8420</span> is removed from this Mac. Nothing on the server or in your projects is deleted.
+                </Dialog>
+              </Col>
+            </div>
+          </Closeup>
+        </DCArtboard>
+        <DCArtboard id="nh-row" label="19 · A project row — every state, and its “…” menu" width={W} height={H} fixed>
+          <Closeup title="A row is a name, where the project lives, and a state only when it isn’t fine" sub="Live work (AI working, Needs you) and a broken sign-in are the only states a row shows. The folder path, the copy on this Mac, worktrees and the account moved into “…”."
+            note={<Note n={19} title="A missing folder is one quiet row.">It keeps its name and offers two ways out: Find the folder… or Remove from list. Remove from list takes the project off Home only; nothing on disk changes.</Note>}>
+            <div className="ac-cols">
+              <Col label="Rows — hover shows “…”" w={700}>
+                <div className="ac-nh-list">
+                  {nhRows(true).filter((r) => ["Brand site", "Design system", "Logo ideas", "Portfolio 2026", "Winter catalogue", "Landing 2025"].includes(r.p.name)).map((r) => <NRow key={r.p.name} r={r} hl={r.p.name === "Portfolio 2026"} />)}
+                </div>
+              </Col>
+              <NRowMenus />
+            </div>
+          </Closeup>
         </DCArtboard>
       </DCSection>
     </DesignCanvas>

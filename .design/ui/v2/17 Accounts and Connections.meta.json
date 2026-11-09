@@ -15,6 +15,7 @@
     { "id": "sync", "title": "Sync — a local project" },
     { "id": "settings", "title": "Settings — one column of cards" },
     { "id": "link", "title": "Link your server — one dialog" },
-    { "id": "home", "title": "Home" }
+    { "id": "home", "title": "Home" },
+    { "id": "home-212", "title": "Home, decluttered — 2.1.2" }
   ]
 }
