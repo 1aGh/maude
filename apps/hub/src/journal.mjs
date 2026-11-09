@@ -256,6 +256,17 @@ export function openJournal(
     ).run();
   }
 
+  // 2.1.1 T9 — which peer (token label) wrote a row, for forensics only: never on the wire, never
+  // an authority. Additive: older rows (and every non-door source) stay NULL.
+  if (
+    !db
+      .prepare('PRAGMA table_info(file_journal)')
+      .all()
+      .some((c) => c.name === 'peer')
+  ) {
+    db.exec('ALTER TABLE file_journal ADD COLUMN peer TEXT');
+  }
+
   const getMeta = db.prepare('SELECT v FROM journal_meta WHERE k = ?');
   const setMeta = db.prepare(
     'INSERT INTO journal_meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v'
@@ -294,6 +305,7 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
     latestForPath: db.prepare(
       'SELECT * FROM file_journal WHERE path = ? ORDER BY seq DESC LIMIT 1'
     ),
+    setPeer: db.prepare('UPDATE file_journal SET peer = ? WHERE seq = ?'),
     insert: db.prepare(
       `INSERT INTO file_journal (path, sha256, size, mtime_ms, class, deleted, source, at_ms)
        VALUES (@path, @sha256, @size, @mtime_ms, @class, @deleted, @source, @at_ms)`
@@ -906,6 +918,23 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
      *  on the wire (`toWire` leaves it out on purpose). Null with no row. */
     latestSourceFor(rel) {
       return stmts.latestForPath.get(rel)?.source ?? null;
+    },
+
+    /** The seq of `rel`'s latest row when it is an owner-purge tombstone, else null (T9). */
+    purgeTombstoneSeq(rel) {
+      const row = stmts.latestForPath.get(rel);
+      return row && row.deleted === 1 && row.source === OWNER_PURGE_SOURCE ? row.seq : null;
+    },
+
+    /** Stamp the peer (token label) that wrote row `seq` — forensics only (T9). */
+    notePeer(seq, label) {
+      if (!Number.isInteger(seq) || typeof label !== 'string' || label.length === 0) return;
+      stmts.setPeer.run(label.slice(0, 64), seq);
+    },
+
+    /** The peer label on `rel`'s latest row, or null. Never on the wire. */
+    latestPeerFor(rel) {
+      return stmts.latestForPath.get(rel)?.peer ?? null;
     },
 
     /** Does any row naming this sha still wait for its mirror? (cell pins) */

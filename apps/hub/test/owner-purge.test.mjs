@@ -437,6 +437,110 @@ describe('the door after a purge', () => {
   });
 });
 
+/** A PUT through the file door, as a peer's push sends it. */
+async function peerPut(rel, body, headers = {}, bearer = tokens.member) {
+  const journal = openJournal(dataDir);
+  let status = 0;
+  let text = '';
+  const response = {
+    writeHead: (s) => {
+      status = s;
+      return response;
+    },
+    end: (b) => {
+      text = String(b ?? '');
+    },
+    write: () => true,
+  };
+  await handleFileDoor({
+    request: {
+      headers: { authorization: `Bearer ${bearer}`, ...headers },
+      async *[Symbol.asyncIterator]() {
+        yield Buffer.from(body);
+      },
+    },
+    response,
+    pathname: `/api/file/${rel}`,
+    method: 'PUT',
+    dataDir,
+    secret: SECRET,
+    designRoot,
+    journal,
+    onWritten: ({ path, label }) => {
+      const row = journal.recordWrite({ designRoot, path, source: 'peer-put' });
+      if (row && !row.noop && label) journal.notePeer?.(row.seq, label);
+    },
+  });
+  return { status, json: text ? JSON.parse(text) : null };
+}
+
+describe('a purged path and a stale peer (2.1.1 T9)', () => {
+  // The field shape: an owner purge tombstones a set; a peer that was away, and
+  // whose base predates the purge, later PUTs the same bytes back with
+  // `expect: none` (it read the hub as "never had it"). The door used to take
+  // it — `none` matched the tombstone — and the purge was silently undone.
+  it('refuses a re-put that does not name the purge tombstone, and says so', async () => {
+    seedMany(DELETE_BUDGET_PER_WINDOW + 5);
+    await purgeAll(tokens.owner, { prefix: 'assets/unused/' });
+    const rel = 'assets/unused/f-0003.png';
+    const journal = openJournal(dataDir);
+    const tomb = journal.latestFor(rel);
+    assert.equal(tomb.deleted, true);
+
+    const r = await peerPut(rel, `bytes of ${rel}`, { 'x-maude-expect-hash': 'none' });
+    assert.equal(r.status, 409, JSON.stringify(r.json));
+    assert.equal(r.json.current, null);
+    assert.equal(r.json.deleted, true);
+    assert.equal(r.json.seq, tomb.seq);
+    assert.equal(present(rel), false, 'the purged file stays gone');
+    assert.equal(journal.latestFor(rel).seq, tomb.seq, 'no row appended');
+
+    // An older client sends no precondition at all: refused the same way.
+    const bare = await peerPut(rel, `bytes of ${rel}`);
+    assert.equal(bare.status, 409);
+    assert.equal(present(rel), false);
+  });
+
+  it('takes a new file at a purged path when the peer names the tombstone it saw', async () => {
+    seedMany(3);
+    await purgeAll(tokens.owner, { prefix: 'assets/unused/' });
+    const rel = 'assets/unused/f-0001.png';
+    const journal = openJournal(dataDir);
+    const tomb = journal.latestFor(rel);
+
+    const stale = await peerPut(rel, 'NEW', {
+      'x-maude-expect-hash': 'none',
+      'x-maude-expect-seq': String(tomb.seq - 1),
+    });
+    assert.equal(stale.status, 409, 'a base older than the tombstone is stale');
+
+    const r = await peerPut(rel, 'NEW', {
+      'x-maude-expect-hash': 'none',
+      'x-maude-expect-seq': String(tomb.seq),
+    });
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    assert.equal(readFileSync(join(designRoot, rel), 'utf8'), 'NEW');
+    assert.equal(currentHashFor(journal, rel), sha('NEW'));
+  });
+
+  it('an ordinary member delete keeps today’s create-after-delete', async () => {
+    const rel = seed('assets/plain.png', 'P');
+    const journal = openJournal(dataDir);
+    journal.recordWrite({ designRoot, path: rel, source: 'peer-put', deleted: true });
+    rmSync(join(designRoot, rel));
+    const r = await peerPut(rel, 'P2', { 'x-maude-expect-hash': 'none' });
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+  });
+
+  it('names the peer that wrote a row (forensics, never on the wire)', async () => {
+    const r = await peerPut('assets/labelled.png', 'L', { 'x-maude-expect-hash': 'none' });
+    assert.equal(r.status, 200);
+    const journal = openJournal(dataDir);
+    assert.equal(journal.latestPeerFor('assets/labelled.png'), 'member');
+    assert.equal('peer' in journal.latestFor('assets/labelled.png'), false);
+  });
+});
+
 describe('the hub keeps few confirmations', () => {
   it('a new dry run past the cap spends the oldest confirmation', async () => {
     seedMany(3);

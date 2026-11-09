@@ -717,7 +717,14 @@ export function createHub(config = {}) {
     const rel = typeof info?.path === 'string' ? info.path : null;
     if (journal && journalDesignRoot && rel) {
       try {
-        journal.recordWrite({ designRoot: journalDesignRoot, path: rel, source: 'peer-put' });
+        const row = journal.recordWrite({
+          designRoot: journalDesignRoot,
+          path: rel,
+          source: 'peer-put',
+        });
+        // Which peer wrote it (2.1.1 T9) — forensics only, never on the wire.
+        if (row && !row.noop && typeof info.label === 'string')
+          journal.notePeer(row.seq, info.label);
       } catch (err) {
         // A journal failure must never un-succeed a write that landed. It is
         // loud, and the walk-import reconciler is the backstop that makes it
