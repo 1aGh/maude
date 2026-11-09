@@ -13,6 +13,7 @@ import { createHeldDeletes, heldIncomingDetail } from '../sync/held-deletes.ts';
 
 const ROUTE = '/_api/sync/held-deletes';
 const FROM_WINDOW = { 'sec-fetch-site': 'same-origin' };
+const SHOWN = 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6';
 
 function harness(o: { role?: string; held?: string[] } = {}) {
   const asked: { how: string; folder: string | null }[] = [];
@@ -22,7 +23,9 @@ function harness(o: { role?: string; held?: string[] } = {}) {
     heldDeletes: () => ({ count: 0, paths: [], folders: [] }),
     answerHeldDeletes: () => [],
     endPurge: () => {},
-    answerIncomingDeletes: (how: 'remove' | 'keep', folder: string | null) => {
+    // 2.1.1 T8 — the plane applies an answer only for the set that was shown (`SHOWN`)
+    answerIncomingDeletes: (how: 'remove' | 'keep', folder: string | null, digest: string) => {
+      if (digest !== SHOWN) return null;
       asked.push({ how, folder });
       return held;
     },
@@ -64,7 +67,7 @@ function harness(o: { role?: string; held?: string[] } = {}) {
 describe('the incoming held-delete answer', () => {
   test('Remove here too reaches the plane and starts a pass now', async () => {
     const h = harness();
-    const res = await h.post({ answer: 'remove-here', folder: null });
+    const res = await h.post({ answer: 'remove-here', folder: null, digest: SHOWN });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, how: 'removed', count: 3 });
     expect(h.asked).toEqual([{ how: 'remove', folder: null }]);
@@ -73,7 +76,7 @@ describe('the incoming held-delete answer', () => {
 
   test('Keep them here reaches the plane and starts a pass now', async () => {
     const h = harness();
-    const res = await h.post({ answer: 'keep-here' });
+    const res = await h.post({ answer: 'keep-here', digest: SHOWN });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, how: 'kept-here', count: 3 });
     expect(h.asked).toEqual([{ how: 'keep', folder: null }]);
@@ -81,9 +84,24 @@ describe('the incoming held-delete answer', () => {
 
   test('nothing held is an honest 409, not a success', async () => {
     const h = harness({ held: [] });
-    const res = await h.post({ answer: 'remove-here' });
+    const res = await h.post({ answer: 'remove-here', digest: SHOWN });
     expect(res.status).toBe(409);
     expect((await res.json()).reason).toBe('nothing-held');
+    expect(h.passes()).toBe(0);
+  });
+
+  test('T8: an answer about another set (or none) is `changed`, and nothing is applied', async () => {
+    const h = harness();
+    for (const body of [
+      { answer: 'remove-here', digest: 'ffffffffffffffffffffffffffffffff' },
+      { answer: 'remove-here' },
+      { answer: 'keep-here', digest: 42 },
+    ]) {
+      const res = await h.post(body);
+      expect(res.status).toBe(409);
+      expect((await res.json()).reason).toBe('changed');
+    }
+    expect(h.asked).toEqual([]);
     expect(h.passes()).toBe(0);
   });
 
@@ -112,5 +130,10 @@ describe('the incoming held-delete words', () => {
       '2,630 files deleted by the project in ui/ideas — more than sync removes here without asking. They are still on this Mac. Remove them here too and they go to the trash, or keep them here.'
     );
     expect(heldIncomingDetail(1, [])).toContain('1 file deleted by the project —');
+  });
+  test('T8: a folder name from the project carries no formatting characters into the sentence', () => {
+    const d = heldIncomingDetail(3, [{ folder: 'ui/\u202Eevil\u200B\nname', count: 3 }]);
+    expect(d).toContain('in ui/evilname —');
+    expect(d).not.toMatch(/[\u202E\u200B\n]/);
   });
 });

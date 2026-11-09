@@ -7160,6 +7160,7 @@ export function filePlaneHeld(
       count: result.deleteHeld.count,
       paths: result.deleteHeld.paths,
       ...(result.deleteHeld.folders ? { folders: result.deleteHeld.folders } : {}),
+      ...(result.deleteHeld.digest ? { digest: result.deleteHeld.digest } : {}),
       detail:
         result.deleteHeld.direction === 'out'
           ? // Issue #207 (7b) — the row's two buttons are the answer (Delete on the hub too · Keep on the hub).

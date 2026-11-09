@@ -15260,6 +15260,34 @@
     "notes": "new in v2 (2.1.1 T6)"
   },
   {
+    "hook": "settings-project-unconfirmed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A server address the project names that this Mac never linked: “This project names <host>. Not linked on this Mac.” — neutral, no sign-in.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T8)"
+  },
+  {
+    "hook": "settings-project-review-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Review… on that address: opens the Share sheet’s Connect row (the consent step), never a sign-in.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T8)"
+  },
+  {
     "hook": "settings-project-put-on-cloud",
     "kind": "testid",
     "pattern": false,
@@ -20573,7 +20601,7 @@
     "hook": "share-cluster-account",
     "kind": "testid",
     "pattern": false,
-    "meaning": "2.1.1 T2 (canvas 17 ac-states): the account chip, first in the Share cluster (desktop project tab). The face says the kind — a circle with a letter (Maude Cloud), a server tile (your server), a laptop (this Mac only) — with at most one badge (`share-cluster-account-badge`). `data-kind` = cloud|server|local, `data-conn` = the connection state (connected · syncing · offline · signin-missing · signin-rejected · unreachable · local), `data-account` = the profile id. Opens `account-menu`.",
+    "meaning": "2.1.1 T2 (canvas 17 ac-states): the account chip, first in the Share cluster (desktop project tab). The face says the kind — a circle with a letter (Maude Cloud), a server tile (your server), a laptop (this Mac only) — with at most one badge (`share-cluster-account-badge`). `data-kind` = cloud|server|local, `data-conn` = the connection state (connected · syncing · offline · signin-missing · signin-rejected · unreachable · unconfirmed · local), `data-account` = the profile id. Opens `account-menu`.",
     "producer": {
       "file": "apps/studio/client/v2/shell/project-account-card.jsx",
       "symbol": "AccountChip"
@@ -34163,7 +34191,7 @@
     "hook": "link-server-confirm",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The confirm step: the server already holds work; what syncing this folder with it would do, in counts (B5). Nothing is linked yet.",
+    "meaning": "The confirm step: the server already holds work; what syncing this folder with it would do, in counts (B5) — or (T8, data-empty=\"true\") the first link to a server this Mac never linked that holds nothing: what goes up. Nothing is linked yet.",
     "producer": {
       "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
       "symbol": "LinkServerDialog"
@@ -34171,6 +34199,21 @@
     "region": "other",
     "consumers": [
       "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-first-lead",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "T8: the empty first link's one line — “<n> canvases and <m> files will go to <host>.”",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:t8-link-server-first"
     ],
     "v2": "new"
   },

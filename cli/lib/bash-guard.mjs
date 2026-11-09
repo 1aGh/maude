@@ -604,6 +604,18 @@ const HUMAN_ONLY_ROUTES = [
     what: 'Link your server',
     why: "it uploads the project to their team server with this Mac's sign-in",
   },
+  // 2.1.1 T8 — a team-server sign-in and saving a team-server credential are the person's acts; the
+  // studio answers them 403 person-only to a key holder (shell/api-key.ts PERSON_ONLY).
+  {
+    re: /\/_api\/hub-signin\/(?:start|check)(?![\w-])/i,
+    what: 'Sign in to your server',
+    why: 'it signs this Mac in to a team server and stores that sign-in',
+  },
+  {
+    re: /\/_api\/hub\/link(?![\w-])/i,
+    what: 'Save a server sign-in',
+    why: "it stores a team server's credential on this Mac",
+  },
   // V2-8.9 defender M1 (decision maude/v2-8.9-sync-link-confirm-needs-fetch-metadata).
   {
     re: /\/_api\/sync\/link\/confirm(?![\w-])/i,

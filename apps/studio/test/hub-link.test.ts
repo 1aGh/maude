@@ -42,6 +42,12 @@ test('rejects a non-http(s) scheme (no file:/ftp: hub)', async () => {
   expect(existsSync(process.env.HUBS_CONFIG_PATH as string)).toBe(false);
 });
 
+test('T8: refuses cleartext http to a remote host; nothing is stored', async () => {
+  const r = await linkHub({ url: 'http://hub.example.test', token: 'tok' });
+  expect(r.status).toBe(400);
+  expect(existsSync(process.env.HUBS_CONFIG_PATH as string)).toBe(false);
+});
+
 test('rejects a malformed url', async () => {
   const r = await linkHub({ url: 'not a url', token: 'tok' });
   expect(r.status).toBe(400);

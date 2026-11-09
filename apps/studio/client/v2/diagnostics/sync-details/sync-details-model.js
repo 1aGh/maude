@@ -205,6 +205,12 @@ export function syncDetailsModel(
         .filter((f) => f && typeof f.folder === 'string' && isCount(f.count))
         .slice(0, 10)
         .map((f) => ({ folder: f.folder, count: f.count })),
+      // 2.1.1 T8 — the held set this card shows; the answer carries it back (a set that changed
+      // since answers `changed` and nothing is removed)
+      digest:
+        typeof deletesIn.digest === 'string' && /^[0-9a-f]{16,64}$/.test(deletesIn.digest)
+          ? deletesIn.digest
+          : '',
     });
   }
   const purge = files?.deletePurge;

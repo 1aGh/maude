@@ -2835,6 +2835,7 @@ export function createHttp(
     // 2.1.1 — POST /_api/hub/link-folder (routes/hub-link-folder.ts): main origin, window only, on the attach lane.
     hubLinkFolder: {
       designRoot: ctx.paths.designRoot,
+      repoRoot: ctx.paths.repoRoot,
       canvasGroups: () => ctx.cfg.canvasGroups,
       localFormat: () => asFormat(ctx.cfg.formatVersion),
       attachStored: (url) => cloudApi.attachStored(url),

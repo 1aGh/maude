@@ -81,7 +81,11 @@ export function createHubFormatClient(
   return {
     async health() {
       try {
-        const res = await fetchImpl(`${base}/health`, { signal: AbortSignal.timeout(10_000) });
+        // 2.1.1 T8 — never follow a redirect off the server (every call below carries the bearer)
+        const res = await fetchImpl(`${base}/health`, {
+          redirect: 'manual',
+          signal: AbortSignal.timeout(10_000),
+        });
         if (!res.ok) return { ok: false };
         const j = (await res.json()) as {
           formatVersion?: unknown;
@@ -115,6 +119,7 @@ export function createHubFormatClient(
       try {
         const res = await fetchImpl(`${base}${MODE_PATH}`, {
           headers: { authorization: `Bearer ${hub.token}` },
+          redirect: 'manual',
           signal: AbortSignal.timeout(10_000),
         });
         const j = (await res.json().catch(() => null)) as {
@@ -149,6 +154,7 @@ export function createHubFormatClient(
         const res = await fetchImpl(`${base}${MODE_PATH}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', authorization: `Bearer ${hub.token}` },
+          redirect: 'manual',
           // #166 (2.0.4): a dry run here reads only the blockers, so it asks for them alone —
           // the hub's full preview imports (opens) every document. An older hub ignores the flag.
           body: JSON.stringify({
@@ -205,6 +211,7 @@ export function createHubFormatClient(
             formatVersion,
             ...(expectEpoch !== undefined ? { expectEpoch } : {}),
           }),
+          redirect: 'manual',
           signal: AbortSignal.timeout(20_000),
         });
         const j = (await res.json().catch(() => null)) as {

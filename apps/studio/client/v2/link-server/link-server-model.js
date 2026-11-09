@@ -64,6 +64,8 @@ export const LINK_WORDS = {
   confirmLead: (host) =>
     `You’re signed in. ${host} already holds a project, so syncing puts its work and this folder’s together:`,
   confirmFine: 'Nothing is linked or sent until you press Sync this folder.',
+  // 2.1.1 T8 — the first link to a server that holds nothing yet: what goes up, and where
+  firstTitle: (host) => `Send this folder to ${host}?`,
   confirmButton: 'Sync this folder',
   linking: 'Linking…',
 };
@@ -108,6 +110,18 @@ function differOutcome(canvases, files, host) {
   const fileWords = `${host}’s version is used, and this Mac’s is kept beside it as a copy`;
   if (canvases && files) return `for a canvas, ${canvasWords}; for a file, ${fileWords}`;
   return canvases ? canvasWords : fileWords;
+}
+
+/**
+ * 2.1.1 T8 — the first link to a server that holds nothing: one line saying what goes up and where
+ * ("3 canvases and 12 files will go to design.example.com."), from the same counts.
+ */
+export function firstLead(counts, host) {
+  const n = (v) => (Number.isFinite(v) && v > 0 ? v : 0);
+  const up = countOf(n(counts?.canvases?.onlyHere), n(counts?.files?.onlyHere));
+  return up
+    ? `${up} will go to ${host}.`
+    : `This folder is empty. What you add here will go to ${host}.`;
 }
 
 const SCHEME_RE = /^[a-z][a-z0-9+.-]*:\/\//i;
@@ -244,7 +258,13 @@ export function linkReducer(s, a) {
         ...s,
         phase: 'confirm',
         wait: null,
-        confirm: { url: c.url, host: c.host, counts: c.counts ?? null, code: c.code },
+        confirm: {
+          url: c.url,
+          host: c.host,
+          counts: c.counts ?? null,
+          code: c.code,
+          empty: c.empty === true,
+        },
       };
     }
     case 'confirming':

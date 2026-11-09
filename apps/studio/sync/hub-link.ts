@@ -77,6 +77,11 @@ export async function linkHub(body: unknown): Promise<HubLinkResult> {
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
     return bad('The hub address must start with http:// or https://.');
+  // 2.1.1 T8 — the same grammar as every other door (home/hub.ts `hubAddress`): a credential is never
+  // stored for cleartext http to a remote host; http stays for a loopback dev server.
+  if (parsed.protocol === 'http:' && !isLoopbackHostname(parsed.hostname))
+    return bad('The hub address must start with https://.');
+  if (parsed.username || parsed.password) return bad("That doesn't look like a valid hub address.");
 
   const token = b.token.trim();
 
@@ -96,6 +101,9 @@ export async function linkHub(body: unknown): Promise<HubLinkResult> {
     json: { ok: true, url: norm, healthy: probe.ok, version: probe.version ?? null },
   };
 }
+
+const isLoopbackHostname = (h: string) =>
+  h === 'localhost' || h === '[::1]' || /^127(?:\.\d{1,3}){3}$/.test(h);
 
 function bad(error: string): HubLinkResult {
   return { status: 400, json: { ok: false, error } };

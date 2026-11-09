@@ -176,6 +176,8 @@ export interface FilePlaneStatus {
     paths: string[];
     /** Issue #207 (7b) — `delete-out`: the folders the held deletes sit in, largest first. */
     folders?: { folder: string; count: number }[];
+    /** 2.1.1 T8 — `delete-in`: a fingerprint of every held path; the answer carries it back. */
+    digest?: string;
     /** `code-held`: the version of each listed file on the hub (an older hub names none) — the row
      *  shows it and "Adopt as code" sends the sha, so the hub adopts exactly what was shown. */
     files?: { path: string; sha256: string; size: number }[];

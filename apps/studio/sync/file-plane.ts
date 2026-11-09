@@ -486,6 +486,8 @@ export interface FilePlaneResult {
     count: number;
     paths: string[];
     folders?: HeldDeleteFolder[];
+    /** 2.1.1 T8 — incoming: `heldSetDigest` of EVERY held path (the list above is capped) */
+    digest?: string;
   };
   /** Consecutive `reanchor` answers tripped the storm limit; the pass held. */
   reanchorHeld?: true;
@@ -825,6 +827,16 @@ export function summarizeHeldIncoming(
   return summarizeHeldDeletes(waiting);
 }
 
+/**
+ * 2.1.1 T8 — a fingerprint of a held set (sorted paths). Sync details shows a held batch with it and
+ * the person's answer carries it back, so an answer applies only to the set that was on screen.
+ */
+export function heldSetDigest(paths: readonly string[]): string {
+  const h = createHash('sha256');
+  for (const p of [...paths].sort()) h.update(p).update('\n');
+  return h.digest('hex').slice(0, 32);
+}
+
 /** Does `rel` sit in `folder` (or below it)? `null` folder = every held row. */
 export function inHeldFolder(rel: string, folder: string | null): boolean {
   if (folder === null) return true;
@@ -1072,8 +1084,14 @@ export interface FilePlane {
    * 2.1.1 T13 — the person's answer to held incoming deletes (`folder` null = all). `remove`: the
    * next pass quarantines them into `_trash/` in one go, past the breaker. `keep`: they stay on this
    * Mac and are neither removed nor sent back. Returns the paths the answer covered.
+   * 2.1.1 T8 — `digest` is `heldSetDigest` of the set the person was shown: when the held set has
+   * changed since (it grew, a row settled), nothing is applied and the answer is `null`.
    */
-  answerIncomingDeletes(how: 'remove' | 'keep', folder: string | null): string[];
+  answerIncomingDeletes(
+    how: 'remove' | 'keep',
+    folder: string | null,
+    digest: string
+  ): string[] | null;
 }
 
 export function createFilePlane(opts: FilePlaneOptions): FilePlane {
@@ -2934,6 +2952,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           count: all.count,
           paths: all.paths.slice(0, 200),
           folders: all.folders.slice(0, 20),
+          digest: heldSetDigest(all.paths),
         };
       }
       work = work.filter((w) => !hits.includes(w));
@@ -3714,10 +3733,11 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     heldIncomingDeletes() {
       return summarizeHeldIncoming(ledger.rows(), acceptedIncoming);
     },
-    answerIncomingDeletes(how, folder) {
-      const rels = summarizeHeldIncoming(ledger.rows(), acceptedIncoming).paths.filter((r) =>
-        inHeldFolder(r, folder)
-      );
+    answerIncomingDeletes(how, folder, digest) {
+      const all = summarizeHeldIncoming(ledger.rows(), acceptedIncoming).paths;
+      // 2.1.1 T8 — the answer covers exactly the set the person saw, or nothing
+      if (digest !== heldSetDigest(all)) return null;
+      const rels = all.filter((r) => inHeldFolder(r, folder));
       for (const rel of rels) {
         if (how === 'remove') acceptedIncoming.add(rel);
         else ledger.setState(rel, 'kept-here', { reason: KEPT_HERE_REASON });

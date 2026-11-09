@@ -785,20 +785,23 @@ export function createCloudEndpoints(ctx: Ctx) {
    * opened (attacker pass 2026-08-04, B2). A stored hub credential for that
    * address is the corroboration, because only a real sign-in writes one.
    */
-  function readLinkedHub(): { url: string; credentialed: boolean } | null {
+  function readLinkedHub(): { url: string; credentialed: boolean; confirmed: boolean } | null {
     try {
       const cfg = JSON.parse(readFileSync(join(ctx.paths.designRoot, 'config.json'), 'utf8'));
       const url = cfg?.linkedHub?.url;
       if (typeof url !== 'string' || !url) return null;
       let credentialed = false;
       // gate-b-sec4 — a link this Mac never made vouches for nothing and is sent nothing.
-      if (ctx.unconfirmedHub) return { url, credentialed: false };
+      // 2.1.1 — and the page hears so (`confirmed: false`). `confirmed` comes from THIS Mac's link
+      // record (the boot verdict that parked the claim), never from the repo, so an address this Mac
+      // never confirmed is never worded as a sign-in to repair.
+      if (ctx.unconfirmedHub) return { url, credentialed: false, confirmed: false };
       try {
         credentialed = !!getHubToken(normalizeUrl(url));
       } catch {
         /* unreadable credential store → treat as uncorroborated */
       }
-      return { url, credentialed };
+      return { url, credentialed, confirmed: true };
     } catch {
       return null; // absent/malformed → simply not linked
     }

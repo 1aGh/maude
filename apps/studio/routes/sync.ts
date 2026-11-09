@@ -7,7 +7,7 @@
 //                              uses that will not reach the workspace, each with its reason; a disk read)
 //   POST /_api/sync/code-consent/set  { allow } → { ok, consent } · 403 window-only / read-only ·
 //                              409 not-linked / not-signed-in / cell
-//   POST /_api/sync/held-deletes  { answer: delete|keep|remove-here|keep-here, folder? } → { ok, how, count } · 403
+//   POST /_api/sync/held-deletes  { answer: delete|keep|remove-here|keep-here, folder?, digest? } → { ok, how, count } · 403
 //                              window-only / read-only / not-owner · 409 not-linked / nothing-held / busy
 //   POST /_api/sync/adopt-held  { path, sha256 } → { ok } · 403 window-only / read-only / not-owner ·
 //                              409 not-linked / not-held / changed / update / unreachable (#167 T5.3,
@@ -362,7 +362,11 @@ export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
           answer === 'remove-here' || answer === 'keep-here'
             ? await control.answerIncoming(
                 answer === 'remove-here' ? 'remove' : 'keep',
-                folder as string | null
+                folder as string | null,
+                // 2.1.1 T8 — the set the person was shown; a missing or stale one answers `changed`
+                typeof (body as { digest?: unknown } | null)?.digest === 'string'
+                  ? String((body as { digest: string }).digest).slice(0, 128)
+                  : ''
               )
             : await control.answer(answer, folder as string | null);
         if (r.ok) return json(200, r);

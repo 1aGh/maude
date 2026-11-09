@@ -2,11 +2,14 @@
 // is it? (canvas 17 · ac-states). PURE: one place derives the state the account chip's badge, the save
 // word, the avatar menu's project block and the once-per-session toast all say.
 //
-// Seven states, from what the page already holds — no new server signal:
+// Eight states, from what the page already holds:
 //   local            no `linkedHub` in this folder: nothing leaves this Mac (a plain laptop, never a badge)
-//   signin-missing   the folder names a server (`linkedHub.url`) and this Mac holds no sign-in for it
-//                    (`/_api/cloud/status` `linkedHub.credentialed === false` — also a link this Mac never
-//                    made, gate-b-sec4: it vouches for nothing until someone signs in)
+//   unconfirmed      the folder NAMES a server this Mac never linked or confirmed (`/_api/cloud/status`
+//                    `linkedHub.confirmed === false`, from this Mac's link record — gate-b-sec4 parked it).
+//                    A committed address is a peer's text: no toast, no badge, no prefilled sign-in — only
+//                    a neutral line and Review…, which opens the Share sheet's Connect (the consent step).
+//   signin-missing   a server this Mac linked (`confirmed`) and holds no sign-in for
+//                    (`linkedHub.credentialed === false`)
 //   signin-rejected  the server refuses the sign-in this Mac holds: the accepted lane's
 //                    `accepted.credentialRefused` (sync/status.ts), or every document refused with
 //                    `invalid-token` (DDR-102's own classification, sync/index.ts `AuthFailureClass`)
@@ -28,6 +31,7 @@ export const CONNECTION_STATES = Object.freeze([
   'signin-missing',
   'signin-rejected',
   'unreachable',
+  'unconfirmed',
   'local',
 ]);
 
@@ -60,13 +64,14 @@ export function signInRefused(syncStatus) {
 }
 
 /**
- * @param in.linkedHub   `/_api/cloud/status` `linkedHub` — `{ url, credentialed }` or null
+ * @param in.linkedHub   `/_api/cloud/status` `linkedHub` — `{ url, credentialed, confirmed }` or null
  * @param in.cloudUrl    the Maude Cloud address this Mac signs in against (tells cloud from your server)
  * @param in.syncStatus  the shell's raw sync status (the hub monitor + the accepted lane)
  * @param in.phase       syncPresentation(syncStatus).phase, or null
  * @param in.pending     changes still going out (queued ops + the outbox)
  * @param in.online      false only when the browser says there is no network
  * @returns {{ state, kind: 'cloud'|'server'|'local', host: string|null, url: string|null,
+ *             (an unconfirmed claim is kind 'local' — nothing leaves this Mac — with the named host)
  *             badge: 'broken'|'warn'|'grey'|'ring'|null }}
  */
 export function connectionState(input = {}) {
@@ -80,6 +85,9 @@ export function connectionState(input = {}) {
   } = input ?? {};
   const url = str(linkedHub?.url);
   if (!url) return { state: 'local', kind: 'local', host: null, url: null, badge: null };
+  // An address this Mac never confirmed: what the repo says, worded as such — never as a repair.
+  if (linkedHub?.confirmed === false)
+    return { state: 'unconfirmed', kind: 'local', host: hostOf(url) || null, url, badge: null };
   const kind = isCloudHub(url, cloudUrl) ? 'cloud' : 'server';
   const host = hostOf(url) || url;
   const out = (state, badge) => ({ state, kind, host, url, badge });
@@ -149,6 +157,14 @@ export function connectionWords(c, { pending = 0 } = {}) {
       };
     case 'connected':
       return { word: 'Saved', icon: 'cloud', tone: '', line: 'Connected', fix: null };
+    case 'unconfirmed':
+      return {
+        word: 'Not linked on this Mac',
+        icon: 'laptop',
+        tone: '',
+        line: `This project names ${c.host || 'a server'}. Not linked on this Mac.`,
+        fix: { id: 'review-link', label: 'Review…' },
+      };
     default:
       return {
         word: 'Only on this Mac',

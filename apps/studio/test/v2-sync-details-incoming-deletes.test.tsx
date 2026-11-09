@@ -37,14 +37,17 @@ const status = (files: Record<string, unknown>) => ({
   url: 'https://hub.test',
   files: { synced: 120, pulled: 0, conflicts: 0, ...files },
 });
+/** 2.1.1 T8 — the held set's fingerprint the card shows and its answer carries back. */
+const SHOWN = 'a'.repeat(32);
 /** The held row the runtime builds from a pass that held 2 630 incoming deletes. */
-const heldRow = () =>
+const heldRow = (digest = SHOWN) =>
   filePlaneHeld({
     deleteHeld: {
       direction: 'in',
       count: 2630,
       paths: [`${FOLDER}/0001.png`],
       folders: [{ folder: FOLDER, count: 2630 }],
+      digest,
     },
   } as never);
 
@@ -105,7 +108,10 @@ test('Remove here too sends remove-here and says the files are moving to the tra
   await mount({ status: status({ held: heldRow() }), fetchImpl: f });
   await click('sync-deletes-incoming-remove');
   expect(calls).toEqual([
-    { url: '/_api/sync/held-deletes', body: { answer: 'remove-here', folder: null } },
+    {
+      url: '/_api/sync/held-deletes',
+      body: { answer: 'remove-here', folder: null, digest: SHOWN },
+    },
   ]);
   expect(q('sync-deletes-incoming-said')?.textContent).toBe(
     'Removing 2,630 files. They’re moving to the trash.'
@@ -118,7 +124,7 @@ test('Keep them here sends keep-here and says nothing is sent back', async () =>
   const { f, calls } = fakeFetch({ ok: true, how: 'kept-here', count: 2630 });
   await mount({ status: status({ held: heldRow() }), fetchImpl: f });
   await click('sync-deletes-incoming-keep');
-  expect(calls[0]?.body).toEqual({ answer: 'keep-here', folder: null });
+  expect(calls[0]?.body).toEqual({ answer: 'keep-here', folder: null, digest: SHOWN });
   expect(q('sync-deletes-incoming-said')?.textContent).toBe(
     'Kept here. 2,630 files stay on this Mac and aren’t sent back.'
   );
@@ -136,4 +142,34 @@ test('a refused answer reads the honest reason and the answers stay offered', as
   );
   expect(q('sync-deletes-incoming-keep')).not.toBeNull();
   expect(heldIncomingWords(null)).toBe('That didn’t work. Nothing was removed.');
+});
+
+test('T8: a held set that changed since answers `changed`; the next status draws a fresh card', async () => {
+  const { f } = fakeFetch(
+    {
+      ok: false,
+      reason: 'changed',
+      detail: 'The list changed. Nothing was removed — look at it again.',
+    },
+    409
+  );
+  await mount({ status: status({ held: heldRow() }), fetchImpl: f });
+  await click('sync-deletes-incoming-remove');
+  expect(q('sync-deletes-incoming-said')?.textContent).toBe(
+    'The list changed. Nothing was removed — look at it again.'
+  );
+  expect(q('sync-deletes-incoming-remove')).not.toBeNull();
+  // the runtime reports the new set: a new card, its words start over
+  await act(async () => {
+    root?.render(
+      <SyncDetails
+        project="StudyFi"
+        {...({ status: status({ held: heldRow('b'.repeat(32)) }), fetchImpl: f } as never)}
+      />
+    );
+  });
+  expect(q('sync-deletes-incoming-said')).toBeNull();
+  expect(syncDetailsModel(status({ held: heldRow('b'.repeat(32)) })).needs[0]?.digest).toBe(
+    'b'.repeat(32)
+  );
 });

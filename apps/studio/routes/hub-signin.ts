@@ -23,6 +23,8 @@
 // A cell never serves these (apps/hub/src/studio-manifest.mjs: REFUSED) — a cell holds no team
 // server credential of its own.
 
+import { isHomePort, isLoopbackAddress, isTokenBridgePort } from '../bin/_curl-local.mjs';
+import { classifyAddress } from '../bin/_fetch-asset.mjs';
 import { createHomeHub, hubAddress, hubInviteToken } from '../home/hub.ts';
 import {
   createHubBrowserSignIn,
@@ -39,6 +41,37 @@ export interface HubSigninRouteDeps {
   restartSync?: () => Promise<unknown> | undefined;
   /** The address check's network seam (tests); default `fetch`. */
   fetchImpl?: typeof fetch;
+  /** 2.1.1 T8 — a loopback port the check never reaches (default: the app's Home server and token
+   *  bridge, from the app-owned run files — the same ports the loopback helper refuses). */
+  refusedLocalPort?: (port: number) => boolean;
+}
+
+/**
+ * 2.1.1 T8 — where the address check never sends its GET: an IP literal in a private, link-local or
+ * reserved range, and, on loopback, this Mac's own app services (Home, the token bridge). A loopback
+ * team server for local development stays allowed. Host NAMES are not resolved here (no DNS lookup on
+ * a person's keystroke); the check reflects only `{ ok, version }`. Returns a refusal reason or null.
+ */
+export function checkTargetRefusal(
+  url: string,
+  refusedLocalPort: (port: number) => boolean = (p) => isHomePort(p) || isTokenBridgePort(p)
+): string | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return 'bad-address';
+  }
+  const host = u.hostname.replace(/^\[|\]$/g, '');
+  const loopback = host === 'localhost' || isLoopbackAddress(host);
+  if (loopback) {
+    const port = Number(u.port || (u.protocol === 'https:' ? 443 : 80));
+    return refusedLocalPort(port) ? 'local-service' : null;
+  }
+  const reason = classifyAddress(host);
+  // a public IP literal and every host name pass; any classified range is refused
+  if (reason === null || reason === 'not an ip address') return null;
+  return 'private-address';
 }
 
 async function body(req: Request): Promise<Record<string, unknown>> {
@@ -126,7 +159,14 @@ export function createHubSigninRoutes(deps: HubSigninRouteDeps = {}): RouteSpec[
       origin: 'main',
       readOnly: 'allowed',
       async handle(req) {
-        const r = await checker.test(await body(req));
+        const b = await body(req);
+        const a = hubAddress(b.url);
+        if (a.ok && checkTargetRefusal(a.url, deps.refusedLocalPort))
+          return json(
+            { ok: false, reason: 'bad-address', error: "That isn't a team server address." },
+            400
+          );
+        const r = await checker.test(b);
         return json(r.body, r.status);
       },
     },
