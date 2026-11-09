@@ -54,6 +54,7 @@ import {
 import { commentKey } from './comment-identity.ts';
 import type { CommentLedger } from './comment-ledger.ts';
 import { hashBytes } from './echo-guard.ts';
+import { cleanFolderName } from './held-deletes.ts';
 import type { SyncJournal } from './journal.ts';
 import type { DocProjection, ProjectionPaths, ProposalLane } from './projection.ts';
 import { readRecoveryBody, readRecoveryCandidate, saveRecoveryBody } from './source-recovery.ts';
@@ -463,11 +464,15 @@ const SET_ASIDE_WORDS: Partial<Record<ProposalLane, string>> = {
 
 /** S1 — the Sync notice for lanes set aside at cold start (CONTRACT §3–§4 voice). */
 export function setAsideNotice(rel: string, slug: string, lanes: readonly ProposalLane[]): string {
+  // 2.1.1 N6 — the name can come from the server: no bidi/format/control characters in the sentence
   const name =
-    rel
-      .split('/')
-      .pop()
-      ?.replace(/\.tsx$/i, '') || rel;
+    cleanFolderName(
+      rel
+        .split('/')
+        .pop()
+        ?.replace(/\.tsx$/i, '') ?? ''
+    ) || cleanFolderName(rel);
+  slug = cleanFolderName(slug);
   const words = lanes.map((l) => SET_ASIDE_WORDS[l] ?? l);
   const list =
     words.length > 1 ? `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}` : words[0];
