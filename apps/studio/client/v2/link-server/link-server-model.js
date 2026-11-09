@@ -86,15 +86,28 @@ export function confirmLines(counts, host) {
   const n = (v) => (Number.isFinite(v) && v > 0 ? v : 0);
   const lines = [];
   const up = countOf(n(c.onlyHere), n(f.onlyHere));
-  if (up) lines.push({ id: 'here', text: `${up} only on this Mac — they go up to ${host}` });
+  if (up) lines.push({ id: 'here', text: `${up} only on this Mac — sent up to ${host}` });
   const down = countOf(n(c.onlyThere), n(f.onlyThere));
-  if (down)
-    lines.push({ id: 'there', text: `${down} only on ${host} — they come down to this folder` });
+  if (down) lines.push({ id: 'there', text: `${down} only on ${host} — copied to this folder` });
+  // S1 (2.1.1, measured against a real server): a canvas on both sides keeps this Mac's source
+  // until the person picks a version (a held conflict), and the comments and sticky notes of both
+  // sides are kept; a file on both sides takes the server's bytes and keeps this Mac's beside it.
   const both = countOf(n(c.differ), n(f.differ));
-  if (both) lines.push({ id: 'differ', text: `${both} on both, but different` });
+  if (both)
+    lines.push({
+      id: 'differ',
+      text: `${both} on both, but different — ${differOutcome(n(c.differ), n(f.differ), host)}`,
+    });
   const same = countOf(n(c.same), n(f.same));
-  if (same) lines.push({ id: 'same', text: `${same} already the same on both` });
+  if (same) lines.push({ id: 'same', text: `${same} already the same on both — nothing changes` });
   return lines;
+}
+
+function differOutcome(canvases, files, host) {
+  const canvasWords = 'this Mac keeps its version until you choose which to keep';
+  const fileWords = `${host}’s version is used, and this Mac’s is kept beside it as a copy`;
+  if (canvases && files) return `for a canvas, ${canvasWords}; for a file, ${fileWords}`;
+  return canvases ? canvasWords : fileWords;
 }
 
 const SCHEME_RE = /^[a-z][a-z0-9+.-]*:\/\//i;
