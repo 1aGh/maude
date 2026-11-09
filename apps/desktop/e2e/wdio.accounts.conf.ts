@@ -267,7 +267,11 @@ process.env.MAUDE_CLOUD_URL = WORLD.cloud;
 // once, in the launcher: a worker evaluates this file again a minute later and must keep the launcher's dir
 if (!process.env.MAUDE_E2E_RUN_DIR?.includes('/scenario-runs/accounts/')) {
   const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');
-  process.env.MAUDE_E2E_RUN_DIR = resolve(HERE, '../../../.ai/device/scenario-runs/accounts', stamp);
+  process.env.MAUDE_E2E_RUN_DIR = resolve(
+    HERE,
+    '../../../.ai/device/scenario-runs/accounts',
+    stamp
+  );
 }
 // The first spec's world before the service's onPrepare spawns the first app (the base module set the fixture).
 aimAt(process.env.MAUDE_E2E_ACCOUNTS_ONLY || SPECS[0]);
