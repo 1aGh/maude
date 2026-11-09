@@ -943,12 +943,17 @@ pub fn bind_chosen(app: &tauri::AppHandle, root: &str, id: &str) -> Result<(), S
 /// changes, and the caller restarts the project's server onto it (env is never hot-swapped).
 /// Ok(true) = rebound; Ok(false) = it already uses that account. Never a worktree tab (#206 §5).
 /// Socket-free, against an explicit registry, so it is testable without a keychain.
+///
+/// 2.1.1 review M1: a switch to any account other than `default` needs `consent`, proof that the
+/// person allowed it on a surface the page can't drive (`profiles::use_account_flow`). Without it
+/// the binding is refused; `default` only drops access and needs none.
 pub(crate) fn use_account(
     st: &mut AppState,
     registry: &Path,
     root: &str,
     id: &str,
     now: u64,
+    consent: Option<profiles::SwitchConsent>,
 ) -> Result<bool, String> {
     if let Some(words) = st.worktree_sign_in_refusal(root) {
         return Err(words);
@@ -960,14 +965,61 @@ pub(crate) fn use_account(
     if st.profile_for(root) == id {
         return Ok(false);
     }
+    if id != profiles::DEFAULT_ID && consent.is_none() {
+        return Err(profiles::SWITCH_CANCELLED.to_string());
+    }
     st.bind(root, id, now);
     Ok(true)
 }
 
+/// M1: what `use_account` will need, read before anything is asked: nothing (`Already`), no
+/// question (`NoAsk`, the way back to `default`), or the person's yes for `account` (the name the
+/// native question shows; a trusted surface, so the real e-mail or label). Same refusals as
+/// `use_account`, so a worktree tab or an unknown id never raises a question.
+pub(crate) fn use_account_plan(
+    st: &AppState,
+    registry: &Path,
+    root: &str,
+    id: &str,
+) -> Result<profiles::SwitchPlan, String> {
+    if let Some(words) = st.worktree_sign_in_refusal(root) {
+        return Err(words);
+    }
+    profiles::validate_id(id)?;
+    let Some(p) = profiles::list_in(registry).into_iter().find(|p| p.id == id) else {
+        return Err("That account isn't on this Mac.".to_string());
+    };
+    if st.profile_for(root) == id {
+        return Ok(profiles::SwitchPlan::Already);
+    }
+    if id == profiles::DEFAULT_ID {
+        return Ok(profiles::SwitchPlan::NoAsk);
+    }
+    let account = p
+        .cloud_email
+        .filter(|e| !e.trim().is_empty())
+        .unwrap_or(p.label);
+    Ok(profiles::SwitchPlan::Ask { account })
+}
+
+/// `use_account_plan` against the app state on disk and the real registry.
+pub fn use_account_plan_app(
+    app: &tauri::AppHandle,
+    root: &str,
+    id: &str,
+) -> Result<profiles::SwitchPlan, String> {
+    use_account_plan(&load(app), &profiles::registry_file(), root, id)
+}
+
 /// `use_account` through the app-state lock, against the real registry.
-pub fn use_account_app(app: &tauri::AppHandle, root: &str, id: &str) -> Result<bool, String> {
+pub fn use_account_app(
+    app: &tauri::AppHandle,
+    root: &str,
+    id: &str,
+    consent: Option<profiles::SwitchConsent>,
+) -> Result<bool, String> {
     let registry = profiles::registry_file();
-    update(app, |st, now| use_account(st, &registry, root, id, now))
+    update(app, |st, now| use_account(st, &registry, root, id, now, consent))
 }
 
 /// `AppState::bind_managed` through the lock. The profile must be valid and
@@ -1478,17 +1530,48 @@ pub(crate) mod tests {
         let a = "/v238/t4use/a";
         let other = profiles::create_in(&reg, "hello@brightside.example").unwrap().id;
         let before = ids(&reg);
-        assert!(use_account(&mut st, &reg, a, &other, 2).unwrap(), "A is rebound");
+        let yes = || Some(profiles::SwitchConsent::for_test());
+        assert!(use_account(&mut st, &reg, a, &other, 2, yes()).unwrap(), "A is rebound");
         assert_eq!(st.profile_for(a), other);
         assert_eq!(st.profile_for("/v238/t4use/b"), shared, "B keeps its account");
         assert_eq!(ids(&reg), before, "no profile is made");
         // The same account again: nothing changes.
-        assert!(!use_account(&mut st, &reg, a, &other, 3).unwrap());
-        // "No account — this Mac only" is `default`, always there: the way back.
-        assert!(use_account(&mut st, &reg, a, profiles::DEFAULT_ID, 4).unwrap());
+        assert!(!use_account(&mut st, &reg, a, &other, 3, yes()).unwrap());
+        // "No account — this Mac only" is `default`, always there: the way back, no question.
+        assert!(use_account(&mut st, &reg, a, profiles::DEFAULT_ID, 4, None).unwrap());
         assert_eq!(st.profile_for(a), profiles::DEFAULT_ID);
         assert!(st.projects[&windows::pid_for_root(a)].bound, "bound by choice");
         assert_eq!(ids(&reg), before);
+    }
+
+    /// 2.1.1 review M1: a page alone can't move its project onto another account. Without the
+    /// person's yes on the native question, `use_account` refuses and nothing is rebound; the way
+    /// back to `default` needs none.
+    #[test]
+    fn switch_to_another_account_needs_the_persons_consent() {
+        let (reg, mut st, shared) = shared_fixture("m1consent");
+        let a = "/v238/m1consent/a";
+        let other = profiles::create_in(&reg, "hello@brightside.example").unwrap().id;
+        let err = use_account(&mut st, &reg, a, &other, 2, None).unwrap_err();
+        assert_eq!(err, profiles::SWITCH_CANCELLED);
+        assert_eq!(st.profile_for(a), shared, "nothing rebound without consent");
+        // The plan says what is needed before anything is asked.
+        assert_eq!(
+            use_account_plan(&st, &reg, a, &other).unwrap(),
+            profiles::SwitchPlan::Ask {
+                account: "hello@brightside.example".into()
+            }
+        );
+        assert_eq!(
+            use_account_plan(&st, &reg, a, &shared).unwrap(),
+            profiles::SwitchPlan::Already
+        );
+        assert_eq!(
+            use_account_plan(&st, &reg, a, profiles::DEFAULT_ID).unwrap(),
+            profiles::SwitchPlan::NoAsk
+        );
+        assert!(use_account(&mut st, &reg, a, profiles::DEFAULT_ID, 3, None).unwrap());
+        assert_eq!(st.profile_for(a), profiles::DEFAULT_ID);
     }
 
     #[test]
@@ -1496,7 +1579,9 @@ pub(crate) mod tests {
         let (reg, mut st, shared) = shared_fixture("t4refuse");
         let a = "/v238/t4refuse/a";
         for bad in ["nope", "../x", "", "Work"] {
-            assert!(use_account(&mut st, &reg, a, bad, 2).is_err(), "{bad:?} is refused");
+            let yes = Some(profiles::SwitchConsent::for_test());
+            assert!(use_account(&mut st, &reg, a, bad, 2, yes).is_err(), "{bad:?} is refused");
+            assert!(use_account_plan(&st, &reg, a, bad).is_err(), "{bad:?} asks nothing");
         }
         assert_eq!(st.profile_for(a), shared, "nothing rebound");
         let base = tmp("t4-wt");
@@ -1504,7 +1589,8 @@ pub(crate) mod tests {
         st.bind(&main.to_string_lossy(), &shared, 1);
         let wt_s = wt.to_string_lossy().into_owned();
         let pids = st.projects.len();
-        assert!(use_account(&mut st, &reg, &wt_s, profiles::DEFAULT_ID, 3).is_err());
+        assert!(use_account(&mut st, &reg, &wt_s, profiles::DEFAULT_ID, 3, None).is_err());
+        assert!(use_account_plan(&st, &reg, &wt_s, profiles::DEFAULT_ID).is_err());
         assert_eq!(st.projects.len(), pids, "a worktree gets no entry of its own");
     }
 

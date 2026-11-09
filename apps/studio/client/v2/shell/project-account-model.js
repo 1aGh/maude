@@ -13,15 +13,18 @@
 //   actions   what this state needs: a local project gets its two ways out (Put on Maude Cloud, Link
 //             your server); a reachable folder Show in Finder; an unreachable server Retry.
 //   switch    "Switch account": the accounts already on this Mac (`accounts_list`, profiles.rs — the
-//             caller's own e-mail only, every other account's label and `signedIn`), "No account — this
-//             Mac only" (the `default` profile), then Add a Maude Cloud account / Sign in with custom
-//             server. Picking one asks first (`switchSheet`) and then `project_use_account` rebinds the
-//             project — nothing is moved or uploaded.
+//             caller's own e-mail only; every other account an alias id, a neutral label such as
+//             "Account 2", `signedIn` and the shell's `tone`), "No account — this Mac only" (the
+//             `default` profile), then Add a Maude Cloud account / Sign in with custom server.
+//             Picking one asks first (`switchSheet`), then `project_use_account`, which for another
+//             account asks the person again in a native dialog before it rebinds the project —
+//             nothing is moved or uploaded.
 
-import { accountTone } from '../../shell/account-tone.js';
+import { ACCOUNT_TONES, accountTone } from '../../shell/account-tone.js';
 import { connectionWords, isBrokenSignIn } from './connection-state.js';
 
 export const DEFAULT_PROFILE = 'default';
+const TONES = new Set(ACCOUNT_TONES);
 const str = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 const initialOf = (s) => (s ? Array.from(s)[0].toUpperCase() : '·');
 
@@ -241,7 +244,9 @@ export function switchList({ accounts = null, profile = null, cloudEmail = null 
       title,
       sub: 'Maude Cloud',
       initial: initialOf(title),
-      tone: accountTone(a.id, str(a.label) || a.id),
+      // The shell's own tone (tabs.rs `account_tone` of the real id): another account's `id` is an
+      // alias and its label may be neutral ("Account 2"), so neither can recompute it (2.1.1 L5).
+      tone: TONES.has(a.tone) ? a.tone : accountTone(a.id, str(a.label) || a.id),
       current: a.id === currentId,
     });
   }
