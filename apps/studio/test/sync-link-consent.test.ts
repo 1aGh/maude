@@ -6,16 +6,7 @@
 // THIS Mac recorded it (sync/link-consent.ts); otherwise the claim is parked and nothing reaches H.
 
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  realpathSync,
-  rmSync,
-  symlinkSync,
-  utimesSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -249,63 +240,60 @@ describe('a committed linkedHub this Mac never linked', () => {
   });
 });
 
-describe('migration — a project already syncing on this Mac keeps syncing', () => {
-  function syncedEarlier(root: string, rel: string, body: Record<string, unknown>): string {
+describe('2.1.1 N1 — runtime files inside the folder never confirm a link', () => {
+  // The boot-time "migrated" lane is retired: whoever made the folder controls its runtime sync
+  // files AND their mtimes (archives restore them), so nothing inside the folder writes a record.
+  // Only a person's link / Connect on this Mac, or the app's own binding, does.
+  function stamped(root: string, rel: string, body: Record<string, unknown>, at: number): void {
     const abs = join(root, '.design', rel);
     mkdirSync(join(abs, '..'), { recursive: true });
     writeFileSync(abs, JSON.stringify(body));
-    const past = new Date(Date.now() - 86_400_000);
-    utimesSync(abs, past, past);
-    return abs;
+    const t = new Date(at);
+    utimesSync(abs, t, t);
+  }
+  const lanes: Array<[string, Record<string, unknown>]> = [
+    ['_sync.json', { url: HUB, state: 'connected' }],
+    ['_state/sync-journal.json', { hubUrl: HUB, updatedAt: 1, slugs: {} }],
+  ];
+  const ages: Array<[string, number]> = [
+    ['older than the store', Date.now() - 400 * 86_400_000],
+    ['newer than the store', Date.now() + 60_000],
+  ];
+
+  for (const [rel, body] of lanes) {
+    for (const [label, at] of ages) {
+      test(`an untracked ${rel} ${label} leaves the claim parked (Review…), no record`, () => {
+        // The store already exists (this build ran before) — the old lane's precondition.
+        writeFileSync(
+          linksPath(),
+          JSON.stringify({ v: 1, since: Date.now() - 86_400_000, links: {} })
+        );
+        const root = folder(`archive-${rel.replace(/\W/g, '')}-${label.split(' ')[0]}`);
+        stamped(root, rel, body, at);
+        const ctx = boot(root);
+        expect(ctx.cfg.linkedHub).toBeUndefined();
+        expect(ctx.unconfirmedHub?.url).toBe(HUB);
+        expect(projectLinkOf(root)).toBeNull();
+        expect(
+          linkConsent({ url: HUB }, { repoRoot: root, designRoot: join(root, '.design') })
+        ).toEqual({ ok: false, reason: 'no-record' });
+      });
+    }
   }
 
-  test('an existing _sync.json for that hub derives the record once, no prompt', () => {
-    const root = folder('paired');
-    syncedEarlier(root, '_sync.json', { url: HUB, state: 'connected' });
+  test('a fresh store (first run of this build) does not honour them either', () => {
+    const root = folder('archive-first-run');
+    stamped(root, '_sync.json', { url: HUB }, Date.now() - 400 * 86_400_000);
+    expect(boot(root).cfg.linkedHub).toBeUndefined();
+    expect(projectLinkOf(root)).toBeNull();
+  });
+
+  test('a record an earlier build already migrated keeps syncing, no prompt', () => {
+    const root = folder('migrated-before');
+    recordProjectLink(root, { url: HUB }, 'migrated');
     const ctx = boot(root);
     expect(ctx.cfg.linkedHub?.url).toBe(HUB);
     expect(ctx.unconfirmedHub).toBeUndefined();
     expect(projectLinkOf(root)).toMatchObject({ hub: HUB, how: 'migrated' });
-  });
-
-  test('the sync journal under _state counts the same way', () => {
-    const root = folder('journal');
-    syncedEarlier(root, '_state/sync-journal.json', { hubUrl: HUB, updatedAt: 1, slugs: {} });
-    expect(boot(root).cfg.linkedHub?.url).toBe(HUB);
-  });
-
-  test('evidence for another hub, evidence newer than the store, or a symlink is not evidence', () => {
-    const a = folder('other-hub');
-    syncedEarlier(a, '_sync.json', { url: 'https://elsewhere.example.com' });
-    expect(boot(a).cfg.linkedHub).toBeUndefined();
-
-    // The store exists from before (this build already ran) — a file written after it is fresh.
-    const b = folder('fresh');
-    writeFileSync(join(b, '.design', '_sync.json'), JSON.stringify({ url: HUB }));
-    const store = JSON.parse(readFileSync(linksPath(), 'utf8'));
-    writeFileSync(linksPath(), JSON.stringify({ ...store, since: Date.now() - 3_600_000 }));
-    expect(boot(b).cfg.linkedHub).toBeUndefined();
-
-    const c = folder('link');
-    const real = syncedEarlier(a, '_state/sync-journal.json', { hubUrl: HUB });
-    mkdirSync(join(c, '.design', '_state'), { recursive: true });
-    symlinkSync(real, join(c, '.design', '_state', 'sync-journal.json'));
-    expect(boot(c).cfg.linkedHub).toBeUndefined();
-  });
-
-  test('a _sync.json the repo itself commits (tracked by git) is not this Mac’s evidence', () => {
-    const root = folder('committed');
-    const abs = syncedEarlier(root, '_sync.json', { url: HUB });
-    const v = linkConsent(
-      { url: HUB },
-      { repoRoot: root, designRoot: join(root, '.design'), tracked: (_r, p) => p === abs }
-    );
-    expect(v).toEqual({ ok: false, reason: 'no-record' });
-    // and with real git: force-added past the ignore rule
-    const run = (...args: string[]) =>
-      Bun.spawnSync(['git', ...args], { cwd: root, stdout: 'ignore', stderr: 'ignore' });
-    run('init', '-q');
-    run('add', '-f', '.design/_sync.json');
-    expect(boot(root).cfg.linkedHub).toBeUndefined();
   });
 });

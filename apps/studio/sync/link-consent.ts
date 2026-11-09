@@ -20,22 +20,16 @@
 // and the app's own managed copies (the desktop passes its registry binding as
 // `MAUDE_APP_BOUND_HUB`, which a repo cannot set).
 //
-// MIGRATION (a project already syncing on this Mac before this shipped keeps syncing, no prompt).
-// The record is derived ONCE from this Mac's own evidence of the link — `_sync.json` (its `url`) or
-// `_state/sync-journal.json` (its `hubUrl`) naming the same hub. Why that is safe:
-//   - both are runtime state, gitignored in every DDR-115 list, so a clone does not carry them;
-//   - a repo that force-adds one anyway is refused: the file must not be tracked by git;
-//   - and it must be OLDER than this store (`since` — stamped the first time this build looked), so
-//     evidence written after the fix (a clone, an unzip with fresh times) never counts. Only a
-//     consented runtime writes either file from now on, and that one already has a record;
-//   - it must be a plain file in a plain `_state/` (no symlink to another project's genuine file).
-// What is NOT closed: an archive that restores backdated mtimes AND carries a forged `_sync.json`,
-// with no `.git`, extracted before this build first ran. Narrow, and the old build trusted it anyway.
+// NO MIGRATION FROM FOLDER CONTENT (2.1.1, N1). Builds before 2.1.1 derived a `migrated` record at
+// boot from the folder's own runtime sync files when their mtime predated this store. Retired:
+// whoever made the folder controls both the files and their timestamps (archives restore stored
+// mtimes), so that lane let folder content say "confirmed". Nothing inside the folder writes a
+// record now. A `migrated` record an earlier build already wrote stays valid (`LinkHow` keeps the
+// value, `matches` honours it like any other); a folder with no record gets the neutral Review…
+// state and one Connect.
 
 import {
   chmodSync,
-  existsSync,
-  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -69,13 +63,12 @@ export interface LinkClaim {
 export interface ConsentOptions {
   /** the folder holding `.design/` — the record's key (by realpath) */
   repoRoot: string;
+  /** kept for callers; nothing under it is read as evidence of a link (N1) */
   designRoot: string;
   /** the store file (default `linksPath()`) */
   file?: string;
   env?: Record<string, string | undefined>;
   now?: () => number;
-  /** is `abs` tracked by git in `repoRoot`? (injected in tests; default runs git) */
-  tracked?: (repoRoot: string, abs: string) => boolean;
 }
 
 export type ConsentVerdict =
@@ -161,7 +154,7 @@ function loadOrInit(file: string, now: number): LinksFile {
   try {
     writeStore(file, fresh);
   } catch {
-    /* unwritable: `since` stays now for this boot, which only narrows migration */
+    /* unwritable: the store is created on the next write */
   }
   return fresh;
 }
@@ -252,63 +245,10 @@ export function forgetFolderEverywhere(
   return n;
 }
 
-function gitTracked(repoRoot: string, abs: string): boolean {
-  try {
-    const r = Bun.spawnSync(['git', 'ls-files', '--error-unmatch', '--', abs], {
-      cwd: repoRoot,
-      stdout: 'ignore',
-      stderr: 'ignore',
-      env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
-    });
-    return r.exitCode === 0;
-  } catch {
-    return false;
-  }
-}
-
-/** A plain file (not a symlink) inside a plain directory chain under `designRoot`. */
-function plainFile(designRoot: string, rel: string): boolean {
-  let cur = designRoot;
-  for (const part of rel.split('/')) {
-    cur = path.join(cur, part);
-    try {
-      if (lstatSync(cur).isSymbolicLink()) return false;
-    } catch {
-      return false;
-    }
-  }
-  return true;
-}
-
-/** This Mac's own pre-fix evidence of syncing `hub` here — see the header for why it is safe. */
-function migrationEvidence(o: ConsentOptions, hub: string, since: number): boolean {
-  const tracked = o.tracked ?? gitTracked;
-  const lanes: Array<[string, string]> = [
-    ['_sync.json', 'url'],
-    ['_state/sync-journal.json', 'hubUrl'],
-  ];
-  for (const [rel, key] of lanes) {
-    const abs = path.join(o.designRoot, rel);
-    if (!existsSync(abs) || !plainFile(o.designRoot, rel)) continue;
-    let named: string | null = null;
-    let mtime = Number.POSITIVE_INFINITY;
-    try {
-      mtime = lstatSync(abs).mtimeMs;
-      named = normHub((JSON.parse(readFileSync(abs, 'utf8')) as Record<string, unknown>)?.[key]);
-    } catch {
-      continue;
-    }
-    if (named !== hub || !(mtime < since)) continue;
-    if (tracked(o.repoRoot, abs)) continue;
-    return true;
-  }
-  return false;
-}
-
 /**
  * May this Mac honour `claim` for this folder? A matching record → yes. Else the app's own binding
- * (`MAUDE_APP_BOUND_HUB`, the desktop registry's managed copy) or this Mac's pre-fix evidence →
- * yes, and the record is written so the question is never asked again. Else no: park the claim.
+ * (`MAUDE_APP_BOUND_HUB`, the desktop registry's managed copy) → yes, and the record is written so
+ * the question is never asked again. Else no: park the claim. Nothing in the folder counts (N1).
  */
 export function linkConsent(claim: LinkClaim, o: ConsentOptions): ConsentVerdict {
   const hub = normHub(claim.url);
@@ -322,10 +262,8 @@ export function linkConsent(claim: LinkClaim, o: ConsentOptions): ConsentVerdict
   // A record for ANOTHER hub is a person's choice on this Mac; a claim that differs from it is not
   // migrated past — it waits for Connect like any other.
   if (rec) return { ok: false, reason: 'other-hub' };
-  let how: LinkHow | null = null;
-  if (normHub(env.MAUDE_APP_BOUND_HUB) === hub) how = 'app';
-  else if (migrationEvidence(o, hub, store.since)) how = 'migrated';
-  if (!how) return { ok: false, reason: 'no-record' };
+  if (normHub(env.MAUDE_APP_BOUND_HUB) !== hub) return { ok: false, reason: 'no-record' };
+  const how: LinkHow = 'app';
   try {
     recordProjectLink(o.repoRoot, claim, how, { file, now: () => now });
   } catch {
