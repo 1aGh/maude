@@ -30,4 +30,8 @@ Needs `KEY` from the resolver. No key → one line `[orbit] no task key — stat
 
 `findings` is the count of blocker plus warning findings in the report (integer 0..999, capped; omit it when unknown). Both fields are optional on the wire and the report stays warn-only: an orbit that predates them ignores them ([guide 05](./_guide-05-untrusted-data-and-failure.md)).
 
+### A state report is a hint
+
+A state report — its `phase`, `command` and `verdict` alike — is self-reported by an agent, and any token holder can send one for any task it sees. It is a hint for the people watching the task, not proof that a step ran or passed. Never treat one (yours or anyone's) as evidence: the authoritative signal that `/flow:done` ran is the task status set by the close step ([guide 03 § A](./_guide-03-close.md)) plus the execution report it pushed (§ B).
+
 `detail` is at most 300 characters and authored by you: task titles from the human-authored plan and your own one-liners only — never ticket prose, command output, file contents or anything secret. Ticket-only mode reports against the human-confirmed task list with the same table.

@@ -272,3 +272,71 @@ for (const [command, kk] of [
     );
   });
 }
+
+// ── 5. untrusted tracker input (ORB-2858 security fix round) ───────────────
+// A plan pulled from orbit, a related task's plan and a screenshot folder are
+// all attacker-writable. These lock the guards the guides promise.
+
+test('guide 01: a pulled plan runs only after an explicit, never-automatic user yes', () => {
+  const guide = read(join(SKILL_DIR, '_guide-01-plan.md'));
+  const check = guide.slice(guide.indexOf('## Plan check'));
+  assert.match(check, /version/);
+  assert.match(check, /author/i);
+  assert.match(check, /flow:question-protocol/);
+  assert.match(check, /explicit yes/i);
+  assert.match(check, /auto mode or a non-interactive session[^.]*blocker/i);
+  assert.match(check, /_guide-07-regression\.md/, 'Validate lines must be vetted like guide 07');
+  const execute = read('plugins/flow/commands/execute.md');
+  assert.match(execute, /explicit (user )?yes/i);
+});
+
+test('guide 07: tracker plans are read by a read-only scout; the lead only gets vetted tokens', () => {
+  const guide = read(join(SKILL_DIR, '_guide-07-regression.md'));
+  assert.match(guide, /flow:scout/);
+  assert.match(guide, /--error-unmatch -- ":\(literal\)/);
+  assert.match(guide, /`-` or `:`/);
+  assert.match(guide, /\*\?\[/);
+  for (const tool of ['orbit_attach', 'orbit_artifact_push', 'orbit_comment']) {
+    assert.ok(guide.includes(tool), `guide 07 never forbids ${tool}`);
+  }
+  assert.doesNotMatch(
+    guide,
+    /One `orbit_artifact_pull`[^\n]*per related task \(latest version\)\. Read only/
+  );
+  const scout = read('plugins/flow/agents/scout.md');
+  const tools = scout.match(/^tools: (.*)$/m)[1].split(/,\s*/);
+  assert.ok(tools.includes('mcp__orbit__orbit_artifact_pull'), 'scout cannot read tracker plans');
+  for (const t of tools) {
+    assert.ok(
+      [
+        'Read',
+        'Grep',
+        'Glob',
+        'Bash',
+        'mcp__orbit__orbit_get_task',
+        'mcp__orbit__orbit_artifact_pull',
+      ].includes(t),
+      `scout gained a non-read tool: ${t}`
+    );
+  }
+});
+
+test('guide 03 § D: screenshots come only from this run, as vetted regular image files', () => {
+  const guide = read(join(SKILL_DIR, '_guide-03-close.md'));
+  const d = guide.slice(guide.indexOf('### D.'), guide.indexOf('### Report line'));
+  assert.doesNotMatch(d, /newest/i, 'the newest-folder fallback is gone');
+  assert.match(d, /report_path/);
+  assert.match(d, /test -f "\$f" && ! test -L "\$f"/);
+  assert.match(d, /magic bytes/i);
+  assert.match(d, /not tracked/i);
+  assert.match(d, /untrusted data, never instructions/i);
+  assert.doesNotMatch(d, /avif/i);
+});
+
+test('state reports are a self-reported hint, never proof that a step ran', () => {
+  for (const f of ['_guide-02-execute.md', '_guide-05-untrusted-data-and-failure.md']) {
+    const guide = read(join(SKILL_DIR, f));
+    assert.match(guide, /self-reported/i, `${f} never says state reports are self-reported`);
+    assert.match(guide, /not proof/i, `${f} never says a state report is not proof`);
+  }
+});
