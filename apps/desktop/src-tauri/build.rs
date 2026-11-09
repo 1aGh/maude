@@ -123,6 +123,9 @@ fn main() {
                 "relink_project",
                 // r1 (img 6): New project › Advanced › "Choose another folder…" (Home only).
                 "pick_project_location",
+                // 2.1.2: a Home project row's "Remove from list" and "Show in Finder" (Home only).
+                "forget_project",
+                "reveal_project_folder",
                 "open_project_folder",
                 // V2-3 patches (windows.rs): one-shot values parked per label.
                 "take_tabs_restored",

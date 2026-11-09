@@ -289,6 +289,11 @@ export function buildHomeModel({
       copies: [],
       folder: (p.root || '').split('/').filter(Boolean).pop() ?? '',
       cover: firstCover(ix),
+      // 2.1.2 — the row's quiet time: the registry's last open, else the newest canvas opened
+      lastOpenedAt:
+        typeof p.lastOpenedAt === 'number' && p.lastOpenedAt > 0
+          ? p.lastOpenedAt
+          : newestOpened(ix),
     };
   });
   allLocal.sort((a, b) => {
@@ -391,13 +396,78 @@ export function buildHomeModel({
     .sort((a, b) => (a.r === b.r ? a.i - b.i : a.r - b.r))
     .map((x) => x.g);
 
+  // 2.1.2 (artboards 15/16/19) — the page's one list: live rows by last use, then the Maude Cloud
+  // projects not on this Mac, then the folders that moved. A row says where it lives in one word and
+  // a state only when it isn't fine; an account's face only when this Mac has two Maude Cloud accounts.
+  const cloudAccounts = new Set(
+    (clouds ?? [])
+      .filter((c) => c?.signedIn && typeof c.profile === 'string')
+      .map((c) => c.account?.email || c.profile)
+  );
+  const faces = cloudAccounts.size >= 2;
+  const slim = (r) => ({ ...r, lives: livesOf(r, faces), flag: flagOf(r) });
+  const projects = [
+    ...localRows.filter((r) => r.status !== 'gone').map(slim),
+    ...cloudRows.map(slim),
+    ...localRows.filter((r) => r.status === 'gone').map((r) => ({ ...r, lives: null, flag: null })),
+  ];
+
+  // 2.1.2 — Pinned joined Recent canvases: the pinned cards first (newest pin), then the opened ones
+  const inFilter = (r) => !filterPid || r.pid === filterPid;
+  const cards = [
+    ...pinned.filter(inFilter),
+    ...opened.filter((r) => r.pinnedAt == null && inFilter(r)),
+  ];
+
   return {
     pinned,
     recent,
+    cards,
     recentProjects,
     groups: ranked,
+    projects,
     projectCount: localRows.length + cloudRows.length,
   };
+}
+
+/** The newest `openedAt` among a project's canvases (the index), or null. */
+function newestOpened(ix) {
+  let at = null;
+  for (const c of ix?.canvases ?? [])
+    if (typeof c?.openedAt === 'number' && (at == null || c.openedAt > at)) at = c.openedAt;
+  return at;
+}
+
+/**
+ * 2.1.2 — where a row lives, in one word: "Maude Cloud" (CONTRACT: the name, never the address),
+ * your server's host, "Your folder" or "Kept by Maude". `face` = the Maude Cloud account's face, only
+ * when `faces` (this Mac has two Maude Cloud accounts).
+ */
+export function livesOf(row, faces = false) {
+  const w = row.where;
+  if (!w) return null;
+  if (w.kind === 'cloud') {
+    const email = row.connection?.account || (w.label !== 'Maude Cloud' ? w.label : null);
+    return {
+      kind: 'cloud',
+      word: 'Maude Cloud',
+      face: faces ? accountFace({ id: row.profile, label: email || '', email: email || '' }) : null,
+    };
+  }
+  return { kind: w.kind, word: w.label, face: null };
+}
+
+/**
+ * 2.1.2 — a row's state, only when it isn't fine: Needs you · a broken sign-in · AI working · (a
+ * Maude Cloud project) Not on this Mac yet. Resting, Offline and an unreachable server say nothing on
+ * a row (the top of the page raises what needs action).
+ */
+export function flagOf(row) {
+  if (row.kind === 'cloud') return { kind: 'away', word: 'Not on this Mac yet' };
+  if (row.ai?.awaiting > 0) return { kind: 'needs', word: 'Needs you' };
+  if (row.conn?.tone === 'bad') return { kind: 'signin', word: row.conn.word };
+  if (row.ai?.running > 0) return { kind: 'ai', word: 'AI working' };
+  return null;
 }
 
 /**
@@ -483,6 +553,45 @@ function collapseDuplicates(rows, cloudUrl) {
     const primary = byReal.get(key);
     if (!primary) byReal.set(key, r);
     else fold(primary, r, 'folder', r.folder || r.name);
+  }
+
+  // (c) 2.1.2 (H1 #3) — a managed copy whose folder is gone is not a row of its own while its project
+  // is still here: a live copy of the same project (profile + hub + project id) hides it; else the ONE
+  // live folder of that profile linking the hub does, when every copy on that hub is of one project
+  // (a folder's linkedHub names no project id, so a hub with copies of two projects cannot be told).
+  // Hidden only — the registry keeps it (Remove from list is the person's click, never ours).
+  for (const c of out) {
+    if (!c.copyOf || live(c) || drop.has(c.pid)) continue;
+    const mine = (x) => x.profile === c.profile && x.boundHub === c.boundHub;
+    const twin = out.find(
+      (x) => x !== c && live(x) && !drop.has(x.pid) && mine(x) && x.copyOf === c.copyOf
+    );
+    if (twin) {
+      drop.add(c.pid);
+      continue;
+    }
+    const ids = new Set(out.filter((x) => x.copyOf && mine(x)).map((x) => x.copyOf));
+    if (ids.size !== 1) continue;
+    const folders = out.filter(
+      (x) =>
+        !x.copyOf && live(x) && !drop.has(x.pid) && x.profile === c.profile && x.hub === c.boundHub
+    );
+    if (folders.length === 1) drop.add(c.pid);
+  }
+
+  // (d) one orphan row per project: gone copies of one project id show once, carrying every pid
+  const orphans = new Map();
+  for (const r of out) {
+    if (live(r) || drop.has(r.pid)) continue;
+    r.pids = [r.pid];
+    if (!r.copyOf) continue;
+    const key = `${r.profile} ${r.boundHub} ${r.copyOf}`;
+    const first = orphans.get(key);
+    if (!first) orphans.set(key, r);
+    else {
+      first.pids.push(r.pid);
+      drop.add(r.pid);
+    }
   }
   return out.filter((r) => !drop.has(r.pid));
 }

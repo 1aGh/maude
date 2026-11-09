@@ -36,13 +36,14 @@ import {
   prepareCloud,
   prepareCloudLink,
   relinkProject,
+  revealProjectFolder,
+  forgetProject,
   saveRecentSearch,
   search,
   setPin,
   shellListen,
   shellState,
   takePendingDeepLink,
-  thumbObjectUrl,
 } from './home-api.js';
 import { homeBootConfig } from './shell-mode.js';
 import { parseMaudeLink } from '../share-link.js';
@@ -60,19 +61,13 @@ import { HomeAsk } from './HomeAsk.jsx';
 import { HOME_MENU, homeMenuCtx, homeMenuState } from './home-menu.js';
 import { InviteSheet } from './InviteSheet.jsx';
 import { INVITE_WORDS, joinPendingAndOpen, useInviteFlow } from './invite-flow.js';
-import { HIcon, HMark, HSpark, ProjectSquare } from './home-icons.jsx';
+import { HIcon, HSpark, ProjectSquare } from './home-icons.jsx';
 import { HomeAccountBanner } from './HomeAccountBanner.jsx';
 import { HomeAccountsChip } from './HomeAccountsChip.jsx';
-import { AcctFace, StateWord, WhereChip } from './HomeConnection.jsx';
 import { homeAccountBanner, homeAccountCards, homeAccountsSummary } from './home-accounts-model.js';
 import { useAccountFix } from './use-account-fix.js';
 import {
-  accountFace,
   buildHomeModel,
-  canvasCount,
-  cloudRoleWord,
-  ownerWord,
-  capProjectGroups,
   defaultTarget,
   indexQuery,
   invitedRows,
@@ -87,7 +82,7 @@ import {
 } from './home-model.js';
 import { pickStarters } from './home-starters.js';
 import { NewProjectButton, ProjectsEmpty, SharedWithYou } from './Shelves.jsx';
-import { reasonProps } from '../v2/access/disabled-reason.js';
+import { ProjectList, Thumb } from './ProjectRows.jsx';
 
 // ── theme: the Home window follows the Mac's appearance (light is the v2 default) ──────────────
 // S6.9 — every row of the Advanced options flyout now opens its sheet
@@ -360,8 +355,8 @@ function useOnline() {
 // "Shared with you" rows already opened on this Mac (they stop counting as "new this week"). A per-Mac
 // convenience, so Home's own storage is enough; it renders correctly without it.
 const SEEN_KEY = 'maude-home-shared-seen';
-// 11 pn-home: the Projects list draws this many rows, then "N more" (the board: five of twenty)
-const PROJECTS_SHOWN = 6;
+// 11 pn-home: the Projects list draws this many rows, then "N more"; 2.1.2 (artboard 15) slim rows show ten
+const PROJECTS_SHOWN = 10;
 function readSeen() {
   try {
     const v = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]');
@@ -386,7 +381,6 @@ export function HomeApp() {
   // Recent canvases are one row of six with a "See all" (pn-home); Projects: find + sort (pn-projlist)
   const [recentAll, setRecentAll] = useState(false);
   const [projFind, setProjFind] = useState('');
-  const [projSort, setProjSort] = useState('recent');
   const [projAll, setProjAll] = useState(false);
   const [notice, setNotice] = useState(null);
   const [link, setLink] = useDeepLink(data.native);
@@ -664,6 +658,29 @@ export function HomeApp() {
     async (pid) => {
       try {
         await relinkProject(pid);
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [fail]
+  );
+
+  // 2.1.2 — a row's "Show in Finder" and "Remove from list" (after the row's confirm). Rust takes each
+  // pid off this Mac's list and says so on `shell://state`; nothing on disk changes.
+  const reveal = useCallback(
+    async (pid) => {
+      try {
+        await revealProjectFolder(pid);
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [fail]
+  );
+  const forget = useCallback(
+    async (pids) => {
+      try {
+        for (const pid of pids) await forgetProject(pid);
       } catch (e) {
         fail(e);
       }
@@ -974,23 +991,20 @@ export function HomeApp() {
     [askNewProject, openFolder, startEmpty, whatsNew.open]
   );
 
-  const hasProjects = model.groups.some((g) => g.rows.length);
-  // Find a project + the sort (pn-home Projects): by name as typed, Recent keeps the model's order
-  const { projGroups, projMore } = useMemo(() => {
+  const hasProjects = model.projects.length > 0;
+  // Find a project (pn-home Projects) by name as typed; the list keeps the model's order (last used first).
+  // 2.1.2 (artboard 15): one flat list — no account headers and no sort; a row wears its account's face.
+  const { projRows, projMore } = useMemo(() => {
     const q = projFind.trim().toLowerCase();
-    const byName = (a, b) => String(a.name).localeCompare(String(b.name));
-    const all = model.groups
-      .map((g) => {
-        const rows = g.rows.filter((r) => !q || String(r.name).toLowerCase().includes(q));
-        return { ...g, rows: projSort === 'name' ? [...rows].sort(byName) : rows };
-      })
-      .filter((g) => g.rows.length || !q);
+    const all = model.projects.filter((r) => !q || String(r.name).toLowerCase().includes(q));
     // 11 pn-home: the list shows its first rows and a "N more" foot; finding a project searches all of them
-    if (q || projAll) return { projGroups: all, projMore: 0 };
-    const cut = capProjectGroups(all, PROJECTS_SHOWN);
-    return { projGroups: cut.groups, projMore: cut.more };
-  }, [model.groups, projFind, projSort, projAll]);
-  const showShared = signedIn && (hasProjects || shared.length > 0 || invited.length > 0);
+    if (q || projAll || all.length <= PROJECTS_SHOWN) return { projRows: all, projMore: 0 };
+    return { projRows: all.slice(0, PROJECTS_SHOWN), projMore: all.length - PROJECTS_SHOWN };
+  }, [model.projects, projFind, projAll]);
+  // 2.1.2 — Maude Cloud can't be reached: one quiet line above the list (the account headers are gone)
+  const cloudOffline = (data.clouds ?? []).some((c) => c?.offline);
+  // 2.1.2 (artboard 15) — "Shared with you" shows only when something is shared
+  const showShared = signedIn && (shared.length > 0 || invited.length > 0);
   return (
     <div className="maude-v2 home-root" data-theme={theme} data-testid="home-root">
       <header className="home-top">
@@ -1120,44 +1134,7 @@ export function HomeApp() {
           </p>
         ) : null}
 
-        {model.pinned.length ? (
-          <section className="home-sec" aria-labelledby="home-h-pinned">
-            <h2 className="home-h" id="home-h-pinned">
-              Pinned
-              <span className="home-h-aside">pin any canvas from its row or its menu</span>
-            </h2>
-            <ul className="home-pins">
-              {model.pinned.map((r) => (
-                <li key={`${r.pid}:${r.rel}`} className="home-pincard">
-                  <button
-                    type="button"
-                    className="home-pincard-main"
-                    data-testid={`home-pinned-row-${r.pid}-${r.slug}`}
-                    onClick={() => open(r.pid, r.rel)}
-                    disabled={!data.native}
-                  >
-                    <Thumb src={r.thumb} className="home-thumb-pin" />
-                    <span className="home-pincard-t">
-                      <strong>{r.name}</strong>
-                      <span>
-                        <ProjectSquare id={r.pid} name={r.projectName} />
-                        {r.projectName}
-                        {r.folder ? ` · ${r.folder}` : ''}
-                      </span>
-                    </span>
-                  </button>
-                  <PinButton
-                    row={r}
-                    testid={`home-pinned-unpin-${r.pid}-${r.slug}`}
-                    onToggle={togglePin}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {model.recent.length || filterPid ? (
+        {model.cards.length || filterPid ? (
           <section className="home-sec" aria-labelledby="home-h-recent">
             <h2 className="home-h" id="home-h-recent">
               Recent canvases
@@ -1182,7 +1159,7 @@ export function HomeApp() {
                   </label>
                 </span>
               ) : null}
-              {model.recent.length > RECENT_CAP ? (
+              {model.cards.length > RECENT_CAP ? (
                 <button
                   type="button"
                   className="btn btn--ghost btn--sm home-seeall"
@@ -1194,9 +1171,9 @@ export function HomeApp() {
                 </button>
               ) : null}
             </h2>
-            {model.recent.length ? (
+            {model.cards.length ? (
               <ul className="home-cards">
-                {(recentAll ? model.recent : model.recent.slice(0, RECENT_CAP)).map((r) => (
+                {(recentAll ? model.cards : model.cards.slice(0, RECENT_CAP)).map((r) => (
                   <li key={`${r.pid}:${r.rel}`} className="home-card">
                     <button
                       type="button"
@@ -1215,12 +1192,11 @@ export function HomeApp() {
                         ) : null}
                       </span>
                       <strong>{r.name}</strong>
+                      {/* 2.1.2 (artboard 15): one meta line — the project · when */}
                       <span className="home-card-meta home-card-proj">
-                        <ProjectSquare id={r.pid} name={r.projectName} />
-                        <span>{r.projectName}</span>
-                      </span>
-                      <span className="home-card-meta">
-                        {[r.folder, relativeTime(r.openedAt)].filter(Boolean).join(' · ')}
+                        {[r.projectName, relativeTime(r.openedAt ?? undefined)]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </span>
                     </button>
                     <PinButton
@@ -1256,15 +1232,14 @@ export function HomeApp() {
           ) : null}
           {hasProjects ? (
             <section className="home-sec" aria-labelledby="home-h-projects">
+              {/* 2.1.2 (artboard 15): Projects · count · Find · Open project… · New project, one row */}
               <h2 className="home-h" id="home-h-projects">
                 Projects
                 {model.projectCount ? (
-                  <span className="home-h-aside">
-                    {model.projectCount} {model.projectCount === 1 ? 'project' : 'projects'}
-                  </span>
+                  <span className="home-h-aside home-h-n">{model.projectCount}</span>
                 ) : null}
-                {model.projectCount > 1 ? (
-                  <span className="home-h-right">
+                <span className="home-h-right">
+                  {model.projectCount > 1 ? (
                     <label className="home-projfind">
                       <span className="home-sr">Find a project</span>
                       <HIcon name="search" size={14} />
@@ -1277,37 +1252,39 @@ export function HomeApp() {
                         onChange={(e) => setProjFind(e.target.value)}
                       />
                     </label>
-                    <label className="home-filter">
-                      <span className="home-sr">Sort projects</span>
-                      <select
-                        className="chip home-filter-select"
-                        data-testid="home-project-sort"
-                        value={projSort}
-                        onChange={(e) => setProjSort(e.target.value)}
-                      >
-                        <option value="recent">Recent</option>
-                        <option value="name">Name</option>
-                      </select>
-                      <HIcon name="chevron" size={12} />
-                    </label>
-                  </span>
-                ) : null}
+                  ) : null}
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm home-projopen"
+                    data-testid="home-open-folder"
+                    onClick={openFolder}
+                    disabled={!data.native}
+                  >
+                    <HIcon name="folder" size={14} />
+                    Open project…
+                  </button>
+                  <NewProjectButton native={data.native} onNewProject={askNewProject} />
+                </span>
               </h2>
+              {cloudOffline ? (
+                <p className="home-acct-note" role="note">
+                  Maude Cloud can't be reached. Showing the last list; projects on this Mac still
+                  open.
+                </p>
+              ) : null}
               <div className="island home-projlist">
-                {projGroups.map((g) => (
-                  <ProfileGroup
-                    key={g.profile.id}
-                    group={g}
-                    showHeader={projGroups.length > 1 || !!g.profile.email}
-                    canOpen={data.native}
-                    onOpen={(pid) => open(pid)}
-                    onOpenWorktree={openWorktreeTab}
-                    onRelink={relink}
-                    onOpenCloud={openCloud}
-                  />
-                ))}
-                <div className="home-projmore">
-                  {projMore ? (
+                <ProjectList
+                  rows={projRows}
+                  canOpen={data.native}
+                  onOpen={(pid) => open(pid)}
+                  onOpenWorktree={openWorktreeTab}
+                  onRelink={relink}
+                  onOpenCloud={openCloud}
+                  onReveal={reveal}
+                  onForget={forget}
+                />
+                {projMore ? (
+                  <div className="home-projmore">
                     <button
                       type="button"
                       className="btn btn--ghost btn--sm home-projmore-n"
@@ -1316,24 +1293,8 @@ export function HomeApp() {
                     >
                       {projMore} more
                     </button>
-                  ) : (
-                    <span />
-                  )}
-                  <span className="home-projacts">
-                    <NewProjectButton native={data.native} onNewProject={askNewProject} />
-                    <button
-                      type="button"
-                      className="btn btn--ghost btn--sm home-projopen"
-                      data-testid="home-open-folder"
-                      onClick={openFolder}
-                      disabled={!data.native}
-                    >
-                      <HIcon name="folder" size={14} />
-                      Open project…
-                      <kbd className="kbd">⌘O</kbd>
-                    </button>
-                  </span>
-                </div>
+                  </div>
+                ) : null}
               </div>
             </section>
           ) : data.status !== 'loading' && !cardOn && (firstRunSeen !== null || !data.native) ? (
@@ -1426,30 +1387,6 @@ export function HomeApp() {
   );
 }
 
-/** A Home picture: fetched with the Home header (home-api `thumbObjectUrl`), shown as a blob URL. */
-function Thumb({ src, className }) {
-  const [url, setUrl] = useState(null);
-  const [broken, setBroken] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    setUrl(null);
-    setBroken(false);
-    if (src)
-      thumbObjectUrl(src).then((u) => {
-        if (alive) setUrl(u);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [src]);
-  if (!url || broken) return <span className={`home-thumb home-thumb--empty ${className}`} />;
-  return (
-    <span className={`home-thumb ${className}`}>
-      <img src={url} alt="" decoding="async" onError={() => setBroken(true)} />
-    </span>
-  );
-}
-
 function PinButton({ row, testid, onToggle }) {
   const pinned = row.pinnedAt != null;
   return (
@@ -1468,259 +1405,6 @@ function PinButton({ row, testid, onToggle }) {
 }
 
 const RECENT_CAP = 6;
-
-const STATE_WORD = {
-  tab: 'in a tab',
-  cloud: (
-    <>
-      <HIcon name="cloud" size={12} />
-      not on this Mac yet
-    </>
-  ),
-};
-
-// 2.1.1 (artboard 14) — a project row says where it lives (the account, or the place) and shows the
-// connection badge the project window shows: the account's face with the state on it, and its word.
-// `home-project-conn-<pid>` stays the connection cell (data-kind = local / cloud / team, data-state).
-function RowWhere({ row }) {
-  if (!row.where) return null;
-  return (
-    <span className="home-prow-where">
-      <WhereChip where={row.where} testid={`home-project-where-${row.pid}`} />
-    </span>
-  );
-}
-function RowConn({ row }) {
-  const c = row.conn;
-  return (
-    <span
-      className="home-prow-st"
-      data-testid={`home-project-conn-${row.pid}`}
-      data-kind={row.connection?.kind ?? undefined}
-      data-state={c?.state ?? undefined}
-    >
-      {c ? (
-        <>
-          <AcctFace face={c.face} state={c.state} size="sm" />
-          <StateWord tone={c.tone} testid={`home-project-state-${row.pid}`}>
-            {c.word}
-          </StateWord>
-        </>
-      ) : null}
-    </span>
-  );
-}
-
-// 2.0.5 W4b — the folders folded into this row (a managed cloud copy; another folder on the same
-// design root). Each still opens its own project.
-function RowCopies({ row, canOpen, onOpen }) {
-  if (!row.copies?.length) return null;
-  return (
-    <span className="home-prow-copies">
-      {row.copies.map((c) => (
-        <button
-          key={c.pid}
-          type="button"
-          className="chip home-prow-copy"
-          data-testid={`home-project-copy-${c.pid}`}
-          data-kind={c.kind}
-          onClick={() => onOpen(c.pid)}
-          disabled={!canOpen}
-          {...reasonProps(!canOpen, 'homeBrowser')}
-          title={c.root}
-          aria-label={
-            c.kind === 'folder' ? `Open ${c.label}` : `Open the ${c.label} of ${row.name}`
-          }
-        >
-          {c.kind === 'folder' ? `also ${c.label}` : c.label}
-        </button>
-      ))}
-    </span>
-  );
-}
-
-// #206 T6.3g (contract 206 §5) — the git worktrees of this project this Mac opened as tabs: one
-// "Worktrees" row under the project, a chip per branch. A worktree is never a project row of its own.
-function RowWorktrees({ row, canOpen, onOpen }) {
-  if (!row.worktrees?.length) return null;
-  return (
-    <span className="home-prow-copies" data-testid={`home-project-worktrees-${row.pid}`}>
-      <span className="home-prow-wt-h">Worktrees</span>
-      {row.worktrees.map((w) => (
-        <button
-          key={w.pid}
-          type="button"
-          className="chip home-prow-copy"
-          data-testid={`home-worktree-${w.pid}`}
-          data-place={w.place}
-          onClick={() => onOpen(w.pid)}
-          disabled={!canOpen}
-          {...reasonProps(!canOpen, 'homeBrowser')}
-          title={w.root}
-          aria-label={`Open the ${w.branch} worktree of ${row.name}`}
-        >
-          {w.branch}
-        </button>
-      ))}
-    </span>
-  );
-}
-
-// A project tab's live state (shell_state `ai` + `place`), canvas 11's words: AI working (a spark
-// while it runs) · Needs you (it is waiting on a decision — the one that asks for you wins) ·
-// Resting (its server is stopped; the tab wakes it). A resting tab never has AI (rest policy).
-function RowLive({ row }) {
-  const ai = row.ai;
-  if (ai?.awaiting > 0)
-    return (
-      <span
-        className="chip home-prow-ai"
-        data-testid={`home-project-ai-${row.pid}`}
-        data-ai="awaiting"
-      >
-        Needs you
-      </span>
-    );
-  if (ai?.running > 0)
-    return (
-      <span
-        className="chip chip--spark home-prow-ai"
-        data-testid={`home-project-ai-${row.pid}`}
-        data-ai="running"
-      >
-        <HSpark size={9} />
-        AI working
-      </span>
-    );
-  if (row.place === 'resting')
-    return (
-      <span className="home-prow-rest" data-testid={`home-project-resting-${row.pid}`}>
-        <span className="home-prow-ring" aria-hidden="true" />
-        Resting
-      </span>
-    );
-  return null;
-}
-
-function ProfileGroup({
-  group,
-  showHeader,
-  canOpen,
-  onOpen,
-  onOpenWorktree,
-  onRelink,
-  onOpenCloud,
-}) {
-  const { profile, cloud } = group;
-  return (
-    <div className="home-acct" data-testid={`home-profile-${profile.id}`}>
-      {showHeader ? (
-        <h3 className="home-acct-h">
-          <span
-            className={`home-acctf home-acctf--${accountFace(profile).tone}`}
-            aria-hidden="true"
-          >
-            {accountFace(profile).initial}
-          </span>
-          {profile.label}
-          {profile.email ? ` · ${profile.email}` : ''}
-        </h3>
-      ) : null}
-      {cloud?.offline ? (
-        <p className="home-acct-note" role="note">
-          Maude Cloud can't be reached. Showing the last list; projects on this Mac still open.
-        </p>
-      ) : null}
-      <ul className="home-prows">
-        {group.rows.map((r) =>
-          r.kind === 'cloud' ? (
-            <li key={`c:${r.projectId}`} className="row-item home-prow home-prow--cloud">
-              <ProjectSquare id={r.projectId} name={r.name} size="md" />
-              <span className="home-prow-t" data-testid={`home-cloud-row-${r.projectId}`}>
-                <strong>{r.name}</strong>
-                <span>
-                  {ownerWord(r.ownerName, r.role) ? `${ownerWord(r.ownerName, r.role)} · ` : ''}
-                  {cloudRoleWord(r.role)} · {STATE_WORD.cloud}
-                </span>
-              </span>
-              <span className="home-prow-where">
-                <WhereChip where={r.where} testid={`home-project-where-${r.projectId}`} />
-              </span>
-              <button
-                type="button"
-                className="btn btn--sm"
-                data-testid={`home-cloud-open-${r.projectId}`}
-                onClick={() => onOpenCloud(r)}
-                disabled={!canOpen}
-                {...reasonProps(!canOpen, 'homeBrowser')}
-                aria-label={`Open ${r.name}`}
-              >
-                Open
-              </button>
-            </li>
-          ) : (
-            <li key={r.pid} className="home-prow-li">
-              {r.status === 'gone' ? (
-                <div className="row-item home-prow home-prow--gone">
-                  <ProjectSquare id={r.pid} name={r.name} size="md" />
-                  <span className="home-prow-t" data-testid={`home-project-row-${r.pid}`}>
-                    <strong>{r.name}</strong>
-                    <span>{r.name} isn't where it was.</span>
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn--sm"
-                    data-testid={`home-relink-${r.pid}`}
-                    onClick={() => onRelink(r.pid)}
-                    disabled={!canOpen}
-                    {...reasonProps(!canOpen, 'homeBrowser')}
-                  >
-                    Find the folder…
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="row-item home-prow"
-                  data-testid={`home-project-row-${r.pid}`}
-                  data-place={r.place}
-                  onClick={() => onOpen(r.pid)}
-                  disabled={!canOpen}
-                  {...reasonProps(!canOpen, 'homeBrowser')}
-                >
-                  <Thumb src={r.cover} className="home-prow-thumb" />
-                  <span className="home-prow-t">
-                    <strong>{r.name}</strong>
-                    <span>
-                      {[
-                        r.canvasCount != null ? canvasCount(r.canvasCount) : null,
-                        STATE_WORD[r.status] ?? null,
-                      ]
-                        .filter(Boolean)
-                        .map((part, i) => (
-                          // biome-ignore lint/suspicious/noArrayIndexKey: a fixed three-part line
-                          <span key={i} className="home-prow-part">
-                            {i ? ' · ' : ''}
-                            {part}
-                          </span>
-                        ))}
-                    </span>
-                  </span>
-                  <RowWhere row={r} />
-                  <RowConn row={r} />
-                  <RowLive row={r} />
-                  <ProjectSquare id={r.pid} name={r.name} />
-                </button>
-              )}
-              <RowCopies row={r} canOpen={canOpen} onOpen={onOpen} />
-              <RowWorktrees row={r} canOpen={canOpen} onOpen={onOpenWorktree} />
-            </li>
-          )
-        )}
-      </ul>
-    </div>
-  );
-}
 
 // ── ⌘K Search (11 pn-home-search) ───────────────────────────────────────────────────────────
 // The top bar holds an icon + the ⌘K key; the field lives in a centred 620 palette over a veil. Before you

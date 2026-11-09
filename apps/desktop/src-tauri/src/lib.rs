@@ -684,6 +684,8 @@ pub fn run() {
             home::open_search_result,
             home::relink_project,
             home::pick_project_location,
+            home::forget_project,
+            home::reveal_project_folder,
             windows::window_labels,
             windows::e2e_focus_window,
             windows::e2e_close_window,

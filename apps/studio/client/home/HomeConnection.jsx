@@ -26,7 +26,7 @@ export function BrokenLink({ size = 10 }) {
 }
 
 /** "Kept by Maude" — the mark, single colour. */
-function KeptGlyph({ size = 12 }) {
+export function KeptGlyph({ size = 12 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden="true">
       <rect x="1.5" y="1.5" width="13" height="13" rx="3.5" fill="currentColor" />

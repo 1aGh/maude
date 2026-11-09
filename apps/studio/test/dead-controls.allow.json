@@ -66,7 +66,7 @@
       "hook": "home-search"
     },
     "cloud.open-remote": {
-      "file": "client/home/home-app.jsx",
+      "file": "client/home/ProjectRows.jsx",
       "hook": "home-cloud-open-"
     },
     "home.signin": {

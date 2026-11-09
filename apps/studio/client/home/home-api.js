@@ -280,6 +280,10 @@ export const openProjectFolder = () => shellInvoke('open_project_folder');
  *  (Rust resolves the folder from its own list; Home never names a path). → `{label, opened}`. */
 export const openWorktree = (pid) => shellInvoke('open_worktree', { pid });
 export const relinkProject = (pid) => shellInvoke('relink_project', { pid });
+/** 2.1.2 — "Remove from list": the pid off this Mac's list (Rust `forget_project`); files untouched. */
+export const forgetProject = (pid) => shellInvoke('forget_project', { pid });
+/** 2.1.2 — a project row's "Show in Finder": Rust resolves the folder by pid (Home never names a path). */
+export const revealProjectFolder = (pid) => shellInvoke('reveal_project_folder', { pid });
 /** The existing command (github.js `managedProjectOpen`): resolves the managed copy's folder. */
 export const managedProjectOpen = (p) =>
   shellInvoke('managed_project_open', {
