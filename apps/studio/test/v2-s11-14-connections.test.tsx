@@ -579,7 +579,7 @@ describe('General › This project › Sync details: the project’s link (S11.1
     expect(q('settings-this-project')?.textContent).toContain('also on Maude Cloud');
   });
 
-  test('a project only on this Mac offers Link your server… (the team-server form when T5’s dialog is absent)', async () => {
+  test('a project only on this Mac offers Link your server… (the one dialog, opened here when no host takes the event)', async () => {
     installFetch({
       '/_api/cloud/status': { connected: false, url: 'https://cloud.maude.sh', linkedHub: null },
     });
@@ -588,6 +588,6 @@ describe('General › This project › Sync details: the project’s link (S11.1
     expect(q('settings-project-account')?.textContent).toContain('No account');
     await click(q('settings-team-server-add'));
     await settle();
-    expect(q('team-projects-dialog')).toBeTruthy();
+    expect(q('link-server-dialog')).toBeTruthy();
   });
 });

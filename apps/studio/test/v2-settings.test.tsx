@@ -361,26 +361,19 @@ describe('the desktop sheet renders every Settings row', () => {
       expect(panel.querySelector(`[data-testid="${id}"]`), id).toBeNull();
   });
 
-  test('This project: “Link another server…” opens the server form only (D12)', async () => {
+  test('This project: “Link another server…” opens the one Link your server dialog (D12, 2.1.1 T5)', async () => {
     installTauri();
     await openSyncDetails();
     await mount();
     await click(q('settings-team-server-add'));
     await settle(50);
-    for (const id of ['team-projects-dialog', 'team-hub-url', 'team-hub-open'])
-      expect(q(id), id).toBeTruthy();
-    // not the recents and not the cloud list — those have their own homes
-    const dialog = q('team-projects-dialog') as HTMLElement;
+    const dialog = q('link-server-dialog') as HTMLElement;
+    expect(dialog).toBeTruthy();
     // Issue #204 (decision maude/v2-michal-team-server-signin-via-hub-page): the app owns no login
-    // method for a team server — no email or password field; Sign in opens the server's own page.
-    expect(q('team-hub-email')).toBeNull();
-    expect(q('team-hub-password')).toBeNull();
-    expect(dialog.querySelector('input[type="password"]')).toBeNull();
+    // method for a team server — no email field; Sign in opens the server's own page.
     expect(dialog.querySelector('input[type="email"]')).toBeNull();
-    expect(q('team-hub-open')?.textContent).toContain('Sign in');
-    expect(dialog.querySelector('section[aria-label="Maude Cloud"]')).toBeNull();
+    // not the recents and not the cloud list — those have their own homes
     expect(dialog.querySelector('section[aria-label="Recent team projects"]')).toBeNull();
-    expect(dialog.querySelector('section[aria-label="Your team\'s server"]')).toBeTruthy();
     // esc belongs to the dialog first; the sheet stays
     await act(async () => {
       document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));

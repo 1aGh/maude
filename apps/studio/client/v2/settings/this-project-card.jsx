@@ -415,7 +415,17 @@ export default function ThisProjectCard({
   const cr = cloudRow({ state: cloud.state, email: cloud.email });
 
   const signInAgain = () => {
-    if (m.linkKind === 'cloud') cloud.startSignIn();
+    if (m.linkKind === 'cloud') {
+      cloud.startSignIn();
+      return;
+    }
+    // the one Link your server dialog (2.1.1 T5) on the server's address; today's form when nothing takes it
+    const ev = new CustomEvent(LINK_SERVER_EVENT, {
+      detail: { intent: 'sign-in', url: m.hubUrl ?? '' },
+      cancelable: true,
+    });
+    window.dispatchEvent(ev);
+    if (ev.defaultPrevented) onCloseSheet?.();
     else setSignInAt(m.hubUrl ?? '');
   };
   const linkServer = () => {
@@ -677,6 +687,7 @@ export default function ThisProjectCard({
       ) : null}
       {signInAt !== null ? (
         <TeamProjectsDialog
+          serverOnly
           title="Sign in again"
           initialServer={signInAt}
           onClose={() => setSignInAt(null)}
