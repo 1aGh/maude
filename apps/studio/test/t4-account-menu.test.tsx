@@ -179,6 +179,39 @@ describe('switchList — accounts already on this Mac, never a fresh one', () =>
     expect(l.rows.find((r) => r.current)?.id).toBe('work');
     expect(l.rows[0].current).toBe(false);
   });
+  test('another account arrives as an alias with a neutral label: the row wears the shell tone', () => {
+    // 2.1.1 review L5: accounts_list hides another account's id and e-mail-like label from a project
+    // tab, so the row can't recompute the strip's tone from them; it takes the shell's own.
+    const l = switchList({
+      accounts: [
+        { id: 'default', label: 'Default', email: null, signedIn: false, tone: 'yellow' },
+        {
+          id: 'account-1a2b3c4d5e6f7a8b',
+          label: 'Account 2',
+          email: null,
+          signedIn: true,
+          tone: 'sky',
+        },
+        {
+          id: 'account-0f0f0f0f0f0f0f0f',
+          label: 'Account 3',
+          email: null,
+          signedIn: true,
+          tone: 'nope',
+        },
+      ],
+      profile: { id: 'default' },
+    });
+    const [, two, three] = l.rows;
+    expect(two).toMatchObject({
+      id: 'account-1a2b3c4d5e6f7a8b',
+      title: 'Account 2',
+      initial: 'A',
+      tone: 'sky',
+    });
+    // An unknown tone word falls back to the client's own hash, never a class we don't draw.
+    expect(['lilac', 'yellow', 'sky', 'green', 'coral']).toContain(three.tone);
+  });
   test('without the shell list: only what the tab knows', () => {
     const l = switchList({ accounts: null, profile: { id: 'default' } });
     expect(l.rows).toHaveLength(1);
