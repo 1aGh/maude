@@ -2303,6 +2303,30 @@ export function createSyncRuntime(
   const retiredDocs = new Set<string>();
 
   /**
+   * The stale local copies a retirement left in place, keyed slug → the body's
+   * size and mtime when it was let go.
+   *
+   * When a retired document's new path never appears, the old file stays on
+   * disk (a recoverable ghost beats a lost canvas). The discovery rescan then
+   * found a canvas on disk with no provider and adopted it again — whose
+   * handshake read the same retirement, released it, and waited out the same
+   * missing path, on every rescan for as long as the process ran: a full
+   * document transfer each time, for a file nobody touched. The rescan skips a
+   * copy whose body is unchanged since it was let go; an edit to it, or a new
+   * file at the path, changes the stamp and is adopted as usual.
+   */
+  const retiredCopies = new Map<string, string>();
+  const bodyStamp = (abs: string | undefined): string | null => {
+    if (!abs) return null;
+    try {
+      const st = statSync(abs);
+      return `${st.size}:${st.mtimeMs}`;
+    } catch {
+      return null;
+    }
+  };
+
+  /**
    * What the hub's last listing said each document HOLDS, in bytes.
    *
    * The one fact that separates "this canvas is mine and the hub has never
@@ -2421,6 +2445,12 @@ export function createSyncRuntime(
       const newAbs = path.resolve(ctx.paths.designRoot, norm);
       const contained =
         newAbs === ctx.paths.designRoot || newAbs.startsWith(ctx.paths.designRoot + path.sep);
+      // The old body stays on disk from here on unless it is parked below:
+      // remember it, so the next rescan does not adopt it straight back.
+      if (!(desc.html && path.resolve(desc.html) === newAbs)) {
+        const stamp = bodyStamp(desc.html);
+        if (stamp !== null && retiredCopies.size < NUDGE_MEMO_CAP) retiredCopies.set(slug, stamp);
+      }
       if (!contained) return; // hostile path — never act on it
       // A DOCUMENT THAT MOVED TO WHERE IT ALREADY IS DID NOT MOVE.
       //
@@ -5062,7 +5092,18 @@ export function createSyncRuntime(
           // agent reads.
           markUntrusted();
         }
-        const incoming = added.map((slug) => bySlug.get(slug)).filter((c) => !!c);
+        const incoming = added
+          .map((slug) => bySlug.get(slug))
+          .filter((c): c is CanvasDescriptor => {
+            if (!c) return false;
+            const was = retiredCopies.get(c.slug);
+            if (was === undefined) return true;
+            // Unchanged since its retirement released it: adopting it again
+            // can only end in the same release.
+            if (bodyStamp(c.html) === was) return false;
+            retiredCopies.delete(c.slug);
+            return true;
+          });
         // S6.13 — only a project that does not answer gets its creates now;
         // one that answers creates them on the handshake, as it always has.
         const offline =

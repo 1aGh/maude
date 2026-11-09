@@ -26,6 +26,12 @@ import { fetchJournal } from './journal-client.ts';
 /** Coalesce a burst of pokes into one journal read. */
 const READ_DEBOUNCE_MS = 150;
 
+/** Paths whose last announced bytes are remembered (bounded, oldest out first). */
+const ANNOUNCED_MEMO_CAP = 4096;
+
+/** The "skipped a repeat" line is printed at most this often. */
+const REPEAT_LOG_MS = 60_000;
+
 export interface CtlHealerOptions {
   hubUrl: string;
   token: string;
@@ -36,6 +42,8 @@ export interface CtlHealerOptions {
   debounceMs?: number;
   setTimeoutImpl?: typeof setTimeout;
   clearTimeoutImpl?: typeof clearTimeout;
+  /** Clock for the repeat-log throttle (tests). */
+  now?: () => number;
 }
 
 export interface CtlHealer {
@@ -60,6 +68,8 @@ export interface CtlHealer {
   healed(): number;
   /** Pokes whose head was at or below the cursor: pure noise, and expected. */
   ignored(): number;
+  /** Rows skipped because their path was already announced at those bytes. */
+  repeats(): number;
 }
 
 /**
@@ -85,6 +95,21 @@ export function createCtlHealer(opts: CtlHealerOptions): CtlHealer {
   let stopped = false;
   let healed = 0;
   let ignored = 0;
+  /**
+   * The bytes each path was last announced at — ONE ANNOUNCEMENT PER STATE.
+   *
+   * A heal tells the canvas layer "this file is different now". A row naming
+   * the bytes we already announced for that path says nothing new, and
+   * re-announcing it re-runs every `fs:any` consumer (index rebuilds, HMR,
+   * canvas rescans) for a file that did not change. A path stuck in a loop
+   * upstream then spins every open canvas with it; this caps the cost at one
+   * announcement per distinct version. A tombstone or a row with no hash
+   * forgets the path, so the next real arrival is always announced.
+   */
+  const announcedAt = new Map<string, string>();
+  let repeats = 0;
+  let repeatLoggedAt = Number.NEGATIVE_INFINITY;
+  const now = opts.now ?? Date.now;
   /**
    * Is there anything to read?
    *
@@ -134,17 +159,49 @@ export function createCtlHealer(opts: CtlHealerOptions): CtlHealer {
     // paths, capped — the receiving half of the "N poke(s) folded" line the
     // sender already prints.
     const announced: string[] = [];
+    // The LAST row per path is the path's state after this page; earlier rows
+    // for the same path are history the disk no longer shows.
+    const latest = new Map<string, (typeof page.entries)[number]>();
     for (const entry of page.entries) {
+      latest.delete(entry.path);
+      latest.set(entry.path, entry);
+      // A deletion inside the page still happened: what follows it is news.
+      if (entry.deleted || entry.sha256 === null) announcedAt.delete(entry.path);
+    }
+    let repeated = 0;
+    for (const entry of latest.values()) {
       // A tombstone is not a heal — Increment 6 owns deletion, and emitting
       // `fs:any` for a vanished path would make the canvas layer look for a
       // file that is deliberately gone.
       if (entry.deleted) continue;
+      if (entry.sha256 !== null && announcedAt.get(entry.path) === entry.sha256) {
+        repeated += 1;
+        continue;
+      }
       try {
         opts.emit(entry.path);
         healed += 1;
         announced.push(entry.path);
+        announcedAt.delete(entry.path);
+        if (entry.sha256 !== null) {
+          announcedAt.set(entry.path, entry.sha256);
+          if (announcedAt.size > ANNOUNCED_MEMO_CAP) {
+            const oldest = announcedAt.keys().next().value;
+            if (oldest !== undefined) announcedAt.delete(oldest);
+          }
+        }
       } catch (err) {
         log.warn?.(`[sync/ctl] heal emit failed for ${entry.path}: ${(err as Error).message}`);
+      }
+    }
+    if (repeated > 0) {
+      repeats += repeated;
+      const at = now();
+      if (at - repeatLoggedAt >= REPEAT_LOG_MS) {
+        repeatLoggedAt = at;
+        log.log?.(
+          `[sync/ctl] ${repeats} journal row(s) named a file at bytes already healed — not announced again.`
+        );
       }
     }
     if (announced.length > 0) {
@@ -249,5 +306,6 @@ export function createCtlHealer(opts: CtlHealerOptions): CtlHealer {
     },
     healed: () => healed,
     ignored: () => ignored,
+    repeats: () => repeats,
   };
 }

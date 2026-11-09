@@ -656,3 +656,57 @@ describe('remote structural notifications', () => {
     }
   });
 });
+
+// A retired document whose new path never appears keeps its old copy on disk.
+// The discovery rescan found that copy with no provider and adopted it again;
+// the handshake read the same retirement and released it; the next rescan
+// adopted it again — a full document transfer per rescan, forever, for a file
+// nobody touched ("adopted 1 new canvas(es)" → "document is retired" → "new
+// path never appeared", repeating).
+describe('a retired canvas whose new path never appears', () => {
+  test('is adopted once per version of its body, not once per rescan', async () => {
+    writeHubsConfig(HUB, 'mau_test');
+    hubListing([]);
+    const ctx = makeCtx({ url: HUB, linkedAt: 1 });
+    writeCanvas(ctx, 'before', '<h1>kept</h1>');
+    const inner = inMemoryProviderFactory();
+    let opened = 0;
+    // The hub keeps the stamp: every later handshake of this document reads it.
+    const factory: typeof inner.factory = (args) => {
+      const provider = inner.factory(args);
+      if (args.documentName === 'ui-before') {
+        opened += 1;
+        const peer = inner.peerOf('ui-before');
+        if (opened > 1 && peer) stampMovedTo(peer, 'ui/never-arrives.html');
+      }
+      return provider;
+    };
+    const runtime = createSyncRuntime(ctx, { providerFactory: factory });
+    const released = () => inner.destroyed.filter((n) => n === 'ui-before').length;
+    try {
+      await runtime?.start();
+      expect(opened).toBe(1);
+      const peer = inner.peerOf('ui-before');
+      if (!peer) throw new Error('Expected a live source provider');
+      stampMovedTo(peer, 'ui/never-arrives.html');
+      for (let i = 0; i < 50 && released() === 0; i++) await Bun.sleep(20);
+      expect(released()).toBe(1);
+
+      for (let round = 0; round < 2; round++) {
+        await runtime?.rescanNow();
+        await Bun.sleep(40);
+      }
+      // The old copy stays where it was, and is not adopted back.
+      expect(existsSync(join(ctx.paths.designRoot, 'ui/before.html'))).toBe(true);
+      expect(opened).toBe(1);
+
+      // An edit to it is a new version: adopted as usual.
+      writeCanvas(ctx, 'before', '<h1>kept, and edited here</h1>');
+      await runtime?.rescanNow();
+      for (let i = 0; i < 25 && opened < 2; i++) await Bun.sleep(20);
+      expect(opened).toBe(2);
+    } finally {
+      await runtime?.stop();
+    }
+  });
+});
