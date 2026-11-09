@@ -260,7 +260,7 @@
 
 /* the slim project row: picture · name · where · state (only when not fine) · when · "…" on hover */
 .ac-nh-list { display: flex; flex-direction: column; border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default); overflow: hidden; }
-.ac-nh-row { display: grid; grid-template-columns: 40px minmax(160px, 280px) 180px minmax(0, 1fr) 28px; align-items: center; gap: var(--space-3); min-height: 44px; padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); box-shadow: inset 0 -0.5px 0 var(--border-subtle); }
+.ac-nh-row { display: grid; grid-template-columns: 40px minmax(140px, 200px) 170px minmax(170px, 1fr) 28px; align-items: center; gap: var(--space-3); min-height: 44px; padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); box-shadow: inset 0 -0.5px 0 var(--border-subtle); }
 .ac-nh-row:last-child { box-shadow: none; }
 .ac-nh-row[data-hl] { background: var(--bg-2); }
 .k-thumb.ac-nh-pic { width: 40px; height: 28px; }
@@ -272,7 +272,7 @@
 .ac-nh-place > .k-ic, .ac-nh-place .ac-kept-g { color: var(--fg-2); }
 .ac-nh-st { display: flex; align-items: center; min-width: 0; }
 .ac-nh-bad .k-sw { color: var(--status-error-text); }
-.ac-nh-quiet { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--type-xs); color: var(--fg-2); }
+.ac-nh-quiet { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--type-xs); color: var(--fg-2); white-space: nowrap; }
 .ac-nh-more { width: 28px; height: 28px; color: var(--fg-1); opacity: 0; }
 /* "…" shows on hover and on keyboard focus anywhere in the row */
 .ac-nh-row[data-hl] .ac-nh-more, .ac-nh-row:hover .ac-nh-more, .ac-nh-row:focus-within .ac-nh-more { opacity: 1; }
