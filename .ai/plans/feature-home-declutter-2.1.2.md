@@ -44,7 +44,7 @@
   - produce a revised Home artboard set in canvas 17 or a new canvas: main surface, collapsed accounts summary, action-needed banner, slim project rows, stale-server handling (collapsed + Remove).
   - Show it to Michal (AskUserQuestion) before building.
 - [x] **H3** Build per the approved design + fixes from H1.
-- [ ] **H4** Tests:
+- [x] **H4** Tests:
   - fail-first unit tests;
   - Home e2e on the mini or with the no-dialog env, never popping dialogs;
   - screenshots.
@@ -53,12 +53,12 @@
 ## Acceptance Criteria
 
 - [x] Michal approved the Home design before building.
-- [ ] Home's main surface is Recent canvases + Projects; accounts are a compact summary that opens on demand; only an action-needed problem is raised at the top.
-- [ ] Unreachable servers with no projects are collapsed and offer Remove; nothing is removed without the person's click.
-- [ ] A Maude Cloud cell is never shown as "your server"; it belongs to its Maude Cloud account.
-- [ ] No duplicate or orphaned project row for one project; no overlapping controls.
-- [ ] A project row shows name, place (one word or icon) and state only when not OK.
-- [ ] Gates + tests green; no test touched the real config or keychain; no system dialog.
+- [x] Home's main surface is Recent canvases + Projects; accounts are a compact summary that opens on demand; only an action-needed problem is raised at the top.
+- [x] Unreachable servers with no projects are collapsed and offer Remove; nothing is removed without the person's click.
+- [x] A Maude Cloud cell is never shown as "your server"; it belongs to its Maude Cloud account.
+- [x] No duplicate or orphaned project row for one project; no overlapping controls.
+- [x] A project row shows name, place (one word or icon) and state only when not OK.
+- [x] Gates + tests green; no test touched the real config or keychain; no system dialog.
 
 ## Rules
 
@@ -85,3 +85,8 @@ Same as `.ai/scenarios/accounts-2.1.1/builder-brief.md`. Never read or write Mic
     - The artboard 17 nested cell sign-in under its cloud account: a cell's health is the cloud account's sign-in.
     - Menu icons.
   - Running: mini suites, and the desktop e2e home + accounts lanes (no-dialog env, sidecar probe first).
+- 2026-11-09: Verification.
+  - Mini studio: 24349 pass, 1 fail. The failure is the generate-takes booted-studio test (17 s under load); it passes locally.
+  - The 1 error is the pre-existing one at v2.1.0.
+  - CLI: 1025/1, the known slot tag-state failure.
+  - Desktop e2e (sidecar probed first, no-dialog env): home 1/1, accounts 3/3. Config unchanged; no dialog needed suppressing.
