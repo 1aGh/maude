@@ -136,19 +136,31 @@ async function setUp(): Promise<AccountsWorld> {
   };
   const signinHub = await plain('signin');
   const brokenHub = await plain('broken');
-  const emptyHub = await plain('empty');
-  // A server that already holds work: one that owns a checkout with a picture in it (its `/api/files` lists it).
-  const work = join(scratch, 'work-checkout');
-  mkdirSync(join(work, '.design', 'assets'), { recursive: true });
-  writeFileSync(
-    join(work, '.design', 'config.json'),
-    JSON.stringify({
-      name: 'Team work',
-      designRoot: '.design',
-      formatVersion: 2,
-      canvasGroups: [{ label: 'UI', path: 'ui' }],
-    })
-  );
+  // The servers a local project links to own a checkout (as a self-hosted workspace does) already on format 2:
+  // a plain fixture hub starts on format 1, and raising it is the project OWNER's (hub-integration.mjs) — a
+  // member linking a fresh format-1 server is refused (the T7 hand-back), which these steps are not about.
+  const checkout = (name: string) => {
+    const dir = join(scratch, `${name}-checkout`);
+    mkdirSync(join(dir, '.design', 'assets'), { recursive: true });
+    writeFileSync(
+      join(dir, '.design', 'config.json'),
+      JSON.stringify({
+        name: 'Team work',
+        designRoot: '.design',
+        formatVersion: 2,
+        canvasGroups: [{ label: 'UI', path: 'ui' }],
+      })
+    );
+    return dir;
+  };
+  const emptyHub = await startLocalHub({
+    dir: join(scratch, 'hub-empty'),
+    workspace: checkout('empty'),
+    env: hubEnv,
+  });
+  hubs.push(emptyHub);
+  // A server that already holds work: its checkout has a picture in it (its `/api/files` lists it).
+  const work = checkout('work');
   writeFileSync(
     join(work, '.design', 'assets', 'team-mark.svg'),
     '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8"/></svg>'
