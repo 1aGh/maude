@@ -187,6 +187,12 @@ export function syncDetailsModel(
         .filter((f) => f && typeof f.folder === 'string' && isCount(f.count))
         .slice(0, 10)
         .map((f) => ({ folder: f.folder, count: f.count })),
+      // 2.1.1 N4 — the held set this card shows; the answer carries it back (a set that grew since
+      // answers `changed` and nothing is sent)
+      digest:
+        typeof deletesOut.digest === 'string' && /^[0-9a-f]{16,64}$/.test(deletesOut.digest)
+          ? deletesOut.digest
+          : '',
     });
   }
   // 2.1.1 T13 — the project deleted a batch this Mac still holds: its own card and answer (Remove

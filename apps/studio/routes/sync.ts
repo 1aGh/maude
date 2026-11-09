@@ -7,8 +7,8 @@
 //                              uses that will not reach the workspace, each with its reason; a disk read)
 //   POST /_api/sync/code-consent/set  { allow } → { ok, consent } · 403 window-only / read-only ·
 //                              409 not-linked / not-signed-in / cell
-//   POST /_api/sync/held-deletes  { answer: delete|keep|remove-here|keep-here, folder?, digest? } → { ok, how, count } · 403
-//                              window-only / read-only / not-owner · 409 not-linked / nothing-held / busy
+//   POST /_api/sync/held-deletes  { answer: delete|keep|remove-here|keep-here, folder?, digest } → { ok, how, count } · 403
+//                              window-only / read-only / not-owner · 409 not-linked / nothing-held / busy / changed
 //   POST /_api/sync/adopt-held  { path, sha256 } → { ok } · 403 window-only / read-only / not-owner ·
 //                              409 not-linked / not-held / changed / update / unreachable (#167 T5.3,
 //                              the hub decides; it adopts only the version `sha256` names)
@@ -358,17 +358,20 @@ export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
         }
         // 2.1.1 T13 — the same card family for a batch the PROJECT deleted: `remove-here` files this
         // Mac's copies into the trash in one pass, `keep-here` leaves them and never sends them back.
+        // 2.1.1 T8 / N4 — the set the person was shown, for every answer; a missing or stale one
+        // answers `changed` and nothing is applied
+        const digest =
+          typeof (body as { digest?: unknown } | null)?.digest === 'string'
+            ? String((body as { digest: string }).digest).slice(0, 128)
+            : '';
         const r =
           answer === 'remove-here' || answer === 'keep-here'
             ? await control.answerIncoming(
                 answer === 'remove-here' ? 'remove' : 'keep',
                 folder as string | null,
-                // 2.1.1 T8 — the set the person was shown; a missing or stale one answers `changed`
-                typeof (body as { digest?: unknown } | null)?.digest === 'string'
-                  ? String((body as { digest: string }).digest).slice(0, 128)
-                  : ''
+                digest
               )
-            : await control.answer(answer, folder as string | null);
+            : await control.answer(answer, folder as string | null, digest);
         if (r.ok) return json(200, r);
         return json(r.reason === 'not-owner' ? 403 : 409, r);
       },

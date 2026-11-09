@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createFileLedger, type FileLedger } from '../sync/file-ledger.ts';
-import { createFilePlane, DELETE_HELD_REASON } from '../sync/file-plane.ts';
+import { createFilePlane, DELETE_HELD_REASON, heldSetDigest } from '../sync/file-plane.ts';
 import { createHeldDeletes, heldDeleteDetail } from '../sync/held-deletes.ts';
 import { computeSeedProgress, DELETED_HERE_HELD_REASON } from '../sync/seed-progress.ts';
 import { livePropagateDeletes } from '../sync/settings.ts';
@@ -244,7 +244,8 @@ async function heldBatch(token = 'projectOwner') {
   await p.reconcile();
   for (let i = 0; i < 25; i += 1) rmSync(join(root, frame(i)));
   const res = await p.reconcile();
-  return { p, res };
+  // 2.1.1 N4 — the digest of the held batch, as Sync details shows it (the answers carry it back)
+  return { p, res, shown: res.deleteHeld?.digest ?? '' };
 }
 
 const control = (
@@ -273,6 +274,8 @@ test.skipIf(!HUB_READY)(
       count: 25,
       folders: [{ folder: FOLDER, count: 25 }],
     });
+    // 2.1.1 N4 — the pass names the batch an answer would cover
+    expect(res.deleteHeld?.digest).toBe(heldSetDigest(p.heldDeletes().paths));
     expect(ledger.row(frame(0))?.state).toBe('delete-held');
     expect(ledger.row(frame(0))?.reason).toBe(DELETE_HELD_REASON);
     expect(p.doruceka()[frame(0)]).toBe('delete-held');
@@ -301,8 +304,8 @@ test.skipIf(!HUB_READY)(
 test.skipIf(!HUB_READY)(
   'Delete on the hub too, within the door budget: one confirmed batch through the door',
   async () => {
-    const { p } = await heldBatch();
-    const answer = await control(p, { owner: true }).answer('delete', FOLDER);
+    const { p, shown } = await heldBatch();
+    const answer = await control(p, { owner: true }).answer('delete', FOLDER, shown);
     expect(answer).toEqual({ ok: true, how: 'door', count: 25 });
     await p.reconcile();
     for (let i = 0; i < 25; i += 1) expect(onHub(frame(i))).toBe(false);
@@ -317,9 +320,9 @@ test.skipIf(!HUB_READY)(
 test.skipIf(!HUB_READY)(
   'Delete on the hub too, past the door budget: the owner purge, dry run then confirm',
   async () => {
-    const { p } = await heldBatch();
+    const { p, shown } = await heldBatch();
     const c = control(p, { owner: true, sent: 190 });
-    const answer = await c.answer('delete', null);
+    const answer = await c.answer('delete', null, shown);
     expect(answer).toEqual({ ok: true, how: 'purge', count: 25 });
     // While it runs the row is not asked again.
     expect(c.view().count).toBe(0);
@@ -339,10 +342,11 @@ test.skipIf(!HUB_READY)(
 test.skipIf(!HUB_READY)(
   'a member past the budget gets an honest no; nothing is deleted and the row still asks',
   async () => {
-    const { p } = await heldBatch('alice');
+    const { p, shown } = await heldBatch('alice');
     const answer = await control(p, { owner: false, sent: 5, token: 'alice' }).answer(
       'delete',
-      FOLDER
+      FOLDER,
+      shown
     );
     expect(answer).toEqual({
       ok: false,
@@ -370,8 +374,8 @@ test.skipIf(!HUB_READY)(
 test.skipIf(!HUB_READY)(
   'Keep on the hub: no delete proposal, never downloaded again; a teammate’s delete still lands',
   async () => {
-    const { p } = await heldBatch();
-    const answer = await control(p, { owner: true }).answer('keep', FOLDER);
+    const { p, shown } = await heldBatch();
+    const answer = await control(p, { owner: true }).answer('keep', FOLDER, shown);
     expect(answer).toEqual({ ok: true, how: 'keep', count: 25 });
     for (let pass = 0; pass < 2; pass += 1) {
       const c = counting();
@@ -408,7 +412,7 @@ test.skipIf(!HUB_READY)(
 test.skipIf(!HUB_READY)(
   'the other direction: the owner’s purge reaches a teammate’s Mac as a held inbound batch',
   async () => {
-    const { p } = await heldBatch();
+    const { p, shown } = await heldBatch();
     // A second Mac with its own copy of the project.
     const rootB = join(work, 'design-b');
     mkdirSync(rootB, { recursive: true });
@@ -426,7 +430,7 @@ test.skipIf(!HUB_READY)(
     await planeB.reconcile();
     expect(existsSync(join(rootB, frame(26)))).toBe(true);
     const c = control(p, { owner: true, sent: 190 });
-    await c.answer('delete', FOLDER);
+    await c.answer('delete', FOLDER, shown);
     await c.idle();
     const inbound = await planeB.reconcile();
     // The inbound breaker is unchanged: a hub-ordered mass delete is held on every peer.
