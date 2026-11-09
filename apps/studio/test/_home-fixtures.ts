@@ -132,6 +132,8 @@ export function homeDeps(over: Partial<HomeDeps> = {}): HomeDeps {
     formatSupported: 2,
     projectsDir: mkdtempSync(join(tmpdir(), 'maude-home-projects-')),
     cloud: createHomeCloud(),
+    // 2.1.1 — never a real server from a test: every saved team sign-in answers "unknown"
+    hubHealth: { state: async () => 'unknown' },
     // S6.6 — never the real Claude CLI or ~/.local/bin from a test: a still AI module and a
     // CLI installer rooted in a temp dir with no bundled maude (every install → unavailable)
     ai: createHomeAi({

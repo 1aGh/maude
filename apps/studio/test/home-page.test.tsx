@@ -352,7 +352,11 @@ describe('Home page in the desktop app', () => {
       `home-recent-row-${P1}-ui-plakat`,
     ]);
     expect($(`home-project-row-${P1}`)?.textContent).toContain('in a tab');
-    expect($(`home-project-row-${P2}`)?.textContent).toContain('this Mac only');
+    // 2.1.1 (artboard 14): a project only on this Mac says where it lives and that nothing connects
+    expect($(`home-project-row-${P2}`)?.textContent).toContain('Only on this Mac');
+    expect($(`home-project-where-${P2}`)?.getAttribute('data-kind')).toBe('folder');
+    expect($(`home-project-where-${P2}`)?.textContent).toContain('Your folder');
+    expect($(`home-project-conn-${P2}`)?.getAttribute('data-state')).toBe('local');
   });
 
   test('picking a canvas calls open_project({pid, target:{canvas}}); Open project… calls open_project_folder', async () => {
@@ -504,6 +508,44 @@ describe('Home page in the desktop app', () => {
       { pid: WT },
     ]);
     expect(invokes.some((i) => i.cmd === 'open_project')).toBe(false);
+  });
+
+  // 2.1.1 B4 (artboard 14): the accounts row sits on top of Home; a Maude Cloud sign-in that stopped
+  // working shows on its own card and on the project rows that use it, and its Sign in again asks for
+  // THAT profile (the dead credential goes first so the profile can be signed in again).
+  test('a Maude Cloud sign-in that stopped working: the account card and the rows say so, and its button re-signs THAT profile', async () => {
+    shellOverride = {
+      ...SHELL,
+      projects: [
+        { ...SHELL.projects[0], hub: 'https://a.cloud.maude.sh/', place: 'closed' },
+        SHELL.projects[1],
+      ],
+      profiles: [{ id: 'default', label: 'Personal', email: 'alice@example.com' }],
+    } as unknown as typeof SHELL;
+    fetchAnswers['/_config'] = [
+      200,
+      { mode: 'home', shell: 'home', version: 'x', cloudOrigin: 'https://cloud.maude.sh' },
+    ];
+    fetchAnswers['/_home/cloud'] = [
+      200,
+      { ok: false, profile: 'default', signedIn: false, rejected: true, projects: [], shared: [] },
+    ];
+    shellAnswers.home_cloud_sign_in_prepare = 'default';
+    mount();
+    await flush(10);
+    expect($('home-accounts-row')).not.toBeNull();
+    expect($('home-account-state-default-cloud')?.textContent).toBe('Sign-in stopped working');
+    expect($(`home-project-state-${P1}`)?.textContent).toBe('Sign-in stopped working');
+    expect($(`home-project-where-${P1}`)?.textContent).toContain('alice@example.com');
+    expect($(`home-project-state-${P2}`)?.textContent).toBe('Only on this Mac');
+    act(() => $('home-account-signin-default-cloud')?.click());
+    await flush(10);
+    expect(
+      calls.filter((c) => c.url.startsWith('/_home/cloud/signout')).map((c) => c.body)
+    ).toEqual([{ profile: 'default' }]);
+    expect(
+      invokes.filter((i) => i.cmd === 'home_cloud_sign_in_prepare').map((i) => i.args)
+    ).toEqual([{ profile: 'default' }]);
   });
 
   test('the account whose project was used last leads the Projects list (Work above Personal)', async () => {

@@ -58,7 +58,7 @@ export function useCloudSignIn({ native, onSignedIn, now = Date.now }) {
       };
       let profile;
       try {
-        profile = await signInPrepare(opts.forInvite);
+        profile = await signInPrepare(opts.forInvite, opts.profile);
       } catch (e) {
         fail(wordsOf(e));
         return;

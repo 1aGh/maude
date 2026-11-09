@@ -31,6 +31,8 @@ export function useAccount(enabled) {
               // 2.0.5 W4 — the project account card's kind: the cloud address and this folder's link
               cloudUrl: typeof j?.url === 'string' ? j.url : '',
               linkedHub: j?.linkedHub ?? null,
+              // 2.1.1 T2 — where the project lives: { kept } | { kept: false, folder }
+              place: j?.place && typeof j.place === 'object' ? j.place : null,
             }));
         })
         .catch(() => {

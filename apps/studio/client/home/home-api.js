@@ -130,8 +130,12 @@ export const cloudSignInStart = (profile) =>
 export const cloudSignInPoll = (state) => post('/_home/cloud/signin/poll', { state });
 export const cloudSignInCancel = (state) => post('/_home/cloud/signin/cancel', { state });
 /** Rust picks (or makes) the profile the next sign-in may write → its id. A refusal rejects with words. */
-export const signInPrepare = (forInvite) =>
-  shellInvoke('home_cloud_sign_in_prepare', forInvite ? { forInvite } : {});
+export const signInPrepare = (forInvite, profile) =>
+  shellInvoke('home_cloud_sign_in_prepare', {
+    ...(forInvite ? { forInvite } : {}),
+    // 2.1.1: "Sign in again" on an account's card asks for THAT profile
+    ...(profile ? { profile } : {}),
+  });
 export const signInOpenBrowser = (userCode, state) =>
   shellInvoke('home_cloud_sign_in_open', { userCode, state });
 /** After the Home server stored the credential: Rust records the account → the profile it landed in. */

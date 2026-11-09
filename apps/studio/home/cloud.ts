@@ -134,6 +134,11 @@ export interface CloudListing {
   signedIn: boolean;
   /** the control plane could not be reached — these rows are the last good answer (or empty) */
   offline?: boolean;
+  /**
+   * 2.1.1 — the control plane refused this profile's saved sign-in (401/403): the person is not signed
+   * out of their own accord, the sign-in stopped working. Absent when there is no credential at all.
+   */
+  rejected?: boolean;
   /** the control plane has no /api/home yet: projects only, no `shared` */
   fallback?: boolean;
   account: { email: string | null } | null;
@@ -214,7 +219,7 @@ export function createHomeCloud(opts: { now?: () => number } = {}): HomeCloud {
     }
     if (r.status === 401 || r.status === 403) {
       cache.delete(profile);
-      return empty({ error: 'This device was disconnected. Sign in again.' });
+      return empty({ rejected: true, error: 'This device was disconnected. Sign in again.' });
     }
     if (r.status !== 200 || !r.body || typeof r.body !== 'object') {
       // offline / 5xx / garbage → the last good answer for THIS token, flagged
