@@ -48,11 +48,21 @@ export function sameServer(a, b) {
   }
 }
 
+/**
+ * The server this folder is linked to ON THIS MAC, else null. 2.1.1 N3 — a committed address nobody linked or
+ * confirmed here (`confirmed === false`) is a claim, not a link: Link your server treats the folder as unlinked.
+ */
+export function linkedUrlOfStatus(status) {
+  const hub = status?.linkedHub;
+  if (!hub || hub.confirmed === false || typeof hub.url !== 'string' || !hub.url) return null;
+  return hub.url;
+}
+
 /** `/_api/cloud/status` → this project's own, unlinked folder (`~/git/logo-ideas`), else null. */
 export function folderOfStatus(status) {
   const place = status?.place;
   if (!place || place.kept || typeof place.folder !== 'string' || !place.folder) return null;
-  if (status?.linkedHub?.url) return null;
+  if (linkedUrlOfStatus(status)) return null;
   return place.folder;
 }
 
@@ -121,7 +131,7 @@ export function projectLinkApi(seams = {}) {
       // 2.1.1 T7 — Sign in (again) for the server THIS project is already linked to: the sign-in was the whole
       // job (the route stored it and cycled sync). Opening the server's project here put the person in a copy
       // Maude keeps instead of their own folder.
-      if (sameServer((await g('/_api/cloud/status'))?.linkedHub?.url, url))
+      if (sameServer(linkedUrlOfStatus(await g('/_api/cloud/status')), url))
         return told({ ok: true });
       const r = await openProject({ kind: 'known-hub', url });
       return r?.ok ? { ok: true } : { ok: false, error: r?.error };
