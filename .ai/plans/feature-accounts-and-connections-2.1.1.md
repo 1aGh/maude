@@ -112,3 +112,10 @@ Fixing a broken or missing sign-in takes one click.
     - Studio builder: F1–F7 and L1–L4. A broken sign-in applies only to a server this Mac linked before. An unconfirmed address gets a neutral state and the consent step.
     - Rust builder: M1 native consent and L5 neutral labels.
   - Reports are in `.ai/logs/security-reviews/2.1.1-accounts*.md`.
+- 2026-11-09: S1 merged.
+  - A first link used to lose a canvas's comments (and their recovery copy), replace sticky notes and replace layout with no copy kept. Now comments and sticky notes merge by id, layout keeps the server's version plus a recovery copy, each lane has its own recovery slot, and the confirm lines describe the measured outcome.
+  - T14, queued after the T8 studio fixes merge (same files):
+    1. Sync details shows the file conflict copy; fix the wrong "in the trash" word.
+    2. Sync details shows set-aside notices.
+    3. Count pictures and videos a server can't store on their own line.
+    4. Port the S1 reproduction into hub-link-folder-route.test.ts: workspace mode, without fileEvents:false.
