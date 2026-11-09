@@ -640,7 +640,7 @@ test('wiring: wdio.conf.ts names a lane stub in MAUDE_CLAUDE_BIN, hands the guar
   );
   assert.match(conf, /startPrefsGuard\(\{[\s\S]{0,400}laneClaudes:/);
   const complete = conf.slice(conf.indexOf('export async function completeLane'));
-  assert.match(complete.slice(0, 600), /reapOrphanE2eSidecars\(/);
+  assert.match(complete.slice(0, complete.indexOf('\n}\n') + 2), /reapOrphanE2eSidecars\(/);
   assert.match(read('wdio.acp-cold-start.conf.ts'), /process\.env\.MAUDE_CLAUDE_BIN = ''/);
 });
 

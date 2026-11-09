@@ -325,7 +325,8 @@ describe.skipIf(!HUB_READY)(
     const local = (rel: string) => readFileSync(join(mine.designRoot, rel), 'utf8');
     const copyOf = (dir: string, stem: string, ext: string) =>
       readdirSync(join(mine.designRoot, dir)).find(
-        (n) => n.startsWith(`${stem}.maude-conflict-`) && n.endsWith(`local.${ext}`)
+        // the label is this machine's name (a Mac's ends `…local`, a Linux runner's does not)
+        (n) => n.startsWith(`${stem}.maude-conflict-`) && n.endsWith(`.${ext}`)
       );
 
     test('the confirm line counted one of each (canvas and file, here / there / differ)', () => {
@@ -364,7 +365,7 @@ describe.skipIf(!HUB_READY)(
     test('file, both, differ → the server’s bytes, this Mac’s parked beside it and uploaded too', () => {
       expect(local('components/both.css')).toBe('.server{}\n');
       const copy = copyOf('components', 'both', 'css') as string;
-      expect(copy).toMatch(/^both\.maude-conflict-.+local\.css$/);
+      expect(copy).toMatch(/^both\.maude-conflict-.+\.css$/);
       expect(local(`components/${copy}`)).toBe('.mine{}\n');
       expect(hubAfter.files[`components/${copy}`]).toBe(sha('.mine{}\n'));
       expect(hubAfter.files['components/both.css']).toBe(sha('.server{}\n'));
