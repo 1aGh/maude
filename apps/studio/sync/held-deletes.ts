@@ -15,8 +15,12 @@
 //
 // Which path to TRY comes from this Mac's stored role and its own record of deletes sent; the hub
 // decides the rest (a member's door 429, an owner check on the purge). Nothing here is a hub claim.
+//
+// 2.1.1 N4 — both answers name the batch the person was shown (`heldSetDigest` of the waiting set,
+// carried in the pass status): a set that changed since (more local deletes joined it) answers
+// `changed` and nothing is sent — the incoming answer's T8 rule.
 
-import { inHeldFolder } from './file-plane.ts';
+import { heldSetDigest, inHeldFolder } from './file-plane.ts';
 
 /** The hub door's delete window — apps/hub/src/journal.mjs `DELETE_BUDGET_PER_WINDOW`. */
 export const DOOR_DELETES_MEMBER = 25;
@@ -72,7 +76,12 @@ export type HeldDeleteAnswer =
 
 export interface HeldDeletesControl {
   view(): HeldDeletesView;
-  answer(answer: 'delete' | 'keep', folder: string | null): Promise<HeldDeleteAnswer>;
+  /** 2.1.1 N4 — `digest` names the set the person was shown; a stale or missing one answers `changed`. */
+  answer(
+    answer: 'delete' | 'keep',
+    folder: string | null,
+    digest: string
+  ): Promise<HeldDeleteAnswer>;
   /**
    * 2.1.1 T13 — the answer to a batch the PROJECT deleted, held here. `remove`: filed into `_trash/` on
    * the next pass, all at once (recoverable). `keep`: stays on this Mac, never sent back. Local to
@@ -186,7 +195,7 @@ export function createHeldDeletes(deps: HeldDeletesDeps): HeldDeletesControl {
         purge: purge ? { ...purge } : null,
       };
     },
-    async answer(answer, folder) {
+    async answer(answer, folder, digest) {
       const plane = deps.plane();
       if (!plane) {
         return {
@@ -195,6 +204,9 @@ export function createHeldDeletes(deps: HeldDeletesDeps): HeldDeletesControl {
           detail: 'This project isn’t syncing with a hub right now.',
         };
       }
+      // 2.1.1 N4 — the answer covers exactly the waiting set that was on screen, or nothing
+      if (digest !== heldSetDigest(plane.heldDeletes().paths))
+        return listChanged(LIST_CHANGED_OUT_DETAIL);
       if (answer === 'keep') {
         const kept = plane.answerHeldDeletes('keep', folder);
         if (kept.length === 0) return nothingHeld();
@@ -254,8 +266,10 @@ export function createHeldDeletes(deps: HeldDeletesDeps): HeldDeletesControl {
 
 /** 2.1.1 T8 — the held set is not the one the person answered about. */
 export const LIST_CHANGED_DETAIL = 'The list changed. Nothing was removed — look at it again.';
-function listChanged(): HeldDeleteAnswer {
-  return { ok: false, reason: 'changed', detail: LIST_CHANGED_DETAIL };
+/** 2.1.1 N4 — the outbound twin: nothing was deleted on the hub. */
+export const LIST_CHANGED_OUT_DETAIL = 'The list changed. Nothing was deleted — look at it again.';
+function listChanged(detail = LIST_CHANGED_DETAIL): HeldDeleteAnswer {
+  return { ok: false, reason: 'changed', detail };
 }
 
 /** A folder name from the project for a sentence: no control or formatting characters (a bidi

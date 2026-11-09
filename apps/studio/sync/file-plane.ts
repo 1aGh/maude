@@ -489,7 +489,7 @@ export interface FilePlaneResult {
     count: number;
     paths: string[];
     folders?: HeldDeleteFolder[];
-    /** 2.1.1 T8 — incoming: `heldSetDigest` of EVERY held path (the list above is capped) */
+    /** 2.1.1 T8 / N4 — `heldSetDigest` of EVERY path an answer would cover (the list above is capped) */
     digest?: string;
   };
   /** Consecutive `reanchor` answers tripped the storm limit; the pass held. */
@@ -2964,6 +2964,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           count: all.count,
           paths: all.paths.slice(0, 200),
           folders: all.folders.slice(0, 20),
+          // 2.1.1 N4 — the set an answer would cover (`heldDeletes()`: not one already answered)
+          digest: heldSetDigest(
+            all.paths.filter((r) => !purgingDeletes.has(r) && !confirmedDeletes.has(r))
+          ),
         };
       } else {
         // Every row still waiting for the person's answer, not just this pass's hits (T13).

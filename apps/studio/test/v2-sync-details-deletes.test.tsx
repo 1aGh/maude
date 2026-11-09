@@ -39,13 +39,16 @@ const status = (files: Record<string, unknown>) => ({
   files: { synced: 120, pulled: 0, conflicts: 0, ...files },
 });
 /** The held row the runtime builds from a pass that held 6 555 local deletes. */
-const heldRow = () =>
+// 2.1.1 N4 — the digest of the held batch on screen; every answer carries it back
+const SHOWN = 'd'.repeat(32);
+const heldRow = (digest = SHOWN) =>
   filePlaneHeld({
     deleteHeld: {
       direction: 'out',
       count: 6555,
       paths: [`${FOLDER}/0001.png`],
       folders: [{ folder: FOLDER, count: 6555 }],
+      digest,
     },
   } as never);
 
@@ -103,7 +106,7 @@ test('Move to the hub’s trash too… asks once more, then sends one confirmed 
   await click('sync-deletes-held-delete');
   await click('sync-deletes-held-confirm');
   expect(calls).toEqual([
-    { url: '/_api/sync/held-deletes', body: { answer: 'delete', folder: null } },
+    { url: '/_api/sync/held-deletes', body: { answer: 'delete', folder: null, digest: SHOWN } },
   ]);
   expect(q('sync-deletes-held-said')?.textContent).toBe(
     'Deleting 6,555 files on the hub. A batch this big takes a few minutes.'
@@ -125,7 +128,7 @@ test('Keep on the hub sends keep; kept files are listed as on the hub only, neve
   const { f, calls } = fakeFetch({ ok: true, how: 'keep', count: 6555 });
   await mount({ status: status({ held: heldRow() }), fetchImpl: f });
   await click('sync-deletes-held-keep');
-  expect(calls[0]?.body).toEqual({ answer: 'keep', folder: null });
+  expect(calls[0]?.body).toEqual({ answer: 'keep', folder: null, digest: SHOWN });
   expect(q('sync-deletes-held-said')?.textContent).toBe(
     'Kept on the hub. 6,555 files stay there and aren’t downloaded again.'
   );
@@ -138,6 +141,28 @@ test('Keep on the hub sends keep; kept files are listed as on the hub only, neve
   });
   expect(q('sync-hub-only')?.textContent).toContain('On the hub only · 2 files');
   expect(q('sync-delivery-attention')).toBeNull();
+});
+
+test('N4: a held set that grew since answers `changed`; the next status draws a fresh card', async () => {
+  const detail = 'The list changed. Nothing was deleted — look at it again.';
+  const { f } = fakeFetch({ ok: false, reason: 'changed', detail }, 409);
+  await mount({ status: status({ held: heldRow() }), fetchImpl: f });
+  await click('sync-deletes-held-delete');
+  await click('sync-deletes-held-confirm');
+  expect(q('sync-deletes-held-said')?.textContent).toBe(detail);
+  await click('sync-deletes-held-delete');
+  expect(q('sync-deletes-held-confirming')).not.toBeNull();
+  // the runtime reports the new set: a new card — its confirm and words start over
+  await act(async () => {
+    root?.render(
+      <SyncDetails
+        project="StudyFi"
+        {...({ status: status({ held: heldRow('e'.repeat(32)) }), fetchImpl: f } as never)}
+      />
+    );
+  });
+  expect(q('sync-deletes-held-said')).toBeNull();
+  expect(q('sync-deletes-held-confirming')).toBeNull();
 });
 
 test('the owner purge in progress is news, not a question; a stop is', () => {

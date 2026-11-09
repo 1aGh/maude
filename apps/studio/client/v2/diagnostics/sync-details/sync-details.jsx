@@ -307,7 +307,12 @@ function HeldDeletesCard({ need, fetchImpl }) {
   async function answer(kind) {
     setBusy(true);
     setSaid('');
-    const r = await postJson(fetchImpl, '/_api/sync/held-deletes', { answer: kind, folder: null });
+    // 2.1.1 N4 — the answer names the set on screen (`need.digest`), never "whatever is held now"
+    const r = await postJson(fetchImpl, '/_api/sync/held-deletes', {
+      answer: kind,
+      folder: null,
+      digest: need.digest,
+    });
     setBusy(false);
     setConfirming(false);
     setSaid(heldDeletesWords(r));
@@ -819,7 +824,12 @@ export default function SyncDetails({
             ) : need.kind === 'assets-stay' ? (
               <AssetsStayCard key="assets-stay" />
             ) : need.kind === 'deletes-held' ? (
-              <HeldDeletesCard key="deletes-held" need={need} fetchImpl={fetchImpl} />
+              // a new held set is a new card (its answer, confirm and words start over)
+              <HeldDeletesCard
+                key={`deletes-held-${need.digest}`}
+                need={need}
+                fetchImpl={fetchImpl}
+              />
             ) : need.kind === 'deletes-incoming' ? (
               // a new held set is a new card (its answer and words start over)
               <HeldIncomingCard

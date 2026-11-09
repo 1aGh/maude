@@ -708,9 +708,33 @@ pub async fn project_use_account(
 /// What a refused or cancelled switch answers the page (its toast).
 pub const SWITCH_CANCELLED: &str = "Nothing changed. The switch to that account was cancelled.";
 /// After a Cancel, how long the same project waits before it may ask again: a page can't wear
-/// the person down with one question after another.
+/// the person down with one question after another. 2.1.1 N2 — the wait grows with each Cancel
+/// in this run (`SWITCH_ASK_COOLDOWNS`); this is the first step.
 const SWITCH_ASK_COOLDOWN: std::time::Duration = std::time::Duration::from_secs(10);
+/// 2.1.1 N2 — the wait after the 1st, 2nd and every later Cancel, per project per run.
+const SWITCH_ASK_COOLDOWNS: [std::time::Duration; 3] = [
+    SWITCH_ASK_COOLDOWN,
+    std::time::Duration::from_secs(30),
+    std::time::Duration::from_secs(120),
+];
+/// 2.1.1 N2 — after a yes, the same project waits this long before it may ask again, so a page
+/// can't chain one switch into the next.
+const SWITCH_YES_COOLDOWN: std::time::Duration = std::time::Duration::from_secs(10);
 const SWITCH_ALLOW: &str = "Use account";
+
+/// 2.1.1 N2 — the sheet's buttons. A macOS alert gives its FIRST button the Return key, so Cancel
+/// goes first: a page that times the sheet to the person's typing gets a no. (`OkCancelCustom`
+/// is only the plugin's name for "two buttons in this order"; which one is yes is read from the
+/// label pressed, `switch_answer_is_yes`.)
+fn switch_buttons() -> tauri_plugin_dialog::MessageDialogButtons {
+    tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom("Cancel".to_string(), SWITCH_ALLOW.to_string())
+}
+
+/// 2.1.1 N2 — only the "Use account" button itself is a yes; Return, Escape, a closed sheet or
+/// any other answer is a no.
+fn switch_answer_is_yes(res: &tauri_plugin_dialog::MessageDialogResult) -> bool {
+    matches!(res, tauri_plugin_dialog::MessageDialogResult::Custom(s) if s == SWITCH_ALLOW)
+}
 
 /// Proof that the person allowed a switch on a surface the page can't drive. The field is
 /// private to this module: only `use_account_flow` makes one, after a yes.
@@ -756,30 +780,48 @@ pub(crate) fn switch_question(account: &str, project: &str) -> SwitchQuestion {
     }
 }
 
-/// Recent Cancels, by project root.
+/// One project's asks in this run: Cancels so far, and when it may ask next.
+struct AskRecord {
+    cancels: usize,
+    next: std::time::Instant,
+}
+
+/// Recent asks, by project root (2.1.1 N2: kept for the run, so the Cancel count persists).
 #[derive(Default)]
 pub struct SwitchAskBook {
-    cancelled: std::collections::BTreeMap<String, std::time::Instant>,
+    asks: std::collections::BTreeMap<String, AskRecord>,
 }
 
 impl SwitchAskBook {
     pub(crate) const fn new() -> Self {
         SwitchAskBook {
-            cancelled: std::collections::BTreeMap::new(),
+            asks: std::collections::BTreeMap::new(),
         }
     }
 
     fn may_ask(&mut self, root: &str, now: std::time::Instant) -> Result<(), String> {
-        self.cancelled
-            .retain(|_, at| now.saturating_duration_since(*at) < SWITCH_ASK_COOLDOWN);
-        if self.cancelled.contains_key(root) {
-            return Err(SWITCH_CANCELLED.to_string());
+        match self.asks.get(root) {
+            Some(r) if now < r.next => Err(SWITCH_CANCELLED.to_string()),
+            _ => Ok(()),
         }
-        Ok(())
     }
 
     fn cancel(&mut self, root: &str, now: std::time::Instant) {
-        self.cancelled.insert(root.to_string(), now);
+        let r = self
+            .asks
+            .entry(root.to_string())
+            .or_insert(AskRecord { cancels: 0, next: now });
+        let wait = SWITCH_ASK_COOLDOWNS[r.cancels.min(SWITCH_ASK_COOLDOWNS.len() - 1)];
+        r.cancels += 1;
+        r.next = now + wait;
+    }
+
+    fn allowed(&mut self, root: &str, now: std::time::Instant) {
+        let r = self
+            .asks
+            .entry(root.to_string())
+            .or_insert(AskRecord { cancels: 0, next: now });
+        r.next = now + SWITCH_YES_COOLDOWN;
     }
 }
 
@@ -812,6 +854,7 @@ where
                 lock().cancel(root, now());
                 return Err(SWITCH_CANCELLED.to_string());
             }
+            lock().allowed(root, now());
             Some(SwitchConsent(()))
         }
     };
@@ -821,7 +864,7 @@ where
 /// The consent provider in the app: a native sheet on the shell window, which only Rust draws.
 async fn ask_native(window: tauri::Window, q: SwitchQuestion) -> bool {
     use tauri::Manager;
-    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+    use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
     let (tx, rx) = tokio::sync::oneshot::channel();
     window
         .app_handle()
@@ -829,13 +872,11 @@ async fn ask_native(window: tauri::Window, q: SwitchQuestion) -> bool {
         .message(q.body)
         .title(q.title)
         .kind(MessageDialogKind::Warning)
-        .buttons(MessageDialogButtons::OkCancelCustom(
-            SWITCH_ALLOW.to_string(),
-            "Cancel".to_string(),
-        ))
+        // 2.1.1 N2 — Cancel first (Return), and yes only from the "Use account" button itself
+        .buttons(switch_buttons())
         .parent(&window)
-        .show(move |yes| {
-            let _ = tx.send(yes);
+        .show_with_result(move |res| {
+            let _ = tx.send(switch_answer_is_yes(&res));
         });
     rx.await.unwrap_or(false)
 }
@@ -1688,6 +1729,74 @@ mod tests {
         let ask = &ask[..ask.find("\n}").unwrap()];
         assert!(ask.contains(".dialog()") && ask.contains(".parent(&window)"));
         assert!(!ask.contains("bus::send"), "the question is never drawn by a page");
+        // 2.1.1 N2 — the answer is read by the button pressed, never the plugin's "first button = yes"
+        assert!(ask.contains("switch_buttons()") && ask.contains("switch_answer_is_yes("));
+        assert!(ask.contains(".show_with_result(") && !ask.contains(".show(move"));
+    }
+
+    /// 2.1.1 N2: Return (the first button on a macOS alert) and every answer but the
+    /// "Use account" button itself mean Cancel — a page that times the sheet to a keystroke
+    /// gets a no.
+    #[test]
+    fn the_native_sheet_defaults_to_cancel() {
+        use tauri_plugin_dialog::{MessageDialogButtons, MessageDialogResult};
+        match switch_buttons() {
+            MessageDialogButtons::OkCancelCustom(first, second) => {
+                assert_eq!(first, "Cancel", "the first (Return) button is Cancel");
+                assert_eq!(second, SWITCH_ALLOW);
+            }
+            other => panic!("unexpected buttons {other:?}"),
+        }
+        assert!(switch_answer_is_yes(&MessageDialogResult::Custom(SWITCH_ALLOW.into())));
+        for no in [
+            MessageDialogResult::Custom("Cancel".into()),
+            MessageDialogResult::Ok,
+            MessageDialogResult::Yes,
+            MessageDialogResult::Cancel,
+            MessageDialogResult::No,
+        ] {
+            assert!(!switch_answer_is_yes(&no), "{no:?} is not a yes");
+        }
+    }
+
+    /// 2.1.1 N2: the wait after a Cancel grows with each one (10 s → 30 s → 2 min, per project
+    /// per run), and a yes starts a short wait too, so a page can't chain switches.
+    #[test]
+    fn the_switch_cooldown_grows_and_follows_a_yes() {
+        let s = std::time::Duration::from_secs;
+        let t0 = std::time::Instant::now();
+        let book = Mutex::new(SwitchAskBook::new());
+        let plan = || Ok(SwitchPlan::Ask { account: "a@example.com".into() });
+        let commit = |_: Option<SwitchConsent>| Ok(true);
+        let run = |at: std::time::Instant, yes: bool| {
+            block_on(use_account_flow(plan(), "P", "/p/a", &book, || at, |_| async move { yes }, commit))
+        };
+        let blocked = |at: std::time::Instant| {
+            let never = |_: SwitchQuestion| -> std::future::Ready<bool> { panic!("asked during the cooldown") };
+            block_on(use_account_flow(plan(), "P", "/p/a", &book, || at, never, commit)).is_err()
+        };
+        // 1st Cancel: 10 s
+        assert!(run(t0, false).is_err());
+        assert!(blocked(t0 + s(9)));
+        // 2nd Cancel: 30 s
+        let t1 = t0 + s(10);
+        assert!(run(t1, false).is_err());
+        assert!(blocked(t1 + s(29)));
+        // 3rd Cancel: 2 min, and it stays there
+        let t2 = t1 + s(30);
+        assert!(run(t2, false).is_err());
+        assert!(blocked(t2 + s(119)));
+        let t3 = t2 + s(120);
+        assert!(run(t3, false).is_err());
+        assert!(blocked(t3 + s(119)));
+        // another project is not held up by this one
+        let other = block_on(use_account_flow(plan(), "Q", "/p/b", &book, || t3, |_| async { true }, commit));
+        assert!(other.unwrap());
+        // a yes: the next question waits too
+        let t4 = t3 + s(120);
+        assert!(run(t4, true).unwrap());
+        assert!(blocked(t4 + SWITCH_YES_COOLDOWN - std::time::Duration::from_millis(1)));
+        assert!(run(t4 + SWITCH_YES_COOLDOWN, true).unwrap());
     }
 
     /// Low 2c: `cloud_signed_in` acts only on this caller's own prepare — same
