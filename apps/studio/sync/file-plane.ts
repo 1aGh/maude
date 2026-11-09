@@ -959,7 +959,8 @@ export async function scanLocalFilesAsync(
 /** Walk the design root (stat only, no reads) and keep what the classifier admits. */
 function walkAndClassify(
   designRoot: string,
-  canvasGroups?: readonly CanvasGroupLike[]
+  canvasGroups?: readonly CanvasGroupLike[],
+  all = false
 ): { f: WalkedFile; cls: FileClass }[] {
   const found: WalkedFile[] = [];
 
@@ -1002,9 +1003,26 @@ function walkAndClassify(
   const out: { f: WalkedFile; cls: FileClass }[] = [];
   for (const f of found) {
     const cls = classifyProjectFile(f.rel, opts);
-    if (isFilePlaneClass(cls)) out.push({ f, cls });
+    if (all || isFilePlaneClass(cls)) out.push({ f, cls });
   }
   return out;
+}
+
+/**
+ * 2.1.1 — every file the walk sees, with its class (`canvas-owned` included): the link survey
+ * (sync/link-survey.ts) counts canvases and files with the SAME walk and classifier the plane uses,
+ * so "only on this Mac" can never name a file the plane would not send.
+ */
+export function walkClassifiedAll(
+  designRoot: string,
+  canvasGroups?: readonly CanvasGroupLike[]
+): { rel: string; abs: string; size: number; cls: FileClass }[] {
+  return walkAndClassify(designRoot, canvasGroups, true).map(({ f, cls }) => ({
+    rel: f.rel,
+    abs: f.abs,
+    size: f.size,
+    cls,
+  }));
 }
 
 /**

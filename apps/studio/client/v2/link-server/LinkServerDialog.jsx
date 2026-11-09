@@ -8,6 +8,10 @@
 // The address is checked as it is typed (debounced; the app's own server makes one tokenless GET of the
 // server's /health). "Sign in in your browser" wakes only once the server answered. The invite link and
 // the sign-in key are secrets: masked fields, read once by `runLink`, never echoed into a line.
+//
+// B5 — in a project tab whose folder is the person's own (`api.where`), the sign-in links THIS folder to the
+// server. A server that already holds work answers with counts first: the confirm step says what syncing
+// would do (only here / only there / different) and nothing is linked until "Sync this folder".
 
 import { useEffect, useId, useReducer, useRef } from 'react';
 
@@ -17,10 +21,12 @@ import {
   advancedParts,
   canSubmit,
   checkLine,
+  confirmLines,
   initialLink,
   LINK_WORDS as W,
   linkReducer,
   primaryLabel,
+  runConfirm,
   runLink,
   whyNotSubmit,
 } from './link-server-model.js';
@@ -59,6 +65,22 @@ export function LinkServerDialog({
       }
     };
   }, [api]);
+
+  // B5 — where this project lives: its own folder (linking means THIS folder), or not (the old behaviour).
+  // Only with a project: Settings' "Add a team server…" (no project) keeps opening the server's project.
+  useEffect(() => {
+    if (!project || typeof api.where !== 'function') return;
+    let live = true;
+    api
+      .where()
+      .then((w) => {
+        if (live && alive.current) dispatch({ type: 'here', folder: w?.folder ?? null });
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [api, project]);
 
   // the check, as you type: one request per resting address; an older answer is dropped by `seq`
   const { phase: checkPhase, seq } = s.check;
@@ -100,6 +122,23 @@ export function LinkServerDialog({
     if (r.ok) {
       dispatch({ type: 'done' });
       onClose();
+    } else if (r.needsConfirm) dispatch({ type: 'needs-confirm', confirm: r.needsConfirm });
+    else dispatch({ type: 'failed', error: r.error });
+  };
+
+  const confirmSync = async () => {
+    if (s.phase !== 'confirm') return;
+    dispatch({ type: 'confirming' });
+    let r;
+    try {
+      r = await runConfirm(s, api);
+    } catch {
+      r = { ok: false, error: W.failed };
+    }
+    if (!alive.current) return;
+    if (r.ok) {
+      dispatch({ type: 'done' });
+      onClose();
     } else dispatch({ type: 'failed', error: r.error });
   };
 
@@ -113,23 +152,26 @@ export function LinkServerDialog({
     dispatch({ type: 'cancelled' });
   };
 
-  const parts = advancedParts(api);
+  const parts = advancedParts(api, s);
   const line = checkLine(s);
   const waiting = s.phase === 'waiting' && s.wait;
+  const confirming = (s.phase === 'confirm' || s.phase === 'linking') && s.confirm;
   const busy = s.phase !== 'form';
-  // "Sync <project> …" only where the dialog can link THIS project's folder (`api.folders`); until that
-  // lands a sign-in opens the server's project in its own tab, and the words say so (2.1.1 T5 gap)
-  const syncsThis = !!project && !!api.folders;
+  // "Sync <project> …" where the dialog links a folder: THIS project's own (B5) or a chosen one (Home);
+  // elsewhere a sign-in opens the server's project in its own tab, and the words say so
+  const syncsThis = !!project && (api.folders === true || s.folder.mode === 'this');
   const lead = syncsThis ? (
     <p>
       Sync <strong>{project}</strong> with a Maude server your team runs.
     </p>
   ) : (
-    <p>Sign in to a Maude server your team runs. Its projects open in their own tab.</p>
+    <p>{W.leadOwnTab}</p>
   );
 
   return (
-    <AdvModal onCancel={waiting ? abortWait : busy ? () => {} : onClose}>
+    <AdvModal
+      onCancel={waiting ? abortWait : s.phase === 'confirm' ? onClose : busy ? () => {} : onClose}
+    >
       <div
         className="ob-dialog"
         role="dialog"
@@ -144,10 +186,49 @@ export function LinkServerDialog({
           data-check={s.check.phase}
           onSubmit={(e) => {
             e.preventDefault();
-            void submit();
+            if (confirming) void confirmSync();
+            else void submit();
           }}
         >
-          {waiting ? (
+          {confirming ? (
+            <>
+              <h2 className="ai-conn-t" id={titleId}>
+                {W.confirmTitle(s.confirm.host)}
+              </h2>
+              <div className="ai-conn-b ob-sheet-b" data-testid="link-server-confirm">
+                <p>{W.confirmLead(s.confirm.host)}</p>
+                <ul className="ls-counts">
+                  {confirmLines(s.confirm.counts, s.confirm.host).map((l) => (
+                    <li key={l.id} data-testid={`link-server-count-${l.id}`}>
+                      {l.text}
+                    </li>
+                  ))}
+                </ul>
+                <p className="ob-fine">{W.confirmFine}</p>
+              </div>
+              <div className="ai-conn-a">
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  data-testid="link-server-confirm-cancel"
+                  disabled={s.phase === 'linking'}
+                  {...reasonProps(s.phase === 'linking', W.linking)}
+                  onClick={onClose}
+                >
+                  {W.cancel}
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn--sm btn--primary"
+                  data-testid="link-server-confirm-sync"
+                  disabled={s.phase === 'linking'}
+                  {...reasonProps(s.phase === 'linking', W.linking)}
+                >
+                  {s.phase === 'linking' ? W.linking : W.confirmButton}
+                </button>
+              </div>
+            </>
+          ) : waiting ? (
             <>
               <h2 className="ai-conn-t" id={titleId}>
                 {W.waitTitle}
@@ -156,11 +237,7 @@ export function LinkServerDialog({
                 <p className="ls-wait" role="status" data-testid="link-server-waiting">
                   <Sw state="busy">{W.waitBody(s.wait.host)}</Sw>
                 </p>
-                <p className="ob-fine">
-                  {syncsThis
-                    ? `${project} starts syncing right after. Nothing is sent before you sign in.`
-                    : 'Nothing is sent before you sign in. The project opens right after.'}
-                </p>
+                <p className="ob-fine">{syncsThis ? W.waitThis(project) : W.waitOwnTab}</p>
               </div>
               <div className="ai-conn-a">
                 <button
@@ -310,7 +387,17 @@ export function LinkServerDialog({
                             <span className="ob-fine">{W.keyHint}</span>
                           </span>
                         ) : null}
-                        {api.folders ? (
+                        {s.folder.mode === 'this' ? (
+                          <fieldset className="ls-folder" disabled={busy}>
+                            <legend className="ob-field-label">{W.folderLabel}</legend>
+                            <span
+                              className="ob-input ob-mono ls-path"
+                              data-testid="link-server-folder-this"
+                            >
+                              {W.folderThis(s.folder.path)}
+                            </span>
+                          </fieldset>
+                        ) : api.folders === true ? (
                           <fieldset className="ls-folder" disabled={busy}>
                             <legend className="ob-field-label">{W.folderLabel}</legend>
                             <label className="ls-radio">

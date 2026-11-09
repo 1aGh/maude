@@ -96,4 +96,14 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* B5 — the confirm step's counts (what syncing this folder with the server would do) */
+  .ls-counts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: 0;
+    padding-left: var(--space-4);
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
 }

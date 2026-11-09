@@ -2832,6 +2832,13 @@ export function createHttp(
       linkedHubUrl: () => ctx.cfg.linkedHub?.url,
       restartSync: () => ctx.syncControl?.restart(),
     },
+    // 2.1.1 — POST /_api/hub/link-folder (routes/hub-link-folder.ts): main origin, window only, on the attach lane.
+    hubLinkFolder: {
+      designRoot: ctx.paths.designRoot,
+      canvasGroups: () => ctx.cfg.canvasGroups,
+      localFormat: () => asFormat(ctx.cfg.formatVersion),
+      attachStored: (url) => cloudApi.attachStored(url),
+    },
   }).map(guardTableRoute);
   // p8-a1-claims — outside the gates: a write that names an AI chat answers inside its run's claim
   // (in place, so every consumer of the table — the mount, the local gate — sees the same specs)

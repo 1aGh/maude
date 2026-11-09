@@ -299,6 +299,8 @@ const PERSON_ONLY: readonly (readonly [string, RegExp])[] = [
   ['POST', /^\/_api\/git\/push$/],
   ['POST', /^\/_api\/share\/invites(\/[^/]+\/resend)?$/],
   ['POST', /^\/_api\/cloud\/(attach|attach\/code|move|signin\/start)$/],
+  // 2.1.1 — THIS folder joins the person's team server (routes/hub-link-folder.ts)
+  ['POST', /^\/_api\/hub\/link-folder$/],
 ];
 
 export function isPersonOnlyRoute(method: string, pathname: string): boolean {
