@@ -162,18 +162,25 @@ describe('hub-signin-return — the browser hop back to the project lands withou
   it('7 · Home: the server account on this Mac, and where the project lives', async () => {
     const mine = await browser.getWindowHandle();
     await focusTab(HOME);
-    const row = await $(tid('home-accounts-row'));
-    await row.waitForDisplayed({ timeout: 30_000 });
+    // 2.1.2 HB1: accounts are a chip at the top right; the list opens from it
+    const chip = await $(tid('home-accounts-chip'));
+    await chip.waitForDisplayed({ timeout: 30_000 });
+    expect(await (await $(tid('home-account-banner'))).isExisting()).toBe(false);
+    await chip.click();
+    const list = await $(tid('home-accounts'));
+    await list.waitForDisplayed({ timeout: 10_000 });
     const host = new URL(W.me.hub).host;
-    await browser.waitUntil(async () => (await row.getText()).includes(host), {
+    await browser.waitUntil(async () => (await list.getText()).includes(host), {
       timeout: 30_000,
-      timeoutMsg: `Home's accounts row never named ${host}`,
+      timeoutMsg: `Home's accounts list never named ${host}`,
     });
     const card = await $(`[data-testid^="home-account-card-"][data-kind="server"]`);
     expect(await card.getAttribute('data-state')).toBe('ok');
+    await appShot('home-accounts-list');
+    await chip.click();
     const where = await $('[data-testid^="home-project-where-"]');
     if (await where.isExisting()) await where.scrollIntoView({ block: 'center' });
-    await appShot('home-accounts-row-and-where');
+    await appShot('home-accounts-chip-and-where');
     await focusTab(mine);
   });
 });

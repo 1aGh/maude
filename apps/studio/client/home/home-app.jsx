@@ -62,9 +62,10 @@ import { HOME_MENU, homeMenuCtx, homeMenuState } from './home-menu.js';
 import { InviteSheet } from './InviteSheet.jsx';
 import { INVITE_WORDS, joinPendingAndOpen, useInviteFlow } from './invite-flow.js';
 import { HIcon, HSpark, ProjectSquare } from './home-icons.jsx';
-import { HomeAccounts } from './HomeAccounts.jsx';
-import { HomeAccountsRow } from './HomeAccountsRow.jsx';
-import { homeAccountCards } from './home-accounts-model.js';
+import { HomeAccountBanner } from './HomeAccountBanner.jsx';
+import { HomeAccountsChip } from './HomeAccountsChip.jsx';
+import { homeAccountBanner, homeAccountCards, homeAccountsSummary } from './home-accounts-model.js';
+import { useAccountFix } from './use-account-fix.js';
 import {
   buildHomeModel,
   defaultTarget,
@@ -499,9 +500,11 @@ export function HomeApp() {
       }),
     [data.shell, data.index, data.clouds, filterPid, hubAccounts, hubStates, cloudUrl]
   );
-  // 2.1.1 (artboard 14) — the accounts row on top; an account whose sign-in stopped working is fixed
-  // from its own card. A Maude Cloud one drops the dead credential first so the sign-in may use that
-  // same profile again (Rust never re-signs a profile that still holds one).
+  // 2.1.2 HB1 (canvas 17, artboards 15–18) — accounts are a chip at the top right that opens the list;
+  // only a sign-in the person can fix raises the banner on top. An account whose sign-in stopped
+  // working is fixed from its own line or the banner (one shared attempt). A Maude Cloud one drops the
+  // dead credential first so the sign-in may use that same profile again (Rust never re-signs a
+  // profile that still holds one). A Maude Cloud cell is never a server (`cloudUrl`).
   const accountCards = useMemo(
     () =>
       homeAccountCards({
@@ -509,10 +512,20 @@ export function HomeApp() {
         clouds: data.clouds,
         hubProfiles: hubProfiles ?? [],
         groups: model.groups,
+        cloudUrl,
       }),
-    [data.shell, data.clouds, hubProfiles, model.groups]
+    [data.shell, data.clouds, hubProfiles, model.groups, cloudUrl]
   );
-  // 2.0.5 W4b — the face at the top right opens every account on this Mac (HomeAccounts.jsx)
+  const accountSummary = useMemo(() => homeAccountsSummary(accountCards), [accountCards]);
+  const accountBanner = useMemo(() => homeAccountBanner(accountCards), [accountCards]);
+  const [accountsOpen, setAccountsOpen] = useState(false);
+  const accountFix = useAccountFix({
+    onCloudSignIn: async (card) => {
+      if (card.state === 'rejected') await cloudSignOut(card.profile);
+      signin.begin({ profile: card.profile });
+    },
+    onChanged: data.reload,
+  });
   const searchPids = useMemo(
     () => (data.shell ? indexQuery(data.shell).pids : browserPids()),
     [data.shell]
@@ -1020,19 +1033,31 @@ export function HomeApp() {
             }}
             canOpen={data.native}
           />
-          <HomeAccounts
-            shell={data.shell}
-            clouds={data.clouds}
-            native={data.native}
-            onAddCloud={() => signin.begin()}
-            onAddTeam={() => openSheet('hub')}
-            onChanged={data.reload}
-          />
+          {accountCards.length || (data.native && data.shell?.profiles?.length) ? (
+            <HomeAccountsChip
+              summary={accountSummary}
+              shell={data.shell}
+              native={data.native}
+              open={accountsOpen}
+              onOpen={() => setAccountsOpen(true)}
+              onClose={() => setAccountsOpen(false)}
+              fixer={accountFix}
+              onAddCloud={() => signin.begin()}
+              onAddTeam={() => openSheet('hub')}
+              onChanged={data.reload}
+            />
+          ) : null}
         </div>
       </header>
 
       <main className="home-page" aria-label="Home">
         <h1 className="home-sr">Home</h1>
+        <HomeAccountBanner
+          banner={accountBanner}
+          native={data.native}
+          fixer={accountFix}
+          onReview={() => setAccountsOpen(true)}
+        />
         <HomeAsk
           choices={choices}
           targetKey={targetKey}
@@ -1107,20 +1132,6 @@ export function HomeApp() {
               Dismiss
             </button>
           </p>
-        ) : null}
-
-        {data.native && accountCards.length ? (
-          <HomeAccountsRow
-            cards={accountCards}
-            native={data.native}
-            onCloudSignIn={async (card) => {
-              if (card.state === 'rejected') await cloudSignOut(card.profile);
-              signin.begin({ profile: card.profile });
-            }}
-            onAddCloud={() => signin.begin()}
-            onAddTeam={() => openSheet('hub')}
-            onChanged={data.reload}
-          />
         ) : null}
 
         {model.cards.length || filterPid ? (

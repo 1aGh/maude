@@ -6,7 +6,7 @@
 import { HIcon } from './home-icons.jsx';
 
 /** The broken-link glyph on a sign-in that stopped working (the project window's badge). */
-function BrokenLink({ size = 10 }) {
+export function BrokenLink({ size = 10 }) {
   return (
     <svg
       width={size}
@@ -78,7 +78,8 @@ export function StateWord({ tone, children, testid }) {
   return (
     <span className="home-sw" data-tone={tone} data-testid={testid}>
       <i aria-hidden="true" />
-      {children}
+      {/* 2.1.2: the word clips (…) on a narrow line instead of running under a button */}
+      <span className="home-sw-w">{children}</span>
     </span>
   );
 }
