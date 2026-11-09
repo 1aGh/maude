@@ -274,6 +274,41 @@ describe('upload sessions', () => {
     assert.equal(readFileSync(join(designRoot, 'assets/h.mp4'), 'utf8'), 'older');
   });
 
+  // 2.1.1 T9 — the large-file lane honours an owner purge like the single PUT does.
+  it('a session over an owner-purge tombstone lands only when it names the tombstone', async () => {
+    const rel = 'assets/purged.mp4';
+    const journal = openJournal(dataDir);
+    writeFileSync(join(designRoot, rel), 'gone soon');
+    journal.recordWrite({ designRoot, path: rel, source: 'peer-put' });
+    rmSync(join(designRoot, rel));
+    const tomb = journal.recordWrite({
+      designRoot,
+      path: rel,
+      source: 'owner-purge',
+      deleted: true,
+    });
+    const bytes = video(PART);
+    const open = async (extra) =>
+      call({
+        method: 'POST',
+        body: { path: rel, size: bytes.length, sha256: sha(bytes), expectHash: 'none', ...extra },
+      });
+    const stale = await open({});
+    await call({ path: `/${stale.json.id}/0`, method: 'PUT', body: bytes });
+    const refused = await call({ path: `/${stale.json.id}/complete`, method: 'POST' });
+    assert.equal(refused.status, 409, JSON.stringify(refused.json));
+    assert.equal(refused.json.deleted, true);
+    assert.equal(refused.json.seq, tomb.seq);
+    assert.equal(existsSync(join(designRoot, rel)), false);
+
+    // The peer re-decides over the tombstone it was told about; the same session resumes.
+    const named = await open({ expectSeq: tomb.seq });
+    assert.equal(named.json.id, stale.json.id);
+    const done = await call({ path: `/${named.json.id}/complete`, method: 'POST' });
+    assert.equal(done.status, 200, JSON.stringify(done.json));
+    assert.equal(existsSync(join(designRoot, rel)), true);
+  });
+
   // F3 S12 on the cloud cell (2026-09-24): a session lived only on the
   // container's disk, so a cell restart answered 404 "no such upload" and a
   // large file started over from part 0. With a durable store beside the

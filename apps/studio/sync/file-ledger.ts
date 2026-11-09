@@ -147,6 +147,13 @@ export interface LedgerRow {
    */
   remoteHash?: string | null;
   /**
+   * The hub's null above is a TOMBSTONE, not "never had it" (2.1.1 T9). Without it a tombstone
+   * this machine did not act on (the inbound delete breaker held it) decayed on the next pass
+   * into `remote-regressed` — absence-as-authority — and the held files were pushed back over the
+   * delete. Meaningful only while `remoteHash` is null; any learned hash supersedes it.
+   */
+  remoteDeleted?: true;
+  /**
    * STAT CACHE — the hash of what was last OBSERVED on disk, valid while
    * `(size, mtimeMs)` still match.
    *
@@ -285,8 +292,11 @@ export interface FileLedger {
   ancestorOf(rel: string): string | null;
   /** The hub's hash for this path, as last learned. `undefined` = never learned. */
   remoteOf(rel: string): string | null | undefined;
-  /** Record what the hub holds. A delta read UPDATES; only a full read clears. */
-  noteRemote(rel: string, hash: string | null, seq?: number): void;
+  /** Record what the hub holds. A delta read UPDATES; only a full read clears.
+   *  `deleted`: the null is the hub's tombstone (T9), remembered past this pass. */
+  noteRemote(rel: string, hash: string | null, seq?: number, deleted?: boolean): void;
+  /** The hub's latest word on this path, as last learned, is a tombstone (T9). */
+  remoteTombstoned(rel: string): boolean;
   /** After a FULL read: forget every remote we did not just see. */
   pruneRemotes(seen: Set<string>): void;
   /** All rows, for the doručenka. Defensive copy. */
@@ -447,6 +457,7 @@ export function createFileLedger(opts: FileLedgerOptions): FileLedger {
         ...(typeof r.remoteHash === 'string' || r.remoteHash === null
           ? { remoteHash: r.remoteHash }
           : {}),
+        ...(r.remoteHash === null && r.remoteDeleted === true ? { remoteDeleted: true } : {}),
         ...(Number.isFinite(r.size) ? { size: r.size } : {}),
         ...(Number.isFinite(r.mtimeMs) ? { mtimeMs: r.mtimeMs } : {}),
         ...(typeof r.state === 'string' ? { state: r.state as DeliveryState } : {}),
@@ -587,11 +598,18 @@ export function createFileLedger(opts: FileLedgerOptions): FileLedger {
     ancestorOf: (rel) => data.rows[rel]?.syncedHash ?? null,
     remoteOf: (rel) => data.rows[rel]?.remoteHash,
 
-    noteRemote(rel, hash, seq) {
+    noteRemote(rel, hash, seq, deleted) {
       const r = rowFor(rel);
       r.remoteHash = hash;
+      if (hash === null && deleted === true) r.remoteDeleted = true;
+      else r.remoteDeleted = undefined;
       if (seq !== undefined) r.remoteSeq = seq;
       schedule();
+    },
+
+    remoteTombstoned(rel) {
+      const r = data.rows[rel];
+      return r?.remoteHash === null && r.remoteDeleted === true;
     },
 
     pruneRemotes(seen) {
@@ -600,7 +618,10 @@ export function createFileLedger(opts: FileLedgerOptions): FileLedger {
       // its remembered remote rather than keeping a value the hub has since
       // dropped.
       for (const [rel, r] of Object.entries(data.rows)) {
-        if (!seen.has(rel) && r.remoteHash !== undefined) r.remoteHash = null;
+        if (!seen.has(rel) && r.remoteHash !== undefined) {
+          r.remoteHash = null;
+          r.remoteDeleted = undefined;
+        }
       }
       schedule();
     },

@@ -67,9 +67,18 @@ function fakeHub(initial: Record<string, string> = {}) {
   let seq = 0;
   const rows = new Map<
     string,
-    { seq: number; sha256: string | null; size: number; body: string; deleted?: boolean }
+    {
+      seq: number;
+      sha256: string | null;
+      size: number;
+      body: string;
+      deleted?: boolean;
+      purge?: boolean;
+    }
   >();
   const puts: { rel: string; expect: string | null; body: string }[] = [];
+  /** PUTs the door refused because they did not name an owner-purge tombstone (T9). */
+  const purgeRefusals: string[] = [];
   const deletes: string[] = [];
   let lieAboutSize = false;
   let forceReanchor = false;
@@ -167,7 +176,20 @@ function fakeHub(initial: Record<string, string> = {}) {
         .join('/');
       const headers = new Headers(init.headers as HeadersInit);
       const expect = headers.get('x-maude-expect-hash');
-      const current = rows.get(rel)?.sha256 ?? null;
+      const latest = rows.get(rel);
+      // The real door (2.1.1 T9): a write over an owner-purge tombstone must name its seq.
+      if (
+        latest?.deleted &&
+        latest.purge &&
+        headers.get('x-maude-expect-seq') !== String(latest.seq)
+      ) {
+        purgeRefusals.push(rel);
+        return new Response(
+          JSON.stringify({ error: 'moved', current: null, deleted: true, seq: latest.seq }),
+          { status: 409 }
+        );
+      }
+      const current = latest?.sha256 ?? null;
       const wantsAbsent = expect === 'none';
       if (expect && !(wantsAbsent ? current === null : current === expect)) {
         return new Response(JSON.stringify({ error: 'moved', current }), { status: 409 });
@@ -202,6 +224,12 @@ function fakeHub(initial: Record<string, string> = {}) {
       seq += 1;
       rows.set(rel, { seq, sha256: null, size: 0, body: '', deleted: true });
     },
+    /** Tombstone a path as one file of the owner's confirmed purge (T9). */
+    purge: (rel: string) => {
+      seq += 1;
+      rows.set(rel, { seq, sha256: null, size: 0, body: '', deleted: true, purge: true });
+    },
+    purgeRefusals,
     epoch: () => epochValue,
     head: () => seq,
     /** Declare every row as costing nothing — the A1 primitive. */
@@ -1066,6 +1094,104 @@ describe('the deletion breakers — the only protection now that this ships ON',
     expect(res.deleteHeld?.direction).toBe('in');
     expect(existsSync(join(root, 'system/ds/f0.css'))).toBe(true);
     expect(res.deleted).toEqual([]);
+  });
+
+  // 2.1.1 T9 — the field shape. A peer away during an owner purge comes back to a tombstone
+  // storm; the breaker holds it (right), but the ledger remembered each tombstone as a plain
+  // "the hub has nothing", so the NEXT pass read the held files as `remote-regressed` and pushed
+  // them all back with expect=none — undoing the purge on the hub.
+  test.each([
+    'purge',
+    'tombstone',
+  ] as const)('a held %s storm is not pushed back on the passes after', async (kind) => {
+    const seeded: Record<string, string> = {};
+    for (let i = 0; i < 20; i++) seeded[`system/ds/f${i}.css`] = `.a${i}{}`;
+    const hub = fakeHub(seeded);
+    const p = plane(hub, { propagateDeletes: true });
+    await p.reconcile();
+
+    // `tombstone` is a door that takes expect=none over any tombstone — the 2.0.8 hub.
+    for (let i = 0; i < 20; i++) hub[kind](`system/ds/f${i}.css`);
+    for (let pass = 0; pass < 3; pass++) {
+      const res = await p.reconcile();
+      expect(res.deleteHeld?.direction).toBe('in');
+      expect(res.pushed).toEqual([]);
+    }
+    expect(hub.puts).toEqual([]);
+    expect(hub.purgeRefusals).toEqual([]);
+    expect(existsSync(join(root, 'system/ds/f0.css'))).toBe(true);
+    for (let i = 0; i < 20; i++) expect(hub.rows.get(`system/ds/f${i}.css`)?.deleted).toBe(true);
+  });
+
+  test('a restarted plane still remembers the held tombstones', async () => {
+    const seeded: Record<string, string> = {};
+    for (let i = 0; i < 20; i++) seeded[`system/ds/f${i}.css`] = `.a${i}{}`;
+    const hub = fakeHub(seeded);
+    await plane(hub, { propagateDeletes: true }).reconcile();
+    for (let i = 0; i < 20; i++) hub.purge(`system/ds/f${i}.css`);
+    await plane(hub, { propagateDeletes: true }).reconcile();
+    ledger.flush();
+    ledger = createFileLedger({ designRoot: root, hubUrl: HUB, flushMs: 0 });
+    // A restart's first pass re-reads the whole log and holds again; the passes after it are
+    // where a forgotten tombstone turned into a push.
+    const again = plane(hub, { propagateDeletes: true });
+    await again.reconcile();
+    await again.reconcile();
+    const res = await again.reconcile();
+    expect(res.deleteHeld?.direction).toBe('in');
+    expect(res.pushed).toEqual([]);
+    expect(hub.puts).toEqual([]);
+    expect(hub.purgeRefusals).toEqual([]);
+  });
+
+  test('an offline peer under the breaker applies a purge and does not re-put it', async () => {
+    const seeded: Record<string, string> = {};
+    for (let i = 0; i < 20; i++) seeded[`system/ds/f${i}.css`] = `.a${i}{}`;
+    const hub = fakeHub(seeded);
+    const p = plane(hub, { propagateDeletes: true });
+    await p.reconcile();
+    for (const i of [1, 2, 3]) hub.purge(`system/ds/f${i}.css`);
+    const res = await p.reconcile();
+    expect(res.deleted.map((d) => d.rel).sort()).toEqual([
+      'system/ds/f1.css',
+      'system/ds/f2.css',
+      'system/ds/f3.css',
+    ]);
+    await p.reconcile();
+    expect(existsSync(join(root, 'system/ds/f1.css'))).toBe(false);
+    expect(hub.puts).toEqual([]);
+  });
+
+  test('a ledger that forgot the tombstone (an older app) learns it from the door', async () => {
+    const seeded: Record<string, string> = {};
+    for (let i = 0; i < 20; i++) seeded[`system/ds/f${i}.css`] = `.a${i}{}`;
+    const hub = fakeHub(seeded);
+    const p = plane(hub, { propagateDeletes: true });
+    await p.reconcile();
+    for (let i = 0; i < 20; i++) hub.purge(`system/ds/f${i}.css`);
+    await p.reconcile();
+    // What 2.0.x left on disk: a remote of null, with no word that it was a tombstone.
+    for (let i = 0; i < 20; i++) ledger.noteRemote(`system/ds/f${i}.css`, null);
+    await p.reconcile(); // the door refuses each re-put and names the tombstone
+    const refusedOnce = hub.purgeRefusals.length;
+    expect(refusedOnce).toBeGreaterThan(0);
+    await p.reconcile();
+    await p.reconcile();
+    expect(hub.purgeRefusals.length).toBe(refusedOnce);
+    expect(hub.puts).toEqual([]);
+    expect(existsSync(join(root, 'system/ds/f0.css'))).toBe(true);
+  });
+
+  test('a genuinely new file at a purged path still reaches the hub', async () => {
+    const hub = fakeHub({ 'system/ds/a.css': '.a{}', 'system/ds/b.css': '.b{}' });
+    const p = plane(hub, { propagateDeletes: true });
+    await p.reconcile();
+    hub.purge('system/ds/a.css');
+    await p.reconcile();
+    expect(existsSync(join(root, 'system/ds/a.css'))).toBe(false);
+    write('system/ds/a.css', '.a{color:red}');
+    for (let pass = 0; pass < 3; pass++) await p.reconcile();
+    expect(hub.rows.get('system/ds/a.css')?.sha256).toBe(sha('.a{color:red}'));
   });
 
   test('a patient drain is caught too — the budget remembers across passes', async () => {

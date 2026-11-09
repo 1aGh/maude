@@ -61,7 +61,9 @@ import {
   moveFile,
   quotaFor,
   seqFor,
+  staleOverTombstone,
   textFileMaxBytes,
+  tombstoneFields,
   withPathLock,
 } from './file-door.mjs';
 import { MAX_PROJECT_FILE_BYTES, PART_BYTES } from './file-limits.mjs';
@@ -410,6 +412,8 @@ export async function handleUploadSessions(ctx) {
       }
     }
     const expect = typeof body?.expectHash === 'string' ? body.expectHash.trim() : '';
+    // The tombstone this peer decided over (2.1.1 T9, `staleOverTombstone`).
+    const expectSeq = Number.isInteger(body?.expectSeq) ? String(body.expectSeq) : '';
     // Idempotent: the same person resuming the same bytes to the same place
     // gets the session they already have.
     try {
@@ -423,6 +427,11 @@ export async function handleUploadSessions(ctx) {
           s.sha256 === sha256 &&
           s.size === size
         ) {
+          // The precondition is the peer's decision NOW: a resume re-states it.
+          if ((s.expectSeq ?? '') !== expectSeq) {
+            s.expectSeq = expectSeq;
+            saveSession(dataDir, s);
+          }
           respondJson(response, 200, await viewOf(dataDir, s, store));
           return true;
         }
@@ -471,6 +480,7 @@ export async function handleUploadSessions(ctx) {
       size,
       sha256,
       expect,
+      expectSeq,
       partBytes,
       parts: Math.ceil(size / partBytes),
       reserved: size,
@@ -570,12 +580,18 @@ export async function handleUploadSessions(ctx) {
     }
     const target = ad.target;
     return await withPathLock(s.path, async () => {
-      const current = ctx.journal ? currentHashFor(ctx.journal, s.path) : null;
-      if (s.expect && !(s.expect === 'none' ? current === null : current === s.expect)) {
+      const cas = staleOverTombstone(
+        ctx.journal,
+        s.path,
+        s.expect ?? '',
+        typeof s.expectSeq === 'string' ? s.expectSeq : ''
+      );
+      if (!cas.ok) {
         respondJson(response, 409, {
           error: 'the hub moved since you decided',
           path: s.path,
-          current,
+          current: cas.current,
+          ...tombstoneFields(cas),
         });
         return true;
       }
@@ -631,7 +647,7 @@ export async function handleUploadSessions(ctx) {
         ctx.materializer.release(whole); // a no-op append needs no pin
       } else {
         moveFile(tmp, target.abs);
-        ctx.onWritten?.({ path: s.path, bytes: s.size, sha256: whole });
+        ctx.onWritten?.({ path: s.path, bytes: s.size, sha256: whole, label: match.label });
       }
       const receipt = {
         ok: true,

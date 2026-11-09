@@ -536,12 +536,11 @@ export async function handleFileDoor(ctx) {
   if (method === 'DELETE') {
     return await handleDelete({ ctx, response, landing, target, expect, role });
   }
-  const casHolds = () => {
-    if (!expect) return { ok: true };
-    const current = ctx.journal ? currentHashFor(ctx.journal, landing) : null;
-    const matches = expect === 'none' ? current === null : current === expect;
-    return matches ? { ok: true } : { ok: false, current };
-  };
+  // `x-maude-expect-seq: <n>` — the tombstone this peer decided over (2.1.1 T9). `none` cannot
+  // tell "I saw it deleted and am creating it anew" from "my view predates the delete", and
+  // for an owner purge the second one silently undoes the owner's decision.
+  const expectSeq = String(request.headers?.['x-maude-expect-seq'] ?? '').trim();
+  const casHolds = () => staleOverTombstone(ctx.journal, landing, expect, expectSeq);
 
   const pre = casHolds();
   if (!pre.ok) {
@@ -551,6 +550,7 @@ export async function handleFileDoor(ctx) {
       error: 'the hub moved since you decided',
       path: landing,
       current: pre.current,
+      ...tombstoneFields(pre),
     });
     return true;
   }
@@ -632,6 +632,7 @@ export async function handleFileDoor(ctx) {
         error: 'the hub moved while your body was in flight',
         path: landing,
         current: post.current,
+        ...tombstoneFields(post),
       });
       return true;
     }
@@ -663,7 +664,7 @@ export async function handleFileDoor(ctx) {
       // (attacker review 2b). `release` keeps it only while a row waits.
       ctx.materializer.release(r.sha256);
     } else {
-      ctx.onWritten?.({ path: landing, bytes: r.total });
+      ctx.onWritten?.({ path: landing, bytes: r.total, label: match.label });
     }
 
     const seq = ctx.journal ? seqFor(ctx.journal, landing) : null;
@@ -968,6 +969,38 @@ export function currentHashFor(journal, rel) {
   const row = journal.latestFor(rel);
   if (!row || row.deleted) return null;
   return row.sha256 ?? null;
+}
+
+/**
+ * The write CAS, shared by the single PUT and the upload session (2.1.1 T9).
+ *
+ * `expect` is the peer's `x-maude-expect-hash` (`<sha256>`, `none`, or empty for no
+ * precondition). On top of it: a path whose latest row is an OWNER-PURGE tombstone is written
+ * only by a peer that names that tombstone's seq (`expectSeq`). A peer whose view predates the
+ * purge reads the path as "the hub never had it" and offers `none` (or nothing), which the plain
+ * hash CAS cannot tell from a deliberate new file — so it is refused, with the tombstone, and the
+ * peer re-decides against it. Other tombstones keep today's create-after-delete.
+ *
+ * @returns {{ ok: true } | { ok: false, current: string|null, tombstoneSeq?: number }}
+ */
+export function staleOverTombstone(journal, rel, expect, expectSeq = '') {
+  const latest = journal ? journal.latestFor(rel) : null;
+  const current = latest && !latest.deleted ? (latest.sha256 ?? null) : null;
+  const tombstoneSeq = latest?.deleted ? latest.seq : undefined;
+  const purgeSeq = journal?.purgeTombstoneSeq?.(rel) ?? null;
+  if (purgeSeq !== null && expectSeq !== String(purgeSeq)) {
+    return { ok: false, current: null, tombstoneSeq: purgeSeq };
+  }
+  if (!expect) return { ok: true };
+  const matches = expect === 'none' ? current === null : current === expect;
+  return matches ? { ok: true } : { ok: false, current, tombstoneSeq };
+}
+
+/** The 409 fields that say the path is tombstoned, and at which seq. */
+export function tombstoneFields(refusal) {
+  return Number.isInteger(refusal?.tombstoneSeq)
+    ? { deleted: true, seq: refusal.tombstoneSeq }
+    : {};
 }
 
 /** The seq of the hub's latest row for `rel`, or null. */
