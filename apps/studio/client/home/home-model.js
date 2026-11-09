@@ -15,6 +15,7 @@
 import { localIdentityMatches } from '../share-link.js';
 import { accountTone } from '../shell/account-tone.js';
 import { pathTestIdSlug } from '../shell/util.js';
+import { cloudRowWhere, cloudState, connBadge, serverState, whereOf } from './home-where-model.js';
 
 /** `canvas-row-<slug>`'s rule, so Home rows and tree rows name a canvas the same way. */
 export const rowSlug = (rel) => pathTestIdSlug(rel);
@@ -186,6 +187,7 @@ export function buildHomeModel({
   clouds = null,
   filterPid = null,
   hubAccounts = null,
+  hubStates = null,
   cloudUrl = null,
 }) {
   const indexed = new Map();
@@ -235,6 +237,14 @@ export function buildHomeModel({
     for (const [url, who] of Object.entries(byHub ?? {}))
       if (normHubUrl(url) && typeof who === 'string' && who) m.set(normHubUrl(url), who);
     accountsOn.set(id, m);
+  }
+  // 2.1.1 — per profile, whether each saved team sign-in still works (`/_home/accounts` `state`)
+  const statesOn = new Map();
+  for (const [id, byHub] of Object.entries(hubStates ?? {})) {
+    const m = new Map();
+    for (const [url, st] of Object.entries(byHub ?? {}))
+      if (normHubUrl(url) && typeof st === 'string') m.set(normHubUrl(url), st);
+    statesOn.set(id, m);
   }
   const allLocal = registry.map((p) => {
     const ix = indexed.get(p.pid);
@@ -286,7 +296,34 @@ export function buildHomeModel({
     const ib = mru.has(b.pid) ? mru.get(b.pid) : Number.POSITIVE_INFINITY;
     return ia - ib || a.name.localeCompare(b.name);
   });
-  const localRows = attachWorktrees(collapseDuplicates(allLocal, cloudUrl), shell?.worktrees);
+  const listingFor = (id) => (clouds ?? []).find((c) => c?.profile === id) ?? null;
+  // 2.1.1 (artboard 14) — where the row lives and how it connects, after the folded copies settled
+  const placed = (r) => {
+    const kind = r.connection?.kind;
+    const state =
+      kind === 'local'
+        ? 'local'
+        : kind === 'cloud'
+          ? cloudState(listingFor(r.profile))
+          : kind === 'team'
+            ? serverState(
+                hubStates ? (statesOn.get(r.profile) ?? new Map()) : null,
+                r.boundHub || r.hub
+              )
+            : null;
+    return {
+      ...r,
+      where: whereOf(r),
+      conn: connBadge(state, {
+        kind,
+        profile: { id: r.profile },
+        email: r.connection?.account ?? null,
+      }),
+    };
+  };
+  const localRows = attachWorktrees(collapseDuplicates(allLocal, cloudUrl), shell?.worktrees).map(
+    (r) => (r.status === 'gone' ? r : placed(r))
+  );
 
   // one profile's copy never hides another profile's cloud row
   const bound = new Set(
@@ -308,6 +345,8 @@ export function buildHomeModel({
         ownerName: cp.ownerName ?? null,
         role: cp.role ?? null,
         url: cp.url ?? null,
+        where: cloudRowWhere(listing.account?.email || emailOf(listing.profile)),
+        conn: null,
         status: 'cloud',
         updatedAt: cp.updatedAt ?? null,
       });

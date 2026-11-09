@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  cloudSignOut,
   createLocal,
   createLocalFromPrompt,
   getAccounts,
@@ -61,6 +62,9 @@ import { InviteSheet } from './InviteSheet.jsx';
 import { INVITE_WORDS, joinPendingAndOpen, useInviteFlow } from './invite-flow.js';
 import { HIcon, HMark, HSpark, ProjectSquare } from './home-icons.jsx';
 import { HomeAccounts } from './HomeAccounts.jsx';
+import { HomeAccountsRow } from './HomeAccountsRow.jsx';
+import { AcctFace, StateWord, WhereChip } from './HomeConnection.jsx';
+import { homeAccountCards } from './home-accounts-model.js';
 import {
   accountFace,
   buildHomeModel,
@@ -453,6 +457,9 @@ export function HomeApp() {
   // 2.0.5 W4b — the account each profile's team servers vouched for, so a row can say
   // "Team server · <host> · <account>" (public handles from /_home/accounts, never a token)
   const [hubAccounts, setHubAccounts] = useState(null);
+  // 2.1.1 — and whether each of those sign-ins still works (`state`), plus the raw answer for the accounts row
+  const [hubStates, setHubStates] = useState(null);
+  const [hubProfiles, setHubProfiles] = useState(null);
   const profileKey = (data.shell?.profiles ?? [])
     .map((p) => p?.id)
     .filter(Boolean)
@@ -471,6 +478,15 @@ export function HomeApp() {
           ])
         )
       );
+      setHubStates(
+        Object.fromEntries(
+          r.json.profiles.map((p) => [
+            p.id,
+            Object.fromEntries((p.hubs ?? []).map((h) => [h.url, h.state])),
+          ])
+        )
+      );
+      setHubProfiles(r.json.profiles);
     });
     return () => {
       live = false;
@@ -484,9 +500,23 @@ export function HomeApp() {
         clouds: data.clouds,
         filterPid: filterPid || null,
         hubAccounts,
+        hubStates,
         cloudUrl,
       }),
-    [data.shell, data.index, data.clouds, filterPid, hubAccounts, cloudUrl]
+    [data.shell, data.index, data.clouds, filterPid, hubAccounts, hubStates, cloudUrl]
+  );
+  // 2.1.1 (artboard 14) — the accounts row on top; an account whose sign-in stopped working is fixed
+  // from its own card. A Maude Cloud one drops the dead credential first so the sign-in may use that
+  // same profile again (Rust never re-signs a profile that still holds one).
+  const accountCards = useMemo(
+    () =>
+      homeAccountCards({
+        shell: data.shell,
+        clouds: data.clouds,
+        hubProfiles: hubProfiles ?? [],
+        groups: model.groups,
+      }),
+    [data.shell, data.clouds, hubProfiles, model.groups]
   );
   // 2.0.5 W4b — the face at the top right opens every account on this Mac (HomeAccounts.jsx)
   const searchPids = useMemo(
@@ -1065,6 +1095,20 @@ export function HomeApp() {
           </p>
         ) : null}
 
+        {data.native && accountCards.length ? (
+          <HomeAccountsRow
+            cards={accountCards}
+            native={data.native}
+            onCloudSignIn={async (card) => {
+              if (card.state === 'rejected') await cloudSignOut(card.profile);
+              signin.begin({ profile: card.profile });
+            }}
+            onAddCloud={() => signin.begin()}
+            onAddTeam={() => openSheet('hub')}
+            onChanged={data.reload}
+          />
+        ) : null}
+
         {model.pinned.length ? (
           <section className="home-sec" aria-labelledby="home-h-pinned">
             <h2 className="home-h" id="home-h-pinned">
@@ -1424,20 +1468,34 @@ const STATE_WORD = {
   ),
 };
 
-// 2.0.5 W4b — how a local project is connected and as whom: "Local · this Mac only",
-// "Maude Cloud · <account>", "Team server · <host> · <account>" (home-model `connectionOf`).
-const CONNECTION_ICON = { local: 'laptop', cloud: 'cloud', team: 'server' };
-function ConnectionWords({ row }) {
-  const c = row.connection;
-  if (!c?.words) return null;
+// 2.1.1 (artboard 14) — a project row says where it lives (the account, or the place) and shows the
+// connection badge the project window shows: the account's face with the state on it, and its word.
+// `home-project-conn-<pid>` stays the connection cell (data-kind = local / cloud / team, data-state).
+function RowWhere({ row }) {
+  if (!row.where) return null;
+  return (
+    <span className="home-prow-where">
+      <WhereChip where={row.where} testid={`home-project-where-${row.pid}`} />
+    </span>
+  );
+}
+function RowConn({ row }) {
+  const c = row.conn;
   return (
     <span
-      className="home-prow-conn"
+      className="home-prow-st"
       data-testid={`home-project-conn-${row.pid}`}
-      data-kind={c.kind}
+      data-kind={row.connection?.kind ?? undefined}
+      data-state={c?.state ?? undefined}
     >
-      <HIcon name={CONNECTION_ICON[c.kind] ?? 'laptop'} size={12} />
-      {c.words}
+      {c ? (
+        <>
+          <AcctFace face={c.face} state={c.state} size="sm" />
+          <StateWord tone={c.tone} testid={`home-project-state-${row.pid}`}>
+            {c.word}
+          </StateWord>
+        </>
+      ) : null}
     </span>
   );
 }
@@ -1574,6 +1632,9 @@ function ProfileGroup({
                   {cloudRoleWord(r.role)} · {STATE_WORD.cloud}
                 </span>
               </span>
+              <span className="home-prow-where">
+                <WhereChip where={r.where} testid={`home-project-where-${r.projectId}`} />
+              </span>
               <button
                 type="button"
                 className="btn btn--sm"
@@ -1623,7 +1684,6 @@ function ProfileGroup({
                       {[
                         r.canvasCount != null ? canvasCount(r.canvasCount) : null,
                         STATE_WORD[r.status] ?? null,
-                        r.connection ? <ConnectionWords key="conn" row={r} /> : null,
                       ]
                         .filter(Boolean)
                         .map((part, i) => (
@@ -1635,6 +1695,8 @@ function ProfileGroup({
                         ))}
                     </span>
                   </span>
+                  <RowWhere row={r} />
+                  <RowConn row={r} />
                   <RowLive row={r} />
                   <ProjectSquare id={r.pid} name={r.name} />
                 </button>

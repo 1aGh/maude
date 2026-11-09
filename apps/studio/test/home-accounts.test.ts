@@ -49,7 +49,15 @@ describe('/_home/accounts', () => {
       'https://hub.studio.cz': { token: 'SECRET-2', account: 'tereza@studio.cz' },
       'https://old.studio.cz': { token: '' },
     });
-    const r = await homeFetch()(homeReq('/_home/accounts?profiles=default,work,../etc,NOPE'));
+    // 2.1.1 B4: each server also carries whether its saved sign-in still works — probed with the
+    // token, answered without it
+    const hubHealth = {
+      state: async (_url: string, token: string) =>
+        token === 'SECRET-2' ? ('rejected' as const) : ('ok' as const),
+    };
+    const r = await homeFetch({ hubHealth })(
+      homeReq('/_home/accounts?profiles=default,work,../etc,NOPE')
+    );
     expect(r.status).toBe(200);
     const text = await r.text();
     expect(text).not.toContain('SECRET');
@@ -58,11 +66,31 @@ describe('/_home/accounts', () => {
       profiles: [
         {
           id: 'default',
-          hubs: [{ url: 'https://design.team.example', account: 'me@team.example' }],
+          hubs: [{ url: 'https://design.team.example', account: 'me@team.example', state: 'ok' }],
         },
-        { id: 'work', hubs: [{ url: 'https://hub.studio.cz', account: 'tereza@studio.cz' }] },
+        {
+          id: 'work',
+          hubs: [{ url: 'https://hub.studio.cz', account: 'tereza@studio.cz', state: 'rejected' }],
+        },
       ],
     });
+  });
+
+  test('the health answer is page-capability gated like the rest of /_home/accounts', async () => {
+    seedHubs('default', { 'https://design.team.example': { token: 'SECRET-1' } });
+    let probed = 0;
+    const hubHealth = {
+      state: async () => {
+        probed++;
+        return 'ok' as const;
+      },
+    };
+    const bare = new Request('http://127.0.0.1:4500/_home/accounts?profiles=default', {
+      headers: { host: '127.0.0.1:4500' },
+    });
+    const r = await homeFetch({ hubHealth })(bare);
+    expect(r.status).toBeGreaterThanOrEqual(400);
+    expect(probed).toBe(0);
   });
 });
 
