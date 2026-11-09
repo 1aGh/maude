@@ -661,6 +661,13 @@ pub async fn team_sign_in_prepare(
 /// project was rebound and its server is restarting onto it (the page reloads); Ok(false) = it
 /// already uses that account. Project tabs only: `caller_project` checks the calling webview's
 /// label AND its own server's origin, and the project is the caller's, never an argument.
+///
+/// 2.1.1 review M1: the page's own sheet is only the first step. Before a switch to any account
+/// other than `default`, Rust asks the person itself, in a native dialog the page can't draw,
+/// dismiss or answer, naming the account and the project (`use_account_flow`). Only from the tab
+/// in front and one question at a time (`claim_front`); after a Cancel the same project can't ask
+/// again for `SWITCH_ASK_COOLDOWN`. `id` is what `accounts_list` handed this tab (`default`, its
+/// own profile, or another account's alias), resolved here; never a raw id of another account.
 #[tauri::command]
 pub async fn project_use_account(
     app: tauri::AppHandle,
@@ -669,13 +676,168 @@ pub async fn project_use_account(
 ) -> Result<bool, String> {
     let caller = crate::windows::caller_project(&webview, false)?;
     crate::app_state::refuse_worktree_sign_in(&app, &caller.root)?;
-    let rebound = crate::app_state::use_account_app(&app, &caller.root, &id)?;
+    let mine = crate::app_state::profile_for(&app, &caller.root);
+    let id = resolve_wire_id(&list_all(), &mine, &id, alias_key())?;
+    let plan = crate::app_state::use_account_plan_app(&app, &caller.root, &id);
+    let _front = match plan {
+        Ok(SwitchPlan::Ask { .. }) => Some(crate::windows::claim_front(&webview)?),
+        _ => None,
+    };
+    let project = crate::windows::project_display_name(&caller.root);
+    let window = webview.window();
+    let rebound = use_account_flow(
+        plan,
+        &project,
+        &caller.root,
+        &SWITCH_ASKS,
+        std::time::Instant::now,
+        |q| ask_native(window, q),
+        |consent| crate::app_state::use_account_app(&app, &caller.root, &id, consent),
+    )
+    .await?;
     if rebound {
         // A prepared cloud sign-in was for the old account: it dies with the switch.
         forget_prepared(&caller.label);
         crate::sidecar::restart_on_binding(&app, &caller.label, &caller.root);
     }
     Ok(rebound)
+}
+
+// ── 2.1.1 review M1: the person's yes before a project switches account ──────
+
+/// What a refused or cancelled switch answers the page (its toast).
+pub const SWITCH_CANCELLED: &str = "Nothing changed. The switch to that account was cancelled.";
+/// After a Cancel, how long the same project waits before it may ask again: a page can't wear
+/// the person down with one question after another.
+const SWITCH_ASK_COOLDOWN: std::time::Duration = std::time::Duration::from_secs(10);
+const SWITCH_ALLOW: &str = "Use account";
+
+/// Proof that the person allowed a switch on a surface the page can't drive. The field is
+/// private to this module: only `use_account_flow` makes one, after a yes.
+pub struct SwitchConsent(());
+
+impl SwitchConsent {
+    #[cfg(test)]
+    pub(crate) fn for_test() -> Self {
+        SwitchConsent(())
+    }
+}
+
+/// What a switch needs before it may rebind (`app_state::use_account_plan`).
+#[derive(Debug, PartialEq)]
+pub enum SwitchPlan {
+    /// The project already uses that account.
+    Already,
+    /// Back to `default` ("No account"): it only drops access, nothing to ask.
+    NoAsk,
+    /// Another account: the person's yes first. `account` is its real name (trusted surface).
+    Ask { account: String },
+}
+
+/// The native question's words.
+#[derive(Debug, PartialEq)]
+pub struct SwitchQuestion {
+    pub title: String,
+    pub body: String,
+}
+
+/// Title asks with the button's verb (CONTRACT §4); one line each, no bidi controls.
+pub(crate) fn switch_question(account: &str, project: &str) -> SwitchQuestion {
+    let account = crate::notify::sanitize_title(account);
+    let account = if account.is_empty() { "another account".to_string() } else { account };
+    let project = crate::notify::sanitize_title(project);
+    let project = if project.is_empty() { "This project".to_string() } else { project };
+    SwitchQuestion {
+        title: format!("Use {account} for {project}?"),
+        body: format!(
+            "{project} will sync and sign in as {account}. Nothing is moved or uploaded. \
+             Switch back to No account at any time, from the same list."
+        ),
+    }
+}
+
+/// Recent Cancels, by project root.
+#[derive(Default)]
+pub struct SwitchAskBook {
+    cancelled: std::collections::BTreeMap<String, std::time::Instant>,
+}
+
+impl SwitchAskBook {
+    pub(crate) const fn new() -> Self {
+        SwitchAskBook {
+            cancelled: std::collections::BTreeMap::new(),
+        }
+    }
+
+    fn may_ask(&mut self, root: &str, now: std::time::Instant) -> Result<(), String> {
+        self.cancelled
+            .retain(|_, at| now.saturating_duration_since(*at) < SWITCH_ASK_COOLDOWN);
+        if self.cancelled.contains_key(root) {
+            return Err(SWITCH_CANCELLED.to_string());
+        }
+        Ok(())
+    }
+
+    fn cancel(&mut self, root: &str, now: std::time::Instant) {
+        self.cancelled.insert(root.to_string(), now);
+    }
+}
+
+pub(crate) static SWITCH_ASKS: Mutex<SwitchAskBook> = Mutex::new(SwitchAskBook::new());
+
+/// The gate of `project_use_account`, socket- and dialog-free so it is testable: `ask` is the
+/// consent provider (the native dialog in the app, a stub in tests) and `commit` the binding.
+/// A switch to another account commits only after `ask` said yes; a no (or the cooldown after
+/// one) answers `SWITCH_CANCELLED` and commits nothing. `default` never asks.
+pub(crate) async fn use_account_flow<Ask, Fut>(
+    plan: Result<SwitchPlan, String>,
+    project: &str,
+    root: &str,
+    book: &Mutex<SwitchAskBook>,
+    now: impl Fn() -> std::time::Instant,
+    ask: Ask,
+    commit: impl FnOnce(Option<SwitchConsent>) -> Result<bool, String>,
+) -> Result<bool, String>
+where
+    Ask: FnOnce(SwitchQuestion) -> Fut,
+    Fut: std::future::Future<Output = bool>,
+{
+    let lock = || book.lock().unwrap_or_else(|e| e.into_inner());
+    let consent = match plan? {
+        SwitchPlan::Already => return Ok(false),
+        SwitchPlan::NoAsk => None,
+        SwitchPlan::Ask { account } => {
+            lock().may_ask(root, now())?;
+            if !ask(switch_question(&account, project)).await {
+                lock().cancel(root, now());
+                return Err(SWITCH_CANCELLED.to_string());
+            }
+            Some(SwitchConsent(()))
+        }
+    };
+    commit(consent)
+}
+
+/// The consent provider in the app: a native sheet on the shell window, which only Rust draws.
+async fn ask_native(window: tauri::Window, q: SwitchQuestion) -> bool {
+    use tauri::Manager;
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    window
+        .app_handle()
+        .dialog()
+        .message(q.body)
+        .title(q.title)
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            SWITCH_ALLOW.to_string(),
+            "Cancel".to_string(),
+        ))
+        .parent(&window)
+        .show(move |yes| {
+            let _ = tx.send(yes);
+        });
+    rx.await.unwrap_or(false)
 }
 
 /// After the project's server stored a cloud credential in its profile's
@@ -1148,18 +1310,97 @@ pub struct Account {
     /// another account, M2): the Switch account list shows signed-in accounts and "No account".
     #[serde(rename = "signedIn")]
     pub signed_in: bool,
+    /// The account's tone (`tabs::account_tone` of its real id and label), so the Switch list
+    /// wears the same colour as the tab strip's badge although another account's id is an alias.
+    pub tone: &'static str,
+}
+
+/// 2.1.1 review L5: the per-run key behind the aliases a project tab sees for other accounts.
+pub(crate) fn alias_key() -> &'static [u8; 32] {
+    static KEY: std::sync::OnceLock<[u8; 32]> = std::sync::OnceLock::new();
+    KEY.get_or_init(|| {
+        let mut k = [0u8; 32];
+        if getrandom::getrandom(&mut k).is_err() {
+            // No secure RNG: still per run, never a bare hash of the id.
+            let seed = format!("{}:{}", now_ms(), std::process::id());
+            use sha2::Digest;
+            k.copy_from_slice(&sha2::Sha256::digest(seed.as_bytes()));
+        }
+        k
+    })
+}
+
+/// Another account's id as a project tab sees it: an opaque `account-<hex>` (a valid id shape),
+/// because an id is a slug of its first label, often the account's e-mail.
+pub(crate) fn alias_of(key: &[u8], id: &str) -> String {
+    use sha2::Digest;
+    let mut h = sha2::Sha256::new();
+    h.update(key);
+    h.update([0u8]);
+    h.update(id.as_bytes());
+    let d = h.finalize();
+    let hex: String = d[..8].iter().map(|b| format!("{b:02x}")).collect();
+    format!("account-{hex}")
+}
+
+/// The id a project tab may see: `default` and its own profile as they are, any other an alias.
+fn wire_id(id: &str, caller_profile: &str, key: &[u8]) -> String {
+    if id == DEFAULT_ID || id == caller_profile {
+        id.to_string()
+    } else {
+        alias_of(key, id)
+    }
+}
+
+/// `wire_id` backwards, for `project_use_account`: only `default`, the caller's own profile or
+/// an alias of another account on this Mac. A raw id of another account is unknown here, so a
+/// page can't probe which ids exist.
+pub(crate) fn resolve_wire_id(
+    profiles: &[Profile],
+    caller_profile: &str,
+    wire: &str,
+    key: &[u8],
+) -> Result<String, String> {
+    if wire == DEFAULT_ID || wire == caller_profile {
+        return Ok(wire.to_string());
+    }
+    profiles
+        .iter()
+        .find(|p| p.id != DEFAULT_ID && p.id != caller_profile && alias_of(key, &p.id) == wire)
+        .map(|p| p.id.clone())
+        .ok_or_else(|| "That account isn't on this Mac.".to_string())
+}
+
+/// Another account's label as a project tab sees it: the name the person gave it, or
+/// "Account <n>" when the label names an identity (an e-mail, its GitHub login or cloud
+/// e-mail, or one of its projects; a new profile is labelled after the sign-in or project
+/// that made it).
+fn neutral_label(p: &Profile, position: usize, project_names: &[String]) -> String {
+    let label = crate::notify::sanitize_title(&p.label);
+    let same = |s: &str| s.trim().eq_ignore_ascii_case(&label);
+    let names_someone = label.contains('@')
+        || p.github_login.as_deref().is_some_and(same)
+        || p.cloud_email.as_deref().is_some_and(same)
+        || project_names.iter().any(|n| same(n));
+    if label.is_empty() || names_someone {
+        format!("Account {position}")
+    } else {
+        label
+    }
 }
 
 /// Pure half of `accounts_list`: every profile on this Mac, from the caller's
-/// view. `caller_profile` (the calling tab's own binding) gets its e-mail and
-/// the sanitized names of every project bound to it (the caller included);
-/// every other profile gets its label and a project count — no e-mail, no
-/// names. A project's binding reads as `profile_for` does (missing/invalid ⇒
-/// `default`). `name_of(root, registry_name)` names a project.
+/// view. `caller_profile` (the calling tab's own binding) gets its id, label,
+/// e-mail and the sanitized names of every project bound to it (the caller
+/// included); every other profile gets an alias id (`wire_id`), a neutral
+/// label (`neutral_label`) and a project count — no e-mail, no names (V2-3.6
+/// M2, 2.1.1 review L5). A project's binding reads as `profile_for` does
+/// (missing/invalid ⇒ `default`). `name_of(root, registry_name)` names a project.
 pub fn accounts_for(
     profiles: &[Profile],
     st: &crate::app_state::AppState,
     caller_profile: &str,
+    key: &[u8],
     name_of: impl Fn(&str, &str) -> String,
 ) -> Vec<Account> {
     let bound_to = |e: &crate::app_state::ProjectEntry| {
@@ -1172,25 +1413,41 @@ pub fn accounts_for(
     profiles
         .iter()
         .take(MAX_PROFILES)
-        .map(|p| {
-            let on_it = st.projects.values().filter(|e| bound_to(e) == p.id);
+        .enumerate()
+        .map(|(i, p)| {
+            let on_it: Vec<_> = st
+                .projects
+                .values()
+                .filter(|e| bound_to(e) == p.id)
+                .collect();
             let mine = p.id == caller_profile;
-            let projects = if mine {
-                let mut names: Vec<String> = on_it
-                    .map(|e| crate::notify::sanitize_title(&name_of(&e.root, &e.name)))
-                    .filter(|n| !n.is_empty())
-                    .collect();
+            let names: Vec<String> = on_it
+                .iter()
+                .map(|e| crate::notify::sanitize_title(&name_of(&e.root, &e.name)))
+                .filter(|n| !n.is_empty())
+                .collect();
+            let (label, projects) = if mine {
+                let mut names = names;
                 names.sort();
-                AccountProjects::Names(names)
+                (
+                    crate::notify::sanitize_title(&p.label),
+                    AccountProjects::Names(names),
+                )
             } else {
-                AccountProjects::Count(on_it.count())
+                let mut known = names;
+                known.extend(on_it.iter().map(|e| crate::notify::sanitize_title(&e.name)));
+                (
+                    neutral_label(p, i + 1, &known),
+                    AccountProjects::Count(on_it.len()),
+                )
             };
             Account {
-                id: p.id.clone(),
-                label: crate::notify::sanitize_title(&p.label),
+                id: wire_id(&p.id, caller_profile, key),
+                label,
                 email: if mine { p.cloud_email.clone() } else { None },
                 projects,
                 signed_in: p.cloud_email.is_some(),
+                tone: crate::tabs::account_tone(&p.id, &p.label),
             }
         })
         .collect()
@@ -1204,7 +1461,7 @@ pub fn accounts_list(app: tauri::AppHandle, webview: tauri::Webview) -> Result<V
     let caller = crate::windows::caller_project(&webview, false)?;
     let st = crate::app_state::load(&app);
     let mine = st.profile_for(&caller.root);
-    Ok(accounts_for(&list_all(), &st, &mine, |root, name| {
+    Ok(accounts_for(&list_all(), &st, &mine, alias_key(), |root, name| {
         if Path::new(root).is_dir() {
             crate::windows::project_display_name(root)
         } else {
@@ -1244,7 +1501,7 @@ mod tests {
             st.projects.get_mut(&pid).unwrap().profile = profile.into();
         }
         let name_of = |root: &str, _: &str| root.trim_start_matches("/p/").to_string();
-        let out = accounts_for(&profiles, &st, "work", name_of);
+        let out = accounts_for(&profiles, &st, "work", b"k", name_of);
         assert_eq!(out.len(), 3);
         // The caller's own account: its e-mail and every project on it, sanitized label.
         assert_eq!(out[1].id, "work");
@@ -1269,6 +1526,168 @@ mod tests {
             [true, true, false]
         );
         assert!(wire.contains(r#""signedIn":false"#));
+    }
+
+    /// 2.1.1 review L5: a project tab never reads another account's e-mail, not in its label
+    /// (new profiles are labelled with the sign-in's e-mail or login, or the project that made
+    /// them) and not in its id (a slug of that first label). Home keeps full labels (it has its
+    /// own commands); the caller's own row is unchanged.
+    #[test]
+    fn accounts_list_hides_other_accounts_identities_from_a_project_tab() {
+        let prof = |id: &str, label: &str, gh: Option<&str>, email: Option<&str>| Profile {
+            id: id.into(),
+            label: label.into(),
+            github_login: gh.map(str::to_string),
+            cloud_email: email.map(str::to_string),
+            created_at: 0,
+        };
+        let profiles = vec![
+            prof("default", "Default", None, None),
+            prof("hello-brightside-example", "hello@brightside.example", None, Some("hello@brightside.example")),
+            prof("octo-cat", "octo-cat", Some("octo-cat"), None),
+            prof("alligators", "Alligators", None, Some("alice@example.com")),
+            prof("work", "Work", None, Some("bob@work.example")),
+            prof("mine", "me@mine.example", None, Some("me@mine.example")),
+        ];
+        let mut st = crate::app_state::AppState::default();
+        for (root, profile) in [("/p/alligators", "alligators"), ("/p/here", "mine")] {
+            let pid = st.upsert(root, 1);
+            st.projects.get_mut(&pid).unwrap().profile = profile.into();
+        }
+        let name_of = |root: &str, _: &str| match root {
+            "/p/alligators" => "Alligators".to_string(),
+            r => r.trim_start_matches("/p/").to_string(),
+        };
+        let out = accounts_for(&profiles, &st, "mine", b"key-1", name_of);
+        let labels: Vec<&str> = out.iter().map(|a| a.label.as_str()).collect();
+        assert_eq!(
+            labels,
+            ["Default", "Account 2", "Account 3", "Account 4", "Work", "me@mine.example"],
+            "a label the person gave stays; one naming an identity is neutral"
+        );
+        // Ids: `default` and the caller's own as they are; every other an opaque alias.
+        assert_eq!(out[0].id, "default");
+        assert_eq!(out[5].id, "mine");
+        for a in &out[1..5] {
+            assert!(a.id.starts_with("account-") && validate_id(&a.id).is_ok(), "{}", a.id);
+        }
+        let wire = serde_json::to_string(&out[..5]).unwrap();
+        for leak in ["brightside", "octo", "alligators", "alice", "bob@", "\"work\""] {
+            assert!(!wire.contains(leak), "{leak} reached a project page: {wire}");
+        }
+        // The tone is the tab strip's, from the real id and label.
+        assert_eq!(out[4].tone, "sky");
+        assert_eq!(out[0].tone, "yellow");
+        // The alias resolves back for `project_use_account`, under the same key only; a raw id
+        // of another account does not.
+        assert_eq!(resolve_wire_id(&profiles, "mine", &out[4].id, b"key-1").unwrap(), "work");
+        assert!(resolve_wire_id(&profiles, "mine", &out[4].id, b"key-2").is_err());
+        assert!(resolve_wire_id(&profiles, "mine", "work", b"key-1").is_err());
+        assert_eq!(resolve_wire_id(&profiles, "mine", "default", b"key-1").unwrap(), "default");
+        assert_eq!(resolve_wire_id(&profiles, "mine", "mine", b"key-1").unwrap(), "mine");
+        assert!(resolve_wire_id(&profiles, "mine", "nope", b"key-1").is_err());
+    }
+
+    fn block_on<F: std::future::Future>(f: F) -> F::Output {
+        tauri::async_runtime::block_on(f)
+    }
+
+    /// 2.1.1 review M1: `project_use_account`'s gate. A switch to another account binds only
+    /// after the consent provider (the native dialog in the app) said yes, and its question
+    /// names the account and the project; a no binds nothing and starts a cooldown; `default`
+    /// and "already on it" never ask; a refused plan (worktree tab, unknown id) asks nothing.
+    #[test]
+    fn switching_account_waits_for_the_persons_yes_outside_the_page() {
+        let t0 = std::time::Instant::now();
+        let book = Mutex::new(SwitchAskBook::new());
+        let ask_plan = || {
+            Ok(SwitchPlan::Ask {
+                account: "hello@brightside.example".into(),
+            })
+        };
+        let asked = std::cell::RefCell::new(Vec::<SwitchQuestion>::new());
+        let committed = std::cell::RefCell::new(Vec::<bool>::new());
+        let commit = |c: Option<SwitchConsent>| {
+            committed.borrow_mut().push(c.is_some());
+            Ok(true)
+        };
+        // No: nothing commits, the page reads "cancelled".
+        let no = block_on(use_account_flow(
+            ask_plan(),
+            "Logo ideas",
+            "/p/a",
+            &book,
+            || t0,
+            |q| {
+                asked.borrow_mut().push(q);
+                async { false }
+            },
+            commit,
+        ));
+        assert_eq!(no.unwrap_err(), SWITCH_CANCELLED);
+        assert!(committed.borrow().is_empty(), "a no commits nothing");
+        assert_eq!(
+            asked.borrow()[0],
+            SwitchQuestion {
+                title: "Use hello@brightside.example for Logo ideas?".into(),
+                body: "Logo ideas will sync and sign in as hello@brightside.example. Nothing is \
+                       moved or uploaded. Switch back to No account at any time, from the same \
+                       list."
+                    .into(),
+            }
+        );
+        // Right after a no, the same project can't ask again; another project can.
+        let never = |_: SwitchQuestion| -> std::future::Ready<bool> { panic!("asked during the cooldown") };
+        let again = block_on(use_account_flow(ask_plan(), "Logo ideas", "/p/a", &book, || t0, never, commit));
+        assert_eq!(again.unwrap_err(), SWITCH_CANCELLED);
+        assert!(committed.borrow().is_empty());
+        let later = t0 + SWITCH_ASK_COOLDOWN;
+        let yes = block_on(use_account_flow(
+            ask_plan(),
+            "Logo ideas",
+            "/p/a",
+            &book,
+            || later,
+            |_| async { true },
+            commit,
+        ));
+        assert!(yes.unwrap());
+        assert_eq!(*committed.borrow(), [true], "a yes commits WITH consent");
+        // `default` and "already on it" never ask; a refused plan neither asks nor commits.
+        let never = |_: SwitchQuestion| -> std::future::Ready<bool> { panic!("asked") };
+        assert!(block_on(use_account_flow(Ok(SwitchPlan::NoAsk), "x", "/p/b", &book, || t0, never, commit)).unwrap());
+        assert_eq!(*committed.borrow(), [true, false], "`default` commits without consent");
+        assert!(!block_on(use_account_flow(Ok(SwitchPlan::Already), "x", "/p/b", &book, || t0, never, commit)).unwrap());
+        let refused = block_on(use_account_flow(
+            Err("Sign in from the main project.".into()),
+            "x",
+            "/p/b",
+            &book,
+            || t0,
+            never,
+            commit,
+        ));
+        assert!(refused.is_err());
+        assert_eq!(committed.borrow().len(), 2, "nothing more committed");
+    }
+
+    /// M1: the command asks through Rust's own dialog (never a page event), takes the front
+    /// claim before it asks, and resolves the page's id before planning. A source pin: the
+    /// dialog itself can't run in a test.
+    #[test]
+    fn project_use_account_asks_natively_from_the_front_tab() {
+        let src = include_str!("profiles.rs");
+        let start = src.find("pub async fn project_use_account(").unwrap();
+        let body = &src[start..start + src[start..].find("\n}").unwrap()];
+        let at = |needle: &str| body.find(needle).unwrap_or_else(|| panic!("{needle} missing"));
+        assert!(at("caller_project(") < at("resolve_wire_id("));
+        assert!(at("resolve_wire_id(") < at("use_account_plan_app("));
+        assert!(at("claim_front(") < at("use_account_flow("));
+        assert!(at("ask_native(") > at("use_account_flow("));
+        let ask = &src[src.find("async fn ask_native(").unwrap()..];
+        let ask = &ask[..ask.find("\n}").unwrap()];
+        assert!(ask.contains(".dialog()") && ask.contains(".parent(&window)"));
+        assert!(!ask.contains("bus::send"), "the question is never drawn by a page");
     }
 
     /// Low 2c: `cloud_signed_in` acts only on this caller's own prepare — same
