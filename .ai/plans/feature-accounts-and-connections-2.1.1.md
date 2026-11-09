@@ -58,7 +58,7 @@ Fixing a broken or missing sign-in takes one click.
   - address, Test connection, invite;
   - Advanced: an own sign-in key, and the local folder the project connects to.
 - [x] **T6** (B3, merged 464ca14b2) Settings: the project's connection (cloud + team server) moves from Connections to General, showing what it is linked to and how to change it. Advanced sections become an accordion.
-- [ ] **T7** Desktop e2e:
+- [x] **T7** (merged f36671930; lane e2e:accounts; rerun without MAUDE_E2E_PRE_CONSENT_FIX after the T8 studio fixes) Desktop e2e:
   - sign-in return lands (fake hub);
   - broken-sign-in state + re-sign-in;
   - sending a local project (cloud and team server, fake endpoints);
@@ -119,3 +119,15 @@ Fixing a broken or missing sign-in takes one click.
     2. Sync details shows set-aside notices.
     3. Count pictures and videos a server can't store on their own line.
     4. Port the S1 reproduction into hub-link-folder-route.test.ts: workspace mode, without fileEvents:false.
+- 2026-11-09: T7 merged. The e2e found and fixed three bugs:
+  - Sign in again opened a managed copy instead of the folder.
+  - The chip stayed broken after sign-in.
+  - Create on Maude Cloud did nothing with no canvas open.
+
+  Open:
+  - A member linking to a format-1 server gets the wrong words ("needs an update"); only the owner can raise the format.
+  - `team-cell-missing.e2e.ts:452` probably has the stale offline words.
+  - No screenshot of the Home where-chips yet.
+  - 23 app screenshots in `.ai/scenarios/accounts-2.1.1/app-shots/`.
+
+  T8 Rust merged (d58db2740).
