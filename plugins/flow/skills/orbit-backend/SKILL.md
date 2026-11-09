@@ -19,6 +19,7 @@ The references below retain the complete procedure. Read the resolver first, the
 | --- | --- |
 | Before the first orbit call in any command: active?, tools, repo, task key | [Resolver](./_guide-00-resolver.md) |
 | `/flow:plan` — find or create the task, write the Metadata ticket line | [Plan: resolve or create](./_guide-01-plan.md) |
+| `/flow:execute` pre-flight with no readable plan file — is a plan attached to the task? | [Plan: resolve or create § Plan check](./_guide-01-plan.md) |
 | `/flow:execute` — working-state reports at milestones | [Execute: state reports](./_guide-02-execute.md) |
 | `/flow:done`, `/flow:bug-fix` — close the task, push artifacts | [Close: update and push](./_guide-03-close.md) |
 | A command has just authored a plan, RCA, execution report, retro or review — where it lives | [Artifact store](./_guide-06-artifact-store.md) |
