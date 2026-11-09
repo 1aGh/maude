@@ -8,6 +8,8 @@
 // The sign-in already happened on the server's own page (`/_api/hub-signin/*`), which stored this Mac's
 // credential for it; this route only uses that credential. A self-hosted server holds ONE project:
 //
+//   • (2.1.1 T8) a server this Mac never linked any folder to → ALWAYS the confirm below first, with
+//     what goes up (`empty: true` when the server holds nothing) — the server's survey is its word;
 //   • it holds nothing yet → link now: the folder's format marker goes up first (raise-only, V2-1.12
 //     §5.2, as Move to cloud), then the attach lane (`cloud/endpoints.ts` `attachStored` → `linkFolder`:
 //     linkedHub in config.json, the link recorded on this Mac, the live sync runtime cycled — whose
@@ -33,10 +35,12 @@ import { join } from 'node:path';
 
 import type { CloudEndpointResult } from '../cloud/endpoints.ts';
 import { SUPPORTED_FORMAT } from '../format.ts';
+import { hubAddress } from '../home/hub.ts';
 import { createHubFormatClient } from '../migrate/hub.ts';
 import { worktreeOf } from '../shell/worktree.ts';
 import type { CanvasGroupLike } from '../sync/file-membership.ts';
 import { getHubRecord, normalizeUrl } from '../sync/hubs-config.ts';
+import { hubEverLinked, linksPath, normHub, projectLinkOf } from '../sync/link-consent.ts';
 import {
   compareSurveys,
   holdsWork,
@@ -60,6 +64,12 @@ export interface HubLinkFolderDeps {
   hubsConfigPath?: string;
   /** #206 §5 — the main project's name when this server serves a worktree tab */
   worktreeOf?: () => string | null;
+  /** 2.1.1 T8 — the folder holding `.design/`: "already linked" is decided by THIS Mac's link record
+   *  for it (sync/link-consent.ts), never by the committed config.json alone. Absent = the record is
+   *  not consulted (the claim alone decides, as before). */
+  repoRoot?: string;
+  /** this Mac's link records (`project-links.json`); absent = `linksPath()` */
+  linksFile?: string;
   /** seams for tests */
   fetchImpl?: typeof fetch;
   now?: () => number;
@@ -115,19 +125,29 @@ export function createHubLinkFolderRoutes(deps: HubLinkFolderDeps): RouteSpec[] 
   /** Serialises POSTs: two presses must not link twice or race the config write. */
   let gate: Promise<unknown> = Promise.resolve();
 
+  const linksFile = () => deps.linksFile ?? linksPath();
+
+  /** The server this folder is linked to ON THIS MAC, or null. The committed `linkedHub` is a claim
+   *  (a clone, a peer's edit): it counts only when this Mac's link record for the folder names the
+   *  same server (gate-b-sec4). An unconfirmed claim is "not linked" — never "already linked", never
+   *  "unlink it there first" pointing at a host the repo names. */
   function linkedHub(): string | null {
+    let url: string;
     try {
       const cfg = JSON.parse(readFileSync(join(deps.designRoot, 'config.json'), 'utf8'));
-      const url = cfg?.linkedHub?.url;
-      if (typeof url !== 'string' || !url) return null;
+      const raw = cfg?.linkedHub?.url;
+      if (typeof raw !== 'string' || !raw) return null;
       try {
-        return normalizeUrl(url);
+        url = normalizeUrl(raw);
       } catch {
-        return url;
+        url = raw;
       }
     } catch {
       return null;
     }
+    if (deps.repoRoot === undefined) return url;
+    const rec = projectLinkOf(deps.repoRoot, linksFile());
+    return rec && rec.hub === normHub(url) ? url : null;
   }
 
   function mint(url: string): string {
@@ -207,15 +227,12 @@ export function createHubLinkFolderRoutes(deps: HubLinkFolderDeps): RouteSpec[] 
     } catch {
       return json(400, { ok: false, reason: 'bad-request', error: LINK_FOLDER_WORDS.badAddress });
     }
-    let url: string;
-    try {
-      if (typeof body.url !== 'string') throw new Error('no url');
-      url = normalizeUrl(body.url.trim());
-      const proto = new URL(url).protocol;
-      if (proto !== 'https:' && proto !== 'http:') throw new Error('scheme');
-    } catch {
+    // 2.1.1 T8 — the one address grammar every other door uses: https, or http only on loopback (the
+    // credential and the whole folder never travel in clear to a remote host)
+    const addr = hubAddress(body.url);
+    if (!addr.ok)
       return json(400, { ok: false, reason: 'bad-address', error: LINK_FOLDER_WORDS.badAddress });
-    }
+    const url = addr.url;
     const host = hostOf(url);
 
     const linked = linkedHub();
@@ -253,13 +270,24 @@ export function createHubLinkFolderRoutes(deps: HubLinkFolderDeps): RouteSpec[] 
           ? json(401, { ok: false, reason: 'signed-out', error: LINK_FOLDER_WORDS.signedOut(host) })
           : json(503, { ok: false, reason: 'offline', error: LINK_FOLDER_WORDS.offline(host) });
       }
-      if (!holdsWork(there.survey)) return await link(url, rec.token);
+      // 2.1.1 T8 — the FIRST link to a server this Mac never linked always asks, with what goes up,
+      // whatever the server says it holds (its survey is the server's word, not the person's).
+      const first = !hubEverLinked(url, linksFile());
+      if (!holdsWork(there.survey) && !first) return await link(url, rec.token);
 
       const counts: LinkComparison = compareSurveys(
         surveyLocal(deps.designRoot, deps.canvasGroups?.()),
         there.survey
       );
-      return json(200, { ok: true, state: 'needs-confirm', host, counts, confirm: mint(url) });
+      return json(200, {
+        ok: true,
+        state: 'needs-confirm',
+        host,
+        counts,
+        confirm: mint(url),
+        // the server holds nothing: the dialog says what goes up, not what merges
+        ...(holdsWork(there.survey) ? {} : { empty: true }),
+      });
     } catch (err) {
       if (err instanceof LinkRefusal)
         return json(err.status, { ok: false, reason: err.reason, error: err.message });

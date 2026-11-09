@@ -22,6 +22,7 @@ import {
   canSubmit,
   checkLine,
   confirmLines,
+  firstLead,
   initialLink,
   LINK_WORDS as W,
   linkReducer,
@@ -193,17 +194,30 @@ export function LinkServerDialog({
           {confirming ? (
             <>
               <h2 className="ai-conn-t" id={titleId}>
-                {W.confirmTitle(s.confirm.host)}
+                {s.confirm.empty ? W.firstTitle(s.confirm.host) : W.confirmTitle(s.confirm.host)}
               </h2>
-              <div className="ai-conn-b ob-sheet-b" data-testid="link-server-confirm">
-                <p>{W.confirmLead(s.confirm.host)}</p>
-                <ul className="ls-counts">
-                  {confirmLines(s.confirm.counts, s.confirm.host).map((l) => (
-                    <li key={l.id} data-testid={`link-server-count-${l.id}`}>
-                      {l.text}
-                    </li>
-                  ))}
-                </ul>
+              <div
+                className="ai-conn-b ob-sheet-b"
+                data-testid="link-server-confirm"
+                data-empty={s.confirm.empty ? 'true' : undefined}
+              >
+                {s.confirm.empty ? (
+                  // 2.1.1 T8 — the first link to a server that holds nothing: what goes up, and where
+                  <p data-testid="link-server-first-lead">
+                    {firstLead(s.confirm.counts, s.confirm.host)}
+                  </p>
+                ) : (
+                  <>
+                    <p>{W.confirmLead(s.confirm.host)}</p>
+                    <ul className="ls-counts">
+                      {confirmLines(s.confirm.counts, s.confirm.host).map((l) => (
+                        <li key={l.id} data-testid={`link-server-count-${l.id}`}>
+                          {l.text}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
                 <p className="ob-fine">{W.confirmFine}</p>
               </div>
               <div className="ai-conn-a">

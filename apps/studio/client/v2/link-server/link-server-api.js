@@ -52,6 +52,8 @@ export function linkFolderAnswerOf(r) {
         host: typeof j.host === 'string' ? j.host : '',
         counts: j.counts ?? null,
         code: j.confirm,
+        // 2.1.1 T8 — the first link to a server that holds nothing: the dialog says what goes up
+        ...(j.empty === true ? { empty: true } : {}),
       },
     };
   return { ok: false, ...(typeof j?.error === 'string' ? { error: j.error } : {}) };

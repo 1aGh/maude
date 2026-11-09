@@ -177,6 +177,15 @@ export function projectLinkOf(repoRoot: string, file: string = linksPath()): Pro
   return readStore(file)?.links[folderKey(repoRoot)] ?? null;
 }
 
+/** 2.1.1 T8 — has ANY folder on this Mac been linked to `url`? (Link your server asks before the
+ *  first link to a server this Mac never linked, whatever that server says it holds.) */
+export function hubEverLinked(url: string, file: string = linksPath()): boolean {
+  const hub = normHub(url);
+  if (!hub) return false;
+  const links = readStore(file)?.links ?? {};
+  return Object.values(links).some((r) => !!r && typeof r === 'object' && r.hub === hub);
+}
+
 /** Write (or replace) this folder's record — a person linked or confirmed it on this Mac. */
 export function recordProjectLink(
   repoRoot: string,

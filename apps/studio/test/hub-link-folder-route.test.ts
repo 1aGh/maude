@@ -25,6 +25,7 @@ import { mountRoutes, type RouteSpec } from '../routes/table.ts';
 import { isPersonOnlyRoute } from '../shell/api-key.ts';
 import { saveHubCredential } from '../sync/hub-link.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
+import { recordProjectLink } from '../sync/link-consent.ts';
 import { compareSurveys, type SideSurvey } from '../sync/link-survey.ts';
 import { storeFixtureHubCredential } from './_hub-password-login.ts';
 import { stubDeps } from './_route-stubs.ts';
@@ -103,6 +104,7 @@ type Reply = {
   url?: string;
   confirm?: string;
   host?: string;
+  empty?: boolean;
   counts?: { onlyHere: number; onlyThere: number; differ: number; same: number };
 };
 
@@ -288,6 +290,8 @@ describe('POST /_api/hub/link-folder — refusals write nothing', () => {
   test('a server on a newer format than this build → 409 format-newer, nothing linked', async () => {
     const f = makeFolder('a');
     saveHubCredential(FAKE, 'hubtok_secret-token', 'member');
+    // a server this Mac already linked another folder to (a first link asks first — T8)
+    recordProjectLink(join(tmp, 'elsewhere'), { url: FAKE }, 'link');
     fakeHub.formatVersion = 99;
     let attached = 0;
     const r = await routeFor(f, {
@@ -511,7 +515,12 @@ describe.skipIf(!HUB_READY)('POST /_api/hub/link-folder — a real team server',
     const live = liveSync(f);
     stops.push(live.stop);
 
-    const r = await routeFor(f, { syncControl: live.syncControl }).post({ url: hub.http });
+    const route = routeFor(f, { syncControl: live.syncControl });
+    // T8 — the first link to a server this Mac never linked asks first, with what goes up
+    const ask = await route.post({ url: hub.http });
+    expect(ask.body).toMatchObject({ state: 'needs-confirm', empty: true });
+    expect(await hubDocs(hub)).toEqual([]);
+    const r = await route.post({ url: hub.http, confirm: ask.body.confirm });
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ ok: true, state: 'linked', url: hub.http });
     expect(r.text).not.toMatch(TOKEN_RE);

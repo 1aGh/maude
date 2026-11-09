@@ -34191,7 +34191,7 @@
     "hook": "link-server-confirm",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The confirm step: the server already holds work; what syncing this folder with it would do, in counts (B5). Nothing is linked yet.",
+    "meaning": "The confirm step: the server already holds work; what syncing this folder with it would do, in counts (B5) — or (T8, data-empty=\"true\") the first link to a server this Mac never linked that holds nothing: what goes up. Nothing is linked yet.",
     "producer": {
       "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
       "symbol": "LinkServerDialog"
@@ -34199,6 +34199,21 @@
     "region": "other",
     "consumers": [
       "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-first-lead",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "T8: the empty first link's one line — “<n> canvases and <m> files will go to <host>.”",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:t8-link-server-first"
     ],
     "v2": "new"
   },
