@@ -289,8 +289,7 @@ async function setUp(): Promise<string> {
     ...(target
       ? { hubContainer: target.container, hubAway: target.away ?? 'kill' }
       : {
-          // P8 G1b: the hub's data dir + port, so the spec can STOP it (connection refused → "Offline — kept on this
-          // Mac") and restart the same hub on the same port, with the same tokens (serve-hub re-reads them).
+          // P8 G1b: the hub's data dir + port, so the spec can STOP it (connection refused → "Can’t reach <host>") and restart the same hub on the same port, with the same tokens (serve-hub re-reads them).
           hubDir: join(scratch, 'hub'),
           hubPort: Number(new URL(hub.http).port),
         }),
