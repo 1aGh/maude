@@ -3,8 +3,8 @@
   "entries": [
     {
       "id": "accounts-and-where-projects-live",
-      "version": null,
-      "date": null,
+      "version": "2.1.1",
+      "date": "2026-11-09",
       "kind": "feature",
       "title": "See where each project lives",
       "summary": "The account button now shows which account a project uses, where it lives and whether it connects, with Sign in again one click away when a sign-in stops working. Link your server sends a folder to your own server and asks first when that server already holds work, and Settings opens with This project.",
@@ -12,8 +12,8 @@
     },
     {
       "id": "own-server-sync-fixes-2-1-1",
-      "version": null,
-      "date": null,
+      "version": "2.1.1",
+      "date": "2026-11-09",
       "kind": "fix",
       "title": "Signing in to your own server works again",
       "summary": "Sign-in to your team's own server finishes again after the browser hands back. Files the owner removed for good stay removed, and a first link keeps your comments, sticky notes and layout.",

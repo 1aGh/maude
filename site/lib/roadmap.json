@@ -2401,6 +2401,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-accounts-and-connections-2.1.1",
+      "title": "2.1.1 — Accounts, projects and where they live",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Status: active · Owner: Michal (request via keeper, 2026-11-09) · Lead: Maude v2 session Target: 2.1.1. Push, tag and release need Michal's OK.",
+      "planPath": ".ai/plans/feature-accounts-and-connections-2.1.1.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
       "id": "feature-issues-burndown-2026-11",
       "title": "Feature: burn down every open GitHub issue (Nov 2026)",
       "status": "planned",
