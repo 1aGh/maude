@@ -82,7 +82,7 @@ _"Publish the branch and open a PR?"_ If yes: `git push -u origin <branch>` then
 
 ### 6b. Sync tracker (optional)
 
-Read `integrations.tracker`; if `provider` ≠ `none` and the matching MCP is available: take the ticket id from plan front matter / STATE.md and ask _"Mark ticket `<id>` done in `<provider>` and link this PR?"_ Yes → update with `defaults.doneStatus` plus a comment with PR URL + commit hash (pass `defaults` through untouched). No ticket but a tracker is configured → offer to create one only if the PR has no `Closes #`. **`provider: orbit`** → load `flow:orbit-backend`: its resolver finds the key (plan `Ticket: ORB-<n>`, else the branch) and Close recipe § A is the update (`orbit_update_task`, done status + `prUrl`). `none` / no MCP → skip.
+Read `integrations.tracker`; if `provider` ≠ `none` and the matching MCP is available: take the ticket id from plan front matter / STATE.md and ask _"Mark ticket `<id>` done in `<provider>` and link this PR?"_ Yes → update with `defaults.doneStatus` — flow never moves a task past it — plus a comment with PR URL + commit hash (pass `defaults` through untouched). No ticket but a tracker is configured → offer to create one only if the PR has no `Closes #`. **`provider: orbit`** → load `flow:orbit-backend`: its resolver finds the key (plan `Ticket: ORB-<n>`, else the branch) and Close recipe § A is the update (`orbit_update_task`, done status + `prUrl`); then § D attaches 1–6 scenario screenshots of UI changes (`integrations.tracker.attachScreenshots` ≠ `false`; also under `--quick`; a UI change with none → ask, else a blocker line in the Step 7 report). `none` / no MCP → skip.
 
 ### 7. Implementation report
 
