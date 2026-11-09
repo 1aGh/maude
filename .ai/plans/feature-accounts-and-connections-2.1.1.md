@@ -140,3 +140,11 @@ Fixing a broken or missing sign-in takes one click.
   - A first-link outcome table test.
   - team-cell-missing now expects "Can't reach".
   - Re-review fix builder (N1 retire the migration lane, N2–N6) is running.
+- 2026-11-09: The re-review fixes N1–N6 are merged (561b3fa9d).
+  - The automatic link-record migration is retired.
+  - Cancel is now the default in the native dialog, with a growing cooldown.
+  - Outbound deletes are tied to the batch the person saw.
+
+  N7/N8 are deferred to 2.1.2. All fast gates pass (lint, tsc, tsc coverage, the generators, nothing-deleted, AI and shell parity, version, imports). The release bundle is rebuilt (bc78617fa); the boot check and the opening-card smoke pass. CHANGELOG 2.1.1 is drafted.
+
+  Running: the mini suites (hub, studio, cli and scripts) and the desktop e2e lanes (accounts, team-project, team-cell-missing, home, cloud).
