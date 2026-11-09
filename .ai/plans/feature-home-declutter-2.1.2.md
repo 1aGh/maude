@@ -34,7 +34,7 @@
 
 ## Tasks
 
-- [ ] **H1** Data audit (code only, fixture-based):
+- [x] **H1** Data audit (code only, fixture-based):
   - why a `*.cloud.maude.sh` cell appears as "your server";
   - the duplicate or orphaned design.studyfi.com rows;
   - the button overlap;
@@ -67,3 +67,10 @@ Same as `.ai/scenarios/accounts-2.1.1/builder-brief.md`. Never read or write Mic
 ## Progress log
 
 - 2026-11-09: Opened from Michal's feedback.
+- 2026-11-09: H1 audit done (code only).
+  - Cloud cells show as server cards because `homeAccountCards` skips `isCloudHubUrl`, which project rows already use. Fix: count them under the Maude Cloud card.
+  - Stale servers: unreachable with n=0. Removal reuses `hubSignOut` + confirm ("Forget this server").
+  - Orphans: gone rows bypass `collapseDuplicates`. A gone copy folds into its live twin; a lone orphan gets a quiet row plus a new person-only "Remove from list" Home command.
+  - Overlap: the `.home-sw` state word doesn't truncate (home.css ~1988), and the busy label is too long.
+  - The project row inventory went to the designer.
+  - Marked H1 done.
