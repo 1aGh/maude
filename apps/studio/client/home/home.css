@@ -258,35 +258,78 @@
   .island.home-search-tr .icon-btn {
     pointer-events: none;
   }
-  .home-top-acct {
-    display: inline-flex;
-    margin-left: var(--space-2);
-  }
-  .home-top-acct .home-face {
-    box-shadow: 0 0 0 2px var(--bg-1);
-  }
-  /* 2.0.5 W4b — the face is a button that opens every account on this Mac */
+  /* 2.1.2 HB1 (canvas 17, artboards 15–18) — the accounts chip opens every account on this Mac. It
+     shares the search island (search · ⌘K | 3 accounts): the two halves meet with a hairline. */
   .home-top-acct {
     position: relative;
-  }
-  .home-top-acct-btn {
     display: inline-flex;
-    padding: 0;
+    align-items: center;
+    height: 40px;
+    padding: var(--space-1);
+  }
+  .island.home-search-tr:has(+ .home-top-acct) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    clip-path: inset(-24px 0 -24px -24px);
+  }
+  .island.home-search-tr + .island.home-top-acct {
+    /* .home-top-end spaces its items by --space-2; the chip closes that gap */
+    margin-left: calc(-1 * var(--space-2));
+    padding-left: var(--space-2);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  .island.home-search-tr + .island.home-top-acct::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: var(--line-1, var(--bg-3));
+  }
+  .home-acchip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 28px;
+    padding: 0 var(--space-2);
     border: 0;
+    border-radius: var(--radius-md, 8px);
     background: none;
-    border-radius: var(--radius-pill);
+    font: inherit;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    white-space: nowrap;
     cursor: pointer;
   }
-  .home-top-acct-btn:focus-visible {
+  .home-acchip:hover,
+  .home-acchip[aria-expanded="true"] {
+    background: var(--bg-2);
+  }
+  .home-acchip:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
+  }
+  .home-acchip-needs {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: var(--space-1);
+    color: var(--status-error);
+  }
+  .home-acchip-needs > i {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--status-error);
   }
   .home-accts {
     position: absolute;
     top: calc(100% + var(--space-2));
     right: 0;
     z-index: 50;
-    width: 320px;
+    width: min(380px, calc(100vw - 32px));
     max-height: 70vh;
     overflow: auto;
     display: flex;
@@ -305,20 +348,6 @@
     font-weight: var(--w-semibold);
     color: var(--fg-2);
   }
-  .home-accts-p {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-  }
-  .home-accts-ph {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin: 0;
-    font-size: var(--type-sm);
-    font-weight: var(--w-semibold);
-    color: var(--fg-0);
-  }
   .home-accts-list {
     display: flex;
     flex-direction: column;
@@ -327,42 +356,23 @@
     padding: 0;
     list-style: none;
   }
-  .home-accts-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding-left: calc(16px + var(--space-2));
-  }
-  .home-accts-t {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-  }
-  .home-accts-t strong {
-    font-weight: var(--w-medium, 500);
-    color: var(--fg-1);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .home-accts-none,
   .home-accts-note {
     margin: 0;
-    padding-left: calc(16px + var(--space-2));
+    padding: 0 var(--space-2);
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
   .home-accts-act {
     align-self: flex-start;
-    padding: 2px 0 2px calc(16px + var(--space-2));
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
     border: 0;
     background: none;
     font: inherit;
     font-size: var(--type-xs);
-    color: var(--accent);
+    color: var(--fg-1);
     cursor: pointer;
   }
   .home-accts-foot {
@@ -371,9 +381,6 @@
     gap: 2px;
     padding-top: var(--space-2);
     border-top: 1px solid var(--line-1, var(--bg-3));
-  }
-  .home-accts-foot .home-accts-act {
-    padding-left: 0;
   }
   .home-accts-ask {
     display: flex;
@@ -386,8 +393,180 @@
   }
   .home-accts-btns {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: var(--space-1);
+  }
+  /* one account line: face · e-mail / where · count · state when not fine · fix · … */
+  .home-acl {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    padding: var(--space-2);
+    border-radius: var(--radius-md, 8px);
+  }
+  .home-acl--bad {
+    background: var(--status-error-soft);
+  }
+  .home-acl-t {
+    flex: 1 1 140px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .home-acl-t strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-medium, 500);
+    color: var(--fg-0);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .home-acl-t > span:not(.home-sw) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* the fix keeps its own room: it wraps under the words on a narrow line, never over them */
+  .home-acl-fix {
+    flex: none;
+    max-width: 100%;
+    white-space: nowrap;
+    margin-left: auto;
+  }
+  .home-acl-more {
+    position: relative;
+    flex: none;
+  }
+  .home-acl-menu {
+    position: absolute;
+    top: calc(100% + var(--space-1));
+    right: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+    padding: var(--space-1);
+  }
+  .home-acl-menu-note {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .home-accts-old {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--line-1, var(--bg-3));
+    padding-top: var(--space-1);
+  }
+  .home-accts-oldh {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-md, 8px);
+    background: none;
+    font: inherit;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    text-align: left;
+    cursor: pointer;
+  }
+  .home-accts-oldh:hover {
+    background: var(--bg-2);
+  }
+  .home-accts-oldw {
+    margin-left: auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fg-2);
+  }
+  .home-accts-oldl {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0 0 0 var(--space-4);
+    list-style: none;
+  }
+  .home-accts-oldl > li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 28px;
+    color: var(--fg-2);
+  }
+  .home-accts-oldl code {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .home-accts-oldall {
+    justify-content: flex-end;
+  }
+  .home-accts-addm {
+    display: flex;
+    flex-direction: column;
+  }
+  /* the one banner on top of Home: a sign-in the person can fix (artboard 16) */
+  .home-acb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    width: 100%;
+    max-width: 880px;
+    margin: 0 auto var(--space-4);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-lg, 12px);
+    background: var(--status-error-soft);
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--status-error) 35%, transparent);
+    text-align: left;
+  }
+  .home-acb-ic {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-pill);
+    background: var(--status-error);
+    color: var(--status-error-fg);
+  }
+  .home-acb-t {
+    flex: 1 1 260px;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .home-acb-t strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .home-acb-err {
+    flex-basis: 100%;
+    color: var(--status-error);
+  }
+  .home-acb .btn {
+    flex: none;
+    margin-left: auto;
   }
 
   /* the Search palette (k-pal.pn-pal): a centred 620 card over a veil, field at --type-md with an esc key */
@@ -1832,69 +2011,11 @@
     background: var(--object-coral);
   }
 
-  /* 2.1.1 B4 (artboard 14): accounts row, the Where chip and the connection badge */
+  /* 2.1.1 B4 (artboard 14): the Where chip and the connection badge (the account lines: 2.1.2 .home-acl) */
   .home-face--lg {
     width: 32px;
     height: 32px;
     font-size: var(--type-base);
-  }
-  .home-acr-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: var(--space-3);
-  }
-  .home-acr-add {
-    position: relative;
-  }
-  .home-acr-menu {
-    position: absolute;
-    top: calc(100% + var(--space-1));
-    right: 0;
-    z-index: 5;
-    display: flex;
-    flex-direction: column;
-    min-width: 220px;
-    padding: var(--space-1);
-  }
-  .home-acc {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    min-width: 0;
-    padding: var(--space-3);
-    border-radius: var(--radius-lg);
-    background: var(--bg-1);
-    box-shadow:
-      var(--shadow-sm),
-      inset 0 0 0 0.5px var(--border-default);
-  }
-  .home-acc--bad {
-    background: var(--status-error-soft);
-  }
-  .home-acc-t {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-  .home-acc-t strong {
-    font-size: var(--type-sm);
-    font-weight: var(--w-semibold);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .home-acc-t > span:not(.home-sw) {
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .home-acc .btn {
-    flex: none;
-    white-space: nowrap;
   }
   /* an account's face with the connection on it */
   .home-acf {
@@ -1989,9 +2110,18 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
     font-size: var(--type-xs);
     color: var(--fg-1);
     white-space: nowrap;
+  }
+  /* 2.1.2: the word clips instead of running under the button beside it */
+  .home-sw-w {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .home-sw > i {
     flex: none;

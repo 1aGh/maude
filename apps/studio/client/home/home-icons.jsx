@@ -67,6 +67,14 @@ const GLYPHS = {
       <path d="M5.5 8.25l1.75 1.75 3.25-3.75" />
     </>
   ),
+  // 2.1.2 HB1 — the accounts chip and an account line's "…"
+  people: (
+    <>
+      <circle cx="6" cy="5.5" r="2.25" />
+      <path d="M2 13c0-2.2 1.8-3.75 4-3.75s4 1.55 4 3.75M10.5 3.6a2.25 2.25 0 010 4.1M12 9.6c1.2.5 2 1.7 2 3.4" />
+    </>
+  ),
+  more: <path d="M3.5 8h.01M8 8h.01M12.5 8h.01" />,
 };
 
 export function HIcon({ name, size = 16 }) {
