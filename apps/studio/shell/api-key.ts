@@ -281,6 +281,10 @@ function isExempt(method: string, pathname: string): boolean {
     pathname === '/index.html' ||
     pathname === '/_canvas-shell' ||
     pathname === '/_canvas-shell.html' ||
+    // The team server's page sends the person's own browser back here; that browser never held
+    // the app's session. The route acts only on a `state` this process minted, once, and the code
+    // is worthless without the PKCE verifier that never left it (routes/hub-signin.ts).
+    pathname === '/_api/hub-signin/return' ||
     pathname.startsWith('/_client/') ||
     pathname.startsWith('/_canvas-runtime/')
   );

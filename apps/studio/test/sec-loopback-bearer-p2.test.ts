@@ -97,6 +97,20 @@ describe('mainOriginKeyRefusal (pure, required mode)', () => {
     expect(gate(req('/_api/shell/statusx'))?.status).toBe(401);
   });
 
+  test("the team server's sign-in return lands without a key (the person's own browser has no session)", () => {
+    // The hub's page sends the system browser back here; it never held the app's session cookie.
+    // The route's own `state` + PKCE verifier protect it (routes/hub-signin.ts).
+    const back = '/_api/hub-signin/return?state=abc&code=xyz';
+    expect(
+      gate(req(back, { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate' }))
+    ).toBeNull();
+    expect(gate(req(back))).toBeNull();
+    // only the GET hop: a write or a sibling path still needs the key
+    expect(gate(req(back, {}, 'POST'))?.status).toBe(401);
+    expect(gate(req('/_api/hub-signin/start', {}, 'POST'))?.status).toBe(401);
+    expect(gate(req('/_api/hub-signin/returnx'))?.status).toBe(401);
+  });
+
   test('outside required mode, and in a cell, the gate stands aside', () => {
     expect(mainOriginKeyRefusal(req('/_config'), { ...opts, required: false })).toBeNull();
     expect(mainOriginKeyRefusal(req('/_config'), { ...opts, workspace: true })).toBeNull();

@@ -137,6 +137,10 @@ a `WeakMap` over the `Request`), on exempt paths too — §7.3 and §7.8 read it
   draw-proof, smoke, visual-sanity, perf's bare page) ask with the key through `studio_capture_url`
   (`_desktop-locate.sh`) and open the capture-origin URL it prints; a helper that drives the studio
   page holds the session cookie from its opening link.
+- `GET /_api/hub-signin/return` — the team server's page sends the person's own browser back
+  here, and that browser holds no session. The route acts only on a single-use `state` this
+  process minted, and the code needs the PKCE verifier that never left it (2.1.1 fix: 2.1.0
+  answered `api-key-required` and every team-server sign-in failed).
 - `/_api/shell/{status,attest,clip-export,clip-asset,clip-import}` — each carries its own
   credential (the per-spawn shell token, or the attest MAC).
 
