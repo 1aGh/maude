@@ -603,6 +603,55 @@ describe('createCtlHealer — poke ⇒ journal ⇒ fs:any', () => {
     await healer.drain();
     expect(emitted).toEqual(['assets/late.png']);
   });
+
+  // ONE ANNOUNCEMENT PER STATE. A path stuck in a loop upstream keeps getting
+  // journal rows; each one used to re-run every `fs:any` consumer (index
+  // rebuilds, HMR, canvas rescans) for bytes that never changed, and the
+  // "healed N path(s)" line repeated on the same paths for as long as it ran.
+  test('rows naming bytes already announced for a path are not announced again', async () => {
+    const sha = 'd'.repeat(64);
+    const row = (seq: number, extra: Record<string, unknown> = {}) => ({
+      seq,
+      path: 'renders/draft/a.png',
+      sha256: sha,
+      size: 1,
+      class: 'inert-media',
+      ...extra,
+    });
+    const { fetchImpl } = journalServer([
+      { epoch: 'e', head: 1, entries: [] },
+      // Two rows for the path in one page, then the same bytes on each pass.
+      { epoch: 'e', head: 3, entries: [row(2), row(3)] },
+      { epoch: 'e', head: 4, entries: [row(4)] },
+      { epoch: 'e', head: 5, entries: [row(5)] },
+      // A deletion and a return ARE news: announced again.
+      { epoch: 'e', head: 7, entries: [row(6, { sha256: null, deleted: true }), row(7)] },
+    ]);
+    const emitted: string[] = [];
+    const lines: string[] = [];
+    const healer = createCtlHealer({
+      ...base,
+      emit: (r) => emitted.push(r),
+      fetchImpl,
+      log: { log: (m: string) => lines.push(m), warn() {} },
+      debounceMs: 0,
+      now: () => 0,
+    });
+    await healer.anchor();
+    for (const head of [3, 4, 5]) {
+      healer.onPoke(head);
+      await healer.drain();
+    }
+    expect(emitted).toEqual(['renders/draft/a.png']);
+    expect(healer.repeats()).toBe(2);
+    // The repeat is said once, not once per pass.
+    expect(lines.filter((l) => l.includes('already healed')).length).toBe(1);
+    expect(lines.filter((l) => l.includes('healed 1 path(s)')).length).toBe(1);
+
+    healer.onPoke(7);
+    await healer.drain();
+    expect(emitted).toEqual(['renders/draft/a.png', 'renders/draft/a.png']);
+  });
 });
 
 test('document invalidation uses the metadata handler, never the heavy file pass', async () => {
