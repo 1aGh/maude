@@ -18,8 +18,11 @@ afterAll(() => {
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { TeamProjectsDialog } from '../client/panels/TeamProjects.jsx';
+import { ShellStoreContext } from '../client/stores/shell-store.jsx';
 import { LinkServerDialog } from '../client/v2/link-server/LinkServerDialog.jsx';
+import LinkServerHost from '../client/v2/link-server/LinkServerHost.jsx';
 import { projectLinkApi } from '../client/v2/link-server/link-server-api.js';
+import { runLinkServer } from '../client/v2/shell/project-account-bus.js';
 
 const HUB = 'https://design.example.com';
 const DEBOUNCE = 20;
@@ -276,5 +279,31 @@ describe('the Settings door and the project API', () => {
     expect(linked).toEqual([{ url: HUB, token: 'k' }]);
     expect(opened).toEqual([{ kind: 'known-hub', url: HUB }]);
     expect(api.folders).toBe(false);
+  });
+});
+
+describe('the host answers account.link-server (B1 maude:link-server)', () => {
+  test('with the host mounted the row opens the dialog (address prefilled), never Settings', async () => {
+    render(
+      createElement(
+        ShellStoreContext.Provider,
+        { value: { shellCore: { cfg: { name: 'Logo ideas' }, project: 'logo-ideas' } } as never },
+        createElement(LinkServerHost)
+      )
+    );
+    expect($('link-server-dialog')).toBeNull();
+    const settings: unknown[] = [];
+    let how = '';
+    await act(async () => {
+      how = runLinkServer(
+        { intent: 'sign-in', url: HUB },
+        { setSettingsOpen: (t: unknown) => settings.push(t) }
+      );
+    });
+    expect(how).toBe('dialog');
+    expect(settings).toEqual([]);
+    expect(($('link-server-url') as HTMLInputElement).value).toBe(HUB);
+    click('link-server-cancel');
+    expect($('link-server-dialog')).toBeNull();
   });
 });
