@@ -54,7 +54,7 @@ Fixing a broken or missing sign-in takes one click.
   - avatar menu "Sign in again" with the address prefilled.
 - [x] **T3** (B2, merged 6cd8e477d) Sync popup unlinked: "Create project on cloud.maude.sh" (the existing `/_api/cloud/move`) and "Link your server" (the T5 dialog).
 - [x] **T4** (B1: project_use_account rebinds to an existing profile) Avatar menu: "Sign in with custom server…". "Sign in as another account…" is fixed for a local project: it never strands the project on an empty profile and can go back. Rebind to an existing profile, or offer the choice.
-- [ ] **T5** One team-server dialog, replacing both today's dialogs:
+- [x] **T5** (B2 dialog 6cd8e477d + B5 link this folder 2213b7e7c) One team-server dialog, replacing both today's dialogs:
   - address, Test connection, invite;
   - Advanced: an own sign-in key, and the local folder the project connects to.
 - [x] **T6** (B3, merged 464ca14b2) Settings: the project's connection (cloud + team server) moves from Connections to General, showing what it is linked to and how to change it. Advanced sections become an accordion.
@@ -105,3 +105,10 @@ Fixing a broken or missing sign-in takes one click.
 
 - 2026-11-09: T0 committed (0fa21f6b6, local, not pushed). Scout inventory done. Next: T1 design.
 - 2026-11-09: B1–B4 merged (672d8c50e, 6cd8e477d, 464ca14b2, 2b6a8af21), integration 3837d2e0b, release bundle 5a316896f; boot check + opening-card smoke PASS. Michal chose to build "link this folder to your server" in 2.1.1 → B5 running. Gaps named: Change… (folder ↔ kept-by-Maude move) has no backend; the switch list can't show server accounts; Home has no sign-in key paste; the CONTRACT §6 offline word is unchanged globally (the desktop chip shows the new words).
+- 2026-11-09: T8 reviews.
+  - Defender: NEEDS FIXES. M1: the project_use_account consent is page-owned. Lows L1–L5.
+  - Adversarial: FAIL. F1: an unconfirmed committed address became a sign-in prompt. F2: hub-signin/start and hub/link were not person-only. Together they form a High chain. F3–F7 low or info.
+  - Fix split:
+    - Studio builder: F1–F7 and L1–L4. A broken sign-in applies only to a server this Mac linked before. An unconfirmed address gets a neutral state and the consent step.
+    - Rust builder: M1 native consent and L5 neutral labels.
+  - Reports are in `.ai/logs/security-reviews/2.1.1-accounts*.md`.
