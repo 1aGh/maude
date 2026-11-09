@@ -36,6 +36,7 @@ import {
   DEFAULT_HUB_MAX_FILE_BYTES,
   DELETE_BUDGET_PER_WINDOW,
   foldRemote,
+  heldSetDigest,
   MAX_FILE_BYTES,
   MAX_REQUESTS_PER_PASS,
   MAX_TRUSTED_QUOTA_PAUSE_MS,
@@ -1199,6 +1200,9 @@ describe('the deletion breakers — the only protection now that this ships ON',
   // leaves them local, asks nothing again, and never puts them back on the hub.
   describe('the held incoming deletes have an answer', () => {
     const N = 250; // past MAX_FILES_PER_PASS: "one pass" has to mean one pass
+    // 2.1.1 T8 — an answer names the held set the person was shown
+    const shown = (p: { heldIncomingDeletes(): { paths: string[] } }) =>
+      heldSetDigest(p.heldIncomingDeletes().paths);
     async function heldBatch(extra: Record<string, unknown> = {}) {
       const seeded: Record<string, string> = {};
       for (let i = 0; i < N; i++) seeded[`system/ds/f${i}.css`] = `.a${i}{}`;
@@ -1222,7 +1226,7 @@ describe('the deletion breakers — the only protection now that this ships ON',
 
     test('Remove here too quarantines the whole batch in one pass, recoverably', async () => {
       const { hub, p } = await heldBatch();
-      expect(p.answerIncomingDeletes('remove', null)).toHaveLength(N);
+      expect(p.answerIncomingDeletes('remove', null, shown(p))).toHaveLength(N);
       // Asked-and-answered rows are not asked again.
       expect(p.heldIncomingDeletes().count).toBe(0);
       const res = await p.reconcile();
@@ -1244,7 +1248,7 @@ describe('the deletion breakers — the only protection now that this ships ON',
 
     test('a file changed here since is not removed by the answer', async () => {
       const { p } = await heldBatch();
-      p.answerIncomingDeletes('remove', null);
+      p.answerIncomingDeletes('remove', null, shown(p));
       write('system/ds/f3.css', '.mine{color:red}');
       const res = await p.reconcile();
       expect(res.deleted.map((d) => d.rel)).not.toContain('system/ds/f3.css');
@@ -1253,7 +1257,7 @@ describe('the deletion breakers — the only protection now that this ships ON',
 
     test('Keep them here keeps every file, stops asking, and never puts them back', async () => {
       const { hub, p } = await heldBatch();
-      expect(p.answerIncomingDeletes('keep', null)).toHaveLength(N);
+      expect(p.answerIncomingDeletes('keep', null, shown(p))).toHaveLength(N);
       for (let pass = 0; pass < 3; pass++) {
         const res = await p.reconcile();
         expect(res.deleteHeld).toBeUndefined();
@@ -1276,12 +1280,32 @@ describe('the deletion breakers — the only protection now that this ships ON',
       expect(existsSync(join(root, `system/ds/f${N - 1}.css`))).toBe(true);
     });
 
+    test('T8: the pass names the held set; an answer about another set applies nothing', async () => {
+      const { hub, p } = await heldBatch();
+      const again = await p.reconcile();
+      // the digest covers EVERY held path, though the listed paths are capped
+      expect(again.deleteHeld?.digest).toBe(shown(p));
+      const seen = shown(p);
+      // the set grows after the person looked (the project deletes one more)
+      write('system/ds/extra.css', '.x{}');
+      for (let pass = 0; pass < 3; pass++) await p.reconcile();
+      hub.purge('system/ds/extra.css');
+      await p.reconcile();
+      expect(shown(p)).not.toBe(seen);
+      expect(p.answerIncomingDeletes('remove', null, seen)).toBeNull();
+      expect(p.answerIncomingDeletes('keep', null, 'not-a-digest')).toBeNull();
+      // nothing was applied: every row still waits
+      const res = await p.reconcile();
+      expect(res.deleted).toEqual([]);
+      expect(p.heldIncomingDeletes().count).toBeGreaterThanOrEqual(N);
+    });
+
     test('answering with nothing held covers nothing', async () => {
       const hub = fakeHub({ 'system/ds/a.css': '.a{}' });
       const p = plane(hub, { propagateDeletes: true });
       await p.reconcile();
-      expect(p.answerIncomingDeletes('remove', null)).toEqual([]);
-      expect(p.answerIncomingDeletes('keep', null)).toEqual([]);
+      expect(p.answerIncomingDeletes('remove', null, shown(p))).toEqual([]);
+      expect(p.answerIncomingDeletes('keep', null, shown(p))).toEqual([]);
     });
   });
   test('a patient drain is caught too — the budget remembers across passes', async () => {

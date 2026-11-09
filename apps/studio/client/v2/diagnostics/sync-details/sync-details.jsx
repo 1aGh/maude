@@ -378,6 +378,9 @@ function HeldDeletesCard({ need, fetchImpl }) {
 
 /** 2.1.1 T13 — the words after an answer to a batch the project deleted (CONTRACT §3–§4). */
 export function heldIncomingWords(answer) {
+  // 2.1.1 T8 — the held set changed after the card was drawn: the card redraws with the new one
+  if (answer?.reason === 'changed')
+    return 'The list changed. Nothing was removed — look at it again.';
   if (!answer?.ok) return safeDetail(answer?.detail, 'That didn’t work. Nothing was removed.');
   if (answer.how === 'kept-here')
     return `Kept here. ${filesWord(answer.count)} stay on this Mac and aren’t sent back.`;
@@ -396,7 +399,12 @@ function HeldIncomingCard({ need, fetchImpl }) {
   async function answer(kind) {
     setBusy(true);
     setSaid('');
-    const r = await postJson(fetchImpl, '/_api/sync/held-deletes', { answer: kind, folder: null });
+    // 2.1.1 T8 — the answer names the set on screen (`need.digest`), never "whatever is held now"
+    const r = await postJson(fetchImpl, '/_api/sync/held-deletes', {
+      answer: kind,
+      folder: null,
+      digest: need.digest,
+    });
     setBusy(false);
     setSaid(heldIncomingWords(r));
     if (r?.ok) setDone(true);
@@ -735,7 +743,12 @@ export default function SyncDetails({
             ) : need.kind === 'deletes-held' ? (
               <HeldDeletesCard key="deletes-held" need={need} fetchImpl={fetchImpl} />
             ) : need.kind === 'deletes-incoming' ? (
-              <HeldIncomingCard key="deletes-incoming" need={need} fetchImpl={fetchImpl} />
+              // a new held set is a new card (its answer and words start over)
+              <HeldIncomingCard
+                key={`deletes-incoming-${need.digest}`}
+                need={need}
+                fetchImpl={fetchImpl}
+              />
             ) : need.kind === 'deletes-purging' ? (
               <DeletesPurgingCard key="deletes-purging" need={need} />
             ) : (

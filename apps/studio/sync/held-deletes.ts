@@ -33,7 +33,11 @@ export interface HeldDeletePlane {
   answerHeldDeletes(how: 'send' | 'purging' | 'keep', folder: string | null): string[];
   endPurge(rels: readonly string[]): void;
   /** 2.1.1 T13 — the held INCOMING deletes (the project removed these; this Mac still has them). */
-  answerIncomingDeletes(how: 'remove' | 'keep', folder: string | null): string[];
+  answerIncomingDeletes(
+    how: 'remove' | 'keep',
+    folder: string | null,
+    digest: string
+  ): string[] | null;
 }
 
 export interface HeldDeletesDeps {
@@ -62,7 +66,7 @@ export type HeldDeleteAnswer =
   | { ok: true; how: 'door' | 'purge' | 'keep' | 'removed' | 'kept-here'; count: number }
   | {
       ok: false;
-      reason: 'nothing-held' | 'not-owner' | 'busy' | 'not-linked';
+      reason: 'nothing-held' | 'not-owner' | 'busy' | 'not-linked' | 'changed';
       detail: string;
     };
 
@@ -72,9 +76,14 @@ export interface HeldDeletesControl {
   /**
    * 2.1.1 T13 — the answer to a batch the PROJECT deleted, held here. `remove`: filed into `_trash/` on
    * the next pass, all at once (recoverable). `keep`: stays on this Mac, never sent back. Local to
-   * this Mac either way, so no role or hub decides it.
+   * this Mac either way, so no role or hub decides it. 2.1.1 T8 — `digest` names the set the person
+   * was shown; a set that changed since answers `changed` and nothing is applied.
    */
-  answerIncoming(answer: 'remove' | 'keep', folder: string | null): Promise<HeldDeleteAnswer>;
+  answerIncoming(
+    answer: 'remove' | 'keep',
+    folder: string | null,
+    digest: string
+  ): Promise<HeldDeleteAnswer>;
   /** Test seam: the running purge, if any. */
   idle(): Promise<void>;
 }
@@ -215,7 +224,7 @@ export function createHeldDeletes(deps: HeldDeletesDeps): HeldDeletesControl {
       });
       return { ok: true, how: 'purge', count: rels.length };
     },
-    async answerIncoming(answer, folder) {
+    async answerIncoming(answer, folder, digest) {
       const plane = deps.plane();
       if (!plane) {
         return {
@@ -224,7 +233,8 @@ export function createHeldDeletes(deps: HeldDeletesDeps): HeldDeletesControl {
           detail: 'This project isn’t syncing with a hub right now.',
         };
       }
-      const rels = plane.answerIncomingDeletes(answer, folder);
+      const rels = plane.answerIncomingDeletes(answer, folder, digest);
+      if (rels === null) return listChanged();
       if (rels.length === 0) {
         return {
           ok: false,
@@ -240,6 +250,22 @@ export function createHeldDeletes(deps: HeldDeletesDeps): HeldDeletesControl {
       await job;
     },
   };
+}
+
+/** 2.1.1 T8 — the held set is not the one the person answered about. */
+export const LIST_CHANGED_DETAIL = 'The list changed. Nothing was removed — look at it again.';
+function listChanged(): HeldDeleteAnswer {
+  return { ok: false, reason: 'changed', detail: LIST_CHANGED_DETAIL };
+}
+
+/** A folder name from the project for a sentence: no control or formatting characters (a bidi
+ *  override would reorder the words around it), one line, capped — the folder list's own cleanup. */
+export function cleanFolderName(raw: string): string {
+  const s = String(raw ?? '')
+    .replace(/[\p{Cc}\p{Cf}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return s.length > 120 ? `${s.slice(0, 120)}…` : s;
 }
 
 function nothingHeld(): HeldDeleteAnswer {
@@ -262,7 +288,7 @@ export function heldDeleteDetail(count: number, folders: { folder: string; count
 export function heldIncomingDetail(count: number, folders: { folder: string; count: number }[]) {
   const where =
     folders.length === 1
-      ? ` in ${folders[0]?.folder || 'the project folder'}`
+      ? ` in ${cleanFolderName(folders[0]?.folder ?? '') || 'the project folder'}`
       : folders.length > 1
         ? ` in ${thousands(folders.length)} folders`
         : '';
