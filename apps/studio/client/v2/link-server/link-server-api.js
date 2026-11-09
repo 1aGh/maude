@@ -33,6 +33,12 @@ async function getJson(path) {
   }
 }
 
+/** `maude:cloud-changed` (panels/CloudBar.jsx `CLOUD_CHANGED_EVENT`, kept literal so this module stays light). */
+function announceCloudChanged() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('maude:cloud-changed', { detail: { from: 'link-server' } }));
+}
+
 /** Two addresses name one server (same origin; a trailing slash or path never matters). */
 export function sameServer(a, b) {
   try {
@@ -82,13 +88,20 @@ async function post(path, body) {
 
 /**
  * @param {{ fetchPost?: typeof post, fetchGet?: typeof getJson, openProject?: typeof openTeamProject,
- *           openPage?: typeof openTeamServerSignIn, link?: typeof hubLink }} [seams] tests only
+ *           openPage?: typeof openTeamServerSignIn, link?: typeof hubLink,
+ *           changed?: () => void }} [seams] tests only
  */
 export function projectLinkApi(seams = {}) {
   const p = seams.fetchPost ?? post;
   const openProject = seams.openProject ?? openTeamProject;
   const link = seams.link ?? hubLink;
   const g = seams.fetchGet ?? getJson;
+  // T7 — the page's account chip reads `/_api/cloud/status` again only on this event (shell/use-account.js)
+  const changed = seams.changed ?? announceCloudChanged;
+  const told = (answer) => {
+    if (answer?.ok) changed();
+    return answer;
+  };
   return {
     context: 'project',
     folders: 'this',
@@ -101,15 +114,17 @@ export function projectLinkApi(seams = {}) {
     openSignIn: seams.openPage ?? openTeamServerSignIn,
     linkKey: async (url, token) => answerOf(await link({ url, token })),
     finish: async (url, folder) => {
-      if (folder?.mode === 'this') return linkFolderAnswerOf(await p(LINK_FOLDER_ROUTE, { url }));
+      if (folder?.mode === 'this')
+        return told(linkFolderAnswerOf(await p(LINK_FOLDER_ROUTE, { url })));
       // 2.1.1 T7 — Sign in (again) for the server THIS project is already linked to: the sign-in was the whole
       // job (the route stored it and cycled sync). Opening the server's project here put the person in a copy
       // Maude keeps instead of their own folder.
-      if (sameServer((await g('/_api/cloud/status'))?.linkedHub?.url, url)) return { ok: true };
+      if (sameServer((await g('/_api/cloud/status'))?.linkedHub?.url, url))
+        return told({ ok: true });
       const r = await openProject({ kind: 'known-hub', url });
       return r?.ok ? { ok: true } : { ok: false, error: r?.error };
     },
     confirmLink: async (url, code) =>
-      linkFolderAnswerOf(await p(LINK_FOLDER_ROUTE, { url, confirm: code })),
+      told(linkFolderAnswerOf(await p(LINK_FOLDER_ROUTE, { url, confirm: code }))),
   };
 }
