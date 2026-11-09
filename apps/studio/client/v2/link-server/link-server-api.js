@@ -33,6 +33,15 @@ async function getJson(path) {
   }
 }
 
+/** Two addresses name one server (same origin; a trailing slash or path never matters). */
+export function sameServer(a, b) {
+  try {
+    return !!a && !!b && new URL(String(a)).origin === new URL(String(b)).origin;
+  } catch {
+    return false;
+  }
+}
+
 /** `/_api/cloud/status` → this project's own, unlinked folder (`~/git/logo-ideas`), else null. */
 export function folderOfStatus(status) {
   const place = status?.place;
@@ -93,6 +102,10 @@ export function projectLinkApi(seams = {}) {
     linkKey: async (url, token) => answerOf(await link({ url, token })),
     finish: async (url, folder) => {
       if (folder?.mode === 'this') return linkFolderAnswerOf(await p(LINK_FOLDER_ROUTE, { url }));
+      // 2.1.1 T7 — Sign in (again) for the server THIS project is already linked to: the sign-in was the whole
+      // job (the route stored it and cycled sync). Opening the server's project here put the person in a copy
+      // Maude keeps instead of their own folder.
+      if (sameServer((await g('/_api/cloud/status'))?.linkedHub?.url, url)) return { ok: true };
       const r = await openProject({ kind: 'known-hub', url });
       return r?.ok ? { ok: true } : { ok: false, error: r?.error };
     },
