@@ -162,9 +162,12 @@ describe('status — names the LOCAL half so a deep link can be read', () => {
     expect(json.project).toBe('alligators-web');
     // No hub credential was stored in this scratch dir, so the link is reported
     // but explicitly UNCORROBORATED — the dialog may not vouch for it.
+    // `confirmed` (2.1.1 T8) is false only when the server parked the address at boot; this direct
+    // call has no boot, so the address it reads counts as this Mac's own.
     expect(json.linkedHub).toEqual({
       url: 'https://alligators.cloud.maude.sh',
       credentialed: false,
+      confirmed: true,
     });
     // Signed out here — and the payload must stay free of token material
     // whatever the state (this response reaches the browser surface too).

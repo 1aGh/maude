@@ -467,9 +467,12 @@ async function main() {
 }
 
 // Run only when invoked directly (not when imported by the test). This shim
-// runs under real `node` on a real on-disk path (never embedded in
-// `bun --compile`), so the classic argv[1] guard is correct here — see the
-// v0.38.0 self-heal memory.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// runs under real `node` on a real on-disk path; since 2.1.1 the server also imports its loopback
+// refusals (the address check), so the module is reachable inside `bun --compile` too. There the
+// argv[1] compare is unreliable — `import.meta.main` is the entry flag under bun, and the compare
+// stays only for plain `node` (Node <24 leaves it undefined).
+const runDirectly =
+  import.meta.main ?? (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href);
+if (runDirectly) {
   main();
 }
