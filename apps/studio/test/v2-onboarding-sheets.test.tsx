@@ -20,13 +20,13 @@ import { createRoot, type Root } from 'react-dom/client';
 
 import * as api from '../client/home/home-api.js';
 import { HomeApp } from '../client/home/home-app.jsx';
+import { CHECK_DEBOUNCE_MS } from '../client/v2/link-server/LinkServerDialog.jsx';
 import { HUB_POLL_MS } from '../client/v2/onboarding/AdvancedSheets.jsx';
 import { CliSheet } from '../client/v2/onboarding/CliSheet.jsx';
 import { ConnectAiSheet } from '../client/v2/onboarding/ConnectAiSheet.jsx';
 import { connectClaudeHome } from '../client/v2/onboarding/connect-ai-home.js';
 import { FigmaSheet } from '../client/v2/onboarding/FigmaSheet.jsx';
 import { FolderGithubSheet } from '../client/v2/onboarding/FolderGithubSheet.jsx';
-import { HubSheet } from '../client/v2/onboarding/HubSheet.jsx';
 
 const SECRET = 'ef'.repeat(32);
 const flush = async (n = 8) => {
@@ -74,17 +74,6 @@ describe('A · the sheets as views', () => {
   test('every sheet asks with the verb of its main button, and has Cancel', async () => {
     const cases: Array<[string, unknown, string, string, string]> = [
       [
-        'hub',
-        createElement(HubSheet, {
-          onTest: async () => ({ ok: true }),
-          onSignIn: async () => ({ ok: true }),
-          onCancel: noop,
-        }),
-        'Sign in to your own hub',
-        'onb-hub-go',
-        'Sign in',
-      ],
-      [
         'folder',
         createElement(FolderGithubSheet, { onOpenFolder: noop, onCancel: noop }),
         'Open a folder or a GitHub project',
@@ -129,154 +118,6 @@ describe('A · the sheets as views', () => {
       act(() => root.unmount());
       host.remove();
     }
-  });
-
-  test('Cancel and Escape both leave the sheet', async () => {
-    let cancels = 0;
-    render(
-      createElement(HubSheet, {
-        onTest: async () => ({ ok: true }),
-        onSignIn: async () => ({ ok: true }),
-        onCancel: () => {
-          cancels += 1;
-        },
-      })
-    );
-    click('onb-hub-cancel');
-    expect(cancels).toBe(1);
-    esc();
-    expect(cancels).toBe(2);
-  });
-
-  test('hub: Test connection reads "Reachable — hub 1.4"; a changed address forgets it', async () => {
-    const tested: string[] = [];
-    render(
-      createElement(HubSheet, {
-        onTest: async (url: string) => {
-          tested.push(url);
-          return { ok: true, version: '1.4' };
-        },
-        onSignIn: async () => ({ ok: true }),
-        onCancel: noop,
-      })
-    );
-    type('onb-hub-url', 'https://maude.alligators.cz');
-    click('onb-hub-test');
-    await flush();
-    expect(tested).toEqual(['https://maude.alligators.cz']);
-    expect($('onb-hub-reachable')?.textContent).toBe('Reachable — hub 1.4');
-    type('onb-hub-url', 'https://maude.alligators.cz/x');
-    expect($('onb-hub-reachable')).toBeNull();
-  });
-
-  test('#204 hub: no email or password field — one Sign in, a refusal in the server’s words', async () => {
-    render(
-      createElement(HubSheet, {
-        onTest: async () => ({
-          ok: false,
-          error: "That address answered, but it isn't a Maude hub.",
-        }),
-        onSignIn: async () => ({
-          ok: false,
-          error: 'This team server runs 1.9.0, which is too old to sign in from here.',
-        }),
-        onCancel: noop,
-      })
-    );
-    expect(host.querySelector('input[type="email"]')).toBeNull();
-    expect($('onb-hub-email')).toBeNull();
-    expect($('onb-hub-password')).toBeNull();
-    expect($('onb-hub-mode-password')).toBeNull();
-    // the one password-typed input is the masked invite key — never a password
-    const masked = [...host.querySelectorAll('input[type="password"]')].map((e) =>
-      e.getAttribute('data-testid')
-    );
-    expect(masked).toEqual(['onb-hub-invite']);
-    expect(host.querySelectorAll('[data-testid="onb-hub"] button[type="submit"]')).toHaveLength(1);
-    expect($('onb-hub-go')?.textContent).toBe('Sign in');
-    type('onb-hub-url', 'https://example.com');
-    click('onb-hub-test');
-    await flush();
-    expect($('onb-hub-test-error')?.textContent).toContain("isn't a Maude hub");
-    click('onb-hub-go');
-    await flush();
-    expect($('onb-hub-error')?.textContent).toContain('too old to sign in');
-  });
-
-  test('#204 hub: Sign in waits for the browser; Cancel forgets the attempt and leaves the sheet open', async () => {
-    const got: Array<Record<string, unknown>> = [];
-    let release: (v: { ok: boolean; cancelled?: boolean }) => void = noop;
-    let aborted = 0;
-    let cancels = 0;
-    render(
-      createElement(HubSheet, {
-        onTest: async () => ({ ok: true }),
-        onSignIn: (v: { url: string; invite: string; onWaiting: () => void }) => {
-          got.push({ url: v.url, invite: v.invite });
-          v.onWaiting();
-          return new Promise((res) => {
-            release = res as never;
-          });
-        },
-        onAbortSignIn: () => {
-          aborted += 1;
-          release({ ok: false, cancelled: true });
-        },
-        onCancel: () => {
-          cancels += 1;
-        },
-      })
-    );
-    expect(($('onb-hub-go') as HTMLButtonElement).disabled).toBe(true); // no address yet
-    type('onb-hub-url', 'https://maude.alligators.cz');
-    click('onb-hub-go');
-    await flush();
-    expect(got).toEqual([{ url: 'https://maude.alligators.cz', invite: '' }]);
-    expect($('onb-hub-waiting')?.textContent).toBe('Finish signing in in your browser.');
-    expect($('onb-hub-go')?.textContent).toBe('Signing in…');
-    click('onb-hub-cancel');
-    await flush();
-    expect(aborted).toBe(1);
-    expect(cancels).toBe(0); // the wait ended, the sheet stays
-    expect($('onb-hub-waiting')).toBeNull();
-    expect($('onb-hub-error')).toBeNull();
-    expect($('onb-hub-go')?.textContent).toBe('Sign in');
-  });
-
-  test('#204 K2 hub: an invite link or key rides Sign in once — masked, a pasted link fills the address, emptied at once', async () => {
-    const KEY = `inv_${'ab'.repeat(24)}`;
-    const got: Array<Record<string, unknown>> = [];
-    let release: (v: { ok: boolean; error?: string }) => void = noop;
-    render(
-      createElement(HubSheet, {
-        onTest: async () => ({ ok: true }),
-        onSignIn: (v: { url: string; invite: string }) => {
-          got.push({ url: v.url, invite: v.invite });
-          return new Promise((res) => {
-            release = res as never;
-          });
-        },
-        onCancel: noop,
-      })
-    );
-    const field = $('onb-hub-invite') as HTMLInputElement;
-    expect(field.type).toBe('password');
-    type('onb-hub-invite', `https://maude.alligators.cz/join/${KEY}`);
-    // the hub's own link names its hub: the empty address is filled (the address is not a secret)
-    expect(($('onb-hub-url') as HTMLInputElement).value).toBe('https://maude.alligators.cz');
-    click('onb-hub-go');
-    expect(got).toEqual([
-      { url: 'https://maude.alligators.cz', invite: `https://maude.alligators.cz/join/${KEY}` },
-    ]);
-    // read once: the key is gone from the page while the sign-in is in flight
-    expect(($('onb-hub-invite') as HTMLInputElement).value).toBe('');
-    expect(document.body.innerHTML).not.toContain(KEY);
-    await act(async () =>
-      release({ ok: false, error: 'That invite is for a different hub address.' })
-    );
-    await flush();
-    expect($('onb-hub-error')?.textContent).toBe('That invite is for a different hub address.');
-    expect(document.body.innerHTML).not.toContain(KEY);
   });
 
   test('folder: From GitHub rests until S6.10 hands a list in; Open runs the folder picker', async () => {
@@ -597,6 +438,17 @@ async function mountHome() {
   render(createElement(HomeApp));
   await flush();
 }
+/** 2.1.1 T5 — the address is checked as it rests: type, wait the debounce, let the answer land. */
+async function typeAddress(url: string) {
+  if (!routes['/_home/hub/test'])
+    routes['/_home/hub/test'] = () => [200, { ok: true, reachable: true, url, version: '2.1.0' }];
+  type('link-server-url', url);
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, CHECK_DEBOUNCE_MS + 30));
+  });
+  await flush();
+}
+
 async function openRow(id: string) {
   click('signin-advanced');
   click(`signin-adv-${id}`);
@@ -626,7 +478,7 @@ describe('C · Home: the flyout rows open their sheets', () => {
     for (const id of ['hub', 'folder-github', 'ai', 'cli', 'figma'])
       expect($(`signin-adv-${id}`)?.getAttribute('aria-disabled')).toBeNull();
     const sheets: Record<string, string> = {
-      hub: 'onb-hub',
+      hub: 'link-server-dialog',
       'folder-github': 'onb-folder',
       ai: 'ai-connect-sheet',
       cli: 'onb-cli',
@@ -679,19 +531,20 @@ describe('C · Home: the flyout rows open their sheets', () => {
     invokeAnswers.managed_project_open = () => '/Users/x/.maude/managed/Combine';
     await mountHome();
     await openRow('hub');
-    type('onb-hub-url', 'https://hub.example');
-    click('onb-hub-test');
-    await flush();
+    await typeAddress('https://hub.example');
+    expect(hit('/_home/hub/test')).toHaveLength(1); // checked once, as it was typed
     expect(hit('/_home/hub/test')[0]?.body).toEqual({ url: 'https://hub.example' });
-    expect($('onb-hub-reachable')?.textContent).toBe('Reachable — hub 2.0.4');
-    click('onb-hub-go');
+    expect($('link-server-check')?.textContent).toBe('hub.example answers — Maude 2.0.4');
+    click('link-server-signin');
     await flush();
     expect(hit('/_home/hub/signin/start')[0]?.body).toEqual({
       profile: 'default',
       url: 'https://hub.example',
     });
     expect(cmds('open_team_server_signin')[0]?.args).toEqual({ url: SIGNIN });
-    expect($('onb-hub-waiting')?.textContent).toBe('Finish signing in in your browser.');
+    expect($('link-server-waiting')?.textContent).toBe(
+      'hub.example opened in your browser. Sign in there — this closes by itself when you’re done.'
+    );
     // the next ask finds the browser came back
     await act(async () => {
       await new Promise((r) => setTimeout(r, HUB_POLL_MS + 50));
@@ -710,7 +563,7 @@ describe('C · Home: the flyout rows open their sheets', () => {
     expect(cmds('open_project')[0]?.args).toMatchObject({
       root: '/Users/x/.maude/managed/Combine',
     });
-    expect($('onb-hub')).toBeNull();
+    expect($('link-server-dialog')).toBeNull();
   });
 
   test('#204 K2 hub: an invite key goes to start once, never a URL Home builds; Cancel forgets the attempt', async () => {
@@ -729,9 +582,10 @@ describe('C · Home: the flyout rows open their sheets', () => {
     invokeAnswers.open_team_server_signin = () => null;
     await mountHome();
     await openRow('hub');
-    type('onb-hub-url', 'https://hub.example');
-    type('onb-hub-invite', KEY);
-    click('onb-hub-go');
+    await typeAddress('https://hub.example');
+    click('link-server-invite-open');
+    type('link-server-invite', KEY);
+    click('link-server-signin');
     await flush();
     expect(hit('/_home/hub/signin/start')).toHaveLength(1);
     expect(hit('/_home/hub/signin/start')[0].body).toEqual({
@@ -740,12 +594,12 @@ describe('C · Home: the flyout rows open their sheets', () => {
       invite: KEY,
     });
     for (const c of calls) expect(c.url).not.toContain(KEY);
-    expect($('onb-hub-waiting')).not.toBeNull();
-    click('onb-hub-cancel');
+    expect($('link-server-waiting')).not.toBeNull();
+    click('link-server-cancel');
     await flush();
     expect(hit('/_home/hub/signin/cancel')[0]?.body).toEqual({ id: 'att-2' });
-    expect($('onb-hub-waiting')).toBeNull();
-    expect($('onb-hub')).not.toBeNull(); // the wait ended; the sheet stays
+    expect($('link-server-waiting')).toBeNull();
+    expect($('link-server-dialog')).not.toBeNull(); // the wait ended; the dialog stays
     expect(cmds('open_project')).toHaveLength(0);
     expect(document.body.innerHTML).not.toContain(KEY);
   });
@@ -762,12 +616,12 @@ describe('C · Home: the flyout rows open their sheets', () => {
     ];
     await mountHome();
     await openRow('hub');
-    type('onb-hub-url', 'https://hub.example');
-    click('onb-hub-go');
+    await typeAddress('https://hub.example');
+    click('link-server-signin');
     await flush();
-    expect($('onb-hub-error')?.textContent).toContain('update it to 2.0.4');
+    expect($('link-server-error')?.textContent).toContain('update it to 2.0.4');
     expect(cmds('open_team_server_signin')).toHaveLength(0);
-    expect($('onb-hub-go')?.textContent).toBe('Sign in');
+    expect($('link-server-signin')?.textContent).toBe('Sign in in your browser');
   });
 
   test('#204 K2 hub: the shell refusing the page stays on the sheet, in words, and forgets the attempt', async () => {
@@ -781,11 +635,11 @@ describe('C · Home: the flyout rows open their sheets', () => {
     };
     await mountHome();
     await openRow('hub');
-    type('onb-hub-url', 'https://hub.example');
-    click('onb-hub-go');
+    await typeAddress('https://hub.example');
+    click('link-server-signin');
     await flush();
-    expect($('onb-hub-error')?.textContent).toBe(
-      'That address can’t be opened. Check the hub address.'
+    expect($('link-server-error')?.textContent).toBe(
+      'Maude won’t open that address. Check the server address.'
     );
     expect(hit('/_home/hub/signin/cancel')[0]?.body).toEqual({ id: 'att-3' });
     expect(cmds('open_project')).toHaveLength(0);

@@ -106,7 +106,7 @@ describe('p8-lock-reasons — a greyed control says why (the crawl’s 13)', () 
 
   test('team-hub-open: no server address yet', async () => {
     const TeamProjects = (await import('../client/panels/TeamProjects.jsx')).default;
-    const host = await mount(<TeamProjects serverOnly />);
+    const host = await mount(<TeamProjects />);
     saysWhy(byTestid(host, 'team-hub-open'), 'Fill in the server address first.');
   });
 

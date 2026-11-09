@@ -13993,7 +13993,37 @@
     "hook": "diag-sync-solo",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Sync tab for an unlinked project (\"nothing to sync\").",
+    "meaning": "The Sync tab for a project only on this Mac: \"Only on this Mac\", one sentence and two ways out (`diag-sync-to-cloud`, `diag-sync-link-server`; 2.1.1 T3, canvas 17 ac-sync).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "SyncView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-to-cloud",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Create project on Maude Cloud\" on a project only on this Mac: runs `share.move-to-cloud` (the Share sheet's Move to Maude Cloud) and closes Diagnostics.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "SyncView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-link-server",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Link your server\" on a project only on this Mac: runs `account.link-server` and closes Diagnostics.",
     "producer": {
       "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
       "symbol": "SyncView"
@@ -33383,7 +33413,7 @@
     "hook": "onb-<sheet>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The Advanced sheet that is open (`<sheet>` = hub | folder | cli | figma; Connect AI is S5.13's `ai-connect-sheet`). Title asks with the verb of its main button.",
+    "meaning": "The Advanced sheet that is open (`<sheet>` = folder | cli | figma; the hub row opens `link-server-dialog` since 2.1.1; Connect AI is S5.13's `ai-connect-sheet`). Title asks with the verb of its main button.",
     "producer": {
       "file": "apps/studio/client/v2/onboarding/AdvSheet.jsx",
       "symbol": "AdvSheet"
@@ -33413,7 +33443,7 @@
     "hook": "onb-<sheet>-go",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The main button of an Advanced sheet: Connect (hub) · Open (folder) · Install (cli) · Import (figma).",
+    "meaning": "The main button of an Advanced sheet: Open (folder) · Install (cli) · Import (figma).",
     "producer": {
       "file": "apps/studio/client/v2/onboarding/AdvSheet.jsx",
       "symbol": "AdvSheet"
@@ -33434,10 +33464,9 @@
       "symbol": "HubSheet"
     },
     "region": "home",
-    "consumers": [
-      "test:v2-onboarding-sheets"
-    ],
-    "v2": "new"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired 2.1.1 (T5): Home's hub sheet is the one Link your server dialog (`link-server-dialog`, client/v2/link-server/LinkServerDialog.jsx) — the address is checked as it is typed, no Test connection. Now `link-server-url`."
   },
   {
     "hook": "onb-hub-test",
@@ -33449,10 +33478,9 @@
       "symbol": "HubSheet"
     },
     "region": "home",
-    "consumers": [
-      "test:v2-onboarding-sheets"
-    ],
-    "v2": "new"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired 2.1.1 (T5): Home's hub sheet is the one Link your server dialog (`link-server-dialog`, client/v2/link-server/LinkServerDialog.jsx) — the address is checked as it is typed, no Test connection."
   },
   {
     "hook": "onb-hub-testing",
@@ -33464,10 +33492,9 @@
       "symbol": "HubSheet"
     },
     "region": "home",
-    "consumers": [
-      "test:v2-onboarding-sheets"
-    ],
-    "v2": "new"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired 2.1.1 (T5): Home's hub sheet is the one Link your server dialog (`link-server-dialog`, client/v2/link-server/LinkServerDialog.jsx) — the address is checked as it is typed, no Test connection. Now `link-server-check`."
   },
   {
     "hook": "onb-hub-reachable",
@@ -33479,10 +33506,9 @@
       "symbol": "HubSheet"
     },
     "region": "home",
-    "consumers": [
-      "test:v2-onboarding-sheets"
-    ],
-    "v2": "new"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired 2.1.1 (T5): Home's hub sheet is the one Link your server dialog (`link-server-dialog`, client/v2/link-server/LinkServerDialog.jsx) — the address is checked as it is typed, no Test connection. Now `link-server-check`."
   },
   {
     "hook": "onb-hub-test-error",
@@ -33494,10 +33520,9 @@
       "symbol": "HubSheet"
     },
     "region": "home",
-    "consumers": [
-      "test:v2-onboarding-sheets"
-    ],
-    "v2": "new"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired 2.1.1 (T5): Home's hub sheet is the one Link your server dialog (`link-server-dialog`, client/v2/link-server/LinkServerDialog.jsx) — the address is checked as it is typed, no Test connection. Now `link-server-check`."
   },
   {
     "hook": "onb-hub-mode-password",
@@ -33537,10 +33562,9 @@
       "symbol": "HubSheet"
     },
     "region": "home",
-    "consumers": [
-      "test:v2-onboarding-sheets"
-    ],
-    "v2": "new"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired 2.1.1 (T5): Home's hub sheet is the one Link your server dialog (`link-server-dialog`, client/v2/link-server/LinkServerDialog.jsx) — the address is checked as it is typed, no Test connection. Now `link-server-invite`."
   },
   {
     "hook": "onb-hub-email",
@@ -33580,10 +33604,9 @@
       "symbol": "HubSheet"
     },
     "region": "home",
-    "consumers": [
-      "test:v2-onboarding-sheets"
-    ],
-    "v2": "new"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired 2.1.1 (T5): Home's hub sheet is the one Link your server dialog (`link-server-dialog`, client/v2/link-server/LinkServerDialog.jsx) — the address is checked as it is typed, no Test connection. Now `link-server-error`."
   },
   {
     "hook": "onb-hub-waiting",
@@ -33595,7 +33618,255 @@
       "symbol": "HubSheet"
     },
     "region": "home",
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired 2.1.1 (T5): Home's hub sheet is the one Link your server dialog (`link-server-dialog`, client/v2/link-server/LinkServerDialog.jsx) — the address is checked as it is typed, no Test connection. Now `link-server-waiting`."
+  },
+  {
+    "hook": "link-server-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one \"Link your server\" dialog (2.1.1 T5, canvas 17 artboards 12–13): avatar menu, Settings › Add a team server…, Diagnostics › Sync and Home › Advanced options › Use a self-hosted hub. `data-phase` = form | starting | waiting | done, `data-check` = empty | checking | answers | no-answer | not-maude | bad-address.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
     "consumers": [
+      "test:v2-link-server-dialog",
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-url",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Address field; checked as it is typed (debounced, one tokenless /health GET by the app's own server). `data-bad=\"true\"` on an error.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog",
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-check",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line under the address: the hint, \"Checking <host>…\", \"<host> answers — Maude <version>\", or why not (didn't answer · isn't a Maude server). `data-tone` = hint | busy | ok | bad.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog",
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-signin",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Primary \"Sign in in your browser\" (\"Link with this key\" with a sign-in key); wakes only once the server answered.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog",
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-invite-open",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"I have an invite link\": opens the invite field.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog",
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-invite",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Invite link (masked; read once by Sign in and emptied at once, never echoed); a pasted server link fills an empty address.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog",
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Advanced fold; its hint lists what this context can do (Sign-in key · folder). Not drawn when it can do neither (Home).",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-key",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sign-in key a server admin gave (masked; project tab only, `POST /_api/hub/link`).",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-folder-kept",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Keep a copy for me\" radio (drawn only where the context can link a folder — none yet).",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-folder-mine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Use my folder…\" radio (as above).",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-folder-choose",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Choose…\" — the folder picker for \"Use my folder…\".",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-folder-path",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The chosen folder, shown.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-waiting",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"<host> opened in your browser. Sign in there — this closes by itself when you're done.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog",
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-reopen",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Open the page again\" while waiting for the browser.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel: closes the dialog, or (while waiting) forgets the browser attempt and stays.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog",
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why the sign-in did not finish, in the server's words.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog",
       "test:v2-onboarding-sheets"
     ],
     "v2": "new"

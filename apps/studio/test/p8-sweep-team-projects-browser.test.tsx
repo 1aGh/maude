@@ -59,7 +59,7 @@ describe('the team-projects panel in a plain browser', () => {
     root = createRoot(host, { onUncaughtError: (e) => errors.push(e) });
     try {
       await act(async () => {
-        root?.render(<TeamProjects serverOnly />);
+        root?.render(<TeamProjects />);
       });
       await act(async () => {
         await new Promise((r) => setTimeout(r, 0));

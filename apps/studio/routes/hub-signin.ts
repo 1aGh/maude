@@ -4,6 +4,13 @@
 //   POST /_api/hub-signin/poll    { id }   → { ok, pending } | { ok, url, user } | { ok:false, error }
 //   POST /_api/hub-signin/cancel  { id }   → { ok }
 //   GET  /_api/hub-signin/return  ?state&code | ?state&error   (the browser's hop back from the hub)
+//   POST /_api/hub-signin/check   { url }  → { ok, reachable, url, version } | { ok:false, reason, error }
+//
+// 2.1.1 T5 — "Link your server" checks the address as it is typed: `check` is Home's `/_home/hub/test`
+// (home/hub.ts `createHomeHub().test`) for a project tab — ONE tokenless GET <server>/health, no
+// redirect followed, no credential, only `{ ok, version }` reflected back. `start` takes an invite
+// (the key, or the server's own `/join/<key>` link, which must name the same server — home/hub.ts
+// `hubInviteToken`), so the invite opens the server's own invite page here as it does on Home.
 //
 // MAIN ORIGIN ONLY: these mint and store a team-server credential, which the untrusted canvas
 // origin (DDR-054) must never reach. `guardTableRoute` applies the CSRF + DNS-rebind gates to all
@@ -16,6 +23,7 @@
 // A cell never serves these (apps/hub/src/studio-manifest.mjs: REFUSED) — a cell holds no team
 // server credential of its own.
 
+import { createHomeHub, hubAddress, hubInviteToken } from '../home/hub.ts';
 import {
   createHubBrowserSignIn,
   type HubBrowserSignIn,
@@ -29,6 +37,8 @@ export interface HubSigninRouteDeps {
   /** The team server this project syncs with — a renewed sign-in for it cycles sync. */
   linkedHubUrl?: () => string | null | undefined;
   restartSync?: () => Promise<unknown> | undefined;
+  /** The address check's network seam (tests); default `fetch`. */
+  fetchImpl?: typeof fetch;
 }
 
 async function body(req: Request): Promise<Record<string, unknown>> {
@@ -64,6 +74,8 @@ export function createHubSigninRoutes(deps: HubSigninRouteDeps = {}): RouteSpec[
         if (sameServer(deps.linkedHubUrl?.(), url)) await deps.restartSync?.();
       },
     });
+  // the check only: Home's tokenless probe (no redirect, no ambient credentials)
+  const checker = createHomeHub(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {});
   return [
     {
       method: 'POST',
@@ -72,7 +84,15 @@ export function createHubSigninRoutes(deps: HubSigninRouteDeps = {}): RouteSpec[
       readOnly: 'allowed',
       async handle(req) {
         const b = await body(req);
-        const r = await signIn.start(b.url, new URL(req.url).origin);
+        let invite: string | undefined;
+        if (b.invite !== undefined && b.invite !== null && b.invite !== '') {
+          const at = hubAddress(b.url);
+          if (!at.ok) return json({ ok: false, error: at.error }, 400);
+          const t = hubInviteToken(b.invite, at.url);
+          if (!t.ok) return json({ ok: false, error: t.error }, 400);
+          invite = t.value;
+        }
+        const r = await signIn.start(b.url, new URL(req.url).origin, invite ? { invite } : {});
         return r.ok
           ? json(r)
           : json(
@@ -98,6 +118,16 @@ export function createHubSigninRoutes(deps: HubSigninRouteDeps = {}): RouteSpec[
       async handle(req) {
         signIn.cancel((await body(req)).id);
         return json({ ok: true });
+      },
+    },
+    {
+      method: 'POST',
+      path: '/_api/hub-signin/check',
+      origin: 'main',
+      readOnly: 'allowed',
+      async handle(req) {
+        const r = await checker.test(await body(req));
+        return json(r.body, r.status);
       },
     },
     {

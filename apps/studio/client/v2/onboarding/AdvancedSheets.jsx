@@ -3,9 +3,12 @@
 // shell command a sheet's button runs. Each sheet is a view (exported from ./index.js for S11.14), so Settings ›
 // Connections mounts the same sheets with its own wiring.
 //
-//   hub            → /_home/hub/test; Sign in (#204 K2) → /_home/hub/signin/start, the shell opens the hub's
-//                    own page (`open_team_server_signin`; with an invite, the hub's invite page), poll until
-//                    the browser came back, then /_home/hub/prepare and Home's own open of the managed copy
+//   hub            → the one "Link your server" dialog (2.1.1 T5, v2/link-server/; it replaced HubSheet):
+//                    /_home/hub/test as the address is typed; Sign in (#204 K2) → /_home/hub/signin/start,
+//                    the shell opens the hub's own page (`open_team_server_signin`; with an invite, the hub's
+//                    invite page), poll until the browser came back, then /_home/hub/prepare and Home's own
+//                    open of the managed copy. Home has no sign-in-key or folder path (named gap), so the
+//                    dialog draws no Advanced here.
 //   folder-github  → the shell's folder picker (`open_project_folder`); "From GitHub" (S6.10) → Rust's
 //                    github_repos / home_github_sign_in / github_clone / github_create, then `open_project({root})`
 //   ai             → /_home/ai/{status,connect}  (install Claude Code, then the browser sign-in)
@@ -16,7 +19,7 @@
 // own page in the browser takes it, issue #204); the AI sign-in is the person's browser; nothing here stores
 // a token.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   aiConnect,
@@ -39,9 +42,9 @@ import { ConnectAiSheet } from './ConnectAiSheet.jsx';
 import { CliSheet } from './CliSheet.jsx';
 import { FigmaSheet } from './FigmaSheet.jsx';
 import { FolderGithubSheet } from './FolderGithubSheet.jsx';
-import { HubSheet } from './HubSheet.jsx';
+import { answerOf, checkAnswerOf } from '../link-server/link-server-model.js';
+import { LinkServerDialog } from '../link-server/LinkServerDialog.jsx';
 import { connectClaudeHome } from './connect-ai-home.js';
-import { HUB_WORDS } from './onboarding-model.js';
 
 const CLI_POLL_MS = 1500;
 
@@ -189,89 +192,31 @@ function FigmaHost({ target, onClose, startFigma }) {
 export const HUB_POLL_MS = 1500;
 
 /**
- * #204 K2 — the hub sheet's host: Sign in opens the hub's own page and waits for the browser to come back to
- * Home's server; Cancel forgets the attempt (a late return then changes nothing). `pollMs` is a test seam.
+ * Home's "Link your server" API (2.1.1 T5): the same dialog a project tab opens, wired to Home's own routes
+ * for `profile`. `finish` prepares the managed copy and opens it as a tab (Home's `openPrepared`).
  */
-function HubHost({ onClose, profile, openPrepared, pollMs = HUB_POLL_MS }) {
-  const attempt = useRef(null); // { id, stop: (r) => void }
-  useEffect(
-    () => () => {
-      const a = attempt.current;
-      attempt.current = null;
-      if (a) {
-        a.stop({ ok: false, cancelled: true });
-        void hubSignInCancel(a.id);
-      }
+export function homeLinkApi({ profile, openPrepared }) {
+  return {
+    context: 'home',
+    folders: false,
+    check: async (url) => checkAnswerOf(await hubTest(url)),
+    signInStart: async (url, invite) => answerOf(await hubSignInStart(profile, url, invite)),
+    signInPoll: async (id) => answerOf(await hubSignInPoll(id)),
+    signInCancel: (id) => hubSignInCancel(id),
+    openSignIn: openTeamServerSignIn,
+    finish: async (url) => {
+      const r = await hubPrepare(profile, url);
+      if (!r.ok || !r.json?.ok) return { ok: false, error: r.json?.error };
+      await openPrepared(r, r.json.name, profile);
+      return { ok: true };
     },
-    []
-  );
+  };
+}
 
-  const waitForBrowser = (id) =>
-    new Promise((resolve) => {
-      let timer = null;
-      const stop = (r) => {
-        clearTimeout(timer);
-        resolve(r);
-      };
-      attempt.current = { id, stop };
-      const tick = async () => {
-        const p = await hubSignInPoll(id);
-        if (attempt.current?.id !== id) return; // cancelled meanwhile
-        if (p.json?.pending) {
-          timer = setTimeout(tick, pollMs);
-          return;
-        }
-        attempt.current = null;
-        stop(
-          p.ok && p.json?.ok && p.json.url
-            ? { ok: true, url: p.json.url }
-            : { ok: false, error: p.json?.error || HUB_WORDS.unreachable }
-        );
-      };
-      timer = setTimeout(tick, 0); // the first ask at once, then every pollMs
-    });
-
-  return (
-    <HubSheet
-      onCancel={onClose}
-      onTest={async (url) => {
-        const r = await hubTest(url);
-        return r.json?.ok
-          ? { ok: true, version: r.json.version ?? null }
-          : { ok: false, error: r.json?.error || HUB_WORDS.unreachable };
-      }}
-      onSignIn={async ({ url, invite, onWaiting }) => {
-        const s = await hubSignInStart(profile, url, invite);
-        if (!s.ok || !s.json?.ok)
-          return { ok: false, error: s.json?.error || HUB_WORDS.unreachable };
-        const id = s.json.id;
-        const opened = await openTeamServerSignIn(s.json.signInUrl);
-        if (opened !== 'ok') {
-          void hubSignInCancel(id);
-          return {
-            ok: false,
-            error: opened === 'refused' ? HUB_WORDS.refused : HUB_WORDS.noBrowser,
-          };
-        }
-        onWaiting();
-        const done = await waitForBrowser(id);
-        if (!done.ok) return done;
-        const r = await hubPrepare(profile, done.url);
-        if (!r.ok || !r.json?.ok)
-          return { ok: false, error: r.json?.error || HUB_WORDS.unreachable };
-        await openPrepared(r, r.json.name, profile);
-        onClose();
-        return { ok: true };
-      }}
-      onAbortSignIn={() => {
-        const a = attempt.current;
-        attempt.current = null;
-        if (!a) return;
-        void hubSignInCancel(a.id);
-        a.stop({ ok: false, cancelled: true });
-      }}
-    />
-  );
+/** #204 K2 + 2.1.1 T5 — the hub row's host: the one dialog with Home's API. `pollMs` is a test seam. */
+function HubHost({ onClose, profile, openPrepared, pollMs = HUB_POLL_MS }) {
+  const api = useMemo(() => homeLinkApi({ profile, openPrepared }), [profile, openPrepared]);
+  return <LinkServerDialog api={api} onClose={onClose} pollMs={pollMs} />;
 }
 
 /**
