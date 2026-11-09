@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 import { accountFace } from '../client/home/home-model.js';
 import { accountTone } from '../client/shell/account-tone.js';
-import { accountCard, accountChip } from '../client/v2/shell/account-card-model.js';
+import { accountFace as chipFace, switchList } from '../client/v2/shell/project-account-model.js';
 
 // the table tabs.rs pins too (`account_tone` test)
 const TABLE: Array<[string, string, string]> = [
@@ -32,23 +32,23 @@ describe('every surface asks the same function', () => {
   test('Home face · Share chip · account card', () => {
     expect(accountFace({ id: 'work', label: 'Work' }).tone).toBe('sky');
     expect(accountFace({ id: 'personal', label: 'Personal' }).tone).toBe('yellow');
-    const chip = accountChip({
-      native: true,
-      connected: true,
+    // 2.1.1 T2/T4 — the account chip's face and the Switch account list
+    const chip = chipFace({
+      conn: { state: 'local', kind: 'local', badge: null },
       profile: { id: 'work', label: 'Work' },
-      accounts: [{ id: 'work' }, { id: 'default' }],
+      cloudConnected: true,
+      cloudEmail: 'you@work.example',
     });
-    expect(chip?.tone).toBe('sky');
-    const card = accountCard({
-      project: 'P',
+    expect(chip.tone).toBe('sky');
+    const list = switchList({
       profile: { id: 'work', label: 'Work' },
       accounts: [
-        { id: 'work', label: 'Work' },
-        { id: 'personal', label: 'Personal' },
+        { id: 'work', label: 'Work', email: 'you@work.example', signedIn: true },
+        { id: 'personal', label: 'Personal', email: null, signedIn: true },
       ],
     });
-    expect(card.current.tone).toBe('sky');
-    expect(card.others[0].tone).toBe('yellow');
+    expect(list.rows.find((r) => r.id === 'work')?.tone).toBe('sky');
+    expect(list.rows.find((r) => r.id === 'personal')?.tone).toBe('yellow');
   });
   test('tabs.rs states the same table', () => {
     const rs = readFileSync(join(import.meta.dir, '../../desktop/src-tauri/src/tabs.rs'), 'utf8');

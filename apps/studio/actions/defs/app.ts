@@ -109,11 +109,38 @@ export const APP_ACTIONS: ActionDef[] = [
     // from the Share panel as usual. V2-4.8a: a CLOUD tab has it too — there it ends the browser session
     // (the v1 menubar's account chip + "Sign out", Cloud Phase 27 C4: who you are, and how to stop
     // being them) and the hub asks for a sign-in again; the row shows the account's email.
+    // 2.1.1 T4 (canvas 17 · ac-switch): on the desktop it opens the avatar menu's Switch account list —
+    // the accounts already on this Mac and "No account — this Mac only" (`project_use_account`, a
+    // confirm sheet first). It never moves a project to a fresh, empty account any more.
     id: 'account.switch',
-    label: 'Sign in as another account…',
+    label: 'Switch account…',
     kind: 'command',
     exec: 'shell',
     visible: { shell: ['desktop', 'cloud'] },
+    search: { keywords: ['account', 'sign in', 'profile', 'no account', 'this mac only'] },
+  },
+  {
+    // 2.1.1 T4 — the Switch account list's foot: a Maude Cloud account this Mac does not hold yet. The
+    // V2-3.8 path: `cloud_sign_in_prepare` (a profile already signed in to Maude Cloud is never
+    // re-signed — the project moves to a fresh profile of its own, and the page reloads), then the cloud
+    // sign-in in Settings › Connections.
+    id: 'account.add-cloud',
+    label: 'Add a Maude Cloud account…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop'] },
+    search: { keywords: ['cloud', 'sign in', 'account', 'login'] },
+  },
+  {
+    // 2.1.1 T3/T4/T5 — "Link your server…" / "Sign in with custom server…": the one team-server dialog
+    // (B2 wires it: it hears the `maude:link-server` event and prevents its default). Until it is there
+    // the row opens Settings › Connections, where today's team-server dialog lives.
+    id: 'account.link-server',
+    label: 'Link your server…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop', 'browser'] },
+    search: { keywords: ['team server', 'hub', 'self-hosted', 'custom server', 'sign in', 'link'] },
   },
   {
     // 2.0.5 W4: GitHub sign-in from anywhere — the avatar's card, ⌘K and every "Sign in with GitHub to

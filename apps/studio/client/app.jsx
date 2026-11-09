@@ -238,6 +238,7 @@ import { CornerIcons } from './v2/shell/corner-icons.jsx';
 import ShellErrorBoundary from './v2/shell/shell-error-boundary.jsx';
 import { expectServedFrom, setServedFrom } from './v2/shell/served-routes.js';
 import { cutCopyPaste, createMenuHandlers, menuRunner } from './v2/shell/menu-runner.js';
+import { openAccountMenu } from './v2/shell/project-account-bus.js';
 import DiagnosticsHost from './v2/diagnostics/diagnostics-host.jsx';
 import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
@@ -1830,11 +1831,19 @@ function ShellProjectPill() {
         form.submit();
         return;
       }
+      // 2.1.1 T4 — the desktop: the avatar menu's Switch account list (accounts already on this Mac,
+      // "No account — this Mac only"). It never moves the project to a fresh, empty account.
+      openAccountMenu('switch');
+    },
+    // 2.1.1 T4 — "Add a Maude Cloud account…": V2-3.8's prepare (a profile already signed in to Maude
+    // Cloud is never re-signed: the project moves to a profile of its own and reloads), then the cloud
+    // sign-in where it lives, Settings › Connections.
+    onAddCloudAccount: () => {
       cloudSignInPrepare().then(
         (moved) => {
-          if (!moved) shellToast('Sign in from the Share panel to use another account.');
+          if (!moved) setSettingsOpen('connections');
         },
-        (e) => shellToast(String(e?.message || e || 'Could not switch accounts.'))
+        (e) => shellToast(String(e?.message || e || 'Could not add an account.'))
       );
     },
     onCutPaste: (kind) => cutCopyPaste(kind, openerRef.current, { postToActiveCanvas }),
@@ -1906,7 +1915,7 @@ function ShellProjectPill() {
       window.removeEventListener(OPEN_ASSETS_EVENT, onAttachAssets);
     };
   }, [openRightPanel, openTab, cfg?.designRel]);
-  // S1.22c: the native tab menu's "Sign in as another account…" arrives as `menu://action
+  // S1.22c: the native tab menu's "Switch account…" arrives as `menu://action
   // {id:'account.switch'}` (tabs.rs TabMenuItem::SwitchAccount); it is not a palette row, so the
   // palette's menu://action listener never runs it — the menu handler does.
   useEffect(() => {

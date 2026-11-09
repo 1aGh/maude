@@ -64,6 +64,8 @@
 @import url("../v2/present/video-present.css");
 /* V2-4.3a — the Share cluster, top-right. */
 @import url("../v2/shell/share-cluster.css");
+/* 2.1.1 T2/T4 — the account chip face, the avatar menu and Switch account. */
+@import url("../v2/shell/project-account.css");
 /* S3.9 - Preview's own islands: the PreviewBar and the zoom readout. */
 @import url("../v2/preview/preview.css");
 /* S8.2 — the Export sheet (client/v2/export/). */

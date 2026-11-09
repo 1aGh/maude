@@ -172,24 +172,36 @@ const ROWS: Row[] = [
     },
   },
   {
-    name: 'the account card',
+    // 2.1.1 T2/T4 — the account menu (the chip's popover)
+    name: 'the account menu',
     async open() {
       const React = await import('react');
-      const { AccountChip } = await import('../client/v2/shell/account-card.jsx');
-      const { accountCard, accountChip } = await import('../client/v2/shell/account-card-model.js');
-      const profile = { id: 'work', label: 'Work' };
-      const email = 'you@studio.test';
-      await mount(
-        React.createElement(AccountChip, {
-          chip: accountChip({ native: true, connected: true, profile, email }),
-          card: accountCard({ project: 'Studio site', profile, email }),
-          onSwitch() {},
-          async onSignOut() {},
-        })
+      const { ProjectAccountMenu, ProjectAccountPopover } = await import(
+        '../client/v2/shell/project-account-card.jsx'
       );
-      const chip = document.querySelector('[data-testid="share-cluster-account"]') as HTMLElement;
-      await act(async () => chip.click());
-      return { isOpen: () => !!document.querySelector('[data-testid="account-card"]') };
+      const { accountFace, accountMenu } = await import(
+        '../client/v2/shell/project-account-model.js'
+      );
+      const conn = { state: 'local', kind: 'local', host: null, url: null, badge: null };
+      const face = accountFace({ conn, profile: { id: 'work', label: 'Work' } });
+      let open = true;
+      function Host() {
+        const [o, setO] = React.useState(true);
+        open = o;
+        return React.createElement(
+          ProjectAccountPopover,
+          { open: o, onClose: () => setO(false) },
+          React.createElement(ProjectAccountMenu, {
+            menu: accountMenu({ native: true, project: 'Studio site', conn, face }),
+            face,
+            onAction() {},
+          })
+        );
+      }
+      await mount(React.createElement(Host));
+      return {
+        isOpen: () => open && !!document.querySelector('[data-testid="account-menu"]'),
+      };
     },
   },
   {
