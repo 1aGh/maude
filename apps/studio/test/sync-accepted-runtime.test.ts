@@ -590,6 +590,65 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(one.loser.runtime.conflictVersions?.(rel)).toBeNull();
   }, 60_000);
 
+  test('2.1.1 T11 — a hub’s own paired studio never holds a source conflict: the project’s css wins on its checkout', async () => {
+    // The field report: a self-hosted hub's web studio showed a conflict on a `_`-named DS preview
+    // module whose Compare / Keep mine answered 404 (the hub proxy refuses the conflict route), after
+    // `cold start: css=hold`. The paired studio's checkout is the project's cache (DDR-243).
+    const css = (c: string) => `.feedback { color: ${c}; }\n`;
+    const rel = 'ui/preview/_ui-feedback';
+    mkdirSync(join(alice.ctx.paths.designRoot, 'ui', 'preview'), { recursive: true });
+    alice.write(`${rel}.css`, css('red'));
+    alice.write(`${rel}.tsx`, src('feedback'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      const b = await api(hub, 'bootstrap');
+      return (b.body.docs as { path: string }[]).some((d) => d.path === `${rel}.tsx`);
+    }, 'the hub to accept the module');
+
+    // The hub's checkout: the same source, a css the project never had, and no base on record.
+    const cellRoot = join(root, 'cell');
+    mkdirSync(join(cellRoot, 'design', 'ui', 'preview'), { recursive: true });
+    writeFileSync(join(cellRoot, 'design', `${rel}.tsx`), src('feedback'));
+    writeFileSync(join(cellRoot, 'design', `${rel}.css`), css('green'));
+    const pairing: Record<string, string> = {
+      MAUDE_WORKSPACE_MODE: '1',
+      MAUDE_CELL_PAIRING: '1',
+      MAUDE_LOOPBACK_SYNC_URL: `http://127.0.0.1:${hub.port}`,
+      MAUDE_LOOPBACK_SYNC_TOKEN: hub.tokens.owner,
+      MAUDE_SYNC_NO_AUTOCOMMIT: '1',
+    };
+    const before: Record<string, string | undefined> = {};
+    for (const [k, v] of Object.entries(pairing)) {
+      before[k] = process.env[k];
+      process.env[k] = v;
+    }
+    let cell: Peer;
+    try {
+      cell = await startPeer('cell', cellRoot, `http://127.0.0.1:${hub.port}`);
+    } finally {
+      for (const [k, v] of Object.entries(before)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+    try {
+      await waitFor(
+        () => cell.read(`${rel}.css`) === css('red'),
+        'the project’s css on the hub checkout'
+      );
+      expect(cell.runtime.conflictVersions?.(`design/${rel}.tsx`)).toBeNull();
+      // the checkout's own bytes are kept, never lost
+      const kept = join(cell.ctx.paths.historyDir, 'ui-preview-_ui-feedback', 'sync-recovery');
+      expect(
+        readdirSync(kept).some((n) => readFileSync(join(kept, n), 'utf8') === css('green'))
+      ).toBe(true);
+      // and the checkout proposed nothing: the project still has red
+      expect(alice.read(`${rel}.css`)).toBe(css('red'));
+    } finally {
+      await cell.runtime.stop();
+    }
+  }, 60_000);
+
   test('a comment proposed through the API reaches the peer replica', async () => {
     const r = alice.runtime.proposeLane?.(
       'ui-home',
