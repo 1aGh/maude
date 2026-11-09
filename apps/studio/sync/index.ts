@@ -113,7 +113,12 @@ import {
   withFormatParam,
 } from './format-sync.ts';
 import { createFsReader, type FsReader } from './fs-mirror.ts';
-import { createHeldDeletes, type HeldDeletesControl, heldDeleteDetail } from './held-deletes.ts';
+import {
+  createHeldDeletes,
+  type HeldDeletesControl,
+  heldDeleteDetail,
+  heldIncomingDetail,
+} from './held-deletes.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
 import { HUB_UNDO_READ_MAX_BYTES, hubTextUndoConflict } from './hub-text-undo.ts';
@@ -7150,7 +7155,8 @@ export function filePlaneHeld(
         result.deleteHeld.direction === 'out'
           ? // Issue #207 (7b) — the row's two buttons are the answer (Delete on the hub too · Keep on the hub).
             heldDeleteDetail(result.deleteHeld.count, result.deleteHeld.folders ?? [])
-          : `The project wants to remove ${result.deleteHeld.count} files here — more than sync will delete without you saying so. Nothing was removed. They stay until you accept or the project puts them back.`,
+          : // 2.1.1 T13 — the row's two buttons are the answer (Remove here too · Keep them here).
+            heldIncomingDetail(result.deleteHeld.count, result.deleteHeld.folders ?? []),
     });
   }
   if (result.firstAnchorHeld) {

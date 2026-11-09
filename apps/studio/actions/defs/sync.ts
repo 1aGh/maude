@@ -54,6 +54,10 @@ export const SYNC_ACTIONS: ActionDef[] = [
   // one confirmed batch, or keep the files on the hub (`POST /_api/sync/held-deletes { answer }`).
   pick('sync.delete-held-on-hub', 'Move to the hub’s trash too…'),
   pick('sync.keep-held-on-hub', 'Keep on the hub'),
+  // 2.1.1 T13 — Sync details › Deleted by the project, held here: file the batch into the trash on this
+  // Mac, or keep this Mac's copies (`POST /_api/sync/held-deletes { answer: remove-here | keep-here }`).
+  pick('sync.remove-held-here', 'Remove here too'),
+  pick('sync.keep-held-here', 'Keep them here'),
   // #167 T5.3 — Sync details › a file the hub holds back from the code lane (the owner's held list):
   // keep it as code (`POST /_api/sync/adopt-held { path }` → the hub's owner-only adopt door), or open
   // the canvas folders (config.json `canvasGroups`) to keep it as a canvas. The second is the Mac

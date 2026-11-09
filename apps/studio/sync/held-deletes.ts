@@ -32,6 +32,8 @@ export interface HeldDeletePlane {
   heldDeletes(): { count: number; paths: string[]; folders: { folder: string; count: number }[] };
   answerHeldDeletes(how: 'send' | 'purging' | 'keep', folder: string | null): string[];
   endPurge(rels: readonly string[]): void;
+  /** 2.1.1 T13 — the held INCOMING deletes (the project removed these; this Mac still has them). */
+  answerIncomingDeletes(how: 'remove' | 'keep', folder: string | null): string[];
 }
 
 export interface HeldDeletesDeps {
@@ -57,7 +59,7 @@ export interface HeldDeletesView {
 }
 
 export type HeldDeleteAnswer =
-  | { ok: true; how: 'door' | 'purge' | 'keep'; count: number }
+  | { ok: true; how: 'door' | 'purge' | 'keep' | 'removed' | 'kept-here'; count: number }
   | {
       ok: false;
       reason: 'nothing-held' | 'not-owner' | 'busy' | 'not-linked';
@@ -67,6 +69,12 @@ export type HeldDeleteAnswer =
 export interface HeldDeletesControl {
   view(): HeldDeletesView;
   answer(answer: 'delete' | 'keep', folder: string | null): Promise<HeldDeleteAnswer>;
+  /**
+   * 2.1.1 T13 — the answer to a batch the PROJECT deleted, held here. `remove`: filed into `_trash/` on
+   * the next pass, all at once (recoverable). `keep`: stays on this Mac, never sent back. Local to
+   * this Mac either way, so no role or hub decides it.
+   */
+  answerIncoming(answer: 'remove' | 'keep', folder: string | null): Promise<HeldDeleteAnswer>;
   /** Test seam: the running purge, if any. */
   idle(): Promise<void>;
 }
@@ -207,6 +215,27 @@ export function createHeldDeletes(deps: HeldDeletesDeps): HeldDeletesControl {
       });
       return { ok: true, how: 'purge', count: rels.length };
     },
+    async answerIncoming(answer, folder) {
+      const plane = deps.plane();
+      if (!plane) {
+        return {
+          ok: false,
+          reason: 'not-linked',
+          detail: 'This project isn’t syncing with a hub right now.',
+        };
+      }
+      const rels = plane.answerIncomingDeletes(answer, folder);
+      if (rels.length === 0) {
+        return {
+          ok: false,
+          reason: 'nothing-held',
+          detail: 'Nothing here is waiting to be removed.',
+        };
+      }
+      // The removal applies on the very next pass — start it now rather than at the next tick.
+      void Promise.resolve(deps.runPass()).catch(() => {});
+      return { ok: true, how: answer === 'remove' ? 'removed' : 'kept-here', count: rels.length };
+    },
     async idle() {
       await job;
     },
@@ -227,4 +256,16 @@ export function heldDeleteDetail(count: number, folders: { folder: string; count
         : '';
   const files = count === 1 ? '1 file' : `${thousands(count)} files`;
   return `${files} deleted on this Mac${where} — more than sync deletes on the hub without asking. They are still on the hub. Delete them on the hub too, or keep them there.`;
+}
+
+/** Sync details' sentence for the held INCOMING row (CONTRACT §4: what happened · what is safe · the verbs). */
+export function heldIncomingDetail(count: number, folders: { folder: string; count: number }[]) {
+  const where =
+    folders.length === 1
+      ? ` in ${folders[0]?.folder || 'the project folder'}`
+      : folders.length > 1
+        ? ` in ${thousands(folders.length)} folders`
+        : '';
+  const files = count === 1 ? '1 file' : `${thousands(count)} files`;
+  return `${files} deleted by the project${where} — more than sync removes here without asking. They are still on this Mac. Remove them here too and they go to the trash, or keep them here.`;
 }

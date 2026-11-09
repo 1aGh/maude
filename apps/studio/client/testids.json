@@ -3810,6 +3810,86 @@
     "v2": "new"
   },
   {
+    "hook": "sync-deletes-incoming",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sync details › Needs you: “Deleted by the project · N files”, a batch the project deleted that this Mac still holds (the inbound delete breaker), with the folders and two answers.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldIncomingCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-incoming-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-deletes-incoming-folders",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The folders the held incoming deletes sit in, with a count each.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldIncomingCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-incoming-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-deletes-incoming-remove",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "“Remove here too” (`sync.remove-held-here`) — files the whole batch into the trash on this Mac in one pass (`POST /_api/sync/held-deletes { answer: remove-here }`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldIncomingCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-incoming-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-deletes-incoming-keep",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "“Keep them here” (`sync.keep-held-here`) — the files stay on this Mac, are not asked about again and are never sent back.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldIncomingCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-incoming-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-deletes-incoming-said",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sentence after an answer (removing · kept · the refusal).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "HeldIncomingCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details-incoming-deletes.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "sync-deletes-purging",
     "kind": "testid",
     "pattern": false,

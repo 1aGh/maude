@@ -114,6 +114,19 @@ export type DeliveryState =
    * Mac last saw (`syncedHash ?? lastSeenHash`), so a teammate's new version is a new decision.
    */
   | 'hub-only'
+  /**
+   * 2.1.1 T13 — THE PROJECT DELETED THIS, AND THE BATCH IS HELD HERE: a hub tombstone this Mac still
+   * holds the unchanged file for, part of a batch larger than sync removes unasked (the inbound
+   * delete breaker). Waits for the person's answer in Sync details — Remove here too, or Keep them
+   * here. Nothing is removed or sent meanwhile.
+   */
+  | 'delete-in-held'
+  /**
+   * 2.1.1 T13 — KEPT HERE: the project deleted it, and the person chose to keep this Mac's copy. Not
+   * proposed for removal again and never pushed back; bound to the hash the project deleted (a local
+   * edit is a new decision, and a teammate recreating the file is a plain download).
+   */
+  | 'kept-here'
   /** Upload in flight. */
   | 'pushing'
   /** The hub answered 2xx and gave it a seq. */

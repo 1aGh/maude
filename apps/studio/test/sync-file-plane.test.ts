@@ -1194,6 +1194,96 @@ describe('the deletion breakers — the only protection now that this ships ON',
     expect(hub.rows.get('system/ds/a.css')?.sha256).toBe(sha('.a{color:red}'));
   });
 
+  // 2.1.1 T13 — the person's answer to a held INCOMING batch (T9 left the files held with no way to
+  // accept). Remove here too quarantines the whole batch in ONE pass, recoverably; Keep them here
+  // leaves them local, asks nothing again, and never puts them back on the hub.
+  describe('the held incoming deletes have an answer', () => {
+    const N = 250; // past MAX_FILES_PER_PASS: "one pass" has to mean one pass
+    async function heldBatch(extra: Record<string, unknown> = {}) {
+      const seeded: Record<string, string> = {};
+      for (let i = 0; i < N; i++) seeded[`system/ds/f${i}.css`] = `.a${i}{}`;
+      const hub = fakeHub(seeded);
+      const p = plane(hub, { propagateDeletes: true, ...extra });
+      for (let pass = 0; pass < 4; pass++) await p.reconcile();
+      expect(existsSync(join(root, `system/ds/f${N - 1}.css`))).toBe(true);
+      for (let i = 0; i < N; i++) hub.purge(`system/ds/f${i}.css`);
+      const held = await p.reconcile();
+      expect(held.deleteHeld?.direction).toBe('in');
+      return { hub, p };
+    }
+
+    test('the plane names what it holds, and a pass that holds them says all of them', async () => {
+      const { p } = await heldBatch();
+      expect(p.heldIncomingDeletes().count).toBe(N);
+      expect(p.heldIncomingDeletes().folders).toEqual([{ folder: 'system/ds', count: N }]);
+      const again = await p.reconcile();
+      expect(again.deleteHeld).toMatchObject({ direction: 'in', count: N });
+    });
+
+    test('Remove here too quarantines the whole batch in one pass, recoverably', async () => {
+      const { hub, p } = await heldBatch();
+      expect(p.answerIncomingDeletes('remove', null)).toHaveLength(N);
+      // Asked-and-answered rows are not asked again.
+      expect(p.heldIncomingDeletes().count).toBe(0);
+      const res = await p.reconcile();
+      expect(res.deleted).toHaveLength(N);
+      expect(res.filesCapped).toBeUndefined();
+      expect(res.deleteHeld).toBeUndefined();
+      expect(existsSync(join(root, 'system/ds/f0.css'))).toBe(false);
+      // Into the trash, not gone: the bytes are one path away.
+      const parked = res.deleted.find((d) => d.rel === 'system/ds/f7.css')?.parked;
+      expect(parked?.startsWith('_trash/')).toBe(true);
+      expect(readFileSync(join(root, parked as string), 'utf8')).toBe('.a7{}');
+      // Nothing reached the hub, now or after.
+      await p.reconcile();
+      await p.reconcile();
+      expect(hub.puts).toEqual([]);
+      expect(hub.deletes).toEqual([]);
+      expect(p.heldIncomingDeletes().count).toBe(0);
+    });
+
+    test('a file changed here since is not removed by the answer', async () => {
+      const { p } = await heldBatch();
+      p.answerIncomingDeletes('remove', null);
+      write('system/ds/f3.css', '.mine{color:red}');
+      const res = await p.reconcile();
+      expect(res.deleted.map((d) => d.rel)).not.toContain('system/ds/f3.css');
+      expect(readFileSync(join(root, 'system/ds/f3.css'), 'utf8')).toBe('.mine{color:red}');
+    });
+
+    test('Keep them here keeps every file, stops asking, and never puts them back', async () => {
+      const { hub, p } = await heldBatch();
+      expect(p.answerIncomingDeletes('keep', null)).toHaveLength(N);
+      for (let pass = 0; pass < 3; pass++) {
+        const res = await p.reconcile();
+        expect(res.deleteHeld).toBeUndefined();
+        expect(res.deleted).toEqual([]);
+        expect(res.pushed).toEqual([]);
+      }
+      expect(p.heldIncomingDeletes().count).toBe(0);
+      expect(hub.puts).toEqual([]);
+      expect(hub.purgeRefusals).toEqual([]);
+      expect(existsSync(join(root, 'system/ds/f0.css'))).toBe(true);
+      // …and a restart remembers it too.
+      ledger.flush();
+      ledger = createFileLedger({ designRoot: root, hubUrl: HUB, flushMs: 0 });
+      const again = plane(hub, { propagateDeletes: true });
+      for (let pass = 0; pass < 3; pass++) {
+        const res = await again.reconcile();
+        expect(res.deleteHeld).toBeUndefined();
+      }
+      expect(hub.puts).toEqual([]);
+      expect(existsSync(join(root, `system/ds/f${N - 1}.css`))).toBe(true);
+    });
+
+    test('answering with nothing held covers nothing', async () => {
+      const hub = fakeHub({ 'system/ds/a.css': '.a{}' });
+      const p = plane(hub, { propagateDeletes: true });
+      await p.reconcile();
+      expect(p.answerIncomingDeletes('remove', null)).toEqual([]);
+      expect(p.answerIncomingDeletes('keep', null)).toEqual([]);
+    });
+  });
   test('a patient drain is caught too — the budget remembers across passes', async () => {
     // The finding this exists for: the first breaker counted ONE PASS and
     // reset. Two per pass was under every arm of it at every project size, so

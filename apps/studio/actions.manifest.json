@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "e05dcafced81",
+  "manifestVersion": "b7f2a1ff5c2f",
   "actions": [
     {
       "id": "search.open",
@@ -6546,6 +6546,40 @@
         "path": "human",
         "because": "hub-link",
         "note": "which deleted files stay on the hub is the person’s choice"
+      }
+    },
+    {
+      "id": "sync.remove-held-here",
+      "label": "Remove here too",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/held-deletes",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "removing a batch of the project’s files from this Mac is the person’s choice"
+      }
+    },
+    {
+      "id": "sync.keep-held-here",
+      "label": "Keep them here",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/held-deletes",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "which deleted files stay on this Mac is the person’s choice"
       }
     },
     {

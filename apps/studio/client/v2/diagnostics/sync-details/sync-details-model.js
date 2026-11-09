@@ -189,6 +189,24 @@ export function syncDetailsModel(
         .map((f) => ({ folder: f.folder, count: f.count })),
     });
   }
+  // 2.1.1 T13 — the project deleted a batch this Mac still holds: its own card and answer (Remove
+  // here too · Keep them here), the incoming twin of the card above.
+  const deletesIn = held.find((h) => h.kind === 'delete-in' && isCount(h.count) && h.count > 0);
+  if (deletesIn) {
+    needs.push({
+      kind: 'deletes-incoming',
+      count: deletesIn.count,
+      detail: cleanName(
+        deletesIn.detail,
+        'The project deleted files that are still on this Mac.',
+        HELD_DETAIL_MAX
+      ),
+      folders: (Array.isArray(deletesIn.folders) ? deletesIn.folders : [])
+        .filter((f) => f && typeof f.folder === 'string' && isCount(f.count))
+        .slice(0, 10)
+        .map((f) => ({ folder: f.folder, count: f.count })),
+    });
+  }
   const purge = files?.deletePurge;
   if (purge && isCount(purge.total) && isCount(purge.done)) {
     needs.push({
@@ -260,7 +278,7 @@ export function syncDetailsModel(
     lists: {
       // `delete-out` is the Needs you card above (its own answer), not a second row here.
       held: held
-        .filter((h) => !(deletesOut && h === deletesOut))
+        .filter((h) => !(deletesOut && h === deletesOut) && !(deletesIn && h === deletesIn))
         .map((h) => ({
           kind: h.kind,
           detail: cleanName(h.detail, 'Sync paused — nothing was removed.', HELD_DETAIL_MAX),
