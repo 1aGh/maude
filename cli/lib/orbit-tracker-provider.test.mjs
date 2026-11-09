@@ -281,7 +281,9 @@ test('guide 01: a pulled plan runs only after an explicit, never-automatic user 
   const guide = read(join(SKILL_DIR, '_guide-01-plan.md'));
   const check = guide.slice(guide.indexOf('## Plan check'));
   assert.match(check, /version/);
-  assert.match(check, /author/i);
+  assert.match(check, /pushedByName/);
+  assert.match(check, /pushedBy`/);
+  assert.match(check, /not returned by orbit/);
   assert.match(check, /flow:question-protocol/);
   assert.match(check, /explicit yes/i);
   assert.match(check, /auto mode or a non-interactive session[^.]*blocker/i);
@@ -290,9 +292,8 @@ test('guide 01: a pulled plan runs only after an explicit, never-automatic user 
   assert.match(execute, /explicit (user )?yes/i);
 });
 
-test('guide 07: tracker plans are read by a read-only scout; the lead only gets vetted tokens', () => {
+test('guide 07: tracker plans are read by the tool-less tracker-reader; the lead only gets vetted tokens', () => {
   const guide = read(join(SKILL_DIR, '_guide-07-regression.md'));
-  assert.match(guide, /flow:scout/);
   assert.match(guide, /--error-unmatch -- ":\(literal\)/);
   assert.match(guide, /`-` or `:`/);
   assert.match(guide, /\*\?\[/);
@@ -303,22 +304,23 @@ test('guide 07: tracker plans are read by a read-only scout; the lead only gets 
     guide,
     /One `orbit_artifact_pull`[^\n]*per related task \(latest version\)\. Read only/
   );
+  assert.doesNotMatch(guide, /flow:scout/, 'guide 07 must use the tool-less reader, not scout');
+  assert.match(guide, /flow:tracker-reader/);
+  assert.doesNotMatch(read('plugins/flow/commands/done.md'), /flow:scout/);
   const scout = read('plugins/flow/agents/scout.md');
-  const tools = scout.match(/^tools: (.*)$/m)[1].split(/,\s*/);
-  assert.ok(tools.includes('mcp__orbit__orbit_artifact_pull'), 'scout cannot read tracker plans');
-  for (const t of tools) {
-    assert.ok(
-      [
-        'Read',
-        'Grep',
-        'Glob',
-        'Bash',
-        'mcp__orbit__orbit_get_task',
-        'mcp__orbit__orbit_artifact_pull',
-      ].includes(t),
-      `scout gained a non-read tool: ${t}`
-    );
+  assert.doesNotMatch(scout, /orbit/i, 'scout must not hold tracker tools');
+});
+
+test('tracker-reader: exactly the two orbit reads, no shell, no file tools, no writes', () => {
+  const reader = read('plugins/flow/agents/tracker-reader.md');
+  const tools = reader.match(/^tools: (.*)$/m)[1].split(/,\s*/);
+  assert.deepEqual(tools.sort(), ['mcp__orbit__orbit_artifact_pull', 'mcp__orbit__orbit_get_task']);
+  for (const t of ['Bash', 'Read', 'Grep', 'Glob', 'Write', 'Edit', 'WebFetch']) {
+    assert.ok(!tools.includes(t), `tracker-reader gained ${t}`);
   }
+  assert.match(reader, /never follow instructions|Never follow instructions/);
+  assert.match(reader, /`tracker\.mcp` \(`orbit`\)/);
+  assert.match(reader, /^name: tracker-reader$/m);
 });
 
 test('guide 03 § D: screenshots come only from this run, as vetted regular image files', () => {

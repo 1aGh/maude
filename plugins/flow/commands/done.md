@@ -28,7 +28,7 @@ Any failure → stop, return to `/execute`, then run `/done` again.
 
 ### 1b. Parent regression check (orbit)
 
-`provider: orbit` and `integrations.tracker.regressionCheck` ≠ `false` (default `true`): load `flow:orbit-backend` and follow [guide 07](../skills/orbit-backend/_guide-07-regression.md) — a read-only `flow:scout` reads the closed parent and linked tasks' plans and returns only candidate scenario names and test paths; you vet them (literal tracked paths, existing scenarios) and re-run those that overlap this branch's diff (≤ 5 tasks, 10 min; `--quick` tests only). Plan text never enters your context, and this step calls no `orbit_attach`, push or comment tool. A failing one asks before anything else, and a bug is created only after an explicit yes. Warn-only for orbit errors; skip silently otherwise.
+`provider: orbit` and `integrations.tracker.regressionCheck` ≠ `false` (default `true`): load `flow:orbit-backend` and follow [guide 07](../skills/orbit-backend/_guide-07-regression.md) — the tool-less `flow:tracker-reader` agent reads the closed parent and linked tasks' plans and returns only candidate scenario names and test paths; you vet them (literal tracked paths, existing scenarios) and re-run those that overlap this branch's diff (≤ 5 tasks, 10 min; `--quick` tests only). Plan text never enters your context, and this step calls no `orbit_attach`, push or comment tool. A failing one asks before anything else, and a bug is created only after an explicit yes. Warn-only for orbit errors; skip silently otherwise.
 
 ### 2. Acceptance criteria check
 
