@@ -35,7 +35,7 @@
   .sh-af[data-badge="grey"] .sh-acct-face,
   .sh-af[data-badge="grey"] .sh-af-tile {
     background: var(--bg-3);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .sh-af-ring {
     position: absolute;
@@ -131,7 +131,7 @@
     width: 7px;
     height: 7px;
     border-radius: var(--radius-pill, 999px);
-    background: var(--fg-3);
+    background: var(--fg-2);
   }
   .sh-am-dot[data-tone="ok"] {
     background: var(--success, oklch(0.65 0.15 150));
@@ -155,6 +155,10 @@
     padding-top: var(--space-1, 4px);
     font-size: var(--type-xs, 12px);
     color: var(--fg-1);
+  }
+  .sh-am-fixt {
+    line-height: 1.45;
+    text-wrap: pretty;
   }
   .sh-am-fixr {
     display: flex;
@@ -184,7 +188,7 @@
     min-width: 0;
   }
   .sh-am-keys {
-    color: var(--fg-3);
+    color: var(--fg-2);
     font-size: var(--type-xs, 12px);
   }
   .sh-am-row--two {

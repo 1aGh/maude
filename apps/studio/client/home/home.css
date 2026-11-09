@@ -1998,7 +1998,7 @@
     width: 6px;
     height: 6px;
     border-radius: var(--radius-pill);
-    background: var(--fg-3);
+    background: var(--fg-2);
   }
   .home-sw[data-tone="ok"] > i {
     background: var(--status-success);

@@ -15,7 +15,6 @@ export const FOLD_PANELS = Object.freeze([
   'left.canvases',
   'left.layers', // S11.9 — Layers › Advanced; the left panel's fold follows the active tab
   'settings',
-  'settings.project', // 2.1.1 T6 — General › This project › Sync details
   'diagnostics',
   'help',
   'inspector',

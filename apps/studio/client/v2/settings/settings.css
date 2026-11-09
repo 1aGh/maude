@@ -839,7 +839,7 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--fg-3);
+    background: var(--fg-2);
   }
   .v2s-card-s[data-sw="ok"] .v2s-dot {
     background: var(--status-success);
