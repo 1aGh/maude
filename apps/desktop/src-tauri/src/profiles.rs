@@ -655,6 +655,29 @@ pub async fn team_sign_in_prepare(
     Ok(moved.is_some())
 }
 
+/// 2.1.1 T4 — Switch account from a project page (the avatar menu's list, canvas 17 · ac-switch):
+/// THIS project uses `id`, an account already on this Mac (`default` = "No account — this Mac
+/// only"). Never makes a profile — the empty-profile switch stranded local projects. Ok(true) = the
+/// project was rebound and its server is restarting onto it (the page reloads); Ok(false) = it
+/// already uses that account. Project tabs only: `caller_project` checks the calling webview's
+/// label AND its own server's origin, and the project is the caller's, never an argument.
+#[tauri::command]
+pub async fn project_use_account(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    id: String,
+) -> Result<bool, String> {
+    let caller = crate::windows::caller_project(&webview, false)?;
+    crate::app_state::refuse_worktree_sign_in(&app, &caller.root)?;
+    let rebound = crate::app_state::use_account_app(&app, &caller.root, &id)?;
+    if rebound {
+        // A prepared cloud sign-in was for the old account: it dies with the switch.
+        forget_prepared(&caller.label);
+        crate::sidecar::restart_on_binding(&app, &caller.label, &caller.root);
+    }
+    Ok(rebound)
+}
+
 /// After the project's server stored a cloud credential in its profile's
 /// `cloud.json`: record the account, and when that sign-in would re-sign a
 /// profile other projects use under another account, move the credential to a
@@ -1121,6 +1144,10 @@ pub struct Account {
     pub label: String,
     pub email: Option<String>,
     pub projects: AccountProjects,
+    /// 2.1.1 T4 — this profile holds a Maude Cloud sign-in. A boolean only (never the e-mail of
+    /// another account, M2): the Switch account list shows signed-in accounts and "No account".
+    #[serde(rename = "signedIn")]
+    pub signed_in: bool,
 }
 
 /// Pure half of `accounts_list`: every profile on this Mac, from the caller's
@@ -1163,6 +1190,7 @@ pub fn accounts_for(
                 label: crate::notify::sanitize_title(&p.label),
                 email: if mine { p.cloud_email.clone() } else { None },
                 projects,
+                signed_in: p.cloud_email.is_some(),
             }
         })
         .collect()
@@ -1235,6 +1263,12 @@ mod tests {
             assert!(!wire.contains(leak), "{leak} reached a project page: {wire}");
         }
         assert!(wire.contains(r#""projects":2"#) && wire.contains(r#""projects":["alligators","matchday"]"#));
+        // 2.1.1 T4: whether each account holds a Maude Cloud sign-in, as a boolean only.
+        assert_eq!(
+            out.iter().map(|a| a.signed_in).collect::<Vec<_>>(),
+            [true, true, false]
+        );
+        assert!(wire.contains(r#""signedIn":false"#));
     }
 
     /// Low 2c: `cloud_signed_in` acts only on this caller's own prepare — same

@@ -51,7 +51,7 @@ describe('the registry half of the menu', () => {
       'canvas.move': 'Move to…',
       'import.figma': 'Import from Figma…',
       'import.brand': 'Import a brand…',
-      'account.switch': 'Sign in as another account…',
+      'account.switch': 'Switch account…',
       'edit.cut': 'Cut',
       'edit.paste': 'Paste',
     };

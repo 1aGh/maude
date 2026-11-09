@@ -31,6 +31,8 @@ fn main() {
                 "cloud_sign_in_prepare",
                 // 2.0.5 W4b: a team-server Switch moves a shared-profile project first.
                 "team_sign_in_prepare",
+                // 2.1.1 T4: Switch account — a project uses an account already on this Mac.
+                "project_use_account",
                 "cloud_signed_in",
                 "pick_directory",
                 "resolve_dev_server_url",

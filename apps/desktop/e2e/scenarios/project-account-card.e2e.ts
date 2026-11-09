@@ -21,22 +21,24 @@ describe('project-account-card', () => {
     await waitForSidecar();
   });
 
-  it('1 · your face opens the account card with its kind and profile', async () => {
+  // 2.1.1 T2/T4: the account menu (canvas 17) replaced the W4 card — where it lives · account · status
+  it('1 · your face opens the account menu: where it lives, the account, the status', async () => {
     const you = await $(tid('share-cluster-face-you'));
     await you.waitForDisplayed({ timeout: 30_000 });
     await you.click();
-    const card = await $(tid('project-account'));
+    const card = await $(tid('account-menu'));
     await card.waitForDisplayed({ timeout: 5_000 });
-    const kind = await (await $(tid('project-account-kind'))).getText();
-    expect(['Team server', 'Maude Cloud', 'GitHub', 'This Mac only']).toContain(kind);
-    expect(await (await $(tid('project-account-profile'))).getText()).not.toBe('');
+    const where = await (await $(tid('account-menu-where'))).getText();
+    expect(where).toMatch(/Your folder|Kept by Maude|^On /);
+    expect(await (await $(tid('account-menu-account'))).getText()).not.toBe('');
+    expect(await (await $(tid('account-menu-status'))).getText()).not.toBe('');
     await capture('01-account-card');
   });
 
   it('2 · Esc closes it', async () => {
     await browser.keys(['Escape']);
     await browser.waitUntil(
-      async () => !(await (await $(tid('project-account'))).isDisplayed().catch(() => false)),
+      async () => !(await (await $(tid('account-menu'))).isDisplayed().catch(() => false)),
       { timeout: 5_000, timeoutMsg: 'the account card did not close' }
     );
   });

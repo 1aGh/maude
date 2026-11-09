@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-project-use-account"
+description = "Enables the project_use_account command without any pre-configured scope."
+commands.allow = ["project_use_account"]
+
+[[permission]]
+identifier = "deny-project-use-account"
+description = "Denies the project_use_account command without any pre-configured scope."
+commands.deny = ["project_use_account"]

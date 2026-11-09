@@ -1,7 +1,9 @@
 // home/accounts.ts — 2.0.5 W4b: the accounts each profile on this Mac is signed in with, for Home's
 // avatar, and the per-account sign-outs it offers.
 //
-//   GET  /_home/accounts?profiles=a,b   → { ok, profiles: [{ id, hubs: [{ url, account }] }] }
+//   GET  /_home/accounts?profiles=a,b   → { ok, profiles: [{ id, hubs: [{ url, account, state }] }] }
+//                                         `state` (2.1.1): ok · rejected · unreachable · unknown — whether
+//                                         that sign-in still works (hub-health.ts; cached, never a token)
 //   POST /_home/hub/signout    { profile, url } → forget that profile's sign-in for that server
 //   POST /_home/cloud/signout  { profile }      → forget that profile's Maude Cloud sign-in
 //
@@ -17,6 +19,7 @@ import { existsSync, unlinkSync } from 'node:fs';
 import { deleteHubCredential } from '../sync/hub-link.ts';
 import { loadHubsConfig, normalizeUrl, safeAccount } from '../sync/hubs-config.ts';
 import { profileCloudPath, profileHubsPath } from './cloud.ts';
+import { createHubHealth, type HubHealth, type HubState } from './hub-health.ts';
 import type { HomeAnswer } from './signin.ts';
 
 const MAX_PROFILES = 16;
@@ -24,11 +27,18 @@ const MAX_HUBS = 50;
 
 export interface ProfileHubs {
   id: string;
-  hubs: Array<{ url: string; account: string | null }>;
+  hubs: Array<{ url: string; account: string | null; state: HubState }>;
 }
 
-/** Each named profile's team-server sign-ins (no tokens). Unknown / invalid ids are skipped. */
-export function profileAccounts(ids: string[]): ProfileHubs[] {
+/**
+ * Each named profile's team-server sign-ins (no tokens), each with whether it still works. Unknown /
+ * invalid ids are skipped. The servers are asked together (and each answer is cached), so the call
+ * takes about one round trip, not one per server.
+ */
+export async function profileAccounts(
+  ids: string[],
+  health: HubHealth = createHubHealth()
+): Promise<ProfileHubs[]> {
   const out: ProfileHubs[] = [];
   for (const id of [...new Set(ids)].slice(0, MAX_PROFILES)) {
     const file = profileHubsPath(id);
@@ -36,10 +46,16 @@ export function profileAccounts(ids: string[]): ProfileHubs[] {
     let hubs: ProfileHubs['hubs'] = [];
     try {
       const cfg = loadHubsConfig(file);
-      hubs = Object.entries(cfg.hubs ?? {})
-        .filter(([, rec]) => rec && typeof rec.token === 'string' && rec.token)
-        .slice(0, MAX_HUBS)
-        .map(([url, rec]) => ({ url, account: safeAccount(rec.account) }));
+      hubs = await Promise.all(
+        Object.entries(cfg.hubs ?? {})
+          .filter(([, rec]) => rec && typeof rec.token === 'string' && rec.token)
+          .slice(0, MAX_HUBS)
+          .map(async ([url, rec]) => ({
+            url,
+            account: safeAccount(rec.account),
+            state: await health.state(url, rec.token).catch(() => 'unknown' as const),
+          }))
+      );
     } catch {
       hubs = [];
     }
@@ -50,11 +66,14 @@ export function profileAccounts(ids: string[]): ProfileHubs[] {
 
 const bad = (error: string): HomeAnswer => ({ status: 400, body: { ok: false, error } });
 
-export function createHomeAccounts(deps: { forgetCloud?: (profile: string) => void } = {}) {
+export function createHomeAccounts(
+  deps: { forgetCloud?: (profile: string) => void; hubHealth?: HubHealth } = {}
+) {
+  const health = deps.hubHealth ?? createHubHealth();
   return {
-    list(param: string | null): HomeAnswer {
+    async list(param: string | null): Promise<HomeAnswer> {
       const ids = (param ?? '').split(',').filter(Boolean);
-      return { status: 200, body: { ok: true, profiles: profileAccounts(ids) } };
+      return { status: 200, body: { ok: true, profiles: await profileAccounts(ids, health) } };
     },
 
     hubSignOut(b: Record<string, unknown>): HomeAnswer {

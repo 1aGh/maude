@@ -727,7 +727,7 @@
             "nav.home": "Back to Home is for desktop and cloud only",
             "project.pull-copy": "Pull a local copy… is for desktop only",
             "project.share-github": "Share on GitHub… is for desktop only",
-            "account.switch": "Sign in as another account… is for desktop and cloud only",
+            "account.switch": "Switch account… is for desktop and cloud only",
             "ai.chat": "AI chat is for desktop and cloud only"
           }
         },
@@ -1926,7 +1926,7 @@
             "import.figma": "Import from Figma… needs edit rights",
             "import.brand": "Import a brand… needs edit rights",
             "video.assemble": "Assemble clips into a video needs edit rights",
-            "account.switch": "Sign in as another account… is for desktop and cloud only",
+            "account.switch": "Switch account… is for desktop and cloud only",
             "select.all-annotations": "Select all annotations needs edit rights",
             "ai.chat": "AI chat is for desktop and cloud only",
             "sync.resync": "Resync now needs edit rights"

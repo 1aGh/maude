@@ -16,77 +16,15 @@ afterAll(() => {
 });
 
 import { act } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-import { ProjectAccountCard } from '../client/v2/shell/project-account-card.jsx';
-import { projectAccount } from '../client/v2/shell/project-account-model.js';
+import type { Root } from 'react-dom/client';
 import { runTeamSwitch, TEAM_SWITCH_WORDS } from '../client/v2/shell/team-switch.js';
 
 let root: Root | null = null;
-let host: HTMLElement | null = null;
+const host: HTMLElement | null = null;
 afterEach(() => {
   act(() => root?.unmount());
   host?.remove();
   root = null;
-});
-
-const team = (credentialed: boolean, native = true) =>
-  projectAccount({
-    native,
-    profile: { id: 'work', label: 'Work' },
-    linkedHub: { url: 'https://hub.studio.cz', credentialed },
-    hubAccount: credentialed ? 'michal@studio.cz' : null,
-    cloudUrl: 'https://cloud.maude.sh',
-    github: { state: 'out' },
-  });
-
-describe('the card offers Switch for a team server', () => {
-  test('signed in: "Sign in as someone else…" on the hub-switch path, beside Sign out', () => {
-    const a = team(true);
-    expect(a.switch).toEqual({
-      path: 'hub-switch',
-      url: 'https://hub.studio.cz',
-      label: 'Sign in as someone else…',
-    });
-    expect(a.signOut?.path).toBe('hub-detach');
-  });
-
-  test('signed out (e.g. just moved to its own profile): "Sign in to <host>…", no Sign out', () => {
-    const a = team(false);
-    expect(a.switch?.label).toBe('Sign in to hub.studio.cz…');
-    expect(a.switch?.path).toBe('hub-switch');
-    expect(a.signOut).toBeNull();
-  });
-
-  test('a browser tab has no shell: no Switch', () => {
-    expect(team(true, false).switch).toBeNull();
-  });
-
-  test('clicking it hands the spec to onSwitch and runs no registry action', async () => {
-    const ran: string[] = [];
-    const switched: unknown[] = [];
-    let closed = 0;
-    host = document.createElement('div');
-    document.body.append(host);
-    root = createRoot(host);
-    await act(async () =>
-      root?.render(
-        <ProjectAccountCard
-          account={team(true)}
-          run={(id: string) => ran.push(id)}
-          onSwitch={(spec: unknown) => switched.push(spec)}
-          onClose={() => {
-            closed++;
-          }}
-        />
-      )
-    );
-    const btn = host.querySelector('[data-testid="project-account-switch"]') as HTMLElement;
-    expect(btn?.textContent).toBe('Sign in as someone else…');
-    await act(async () => btn.click());
-    expect(ran).toEqual([]);
-    expect(switched).toEqual([team(true).switch]);
-    expect(closed).toBe(1);
-  });
 });
 
 function fakes(prepare: boolean | Error, polls: unknown[], opened = 'ok') {

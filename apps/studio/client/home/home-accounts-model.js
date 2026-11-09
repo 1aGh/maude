@@ -14,7 +14,8 @@
 // that holds a credential (`home_cloud_sign_in_prepare` makes a fresh one — that IS the switch);
 // "Connect to a team server…" is the Advanced › hub sheet. A browser has no shell: facts only.
 
-import { accountFace } from './home-model.js';
+import { accountFace, normHubUrl } from './home-model.js';
+import { CONN_WORDS, cloudState } from './home-where-model.js';
 
 const hostOf = (url) => {
   try {
@@ -119,3 +120,111 @@ export function homeAccounts({ native = false, shell = null, clouds = null, hubP
     add: native ? { cloud: 'Add a Maude Cloud account…', team: 'Connect to a team server…' } : null,
   };
 }
+
+const projectsWord = (n) => (n === 0 ? 'No projects' : `${n} ${n === 1 ? 'project' : 'projects'}`);
+
+/**
+ * 2.1.1 B4 (artboard 14) — the accounts row on top of Home: one card per account the projects (or the
+ * sign-ins) name, with its state and, when the person can fix it in one click, the button.
+ *   cloud   a Maude Cloud account, by its e-mail. Listed when signed in, when its sign-in was refused,
+ *           or when a project is on it but no sign-in is left ("Sign-in missing").
+ *   server  a server of your own, by its account (or host). Listed per saved sign-in, and for a server
+ *           a project is on but no sign-in is saved for.
+ * "This Mac only" is not a card: nothing to connect, and the project rows already say it.
+ * `fix`: `{ path: 'cloud-signin', profile }` (Home's own Maude Cloud sign-in) or
+ * `{ path: 'hub-signin', profile, url }` (the team-server sign-in, address prefilled) — only for a
+ * sign-in that is missing or stopped working; a server that does not answer has nothing to fix here.
+ *
+ * @param in.shell        `shell_state`
+ * @param in.clouds       one `GET /_home/cloud` answer per profile
+ * @param in.hubProfiles  `GET /_home/accounts` `profiles` (each hub with its `state`)
+ * @param in.groups       `buildHomeModel().groups` (rows carry `where` / `connection`)
+ */
+export function homeAccountCards({ shell = null, clouds = null, hubProfiles = null, groups = [] }) {
+  const profiles = (shell?.profiles ?? []).filter((p) => p && typeof p.id === 'string');
+  const ids = [...profiles.map((p) => p.id), ...groups.map((g) => g.profile?.id)].filter(
+    (id, i, all) => typeof id === 'string' && all.indexOf(id) === i
+  );
+  const out = [];
+  for (const id of ids) {
+    const prof = profiles.find((p) => p.id === id) ?? null;
+    const rows = groups.find((g) => g.profile?.id === id)?.rows ?? [];
+    const listing = (clouds ?? []).find((c) => c?.profile === id) ?? null;
+    const email = str(listing?.account?.email) || str(prof?.email);
+    const onCloud = rows.filter((r) => r.where?.kind === 'cloud');
+    const cloudOwn = rows.some((r) => r.connection?.kind === 'cloud');
+
+    if (listing?.signedIn || listing?.rejected || cloudOwn) {
+      const state = cloudState(listing) ?? (cloudOwn ? 'missing' : null);
+      if (state)
+        out.push({
+          key: `cloud:${id}`,
+          kind: 'cloud',
+          profile: id,
+          url: null,
+          face: { kind: 'cloud', ...accountFace({ id, label: email || prof?.label, email }) },
+          title: email || 'Maude Cloud',
+          sub: `Maude Cloud · ${projectsWord(onCloud.length)}`,
+          state,
+          word: CONN_WORDS[state],
+          fix:
+            state === 'rejected' || state === 'missing'
+              ? {
+                  path: 'cloud-signin',
+                  profile: id,
+                  label: state === 'rejected' ? 'Sign in again' : 'Sign in',
+                }
+              : null,
+        });
+    }
+
+    const saved = (hubProfiles ?? []).find((x) => x?.id === id)?.hubs ?? [];
+    const servers = new Map();
+    for (const h of saved)
+      if (h && typeof h.url === 'string' && normHubUrl(h.url))
+        servers.set(normHubUrl(h.url), { url: h.url, account: str(h.account), state: h.state });
+    for (const r of rows) {
+      const url = r.connection?.kind === 'team' ? r.boundHub || r.hub : null;
+      if (url && !servers.has(url)) servers.set(url, { url, account: null, state: 'missing' });
+    }
+    for (const [norm, h] of servers) {
+      const state =
+        h.state === 'missing' || h.state === 'rejected' || h.state === 'unreachable'
+          ? h.state
+          : 'ok';
+      const host = hostOf(h.url);
+      const n = rows.filter(
+        (r) => r.where?.kind === 'server' && (r.boundHub || r.hub) === norm
+      ).length;
+      out.push({
+        key: `server:${id}:${norm}`,
+        kind: 'server',
+        profile: id,
+        url: h.url,
+        face: { kind: 'server' },
+        title: h.account || host,
+        sub: `${h.account ? host : 'Your server'} · ${projectsWord(n)}`,
+        state,
+        word: CONN_WORDS[state],
+        fix:
+          state === 'rejected' || state === 'missing'
+            ? {
+                path: 'hub-signin',
+                profile: id,
+                url: h.url,
+                label: state === 'rejected' ? 'Sign in again' : 'Sign in',
+              }
+            : null,
+      });
+    }
+  }
+  return out;
+}
+
+/** The testid tail of a card: `<profile>-cloud` or `<profile>-<host>`. */
+export const slugOf = (card) =>
+  card.kind === 'cloud'
+    ? `${card.profile}-cloud`
+    : `${card.profile}-${hostOf(card.url)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')}`;
