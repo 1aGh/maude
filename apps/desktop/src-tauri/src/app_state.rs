@@ -570,6 +570,18 @@ impl AppState {
             .map(str::to_string)
     }
 
+    /// 2.1.2 "Remove from list" — take `pid` off this Mac's list: its registry
+    /// entry and its place in Recent. Nothing on disk is touched (not the folder,
+    /// not its `.design`, not a managed copy); opening the folder again brings
+    /// the project back as a new entry. Refuses a pid the list doesn't have.
+    pub fn forget(&mut self, pid: &str) -> Result<(), String> {
+        if self.projects.remove(pid).is_none() {
+            return Err("That project isn't in your list any more.".to_string());
+        }
+        self.recent.retain(|p| p != pid);
+        Ok(())
+    }
+
     /// Rebind `old_pid`'s entry to `new_root` (the project moved): same name,
     /// profile and history under the pid of its new realpath; the MRU keeps its
     /// place. Refuses a folder that is already another registered project.
@@ -871,6 +883,11 @@ pub fn relink_project(
 ) -> Result<String, String> {
     let root = new_root.to_string_lossy().to_string();
     update(app, |st, _| st.relink(old_pid, &root))
+}
+
+/// 2.1.2 "Remove from list" (`forget_project`): take `pid` off this Mac's list. Files untouched.
+pub fn forget_project(app: &tauri::AppHandle, pid: &str) -> Result<(), String> {
+    update(app, |st, _| st.forget(pid))
 }
 
 /// p8-port-gc — the port `root`'s next server asks for first (`AppState::preferred_port`).
@@ -1799,6 +1816,40 @@ pub(crate) mod tests {
         // A signing in as X again lands back on its own profile.
         let back = github_sign_in(&mut st, &reg, a, "v238out-x");
         assert_eq!(back, SignedIn { profile: shared, rebound: false });
+    }
+
+    /// 2.1.2 "Remove from list" drops one pid from the registry and Recent, keeps every other
+    /// entry, and never touches the folder; a second call says the project is no longer listed.
+    #[test]
+    fn forget_drops_one_project_from_the_list_and_leaves_its_folder() {
+        let dir = tmp("forget");
+        let (a, b) = (dir.join("keep"), dir.join("gone"));
+        std::fs::create_dir_all(a.join(".design")).unwrap();
+        std::fs::create_dir_all(b.join(".design")).unwrap();
+        let (a_s, b_s) = (a.to_string_lossy().to_string(), b.to_string_lossy().to_string());
+        let mut st = AppState::default();
+        let pa = st.open(&a_s, 1);
+        let pb = st.open(&b_s, 2);
+        assert_eq!(st.recent, vec![pb.clone(), pa.clone()]);
+
+        st.forget(&pb).unwrap();
+        assert!(!st.projects.contains_key(&pb), "the entry is gone");
+        assert!(st.projects.contains_key(&pa), "the other project stays");
+        assert_eq!(st.recent, vec![pa.clone()], "and so is its place in Recent");
+        assert!(b.join(".design").is_dir(), "the folder and its files stay where they are");
+
+        let file = dir.join("app-state.json");
+        save_to(&file, &mut st);
+        let back = load_from(Some(&file), None, 3);
+        assert!(!back.projects.contains_key(&pb), "the removal is saved");
+        assert_eq!(back.recent_projects, vec![a_s.clone()], "the v1 mirror follows");
+
+        assert_eq!(
+            st.forget(&pb).unwrap_err(),
+            "That project isn't in your list any more."
+        );
+        assert_eq!(st.projects.len(), 1);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// p8-port-gc — the port a project's server bound is recorded on spawn and asked for again on wake and

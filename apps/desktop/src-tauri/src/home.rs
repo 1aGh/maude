@@ -67,6 +67,10 @@ pub const HOME_PERMISSIONS: &[&str] = &[
     "allow-relink-project",
     // r1 (img 6): New project › Advanced › "Choose another folder…".
     "allow-pick-project-location",
+    // 2.1.2: a project row's "Remove from list" (the registry only, never files) and its
+    // "Show in Finder" — person-only, Home only.
+    "allow-forget-project",
+    "allow-reveal-project-folder",
     "allow-managed-project-open",
     "allow-managed-projects-list",
     "allow-open-cloud-url",
@@ -755,6 +759,10 @@ pub struct ShellProject {
     /// cloud project is "on this Mac" (V2-3.6 N-M4).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hub: Option<String>,
+    /// 2.1.2 — when this Mac last opened the project (the registry's `lastOpenedAt`, ms); Home's
+    /// row shows it as a quiet time. Omitted for a project never opened here.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_opened_at: Option<u64>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
@@ -888,6 +896,7 @@ pub fn build_shell_state(
                 // Running tabs only: a resting or closed project has no server.
                 ai: if place == "tab" { ai_of(&e.root) } else { None },
                 hub: st.managed_server_of(pid).or_else(|| legacy_hub(&e.root)),
+                last_opened_at: (e.last_opened_at > 0).then_some(e.last_opened_at),
                 label,
             }
         })
@@ -1602,6 +1611,54 @@ pub async fn relink_project(
     Ok(Some(new_pid))
 }
 
+/// Pure: may `pid` come off the list now? Not while a tab shows it — the tab would be left on a
+/// project the list no longer has. The person closes the tab first.
+pub fn forget_allowed(book: &WindowBook, pid: &str) -> Result<(), String> {
+    match book.label_for_pid(pid) {
+        Some(_) => Err("Close its tab first. Nothing changed.".to_string()),
+        None => Ok(()),
+    }
+}
+
+/// `forget_project({pid})` — 2.1.2 "Remove from list" on a Home project row, after the page's
+/// confirm. Takes the pid off this Mac's list (registry entry + Recent, `AppState::forget`) and
+/// nothing else: the folder, its files and any managed copy stay where they are, and opening the
+/// folder again brings the project back. Home only, in front; never a project tab (not granted).
+#[tauri::command]
+pub fn forget_project(app: AppHandle, webview: tauri::Webview, pid: String) -> Result<(), String> {
+    caller_home(&webview, false)?;
+    windows::caller_in_front(&webview)?;
+    {
+        let state = app.state::<SidecarState>();
+        let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+        forget_allowed(&book, &pid)?;
+    }
+    crate::app_state::forget_project(&app, &pid)?;
+    state_changed(&app);
+    Ok(())
+}
+
+/// `reveal_project_folder({pid})` — 2.1.2: the Home row menu's "Show in Finder". The folder comes
+/// from this Mac's own list by pid (the page never names a path); Finder shows it selected
+/// (`open -R`, never opened, so a folder named like a bundle is not launched). Home only, in front.
+#[tauri::command]
+pub fn reveal_project_folder(
+    app: AppHandle,
+    webview: tauri::Webview,
+    pid: String,
+) -> Result<(), String> {
+    caller_home(&webview, false)?;
+    windows::caller_in_front(&webview)?;
+    let root = match crate::app_state::load(&app).projects.get(&pid) {
+        Some(e) => PathBuf::from(&e.root),
+        None => return Err("That project isn't in your list any more.".to_string()),
+    };
+    if !root.is_dir() {
+        return Err("The folder isn't where it was.".to_string());
+    }
+    crate::doors::spawn_or_say(&crate::doors::reveal_argv(&root), "show it in Finder")
+}
+
 /// `pick_project_location()` — r1 (img 6): New project › Advanced › "Choose another
 /// folder…". Home only, in front (no native sheet from a hidden tab; one picker at a
 /// time). Answers the picked folder, or `None` on cancel. It grants nothing new — Home
@@ -1679,6 +1736,78 @@ mod tests {
             !caps.contains("allow-pick-project-location"),
             "a project tab must not reach the Home picker"
         );
+    }
+
+    // 2.1.2 — "Remove from list" and the row menu's "Show in Finder" are person-only Home
+    // commands: granted by Home's runtime capability and never to a project tab, each checking
+    // that its caller is Home (label + origin) and in front, and registered.
+    #[test]
+    fn remove_from_list_and_show_in_finder_are_home_only_in_front_and_granted() {
+        let src = include_str!("home.rs");
+        let lib = include_str!("lib.rs");
+        let build = include_str!("../build.rs");
+        let caps = include_str!("../capabilities/default.json");
+        for (cmd, needles) in [
+            (
+                "forget_project",
+                &["caller_home(&webview, false)?", "caller_in_front(&webview)?", "forget_allowed("][..],
+            ),
+            (
+                "reveal_project_folder",
+                &["caller_home(&webview, false)?", "caller_in_front(&webview)?", "reveal_argv("][..],
+            ),
+        ] {
+            let perm = format!("allow-{}", cmd.replace('_', "-"));
+            assert!(super::HOME_PERMISSIONS.contains(&perm.as_str()), "{perm} not granted to Home");
+            assert!(!caps.contains(&perm), "a project tab must not reach {cmd}");
+            let at = src.find(&format!("pub fn {cmd}(")).unwrap_or_else(|| panic!("no {cmd}"));
+            let body = &src[at..at + src[at..].find("\n}\n").unwrap()];
+            for n in needles {
+                assert!(body.contains(n), "{cmd} lost {n}");
+            }
+            assert!(lib.contains(&format!("home::{cmd},")), "{cmd} not registered");
+            assert!(build.contains(&format!("\"{cmd}\"")), "{cmd} not in the app manifest");
+        }
+    }
+
+    // 2.1.2 — a project open in a tab is not taken off the list under it; a closed one is.
+    #[test]
+    fn forget_allowed_refuses_a_project_in_a_tab() {
+        let mut book = WindowBook::default();
+        book.insert(HOME_LABEL, Role::Home, 1);
+        book.insert(
+            "p-lb",
+            Role::Project {
+                pid: "lb".into(),
+                root: "/b".into(),
+            },
+            2,
+        );
+        assert_eq!(
+            forget_allowed(&book, "lb").unwrap_err(),
+            "Close its tab first. Nothing changed."
+        );
+        assert!(forget_allowed(&book, "la").is_ok());
+    }
+
+    // 2.1.2 — Home's row shows a quiet last-opened time: the registry's own, omitted when never opened.
+    #[test]
+    fn shell_state_carries_each_projects_last_opened_time() {
+        let mut st = registry();
+        st.projects.insert("ln".into(), entry("/n", "default", 0));
+        let s = build_shell_state(
+            &st,
+            &WindowBook::default(),
+            Vec::new(),
+            |_, n| n.to_string(),
+            |_| None,
+            |_| None,
+        );
+        let v = |pid: &str| {
+            serde_json::to_value(s.projects.iter().find(|p| p.pid == pid).unwrap()).unwrap()
+        };
+        assert_eq!(v("la")["lastOpenedAt"], 3);
+        assert!(v("ln").get("lastOpenedAt").is_none(), "never opened = no time");
     }
 
     // p8-port-gc — the GC gets the WHOLE registry (every pid, every root) from Rust, at Home boot.
