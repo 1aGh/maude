@@ -1140,13 +1140,16 @@ export function createActionStage(opts: ActionStageOptions) {
     slug: string,
     doc: string,
     p: LaneProposal,
-    joined: readonly Parked[] = []
+    joined: readonly Parked[] = [],
+    hopped = false
   ): Promise<ProposalOutcome> {
     // A canvas another run CREATED and has not published has no accepted content: this run's
     // change cannot be told apart from the creator's (a three-way merge against nothing always
-    // conflicts), and it cannot be published without that create. The write joins the creator.
-    const creator = r.lanes.has(`${slug}|${p.lane}`) ? undefined : creatorOf(slug, r);
-    if (creator) return stageWrite(creator, slug, doc, p, joined);
+    // conflicts), and it cannot be published without that create. The write joins the creator —
+    // ONE hop (2.1.1 T8): two runs that both hold a create lane for the canvas (a stage restored
+    // from an older build) would otherwise hand the write back and forth without end.
+    const creator = hopped || r.lanes.has(`${slug}|${p.lane}`) ? undefined : creatorOf(slug, r);
+    if (creator) return stageWrite(creator, slug, doc, p, joined, true);
     const k = `${slug}|${p.lane}`;
     const txs = [...joined.flatMap((e) => e.txs), p.transactionId];
     return new Promise<ProposalOutcome>((settle) => {
