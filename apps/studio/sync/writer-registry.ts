@@ -567,6 +567,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/hub-signin/poll': { class: 'local' },
   '/_api/hub-signin/cancel': { class: 'local' },
   '/_api/hub-signin/return': { class: 'local' },
+  // 2.1.1 T5 — "Link your server": a tokenless /health check of a typed address (writes nothing)
+  '/_api/hub-signin/check': { class: 'read' },
   // --- the V2-2.5 table (routes/*.ts) — classified by the lead (decision v2-2.5 classification)
   '/_api/outbox': { class: 'read' }, // routes/outbox.ts: the queue's view
   '/_api/outbox/:id': { class: 'read' },

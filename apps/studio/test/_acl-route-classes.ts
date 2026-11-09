@@ -55,6 +55,7 @@ const NONE = [
   '/_api/hub-signin/start',
   '/_api/hub-signin/poll',
   '/_api/hub-signin/cancel',
+  '/_api/hub-signin/check',
   '/_api/hub-signin/return',
   '/_api/cloud/signin/start',
   '/_api/cloud/signin/poll',
