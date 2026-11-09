@@ -20,6 +20,22 @@ export interface RecoveryCandidate {
   resolved: boolean;
 }
 
+/**
+ * S1 (2.1.1) — the suffix of a file's recovery slots. A canvas's side files are all `.json`
+ * (`<slug>.annotations.json`, `<name>.meta.json`, `_comments/<slug>.json`), so naming a slot by the
+ * extension alone put the board, the layout and the comments in ONE `local.json`: the last lane a
+ * cold start set aside overwrote the copy of the one before (a first link lost the person's
+ * comments that way). Each lane keeps its own slot; `.tsx`/`.css` keep theirs.
+ */
+export function recoverySuffix(file: string): string {
+  const base = path.basename(file).toLowerCase();
+  if (base.endsWith('.annotations.json')) return '.annotations.json';
+  if (base.endsWith('.meta.json')) return '.meta.json';
+  if (path.basename(path.dirname(file)) === '_comments' && base.endsWith('.json'))
+    return '.comments.json';
+  return path.extname(file);
+}
+
 function candidatePath(historyDir: string, file: string): string {
   return path.join(historyDir, 'sync-recovery', `candidate${path.extname(file)}.json`);
 }
@@ -126,7 +142,7 @@ export function saveRecoveryBody(
 ): string {
   if (Buffer.byteLength(body, 'utf8') > MAX_HTML_BYTES)
     throw new Error('Recovery source exceeds size limit');
-  const target = path.join(historyDir, 'sync-recovery', `${slot}${path.extname(file)}`);
+  const target = path.join(historyDir, 'sync-recovery', `${slot}${recoverySuffix(file)}`);
   writableRecoveryDir(historyDir);
   if (!existsSync(target) || readFileSync(target, 'utf8') !== body) atomicWrite(target, body);
   return target;
@@ -138,7 +154,7 @@ export function readRecoveryBody(
   file: string,
   slot: RecoverySlot
 ): string | null {
-  const target = path.join(historyDir, 'sync-recovery', `${slot}${path.extname(file)}`);
+  const target = path.join(historyDir, 'sync-recovery', `${slot}${recoverySuffix(file)}`);
   try {
     if (statSync(target).size > MAX_HTML_BYTES) return null;
     return readFileSync(target, 'utf8');

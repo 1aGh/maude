@@ -334,12 +334,14 @@ describe('B5 — a project tab links THIS folder', () => {
       'Sync this folder with design.example.com?'
     );
     expect($('link-server-count-here')?.textContent).toBe(
-      '1 canvas only on this Mac — they go up to design.example.com'
+      '1 canvas only on this Mac — sent up to design.example.com'
     );
     expect($('link-server-count-there')?.textContent).toBe(
-      '2 canvases only on design.example.com — they come down to this folder'
+      '2 canvases only on design.example.com — copied to this folder'
     );
-    expect($('link-server-count-differ')?.textContent).toBe('1 file on both, but different');
+    expect($('link-server-count-differ')?.textContent).toBe(
+      '1 file on both, but different — design.example.com’s version is used, and this Mac’s is kept beside it as a copy'
+    );
     expect(calls.some((c) => c[0] === 'confirmLink')).toBe(false);
     await act(async () => {
       $('link-server-confirm-sync')?.click();

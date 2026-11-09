@@ -48,7 +48,7 @@ import type { TrashListing, TrashOutcome } from '../history/trash.ts';
 import { createHistory } from '../history.ts';
 import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
 import { rekeyUserState } from '../home/user-state.ts';
-import { acceptedColdStart, localCreateLanes } from './accepted-cold-start.ts';
+import { acceptedColdStart, localCreateLanes, setAsideNotice } from './accepted-cold-start.ts';
 import { type AcceptedLink, createAcceptedLink, type StructuralOutcome } from './accepted-link.ts';
 import { createAccessRelay } from './access-notices.ts';
 import { type RunFence, shellClaimLane } from './action-stage.ts';
@@ -4139,6 +4139,15 @@ export function createSyncRuntime(
           // its create was withdrawn: the project already holds this document
           // (the same file, or a module that keeps its name), so it joins it.
           joined = await acceptedColdStart({ ...coldStart, inProject: true });
+        }
+        // S1 (2.1.1) — what the project's version replaced of this Mac's (a first link) is in
+        // its recovery slot; say so instead of only logging it.
+        if (joined.kind === 'reconciled' && joined.setAside?.length) {
+          store.notice({
+            id: `set-aside-${canvas.slug}`,
+            severity: 'warn',
+            text: setAsideNotice(rel, canvas.slug, joined.setAside),
+          });
         }
         renamedAway.delete(docName);
         projection.reconcile();

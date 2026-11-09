@@ -334,19 +334,45 @@ describe('B5 — this folder joins the server (a project tab)', () => {
     expect(confirmLines(COUNTS, 'design.example.com')).toEqual([
       {
         id: 'here',
-        text: '1 canvas and 2 files only on this Mac — they go up to design.example.com',
+        text: '1 canvas and 2 files only on this Mac — sent up to design.example.com',
       },
       {
         id: 'there',
-        text: '1 canvas only on design.example.com — they come down to this folder',
+        text: '1 canvas only on design.example.com — copied to this folder',
       },
-      { id: 'differ', text: '1 canvas on both, but different' },
+      {
+        id: 'differ',
+        text: '1 canvas on both, but different — this Mac keeps its version until you choose which to keep',
+      },
     ]);
     expect(LINK_WORDS.confirmTitle('design.example.com')).toBe(
       'Sync this folder with design.example.com?'
     );
     expect(LINK_WORDS.confirmButton).toBe('Sync this folder');
     expect(confirmLines(null, 'x')).toEqual([]);
+  });
+
+  test('S1 — each "different" line says what the first sync does to it (measured, not assumed)', () => {
+    const at = (canvases: number, files: number, same = 0) =>
+      confirmLines(
+        {
+          canvases: { onlyHere: 0, onlyThere: 0, differ: canvases, same },
+          files: { onlyHere: 0, onlyThere: 0, differ: files, same: 0 },
+        },
+        'x.test'
+      );
+    expect(at(0, 2)).toEqual([
+      {
+        id: 'differ',
+        text: '2 files on both, but different — x.test’s version is used, and this Mac’s is kept beside it as a copy',
+      },
+    ]);
+    expect(at(1, 1)[0]?.text).toBe(
+      '1 canvas and 1 file on both, but different — for a canvas, this Mac keeps its version until you choose which to keep; for a file, x.test’s version is used, and this Mac’s is kept beside it as a copy'
+    );
+    expect(at(0, 0, 3)).toEqual([
+      { id: 'same', text: '3 canvases already the same on both — nothing changes' },
+    ]);
   });
 
   test('Sync this folder sends the one-time code back once; an error returns to the form', async () => {

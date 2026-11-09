@@ -40,6 +40,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type * as Y from 'yjs';
 
+import { annotationsLaneValue } from '../annotations/board-text.ts';
+import { parseBoard, serializeBoard } from '../annotations/schema.ts';
+import type { AnnotationElement } from '../annotations/types.ts';
 import {
   cssFromDoc,
   htmlFromDoc,
@@ -225,7 +228,12 @@ export function localCreateLanes(
 export type AcceptedColdStartResult =
   | { kind: 'created' }
   | { kind: 'create-refused'; code?: string }
-  | { kind: 'reconciled'; verdicts: LaneVerdict[] };
+  | {
+      kind: 'reconciled';
+      verdicts: LaneVerdict[];
+      /** S1 — lanes whose local value the project's replaced; each is in its recovery slot. */
+      setAside?: ProposalLane[];
+    };
 
 export async function acceptedColdStart(
   i: AcceptedColdStartInput
@@ -259,6 +267,21 @@ export async function acceptedColdStart(
   }
 
   const verdicts: LaneVerdict[] = [];
+  /** S1 — lanes whose local value the project's replaced, kept in their recovery slot. */
+  const setAside: ProposalLane[] = [];
+  const saveQuietly = (file: string, text: string): boolean => {
+    if (!i.historyDir) return false;
+    try {
+      saveRecoveryBody(i.historyDir, file, 'local', text);
+      return true;
+    } catch {
+      return false; /* recovery is best-effort for these lanes */
+    }
+  };
+  const keepAside = (lane: ProposalLane, file: string, text: string): void => {
+    saveQuietly(file, text);
+    if (!setAside.includes(lane)) setAside.push(lane);
+  };
 
   // ---- html — the canvas source
   const acceptedHtml = htmlFromDoc(i.doc);
@@ -336,7 +359,13 @@ export async function acceptedColdStart(
       verdicts.push({ lane: 'meta', decision: 'propose', base: '', local });
     } else {
       // No base is recorded for layout: the project's arrangement wins and the
-      // projection merges it into the local file's private keys.
+      // projection merges it into the local file's private keys. S1 — unless the
+      // project once had exactly this layout (an older accepted state), it is this
+      // Mac's own (a first link to a server that already holds the canvas): kept
+      // in its own recovery slot and reported as set aside, never dropped.
+      if (metaText !== null && (await i.wasAccepted?.(local)) !== true) {
+        keepAside('meta', i.paths.meta, metaText);
+      }
       verdicts.push({ lane: 'meta', decision: 'materialize', local });
     }
   }
@@ -358,12 +387,27 @@ export async function acceptedColdStart(
         continue;
       }
     }
-    if (i.historyDir && text) {
-      try {
-        saveRecoveryBody(i.historyDir, p, 'local', text);
-      } catch {
-        /* recovery is best-effort for these lanes */
+    // S1 (2.1.1) — "a difference on disk is an older accepted state" (the header)
+    // holds only for a value the project once accepted. One it never did is this
+    // Mac's own work: a first link to a server that already holds this canvas, or a
+    // raw edit made while the studio was down. Comments and board elements carry
+    // stable ids, so it joins the project as the accepted value plus what only this
+    // disk has; an id both sides changed keeps the project's, and this Mac's is set
+    // aside. A hub's checkout is the project's cache and owes it nothing (T11).
+    const onceAccepted = i.checkoutIsCache ? null : ((await i.wasAccepted?.(local)) ?? null);
+    if (onceAccepted === false) {
+      const joined = unionById(lane, local, accepted);
+      if (joined !== null) {
+        if (!joined.complete && text) keepAside(lane, p, text);
+        verdicts.push({ lane, decision: 'propose', base: accepted, local: joined.value });
+        continue;
       }
+    }
+    if (text) {
+      // An older accepted state (or a hub checkout) is kept quietly, as before; anything
+      // else of this Mac's that the project's value replaces is reported.
+      if (onceAccepted === true || i.checkoutIsCache) saveQuietly(p, text);
+      else keepAside(lane, p, text);
     }
     verdicts.push({ lane, decision: 'materialize', local: text ?? undefined });
   }
@@ -403,5 +447,66 @@ export async function acceptedColdStart(
       `[sync/${i.slug}] cold start: ${moved.map((v) => `${v.lane}=${v.decision}`).join(', ')}`
     );
   }
-  return { kind: 'reconciled', verdicts };
+  if (setAside.length) {
+    log.warn(
+      `[sync/${i.slug}] cold start: the project's ${setAside.join(', ')} replaced this Mac's — kept in the recovery folder.`
+    );
+  }
+  return { kind: 'reconciled', verdicts, ...(setAside.length ? { setAside } : {}) };
+}
+
+const SET_ASIDE_WORDS: Partial<Record<ProposalLane, string>> = {
+  meta: 'layout',
+  annotations: 'sticky notes',
+  comments: 'comments',
+};
+
+/** S1 — the Sync notice for lanes set aside at cold start (CONTRACT §3–§4 voice). */
+export function setAsideNotice(rel: string, slug: string, lanes: readonly ProposalLane[]): string {
+  const name =
+    rel
+      .split('/')
+      .pop()
+      ?.replace(/\.tsx$/i, '') || rel;
+  const words = lanes.map((l) => SET_ASIDE_WORDS[l] ?? l);
+  const list =
+    words.length > 1 ? `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}` : words[0];
+  return `${name}: the project’s ${list} replaced this Mac’s. This Mac’s copy is kept in _history/${slug}/sync-recovery/.`;
+}
+
+/**
+ * S1 — an id-keyed lane (comments, board elements) joined the way a first link
+ * needs: the accepted value, plus the entries only `local` has. `complete` is
+ * false when an id both sides hold differs (the project's entry is kept). Null
+ * when `local` adds nothing.
+ */
+export function unionById(
+  lane: 'comments' | 'annotations',
+  local: string,
+  accepted: string
+): { value: string; complete: boolean } | null {
+  if (lane === 'comments') {
+    const there = parseList(accepted);
+    const byKey = new Map(there.map((c) => [commentKey(c), JSON.stringify(c)]));
+    let complete = true;
+    const extra: unknown[] = [];
+    for (const c of parseList(local)) {
+      const theirs = byKey.get(commentKey(c));
+      if (theirs === undefined) extra.push(c);
+      else if (theirs !== JSON.stringify(c)) complete = false;
+    }
+    return extra.length ? { value: JSON.stringify([...there, ...extra]), complete } : null;
+  }
+  const there = accepted ? parseBoard(accepted).elements : [];
+  const byId = new Map(there.map((e) => [e.id, JSON.stringify(e)]));
+  let complete = true;
+  const extra: AnnotationElement[] = [];
+  for (const e of parseBoard(local).elements) {
+    const theirs = byId.get(e.id);
+    if (theirs === undefined) extra.push(e);
+    else if (theirs !== JSON.stringify(e)) complete = false;
+  }
+  if (!extra.length) return null;
+  const value = annotationsLaneValue(serializeBoard([...there, ...extra]));
+  return value ? { value, complete } : null;
 }
