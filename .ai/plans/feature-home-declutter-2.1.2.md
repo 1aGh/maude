@@ -43,7 +43,7 @@
   - run design-critic on the current Home (2.1.1);
   - produce a revised Home artboard set in canvas 17 or a new canvas: main surface, collapsed accounts summary, action-needed banner, slim project rows, stale-server handling (collapsed + Remove).
   - Show it to Michal (AskUserQuestion) before building.
-- [ ] **H3** Build per the approved design + fixes from H1.
+- [x] **H3** Build per the approved design + fixes from H1.
 - [ ] **H4** Tests:
   - fail-first unit tests;
   - Home e2e on the mini or with the no-dialog env, never popping dialogs;
@@ -79,3 +79,9 @@ Same as `.ai/scenarios/accounts-2.1.1/builder-brief.md`. Never read or write Mic
   - the chip shows text + dot ("1 needs sign-in");
   - add "Forget all" for old servers;
   - a project row DOES show a quiet last-opened time on the right.
+- 2026-11-09: HB1 (7fed49fa5) and HB2 (4a2a4d857) merged; release bundle 41a5ee182. Fast gates, the boot check and the opening-card smoke pass.
+  - Not built:
+    - "Pin to Home" on a project: no project-pin backend.
+    - The artboard 17 nested cell sign-in under its cloud account: a cell's health is the cloud account's sign-in.
+    - Menu icons.
+  - Running: mini suites, and the desktop e2e home + accounts lanes (no-dialog env, sidecar probe first).

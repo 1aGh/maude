@@ -3,6 +3,15 @@
   "version": "2.1.1",
   "entries": [
     {
+      "id": "home-declutter",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "A calmer Home",
+      "summary": "Home now shows what you make and where: recent canvases and your projects. Accounts sit behind one button at the top right, a banner appears only when a sign-in needs you, old servers fold away with Forget, and a project row says where it lives and when you last opened it.",
+      "surface": "design-ui"
+    },
+    {
       "id": "accounts-and-where-projects-live",
       "version": "2.1.1",
       "date": "2026-11-09",

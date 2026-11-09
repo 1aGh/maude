@@ -1,5 +1,16 @@
 # @1agh/maude
 
+## 2.1.2
+
+### Patch Changes
+
+- **A calmer Home.** The page is the question, Recent canvases (pinned canvases first) and Projects. Accounts sit behind one button at the top right ("3 accounts", with a red dot and "1 needs sign-in" when one needs you); a banner appears at the top only when a sign-in needs your action.
+- A Maude Cloud project's server is no longer listed as "your server"; it counts under its Maude Cloud account.
+- Servers that don't answer and hold no projects fold under "N old servers", each with Forget… and a Forget all, always after asking; only the saved sign-in is removed.
+- A project row shows its name, where it lives, a state only when something needs you, and when you last opened it. The path, copies, worktrees and account moved into its "…" menu, with Show in Finder and Remove from list (the folder and its files stay where they are).
+- A copy Maude kept that has moved no longer shows next to its live project; a moved folder shows once with Find the folder… and Remove from list.
+- Fixed the account card's "Waiting for the browser…" button overlapping its text.
+
 ## 2.1.1
 
 ### Patch Changes
