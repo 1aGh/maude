@@ -165,6 +165,11 @@
     color: var(--spark-text);
     background: var(--spark-muted);
   }
+  /* 2.1.2 (artboard 19): "Needs you" on a project row */
+  .home-root .chip--accent {
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
   .home-root .kbd {
     display: inline-grid;
     place-items: center;
@@ -2397,6 +2402,18 @@
     .home-prow-main .home-prow-lives,
     .home-prow-main .home-prow-when {
       display: none;
+    }
+    .home-root .row-item.home-prow--gone {
+      flex-wrap: wrap;
+      row-gap: 0;
+    }
+    .home-prow--gone .home-prow-name {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .home-prow--gone .home-prow-acts {
+      width: 100%;
+      padding-left: calc(44px + var(--space-3) - var(--space-2));
     }
   }
 }
