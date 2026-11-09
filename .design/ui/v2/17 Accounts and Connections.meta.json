@@ -1,0 +1,20 @@
+{
+  "kind": "canvas",
+  "title": "17 Accounts and Connections",
+  "subtitle": "Where am I signed in, in which project, and does the connection work — accounts → projects → three places, seven connection states on one chip, the avatar menu per state, Sync for a local project, Settings as one column of cards (General · Connections · Advanced), one Link your server dialog, and Home with every project's place",
+  "brief": "Several accounts on cloud.maude.sh, several projects under each. A project is either connected to the person's own local repo, or Maude keeps a copy somewhere in the background. Plus projects on the person's own servers. The person must find their way at a glance: where they are signed in, in which project, and whether the connection works. As simple as possible. (plan feature-accounts-and-connections-2.1.1, T1) — revision: \"general bych taky udelal vzdy pod sebou, libi se mi jak to mel connections s ikonami vzdy, jen bych to udelal klidne jako karty spis rozbalovani a sjednotit tenhle vzhled pak pro vse general/connections/advanced\"",
+  "designSystem": "maude-v2",
+  "platform": "desktop",
+  "created": "2026-11-09T13:39:10.984Z",
+  "last_modified": "2026-11-09T13:39:10.984Z",
+  "opt_out_scope": "palette",
+  "sections": [
+    { "id": "model", "title": "The model — accounts, projects, places" },
+    { "id": "states", "title": "Connection states" },
+    { "id": "menu", "title": "The avatar menu" },
+    { "id": "sync", "title": "Sync — a local project" },
+    { "id": "settings", "title": "Settings — one column of cards" },
+    { "id": "link", "title": "Link your server — one dialog" },
+    { "id": "home", "title": "Home" }
+  ]
+}
