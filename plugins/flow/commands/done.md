@@ -26,6 +26,10 @@ Any failure → stop, return to `/execute`, then run `/done` again.
 
 **Tracker report (`orbit` only).** When validate returns, load `flow:orbit-backend` and send ONE `orbit_state_report` with `command: "/flow:done"` (`"/flow:done --quick"` under `--quick`) and `verdict: {result, findings}` from the validate run — phase and result mapping per the `/flow:done` row of [guide 02](../skills/orbit-backend/_guide-02-execute.md). Validate sends none of its own here. Warn-only.
 
+### 1b. Parent regression check (orbit)
+
+`provider: orbit` and `integrations.tracker.regressionCheck` ≠ `false` (default `true`): load `flow:orbit-backend` and follow [guide 07](../skills/orbit-backend/_guide-07-regression.md) — re-run the vetted tests and scenarios of the closed parent and linked tasks that overlap this branch's diff (≤ 5 tasks, 10 min; `--quick` tests only). A failing one asks before anything else, and a bug is created only after an explicit yes. Warn-only for orbit errors; skip silently otherwise.
+
 ### 2. Acceptance criteria check
 
 Walk `## Acceptance Criteria` in the plan; check off or flag each: all tasks completed · validate passes (under `--quick`: static + affected tests, note the deferred full validate in STATE.md) · no DDR-worthy decision unrecorded · scenario report linked in the PR description (under `--quick`: "scenario deferred to full /flow:validate"). A criterion that can't be met is never skipped — record a blocker in STATE.md and `/pause`.
