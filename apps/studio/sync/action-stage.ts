@@ -1047,6 +1047,15 @@ export function createActionStage(opts: ActionStageOptions) {
     return ownerOf(slug, content, explicit) !== null || parks(slug);
   }
 
+  /** Another run (open or held) whose staged lanes CREATE canvas `slug`, if any. */
+  function creatorOf(slug: string, r: RunStage): RunStage | undefined {
+    for (const other of runs.values()) {
+      if (other === r) continue;
+      for (const l of other.lanes.values()) if (l.slug === slug && l.create) return other;
+    }
+    return undefined;
+  }
+
   /** The accepted content of a lane: any staged run's base, else the write's own base. */
   function acceptedOf(k: string, fallback: string): string {
     for (const r of runs.values()) {
@@ -1133,6 +1142,11 @@ export function createActionStage(opts: ActionStageOptions) {
     p: LaneProposal,
     joined: readonly Parked[] = []
   ): Promise<ProposalOutcome> {
+    // A canvas another run CREATED and has not published has no accepted content: this run's
+    // change cannot be told apart from the creator's (a three-way merge against nothing always
+    // conflicts), and it cannot be published without that create. The write joins the creator.
+    const creator = r.lanes.has(`${slug}|${p.lane}`) ? undefined : creatorOf(slug, r);
+    if (creator) return stageWrite(creator, slug, doc, p, joined);
     const k = `${slug}|${p.lane}`;
     const txs = [...joined.flatMap((e) => e.txs), p.transactionId];
     return new Promise<ProposalOutcome>((settle) => {
