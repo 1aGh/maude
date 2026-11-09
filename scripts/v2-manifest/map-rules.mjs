@@ -174,6 +174,12 @@ export const HAND = {
     'A-your-team-s-own-server-email-password',
   'testid:studio/client/panels/TeamProjects.jsx#sync/cloud/team-hub-waiting':
     'A-your-team-s-own-server-email-password',
+  // 2.1.1 T5: TeamProjectsDialog is a door now (serverOnly → the one "Link your server" dialog); the picker's
+  // own body — its Close and its Esc listener — moved into TeamProjectsPicker, unchanged
+  'button:studio/client/panels/TeamProjects.jsx#TeamProjectsPicker/team-projects-close':
+    'A-open-another-folder-or-team-project',
+  'keydown:studio/client/panels/TeamProjects.jsx#TeamProjectsPicker/listener':
+    'A-open-another-folder-or-team-project',
 };
 
 const r = (file, m, to) => ({ file, ...m, to });

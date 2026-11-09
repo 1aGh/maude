@@ -259,6 +259,40 @@
     background: var(--accent);
     filter: brightness(1.06);
   }
+  /* 2.1.1 T3 — Sync on a project only on this Mac (canvas 17 ac-sync): centred, two ways out. */
+  .dg-solo-b {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: var(--space-4, 16px) var(--space-3, 12px) var(--space-2, 8px);
+    text-align: center;
+  }
+  .dg-solo-ic {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-lg, 12px);
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .dg-solo-b > strong {
+    font-size: var(--type-md, 15px);
+    color: var(--fg-0);
+  }
+  .dg-solo-b .dg-empty {
+    max-width: 36ch;
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+  }
+  .dg-solo-acts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2, 8px);
+    margin-top: var(--space-1, 4px);
+  }
   .dg-notice,
   .dg-latest {
     display: flex;

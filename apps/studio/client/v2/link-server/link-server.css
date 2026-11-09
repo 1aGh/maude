@@ -1,0 +1,99 @@
+/* client/v2/link-server/link-server.css — 2.1.1 T5: the one "Link your server" dialog (canvas 17,
+ * artboards 12–13). The sheet plane is the Advanced sheets' (`ai-conn-*`, `ob-*`); these are its own parts:
+ * the full-width buttons, the check line under the address, the Advanced fold and the folder radios. */
+@layer components {
+  .ls-sheet {
+    width: 360px;
+    max-width: 100%;
+  }
+  .ls-full {
+    width: 100%;
+    justify-content: center;
+  }
+  .ls-check {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .ls-check .ob-sw {
+    font-size: var(--type-xs);
+    white-space: normal;
+  }
+  .ls-check[data-tone="bad"] .ob-sw {
+    color: var(--status-error-text);
+  }
+  .ls-check[data-tone="bad"] .ob-sw i {
+    background: var(--status-error);
+  }
+  .ob-input[data-bad="true"] {
+    box-shadow: inset 0 0 0 1px var(--status-error);
+  }
+  .ls-wait {
+    margin: 0;
+  }
+  .ls-wait .ob-sw {
+    white-space: normal;
+    color: var(--fg-1);
+  }
+  .ls-adv {
+    border-top: 0.5px solid var(--border-subtle);
+    padding-top: var(--space-2);
+  }
+  .ls-adv-t {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-1) 0;
+    border: 0;
+    background: none;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+    text-align: left;
+    cursor: default;
+  }
+  .ls-chev {
+    display: inline-block;
+    transition: transform var(--dur-fast, 120ms) ease;
+  }
+  .ls-adv[data-open="true"] .ls-chev {
+    transform: rotate(90deg);
+  }
+  .ls-adv-l {
+    font-weight: var(--w-medium);
+  }
+  .ls-adv-h {
+    margin-left: auto;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .ls-adv-b {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding-top: var(--space-2);
+  }
+  .ls-folder {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .ls-radio {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .ls-path {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

@@ -173,7 +173,7 @@ describe('maude design sync status', () => {
   test('a solo project says so', async () => {
     studio = fakeStudio((s) => (s.path === '/_sync-status' ? json({ linked: false }) : undefined));
     const r = await studio.run('sync', ['status']);
-    expect(r.stdout).toContain('Sync · Local project');
+    expect(r.stdout).toContain('Sync · Only on this Mac'); // 2.1.1: the one word (diagnostics-model syncWord)
   });
 });
 

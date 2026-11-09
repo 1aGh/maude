@@ -22,7 +22,7 @@ import { DIAGNOSTICS_ACTIONS as DIAG_ACTIONS } from '../actions/defs/diagnostics
 import { ACTIONS_BY_ID } from '../actions/index.ts';
 import { hiddenMenuIds, menuStatuses } from '../client/v2/diagnostics/diagnostics-model.js';
 import DiagnosticsSheet from '../client/v2/diagnostics/diagnostics-sheet.jsx';
-import { createMenuHandlers, runnableIds } from '../client/v2/shell/menu-runner.js';
+import { createMenuHandlers, menuRunner, runnableIds } from '../client/v2/shell/menu-runner.js';
 import { buildProjectMenu, menuCtx, modelIds } from '../client/v2/shell/project-menu-model.js';
 import { ProjectPill } from '../client/v2/shell/project-pill.jsx';
 
@@ -531,13 +531,42 @@ describe('the Diagnostics sheet', () => {
     expect(q('diag-resync')).toBeNull(); // quiet until a resync has run
   });
 
-  test('Sync: an unlinked project says there is nothing to sync', async () => {
+  test('Sync (2.1.1 T3): a project only on this Mac offers the next step, not a dead end', async () => {
+    const ran: string[] = [];
+    const map = {
+      'share.move-to-cloud': () => ran.push('share.move-to-cloud'),
+      'account.link-server': () => ran.push('account.link-server'),
+    };
+    menuRunner.bind(map);
+    try {
+      const calls = await mountSheet({
+        view: 'sync',
+        sync: { status: null, native: true, word: { word: 'Only on this Mac', tone: 'neutral' } },
+      });
+      const solo = q('diag-sync-solo');
+      expect(solo?.textContent).toContain('Only on this Mac');
+      expect(solo?.textContent).not.toContain('nothing to sync');
+      expect(solo?.textContent).toContain('It stays in ~/p either way.');
+      expect(q('diag-sync-to-cloud')?.textContent).toBe('Create project on Maude Cloud');
+      expect(q('diag-sync-link-server')?.textContent).toBe('Link your server');
+      await click('diag-sync-to-cloud');
+      await click('diag-sync-link-server');
+      expect(ran).toEqual(['share.move-to-cloud', 'account.link-server']);
+      expect(calls.filter((c) => c === 'close')).toHaveLength(2); // each hands over and closes the sheet
+      expect(q('sync-panel')).toBeNull();
+    } finally {
+      menuRunner.unbind(map);
+    }
+  });
+
+  test('Sync (2.1.1 T3): in a browser tab the two steps are the Mac app’s — said, not dead buttons', async () => {
     await mountSheet({
       view: 'sync',
-      sync: { status: null, word: { word: 'Local project', tone: 'neutral' } },
+      sync: { status: null, native: false, word: { word: 'Only on this Mac', tone: 'neutral' } },
     });
-    expect(q('diag-sync-solo')?.textContent).toContain('nothing to sync');
-    expect(q('sync-panel')).toBeNull();
+    expect(q('diag-sync-to-cloud')).toBeNull();
+    expect(q('diag-sync-link-server')).toBeNull();
+    expect(q('diag-sync-solo')?.textContent).toContain('Open this project in the Maude app');
   });
 });
 

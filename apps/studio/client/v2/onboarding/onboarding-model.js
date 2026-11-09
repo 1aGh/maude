@@ -3,24 +3,7 @@
 // main button ("Connect to your own hub" → Connect). Advanced language (addresses, commands, keys) is allowed
 // here and only here (the canvas's note 15).
 
-// Issue #204: one Sign in — the hub's own page in the browser; no email or password field in the app.
-export const HUB_WORDS = {
-  title: 'Sign in to your own hub',
-  verb: 'Sign in',
-  busy: 'Signing in…',
-  addressLabel: 'Hub address',
-  test: 'Test connection',
-  testing: 'Testing…',
-  reachable: (version) => (version ? `Reachable — hub ${version}` : 'Reachable'),
-  inviteLabel: 'Invite link or key (if you have one)',
-  invitePlaceholder: 'Invite link or key',
-  waiting: 'Finish signing in in your browser.',
-  refused: 'That address can’t be opened. Check the hub address.',
-  noBrowser: 'The browser didn’t open. Try again.',
-  fine: 'Sign in opens the hub’s own sign-in page in your browser. Maude Cloud stays signed in too.',
-  unreachable: "Couldn't reach that hub. Check the address, or whether it's online.",
-};
-
+// The hub sheet's words moved with it to the one "Link your server" dialog (2.1.1 T5, v2/link-server/).
 export const FOLDER_WORDS = {
   title: 'Open a folder or a GitHub project',
   verb: 'Open',
