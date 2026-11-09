@@ -318,6 +318,51 @@ describe('B5 — a project tab links THIS folder', () => {
     expect(m.closed()).toBe(1);
   });
 
+  test('2.1.1 T14 — the confirm names the pictures and videos that stay on this Mac, apart from "sent up"', async () => {
+    const withStay = (empty: boolean) =>
+      signedIn(() => ({
+        ok: false,
+        needsConfirm: {
+          host: 'design.example.com',
+          counts: { ...COUNTS, stayHere: 4 },
+          code: 'c1',
+          ...(empty ? { empty: true } : {}),
+        },
+      }));
+    const m = mount(withStay(false).api);
+    await settle(10);
+    await signIn();
+    expect($('link-server-count-stay')?.textContent).toBe(
+      '4 pictures and videos stay on this Mac — design.example.com doesn’t store them'
+    );
+    expect(m.closed()).toBe(0);
+  });
+
+  test('2.1.1 T14 — the first link to an empty server says the same line', async () => {
+    const { api } = signedIn(() => ({
+      ok: false,
+      needsConfirm: {
+        host: 'design.example.com',
+        counts: {
+          canvases: { onlyHere: 0, onlyThere: 0, differ: 0, same: 0 },
+          files: { onlyHere: 0, onlyThere: 0, differ: 0, same: 0 },
+          stayHere: 1,
+        },
+        code: 'c1',
+        empty: true,
+      },
+    }));
+    mount(api);
+    await settle(10);
+    await signIn();
+    expect($('link-server-first-lead')?.textContent).toBe(
+      'Nothing from this folder will go to design.example.com.'
+    );
+    expect($('link-server-count-stay')?.textContent).toBe(
+      '1 picture or video stays on this Mac — design.example.com doesn’t store it'
+    );
+  });
+
   test('a server that holds work: the dialog asks with counts; Sync this folder sends the code once', async () => {
     const { api, calls } = signedIn(
       () => ({

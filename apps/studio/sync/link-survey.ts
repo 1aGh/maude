@@ -34,6 +34,13 @@ export interface SideSurvey {
   files: Map<string, string>;
   /** canvases are compared by slug only (an older server's listing) */
   bySlug?: boolean;
+  /** This Mac's side only: the files that are pictures, video and the like (the inert-media class). */
+  media?: Set<string>;
+  /**
+   * The server's side only (2.1.1 T14): whether it has a place to store media. `false` only when it
+   * said so (no file journal and no checkout); a server that did not answer is assumed to store it.
+   */
+  storesMedia?: boolean;
 }
 
 export interface LinkCounts {
@@ -66,6 +73,7 @@ export function surveyLocal(
 ): SideSurvey {
   const canvases = new Map<string, string | null>();
   const files = new Map<string, string>();
+  const media = new Set<string>();
   for (const f of walkClassifiedAll(designRoot, canvasGroups)) {
     if (f.cls === 'never') continue;
     let hash: string | null = null;
@@ -78,9 +86,12 @@ export function surveyLocal(
       if (/\.tsx$/i.test(f.rel)) canvases.set(f.rel, hash);
       continue;
     }
-    if (hash) files.set(f.rel, hash);
+    if (hash) {
+      files.set(f.rel, hash);
+      if (f.cls === 'inert-media') media.add(f.rel);
+    }
   }
-  return { canvases, files };
+  return { canvases, files, media };
 }
 
 type Got = { status: number; body: Record<string, unknown> | null };
@@ -102,6 +113,21 @@ async function getJson(url: string, token: string, doFetch: typeof fetch): Promi
 }
 
 const refused = (s: number) => s === 401 || s === 403;
+
+/**
+ * Does the server have a place for pictures and videos? A server that carries the file journal
+ * (`ledger`) stores them in it; an older one stores them in its project checkout. With neither, its
+ * media door answers 405 and they stay on this Mac (sync/media-gate.ts). Unknown is "yes": the line
+ * this feeds is only said when the server told us it can't.
+ */
+export function serverStoresMedia(health: Record<string, unknown> | null): boolean {
+  if (!health) return true;
+  const caps = health.capabilities;
+  if (!Array.isArray(caps)) return true; // a server that predates capabilities: say nothing
+  if (caps.includes('ledger')) return true;
+  const checkout = (health.workspace as { checkout?: unknown } | undefined)?.checkout;
+  return checkout === 'present';
+}
 
 /** The server's side, with the credential this Mac holds for it. */
 export async function surveyHub(
@@ -150,7 +176,19 @@ export async function surveyHub(
   }
   // any other answer (an older server without the file plane) = no files there
 
-  return { ok: true, survey: { canvases, files, ...(bySlug ? { bySlug } : {}) } };
+  // 2.1.1 T14 — can this server store media at all? (`/health` needs no credential)
+  const health = await getJson(`${base}/health`, token, doFetch);
+  const storesMedia = serverStoresMedia(health.status === 200 ? health.body : null);
+
+  return {
+    ok: true,
+    survey: {
+      canvases,
+      files,
+      ...(bySlug ? { bySlug } : {}),
+      ...(storesMedia ? {} : { storesMedia }),
+    },
+  };
 }
 
 /** Does the server hold any work at all? */
@@ -178,6 +216,11 @@ export interface LinkComparison extends LinkCounts {
   /** the same four counts, canvases only and files only (the dialog names each) */
   canvases: LinkCounts;
   files: LinkCounts;
+  /**
+   * 2.1.1 T14 — pictures and videos only this Mac has that the server has no place for: they stay
+   * here, so they are NOT in `onlyHere` ("sent up"). Absent when there are none.
+   */
+  stayHere?: number;
 }
 
 const zero = (): LinkCounts => ({ onlyHere: 0, onlyThere: 0, differ: 0, same: 0 });
@@ -191,7 +234,14 @@ export function compareSurveys(here: SideSurvey, there: SideSurvey): LinkCompari
     : here.canvases;
   countMaps(localCanvases, there.canvases, canvases);
   countMaps(here.files, there.files, files);
+  // media only this Mac has, on a server that can't store it: counted apart, never "sent up"
+  let stay = 0;
+  if (there.storesMedia === false && here.media) {
+    for (const rel of here.media) if (here.files.has(rel) && !there.files.has(rel)) stay++;
+    files.onlyHere -= stay;
+  }
   return {
+    ...(stay ? { stayHere: stay } : {}),
     onlyHere: canvases.onlyHere + files.onlyHere,
     onlyThere: canvases.onlyThere + files.onlyThere,
     differ: canvases.differ + files.differ,

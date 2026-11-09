@@ -123,6 +123,9 @@ export interface SyncNotice {
    *  which config key opts out. */
   text: string;
   severity: 'info' | 'warn';
+  /** 2.1.1 T14 — `set-aside-<slug>`: which of this Mac's lanes (`meta` · `annotations` · `comments`)
+   *  the project's version replaced, so Sync details can name them without parsing `text`. */
+  lanes?: string[];
   at: number;
 }
 
@@ -131,7 +134,7 @@ export interface FilePlaneStatus {
   synced: number;
   /** Cumulative files landed this boot. */
   pulled: number;
-  /** Cumulative conflicts this boot (either winner); losers are in _trash/. */
+  /** Cumulative conflicts this boot: the project's version is the file, this Mac's is parked beside it. */
   conflicts: number;
   /** Sync v2 — cumulative files sent UP this boot. The v1 lane had no push
    *  half of its own, so this is absent on a journal-less hub. */
@@ -255,6 +258,11 @@ export interface FilePlaneStatus {
    * emits. Same bounding shape `items`/`itemsTruncated` already uses.
    */
   deliveryTruncated?: number;
+  /**
+   * 2.1.1 T14 — files in `conflict` whose copy of this Mac's version sits beside them:
+   * `{ "<file>": "<copy>" }`, both relative to the design root. Sync details names the copy.
+   */
+  conflictCopies?: Record<string, string>;
   /**
    * THE DENOMINATOR (feature-large-project-seed).
    *

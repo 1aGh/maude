@@ -4147,6 +4147,7 @@ export function createSyncRuntime(
             id: `set-aside-${canvas.slug}`,
             severity: 'warn',
             text: setAsideNotice(rel, canvas.slug, joined.setAside),
+            lanes: [...joined.setAside],
           });
         }
         renamedAway.delete(docName);
@@ -5604,6 +5605,7 @@ export function createSyncRuntime(
       // Read once: calling it inside the spread evaluated it twice and made
       // its `null` case the object's type.
       const blockedMedia = filePlane?.blocked() ?? null;
+      const conflictCopiesNow = filePlane?.conflictCopies() ?? {};
       const ignoreFoldersNow = planeIgnoreFolders();
       const purgeNow = heldDeletesControl?.view().purge ?? null;
       statusStore?.updateFiles?.({
@@ -5613,6 +5615,9 @@ export function createSyncRuntime(
         ...(filePlane
           ? {
               delivery: filePlane.doruceka(),
+              ...(Object.keys(conflictCopiesNow).length > 0
+                ? { conflictCopies: conflictCopiesNow }
+                : {}),
               ...(filePlane.dorucekaTotal() > MAX_DORUCEKA_ROWS
                 ? { deliveryTruncated: filePlane.dorucekaTotal() - MAX_DORUCEKA_ROWS }
                 : {}),

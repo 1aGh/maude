@@ -549,6 +549,49 @@ describe('the compare-and-swap is what makes concurrency safe', () => {
   });
 });
 
+describe('a file in conflict stays in conflict while its copy is beside it (2.1.1 T14)', () => {
+  const REL = 'system/ds/brand.css';
+  async function conflicted() {
+    const hub = fakeHub({ [REL]: 'v1' });
+    await plane(hub).reconcile();
+    write(REL, 'mine');
+    hub.add(REL, 'theirs');
+    const p = plane(hub);
+    await p.reconcile();
+    const copy = readdirSync(join(root, 'system/ds')).find((n) => n.includes('maude-conflict'));
+    return { hub, p, copy: `system/ds/${copy}` };
+  }
+
+  test('the next passes keep it `conflict` and name the copy', async () => {
+    const { p, copy } = await conflicted();
+    for (let i = 0; i < 3; i++) await p.reconcile();
+    expect(p.doruceka()[REL]).toBe('conflict');
+    expect(p.conflictCopies()).toEqual({ [REL]: copy });
+    expect(read(REL)).toBe('theirs');
+    expect(read(copy)).toBe('mine');
+  });
+
+  test('a conflict with its copy parked is not "waiting": nothing is left to move', async () => {
+    const { p } = await conflicted();
+    await p.reconcile();
+    const rows = ledger.rows();
+    const { computeSeedProgress } = await import('../sync/seed-progress.ts');
+    const progress = computeSeedProgress({ rows, now: 0 });
+    expect(progress.remaining).toBe(0);
+    expect(progress.phase).toBe('converged');
+  });
+
+  test('once the copy is gone the file is simply on the hub again', async () => {
+    const { p, copy } = await conflicted();
+    await p.reconcile();
+    rmSync(join(root, copy));
+    await p.reconcile();
+    await p.reconcile();
+    expect(p.doruceka()[REL]).toBe('on-hub');
+    expect(p.conflictCopies()).toEqual({});
+  });
+});
+
 describe('the converged steady state is free', () => {
   test('a second pass moves nothing and reports agreement', async () => {
     const hub = fakeHub({ 'system/ds/brand.css': 'v1', 'assets/a.png': 'PNG' });

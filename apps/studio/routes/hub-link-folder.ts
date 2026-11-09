@@ -89,6 +89,10 @@ export const LINK_FOLDER_WORDS = {
     `${host} runs a newer Maude than this one. Update Maude, then link again. Nothing was linked.`,
   format: (host: string) =>
     `${host} needs an update before this project can sync with it. Nothing was linked.`,
+  // 2.1.1 T14 — the server's software is current, but its project is still on the old format and only
+  // the project's OWNER can raise it: a member can do nothing about "needs an update"
+  formatOwner: (host: string) =>
+    `${host} is on an older format. Its owner needs to open it in Maude 2.1 once before this folder can sync. Nothing was linked.`,
   expired: 'That confirmation expired. Press Link again to see what syncing would do.',
   failed: 'Linking didn’t finish. Your work is still on this Mac.',
 };
@@ -184,12 +188,13 @@ export function createHubLinkFolderRoutes(deps: HubLinkFolderDeps): RouteSpec[] 
     if (!health.capabilities.includes('format-v2'))
       throw new LinkRefusal(409, 'format', LINK_FOLDER_WORDS.format(host));
     const set = await client.setFormat(local === 2 ? 2 : 1);
-    if (!set.ok)
-      throw new LinkRefusal(
-        set.status === 0 ? 503 : 409,
-        set.status === 0 ? 'offline' : 'format',
-        set.status === 0 ? LINK_FOLDER_WORDS.offline(host) : LINK_FOLDER_WORDS.format(host)
-      );
+    if (!set.ok) {
+      if (set.status === 0) throw new LinkRefusal(503, 'offline', LINK_FOLDER_WORDS.offline(host));
+      // the owner's door: a member's bearer is refused there
+      if (set.status === 401 || set.status === 403)
+        throw new LinkRefusal(409, 'format-owner', LINK_FOLDER_WORDS.formatOwner(host));
+      throw new LinkRefusal(409, 'format', LINK_FOLDER_WORDS.format(host));
+    }
   }
 
   async function link(url: string, token: string): Promise<Response> {

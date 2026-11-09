@@ -444,12 +444,15 @@ describe('team-cell-missing (native-desktop)', () => {
       /* gone */
     }
     await stopCell(c);
+    // 2.1.1 T2: a server that stops answering while this Mac's network is up says so by its address
+    // ("Can’t reach 127.0.0.1:PORT", the `unreachable` connection state); "Offline — changes wait on this
+    // Mac" is only for a Mac with no network, which a stopped cell is not. Either way the change waits here.
     await eventually(
-      'the offline word',
-      async () => /^Offline/.test((await statusWord())?.text ?? ''),
+      'the server-away word',
+      async () => /^Can’t reach /.test((await statusWord())?.text ?? ''),
       120_000
     );
-    expect((await statusWord())?.text).toBe('Offline — kept on this Mac');
+    expect((await statusWord())?.text).toBe(`Can’t reach ${new URL(c.hub).host.toLowerCase()}`);
     await (await $(tid('panel-tab-assets'))).click();
     const panel = await $(tid('assets-panel'));
     await panel.waitForExist({ timeout: 15_000 });
