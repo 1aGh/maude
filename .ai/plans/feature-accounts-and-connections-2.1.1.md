@@ -131,3 +131,4 @@ Fixing a broken or missing sign-in takes one click.
   - 23 app screenshots in `.ai/scenarios/accounts-2.1.1/app-shots/`.
 
   T8 Rust merged (d58db2740).
+- 2026-11-09: T8 studio merged (31d037dad, with the http.ts repoRoot patch and the link-server-model conflict resolved). Two What's New entries pending (41fd71ed5). Running: T14 (Sync details gaps, survey media line, S1 repro test, format-1 member words, team-cell-missing offline words) and the security re-review.
