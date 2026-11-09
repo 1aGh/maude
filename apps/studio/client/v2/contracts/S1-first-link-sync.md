@@ -43,6 +43,6 @@ lane and does not show what the desktop does.
 
 ## Open
 
-1. F1/F2: the file conflict copy and the layout set-aside are recoverable but not said on screen. Default: one Sync details row per `set-aside-*` notice and per file in `conflict`, with the copy's name.
-2. Media on a server without media storage stays on this Mac (`[sync/assets] … can't store media`), so "only on this Mac — sent up" is not true for pictures/videos there. Default: the survey reads the hub's media capability and splits the line.
+1. **Done (T14).** F1/F2: Sync details has a "Kept on this Mac" section: one row per file in `conflict` (a file whose copy is parked stays `conflict` while the copy is beside it — `file-plane.ts` `keepsConflictCopy`; the status carries `files.conflictCopies`) and one per `set-aside-*` notice (the notice now carries `lanes`). Show in Finder in the Mac app. No restore action exists for the layout's recovery slot, so the row says where it is kept. The old "the older copy is in the trash" word is gone.
+2. **Done (T14).** Media on a server without media storage: `link-survey.ts` reads `/health` (no `ledger` capability and no checkout = no place for media); `counts.stayHere` is its own confirm line, not part of "sent up".
 3. A layout difference is not merged (whole value). Default: keep as is (project's + copy); revisit if people report lost arrangements.
