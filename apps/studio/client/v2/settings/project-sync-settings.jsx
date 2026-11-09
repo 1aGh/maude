@@ -1,4 +1,5 @@
-// client/v2/settings/project-sync-settings.jsx — V2-4.7a: Settings › Advanced › This project.
+// client/v2/settings/project-sync-settings.jsx — V2-4.7a: the project's sync switches. 2.1.1 T6 moved them
+// from Settings › Advanced › This project to Settings › General › This project › Sync details (canvas 17 · 08).
 //
 // The sync settings and the .design/ ownership switch used to sit at the foot of the Sync panel
 // (panels/SyncPanel.jsx, `sync-settings` / `sync-ownership`). Same routes, same bodies, same
@@ -123,8 +124,8 @@ export default function ProjectSyncSettings({ cloud }) {
     <>
       {loaded && !settings && (
         <p className="v2s-hint" data-testid="settings-project-unlinked">
-          Not linked to a workspace, so there is nothing to sync yet. Connect this project under
-          Connections and its sync switches appear here.
+          Only on this Mac, so there is nothing to sync yet. Put it on Maude Cloud or link your
+          server, and its sync switches appear here.
         </p>
       )}
       {settings && (

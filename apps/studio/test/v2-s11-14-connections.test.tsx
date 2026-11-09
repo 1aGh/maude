@@ -3,7 +3,8 @@
 // 1. The model: status words, the token mask (four characters at most), cloud-vs-team-server.
 // 2. The route: `GET /_api/connections/hub` names the hub's version and the token's LAST FOUR — never
 //    more, never for a short token, and the tokenless probe runs only for a credentialed link.
-// 3. The section, rendered: the team server reads "Connected · saved 1 min ago"; its Advanced shows
+// 3. The section, rendered (2.1.1 T6: the project's link — Maude Cloud, your server — is General › This
+//    project › Sync details now; Connections keeps Claude, Figma, GitHub, AI keys): the server shows
 //    Address, "•••• •••• a91f" + Replace…, Hub version; Replace… goes through `POST /_api/hub/link`
 //    only and the new token never stays in the DOM; Figma Test; "2 keys · Gemini, ElevenLabs"; the v1
 //    rows are no longer mounted. Every route is a stub — no real keychain, no network.
@@ -307,11 +308,14 @@ function installFetch(over: Record<string, unknown> = {}) {
 }
 
 let Section: (props: Record<string, unknown>) => React.ReactElement;
+let ProjectCard: (props: Record<string, unknown>) => React.ReactElement;
 beforeAll(async () => {
   GlobalRegistrator.register();
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   Section = (await import('../client/v2/settings/connections-section.jsx'))
     .default as unknown as typeof Section;
+  ProjectCard = (await import('../client/v2/settings/this-project-card.jsx'))
+    .default as unknown as typeof ProjectCard;
 });
 afterAll(() => {
   globalThis.fetch = realFetch;
@@ -323,7 +327,7 @@ afterEach(async () => {
   for (const r of roots.splice(0)) await act(async () => r.unmount());
   document.body.innerHTML = '';
   const { foldStore } = await import('../client/v2/fold/use-fold.js');
-  for (const id of FOLD_PANELS) foldStore.set(id, false);
+  for (const id of [...FOLD_PANELS, 'settings.project']) foldStore.set(id, false);
 });
 
 const q = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
@@ -356,29 +360,119 @@ async function mount(props: Record<string, unknown> = {}) {
   await settle(80);
 }
 
-describe('Settings › Connections, rendered (06 ad-edge-hub)', () => {
-  test('five rows; the team server reads Connected · saved 1 min ago, with Sign out', async () => {
+/** 2.1.1 T6 — the project's link (Maude Cloud, your server) is General › This project › Sync details now. */
+async function mountProject(props: Record<string, unknown> = {}, { fold = true } = {}) {
+  const { foldStore } = await import('../client/v2/fold/use-fold.js');
+  foldStore.set('settings.project', fold);
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  roots.push(root);
+  await act(async () => root.render(<ProjectCard open onToggle={() => {}} {...props} />));
+  await settle(80);
+}
+
+describe('Settings › Connections, rendered (06 ad-edge-hub, canvas 17 · 10)', () => {
+  test('four cards — the person’s own integrations; the project’s link is not here', async () => {
     installFetch();
-    await mount({ syncStatus: { lastSyncAt: Date.now() - 61_000 } });
-    for (const id of [
-      'settings-cloud',
-      'settings-conn-hub',
-      'settings-github',
-      'settings-ai-keys',
-      'figma-connect-card',
-    ])
+    await mount();
+    for (const id of ['settings-claude', 'settings-github', 'settings-ai-keys', 'figma-connect-card'])
       expect(q(id), id).toBeTruthy();
-    expect(q('settings-conn-hub')?.textContent).toContain('Studio site — your team’s own server');
-    expect(q('settings-conn-hub-status')?.textContent).toBe('Connected · saved 1 min ago');
-    expect(q('settings-hub-sign-out')?.textContent).toBe('Sign out');
-    expect(q('settings-conn-cloud-status')?.textContent).toBe('Signed in as you@studio.cz');
+    for (const id of ['settings-cloud', 'settings-conn-hub', 'cloud-account', 'cloud-bar'])
+      expect(q(id), id).toBeNull();
     expect(q('settings-conn-ai-status')?.textContent).toBe('2 keys · Gemini, ElevenLabs');
     expect(q('settings-conn-figma-status')?.textContent).toBe('Connected · for imports');
     // the v1 rows are not mounted any more
-    expect(document.querySelector('.cb-settings, .gi-settings, .v2s-provider-card')).toBeNull();
-    // the address and the token are Advanced-only: nothing of them before the fold opens
-    expect(document.body.textContent).not.toContain('hub.studio-brno.cz');
+    expect(document.querySelector('.cb-settings, .gi-settings')).toBeNull();
+    expect(q('settings-connections-foot')?.textContent).toContain('General › This project');
+  });
+
+  test('Figma: Test spends the token once and says who it is (D14); Disconnect is beside it', async () => {
+    installFetch();
+    await mount();
+    expect(q('figma-disconnect')?.textContent).toBe('Disconnect');
+    await click(q('figma-test'));
+    await settle();
+    expect(calls.filter((c) => c.url === '/_api/figma/probe' && c.method === 'POST').length).toBe(
+      1
+    );
+    expect(q('figma-connected-as')?.textContent).toBe('Connected as tereza');
+    expect(document.body.innerHTML).not.toContain(SECRET);
+  });
+
+  test('02 ob-settings: "AI — your Claude account" (Pro or Max, Connected, Change…) is the first card', async () => {
+    installFetch({ '/_api/preflight': { items: [{ id: 'claude', status: 'present' }] } });
+    await mount();
+    const row = q('settings-claude');
+    expect(row?.textContent).toContain('AI — your Claude account');
+    expect(row?.textContent).toContain('Pro or Max, or an API key.');
+    expect(q('settings-conn-claude-status')?.textContent).toBe('Connected');
+    expect(q('settings-claude-action')?.textContent).toBe('Change…');
+    const order = [...document.querySelectorAll('[data-card]')].map((n) =>
+      n.getAttribute('data-card')
+    );
+    expect(order).toEqual(['claude', 'figma', 'github', 'ai']);
+    // Change… opens the one Connect sheet, in the card; Cancel closes it
+    await click(q('settings-claude-action'));
+    expect(row?.querySelector('[data-testid="ai-connect-sheet"]')).toBeTruthy();
+    await click(row?.querySelector('[data-testid="ai-connect-cancel"]') ?? null);
+    expect(row?.querySelector('[data-testid="ai-connect-sheet"]')).toBeNull();
+  });
+
+  test('02 ob-settings: no Claude account reads Not connected with Connect…', async () => {
+    installFetch({ '/_api/preflight': { items: [{ id: 'claude', status: 'missing' }] } });
+    await mount();
+    expect(q('settings-conn-claude-status')?.textContent).toBe('Not connected');
+    expect(q('settings-claude-action')?.textContent).toBe('Connect…');
+  });
+
+  test('02 ob-settings: Figma without a token is the closed "Add token…" card; the field opens with it', async () => {
+    installFetch({
+      '/_api/figma/status': { configured: false, requiredScope: 'file_content:read' },
+    });
+    await mount();
+    expect(q('settings-conn-figma-status')?.textContent).toBe('No token');
+    const body = () => q('settings-card-figma-body') as HTMLElement;
+    expect(body().hidden).toBe(true);
+    expect(q('figma-add-token')?.textContent).toBe('Add token…');
+    await click(q('figma-add-token'));
+    expect(body().hidden).toBe(false);
+    expect(body().contains(q('figma-connect-input'))).toBe(true);
+    await click(q('figma-add-token'));
+    expect(body().hidden).toBe(true);
+  });
+
+  test('the section mounts none of the v1 Settings rows', () => {
+    const src = readFileSync(
+      join(import.meta.dir, '..', 'client', 'v2', 'settings', 'connections-section.jsx'),
+      'utf8'
+    );
+    expect(src).not.toMatch(/import CloudBar\b/);
+    const imports = src.match(/^import[^;]*;/gms)?.join('\n') ?? '';
+    expect(src).not.toMatch(/import IdentityBar\b/);
+    expect(imports).not.toMatch(/\bFigmaConnectCard\b/);
+    expect(imports).not.toMatch(/\bProviderKeys\b/);
+  });
+});
+
+describe('General › This project › Sync details: the project’s link (S11.14 rows, moved by 2.1.1 T6)', () => {
+  test('your server reads Connected · synced 1 min ago, with Sign out; the token waits for the fold', async () => {
+    installFetch();
+    await mountProject(
+      { syncStatus: { linked: true, state: 'online', lastSyncAt: Date.now() - 61_000 } },
+      { fold: false }
+    );
+    expect(q('settings-this-project')?.textContent).toContain('also on hub.studio-brno.cz');
+    expect(q('settings-project-connection')?.textContent).toBe('Connected · synced 1 min ago');
+    // the token is Sync-details-only: nothing of it before the fold opens
     expect(document.body.textContent).not.toContain('a91f');
+    const { foldStore } = await import('../client/v2/fold/use-fold.js');
+    await act(async () => foldStore.set('settings.project', true));
+    await settle();
+    expect(q('settings-conn-hub')?.textContent).toContain('Your server · hub.studio-brno.cz');
+    expect(q('settings-conn-hub-status')?.textContent).toBe('Connected · synced 1 min ago');
+    expect(q('settings-hub-sign-out')?.textContent).toBe('Sign out');
+    expect(q('settings-conn-cloud-status')?.textContent).toBe('Signed in as you@studio.cz');
   });
 
   test('the e2e-facing hooks stay: the account row, the cloud-bar words, a viewer’s browser door', async () => {
@@ -391,19 +485,17 @@ describe('Settings › Connections, rendered (06 ad-edge-hub)', () => {
         ],
       },
     });
-    await mount();
+    await mountProject();
     expect(q('cloud-account')?.textContent).toContain('you@studio.cz');
     expect(q('cloud-project-gallery')?.textContent).toBe('View Stub Gallery in the browser');
     expect(q('cloud-project-proj')?.textContent).toBe('Connect Stub Project');
     expect(q('cloud-bar')?.contains(q('settings-cloud-projects'))).toBe(true);
   });
 
-  test('its Advanced: Address (copy), Access token •••• •••• a91f + Replace…, Hub version', async () => {
+  test('your server: Address (copy), Access token •••• •••• a91f + Replace…, Hub version', async () => {
     installFetch();
-    await mount();
-    await click(q('fold-connections.hub-toggle'));
-    await settle();
-    const body = q('fold-connections.hub-body') as HTMLElement;
+    await mountProject();
+    const body = q('settings-conn-hub') as HTMLElement;
     expect(body.textContent).toContain('https://hub.studio-brno.cz');
     expect(q('settings-hub-token')?.textContent).toContain('•••• •••• a91f');
     expect(q('settings-hub-token-replace')?.textContent).toBe('Replace…');
@@ -418,6 +510,8 @@ describe('Settings › Connections, rendered (06 ad-edge-hub)', () => {
         (order[i - 1] as Node).compareDocumentPosition(order[i] as Node) &
           Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy();
+    // the account row says who the server signed this project in as
+    expect(q('settings-project-account')?.textContent).toContain('you@studio-brno');
     // the token is never rendered beyond its last four
     const html = document.body.innerHTML;
     expect(html).not.toContain(SECRET);
@@ -429,9 +523,7 @@ describe('Settings › Connections, rendered (06 ad-edge-hub)', () => {
       BASE['/_api/connections/hub'] as { hub: Record<string, unknown> }
     ).hub;
     installFetch({ '/_api/connections/hub': { ok: true, hub } });
-    await mount();
-    await click(q('fold-connections.hub-toggle'));
-    await settle();
+    await mountProject();
     expect(q('settings-hub-token')?.textContent).toContain('•••• •••• a91f');
     expect(q('settings-hub-version')?.textContent).toContain('maude-hub 2.0.0');
     expect(q('settings-hub-account')).toBeNull();
@@ -440,9 +532,7 @@ describe('Settings › Connections, rendered (06 ad-edge-hub)', () => {
 
   test('Replace… writes through POST /_api/hub/link only, and the typed token leaves the DOM', async () => {
     installFetch();
-    await mount();
-    await click(q('fold-connections.hub-toggle'));
-    await settle();
+    await mountProject();
     await click(q('settings-hub-token-replace'));
     const input = q('settings-hub-token-input') as HTMLInputElement;
     expect(input.type).toBe('password');
@@ -464,7 +554,7 @@ describe('Settings › Connections, rendered (06 ad-edge-hub)', () => {
     expect(document.body.innerHTML).not.toContain(NEW_TOKEN);
   });
 
-  test('a cloud project link: no team server row is claimed, the address is under Maude Cloud', async () => {
+  test('a cloud project link: no server block is claimed, the address is under Maude Cloud', async () => {
     installFetch({
       '/_api/cloud/status': {
         connected: true,
@@ -474,77 +564,25 @@ describe('Settings › Connections, rendered (06 ad-edge-hub)', () => {
         linkedHub: { url: 'https://studio-site.cloud.maude.sh', credentialed: true },
       },
     });
-    await mount();
-    expect(q('settings-team-server-add')?.textContent).toBe('Add a team server…');
+    await mountProject();
+    expect(q('settings-team-server-add')?.textContent).toBe('Link another server…');
     expect(q('settings-hub-sign-out')).toBeNull();
-    await click(q('fold-connections.cloud-toggle'));
-    await settle();
+    expect(q('settings-conn-hub')).toBeNull();
+    expect(q('settings-cloud')?.contains(q('settings-hub-address'))).toBe(true);
     expect(q('settings-hub-address')?.textContent).toContain('https://studio-site.cloud.maude.sh');
     expect(q('settings-hub-token-replace')).toBeNull(); // a cloud token renews itself
+    expect(q('settings-this-project')?.textContent).toContain('also on Maude Cloud');
   });
 
-  test('Figma: Test spends the token once and says who it is (D14); Disconnect is beside it', async () => {
-    installFetch();
-    await mount();
-    expect(q('figma-disconnect')?.textContent).toBe('Disconnect');
-    await click(q('figma-test'));
-    await settle();
-    expect(calls.filter((c) => c.url === '/_api/figma/probe' && c.method === 'POST').length).toBe(
-      1
-    );
-    expect(q('figma-connected-as')?.textContent).toBe('Connected as tereza');
-    expect(document.body.innerHTML).not.toContain(SECRET);
-  });
-
-  test('02 ob-settings: "AI — your Claude account" (Pro or Max, Connected, Change…) sits between the hub and Figma', async () => {
-    installFetch({ '/_api/preflight': { items: [{ id: 'claude', status: 'present' }] } });
-    await mount();
-    const row = q('settings-claude');
-    expect(row?.textContent).toContain('AI — your Claude account');
-    expect(row?.textContent).toContain('Pro or Max, or an API key.');
-    expect(q('settings-conn-claude-status')?.textContent).toBe('Connected');
-    expect(q('settings-claude-action')?.textContent).toBe('Change…');
-    const order = [...document.querySelectorAll('[data-conn]')].map((n) =>
-      n.getAttribute('data-conn')
-    );
-    expect(order.slice(0, 4)).toEqual(['cloud', 'hub', 'claude', 'figma']);
-    // Change… opens the one Connect sheet, in the row; Cancel closes it
-    await click(q('settings-claude-action'));
-    expect(row?.querySelector('[data-testid="ai-connect-sheet"]')).toBeTruthy();
-    await click(row?.querySelector('[data-testid="ai-connect-cancel"]') ?? null);
-    expect(row?.querySelector('[data-testid="ai-connect-sheet"]')).toBeNull();
-  });
-
-  test('02 ob-settings: no Claude account reads Not connected with Connect…', async () => {
-    installFetch({ '/_api/preflight': { items: [{ id: 'claude', status: 'missing' }] } });
-    await mount();
-    expect(q('settings-conn-claude-status')?.textContent).toBe('Not connected');
-    expect(q('settings-claude-action')?.textContent).toBe('Connect…');
-  });
-
-  test('02 ob-settings: Figma without a token is the collapsed "Add token…" row; the field opens on it', async () => {
+  test('a project only on this Mac offers Link your server… (the team-server form when T5’s dialog is absent)', async () => {
     installFetch({
-      '/_api/figma/status': { configured: false, requiredScope: 'file_content:read' },
+      '/_api/cloud/status': { connected: false, url: 'https://cloud.maude.sh', linkedHub: null },
     });
-    await mount();
-    expect(q('settings-conn-figma-status')?.textContent).toBe('No token');
-    expect(q('figma-connect-input')).toBeNull();
-    expect(q('figma-add-token')?.textContent).toBe('Add token…');
-    await click(q('figma-add-token'));
-    expect(q('figma-connect-input')).toBeTruthy();
-    await click(q('figma-add-token'));
-    expect(q('figma-connect-input')).toBeNull();
-  });
-
-  test('the section mounts none of the v1 Settings rows', () => {
-    const src = readFileSync(
-      join(import.meta.dir, '..', 'client', 'v2', 'settings', 'connections-section.jsx'),
-      'utf8'
-    );
-    expect(src).not.toMatch(/import CloudBar\b/);
-    const imports = src.match(/^import[^;]*;/gms)?.join('\n') ?? '';
-    expect(src).not.toMatch(/import IdentityBar\b/);
-    expect(imports).not.toMatch(/\bFigmaConnectCard\b/);
-    expect(imports).not.toMatch(/\bProviderKeys\b/);
+    await mountProject({}, { fold: false });
+    expect(q('settings-project-connection')?.textContent).toBe('Only on this Mac');
+    expect(q('settings-project-account')?.textContent).toContain('No account');
+    await click(q('settings-team-server-add'));
+    await settle();
+    expect(q('team-projects-dialog')).toBeTruthy();
   });
 });

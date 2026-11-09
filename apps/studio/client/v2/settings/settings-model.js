@@ -37,6 +37,9 @@ export const SETTINGS_TAB_STORE = 'mdcc-settings-tab-v2';
  * Every row Settings carries that nothing-deleted.json knows by id (`nd`), plus the v1 settings that
  * have no ND row of their own (`nd: null`, kept reachable because "every today-setting has a row").
  * `testid` is the hook a person / scenario finds the control by; `where` is the path to follow.
+ * 2.1.1 T6: `card` is the card of its section that holds it (settings-cards.js `CARDS`) — ⌘K opens that
+ * card — and `fold` the fold inside it, when the row sits under one. A `local` row in General lives in
+ * This project, the one General card that reads this Mac.
  */
 export const SETTINGS_ROWS = Object.freeze([
   // ── General ──────────────────────────────────────────────────────────────────────────────────
@@ -44,6 +47,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-light-dark-toggle',
     section: 'general',
     testid: 'settings-theme',
+    card: 'look',
     action: 'settings.theme',
     where: 'Settings › General › Look › Theme: Light · Dark · Auto (⌘K “Theme” toggles it)',
   },
@@ -51,15 +55,21 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-open-the-cloud-dashboard',
     section: 'general',
     testid: 'settings-open-dashboard',
-    where: 'Settings › General › Account › Open the cloud dashboard',
+    card: 'this-project',
+    // 2.1.1 T6: the Maude Cloud account belongs to the project (canvas 17 · 10) — on the desktop it is under
+    // This project › Sync details; a cloud tab has no This project card and keeps its own Account card.
+    where:
+      'Settings › General › This project › Sync details › Maude Cloud › Manage on the web (a cloud tab: Settings › General › Account)',
     // The Mac's own account (a local project): a read-only link is somebody else's Mac, so it has none.
     // A cloud viewer keeps it — the hub told its tab where the dashboard is.
     account: true,
+    fold: 'settings.project',
   },
   {
     nd: null,
     section: 'general',
     testid: 'settings-canvas-view',
+    card: 'canvas',
     where: 'Settings › General › Canvas and view',
   },
   {
@@ -68,6 +78,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: null,
     section: 'general',
     testid: 'panel-side-<id>',
+    card: 'layout',
     where: 'Settings › General › Layout › Panel positions',
   },
   {
@@ -75,6 +86,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: null,
     section: 'general',
     testid: 'settings-single-keys',
+    card: 'keyboard',
     where: 'Settings › General › Keyboard › Single-key shortcuts',
   },
   {
@@ -82,22 +94,51 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: null,
     section: 'general',
     testid: 'settings-terminal-opens',
+    card: 'terminal',
     // General is about the person, not the Mac (no `local`); `native`: only the desktop app has the switch.
     where: 'Settings › General › Terminal › Let the terminal open projects in Maude',
     native: true,
   },
-  // ── Connections ──────────────────────────────────────────────────────────────────────────────
+  // ── General › This project (2.1.1 T6, canvas 17 · 08 · 09) ─────────────────────────────────────
+  // The project's link — Maude Cloud and your server — left Connections: Connections is about the person,
+  // This project is about this project. Desktop only (`local`): the card reads this Mac's link and sign-ins.
   {
     nd: 'A-cloud-account-email-and-sign-out',
-    section: 'connections',
+    section: 'general',
     testid: 'cloud-account',
-    where: 'Settings › Connections › Maude Cloud (email, Sign out)',
+    card: 'this-project',
+    where: 'Settings › General › This project › Sync details › Maude Cloud (email, Sign out)',
     local: true,
+    fold: 'settings.project',
   },
+  {
+    nd: 'A-team-hub-address-and-access-token',
+    section: 'general',
+    testid: 'settings-hub-address',
+    card: 'this-project',
+    // the address, the access token as its last four characters, Replace… — under Sync details, for a
+    // project linked to your server (a cloud link draws the address under its Maude Cloud block)
+    where:
+      'Settings › General › This project › Sync details › Your server (address, access token •••• last 4, Replace…)',
+    local: true,
+    fold: 'settings.project',
+  },
+  {
+    nd: 'A-your-team-s-own-server-email-password',
+    section: 'general',
+    testid: 'settings-team-server-add',
+    card: 'this-project',
+    where:
+      'Settings › General › This project › Link your server… (a linked project: Sync details › Link another server…)',
+    local: true,
+    fold: 'settings.project',
+  },
+  // ── Connections (2.1.1 T6, canvas 17 · 10: only the person's own integrations) ─────────────────
   {
     nd: 'A-sign-in-with-github',
     section: 'connections',
     testid: 'settings-github',
+    card: 'github',
     where: 'Settings › Connections › GitHub › Sign in',
     local: true,
   },
@@ -105,6 +146,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-ai-provider-keys',
     section: 'connections',
     testid: 'settings-ai-keys',
+    card: 'ai',
     where: 'Settings › Connections › AI images, video and voice › Manage',
     local: true,
   },
@@ -112,26 +154,8 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-figma-token',
     section: 'connections',
     testid: 'figma-connect-card',
+    card: 'figma',
     where: 'Settings › Connections › Figma (Test, Disconnect; the token under its Advanced)',
-    local: true,
-  },
-  {
-    nd: 'A-team-hub-address-and-access-token',
-    section: 'connections',
-    testid: 'settings-hub-address',
-    // S11.14 — under the Advanced of the row the link belongs to (your team's own server, or Maude Cloud):
-    // the address, the access token as its last four characters, Replace….
-    where:
-      'Settings › Connections › Your team’s own server › Advanced (address, access token •••• last 4, Replace…)',
-    local: true,
-    // drawn only while that row's own Advanced fold is open (a cloud link draws it under `connections.cloud`)
-    fold: 'connections.hub',
-  },
-  {
-    nd: 'A-your-team-s-own-server-email-password',
-    section: 'connections',
-    testid: 'settings-team-server-add',
-    where: 'Settings › Connections › Your team’s own server › Add a team server…',
     local: true,
   },
   // ── Advanced ─────────────────────────────────────────────────────────────────────────────────
@@ -139,6 +163,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-app-version',
     section: 'advanced',
     testid: 'settings-app-version',
+    card: 'this-mac',
     where: 'Settings › Advanced › This Mac › Version',
     local: true,
   },
@@ -146,6 +171,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-update-banner-restart-now-later',
     section: 'advanced',
     testid: 'settings-update-restart',
+    card: 'this-mac',
     where:
       'Settings › Advanced › This Mac › Update (Restart now · Later) — the banner says the same',
     local: true,
@@ -156,6 +182,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'D19',
     section: 'advanced',
     testid: 'settings-check-updates',
+    card: 'this-mac',
     where: 'Settings › Advanced › This Mac › Update › Check for updates',
     local: true,
     native: true,
@@ -164,6 +191,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-server-build-name-maude-dev-srv',
     section: 'advanced',
     testid: 'settings-server-build',
+    card: 'this-mac',
     where: 'Settings › Advanced › This Mac › Server build',
     local: true,
   },
@@ -171,6 +199,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-where-keys-are-kept-keys-json',
     section: 'advanced',
     testid: 'settings-keys-store',
+    card: 'this-mac',
     where: 'Settings › Advanced › This Mac › Keys are kept in',
     local: true,
   },
@@ -178,6 +207,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-install-claude-code-automatically',
     section: 'advanced',
     testid: 'settings-claude-autosetup',
+    card: 'claude-code',
     where: 'Settings › Advanced › Claude Code › Install and sign in automatically',
     local: true,
   },
@@ -185,6 +215,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-draw-with-the-svg-agent-copies-design-draw',
     section: 'advanced',
     testid: 'settings-copy-draw',
+    card: 'claude-code',
     where: 'Settings › Advanced › Claude Code › Draw a mark with the SVG agent › Copy command',
     local: true,
   },
@@ -192,6 +223,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-brand-upload-copy-command',
     section: 'advanced',
     testid: 'settings-copy-brand',
+    card: 'claude-code',
     where: 'Settings › Advanced › Claude Code › Import a brand from the terminal › Copy command',
     local: true,
   },
@@ -199,6 +231,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-transcription-engine-and-whisper-model',
     section: 'advanced',
     testid: 'settings-transcription',
+    card: 'engines',
     where: 'Settings › Advanced › Engines › Subtitles (engine + whisper model)',
     local: true,
   },
@@ -206,42 +239,54 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-keyframe-engine-and-gemma-model',
     section: 'advanced',
     testid: 'settings-keyframes',
+    card: 'engines',
     where: 'Settings › Advanced › Engines › Video keyframes (engine + Gemma model)',
     local: true,
   },
+  // 2.1.1 T6 (canvas 17 · 08, 11): This project's sync switches left Advanced — they are the project's,
+  // under General › This project › Sync details.
   {
     nd: 'A-sync-project-files-propagate-deletions',
-    section: 'advanced',
+    section: 'general',
     testid: 'sync-setting-syncFiles',
-    where: 'Settings › Advanced › This project › Sync project files · Propagate deletions',
+    card: 'this-project',
+    where: 'Settings › General › This project › Sync details › Sync project files · Propagate deletions',
     local: true,
+    fold: 'settings.project',
   },
   {
     nd: 'A-sync-canvases-only-or-everything',
-    section: 'advanced',
+    section: 'general',
     testid: 'sync-setting-syncFiles',
-    where: 'Settings › Advanced › This project › Sync project files (off = canvases only)',
+    card: 'this-project',
+    where: 'Settings › General › This project › Sync details › Sync project files (off = canvases only)',
     local: true,
+    fold: 'settings.project',
   },
   {
     nd: 'A-first-link-conflicts-rule',
-    section: 'advanced',
+    section: 'general',
     testid: 'sync-setting-firstAnchor',
-    where: 'Settings › Advanced › This project › When a folder first links',
+    card: 'this-project',
+    where: 'Settings › General › This project › Sync details › When a folder first links',
     local: true,
+    fold: 'settings.project',
   },
   {
     nd: 'A-hand-design-to-the-workspace',
-    section: 'advanced',
+    section: 'general',
     testid: 'sync-ownership-adopt',
-    where: 'Settings › Advanced › This project › Who keeps .design/ › Hand over…',
+    card: 'this-project',
+    where: 'Settings › General › This project › Sync details › Who keeps .design/ › Hand over…',
     local: true,
+    fold: 'settings.project',
   },
   {
     // S11.13 (06 ad-settings › This Mac): "Bun 1.3.4 · built in" — the runtime that serves the project.
     nd: null,
     section: 'advanced',
     testid: 'settings-runtime',
+    card: 'this-mac',
     where: 'Settings › Advanced › This Mac › Runtime',
     local: true,
   },
@@ -250,6 +295,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: null,
     section: 'advanced',
     testid: 'settings-server-port',
+    card: 'this-mac',
     where: 'Settings › Advanced › This Mac › Local server port',
     local: true,
   },
@@ -257,6 +303,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: null,
     section: 'advanced',
     testid: 'settings-plugins',
+    card: 'claude-code',
     where: 'Settings › Advanced › Claude Code › Plugins',
     local: true,
   },
@@ -265,6 +312,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: null,
     section: 'advanced',
     testid: 'settings-own-plugin-copy',
+    card: 'claude-code',
     action: 'settings.use-own-plugin-copy',
     where: 'Settings › Advanced › Claude Code › Use my own plugin copy',
     local: true,
@@ -274,6 +322,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: null,
     section: 'advanced',
     testid: 'settings-decision-memory',
+    card: 'decision-memory',
     where: 'Settings › Advanced › Decision memory',
     local: true,
   },
@@ -282,6 +331,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: null,
     section: 'advanced',
     testid: 'settings-report-logs',
+    card: 'privacy',
     where: 'Settings › Advanced › Privacy › Logs in bug reports',
     local: true,
   },
@@ -290,6 +340,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: null,
     section: 'advanced',
     testid: 'settings-experimental-teams',
+    card: 'experimental',
     action: 'settings.experimental-teams',
     where: 'Settings › Advanced › Experimental › AI reviews argue it out (teams)',
     local: true,
@@ -298,6 +349,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: null,
     section: 'advanced',
     testid: 'settings-reset-panel-layout',
+    card: 'reset',
     action: 'settings.reset-panel-layout',
     where: 'Settings › Advanced › Reset › Reset panel layout',
     local: true,
@@ -306,6 +358,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: null,
     section: 'advanced',
     testid: 'settings-reset-all',
+    card: 'reset',
     action: 'settings.reset-all',
     where: 'Settings › Advanced › Reset › Reset all settings…',
     local: true,
@@ -316,6 +369,7 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: null,
     section: 'advanced',
     testid: 'settings-reset-folds',
+    card: 'reset',
     where: 'Settings › Advanced › Reset › Close all Advanced sections',
     // ⌘K lists the action itself (06 ad-search draws it once, path "Settings › Advanced › Reset"): this row stays
     // in the sheet and in the parity table but is not a second search result.
@@ -329,6 +383,9 @@ export const SETTINGS_ROWS = Object.freeze([
 export function sectionsFor(cloud, readOnly = false) {
   return SECTIONS.filter((s) => !s.local || (cloud === null && !readOnly));
 }
+
+/** The fold This project's Sync details opens (remembered per Mac, like every Advanced fold). */
+export const PROJECT_FOLD = 'settings.project';
 
 /** Is a Settings row in this shell? The one rule the sheet, ⌘K and the parity table share. */
 export function rowShown(row, { cloud = null, readOnly = false } = {}) {
@@ -426,6 +483,7 @@ export const FOLD_LABELS = Object.freeze({
   'left.canvases': 'Canvases › Advanced',
   'left.layers': 'Layers › Advanced',
   settings: 'Settings › Advanced',
+  'settings.project': 'Settings › This project › Sync details',
   diagnostics: 'Menu › Diagnostics › Advanced',
   help: 'Keyboard shortcuts › Advanced',
   inspector: 'Inspector › Advanced',

@@ -50,7 +50,9 @@ describe('the rows contract (pure)', () => {
     for (const r of ND.rows.filter((x) => SETTINGS_HOMES.has(x.home))) {
       const m = SETTINGS_ROWS.find((x) => x.nd === r.id);
       expect(m, r.id).toBeTruthy();
-      expect(m?.section, r.id).toBe(bySection[r.home]);
+      // 2.1.1 T6 (canvas 17 · 10, 11): the project's link and its sync switches moved to General › This project
+      if (m?.card === 'this-project') expect(m.section, r.id).toBe('general');
+      else expect(m?.section, r.id).toBe(bySection[r.home]);
     }
   });
 
@@ -80,10 +82,13 @@ describe('the rows contract (pure)', () => {
     expect(sectionsFor(null).map((s) => s.id)).toEqual(['general', 'connections', 'advanced']);
     expect(sectionsFor(undefined).map((s) => s.id)).toEqual(['general']);
     expect(sectionsFor({ role: 'member' }).map((s) => s.id)).toEqual(['general']);
-    // every row flagged `local` lives in a section that needs the desktop
+    // every row flagged `local` lives in a section that needs the desktop — or in General's This project
+    // card, the one General card that reads this Mac (2.1.1 T6), which a cloud tab does not draw
     for (const m of SETTINGS_ROWS) {
       const sec = SECTIONS.find((s) => s.id === m.section);
-      expect(!!m.local, `${m.testid} local flag`).toBe(!!sec?.local);
+      if (m.card === 'this-project' && m.section === 'general')
+        expect(!!m.local || !!m.account, m.testid).toBe(true);
+      else expect(!!m.local, `${m.testid} local flag`).toBe(!!sec?.local);
     }
   });
 
@@ -275,15 +280,32 @@ describe('the desktop sheet renders every Settings row', () => {
     expect(title?.textContent).toBe('Settings');
   });
 
-  test('General: account, look, canvas and view, layout', async () => {
+  // 2.1.1 T6 (canvas 17 · 08): This project opens first; its Sync details fold holds the project's link — the
+  // account, the cloud projects on this Mac, your server — and the sync switches that left Advanced.
+  const openSyncDetails = async () => {
+    const { foldStore } = await import('../client/v2/fold/use-fold.js');
+    foldStore.set('settings.project', true);
+  };
+  const shutSyncDetails = async () => {
+    const { foldStore } = await import('../client/v2/fold/use-fold.js');
+    foldStore.set('settings.project', false);
+  };
+
+  test('General: This project (account, link, sync switches), look, canvas and view, layout', async () => {
+    await openSyncDetails();
     await mount();
     for (const id of [
+      'settings-this-project',
       'settings-account',
       'settings-open-dashboard',
       'settings-open-emails',
       'settings-theme',
       'settings-canvas-view',
       'panel-side-tree',
+      'sync-setting-syncFiles',
+      'sync-setting-propagateDeletes',
+      'sync-setting-firstAnchor',
+      'sync-ownership-adopt',
     ])
       expect(q(id), id).toBeTruthy();
     // gate-b-polish2 (02 ob-settings, 06): Look is Light · Dark · Auto; the Inspector words left General
@@ -291,15 +313,13 @@ describe('the desktop sheet renders every Settings row', () => {
     expect(q('settings-theme')?.querySelector('input[value="auto"]')).toBeTruthy();
     // the account says who, never a secret
     expect(document.body.textContent).toContain('jana@example.test');
+    await shutSyncDetails(); // the fold is remembered per Mac: leave it shut
   });
 
-  test('Connections: cloud account and projects, the workspace address, team server, GitHub, AI keys, Figma', async () => {
+  test('General › This project: cloud account and projects, the workspace address, your server', async () => {
     installTauri();
+    await openSyncDetails();
     await mount();
-    await goto('connections');
-    // S11.14 — the address and the token live under the linked connection's own Advanced
-    await click(q('fold-connections.hub-toggle'));
-    await settle(40);
     for (const id of [
       'cloud-account',
       'cloud-sign-out',
@@ -309,6 +329,21 @@ describe('the desktop sheet renders every Settings row', () => {
       'cloud-project-p2', // p2 offers Connect
       'settings-hub-address',
       'settings-team-server-add',
+    ])
+      expect(q(id), id).toBeTruthy();
+    expect(q('cloud-project-p2')?.textContent).toContain('Connect Brand book');
+    // the address is shown; the token is a mask (S11.14: its last four at most, from the server)
+    expect(q('settings-hub-address')?.textContent).toContain('https://hub.example.test/p/studio');
+    expect(q('settings-hub-address')?.textContent).toContain('•••• •••• ••••');
+    await shutSyncDetails();
+  });
+
+  test('Connections: Claude, GitHub, AI keys, Figma — and nothing of the project’s link', async () => {
+    installTauri();
+    await mount();
+    await goto('connections');
+    for (const id of [
+      'settings-claude',
       'settings-github',
       'settings-github-signin',
       'settings-ai-keys',
@@ -316,17 +351,15 @@ describe('the desktop sheet renders every Settings row', () => {
       'figma-test', // "Test" (D14)
     ])
       expect(q(id), id).toBeTruthy();
-    expect(q('cloud-project-p2')?.textContent).toContain('Connect Brand book');
-    // the address is shown; the token is a mask (S11.14: its last four at most, from the server)
-    expect(q('settings-hub-address')?.textContent).toContain('https://hub.example.test/p/studio');
-    expect(q('settings-hub-address')?.textContent).toContain('•••• •••• ••••');
-    await click(q('fold-connections.hub-toggle')); // the fold is remembered per Mac: leave it shut
+    const panel = q('settings-panel-connections') as HTMLElement;
+    for (const id of ['cloud-account', 'cloud-signin', 'settings-hub-address', 'settings-team-server-add'])
+      expect(panel.querySelector(`[data-testid="${id}"]`), id).toBeNull();
   });
 
-  test('Connections: “Add a team server…” opens the server form only (D12)', async () => {
+  test('This project: “Link another server…” opens the server form only (D12)', async () => {
     installTauri();
+    await openSyncDetails();
     await mount();
-    await goto('connections');
     await click(q('settings-team-server-add'));
     await settle(50);
     for (const id of ['team-projects-dialog', 'team-hub-url', 'team-hub-open'])
@@ -348,9 +381,10 @@ describe('the desktop sheet renders every Settings row', () => {
       document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
     expect(q('settings-sheet')).toBeTruthy();
+    await shutSyncDetails();
   });
 
-  test('Advanced: this Mac, Claude Code, engines, this project', async () => {
+  test('Advanced: this Mac, Claude Code, engines — no This project', async () => {
     installTauri();
     await mount();
     await goto('advanced');
@@ -365,37 +399,39 @@ describe('the desktop sheet renders every Settings row', () => {
       'settings-transcription-engine',
       'settings-keyframes',
       'settings-keyframe-engine',
-      'sync-setting-syncFiles',
-      'sync-setting-propagateDeletes',
-      'sync-setting-firstAnchor',
-      'sync-settings',
-      'sync-ownership',
-      'sync-ownership-mode',
-      'sync-ownership-adopt',
       'settings-check-updates',
       'settings-reset-folds',
     ])
       expect(q(id), id).toBeTruthy();
+    const panel = q('settings-panel-advanced') as HTMLElement;
+    for (const id of ['sync-settings', 'sync-ownership', 'settings-this-project'])
+      expect(panel.querySelector(`[data-testid="${id}"]`), id).toBeNull();
     // 06 ad-settings: "Restart now" exists only when a build is staged ("2.0.1 is ready · Restart now")
     expect(q('settings-update-restart')).toBeNull();
   });
 
-  // Phase 8 C10 (06 ad-settings): Advanced is THREE columns — This Mac · Engines · This project — in a 1300 x 700
-  // sheet, each rail tab carries its glyph, and the veil is the kit's (the canvas still reads through it).
-  test('Advanced is three columns; the rail tabs carry glyphs', async () => {
+  // 2.1.1 T6 (canvas 17 · 11): Advanced is one column of cards — Generation spend · This Mac · Claude Code ·
+  // Decision memory · Engines · Privacy · Experimental, then Reset — and each rail tab carries its glyph.
+  test('Advanced is one column of cards; the rail tabs carry glyphs', async () => {
     installTauri();
     await mount();
     await goto('advanced');
-    const cols = [
-      ...document.querySelectorAll('[data-testid="settings-advanced-cols"] > .v2s-col'),
+    const cards = [
+      ...document.querySelectorAll('[data-testid="settings-advanced-cards"] > .v2s-card'),
     ];
-    expect(cols.length).toBe(3);
-    const titles = cols.map((c) =>
-      [...c.querySelectorAll('.v2s-group-t')].map((t) => t.textContent)
-    );
-    expect(titles[0]).toEqual(['This Mac', 'Claude Code', 'Decision memory']);
-    expect(titles[1]?.[0]).toBe('Engines — Auto picks for you');
-    expect(titles[2]?.[0]).toBe('This project');
+    expect(cards.map((c) => c.querySelector('.v2s-card-tt')?.textContent)).toEqual([
+      'Generation spend',
+      'This Mac',
+      'Claude Code',
+      'Decision memory',
+      'Engines',
+      'Privacy',
+      'Experimental',
+      'Reset',
+    ]);
+    // This Mac is open on a fresh session (11), the rest closed and saying what is set
+    expect(cards.filter((c) => c.hasAttribute('data-open')).length).toBe(1);
+    expect(q('settings-this-mac')?.hasAttribute('data-open')).toBe(true);
     for (const tab of document.querySelectorAll('.v2s-tab'))
       expect(tab.querySelector('svg')).toBeTruthy();
   });
@@ -575,10 +611,11 @@ describe('the desktop sheet renders every Settings row', () => {
       '/_api/sync/settings': { ok: true, settings: null },
       '/_api/sync/ownership': { mode: 'repo-owned', git: false },
     });
+    await openSyncDetails();
     await mount();
-    await goto('advanced');
     expect(q('settings-project-unlinked')).toBeTruthy();
     expect(q('sync-setting-syncFiles')).toBeNull();
+    await shutSyncDetails();
   });
 });
 

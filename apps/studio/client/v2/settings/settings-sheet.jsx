@@ -13,6 +13,9 @@
 // tablist (arrows / Home / End rove); each section is a tabpanel. A section that was opened stays
 // mounted (hidden) so a model download's poll survives a section switch.
 //
+// 2.1.1 T6 (canvas 17 · 08 · 10 · 11): every section is one column of expandable cards (settings-card.jsx),
+// one open per section; ⌘K opens the card that holds the row it found.
+//
 // Connections and Advanced are the desktop's (`cloud === null`, and an owner's session): a browser tab
 // has no keychain, ffmpeg or whisper, and a read-only link must not touch the Mac's config, so those
 // sections are ABSENT there, not disabled (settings-model.js).
@@ -25,6 +28,7 @@ import AdvancedSection from './advanced-section.jsx';
 import { restoreFocus, trapTab } from '../shell/modal-focus.js';
 import ConnectionsSection from './connections-section.jsx';
 import GeneralSection from './general-section.jsx';
+import { parseSettingsTarget } from './settings-cards.js';
 import { railTarget, resolveTab, SETTINGS_TAB_STORE, sectionsFor } from './settings-model.js';
 
 function remembered() {
@@ -41,7 +45,8 @@ export default function SettingsSheet({
   /** A read-only session (V2-4.9): General only — the preferences of the person, none of the Mac's. */
   readOnly = false,
   onClose,
-  initialTab,
+  /** The section to open on — or ⌘K's `"advanced#privacy"`: the section, then the card that holds the row. */
+  initialTab: requested,
   /** The staged auto-update (`{ version }`) or null, and the “Later” answer. */
   update = null,
   onUpdateLater,
@@ -52,7 +57,13 @@ export default function SettingsSheet({
 }) {
   const sections = sectionsFor(cloud, readOnly);
   const ids = sections.map((s) => s.id);
+  // 2.1.1 T6: ⌘K hands `"advanced#privacy"` — the tab, then the card that holds the row it found.
+  const { tab: initialTab, card: initialCard } = parseSettingsTarget(requested);
   const [tab, setTab] = useState(() => resolveTab(cloud, initialTab, remembered(), readOnly));
+  const [focus] = useState(() =>
+    initialCard && initialTab ? { tab: initialTab, card: initialCard, n: 1 } : null
+  );
+  const focusFor = (id) => (focus && focus.tab === id ? focus : null);
   // A section the shell lost between renders (cloud answered late) must not stay selected.
   const current = ids.includes(tab) ? tab : 'general';
   const [visited, setVisited] = useState(() => new Set([current]));
@@ -182,17 +193,27 @@ export default function SettingsSheet({
                   data-testid={`settings-panel-${s.id}`}
                 >
                   {s.id === 'general' && (
-                    <GeneralSection cloud={cloud} readOnly={readOnly} {...general} />
-                  )}
-                  {s.id === 'connections' && (
-                    <ConnectionsSection
+                    <GeneralSection
+                      cloud={cloud}
+                      readOnly={readOnly}
+                      focus={focusFor('general')}
                       syncStatus={syncStatus}
                       onLinkedHub={onLinkedHub}
                       onLocalProject={onLocalProject}
+                      onCloseSheet={onClose}
+                      {...general}
                     />
                   )}
+                  {s.id === 'connections' && (
+                    <ConnectionsSection focus={focusFor('connections')} />
+                  )}
                   {s.id === 'advanced' && (
-                    <AdvancedSection update={update} onUpdateLater={onUpdateLater} live={general} />
+                    <AdvancedSection
+                      update={update}
+                      onUpdateLater={onUpdateLater}
+                      live={general}
+                      focus={focusFor('advanced')}
+                    />
                   )}
                 </section>
               )

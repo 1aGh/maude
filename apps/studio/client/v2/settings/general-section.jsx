@@ -1,11 +1,15 @@
 // client/v2/settings/general-section.jsx — V2-4.7a: Settings › General (02 ob-settings, left card).
 //
-// Account (S9.20, account.jsx) · Look (Theme: Light · Dark · Auto, gate-b-polish2) · Canvas and view · Keyboard · Search (S8.20, search in pictures) · Layout. Everything here is a preference of the person, in every
-// shell. Look is 02 ob-settings' one Theme row; the Inspector words left General (06: the inspector's
-// Advanced fold is the raw editor, Designer is the only default — the v2 inspector ignores the old switch).
-// Terminal (#206): may Claude Code in the terminal open projects in this Maude (a Tauri pref; the desktop app only).
-// The rest are today's controls (panels/SettingsPanel.jsx): the four canvas switches, the left/right panel positions and the Layers mode — same props, same
-// handlers, same stores. Nothing is stored differently.
+// 2.1.1 T6 (canvas 17 · 08): one column of cards — This project first and open (this-project-card.jsx), then
+// Look · Canvas and view · Terminal · Keyboard · Layout, each closed and saying what is set. A cloud tab has
+// no This project card; its account keeps an Account card of its own (account.jsx).
+//
+// Look is 02 ob-settings' one Theme row (Light · Dark · Auto, gate-b-polish2); the Inspector words left
+// General (06: the inspector's Advanced fold is the raw editor). Terminal (#206): may Claude Code in the
+// terminal open projects in this Maude (a Tauri pref; the desktop app only). Search in pictures (S8.20)
+// sits in Canvas and view. The rest are today's controls (panels/SettingsPanel.jsx): the four canvas
+// switches, the left/right panel positions and the Layers mode — same props, same handlers, same stores.
+// Nothing is stored differently.
 
 import { useEffect, useState } from 'react';
 
@@ -15,7 +19,15 @@ import { DescribeSettingsRow } from '../assets/describe-consent.jsx';
 import { getPaletteEnv } from '../search/search-env.js';
 import { useSingleKeys } from '../shell/use-single-keys.js';
 import { AccountBlock } from './account.jsx';
-import { Group, Row, SwitchRow } from './parts.jsx';
+import { Row, SwitchRow } from './parts.jsx';
+import { SettingsCard } from './settings-card.jsx';
+import {
+  canvasSummary,
+  keyboardSummary,
+  layoutSummary,
+  lookSummary,
+  terminalSummary,
+} from './settings-cards.js';
 import {
   pickTheme,
   systemTheme,
@@ -23,6 +35,8 @@ import {
   useThemeAutoOn,
   writeThemeAuto,
 } from './theme-auto.js';
+import ThisProjectCard from './this-project-card.jsx';
+import { useOpenCard } from './use-open-card.js';
 
 const THEMES = [
   { id: 'light', label: 'Light' },
@@ -65,9 +79,10 @@ export function ThemeSegment({ theme, onSetTheme }) {
 }
 
 /** #206 (DDR-250): a terminal design run may open projects in Maude. DEFAULT ON; the desktop app only. */
-function TerminalOpensRow() {
+function useTerminalOpens(enabled) {
   const [on, setOn] = useState(true);
   useEffect(() => {
+    if (!enabled) return undefined;
     let alive = true;
     getTerminalOpens()
       .then((v) => alive && setOn(v !== false))
@@ -75,24 +90,22 @@ function TerminalOpensRow() {
     return () => {
       alive = false;
     };
-  }, []);
-  return (
-    <SwitchRow
-      testid="settings-terminal-opens"
-      label="Let the terminal open projects in Maude"
-      note="Claude Code in the terminal shows its work here. A folder Maude has not opened before asks you first. Off, the terminal uses its own hidden server."
-      checked={on}
-      onChange={(next) => {
-        setOn(next);
-        setTerminalOpens(next).catch(() => setOn(!next));
-      }}
-    />
-  );
+  }, [enabled]);
+  const set = (next) => {
+    setOn(next);
+    setTerminalOpens(next).catch(() => setOn(!next));
+  };
+  return [on, set];
 }
 
 export default function GeneralSection({
   cloud,
   readOnly = false,
+  focus = null,
+  syncStatus,
+  onLinkedHub,
+  onLocalProject,
+  onCloseSheet,
   theme,
   onSetTheme,
   minimapVisible,
@@ -112,19 +125,59 @@ export default function GeneralSection({
   const canvasReason = !hasCanvas ? 'Open a canvas to use this.' : undefined;
   const [singleKeys, setSingleKeys] = useSingleKeys();
   const auto = useThemeAutoOn();
+  // This project reads this Mac: the desktop and an owner's session only (settings-model `local`)
+  const ownMac = cloud === null && !readOnly;
+  const terminal = ownMac && isNativeApp();
+  const [terminalOn, setTerminalOn] = useTerminalOpens(terminal);
+  // a cloud tab keeps its account as a card of its own (the hub told its tab where the dashboard is)
+  const accountCard = !!cloud && typeof cloud === 'object' && !!cloud.dashboardUrl;
+  // ⌘K's This project row in a shell without that card is the Account card's
+  const asked = focus?.card === 'this-project' && !ownMac ? { ...focus, card: 'account' } : focus;
+  const { open, toggle } = useOpenCard('general', asked);
+  // the default card is This project — a shell without it opens on nothing
+  const openId = !ownMac && open === 'this-project' ? null : open;
+  const card = (id) => ({ open: openId === id, onToggle: toggle, reveal: asked?.card === id });
 
   return (
-    <>
-      {/* S9.20 — the Account block (02 ob-settings): plan, Manage, the five account pages */}
-      <AccountBlock cloud={cloud} readOnly={readOnly} />
+    <div className="v2s-cards" data-testid="settings-general-cards">
+      {ownMac ? (
+        <ThisProjectCard
+          {...card('this-project')}
+          focus={asked}
+          syncStatus={syncStatus}
+          onLinkedHub={onLinkedHub}
+          onLocalProject={onLocalProject}
+          onCloseSheet={onCloseSheet}
+        />
+      ) : null}
 
-      <Group title="Look">
+      <SettingsCard
+        id="look"
+        icon="view"
+        title="Look"
+        desc="How Maude looks on this Mac."
+        summary={lookSummary(theme, auto)}
+        {...card('look')}
+      >
         <Row label="Theme" hint={auto ? 'Matches your computer’s appearance.' : undefined}>
           <ThemeSegment theme={theme} onSetTheme={onSetTheme} />
         </Row>
-      </Group>
+      </SettingsCard>
 
-      <Group title="Canvas and view" testid="settings-canvas-view">
+      <SettingsCard
+        id="canvas"
+        testid="settings-canvas-view"
+        icon="frame"
+        title="Canvas and view"
+        desc="What sits on the canvas with your work."
+        summary={canvasSummary({
+          minimap: minimapVisible,
+          zoom: zoomCtlVisible,
+          annotations: annotationsVisible,
+          autoInspector: autoOpenInspector,
+        })}
+        {...card('canvas')}
+      >
         <PrefToggleRow
           label="Minimap"
           note="Show the canvas minimap overlay."
@@ -153,15 +206,42 @@ export default function GeneralSection({
           checked={autoOpenInspector}
           onChange={() => onToggleAutoOpenInspector?.()}
         />
-      </Group>
+        {/* S8.20 — Search in pictures: off at once, on through the one sheet; absent where the studio does not
+            describe (not before /_config answers: `cloud === undefined` mounts and fetches nothing local) */}
+        {cloud !== undefined ? (
+          <DescribeSettingsRow project={getPaletteEnv().projectName} Row={PrefToggleRow} />
+        ) : null}
+      </SettingsCard>
 
-      {cloud === null && !readOnly && isNativeApp() ? (
-        <Group title="Terminal" testid="settings-terminal">
-          <TerminalOpensRow />
-        </Group>
+      {terminal ? (
+        <SettingsCard
+          id="terminal"
+          testid="settings-terminal"
+          icon="code"
+          title="Terminal"
+          desc="The maude command in your terminal."
+          summary={terminalSummary(terminalOn)}
+          {...card('terminal')}
+        >
+          <SwitchRow
+            testid="settings-terminal-opens"
+            label="Let the terminal open projects in Maude"
+            note="Claude Code in the terminal shows its work here. A folder Maude has not opened before asks you first. Off, the terminal uses its own hidden server."
+            checked={terminalOn}
+            onChange={setTerminalOn}
+          />
+        </SettingsCard>
       ) : null}
 
-      <Group title="Keyboard" testid="settings-keyboard">
+      <SettingsCard
+        id="keyboard"
+        testid="settings-keyboard"
+        icon="type"
+        title="Keyboard"
+        desc="Shortcuts on the canvas."
+        summary={keyboardSummary(singleKeys)}
+        {...card('keyboard')}
+      >
         <div data-testid="settings-single-keys">
           <PrefToggleRow
             label="Single-key shortcuts"
@@ -170,22 +250,37 @@ export default function GeneralSection({
             onChange={(on) => setSingleKeys(on)}
           />
         </div>
-      </Group>
+      </SettingsCard>
 
-      {/* S8.20 — Search in pictures: off at once, on through the one sheet; absent where the studio does not describe */}
-      {/* (not before /_config answers: `cloud === undefined` mounts and fetches nothing local) */}
-      {cloud !== undefined ? (
-        <DescribeSettingsRow project={getPaletteEnv().projectName} Row={PrefToggleRow} />
-      ) : null}
-
-      <Group title="Layout" testid="settings-layout">
+      <SettingsCard
+        id="layout"
+        testid="settings-layout"
+        icon="panel-left"
+        title="Layout"
+        desc="Where the panels sit."
+        summary={layoutSummary(panelSide, layersMode)}
+        {...card('layout')}
+      >
         <LayoutTab
           panelSide={panelSide}
           onSetPanelSide={onSetPanelSide}
           layersMode={layersMode}
           onSetLayersMode={onSetLayersMode}
         />
-      </Group>
-    </>
+      </SettingsCard>
+
+      {accountCard ? (
+        <SettingsCard
+          id="account"
+          icon="cloud"
+          title="Account"
+          desc="Your account on the web."
+          summary={cloud.user?.email ?? null}
+          {...card('account')}
+        >
+          <AccountBlock cloud={cloud} readOnly={readOnly} />
+        </SettingsCard>
+      ) : null}
+    </div>
   );
 }
