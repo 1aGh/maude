@@ -216,6 +216,23 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/sync/held-deletes', method: 'POST' },
     agent: human('hub-link', 'which deleted files stay on the hub is the person’s choice'),
   },
+  // 2.1.1 T13 — the answer to a batch the PROJECT deleted, held on this Mac by the inbound breaker.
+  // Removing files from this Mac's project folder (into the trash) or keeping them is the person's call.
+  'sync.remove-held-here': {
+    effect: 'project',
+    minRole: 'edit',
+    server: { route: '/_api/sync/held-deletes', method: 'POST' },
+    agent: human(
+      'hub-link',
+      'removing a batch of the project’s files from this Mac is the person’s choice'
+    ),
+  },
+  'sync.keep-held-here': {
+    effect: 'none',
+    minRole: 'edit',
+    server: { route: '/_api/sync/held-deletes', method: 'POST' },
+    agent: human('hub-link', 'which deleted files stay on this Mac is the person’s choice'),
+  },
   // #167 T5.3 — a file the hub holds back from the code lane: adopting teammate bytes as the owner's code
   // is the owner's own call (implicit adoption was rejected on purpose), never the AI's.
   'sync.adopt-as-code': {

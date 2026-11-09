@@ -2,7 +2,7 @@
 // Sync, rebuilt. The controls carry the v1 hooks the e2e scenarios drive (S11.12b): sync-panel (root) ·
 // sync-ai-held · sync-ai-publish · sync-ai-discard · sync-assets-cancel · sync-signin-again ·
 // sync-delivery-attention · sync-deletes-held (+ -delete / -keep / -confirm / -cancel / -said /
-// -folders / -confirming) · sync-deletes-purging · sync-hub-only. Replaces the v1 Sync panel's mount in the sheet (its routes stay; SyncPanel.jsx and
+// -folders / -confirming) · sync-deletes-incoming (+ -remove / -keep / -said / -folders) · sync-deletes-purging · sync-hub-only. Replaces the v1 Sync panel's mount in the sheet (its routes stay; SyncPanel.jsx and
 // SourceConflictPanel.jsx keep their files). What needs the person comes first, each with its own
 // choice; the transfer, the counts and the lists follow.
 //
@@ -376,6 +376,78 @@ function HeldDeletesCard({ need, fetchImpl }) {
   );
 }
 
+/** 2.1.1 T13 — the words after an answer to a batch the project deleted (CONTRACT §3–§4). */
+export function heldIncomingWords(answer) {
+  if (!answer?.ok) return safeDetail(answer?.detail, 'That didn’t work. Nothing was removed.');
+  if (answer.how === 'kept-here')
+    return `Kept here. ${filesWord(answer.count)} stay on this Mac and aren’t sent back.`;
+  return `Removing ${filesWord(answer.count)}. They’re moving to the trash.`;
+}
+
+/**
+ * 2.1.1 T13 — the project deleted a batch larger than sync removes unasked, and this Mac still has
+ * the files. Remove here too files them into the trash in one pass (recoverable); Keep them here
+ * leaves them and never sends them back. Both `POST /_api/sync/held-deletes` (this Mac only).
+ */
+function HeldIncomingCard({ need, fetchImpl }) {
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState('');
+  const [done, setDone] = useState(false);
+  async function answer(kind) {
+    setBusy(true);
+    setSaid('');
+    const r = await postJson(fetchImpl, '/_api/sync/held-deletes', { answer: kind, folder: null });
+    setBusy(false);
+    setSaid(heldIncomingWords(r));
+    if (r?.ok) setDone(true);
+  }
+  return (
+    <div className="sd-card" data-testid="sync-deletes-incoming">
+      <strong className="sd-ct">Deleted by the project · {filesWord(need.count)}</strong>
+      <span className="sd-cd">{need.detail}</span>
+      {need.folders.length ? (
+        <ul className="sd-failed" data-testid="sync-deletes-incoming-folders">
+          {need.folders.map((f) => (
+            <li key={f.folder}>
+              <span className="dg-mono">{cleanName(f.folder, 'the project folder')}</span>{' '}
+              {filesWord(f.count)}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {done ? null : (
+        <div className="sd-acts">
+          <button
+            type="button"
+            className="dg-btn"
+            data-action="sync.remove-held-here"
+            data-testid="sync-deletes-incoming-remove"
+            disabled={busy}
+            onClick={() => answer('remove-here')}
+          >
+            Remove here too
+          </button>
+          <button
+            type="button"
+            className="dg-btn"
+            data-action="sync.keep-held-here"
+            data-testid="sync-deletes-incoming-keep"
+            disabled={busy}
+            onClick={() => answer('keep-here')}
+          >
+            Keep them here
+          </button>
+        </div>
+      )}
+      {said ? (
+        <p className="dg-hint" role="status" data-testid="sync-deletes-incoming-said">
+          {said}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /** Issue #207 (7b) — the owner's purge of held deletes: how far it is, or why it stopped. */
 function DeletesPurgingCard({ need }) {
   return (
@@ -662,6 +734,8 @@ export default function SyncDetails({
               <AssetsStayCard key="assets-stay" />
             ) : need.kind === 'deletes-held' ? (
               <HeldDeletesCard key="deletes-held" need={need} fetchImpl={fetchImpl} />
+            ) : need.kind === 'deletes-incoming' ? (
+              <HeldIncomingCard key="deletes-incoming" need={need} fetchImpl={fetchImpl} />
             ) : need.kind === 'deletes-purging' ? (
               <DeletesPurgingCard key="deletes-purging" need={need} />
             ) : (
