@@ -177,7 +177,13 @@ describe('/_home/cloud', () => {
     down = false;
     const cloud = createHomeCloud();
     expect(await cloud.listing('nobody')).toMatchObject({ ok: false, signedIn: false });
-    expect(await cloud.listing('gone')).toMatchObject({ ok: false, signedIn: false });
+    expect(await cloud.listing('gone')).toMatchObject({
+      ok: false,
+      signedIn: false,
+      rejected: true,
+    });
+    // 2.1.1: a profile with no credential at all never signed in — that is "missing", not "rejected"
+    expect(await cloud.listing('nobody-here')).not.toHaveProperty('rejected');
     expect((await homeFetch()(homeReq('/_home/cloud?profile=../etc'))).status).toBe(400);
   });
 

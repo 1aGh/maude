@@ -49,6 +49,7 @@ import type { HomeCloud } from './cloud.ts';
 import { checkLocationReason, createLocalProject } from './create-local.ts';
 import { createHomeGithub, type HomeGithub } from './github.ts';
 import { createHomeHub, type HomeHub } from './hub.ts';
+import type { HubHealth } from './hub-health.ts';
 import { indexGcRequest } from './index-gc.ts';
 import { readHomeIndex, resolveProject, searchHome, thumbSource } from './index-reader.ts';
 import { createHomeInvite, type HomeInvite } from './invite.ts';
@@ -93,6 +94,8 @@ export interface HomeDeps {
   whatsNew?: HomeWhatsNew;
   /** S6.10 — the clone behind "From GitHub" (internal: Rust names the folder and the token) */
   github?: HomeGithub;
+  /** 2.1.1 — does each saved team-server sign-in still work (default: a cached real probe) */
+  hubHealth?: HubHealth;
 }
 
 const NO_STORE = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
@@ -282,7 +285,10 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
   const cli = deps.cli ?? createHomeCli();
   const whatsNew = deps.whatsNew ?? createHomeWhatsNew();
   const github = deps.github ?? createHomeGithub();
-  const accounts = createHomeAccounts({ forgetCloud: (p) => deps.cloud.forget(p) });
+  const accounts = createHomeAccounts({
+    forgetCloud: (p) => deps.cloud.forget(p),
+    hubHealth: deps.hubHealth,
+  });
   return [
     {
       method: 'GET',
@@ -494,8 +500,8 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
       method: 'GET',
       path: '/_home/accounts',
       kind: 'home',
-      handle: (_req, url) => {
-        const r = accounts.list(url.searchParams.get('profiles'));
+      handle: async (_req, url) => {
+        const r = await accounts.list(url.searchParams.get('profiles'));
         return json(r.status, r.body);
       },
     },

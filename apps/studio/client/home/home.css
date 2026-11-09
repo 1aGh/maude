@@ -959,7 +959,7 @@
   }
   .home-prow-t {
     flex: 1;
-    min-width: 0;
+    min-width: 96px;
     display: flex;
     flex-direction: column;
     gap: 1px;
@@ -1830,6 +1830,238 @@
   .home-face--coral,
   .home-acctf--coral {
     background: var(--object-coral);
+  }
+
+  /* 2.1.1 B4 (artboard 14): accounts row, the Where chip and the connection badge */
+  .home-face--lg {
+    width: 32px;
+    height: 32px;
+    font-size: var(--type-base);
+  }
+  .home-acr-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-3);
+  }
+  .home-acr-add {
+    position: relative;
+  }
+  .home-acr-menu {
+    position: absolute;
+    top: calc(100% + var(--space-1));
+    right: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    min-width: 220px;
+    padding: var(--space-1);
+  }
+  .home-acc {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-lg);
+    background: var(--bg-1);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-default);
+  }
+  .home-acc--bad {
+    background: var(--status-error-soft);
+  }
+  .home-acc-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .home-acc-t strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .home-acc-t > span:not(.home-sw) {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .home-acc .btn {
+    flex: none;
+    white-space: nowrap;
+  }
+  /* an account's face with the connection on it */
+  .home-acf {
+    position: relative;
+    display: inline-grid;
+    flex: none;
+  }
+  .home-acf-tile {
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-md);
+  }
+  .home-acf-tile--sm {
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-xs);
+  }
+  .home-acf-tile--md {
+    width: 24px;
+    height: 24px;
+  }
+  .home-acf-tile--lg {
+    width: 32px;
+    height: 32px;
+  }
+  .home-acf-tile--server {
+    background: var(--object-green);
+    color: var(--object-ink);
+  }
+  .home-acf-tile--local {
+    background: var(--bg-3);
+    color: var(--fg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .home-acf[data-conn="offline"] .home-face,
+  .home-acf[data-conn="offline"] .home-acf-tile {
+    background: var(--bg-4);
+    color: var(--fg-2);
+  }
+  .home-acf-ring {
+    position: absolute;
+    inset: -3px;
+    border-radius: var(--radius-pill);
+    box-shadow: inset 0 0 0 2px transparent;
+    border: 2px solid var(--status-info);
+    border-right-color: transparent;
+    border-bottom-color: transparent;
+    animation: home-acf-spin 1.2s linear infinite;
+  }
+  @keyframes home-acf-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .home-acf-badge {
+    position: absolute;
+    right: -5px;
+    bottom: -5px;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-pill);
+    box-shadow: 0 0 0 1.5px var(--bg-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    line-height: 1;
+  }
+  .home-acf--sm .home-acf-badge {
+    width: 12px;
+    height: 12px;
+    right: -4px;
+    bottom: -4px;
+    font-size: var(--type-xs);
+  }
+  .home-acf--lg .home-acf-badge {
+    width: 20px;
+    height: 20px;
+    right: -6px;
+    bottom: -6px;
+  }
+  .home-acf-badge--bad {
+    background: var(--status-error);
+    color: var(--status-error-fg);
+  }
+  .home-acf-badge--warn {
+    background: var(--status-warn);
+    color: var(--status-warn-fg);
+  }
+  /* the state as a word with its dot */
+  .home-sw {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    white-space: nowrap;
+  }
+  .home-sw > i {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--fg-3);
+  }
+  .home-sw[data-tone="ok"] > i {
+    background: var(--status-success);
+  }
+  .home-sw[data-tone="bad"] > i {
+    background: var(--status-error);
+  }
+  .home-sw[data-tone="warn"] > i {
+    background: var(--status-warn);
+  }
+  .home-sw[data-tone="busy"] > i {
+    background: var(--status-info);
+  }
+  /* a project row: Where · Connection */
+  .home-prow-where {
+    flex: 0 1 300px;
+    min-width: 120px;
+    display: flex;
+  }
+  .home-prow-st {
+    flex: 0 1 190px;
+    min-width: 110px;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .home-where {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .home-place {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    max-width: 100%;
+    height: 22px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    color: var(--fg-1);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .home-place > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .home-place > svg {
+    flex: none;
+    color: var(--fg-2);
+  }
+  .home-where-path {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
   }
 
   @media (prefers-reduced-motion: reduce) {
