@@ -510,10 +510,10 @@ describe('Home page in the desktop app', () => {
     expect(invokes.some((i) => i.cmd === 'open_project')).toBe(false);
   });
 
-  // 2.1.1 B4 (artboard 14): the accounts row sits on top of Home; a Maude Cloud sign-in that stopped
-  // working shows on its own card and on the project rows that use it, and its Sign in again asks for
-  // THAT profile (the dead credential goes first so the profile can be signed in again).
-  test('a Maude Cloud sign-in that stopped working: the account card and the rows say so, and its button re-signs THAT profile', async () => {
+  // 2.1.2 HB1 (canvas 17, artboard 16): accounts are a chip, not a row; a Maude Cloud sign-in that
+  // stopped working raises the one banner and shows on the project rows that use it, and the banner's
+  // Sign in again asks for THAT profile (the dead credential goes first so it can be signed in again).
+  test('a Maude Cloud sign-in that stopped working: the banner, the chip and the rows say so, and its button re-signs THAT profile', async () => {
     shellOverride = {
       ...SHELL,
       projects: [
@@ -533,12 +533,17 @@ describe('Home page in the desktop app', () => {
     shellAnswers.home_cloud_sign_in_prepare = 'default';
     mount();
     await flush(10);
-    expect($('home-accounts-row')).not.toBeNull();
-    expect($('home-account-state-default-cloud')?.textContent).toBe('Sign-in stopped working');
+    expect($('home-accounts-row')).toBeNull();
+    expect($('home-accounts-chip-needs')?.textContent).toBe('1 needs sign-in');
+    expect($('home-account-banner')?.textContent).toContain(
+      'Your sign-in to Maude Cloud stopped working.'
+    );
     expect($(`home-project-state-${P1}`)?.textContent).toBe('Sign-in stopped working');
     expect($(`home-project-where-${P1}`)?.textContent).toContain('alice@example.com');
     expect($(`home-project-state-${P2}`)?.textContent).toBe('Only on this Mac');
-    act(() => $('home-account-signin-default-cloud')?.click());
+    act(() => $('home-accounts-chip')?.click());
+    expect($('home-account-state-default-cloud')?.textContent).toBe('Sign-in stopped working');
+    act(() => $('home-account-banner-fix')?.click());
     await flush(10);
     expect(
       calls.filter((c) => c.url.startsWith('/_home/cloud/signout')).map((c) => c.body)
@@ -605,6 +610,10 @@ describe('Home page in the desktop app', () => {
       { ok: true, profiles: [{ id: 'work', hubs: [{ url: 'https://design.studyfi.com' }] }] },
     ];
     fetchAnswers['/_home/hub/signout'] = [200, { ok: true }];
+    fetchAnswers['/_config'] = [
+      200,
+      { mode: 'home', shell: 'home', version: 'x', cloudOrigin: 'https://cloud.maude.sh' },
+    ];
     mount();
     await flush();
     const accountReads = () => calls.filter((c) => c.url.startsWith('/_home/accounts')).length;
@@ -614,10 +623,11 @@ describe('Home page in the desktop app', () => {
     await flush();
     expect(accountReads()).toBeGreaterThan(first);
     const second = accountReads();
-    // the face's own sign-out reloads Home, and the rows' accounts with it
-    act(() => $('home-top-face')?.click());
+    // the accounts list's own sign-out reloads Home, and the rows' accounts with it
+    act(() => $('home-accounts-chip')?.click());
     await flush();
-    act(() => $('home-account-signout-work-team')?.click());
+    act(() => $('home-account-more-work-design-studyfi-com')?.click());
+    act(() => $('home-account-signout-work-design-studyfi-com')?.click());
     await flush(2);
     act(() => $('home-accounts-signout-confirm')?.click());
     await flush(4);
@@ -642,9 +652,10 @@ describe('Home page in the desktop app', () => {
     expect($(`home-project-row-${P2}`)?.textContent).toContain('in a tab');
   });
 
-  // 2.0.5 W4b — the face lists every profile with its accounts; Sign out asks, then signs ONE
-  // profile out of ONE account; add / switch at the foot. Stubbed shell + routes only.
-  test('the face opens every account on this Mac; Sign out asks, then calls that account’s route', async () => {
+  // 2.1.2 HB1 (artboard 17; 2.0.5 W4b's sign-outs) — the chip lists every account on this Mac; Sign out
+  // in a line's "…" asks, then signs ONE profile out of ONE account; GitHub sits in the profile's first
+  // line; add / switch at the foot. Stubbed shell + routes only.
+  test('the chip opens every account on this Mac; Sign out asks, then calls that account’s route', async () => {
     shellOverride = {
       ...SHELL,
       profiles: [
@@ -676,20 +687,31 @@ describe('Home page in the desktop app', () => {
       },
     ];
     fetchAnswers['/_home/hub/signout'] = [200, { ok: true }];
+    fetchAnswers['/_config'] = [
+      200,
+      { mode: 'home', shell: 'home', version: 'x', cloudOrigin: 'https://cloud.maude.sh' },
+    ];
     mount();
     await flush();
-    const face = $('home-top-face');
-    expect(face?.tagName).toBe('BUTTON');
-    act(() => face?.click());
+    expect($('home-top-face')).toBeNull();
+    const chip = $('home-accounts-chip');
+    expect(chip?.tagName).toBe('BUTTON');
+    expect(chip?.textContent).toBe('2 accounts');
+    act(() => chip?.click());
     await flush();
     expect($('home-accounts')).not.toBeNull();
-    expect($('home-account-default-cloud')?.textContent).toContain('me@gmail.com');
-    expect($('home-account-default-github')?.textContent).toContain('@iagh');
-    expect($('home-account-signout-default-github')).toBeNull();
-    expect($('home-account-work-team')?.textContent).toContain('design.studyfi.com');
+    expect($('home-account-card-default-cloud')?.textContent).toContain('me@gmail.com');
+    act(() => $('home-account-more-default-cloud')?.click());
+    expect($('home-account-github-default')?.textContent).toContain('@iagh');
+    expect($('home-account-card-work-design-studyfi-com')?.textContent).toContain(
+      'design.studyfi.com'
+    );
+    act(() => $('home-account-more-work-design-studyfi-com')?.click());
     expect($('home-account-github-signin-work')).not.toBeNull();
+    act(() => $('home-accounts-add')?.click());
     expect($('home-accounts-add-cloud')).not.toBeNull();
-    act(() => $('home-account-signout-work-team')?.click());
+    act(() => $('home-account-more-work-design-studyfi-com')?.click());
+    act(() => $('home-account-signout-work-design-studyfi-com')?.click());
     await flush(2);
     expect(calls.some((c) => c.url.includes('/_home/hub/signout'))).toBe(false);
     act(() => $('home-accounts-signout-confirm')?.click());
@@ -700,6 +722,60 @@ describe('Home page in the desktop app', () => {
     ]);
     expect(out[0]?.headers['x-maude-home']).toBeDefined();
     await flush(10);
+  });
+
+  // 2.1.2 HB1 — the keeper's Home (H1 audit, fixtures only): a Maude Cloud cell with a stale saved
+  // sign-in, and six old dev servers that do not answer. The cell is the Maude Cloud account's, the
+  // old servers fold, and nothing raises the banner.
+  test('a Maude Cloud cell is not a server, old servers fold, and nothing raises the banner', async () => {
+    shellOverride = {
+      ...SHELL,
+      projects: [
+        { ...SHELL.projects[0], hub: 'https://alligators.cloud.maude.sh/', place: 'closed' },
+        SHELL.projects[1],
+      ],
+      profiles: [{ id: 'default', label: 'Personal', email: 'alice@example.com' }],
+    } as unknown as typeof SHELL;
+    fetchAnswers['/_config'] = [
+      200,
+      { mode: 'home', shell: 'home', version: 'x', cloudOrigin: 'https://cloud.maude.sh' },
+    ];
+    fetchAnswers['/_home/cloud'] = [
+      200,
+      {
+        ok: true,
+        profile: 'default',
+        signedIn: true,
+        account: { email: 'alice@example.com' },
+        projects: [],
+        shared: [],
+      },
+    ];
+    const old = ['http://127.0.0.1:1234', 'http://localhost:8420', 'http://localhost:18500'];
+    fetchAnswers['/_home/accounts'] = [
+      200,
+      {
+        ok: true,
+        profiles: [
+          {
+            id: 'default',
+            hubs: [
+              { url: 'https://alligators.cloud.maude.sh', state: 'rejected' },
+              ...old.map((url) => ({ url, state: 'unreachable' })),
+            ],
+          },
+        ],
+      },
+    ];
+    mount();
+    await flush(10);
+    expect($('home-account-banner')).toBeNull();
+    expect($('home-accounts-chip')?.textContent).toBe('1 account');
+    act(() => $('home-accounts-chip')?.click());
+    expect(host.querySelectorAll('[data-testid^="home-account-card-"]').length).toBe(1);
+    expect($('home-account-card-default-cloud')?.textContent).toContain('1 project');
+    expect($('home-account-card-default-alligators-cloud-maude-sh')).toBeNull();
+    expect($('home-accounts-old')?.textContent).toContain('3 old servers');
   });
 });
 
