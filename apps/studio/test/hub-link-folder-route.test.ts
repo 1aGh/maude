@@ -25,6 +25,7 @@ import { mountRoutes, type RouteSpec } from '../routes/table.ts';
 import { isPersonOnlyRoute } from '../shell/api-key.ts';
 import { saveHubCredential } from '../sync/hub-link.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
+import { compareSurveys, type SideSurvey } from '../sync/link-survey.ts';
 import { storeFixtureHubCredential } from './_hub-password-login.ts';
 import { stubDeps } from './_route-stubs.ts';
 
@@ -35,6 +36,63 @@ if (!HUB_READY)
   console.warn('[hub-link-folder-route] real-hub part SKIPPED — needs apps/hub deps.');
 
 const FROM_WINDOW = { 'sec-fetch-site': 'same-origin' };
+
+describe('compareSurveys — the four counts, per kind', () => {
+  const side = (canvases: [string, string | null][], files: [string, string][], bySlug = false) =>
+    ({
+      canvases: new Map(canvases),
+      files: new Map(files),
+      ...(bySlug ? { bySlug } : {}),
+    }) as SideSurvey;
+  const H = (c: string) => c.repeat(64);
+
+  test('only here · only there · differ · same; an unknown hash is never "same"', () => {
+    const here = side(
+      [
+        ['ui/a.tsx', H('1')],
+        ['ui/b.tsx', H('2')],
+        ['ui/c.tsx', H('3')],
+      ],
+      [['assets/x.png', H('4')]]
+    );
+    const there = side(
+      [
+        ['ui/b.tsx', H('2')],
+        ['ui/c.tsx', null],
+        ['ui/d.tsx', H('5')],
+      ],
+      [
+        ['assets/x.png', H('6')],
+        ['assets/y.png', H('7')],
+      ]
+    );
+    expect(compareSurveys(here, there)).toEqual({
+      onlyHere: 1,
+      onlyThere: 2,
+      differ: 2,
+      same: 1,
+      canvases: { onlyHere: 1, onlyThere: 1, differ: 1, same: 1 },
+      files: { onlyHere: 0, onlyThere: 1, differ: 1, same: 0 },
+    });
+  });
+
+  test('an older server (names only): a canvas on both sides counts as differ', () => {
+    const here = side(
+      [
+        ['ui/Home.tsx', H('1')],
+        ['ui/b.tsx', H('2')],
+      ],
+      []
+    );
+    const there = side([['home', null]], [], true);
+    expect(compareSurveys(here, there).canvases).toEqual({
+      onlyHere: 1,
+      onlyThere: 0,
+      differ: 1,
+      same: 0,
+    });
+  });
+});
 const TOKEN_RE = /hubtok_|secret-token|mpt_|ptok_/;
 
 type Reply = {
@@ -475,7 +533,13 @@ describe.skipIf(!HUB_READY)('POST /_api/hub/link-folder — a real team server',
     const ask = await route.post({ url: hub.http });
     expect(ask.status).toBe(200);
     expect(ask.body.state).toBe('needs-confirm');
-    expect(ask.body.counts).toEqual({ onlyHere: 1, onlyThere: 1, differ: 0, same: 0 });
+    expect(ask.body.counts).toMatchObject({
+      onlyHere: 1,
+      onlyThere: 1,
+      differ: 0,
+      same: 0,
+      canvases: { onlyHere: 1, onlyThere: 1, differ: 0, same: 0 },
+    });
     expect(typeof ask.body.confirm).toBe('string');
     expect(ask.text).not.toMatch(TOKEN_RE);
     // nothing written: config, this Mac's sign-ins, the hub

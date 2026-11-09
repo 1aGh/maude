@@ -34145,6 +34145,81 @@
     "v2": "new"
   },
   {
+    "hook": "link-server-folder-this",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"This folder (<path>)\" — in a project tab whose folder is the person's own, the folder the sign-in links (B5).",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The confirm step: the server already holds work; what syncing this folder with it would do, in counts (B5). Nothing is linked yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-count-<line>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One count line of the confirm step: here (only on this Mac) · there (only on the server) · differ (on both, different) · same.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-confirm-sync",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Sync this folder\" — sends the one-time confirm code back; links this folder to the server.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "link-server-confirm-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel on the confirm step: closes the dialog, nothing linked.",
+    "producer": {
+      "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
+      "symbol": "LinkServerDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-link-server-dialog"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "link-server-waiting",
     "kind": "testid",
     "pattern": false,

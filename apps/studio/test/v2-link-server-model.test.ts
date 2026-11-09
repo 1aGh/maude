@@ -5,15 +5,22 @@
 
 import { describe, expect, test } from 'bun:test';
 import {
+  folderOfStatus,
+  linkFolderAnswerOf,
+  projectLinkApi,
+} from '../client/v2/link-server/link-server-api.js';
+import {
   addressOf,
   advancedParts,
   canSubmit,
   checkLine,
+  confirmLines,
   hostOf,
   initialLink,
   LINK_WORDS,
   linkReducer,
   primaryLabel,
+  runConfirm,
   runLink,
   whyNotSubmit,
 } from '../client/v2/link-server/link-server-model.js';
@@ -267,6 +274,159 @@ describe('Advanced', () => {
     expect(back.phase).toBe('form');
     expect(back.error).toBe('no');
     expect(canSubmit(back)).toBe(true);
+  });
+});
+
+describe('B5 — this folder joins the server (a project tab)', () => {
+  const COUNTS = {
+    onlyHere: 3,
+    onlyThere: 1,
+    differ: 1,
+    same: 0,
+    canvases: { onlyHere: 1, onlyThere: 1, differ: 1, same: 0 },
+    files: { onlyHere: 2, onlyThere: 0, differ: 0, same: 0 },
+  };
+
+  test('the project’s own folder makes the folder THIS one: not a choice, Advanced names it', () => {
+    const s = step(answered(), { type: 'here', folder: '~/git/logo-ideas' });
+    expect(s.folder).toEqual({ mode: 'this', path: '~/git/logo-ideas' });
+    expect(step(s, { type: 'folder', mode: 'kept' }).folder.mode).toBe('this');
+    expect(step(s, { type: 'folder-path', path: '/x' }).folder.path).toBe('~/git/logo-ideas');
+    expect(canSubmit(s)).toBe(true);
+    expect(advancedParts({ linkKey: async () => ({}), folders: 'this' }, s)).toEqual([
+      'Sign-in key',
+      'folder',
+    ]);
+    // a copy Maude keeps / a linked project: nothing changes
+    expect(step(answered(), { type: 'here', folder: null }).folder.mode).toBe('kept');
+    expect(advancedParts({ folders: 'this' }, answered())).toEqual([]);
+    expect(LINK_WORDS.folderThis('~/git/logo-ideas')).toBe('This folder (~/git/logo-ideas)');
+  });
+
+  test('finish answers needs-confirm → runLink hands back the counts and nothing else ran', async () => {
+    const calls: unknown[][] = [];
+    const s = step(answered(), { type: 'here', folder: '~/git/logo-ideas' });
+    const r = await runLink(
+      s,
+      fakeApi(calls, {
+        finish: async () => ({
+          ok: false,
+          needsConfirm: { host: 'design.example.com', counts: COUNTS, code: 'c1' },
+        }),
+      }),
+      { sleep: async () => {} }
+    );
+    expect(calls.at(-1)).toEqual(['finish', HUB, { mode: 'this', path: '' }]);
+    expect(r).toEqual({
+      ok: false,
+      needsConfirm: { url: HUB, host: 'design.example.com', counts: COUNTS, code: 'c1' },
+    });
+    const c = step(s, { type: 'needs-confirm', confirm: r.needsConfirm });
+    expect(c.phase).toBe('confirm');
+    expect(c.confirm?.code).toBe('c1');
+    expect(canSubmit(c)).toBe(false);
+    // Cancel / a failure drops the code
+    expect(step(c, { type: 'cancelled' }).confirm).toBeNull();
+    expect(step(c, { type: 'needs-confirm', confirm: {} }).phase).toBe('form');
+  });
+
+  test('the confirm words: counts with nouns for one and many, a zero line left out', () => {
+    expect(confirmLines(COUNTS, 'design.example.com')).toEqual([
+      {
+        id: 'here',
+        text: '1 canvas and 2 files only on this Mac — they go up to design.example.com',
+      },
+      {
+        id: 'there',
+        text: '1 canvas only on design.example.com — they come down to this folder',
+      },
+      { id: 'differ', text: '1 canvas on both, different — the two versions are merged' },
+    ]);
+    expect(LINK_WORDS.confirmTitle('design.example.com')).toBe(
+      'Sync this folder with design.example.com?'
+    );
+    expect(LINK_WORDS.confirmButton).toBe('Sync this folder');
+    expect(confirmLines(null, 'x')).toEqual([]);
+  });
+
+  test('Sync this folder sends the one-time code back once; an error returns to the form', async () => {
+    const s = step(
+      answered(),
+      { type: 'here', folder: '~/x' },
+      {
+        type: 'needs-confirm',
+        confirm: { url: HUB, host: 'design.example.com', counts: COUNTS, code: 'c1' },
+      }
+    );
+    const calls: unknown[][] = [];
+    const ok = await runConfirm(s, fakeApi(calls, { confirmLink: async () => ({ ok: true }) }));
+    expect(ok).toEqual({ ok: true });
+    expect(calls).toEqual([['confirmLink', HUB, 'c1']]);
+    const bad = await runConfirm(
+      s,
+      fakeApi([], { confirmLink: async () => ({ ok: false, error: 'That confirmation expired.' }) })
+    );
+    expect(bad).toEqual({ ok: false, error: 'That confirmation expired.' });
+    expect(step(s, { type: 'confirming' }).phase).toBe('linking');
+    expect(step(s, { type: 'failed', error: 'x' })).toMatchObject({ phase: 'form', confirm: null });
+  });
+
+  test('the project API: where = an unlinked own folder; finish links THIS folder; confirm sends the code', async () => {
+    expect(folderOfStatus({ place: { kept: false, folder: '~/git/a' }, linkedHub: null })).toBe(
+      '~/git/a'
+    );
+    expect(folderOfStatus({ place: { kept: true } })).toBeNull();
+    expect(
+      folderOfStatus({ place: { kept: false, folder: '~/git/a' }, linkedHub: { url: HUB } })
+    ).toBeNull();
+    expect(folderOfStatus(null)).toBeNull();
+
+    const posts: [string, unknown][] = [];
+    const opened: unknown[] = [];
+    let answer: unknown = { ok: true, state: 'linked', url: HUB };
+    const api = projectLinkApi({
+      fetchGet: async () => ({ place: { kept: false, folder: '~/git/a' }, linkedHub: null }),
+      fetchPost: async (path: string, body: unknown) => {
+        posts.push([path, body]);
+        return { ok: true, status: 200, json: answer };
+      },
+      openProject: async (x: unknown) => {
+        opened.push(x);
+        return { ok: true };
+      },
+    } as never);
+    expect(api.folders).toBe('this');
+    expect(await api.where()).toEqual({ folder: '~/git/a' });
+    expect(await api.finish(HUB, { mode: 'this', path: '' })).toEqual({ ok: true });
+    answer = { ok: true, state: 'needs-confirm', host: 'h', counts: COUNTS, confirm: 'c9' };
+    expect(await api.finish(HUB, { mode: 'this', path: '' })).toEqual({
+      ok: false,
+      needsConfirm: { host: 'h', counts: COUNTS, code: 'c9' },
+    });
+    answer = { ok: true, state: 'linked', url: HUB };
+    expect(await api.confirmLink(HUB, 'c9')).toEqual({ ok: true });
+    expect(posts).toEqual([
+      ['/_api/hub/link-folder', { url: HUB }],
+      ['/_api/hub/link-folder', { url: HUB }],
+      ['/_api/hub/link-folder', { url: HUB, confirm: 'c9' }],
+    ]);
+    expect(opened).toEqual([]);
+    // not this folder: the server's project opens in its own tab, as before
+    await api.finish(HUB, { mode: 'kept', path: '' });
+    expect(opened).toEqual([{ kind: 'known-hub', url: HUB }]);
+  });
+
+  test('a refusal keeps its words; a malformed answer is a plain failure', () => {
+    expect(
+      linkFolderAnswerOf({
+        ok: false,
+        json: { ok: false, reason: 'linked-elsewhere', error: 'This project already syncs.' },
+      })
+    ).toEqual({ ok: false, error: 'This project already syncs.' });
+    expect(linkFolderAnswerOf({ ok: true, json: { ok: true, state: 'needs-confirm' } })).toEqual({
+      ok: false,
+    });
+    expect(linkFolderAnswerOf(null)).toEqual({ ok: false });
   });
 });
 

@@ -278,7 +278,102 @@ describe('the Settings door and the project API', () => {
     ]);
     expect(linked).toEqual([{ url: HUB, token: 'k' }]);
     expect(opened).toEqual([{ kind: 'known-hub', url: HUB }]);
-    expect(api.folders).toBe(false);
+    expect(api.folders).toBe('this');
+  });
+});
+
+describe('B5 — a project tab links THIS folder', () => {
+  const COUNTS = {
+    canvases: { onlyHere: 1, onlyThere: 2, differ: 0, same: 0 },
+    files: { onlyHere: 0, onlyThere: 0, differ: 1, same: 0 },
+  };
+  const signedIn = (finish: () => unknown, over: Record<string, unknown> = {}) =>
+    fakeApi({
+      folders: 'this',
+      where: () => ({ folder: '~/git/logo-ideas' }),
+      signInPoll: () => ({ ok: true, url: HUB }),
+      finish,
+      ...over,
+    });
+  const signIn = async () => {
+    type('link-server-url', 'design.example.com');
+    await settle();
+    await submit();
+    await settle(40);
+  };
+
+  test('Advanced names this folder; an empty server links at once and the dialog closes', async () => {
+    const { api, calls } = signedIn(() => ({ ok: true }));
+    const m = mount(api);
+    await settle(10);
+    expect(host.textContent).toContain('Sync Logo ideas with a Maude server your team runs.');
+    expect($('link-server-advanced')?.textContent).toContain('folder');
+    click('link-server-advanced');
+    expect($('link-server-folder-this')?.textContent).toBe('This folder (~/git/logo-ideas)');
+    expect($('link-server-folder-kept')).toBeNull();
+    await signIn();
+    expect(calls.filter((c) => c[0] === 'finish')).toEqual([
+      ['finish', HUB, { mode: 'this', path: '' }],
+    ]);
+    expect(m.closed()).toBe(1);
+  });
+
+  test('a server that holds work: the dialog asks with counts; Sync this folder sends the code once', async () => {
+    const { api, calls } = signedIn(
+      () => ({
+        ok: false,
+        needsConfirm: { host: 'design.example.com', counts: COUNTS, code: 'c1' },
+      }),
+      { confirmLink: () => ({ ok: true }) }
+    );
+    const m = mount(api);
+    await settle(10);
+    await signIn();
+    expect(m.closed()).toBe(0);
+    expect($('link-server-dialog')?.querySelector('.ai-conn-t')?.textContent).toBe(
+      'Sync this folder with design.example.com?'
+    );
+    expect($('link-server-count-here')?.textContent).toBe(
+      '1 canvas only on this Mac — they go up to design.example.com'
+    );
+    expect($('link-server-count-there')?.textContent).toBe(
+      '2 canvases only on design.example.com — they come down to this folder'
+    );
+    expect($('link-server-count-differ')?.textContent).toBe(
+      '1 file on both, different — the two versions are merged'
+    );
+    expect(calls.some((c) => c[0] === 'confirmLink')).toBe(false);
+    await act(async () => {
+      $('link-server-confirm-sync')?.click();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    await settle(10);
+    expect(calls.filter((c) => c[0] === 'confirmLink')).toEqual([['confirmLink', HUB, 'c1']]);
+    expect(m.closed()).toBe(1);
+  });
+
+  test('Cancel on the confirm step links nothing', async () => {
+    const { api, calls } = signedIn(
+      () => ({
+        ok: false,
+        needsConfirm: { host: 'design.example.com', counts: COUNTS, code: 'c1' },
+      }),
+      { confirmLink: () => ({ ok: true }) }
+    );
+    const m = mount(api);
+    await settle(10);
+    await signIn();
+    click('link-server-confirm-cancel');
+    expect(calls.some((c) => c[0] === 'confirmLink')).toBe(false);
+    expect(m.closed()).toBe(1);
+  });
+
+  test('without a project (Settings › Add a team server…) the folder is never asked about', async () => {
+    const { api, calls } = signedIn(() => ({ ok: true }));
+    mount(api, { project: null });
+    await settle(10);
+    expect(calls.some((c) => c[0] === 'where')).toBe(false);
+    expect(host.textContent).toContain('Its projects open in their own tab.');
   });
 });
 

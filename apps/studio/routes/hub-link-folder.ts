@@ -40,7 +40,7 @@ import { getHubRecord, normalizeUrl } from '../sync/hubs-config.ts';
 import {
   compareSurveys,
   holdsWork,
-  type LinkCounts,
+  type LinkComparison,
   surveyHub,
   surveyLocal,
 } from '../sync/link-survey.ts';
@@ -255,7 +255,7 @@ export function createHubLinkFolderRoutes(deps: HubLinkFolderDeps): RouteSpec[] 
       }
       if (!holdsWork(there.survey)) return await link(url, rec.token);
 
-      const counts: LinkCounts = compareSurveys(
+      const counts: LinkComparison = compareSurveys(
         surveyLocal(deps.designRoot, deps.canvasGroups?.()),
         there.survey
       );

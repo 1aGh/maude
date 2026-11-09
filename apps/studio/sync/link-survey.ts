@@ -174,13 +174,29 @@ function countMaps(
   for (const k of there.keys()) if (!here.has(k)) out.onlyThere++;
 }
 
-/** Here vs there, in the four counts the dialog words. */
-export function compareSurveys(here: SideSurvey, there: SideSurvey): LinkCounts {
-  const out: LinkCounts = { onlyHere: 0, onlyThere: 0, differ: 0, same: 0 };
+export interface LinkComparison extends LinkCounts {
+  /** the same four counts, canvases only and files only (the dialog names each) */
+  canvases: LinkCounts;
+  files: LinkCounts;
+}
+
+const zero = (): LinkCounts => ({ onlyHere: 0, onlyThere: 0, differ: 0, same: 0 });
+
+/** Here vs there: the four counts the dialog words, in total and per kind. */
+export function compareSurveys(here: SideSurvey, there: SideSurvey): LinkComparison {
+  const canvases = zero();
+  const files = zero();
   const localCanvases = there.bySlug
     ? new Map([...here.canvases.keys()].map((rel) => [slugOfRel(rel), null as string | null]))
     : here.canvases;
-  countMaps(localCanvases, there.canvases, out);
-  countMaps(here.files, there.files, out);
-  return out;
+  countMaps(localCanvases, there.canvases, canvases);
+  countMaps(here.files, there.files, files);
+  return {
+    onlyHere: canvases.onlyHere + files.onlyHere,
+    onlyThere: canvases.onlyThere + files.onlyThere,
+    differ: canvases.differ + files.differ,
+    same: canvases.same + files.same,
+    canvases,
+    files,
+  };
 }

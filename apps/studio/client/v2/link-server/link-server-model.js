@@ -4,6 +4,7 @@
 //
 //   empty ─type→ checking ─answer→ answers · no-answer · not-maude · bad-address
 //   answers ─Sign in in your browser→ starting → waiting (the server's own page) → done
+//                                                        └→ confirm (the server already holds work) ─Sync this folder→ done
 //
 // The address is checked as it is typed, by THIS app's own server (a project tab's
 // `/_api/hub-signin/check`, Home's `/_home/hub/test`) — one tokenless GET of the server's /health; the
@@ -11,6 +12,10 @@
 // link fills an empty address and rides the sign-in once (the server checks it names the same server).
 // Advanced: a sign-in key instead of the browser, and the folder on this Mac — each drawn only when the
 // context's API can do it (`advancedParts`).
+//
+// In a project tab whose folder is the person's own (B5, `api.where` names it), the sign-in links THIS folder
+// to the server (`POST /_api/hub/link-folder`): an empty server is seeded right away; a server that already
+// holds work answers with counts, and the dialog asks before anything is linked (`confirmLines`, `runConfirm`).
 //
 // What a context CAN do is its injected API (link-server-api.js); `runLink` drives it. Nothing here
 // keeps or logs a key or an invite: they are read once by `runLink` and never echoed into a line.
@@ -41,6 +46,7 @@ export const LINK_WORDS = {
   folderKept: 'Keep a copy for me',
   folderKeptNote: '— nothing to manage',
   folderMine: 'Use my folder…',
+  folderThis: (path) => `This folder (${path})`,
   choose: 'Choose…',
   waitTitle: 'Finish signing in in your browser',
   waitBody: (host) =>
@@ -50,7 +56,47 @@ export const LINK_WORDS = {
   refused: 'Maude won’t open that address. Check the server address.',
   noBrowser: 'The browser didn’t open. Try again.',
   failed: 'The sign-in didn’t finish. Nothing was linked. Try again.',
+  leadOwnTab: 'Sign in to a Maude server your team runs. Its projects open in their own tab.',
+  waitThis: (project) =>
+    `${project} starts syncing right after. Nothing is sent before you sign in.`,
+  waitOwnTab: 'Nothing is sent before you sign in. The project opens right after.',
+  confirmTitle: (host) => `Sync this folder with ${host}?`,
+  confirmLead: (host) =>
+    `You’re signed in. ${host} already holds a project, so syncing puts its work and this folder’s together:`,
+  confirmFine: 'Nothing is linked or sent until you press Sync this folder.',
+  confirmButton: 'Sync this folder',
+  linking: 'Linking…',
 };
+
+/** "1 canvas" · "3 files" · "1 canvas and 2 files" — a count with a noun that reads for one and many. */
+function countOf(c, f) {
+  const parts = [];
+  if (c) parts.push(`${c} ${c === 1 ? 'canvas' : 'canvases'}`);
+  if (f) parts.push(`${f} ${f === 1 ? 'file' : 'files'}`);
+  return parts.join(' and ');
+}
+
+/**
+ * The confirm step's lines (CONTRACT §4: what happens, in counts), from the server's answer
+ * `{ canvases: {onlyHere, onlyThere, differ, same}, files: {…} }`. A zero line is left out.
+ */
+export function confirmLines(counts, host) {
+  const c = counts?.canvases ?? {};
+  const f = counts?.files ?? {};
+  const n = (v) => (Number.isFinite(v) && v > 0 ? v : 0);
+  const lines = [];
+  const up = countOf(n(c.onlyHere), n(f.onlyHere));
+  if (up) lines.push({ id: 'here', text: `${up} only on this Mac — they go up to ${host}` });
+  const down = countOf(n(c.onlyThere), n(f.onlyThere));
+  if (down)
+    lines.push({ id: 'there', text: `${down} only on ${host} — they come down to this folder` });
+  const both = countOf(n(c.differ), n(f.differ));
+  if (both)
+    lines.push({ id: 'differ', text: `${both} on both, different — the two versions are merged` });
+  const same = countOf(n(c.same), n(f.same));
+  if (same) lines.push({ id: 'same', text: `${same} already the same on both` });
+  return lines;
+}
 
 const SCHEME_RE = /^[a-z][a-z0-9+.-]*:\/\//i;
 
@@ -97,8 +143,9 @@ export function initialLink(initialUrl = '') {
     advanced: false,
     key: '',
     folder: { mode: 'kept', path: '' },
-    phase: 'form', // form · starting · waiting · done
+    phase: 'form', // form · starting · waiting · confirm · linking · done
     wait: null, // { id, signInUrl, host }
+    confirm: null, // { url, host, counts, code } — the server already holds work (B5)
     error: null,
   };
 }
@@ -156,8 +203,16 @@ export function linkReducer(s, a) {
     case 'key':
       return { ...s, key: String(a.value ?? '') };
     case 'folder':
+      if (s.folder.mode === 'this') return s; // this project's own folder is not a choice
       return { ...s, folder: { ...s.folder, mode: a.mode === 'mine' ? 'mine' : 'kept' } };
+    case 'here':
+      // B5 — the project tab's own folder (`api.where`): linking means THIS folder; null = a copy Maude
+      // keeps, or a project already linked — the dialog keeps its other behaviour
+      return typeof a.folder === 'string' && a.folder
+        ? { ...s, folder: { mode: 'this', path: a.folder } }
+        : s;
     case 'folder-path':
+      if (s.folder.mode === 'this') return s;
       return { ...s, folder: { mode: 'mine', path: String(a.path ?? '') } };
     case 'submit':
       // the invite and the key are read once (by `runLink`, from the state before this) and emptied now —
@@ -169,12 +224,31 @@ export function linkReducer(s, a) {
         phase: 'waiting',
         wait: { id: a.id, signInUrl: a.signInUrl, host: a.host },
       };
+    case 'needs-confirm': {
+      const c = a.confirm || {};
+      if (typeof c.code !== 'string' || !c.code)
+        return { ...s, phase: 'form', wait: null, error: LINK_WORDS.failed };
+      return {
+        ...s,
+        phase: 'confirm',
+        wait: null,
+        confirm: { url: c.url, host: c.host, counts: c.counts ?? null, code: c.code },
+      };
+    }
+    case 'confirming':
+      return s.phase === 'confirm' ? { ...s, phase: 'linking' } : s;
     case 'failed':
-      return { ...s, phase: 'form', wait: null, error: a.error || LINK_WORDS.failed };
+      return {
+        ...s,
+        phase: 'form',
+        wait: null,
+        confirm: null,
+        error: a.error || LINK_WORDS.failed,
+      };
     case 'cancelled':
-      return { ...s, phase: 'form', wait: null, error: null };
+      return { ...s, phase: 'form', wait: null, confirm: null, error: null };
     case 'done':
-      return { ...s, phase: 'done', wait: null };
+      return { ...s, phase: 'done', wait: null, confirm: null };
     default:
       return s;
   }
@@ -225,10 +299,10 @@ export function primaryLabel(s) {
 }
 
 /** What Advanced holds in this context (its hint line); none = the fold is not drawn. */
-export function advancedParts(api) {
+export function advancedParts(api, s) {
   const out = [];
   if (typeof api?.linkKey === 'function') out.push('Sign-in key');
-  if (api?.folders) out.push('folder');
+  if (api?.folders === true || s?.folder?.mode === 'this') out.push('folder');
   return out;
 }
 
@@ -266,7 +340,10 @@ export async function runLink(
   const key = s.key.trim();
   const finish = async (at) => {
     const f = await api.finish(at, folder);
-    return f?.ok ? { ok: true } : { ok: false, error: f?.error || LINK_WORDS.failed };
+    if (f?.ok) return { ok: true };
+    // B5 — the server already holds work: nothing was linked; the dialog asks first
+    if (f?.needsConfirm) return { ok: false, needsConfirm: { url: at, ...f.needsConfirm } };
+    return { ok: false, error: f?.error || LINK_WORDS.failed };
   };
   if (key && typeof api.linkKey === 'function') {
     const k = await api.linkKey(url, key);
@@ -294,4 +371,16 @@ export async function runLink(
     if (p?.ok && p.url) return finish(p.url);
     return { ok: false, error: p?.error || LINK_WORDS.failed };
   }
+}
+
+/**
+ * B5 — the person said yes to syncing this folder with a server that already holds work: the one-time
+ * code the server's answer carried goes back once. Resolves `{ ok: true }` · `{ ok: false, error }`.
+ */
+export async function runConfirm(s, api) {
+  const c = s.confirm;
+  if (!c?.code || typeof api?.confirmLink !== 'function')
+    return { ok: false, error: LINK_WORDS.failed };
+  const r = await api.confirmLink(c.url, c.code);
+  return r?.ok ? { ok: true } : { ok: false, error: r?.error || LINK_WORDS.failed };
 }
