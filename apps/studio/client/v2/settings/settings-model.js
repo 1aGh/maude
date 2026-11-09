@@ -250,7 +250,8 @@ export const SETTINGS_ROWS = Object.freeze([
     section: 'general',
     testid: 'sync-setting-syncFiles',
     card: 'this-project',
-    where: 'Settings › General › This project › Sync details › Sync project files · Propagate deletions',
+    where:
+      'Settings › General › This project › Sync details › Sync project files · Propagate deletions',
     local: true,
     fold: 'settings.project',
   },
@@ -259,7 +260,8 @@ export const SETTINGS_ROWS = Object.freeze([
     section: 'general',
     testid: 'sync-setting-syncFiles',
     card: 'this-project',
-    where: 'Settings › General › This project › Sync details › Sync project files (off = canvases only)',
+    where:
+      'Settings › General › This project › Sync details › Sync project files (off = canvases only)',
     local: true,
     fold: 'settings.project',
   },

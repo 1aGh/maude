@@ -37,10 +37,11 @@ describe('the probes: Advanced things found by name, each with where it lives', 
   test('"hub" finds the team server, the hub address and the sync rows', () => {
     const rows = rowsOf(find('hub'));
     const byName = (n: string) => rows.find((r) => r.name === n);
-    expect(byName('Add a team server…')?.where).toBe(
-      'Settings › Connections › Your team’s own server'
+    // 2.1.1 T6: the project's link is General › This project (the registry's own "Link your server…" too)
+    expect(rows.find((r) => r.name === 'Link your server…' && r.group === 'settings')?.where).toBe(
+      'Settings › General › This project'
     );
-    expect(byName('Hub address')?.where).toBe('Settings › Connections › Your team’s own server');
+    expect(byName('Hub address')?.where).toBe('Settings › General › This project');
     expect(rows.some((r) => r.actionId === 'sync.resync')).toBe(true);
     expect(rows.some((r) => r.actionId === 'diag.sync')).toBe(true);
   });

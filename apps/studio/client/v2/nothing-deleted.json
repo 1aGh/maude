@@ -103,7 +103,7 @@
       "v2": {
         "action": "account.switch",
         "testid": "cloud-account",
-        "where": "Cloud tab: Menu > File > Switch account… (the row shows the account email; it ends the session). Desktop: Settings > Connections > Maude Cloud (email, Sign out)"
+        "where": "Settings › General › This project › Sync details › Maude Cloud (email, Sign out)"
       }
     },
     {
@@ -459,7 +459,7 @@
       "v2": {
         "action": null,
         "testid": "settings-open-dashboard",
-        "where": "Settings › General › Account › Open the cloud dashboard",
+        "where": "Settings › General › This project › Sync details › Maude Cloud › Manage on the web (a cloud tab: Settings › General › Account)",
         "reach": ["desktop", "browser", "cloud-owner", "cloud-member", "cloud-viewer"],
         "reachNote": "V2-4.9: the local read-only link (viewer) has no account row — it is the Mac owner’s account, and that link is somebody else’s Mac. A cloud viewer keeps it (its hub told the tab where the dashboard is)."
       }
@@ -1069,7 +1069,7 @@
       "v2": {
         "action": null,
         "testid": "sync-setting-syncFiles",
-        "where": "Settings › Advanced › This project › Sync project files · Propagate deletions"
+        "where": "Settings › General › This project › Sync details › Sync project files · Propagate deletions"
       }
     },
     {
@@ -1082,7 +1082,7 @@
       "v2": {
         "action": null,
         "testid": "sync-setting-firstAnchor",
-        "where": "Settings › Advanced › This project › When a folder first links"
+        "where": "Settings › General › This project › Sync details › When a folder first links"
       }
     },
     {
@@ -1095,7 +1095,7 @@
       "v2": {
         "action": null,
         "testid": "sync-ownership-adopt",
-        "where": "Settings › Advanced › This project › Who keeps .design/ › Hand over…"
+        "where": "Settings › General › This project › Sync details › Who keeps .design/ › Hand over…"
       }
     },
     {
@@ -1108,7 +1108,7 @@
       "v2": {
         "action": null,
         "testid": "sync-setting-syncFiles",
-        "where": "Settings › Advanced › This project › Sync project files (off = canvases only)"
+        "where": "Settings › General › This project › Sync details › Sync project files (off = canvases only)"
       }
     },
     {
@@ -1624,7 +1624,7 @@
       "v2": {
         "action": null,
         "testid": "settings-hub-address",
-        "where": "Settings › Connections › Your team's own server › Advanced (address, access token •••• last 4, Replace…)"
+        "where": "Settings › General › This project › Sync details › Your server (address, access token •••• last 4, Replace…)"
       }
     },
     {
@@ -1637,7 +1637,7 @@
       "v2": {
         "action": null,
         "testid": "settings-team-server-add",
-        "where": "Settings › Connections › Your team’s own server › Add a team server… — issue #204 (Michal 2026-11-04, decision maude/v2-michal-team-server-signin-via-hub-page): the email and password now live on the team server’s OWN sign-in page; the app’s Sign in (team-hub-open) opens it in the browser and comes back signed in. Home › Advanced options › Use a self-hosted hub (onb-hub) does the same since #204 K2: one Sign in (onb-hub-go), an invite link or key opens the server’s own invite page, no email or password field"
+        "where": "Settings › General › This project › Link your server… (a linked project: Sync details › Link another server…)"
       }
     },
     {
@@ -1781,7 +1781,7 @@
       "v2": {
         "action": null,
         "testid": "settings-cloud-projects",
-        "where": "Settings › Connections › Maude Cloud › Cloud projects on this Mac (Connect · Disconnect · View in the browser; cloud-project-<id>, cloud-disconnect-<id>); the maude:// deep-link dialogs and the browser sign-in sheet stay where they open from (cloud-deeplink-*, cloud-device-dialog)"
+        "where": "Settings › General › This project › Sync details › Maude Cloud › Cloud projects on this Mac (Connect · Disconnect · View in the browser; cloud-project-<id>, cloud-disconnect-<id>); the maude:// deep-link dialogs and the browser sign-in sheet stay where they open from (cloud-deeplink-*, cloud-device-dialog)"
       }
     },
     {
@@ -1794,7 +1794,7 @@
       "v2": {
         "action": null,
         "testid": "settings-team-server-add",
-        "where": "Settings › Connections › Your team’s own server › Add a team server… (the address / email / password form, team-hub-*); first-link consent stays in its flow, its rule is Settings › Advanced › This project › When a folder first links (sync-setting-firstAnchor); Sync notice Dismiss, delivery list and the status words are V2-4.7b / status-word packages — V2-4.8b: the sync notice (diverged / rejected / long offline) is a callout (callout-sync-diverged · callout-sync-rejected · callout-sync-offline-long, one action Details → Diagnostics › Sync; the reconnect flash is callout-sync-back; a short offline spell is the Share cluster word “Offline — kept on this Mac”); the role notice is callout-role (once per role) + the always-visible access word (Can view / Can comment)"
+        "where": "Settings › General › This project › Link your server… (a linked project: Sync details › Link another server…) (the address / email / password form, team-hub-*); first-link consent stays in its flow, its rule is Settings › Advanced › This project › When a folder first links (sync-setting-firstAnchor); Sync notice Dismiss, delivery list and the status words are V2-4.7b / status-word packages — V2-4.8b: the sync notice (diverged / rejected / long offline) is a callout (callout-sync-diverged · callout-sync-rejected · callout-sync-offline-long, one action Details → Diagnostics › Sync; the reconnect flash is callout-sync-back; a short offline spell is the Share cluster word “Offline — kept on this Mac”); the role notice is callout-role (once per role) + the always-visible access word (Can view / Can comment)"
       }
     },
     {

@@ -313,7 +313,9 @@ export default function ConnectionsSection({ focus = null }) {
         title="AI images, video and voice"
         desc="Your own keys for pictures, video and voice."
         summary={providerSummary(keys.providers)}
-        sw={Array.isArray(keys.providers) && keys.providers.some((p) => p?.configured) ? 'ok' : 'off'}
+        sw={
+          Array.isArray(keys.providers) && keys.providers.some((p) => p?.configured) ? 'ok' : 'off'
+        }
         action={
           <button
             type="button"

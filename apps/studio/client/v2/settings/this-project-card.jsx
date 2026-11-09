@@ -12,11 +12,11 @@
 // routes (use-connections.js) — only the home moved: Connections is about the person, this card is
 // about this project.
 //
-// Wiring that waits on another 2.1.1 task: Switch… runs `account.switch` (the avatar's switch, T4);
-// Link your server… runs `account.link-server` when the shell has it (T5) and otherwise opens today's
-// team-server form; Sign in again for a server opens that form on the server's address, for Maude
-// Cloud the device sign-in. Moving a project between your folder and a copy Maude keeps has no
-// backend yet — Change… draws only what works (Show in Finder).
+// Switch… runs `account.switch` (the avatar's account list, T4); Link your server… sends
+// `account.link-server`'s event (T5's one dialog takes it; nothing taking it opens today's team-server
+// form here); Sign in again for a server opens that form on the server's address, for Maude Cloud the
+// device sign-in. Moving a project between your folder and a copy Maude keeps has no backend yet —
+// Change… draws only what works (Show in Finder).
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -33,6 +33,7 @@ import { getPaletteEnv } from '../search/search-env.js';
 import { useFold } from '../fold/use-fold.js';
 import { menuRunner } from '../shell/menu-runner.js';
 import { nativeDoors } from '../shell/native-doors.js';
+import { LINK_SERVER_EVENT } from '../shell/project-account-bus.js';
 import { AccountBlock } from './account.jsx';
 import { ConnField } from './connection-row.jsx';
 import { cloudRow, maskedToken } from './connections-model.js';
@@ -44,26 +45,10 @@ import { useCloudConnection, useHubDetails } from './use-connections.js';
 
 const btn = 'btn btn--sm';
 
-/** The project folder, from the diagnostics read every desktop server answers ('' until it does). */
-function useProjectFolder() {
-  const [folder, setFolder] = useState('');
-  useEffect(() => {
-    let alive = true;
-    fetch('/_api/diagnostics')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        if (alive && typeof j?.projectFolder === 'string') setFolder(j.projectFolder);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return folder;
-}
-
 function useOnline() {
-  const [on, setOn] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine !== false));
+  const [on, setOn] = useState(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine !== false
+  );
   useEffect(() => {
     const up = () => setOn(true);
     const down = () => setOn(false);
@@ -79,7 +64,11 @@ function useOnline() {
 
 /** The project's square: its first letter (canvas 17 `Sq`). */
 function ProjectSquare({ name }) {
-  const ch = String(name || '?').trim().charAt(0).toUpperCase() || '?';
+  const ch =
+    String(name || '?')
+      .trim()
+      .charAt(0)
+      .toUpperCase() || '?';
   return <span className="v2s-sq">{ch}</span>;
 }
 
@@ -91,7 +80,9 @@ function Face({ account }) {
         <StIcon name="laptop" size={12} />
       </span>
     );
-  const ch = String(account.label || '?').charAt(0).toUpperCase();
+  const ch = String(account.label || '?')
+    .charAt(0)
+    .toUpperCase();
   return (
     <span className="v2s-face" aria-hidden="true">
       {ch}
@@ -120,7 +111,8 @@ function ChangeMenu({ m, onShowInFinder }) {
     if (!open) return undefined;
     menuRef.current?.querySelector('[role^="menuitem"]:not([aria-disabled="true"])')?.focus();
     const away = (e) => {
-      if (!menuRef.current?.contains(e.target) && !btnRef.current?.contains(e.target)) setOpen(false);
+      if (!menuRef.current?.contains(e.target) && !btnRef.current?.contains(e.target))
+        setOpen(false);
     };
     document.addEventListener('mousedown', away);
     return () => document.removeEventListener('mousedown', away);
@@ -171,7 +163,9 @@ function ChangeMenu({ m, onShowInFinder }) {
               className="v2s-menu-i"
               data-testid={`settings-project-place-${o.id}`}
             >
-              <span className="v2s-menu-ck">{o.current ? <StIcon name="check" size={12} /> : null}</span>
+              <span className="v2s-menu-ck">
+                {o.current ? <StIcon name="check" size={12} /> : null}
+              </span>
               <span>{o.label}</span>
               {o.detail ? <span className="v2s-menu-d">{o.detail}</span> : null}
             </div>
@@ -388,7 +382,6 @@ export default function ThisProjectCard({
   onCloseSheet,
 }) {
   const cloud = useCloudConnection({ onLinkedHub, onLocalProject, syncStatus });
-  const folder = useProjectFolder();
   const online = useOnline();
   const linkedUrl = cloud.local.linkedHub?.url ?? null;
   const hub = useHubDetails(linkedUrl);
@@ -412,9 +405,9 @@ export default function ThisProjectCard({
       url: cloud.cloudUrl,
       project: cloud.local.project,
       linkedHub: cloud.local.linkedHub,
+      place: cloud.local.place,
     },
     syncStatus,
-    folder,
     hubAccount: hub.details?.account ?? null,
     online,
     native,
@@ -426,11 +419,12 @@ export default function ThisProjectCard({
     else setSignInAt(m.hubUrl ?? '');
   };
   const linkServer = () => {
-    // 2.1.1 T5's one dialog when the shell has it; today's team-server form otherwise
-    if (menuRunner.canRun('account.link-server')) {
-      onCloseSheet?.();
-      runAction('account.link-server');
-    } else setTeamOpen(true);
+    // `account.link-server`'s event (shell/project-account-bus.js): 2.1.1 T5's one dialog takes it; when
+    // nothing does, today's team-server form opens here, in the sheet
+    const ev = new CustomEvent(LINK_SERVER_EVENT, { detail: { intent: 'link' }, cancelable: true });
+    window.dispatchEvent(ev);
+    if (ev.defaultPrevented) onCloseSheet?.();
+    else setTeamOpen(true);
   };
   const canMove = menuRunner.canRun('share.move-to-cloud');
   const canSwitch = menuRunner.canRun('account.switch');
@@ -487,7 +481,10 @@ export default function ThisProjectCard({
                   className="v2s-sub-r"
                   data-testid={cloud.state === 'in' ? 'cloud-account' : undefined}
                 >
-                  <StatusLine sw={cr.tone === 'ok' ? 'ok' : 'off'} testid="settings-conn-cloud-status">
+                  <StatusLine
+                    sw={cr.tone === 'ok' ? 'ok' : 'off'}
+                    testid="settings-conn-cloud-status"
+                  >
                     {cr.status}
                   </StatusLine>
                   {cr.action === 'sign-out' ? (
@@ -553,7 +550,11 @@ export default function ThisProjectCard({
               </section>
 
               {m.linkKind === 'server' ? (
-                <section className="v2s-sub" aria-label="Your server" data-testid="settings-conn-hub">
+                <section
+                  className="v2s-sub"
+                  aria-label="Your server"
+                  data-testid="settings-conn-hub"
+                >
                   <h4 className="v2s-sub-t">Your server · {m.host}</h4>
                   <div className="v2s-sub-r">
                     <StatusLine sw={m.sw} testid="settings-conn-hub-status">

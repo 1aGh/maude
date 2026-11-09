@@ -352,7 +352,12 @@ describe('the desktop sheet renders every Settings row', () => {
     ])
       expect(q(id), id).toBeTruthy();
     const panel = q('settings-panel-connections') as HTMLElement;
-    for (const id of ['cloud-account', 'cloud-signin', 'settings-hub-address', 'settings-team-server-add'])
+    for (const id of [
+      'cloud-account',
+      'cloud-signin',
+      'settings-hub-address',
+      'settings-team-server-add',
+    ])
       expect(panel.querySelector(`[data-testid="${id}"]`), id).toBeNull();
   });
 

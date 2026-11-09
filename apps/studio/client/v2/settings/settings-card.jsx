@@ -92,7 +92,10 @@ export function SettingsCard({
           onClick={() => onToggle?.(id)}
           data-testid={`settings-card-${id}-toggle`}
         >
-          <span className={iconNode ? 'v2s-card-ic v2s-card-ic--bare' : 'v2s-card-ic'} aria-hidden="true">
+          <span
+            className={iconNode ? 'v2s-card-ic v2s-card-ic--bare' : 'v2s-card-ic'}
+            aria-hidden="true"
+          >
             {iconNode ?? <StIcon name={icon} size={16} />}
           </span>
           <span className="v2s-card-t">
@@ -110,7 +113,6 @@ export function SettingsCard({
         </button>
         {action ? <span className="v2s-card-a">{action}</span> : null}
         {/* the chevron is the header's too (a pointer target, not a second stop for the keyboard) */}
-        {/* biome-ignore lint/a11y/useKeyWithClickEvents: the header button beside it is the keyboard's control */}
         <span className="v2s-card-ch" aria-hidden="true" onClick={() => onToggle?.(id)}>
           <StIcon name="submenu" size={14} />
         </span>

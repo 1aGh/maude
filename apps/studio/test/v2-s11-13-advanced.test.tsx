@@ -67,9 +67,10 @@ describe('the model carries 06 ad-settings', () => {
     for (const r of SETTINGS_ROWS.filter((x) => x.section === 'advanced'))
       expect(r.where?.startsWith('Settings › Advanced'), r.testid).toBe(true);
     for (const r of SETTINGS_ROWS.filter((x) => MOVED.includes(x.testid)))
-      expect(r.where?.startsWith('Settings › General › This project › Sync details'), r.testid).toBe(
-        true
-      );
+      expect(
+        r.where?.startsWith('Settings › General › This project › Sync details'),
+        r.testid
+      ).toBe(true);
   });
 
   test('C34: no row for usage data or "Faster canvas engine" — not hidden, not disabled, absent', () => {

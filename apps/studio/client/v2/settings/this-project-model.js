@@ -1,4 +1,4 @@
-// client/v2/settings/this-project-model.js — 2.1.1 T6: Settings › General › This project (canvas 17, 08 · 09).
+// client/v2/settings/this-project-model.js — 2.1.1 T6: Settings › General › This project (canvas 17 · 08 · 09).
 //
 // PURE (no DOM, no React, no fetch). The card says three things about THIS project — where it lives, which
 // account it uses, whether it connects — and carries the one fix in its header when a sign-in broke:
@@ -11,48 +11,25 @@
 //     Connection  ● Connected · synced 2 min ago
 //     › Sync details                Project files · trash · first link
 //
-// The connection state is a thin adapter over what the page already has — `/_api/cloud/status`
-// (`linkedHub.credentialed`) and the shell's sync payload (`syncPresentation`) — in the seven states and
-// words of canvas 17 §2 (`CONN`): ok · syncing · offline · missing · rejected · unreachable · local.
-// The avatar's model (2.1.1 B1) reads the same states; the words here are the canvas's, so the two agree.
-//
-// Where it lives: the server's own project folder (`/_api/diagnostics` `projectFolder`). A copy the app
-// keeps for a cloud or server project lives in the app's own data folder (managed.rs `managed_root`,
-// `<app data>/projects/…`), which is how a kept copy is told from a folder of the person's.
+// The connection is the shell's one model (shell/connection-state.js, 2.1.1 T2): the same seven states and
+// words the avatar, the save word and the toast say. Where it lives is `/_api/cloud/status` `place`
+// (`{ kept: true }` for a copy Maude keeps, else `{ kept: false, folder }` with home as `~`).
 
 import { syncPresentation } from '../../../sync/presentation.ts';
-import { isCloudHub } from './connections-model.js';
+import { connectionState, connectionWords } from '../shell/connection-state.js';
 
-/** The seven states, in canvas 17's words. `sw` is the status dot (ok · busy · off · error · warn). */
-export const CONN_WORDS = Object.freeze({
-  ok: { word: 'Connected', sw: 'ok' },
-  syncing: { word: 'Syncing', sw: 'busy' },
-  offline: { word: 'Offline — changes wait on this Mac', sw: 'off' },
-  missing: { word: 'Sign in to sync', sw: 'error' },
-  rejected: { word: 'Sign-in stopped working', sw: 'error' },
-  unreachable: { word: 'Can’t reach', sw: 'warn' },
-  local: { word: 'Only on this Mac', sw: 'off' },
+/** The status dot per state (canvas 17 `StatusWord`: ok · busy · off · error · warn). */
+const DOT = Object.freeze({
+  connected: 'ok',
+  syncing: 'busy',
+  offline: 'off',
+  'signin-missing': 'error',
+  'signin-rejected': 'error',
+  unreachable: 'warn',
+  local: 'off',
 });
 
-const hostOf = (url) => {
-  try {
-    return new URL(String(url)).host.toLowerCase();
-  } catch {
-    return '';
-  }
-};
 const str = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
-
-/** `/Users/me/git/x` → `~/git/x` for display. */
-export function tildePath(path) {
-  return String(path ?? '').replace(/^\/(?:Users|home)\/[^/]+(?=\/|$)/, '~');
-}
-
-/** A folder inside the app's own data folder is a copy Maude keeps (managed.rs `managed_root`). */
-export function isKeptByMaude(folder) {
-  const p = String(folder ?? '');
-  return /\/com\.maude\.app\/projects\//.test(p) || /\/com\.maude\.app\/projects$/.test(p);
-}
 
 /** "synced just now" · "synced 2 min ago" · "synced at 14:05" · null. */
 export function syncedWords(ms, now = Date.now()) {
@@ -64,79 +41,59 @@ export function syncedWords(ms, now = Date.now()) {
   return `synced at ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/**
- * The connection state of this project (canvas 17 §2).
- * @param in.linkedHub   `/_api/cloud/status` `{ url, credentialed }` or null
- * @param in.syncStatus  the shell's sync payload (null before the first one)
- * @param in.online      `navigator.onLine` — a hub that does not answer while this Mac is online is the server's side
- */
-export function connectionState({ linkedHub, syncStatus, online = true } = {}) {
-  if (!linkedHub?.url) return 'local';
-  if (linkedHub.credentialed === false) return 'missing';
-  const p = syncPresentation(syncStatus ?? null);
-  if (!p) return 'ok';
-  switch (p.phase) {
-    case 'refused':
-      return 'rejected';
-    case 'offline':
-    case 'stalled':
-      return online === false ? 'offline' : 'unreachable';
-    case 'connecting':
+/** The card's status line for a connection (the header line and the Connection row say the same). */
+export function statusLine(conn, { syncStatus = null, pending = 0, now = Date.now() } = {}) {
+  const w = connectionWords(conn, { pending });
+  switch (conn.state) {
+    case 'connected': {
+      const synced = syncedWords(syncStatus?.lastSyncAt, now);
+      return synced ? `Connected · ${synced}` : 'Connected';
+    }
     case 'syncing':
-      return 'syncing';
+      return w.line;
     default:
-      return 'ok';
+      return w.word;
   }
-}
-
-/** The status line for a state — the card's header line and its Connection row. */
-export function connectionWords(conn, { host = '', syncStatus = null, now = Date.now() } = {}) {
-  if (conn === 'ok') {
-    const synced = syncedWords(syncStatus?.lastSyncAt, now);
-    return synced ? `Connected · ${synced}` : 'Connected';
-  }
-  if (conn === 'syncing') {
-    const n = syncStatus?.docs?.pending;
-    return Number.isInteger(n) && n > 0
-      ? `Syncing · ${n} ${n === 1 ? 'change' : 'changes'} going out`
-      : 'Syncing…';
-  }
-  if (conn === 'unreachable') return host ? `Can’t reach ${host}` : 'Can’t reach the server';
-  return (CONN_WORDS[conn] ?? CONN_WORDS.local).word;
 }
 
 /**
  * The whole card.
- * @param in.status      `/_api/cloud/status` json (`connected`, `email`, `url`, `project`, `linkedHub`)
+ * @param in.status      `/_api/cloud/status` json (`connected`, `email`, `url`, `project`, `linkedHub`, `place`)
  * @param in.syncStatus  the shell's sync payload
- * @param in.folder      the project folder (`/_api/diagnostics` `projectFolder`), '' before it answers
  * @param in.hubAccount  the team-server sign-in's recorded account (`/_api/connections/hub` `account`)
  * @param in.native      the desktop app (Show in Finder is the Mac app's door)
  */
 export function thisProjectModel({
   status = null,
   syncStatus = null,
-  folder = '',
   hubAccount = null,
   online = true,
   native = false,
   now = Date.now(),
 } = {}) {
   const linkedHub = status?.linkedHub?.url ? status.linkedHub : null;
-  const cloudUrl = status?.url ?? '';
-  const linkKind = !linkedHub ? null : isCloudHub(linkedHub.url, cloudUrl) ? 'cloud' : 'server';
-  const host = linkedHub ? hostOf(linkedHub.url) : '';
-  const conn = connectionState({ linkedHub, syncStatus, online });
-  const kept = isKeptByMaude(folder);
-  const path = folder ? tildePath(folder) : '';
+  const pending = Number(syncStatus?.queuedOps) || Number(syncStatus?.docs?.pending) || 0;
+  const conn = connectionState({
+    linkedHub,
+    cloudUrl: status?.url ?? '',
+    syncStatus,
+    phase: syncPresentation(syncStatus ?? null)?.phase ?? null,
+    pending,
+    online,
+  });
+  const words = connectionWords(conn, { pending });
+  const host = conn.host ?? '';
+  const linkKind = conn.kind === 'local' ? null : conn.kind;
+  const kept = status?.place?.kept === true;
+  const folder = !kept ? (str(status?.place?.folder) ?? '') : '';
 
   // Lives in: the person's folder, or a copy Maude keeps — of a server project it reads "On <host>".
   let place;
   if (kept && linkKind === 'server') place = { kind: 'server', label: `On ${host}`, path: '' };
   else if (kept) place = { kind: 'kept', label: 'Kept by Maude', path: '' };
-  else place = { kind: 'folder', label: 'Your folder', path };
+  else place = { kind: 'folder', label: 'Your folder', path: folder };
 
-  const where = place.kind === 'folder' && path ? `Your folder · ${path}` : place.label;
+  const where = place.kind === 'folder' && folder ? `Your folder · ${folder}` : place.label;
   let desc;
   if (place.kind === 'server') desc = `${where} · copy kept by Maude`;
   else if (linkKind === 'cloud') desc = `${where} · also on Maude Cloud`;
@@ -147,21 +104,21 @@ export function thisProjectModel({
   let account;
   if (linkKind === 'cloud')
     account = { kind: 'cloud', label: str(status?.email) ?? 'Maude Cloud', host };
-  else if (linkKind === 'server') account = { kind: 'server', label: str(hubAccount) ?? host, host };
+  else if (linkKind === 'server')
+    account = { kind: 'server', label: str(hubAccount) ?? host, host };
   else account = { kind: 'local', label: 'No account', host: '' };
 
-  const bad = conn === 'missing' || conn === 'rejected';
-  const fix = conn === 'missing' ? 'sign-in' : conn === 'rejected' ? 'sign-in-again' : null;
-  const statusWord = connectionWords(conn, { host, syncStatus, now });
+  const bad = conn.state === 'signin-missing' || conn.state === 'signin-rejected';
+  const where2 = linkKind === 'cloud' ? 'Maude Cloud' : host || 'the server';
   const callout =
-    conn === 'rejected'
+    conn.state === 'signin-rejected'
       ? {
-          title: `Your sign-in to ${host || 'the server'} stopped working.`,
+          title: `Your sign-in to ${where2} stopped working.`,
           line: 'Changes wait on this Mac and go out after you sign in.',
         }
-      : conn === 'missing'
+      : conn.state === 'signin-missing'
         ? {
-            title: `This project is on ${host || 'a server'} — sign in to sync.`,
+            title: `This project is on ${where2} — sign in to sync.`,
             line: 'Changes wait on this Mac and go out after you sign in.',
           }
         : null;
@@ -172,7 +129,7 @@ export function thisProjectModel({
     {
       id: 'folder',
       label: 'Your folder',
-      detail: place.kind === 'folder' ? path : '',
+      detail: place.kind === 'folder' ? folder : '',
       current: place.kind === 'folder',
       available: place.kind === 'folder',
     },
@@ -190,11 +147,10 @@ export function thisProjectModel({
   return {
     name: str(status?.project) ?? 'this project',
     conn,
-    statusWord,
-    sw: (CONN_WORDS[conn] ?? CONN_WORDS.local).sw,
+    statusWord: statusLine(conn, { syncStatus, pending, now }),
+    sw: DOT[conn.state] ?? 'off',
     bad,
-    fix,
-    fixLabel: fix === 'sign-in' ? 'Sign in' : fix === 'sign-in-again' ? 'Sign in again' : null,
+    fixLabel: bad ? (words.fix?.label ?? 'Sign in') : null,
     callout,
     place,
     desc,
@@ -202,7 +158,7 @@ export function thisProjectModel({
     linkKind,
     hubUrl: linkedHub?.url ?? null,
     host,
-    local: conn === 'local',
+    local: conn.state === 'local',
     changeOptions,
     // the menu is drawn only when it has something to do beyond saying where the project is
     canChange: changeOptions.some((o) => o.available && !o.current),

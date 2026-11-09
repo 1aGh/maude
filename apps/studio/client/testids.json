@@ -75,15 +75,15 @@
     "pattern": false,
     "meaning": "Signed-in cloud account control: the account menu button in the sidebar cloud rail (`CloudBar`). V2-4.8a: the menubar's account chip is gone; a cloud tab's account is the email on project menu › File › \"Sign in as another account…\".",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "menubar",
     "consumers": [
       "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
     ],
     "v2": "moves",
-    "notes": "The menubar chip (`Menubar`) was the second emitter; it is deleted.",
+    "notes": "The menubar chip (`Menubar`) was the second emitter; it is deleted. 2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details.",
     "alsoProducedBy": [
       {
         "file": "apps/studio/client/panels/CloudBar.jsx",
@@ -4354,8 +4354,8 @@
     "pattern": false,
     "meaning": "Connections › Maude Cloud: the account’s own words — the cloud projects on this Mac, the Connect outcome note, an error. (The CloudBar rail’s root keeps the same hook.)",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "sync/cloud",
     "consumers": [
@@ -4367,7 +4367,8 @@
         "file": "apps/studio/client/panels/CloudBar.jsx",
         "symbol": "CloudBar"
       }
-    ]
+    ],
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "cloud-signin",
@@ -4375,8 +4376,8 @@
     "pattern": false,
     "meaning": "Cloud rail \"Sign in\" button (signed out).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "sync/cloud",
     "consumers": [
@@ -4388,7 +4389,8 @@
         "file": "apps/studio/client/panels/CloudBar.jsx",
         "symbol": "CloudBar"
       }
-    ]
+    ],
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "cloud-connect-note",
@@ -4396,8 +4398,8 @@
     "pattern": false,
     "meaning": "Cloud rail status note (`role=\"status\"`, `title` carries detail).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "sync/cloud",
     "consumers": [
@@ -4409,7 +4411,8 @@
         "file": "apps/studio/client/panels/CloudBar.jsx",
         "symbol": "CloudBar"
       }
-    ]
+    ],
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "cloud-project-<id>",
@@ -4417,8 +4420,8 @@
     "pattern": true,
     "meaning": "A cloud project item in the account menu (three render forms: view-only, connected, connectable).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "sync/cloud",
     "consumers": [
@@ -4430,7 +4433,8 @@
         "file": "apps/studio/client/panels/CloudBar.jsx",
         "symbol": "CloudBar"
       }
-    ]
+    ],
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "cloud-disconnect-<id>",
@@ -4438,8 +4442,8 @@
     "pattern": true,
     "meaning": "Disconnect this folder from cloud project `<id>`.",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "sync/cloud",
     "consumers": [],
@@ -4449,7 +4453,8 @@
         "file": "apps/studio/client/panels/CloudBar.jsx",
         "symbol": "CloudBar"
       }
-    ]
+    ],
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "cloud-device-dialog",
@@ -13549,7 +13554,8 @@
     "consumers": [
       "test:v2-settings"
     ],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired 2.1.1 T6: Settings › Advanced is one column of cards (`settings-advanced-cards`)."
   },
   {
     "hook": "diag-tab-<view>",
@@ -14538,14 +14544,15 @@
     "hook": "settings-cloud",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Connections › Maude Cloud group.",
+    "meaning": "General › This project › Sync details › Maude Cloud block: the account, Sign in / Sign out, the cloud projects on this Mac (2.1.1 T6; was Connections › Maude Cloud).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "settings-cloud-projects",
@@ -14553,8 +14560,8 @@
     "pattern": false,
     "meaning": "Connections › Maude Cloud › the cloud projects on this Mac (Connect · Disconnect · View in the browser rows).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [],
@@ -14564,7 +14571,8 @@
         "file": "apps/studio/client/panels/CloudBar.jsx",
         "symbol": "CloudBar"
       }
-    ]
+    ],
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "settings-hub-address",
@@ -14572,8 +14580,8 @@
     "pattern": false,
     "meaning": "Connections › the linked connection’s Advanced (your team’s own server, or Maude Cloud): the workspace address and its access token, drawn as its last four characters at most (`•••• •••• a91f`).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [],
@@ -14583,7 +14591,8 @@
         "file": "apps/studio/client/panels/CloudBar.jsx",
         "symbol": "CloudBar"
       }
-    ]
+    ],
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "cloud-sign-out",
@@ -14591,8 +14600,8 @@
     "pattern": false,
     "meaning": "Connections › Maude Cloud › Sign out.",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [],
@@ -14602,7 +14611,8 @@
         "file": "apps/studio/client/panels/CloudBar.jsx",
         "symbol": "CloudBar"
       }
-    ]
+    ],
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "cloud-host",
@@ -14623,12 +14633,13 @@
     "pattern": false,
     "meaning": "Connections › Your team’s own server › Add a team server… (opens the address / email / password form).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "settings-github",
@@ -14905,14 +14916,332 @@
     "hook": "settings-this-project",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Advanced › This project group (sync switches, .design/ ownership).",
+    "meaning": "General › This project card (2.1.1 T6, canvas 17 · 08 · 09): where the project lives, its account and connection; its Sync details fold holds the sync switches and the project’s link (was Advanced › This project).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-card-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Settings card (`data-card=<id>`, `data-open` while open) when it has no older hook; `<id>` is settings-cards.js `CARDS` (look, spend, claude-code, …).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/settings-card.jsx",
+      "symbol": "SettingsCard"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:settings-cards-t6"
+    ],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-card-<id>-toggle",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "That card’s header button: Enter / Space toggle it, `aria-expanded`, `aria-controls` its body.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/settings-card.jsx",
+      "symbol": "SettingsCard"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:settings-cards-t6"
+    ],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-card-<id>-body",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "That card’s body: mounted while closed (`hidden`), so a row inside keeps its state.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/settings-card.jsx",
+      "symbol": "SettingsCard"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:settings-cards-t6"
+    ],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-card-<id>-summary",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "That card’s status line — what is set (the Connections cards keep `settings-conn-<row>-status`).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/settings-card.jsx",
+      "symbol": "SettingsCard"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:settings-cards-t6"
+    ],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-general-cards",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Settings › General’s column of cards.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "GeneralSection"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:settings-cards-t6"
+    ],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-advanced-cards",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Settings › Advanced’s column of cards (canvas 17 · 11).",
     "producer": {
       "file": "apps/studio/client/v2/settings/advanced-section.jsx",
       "symbol": "AdvancedSection"
     },
     "region": "settings",
+    "consumers": [
+      "test:v2-settings"
+    ],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-this-mac",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › This Mac card.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-settings"
+    ],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-connections-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections’ closing line: which account a project uses is General › This project.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections"
+    ],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-sync-details",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "This project’s Sync details fold (`settings.project`, remembered per Mac): sync switches, Maude Cloud, your server.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:settings-cards-t6"
+    ],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-project-place",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "This project › Lives in: the place chip (`data-place` folder | kept | server).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:settings-cards-t6"
+    ],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-project-change",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "This project › Lives in › Change… (only where this Mac can do something: Show in Finder).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-project-change-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Change… menu: where the project lives (checked) and Show in Finder.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-project-place-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One place row of the Change… menu (`folder` | `kept`), the current one checked.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-project-finder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Change… › Show in Finder (the Mac app’s reveal door, the design folder).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-project-account",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "This project › Account row: who this project talks as.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections"
+    ],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-project-switch",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "This project › Account › Switch… (`account.switch`).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-project-connection",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "This project › Connection: the status line (shell/connection-state.js words).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections"
+    ],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-project-callout",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "This project’s broken-sign-in callout with Sign in again.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-project-sign-in-again",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sign in / Sign in again — in the closed card’s header, or the open card’s callout.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-project-local-acts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A project only on this Mac: Put on Maude Cloud… and Link your server….",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
+  },
+  {
+    "hook": "settings-project-put-on-cloud",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Put on Maude Cloud… (`share.move-to-cloud`).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable",
+    "notes": "new in v2 (2.1.1 T6)"
   },
   {
     "hook": "settings-project-unlinked",
@@ -31782,10 +32111,10 @@
     "hook": "settings-conn-<row>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One connection row (`<row>` = cloud · hub · github · ai · figma); the cloud, GitHub, AI and Figma rows keep their older hooks (`settings-cloud`, `settings-github`, `settings-ai-keys`, `figma-connect-card`), so only `settings-conn-hub` is emitted under this name. Its Advanced is the fold `connections.<row>`.",
+    "meaning": "Your server block under General › This project › Sync details (2.1.1 T6) — emitted only as `settings-conn-hub`.",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connection-row.jsx",
-      "symbol": "ConnectionRow"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [
@@ -31797,10 +32126,10 @@
     "hook": "settings-conn-<row>-status",
     "kind": "testid",
     "pattern": true,
-    "meaning": "That connection’s status line: “Signed in as …”, “Connected · saved 1 min ago”, “2 keys · Gemini, ElevenLabs”, “Connected · for imports”.",
+    "meaning": "A connection’s status line: `settings-conn-cloud-status` and `settings-conn-hub-status` in This project › Sync details; `settings-conn-claude|figma|github|ai-status` are the Connections cards’ status lines (2.1.1 T6).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connection-row.jsx",
-      "symbol": "ConnectionRow"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [
@@ -31814,14 +32143,15 @@
     "pattern": false,
     "meaning": "Connections › your team’s own server › Sign out: unlinks this folder and forgets its stored sign-in (`connections.cloud-project-disconnect`).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [
       "test:v2-s11-14-connections"
     ],
-    "v2": "new in v2 (S11.14)"
+    "v2": "new in v2 (S11.14)",
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "settings-hub-token",
@@ -31829,14 +32159,15 @@
     "pattern": false,
     "meaning": "Connections › the linked connection › Advanced › Access token: the mask and at most the last four characters — never the token.",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [
       "test:v2-s11-14-connections"
     ],
-    "v2": "new in v2 (S11.14)"
+    "v2": "new in v2 (S11.14)",
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "settings-hub-token-replace",
@@ -31844,14 +32175,15 @@
     "pattern": false,
     "meaning": "Access token › Replace… (`connections.replace-hub-token`): opens the password field.",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [
       "test:v2-s11-14-connections"
     ],
-    "v2": "new in v2 (S11.14)"
+    "v2": "new in v2 (S11.14)",
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "settings-hub-token-input",
@@ -31859,14 +32191,15 @@
     "pattern": false,
     "meaning": "The new access token (a password field, cleared after the save).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [
       "test:v2-s11-14-connections"
     ],
-    "v2": "new in v2 (S11.14)"
+    "v2": "new in v2 (S11.14)",
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "settings-hub-token-save",
@@ -31874,14 +32207,15 @@
     "pattern": false,
     "meaning": "Saves the new token through `POST /_api/hub/link`.",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [
       "test:v2-s11-14-connections"
     ],
-    "v2": "new in v2 (S11.14)"
+    "v2": "new in v2 (S11.14)",
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "settings-hub-account",
@@ -31889,15 +32223,16 @@
     "pattern": false,
     "meaning": "Connections › your team’s own server › Advanced › Signed in as: the account the hub vouched at sign-in (`hubs.json` `account`). Absent for a pasted token or a credential saved before the field existed.",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [
       "test:v2-s11-14-connections",
       "e2e:team-project"
     ],
-    "v2": "new in v2 (P8-T G1b-3)"
+    "v2": "new in v2 (P8-T G1b-3)",
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "settings-hub-version",
@@ -31905,14 +32240,15 @@
     "pattern": false,
     "meaning": "Connections › your team’s own server › Advanced › Hub version (a tokenless `/health` read).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/connections-section.jsx",
-      "symbol": "ConnectionsSection"
+      "file": "apps/studio/client/v2/settings/this-project-card.jsx",
+      "symbol": "ThisProjectCard"
     },
     "region": "settings",
     "consumers": [
       "test:v2-s11-14-connections"
     ],
-    "v2": "new in v2 (S11.14)"
+    "v2": "new in v2 (S11.14)",
+    "notes": "2.1.1 T6: moved with the project’s link from Settings › Connections to General › This project › Sync details."
   },
   {
     "hook": "size-picker-search",

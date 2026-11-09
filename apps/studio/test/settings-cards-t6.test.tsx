@@ -22,11 +22,8 @@ import {
   toggleCard,
 } from '../client/v2/settings/settings-cards.js';
 import { SETTINGS_ROWS } from '../client/v2/settings/settings-model.js';
-import {
-  connectionState,
-  isKeptByMaude,
-  thisProjectModel,
-} from '../client/v2/settings/this-project-model.js';
+import { thisProjectModel } from '../client/v2/settings/this-project-model.js';
+import { connectionWords } from '../client/v2/shell/connection-state.js';
 
 const NOW = Date.UTC(2026, 10, 9, 12, 0, 0);
 const CLOUD = 'https://cloud.example.test';
@@ -40,19 +37,19 @@ describe('General › This project — the model per state', () => {
         url: CLOUD,
         project: 'Brand site',
         linkedHub: { url: 'https://p1.cloud.example.test', credentialed: true },
+        place: { kept: false, folder: '~/git/brand-site' },
       },
       syncStatus: { linked: true, state: 'online', lastSyncAt: NOW - 2 * 60_000 },
-      folder: '/Users/alice/git/brand-site',
       native: true,
       now: NOW,
     });
-    expect(m.conn).toBe('ok');
+    expect(m.conn.state).toBe('connected');
     expect(m.statusWord).toBe('Connected · synced 2 min ago');
     expect(m.desc).toBe('Your folder · ~/git/brand-site · also on Maude Cloud');
     expect(m.place).toEqual({ kind: 'folder', label: 'Your folder', path: '~/git/brand-site' });
     expect(m.account).toMatchObject({ kind: 'cloud', label: 'alice@example.test' });
     expect(m.bad).toBe(false);
-    expect(m.fix).toBeNull();
+    expect(m.fixLabel).toBeNull();
     expect(m.local).toBe(false);
     // Change… offers Show in Finder (the Mac app's door); moving the project has no backend yet
     expect(m.changeOptions.filter((o) => o.available).map((o) => o.id)).toEqual([
@@ -69,21 +66,18 @@ describe('General › This project — the model per state', () => {
         url: CLOUD,
         project: 'Design system',
         linkedHub: { url: 'https://design.example.com', credentialed: true },
+        place: { kept: false, folder: '~/git/ds' },
       },
-      syncStatus: {
-        linked: true,
-        state: 'online',
-        accepted: { refused: true, pending: 2 },
-        docs: { synced: 3, pending: 0, rejected: 1 },
-      },
+      syncStatus: { linked: true, state: 'online', accepted: { credentialRefused: true } },
       hubAccount: 'alice@example.com',
       now: NOW,
     });
-    expect(m.conn).toBe('rejected');
+    expect(m.conn.state).toBe('signin-rejected');
+    // the words are the shell's one model (connection-state.js), the avatar's and the toast's
+    expect(m.statusWord).toBe(connectionWords(m.conn).word);
     expect(m.statusWord).toBe('Sign-in stopped working');
     expect(m.sw).toBe('error');
     expect(m.bad).toBe(true);
-    expect(m.fix).toBe('sign-in-again');
     expect(m.fixLabel).toBe('Sign in again');
     expect(m.callout?.title).toBe('Your sign-in to design.example.com stopped working.');
     expect(m.account).toMatchObject({ kind: 'server', label: 'alice@example.com' });
@@ -95,18 +89,23 @@ describe('General › This project — the model per state', () => {
       status: { url: CLOUD, linkedHub: { url: 'https://design.example.com', credentialed: false } },
       now: NOW,
     });
-    expect(m.conn).toBe('missing');
+    expect(m.conn.state).toBe('signin-missing');
     expect(m.statusWord).toBe('Sign in to sync');
     expect(m.fixLabel).toBe('Sign in');
   });
 
   test('only on this Mac — no account, the two ways out, nothing to fix', () => {
     const m = thisProjectModel({
-      status: { connected: false, url: CLOUD, project: 'Logo ideas', linkedHub: null },
-      folder: '/Users/alice/git/logo-ideas',
+      status: {
+        connected: false,
+        url: CLOUD,
+        project: 'Logo ideas',
+        linkedHub: null,
+        place: { kept: false, folder: '~/git/logo-ideas' },
+      },
       now: NOW,
     });
-    expect(m.conn).toBe('local');
+    expect(m.conn.state).toBe('local');
     expect(m.local).toBe(true);
     expect(m.statusWord).toBe('Only on this Mac');
     expect(m.desc).toBe('Your folder · ~/git/logo-ideas · only on this Mac');
@@ -116,42 +115,48 @@ describe('General › This project — the model per state', () => {
     expect(m.canChange).toBe(false);
   });
 
-  test('kept by Maude — a copy in the app’s own data folder, of a cloud project and of a server project', () => {
-    const kept = '/Users/alice/Library/Application Support/com.maude.app/projects/cloud.example.test--p9';
-    expect(isKeptByMaude(kept)).toBe(true);
-    expect(isKeptByMaude('/Users/alice/git/brand-site')).toBe(false);
+  test('kept by Maude — of a cloud project and of a server project', () => {
     const cloud = thisProjectModel({
       status: {
         url: CLOUD,
         connected: true,
         email: 'alice@example.test',
         linkedHub: { url: 'https://p9.cloud.example.test', credentialed: true },
+        place: { kept: true },
       },
-      syncStatus: { linked: true, state: 'online', docs: { synced: 1, pending: 3, rejected: 0 }, phase: 'syncing' },
-      folder: kept,
+      syncStatus: { linked: true, state: 'online', queuedOps: 3 },
       now: NOW,
     });
     expect(cloud.place).toEqual({ kind: 'kept', label: 'Kept by Maude', path: '' });
     expect(cloud.desc).toBe('Kept by Maude · also on Maude Cloud');
+    expect(cloud.statusWord).toBe('Syncing · 3 changes going out');
     expect(cloud.changeOptions.find((o) => o.id === 'kept')?.current).toBe(true);
     const server = thisProjectModel({
-      status: { url: CLOUD, linkedHub: { url: 'https://design.example.com', credentialed: true } },
-      folder: kept,
+      status: {
+        url: CLOUD,
+        linkedHub: { url: 'https://design.example.com', credentialed: true },
+        place: { kept: true },
+      },
       now: NOW,
     });
     expect(server.place.label).toBe('On design.example.com');
     expect(server.desc).toBe('On design.example.com · copy kept by Maude');
   });
 
-  test('the connection states read the sync payload: offline vs a server that does not answer', () => {
-    const hub = { url: 'https://design.example.com', credentialed: true };
+  test('offline vs a server that does not answer', () => {
+    const status = {
+      url: CLOUD,
+      linkedHub: { url: 'https://design.example.com', credentialed: true },
+    };
     const off = { linked: true, state: 'offline' };
-    expect(connectionState({ linkedHub: hub, syncStatus: off, online: false })).toBe('offline');
-    expect(connectionState({ linkedHub: hub, syncStatus: off, online: true })).toBe('unreachable');
-    expect(connectionState({ linkedHub: null })).toBe('local');
+    expect(thisProjectModel({ status, syncStatus: off, online: false }).statusWord).toBe(
+      'Offline — changes wait on this Mac'
+    );
+    expect(thisProjectModel({ status, syncStatus: off, online: true }).statusWord).toBe(
+      'Can’t reach design.example.com'
+    );
   });
 });
-
 describe('the card table (pure)', () => {
   test('one card open per tab; a click on the open one closes it', () => {
     expect(openCardOf('general', {})).toBe('this-project');
@@ -181,7 +186,11 @@ describe('the card table (pure)', () => {
 
 describe('Advanced no longer has This project', () => {
   test('the sync switches are General › This project › Sync details rows now', () => {
-    for (const id of ['sync-setting-syncFiles', 'sync-setting-firstAnchor', 'sync-ownership-adopt']) {
+    for (const id of [
+      'sync-setting-syncFiles',
+      'sync-setting-firstAnchor',
+      'sync-ownership-adopt',
+    ]) {
       const rows = SETTINGS_ROWS.filter((r) => r.testid === id);
       expect(rows.length, id).toBeGreaterThan(0);
       for (const r of rows) {
@@ -206,7 +215,10 @@ describe('⌘K finds a row inside a closed card', () => {
     expect(parseSettingsTarget('advanced#nope')).toEqual({ tab: 'advanced', card: null });
     // what the search runner hands the sheet
     let opened: unknown = null;
-    settingsSearchRows({ cloud: null, run: (s: string, r: unknown) => (opened = settingsTarget(s, r as never)) })
+    settingsSearchRows({
+      cloud: null,
+      run: (s: string, r: unknown) => (opened = settingsTarget(s, r as never)),
+    })
       .find((r) => r.testid === 'settings-report-logs')
       ?.run();
     expect(opened).toBe('advanced#privacy');
@@ -223,9 +235,9 @@ const ROUTES: Record<string, unknown> = {
     url: CLOUD,
     project: 'Studio site',
     linkedHub: { url: 'https://p1.cloud.example.test', credentialed: true },
+    place: { kept: false, folder: '~/git/studio-site' },
   },
   '/_api/cloud/projects': { ok: true, projects: [] },
-  '/_api/diagnostics': { projectFolder: '/Users/jana/git/studio-site' },
   '/_api/figma/status': { configured: false },
   '/_api/generate/providers': { providers: [] },
   '/_api/sync/settings': {

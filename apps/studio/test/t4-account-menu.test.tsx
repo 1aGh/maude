@@ -304,7 +304,7 @@ describe('the registry and the bus', () => {
     const tabs: unknown[] = [];
     const d = { setSettingsOpen: (t: unknown) => tabs.push(t) };
     expect(runLinkServer({ intent: 'sign-in' }, d)).toBe('settings');
-    expect(tabs).toEqual(['connections']);
+    expect(tabs).toEqual(['general#this-project']);
     const seen: unknown[] = [];
     const on = (e: Event) => {
       seen.push((e as CustomEvent).detail);

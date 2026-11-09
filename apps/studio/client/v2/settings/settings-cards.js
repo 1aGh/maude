@@ -160,7 +160,9 @@ const money = (n) => {
 /** Generation spend: "Stops at $5 a session and $20 a day · asks before a job over $2". */
 export function spendSummary({ perRun, perDay, confirmOver } = {}) {
   const ask =
-    Number(confirmOver) === 0 ? 'asks before every job' : `asks before a job over ${money(confirmOver)}`;
+    Number(confirmOver) === 0
+      ? 'asks before every job'
+      : `asks before a job over ${money(confirmOver)}`;
   return `Stops at ${money(perRun)} a session and ${money(perDay)} a day · ${ask}`;
 }
 

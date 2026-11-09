@@ -50,7 +50,8 @@ export function useCloudConnection({ onLinkedHub, onLocalProject, syncStatus } =
   const [email, setEmail] = useState(null);
   // The address this Mac signs in against (`status.url`) — never a hard-coded vendor URL.
   const [cloudUrl, setCloudUrl] = useState('');
-  const [local, setLocal] = useState({ project: '', linkedHub: null });
+  // `place` (2.1.1 T2): `{ kept: true }` or `{ kept: false, folder }` — where this project lives
+  const [local, setLocal] = useState({ project: '', linkedHub: null, place: null });
   const [projects, setProjects] = useState(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -76,7 +77,7 @@ export function useCloudConnection({ onLinkedHub, onLocalProject, syncStatus } =
     const r = await api('/_api/cloud/status');
     if (r.json?.url) setCloudUrl(r.json.url);
     const linkedHub = r.json?.linkedHub ?? null;
-    setLocal({ project: r.json?.project ?? '', linkedHub });
+    setLocal({ project: r.json?.project ?? '', linkedHub, place: r.json?.place ?? null });
     liftRef.current.onLinkedHub?.(linkedHub);
     liftRef.current.onLocalProject?.(r.json?.project ?? null);
     if (r.ok && r.json?.connected) {

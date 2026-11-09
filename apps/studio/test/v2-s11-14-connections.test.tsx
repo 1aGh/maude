@@ -376,7 +376,12 @@ describe('Settings › Connections, rendered (06 ad-edge-hub, canvas 17 · 10)',
   test('four cards — the person’s own integrations; the project’s link is not here', async () => {
     installFetch();
     await mount();
-    for (const id of ['settings-claude', 'settings-github', 'settings-ai-keys', 'figma-connect-card'])
+    for (const id of [
+      'settings-claude',
+      'settings-github',
+      'settings-ai-keys',
+      'figma-connect-card',
+    ])
       expect(q(id), id).toBeTruthy();
     for (const id of ['settings-cloud', 'settings-conn-hub', 'cloud-account', 'cloud-bar'])
       expect(q(id), id).toBeNull();

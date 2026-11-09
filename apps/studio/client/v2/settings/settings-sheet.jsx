@@ -204,9 +204,7 @@ export default function SettingsSheet({
                       {...general}
                     />
                   )}
-                  {s.id === 'connections' && (
-                    <ConnectionsSection focus={focusFor('connections')} />
-                  )}
+                  {s.id === 'connections' && <ConnectionsSection focus={focusFor('connections')} />}
                   {s.id === 'advanced' && (
                     <AdvancedSection
                       update={update}

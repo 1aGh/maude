@@ -114,8 +114,9 @@ export const SETTINGS_SEARCH = Object.freeze({
     keywords: ['hub', 'cloud', 'server', 'url', 'self hosted'],
   },
   'settings-team-server-add': {
-    label: 'Add a team server…',
-    keywords: ['hub', 'self hosted', 'server', 'team', 'invite'],
+    // 2.1.1 T6 (canvas 17 · 09): General › This project's own words
+    label: 'Link your server…',
+    keywords: ['hub', 'self hosted', 'server', 'team', 'invite', 'add a team server'],
   },
   'settings-app-version': { label: 'Version', keywords: ['app version', 'about', 'build'] },
   'settings-update-restart': {

@@ -464,8 +464,8 @@ export default function AdvancedSection({ update, onUpdateLater, live, focus = n
           <span className="v2s-row-t">
             <span className="v2s-row-k">Logs in bug reports</span>
             <span className="v2s-hint">
-              Whether a report carries the last lines of Maude’s log. You see them before anything is
-              sent.
+              Whether a report carries the last lines of Maude’s log. You see them before anything
+              is sent.
             </span>
           </span>
           <select
