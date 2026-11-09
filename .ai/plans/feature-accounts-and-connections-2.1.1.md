@@ -47,17 +47,17 @@ Fixing a broken or missing sign-in takes one click.
   - Home per-project location.
 
   → shown to Michal (AskUserQuestion) **before** any builder.
-- [ ] **T2** Broken/missing sign-in:
+- [x] **T2** (B1, merged 672d8c50e) Broken/missing sign-in:
   - a state derived from `/_api/cloud/status` `linkedHub.credentialed` + hub 401 / sync refused;
   - a toast once per session;
   - avatar badge (broken-link glyph);
   - avatar menu "Sign in again" with the address prefilled.
-- [ ] **T3** Sync popup unlinked: "Create project on cloud.maude.sh" (the existing `/_api/cloud/move`) and "Link your server" (the T5 dialog).
-- [ ] **T4** Avatar menu: "Sign in with custom server…". "Sign in as another account…" is fixed for a local project: it never strands the project on an empty profile and can go back. Rebind to an existing profile, or offer the choice.
+- [x] **T3** (B2, merged 6cd8e477d) Sync popup unlinked: "Create project on cloud.maude.sh" (the existing `/_api/cloud/move`) and "Link your server" (the T5 dialog).
+- [x] **T4** (B1: project_use_account rebinds to an existing profile) Avatar menu: "Sign in with custom server…". "Sign in as another account…" is fixed for a local project: it never strands the project on an empty profile and can go back. Rebind to an existing profile, or offer the choice.
 - [ ] **T5** One team-server dialog, replacing both today's dialogs:
   - address, Test connection, invite;
   - Advanced: an own sign-in key, and the local folder the project connects to.
-- [ ] **T6** Settings: the project's connection (cloud + team server) moves from Connections to General, showing what it is linked to and how to change it. Advanced sections become an accordion.
+- [x] **T6** (B3, merged 464ca14b2) Settings: the project's connection (cloud + team server) moves from Connections to General, showing what it is linked to and how to change it. Advanced sections become an accordion.
 - [ ] **T7** Desktop e2e:
   - sign-in return lands (fake hub);
   - broken-sign-in state + re-sign-in;
@@ -104,3 +104,4 @@ Fixing a broken or missing sign-in takes one click.
 - Follow-up T12 (found by the designer): an AI Edit to a canvas another run created is silently reverted on disk (`[sync/ai] … refused (run-overlap)`), with no word to the writer.
 
 - 2026-11-09: T0 committed (0fa21f6b6, local, not pushed). Scout inventory done. Next: T1 design.
+- 2026-11-09: B1–B4 merged (672d8c50e, 6cd8e477d, 464ca14b2, 2b6a8af21), integration 3837d2e0b, release bundle 5a316896f; boot check + opening-card smoke PASS. Michal chose to build "link this folder to your server" in 2.1.1 → B5 running. Gaps named: Change… (folder ↔ kept-by-Maude move) has no backend; the switch list can't show server accounts; Home has no sign-in key paste; the CONTRACT §6 offline word is unchanged globally (the desktop chip shows the new words).
