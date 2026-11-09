@@ -597,6 +597,13 @@ const HUMAN_ONLY_ROUTES = [
     what: 'Move to cloud',
     why: 'it uploads the project to their billed cloud account',
   },
+  // 2.1.1 — Link your server: THIS folder joins the person's team server; the studio answers a
+  // write without the window's own fetch 403 window-only (routes/hub-link-folder.ts).
+  {
+    re: /\/_api\/hub\/link-folder(?![\w-])/i,
+    what: 'Link your server',
+    why: "it uploads the project to their team server with this Mac's sign-in",
+  },
   // V2-8.9 defender M1 (decision maude/v2-8.9-sync-link-confirm-needs-fetch-metadata).
   {
     re: /\/_api\/sync\/link\/confirm(?![\w-])/i,

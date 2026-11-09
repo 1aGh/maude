@@ -532,6 +532,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/generate/keys': { class: 'local' },
   '/_api/generate/whisper-model': { class: 'local' },
   '/_api/hub/link': { class: 'local' },
+  // 2.1.1 routes/hub-link-folder.ts: links THIS folder to the person's team server (the attach lane);
+  // the seed-up is the sync runtime's, never this route's
+  '/_api/hub/link-folder': { class: 'local' },
   '/_api/report': { class: 'local' },
   '/_api/report-fallback': { class: 'local' },
   '/_api/shell-shot': { class: 'local' },

@@ -386,6 +386,7 @@ const PROJECT = [
   '/_api/cloud/projects',
   '/_api/cloud/attach',
   '/_api/cloud/attach/code',
+  '/_api/hub/link-folder',
   '/_api/project/restore',
   '/_api/project/migrate',
   '/_api/project/undo',

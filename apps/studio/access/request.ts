@@ -165,6 +165,7 @@ const CANVAS_ONLY_REFUSED = new Set([
   '/_api/diagnostics/report',
   '/_api/debug-bundle',
   '/_api/cloud/move',
+  '/_api/hub/link-folder',
   '/_api/cloud/projects',
   '/_api/github/repos',
   // #122 (122-C) — the desktop shell's clip carriage (shell-token routes, `project` class): they move a
