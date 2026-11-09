@@ -2,7 +2,7 @@
 //
 // The registry row (B1, shell/project-account-bus.js `runLinkServer`) dispatches the cancelable
 // `maude:link-server` event, detail `{ intent: 'link' | 'sign-in', url? }`. This host takes it
-// (`preventDefault()`, so the row does not fall back to Settings › Connections) and opens the one
+// (`preventDefault()`, so the row does not fall back to Settings › General › This project) and opens the one
 // "Link your server" dialog, the address prefilled when the event names one. The avatar menu, Settings,
 // ⌘K and Diagnostics › Sync all arrive here.
 

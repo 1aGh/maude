@@ -4471,13 +4471,25 @@
       "id": "account.add-cloud",
       "label": "Add a Maude Cloud account…",
       "kind": "command",
-      "exec": "shell"
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "Maude Cloud’s sign-in page; an agent never signs anyone in"
+      }
     },
     {
       "id": "account.link-server",
       "label": "Link your server…",
       "kind": "command",
-      "exec": "shell"
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "the server’s sign-in page; an agent never signs anyone in"
+      }
     },
     {
       "id": "account.github-signin",

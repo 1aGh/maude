@@ -1826,6 +1826,16 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: human('native-window', 'the desktop app’s profiles; an agent never picks an account'),
   },
+  // 2.1.1 B1: a new Maude Cloud account signs in in the person's own browser.
+  'account.add-cloud': {
+    effect: 'none',
+    agent: human('native-window', 'Maude Cloud’s sign-in page; an agent never signs anyone in'),
+  },
+  // 2.1.1 B2: linking a server is a sign-in on that server's page, in the person's own browser.
+  'account.link-server': {
+    effect: 'none',
+    agent: human('native-window', 'the server’s sign-in page; an agent never signs anyone in'),
+  },
   // 2.0.5 W4: GitHub's device flow — a person types the code in their own browser.
   'account.github-signin': {
     effect: 'none',

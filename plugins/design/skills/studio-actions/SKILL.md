@@ -47,7 +47,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 
 ## Capabilities
 
-539 capabilities: 189 by file, 160 by verb, 190 the person's only, 0 not yet.
+541 capabilities: 189 by file, 160 by verb, 192 the person's only, 0 not yet.
 
 ### Edit a file (189)
 
@@ -408,11 +408,12 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Write a direction | `ds.draft` | `maude design ds draft <ds> --direction <x> --tokens <file.json>` | prompt |
 | Zoom to artboard | `view.zoom-to-artboard` | `maude design open <canvas>#<artboard>` | auto |
 
-### Only the person (190)
+### Only the person (192)
 
 | Capability | Action id | Why |
 | --- | --- | --- |
 | Actual size | `view.zoom-actual` | view-pref |
+| Add a Maude Cloud account… | `account.add-cloud` | native-window — Maude Cloud’s sign-in page; an agent never signs anyone in |
 | Add a track | `timeline.add-track` | view-pref — which empty tracks the timeline draws (the lanes follow the clips) |
 | Add the guide canvases to this project | `help.add-guides` | onboarding — Help › Help and guides adds the guide canvases to a project on request |
 | Add to main · opens a pull request | `history.open-pr` | git — an agent runs git itself in the project folder: gh pr create (or git merge locally) |
@@ -492,6 +493,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Leave | `invite.leave` | accounts — turns down an invitation addressed to the person’s own cloud account |
 | Let them edit | `share.request-approve` | roles |
 | Link settings… | `share.link-settings` | links |
+| Link your server… | `account.link-server` | native-window — the server’s sign-in page; an agent never signs anyone in |
 | Loop ends here | `timeline.loop-out` | view-pref — the loop range is playback state, never written to the file |
 | Loop starts here | `timeline.loop-in` | view-pref — the loop range is playback state, never written to the file |
 | Make the timeline compact | `timeline.compact` | view-pref — the timeline island’s size; a per-person view preference |
