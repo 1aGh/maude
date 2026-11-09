@@ -1,6 +1,6 @@
 # 2.1.1 UX builders: shared brief
 
-Read this, then `.ai/scenarios/issues-burndown/builder-preamble.md` (safety rules), then the plan `.ai/plans/feature-accounts-and-connections-2.1.1.md`.
+Read this, then `.ai/scenarios/issues-burndown/builder-preamble.md` (safety rules), then the plan `.ai/plans/archive/feature-accounts-and-connections-2.1.1.md`.
 
 ## The spec
 

@@ -3,6 +3,17 @@
   "currentPhase": null,
   "phases": [
     {
+      "id": "feature-accounts-and-connections-2.1.1",
+      "title": "2.1.1 — Accounts, projects and where they live",
+      "status": "done",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Status: active · Owner: Michal (request via keeper, 2026-11-09) · Lead: Maude v2 session Target: 2.1.1. Push, tag and release need Michal's OK.",
+      "planPath": ".ai/plans/archive/feature-accounts-and-connections-2.1.1.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
       "status": "done",
@@ -2397,17 +2408,6 @@
       "date": null,
       "summary": "Drafted 2026-09-19, on the owner's request, while writing a post that promotes Maude Cloud publicly. The post had to be re-framed (\"free pilot, €19 later\") because the funnel cannot take money toda...",
       "planPath": ".ai/plans/cloud-live-payments-rollout.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
-      "id": "feature-accounts-and-connections-2.1.1",
-      "title": "2.1.1 — Accounts, projects and where they live",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Status: active · Owner: Michal (request via keeper, 2026-11-09) · Lead: Maude v2 session Target: 2.1.1. Push, tag and release need Michal's OK.",
-      "planPath": ".ai/plans/feature-accounts-and-connections-2.1.1.md",
       "archived": false,
       "phaseKey": null
     },

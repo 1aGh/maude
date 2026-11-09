@@ -157,3 +157,5 @@ Fixing a broken or missing sign-in takes one click.
   - This was release-blocking. It was caught by `compiled-entry-guard.test.ts` on the mini and confirmed by booting the built sidecar. Fixed in 14468ef77.
   - Rebuilt; the lanes are rerunning.
 - 2026-11-09: Michal: "jak doběhnou background tasks tak vydej novou verzi" → release v2.1.1 after the harness fix merges.
+- 2026-11-09: Released v2.1.1: release commit 12e48367b, annotated tag pushed together with main (91e57a20a..12e48367b). The release workflows are running.
+- 2026-11-09: Closed. npm latest=2.1.1 (20:44Z). The cell reports 2.1.1, the canvas origin answers 401, and the GitHub release has 15 assets and is not a draft. Follow-ups for 2.1.2: N7 (neutral labels miss some names), N8 (window-only routes check a header), Change… (folder ↔ kept-by-Maude move) backend, server accounts in the switch list, sign-in key paste on Home, CONTRACT §6 offline word, layout restore from the recovery slot, the outgoing held-delete "Keep on the hub" copy, v2-gate-focus happy-dom teardown error (pre-existing).
