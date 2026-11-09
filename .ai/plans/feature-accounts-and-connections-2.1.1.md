@@ -156,3 +156,4 @@ Fixing a broken or missing sign-in takes one click.
   - Root cause: T8 imported `bin/_curl-local.mjs` into the server for the address check. That file still used the bare argv[1] entry guard, so the packaged `maude-server` booted as curl-local ("unrecognized flag --root").
   - This was release-blocking. It was caught by `compiled-entry-guard.test.ts` on the mini and confirmed by booting the built sidecar. Fixed in 14468ef77.
   - Rebuilt; the lanes are rerunning.
+- 2026-11-09: Michal: "jak doběhnou background tasks tak vydej novou verzi" → release v2.1.1 after the harness fix merges.
