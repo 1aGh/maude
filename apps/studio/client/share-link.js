@@ -14,6 +14,18 @@ export function normalizeOpenPath(raw, designRel = '.design') {
   return rel.split('/').some((s) => s === '' || s === '.' || s === '..') ? null : rel;
 }
 
+/**
+ * What the Share sheet opens on: the canvas at `path`, or — with no canvas — nothing, unless the ask is about the
+ * PROJECT (`{ project: true }`: Move to Maude Cloud, Connect), which gets the project's own sheet (2.1.1 T7: from
+ * Diagnostics › Sync with no canvas open, "Create project on Maude Cloud" did nothing).
+ * @returns {{ path: string, rel: string|null, label: string } | null}
+ */
+export function shareTargetFor(path, designRel = '.design', opts = {}) {
+  const rel = normalizeOpenPath(path, designRel);
+  if (rel) return { path, rel, label: path.split('/').pop() || path };
+  return opts?.project ? { path: '', rel: null, label: '' } : null;
+}
+
 /** Decode a URL value exactly once, then validate. */
 export function normalizeOpenParam(raw, designRel = '.design') {
   if (typeof raw !== 'string') return null;

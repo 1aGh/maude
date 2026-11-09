@@ -1775,7 +1775,7 @@ function ShellProjectPill() {
     onQuickSetup: () => setQuickSetupOpen(true),
     onIntro: () => setIntroOpen(true),
     onWhatsNew: whatsNew.openPanel,
-    onShare: () => showShare(),
+    onShare: (opts) => showShare(undefined, opts),
     onReload: reloadActive,
     onCloseCanvas: () => activePath && closeTab(activePath),
     onAssembleVideo: assembleVideo,

@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CANVAS_EXT_RE, SYSTEM_TAB } from '../shell/constants.js';
 import { remapDirPrefix, revealPath } from '../tree-expansion.js';
-import { buildShareLinks, normalizeOpenPath, readOpenParam, withOpenParam } from '../share-link.js';
+import {
+  buildShareLinks,
+  normalizeOpenPath,
+  readOpenParam,
+  shareTargetFor,
+  withOpenParam,
+} from '../share-link.js';
 import { basename, displayName, previewKind, shellToast } from '../shell/util.js';
 import { assembleVideoFlow } from '../v2/timeline/assemble-video.js';
 import { notify } from '../../notifications.tsx';
@@ -205,9 +211,10 @@ export function useTabs({
       localUrl: location.origin,
       readOnly: !!cfg.readOnly,
     });
-  const showShare = (path = sharePath) => {
-    const rel = normalizeOpenPath(path, cfg.designRel);
-    if (rel) setShareDialog({ path, rel, label: basename(path) });
+  // `{ project: true }` (Move to Maude Cloud, Connect): the project's sheet when no canvas is open
+  const showShare = (path = sharePath, opts) => {
+    const target = shareTargetFor(path, cfg.designRel, opts);
+    if (target) setShareDialog(target);
   };
 
   // Retry from the #115 error panel: re-read /_config FIRST (the stale

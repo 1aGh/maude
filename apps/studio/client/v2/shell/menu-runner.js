@@ -595,9 +595,10 @@ export function createMenuHandlers(d) {
       requestShareFocus('link');
       d.onShare();
     },
-    'share.move-to-cloud': () => d.onShare(),
+    // 2.1.1 T7 — about the project, not a canvas: the project's sheet when no canvas is open
+    'share.move-to-cloud': () => d.onShare({ project: true }),
     // gate-b-sec4 — Connect lives in the Share sheet
-    'sync.connect-link': () => d.onShare(),
+    'sync.connect-link': () => d.onShare({ project: true }),
     // S9.21 — Ask to edit (the Viewing button, ⌘K) and the owner's answer (the request block's buttons)
     ...createAccessHandlers(d),
     // `{ tab }` lands on that section ("Connect a Google key?" → connections); the sheet resolves a name it lacks
