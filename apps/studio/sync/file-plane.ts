@@ -381,6 +381,7 @@ function deliveryRank(state: DeliveryState): number {
       return 1;
     case 'stuck':
     case 'delete-held':
+    case 'delete-in-held':
       return 2;
     case 'referenced-but-unoffered':
       return 3;
@@ -771,6 +772,13 @@ export const DELETE_HELD_REASON =
 export const HUB_ONLY_REASON =
   'deleted on this Mac and kept on the hub — it is not downloaded again';
 
+/** 2.1.1 T13 — the ledger reason for a `delete-in-held` row. */
+export const DELETE_IN_HELD_REASON =
+  'the project deleted this, as part of a batch too large to remove here without asking';
+/** 2.1.1 T13 — the ledger reason for a `kept-here` row. */
+export const KEPT_HERE_REASON =
+  'the project deleted this and you kept this Mac’s copy — it is not removed here or sent back';
+
 /** One folder of held deletes, for the Sync details row. */
 export interface HeldDeleteFolder {
   /** Design-root-relative folder (`''` = the design root itself). */
@@ -803,6 +811,18 @@ export function summarizeHeldDeletes(rows: Readonly<Record<string, LedgerRow>>):
     .map(([folder, count]) => ({ folder, count }))
     .sort((a, b) => b.count - a.count || (a.folder < b.folder ? -1 : 1));
   return { count: paths.length, paths, folders };
+}
+
+/** 2.1.1 T13 — every `delete-in-held` row, grouped like the outbound ones (pure over the rows). */
+export function summarizeHeldIncoming(
+  rows: Readonly<Record<string, LedgerRow>>,
+  skip?: ReadonlySet<string>
+): ReturnType<typeof summarizeHeldDeletes> {
+  const waiting: Record<string, LedgerRow> = {};
+  for (const [rel, row] of Object.entries(rows))
+    if (row.state === 'delete-in-held' && !skip?.has(rel))
+      waiting[rel] = { ...row, state: 'delete-held' };
+  return summarizeHeldDeletes(waiting);
 }
 
 /** Does `rel` sit in `folder` (or below it)? `null` folder = every held row. */
@@ -1028,6 +1048,14 @@ export interface FilePlane {
   answerHeldDeletes(how: 'send' | 'purging' | 'keep', folder: string | null): string[];
   /** The purge for these paths ended (done or not): held again unless the hub deleted them. */
   endPurge(rels: readonly string[]): void;
+  /** 2.1.1 T13 — the held INCOMING deletes (the project removed these; this Mac still has them). */
+  heldIncomingDeletes(): ReturnType<typeof summarizeHeldDeletes>;
+  /**
+   * 2.1.1 T13 — the person's answer to held incoming deletes (`folder` null = all). `remove`: the
+   * next pass quarantines them into `_trash/` in one go, past the breaker. `keep`: they stay on this
+   * Mac and are neither removed nor sent back. Returns the paths the answer covered.
+   */
+  answerIncomingDeletes(how: 'remove' | 'keep', folder: string | null): string[];
 }
 
 export function createFilePlane(opts: FilePlaneOptions): FilePlane {
@@ -1046,6 +1074,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
   const confirmedDeletes = new Set<string>();
   /** Issue #207 (7b) — held deletes an owner purge is deleting on the hub right now. */
   const purgingDeletes = new Set<string>();
+  /** 2.1.1 T13 — held incoming deletes the person said to remove here (in memory, like the above). */
+  const acceptedIncoming = new Set<string>();
   const readPropagateDeletes = (): boolean =>
     (typeof opts.propagateDeletes === 'function'
       ? opts.propagateDeletes()
@@ -2697,6 +2727,18 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       ) {
         continue;
       }
+      // 2.1.1 T13 — KEPT HERE: the project deleted it and the person kept this Mac's copy. While the
+      // file is still the bytes they kept and the project's word is still the delete, nothing is
+      // decided: not removed here, not pushed back over the tombstone. An edit here, or a teammate
+      // recreating the file, is a new decision.
+      if (
+        here &&
+        remoteHash === null &&
+        kept?.state === 'kept-here' &&
+        here.hash === (kept.syncedHash ?? kept.lastSeenHash ?? null)
+      ) {
+        continue;
+      }
 
       // GONE FROM HERE, AND THE HUB HOLDS EXACTLY WHAT THIS MAC LAST SAW (issue #207). No recorded
       // ancestor — the upload landed while its answer was lost (a timeout on a slow link), or the
@@ -2764,6 +2806,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           ledger.forget(rel);
           purgingDeletes.delete(rel);
           confirmedDeletes.delete(rel);
+          acceptedIncoming.delete(rel);
         } else if (
           !here &&
           remoteHash !== null &&
@@ -2820,7 +2863,11 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       // gates it). One still waiting for an answer keeps waiting, and a new local delete joins its
       // question rather than slipping out under the limit beside it.
       const hits = work.filter(
-        (w) => w.decision.action === action && !(direction === 'out' && confirmedDeletes.has(w.rel))
+        (w) =>
+          w.decision.action === action &&
+          !(direction === 'out' && confirmedDeletes.has(w.rel)) &&
+          // 2.1.1 T13 — an incoming delete the person said to remove here goes through.
+          !(direction === 'in' && acceptedIncoming.has(w.rel))
       );
       const asking =
         direction === 'out' &&
@@ -2848,10 +2895,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           if (ledger.row(w.rel)?.state !== 'delete-held') {
             ledger.setState(w.rel, 'delete-held', { reason: DELETE_HELD_REASON });
           }
-        } else {
-          ledger.setState(w.rel, 'conflict', {
-            reason: 'the project wants this removed, as part of a batch too large to apply unasked',
-          });
+        } else if (ledger.row(w.rel)?.state !== 'delete-in-held') {
+          // Its own state (T13): `conflict` read as a both-sides edit and offered no answer.
+          ledger.setState(w.rel, 'delete-in-held', { reason: DELETE_IN_HELD_REASON });
         }
       }
       if (direction === 'out') {
@@ -2863,7 +2909,14 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           folders: all.folders.slice(0, 20),
         };
       } else {
-        out.deleteHeld = { direction, count: paths.length, paths: paths.slice(0, 200) };
+        // Every row still waiting for the person's answer, not just this pass's hits (T13).
+        const all = summarizeHeldIncoming(ledger.rows(), acceptedIncoming);
+        out.deleteHeld = {
+          direction,
+          count: all.count,
+          paths: all.paths.slice(0, 200),
+          folders: all.folders.slice(0, 20),
+        };
       }
       work = work.filter((w) => !hits.includes(w));
     }
@@ -3037,6 +3090,21 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     const drain = async (): Promise<void> => {
       while (inFlight.size > 0) await Promise.race(inFlight);
     };
+
+    // 2.1.1 T13 — AN ACCEPTED INCOMING BATCH IS ONE PASS. Filing a file into `_trash/` is a local
+    // rename: no request, no bytes, no hub to protect. The per-pass file ceiling exists for
+    // downloads and uploads, and would stretch a person's "Remove here too" over a dozen passes.
+    if (acceptedIncoming.size > 0) {
+      const now1 = work.filter(
+        (w) => w.decision.action === 'quarantine' && acceptedIncoming.has(w.rel)
+      );
+      if (now1.length > 0) {
+        const gone = new Set(now1);
+        work = work.filter((w) => !gone.has(w));
+        for (const item of now1) await run(item);
+        moved = 0;
+      }
+    }
 
     for (const item of work) {
       // TWO CEILINGS, because they bound different things and only one of them
@@ -3521,6 +3589,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           return false;
         }
         ledger.forget(rel);
+        acceptedIncoming.delete(rel);
         out.deleted.push({ rel, parked });
         return true;
       }
@@ -3623,6 +3692,19 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     },
     endPurge(rels) {
       for (const rel of rels) purgingDeletes.delete(rel);
+    },
+    heldIncomingDeletes() {
+      return summarizeHeldIncoming(ledger.rows(), acceptedIncoming);
+    },
+    answerIncomingDeletes(how, folder) {
+      const rels = summarizeHeldIncoming(ledger.rows(), acceptedIncoming).paths.filter((r) =>
+        inHeldFolder(r, folder)
+      );
+      for (const rel of rels) {
+        if (how === 'remove') acceptedIncoming.add(rel);
+        else ledger.setState(rel, 'kept-here', { reason: KEPT_HERE_REASON });
+      }
+      return rels;
     },
     /**
      * HOW MUCH MEDIA IS NOT HERE — plan T29.

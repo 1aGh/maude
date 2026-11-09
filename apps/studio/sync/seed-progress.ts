@@ -241,6 +241,12 @@ export function computeSeedProgress(input: SeedProgressInput): SeedProgress {
       heldDeletedHere += 1;
       continue;
     }
+    // 2.1.1 T13 — the project deleted it and this Mac is waiting for the person's answer, or kept the
+    // copy by choice: held here, never "waiting" to move.
+    if (state === 'delete-in-held' || state === 'kept-here') {
+      held += 1;
+      continue;
+    }
     if (isHeldByConsent(row)) {
       held += 1;
       if (row.reason === CODE_MODULE_HELD_REASON) heldCode += 1;
