@@ -339,9 +339,7 @@ describe('B5 — a project tab links THIS folder', () => {
     expect($('link-server-count-there')?.textContent).toBe(
       '2 canvases only on design.example.com — they come down to this folder'
     );
-    expect($('link-server-count-differ')?.textContent).toBe(
-      '1 file on both, different — the two versions are merged'
-    );
+    expect($('link-server-count-differ')?.textContent).toBe('1 file on both, but different');
     expect(calls.some((c) => c[0] === 'confirmLink')).toBe(false);
     await act(async () => {
       $('link-server-confirm-sync')?.click();

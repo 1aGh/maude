@@ -340,7 +340,7 @@ describe('B5 — this folder joins the server (a project tab)', () => {
         id: 'there',
         text: '1 canvas only on design.example.com — they come down to this folder',
       },
-      { id: 'differ', text: '1 canvas on both, different — the two versions are merged' },
+      { id: 'differ', text: '1 canvas on both, but different' },
     ]);
     expect(LINK_WORDS.confirmTitle('design.example.com')).toBe(
       'Sync this folder with design.example.com?'

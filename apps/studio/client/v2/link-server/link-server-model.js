@@ -91,8 +91,7 @@ export function confirmLines(counts, host) {
   if (down)
     lines.push({ id: 'there', text: `${down} only on ${host} — they come down to this folder` });
   const both = countOf(n(c.differ), n(f.differ));
-  if (both)
-    lines.push({ id: 'differ', text: `${both} on both, different — the two versions are merged` });
+  if (both) lines.push({ id: 'differ', text: `${both} on both, but different` });
   const same = countOf(n(c.same), n(f.same));
   if (same) lines.push({ id: 'same', text: `${same} already the same on both` });
   return lines;
