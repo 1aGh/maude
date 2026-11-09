@@ -179,6 +179,15 @@ export interface AcceptedColdStartInput {
    * cell wake), not an edit: it is materialized, never held.
    */
   wasAccepted?: (content: string) => Promise<boolean | null>;
+  /**
+   * 2.1.1 T11 — this disk is a hub's own checkout (the paired studio of a cell or a self-hosted
+   * workspace hub, `cellPairing`): the project's cache, not a person's work (DDR-243; the hub is
+   * the sole committer, DDR-209). A source lane that would be HELD is materialized instead — the
+   * project's version wins and the checkout's bytes go to the recovery slot. A held conflict there
+   * is a dead end: the hub's proxy refuses the conflict route in a cell (v2-S9.24b), so Compare
+   * and Keep mine answer 404, and the lane stays blocked behind it.
+   */
+  checkoutIsCache?: boolean;
   createDoc: (lanes: Partial<Record<ProposalLane, string>>) => Promise<{
     status: 'accepted' | 'rejected';
     code?: string;
@@ -357,6 +366,23 @@ export async function acceptedColdStart(
       }
     }
     verdicts.push({ lane, decision: 'materialize', local: text ?? undefined });
+  }
+
+  // ---- a hub checkout never holds (see `checkoutIsCache`)
+  if (i.checkoutIsCache) {
+    for (const v of verdicts) {
+      if (v.decision !== 'hold') continue;
+      const p = v.lane === 'html' ? i.paths.html : v.lane === 'css' ? i.paths.css : undefined;
+      if (i.historyDir && p && v.local !== undefined) {
+        try {
+          saveRecoveryBody(i.historyDir, p, 'local', v.local);
+        } catch {
+          /* best-effort, as for the other lanes the project's value wins on */
+        }
+      }
+      v.decision = 'materialize';
+      v.base = undefined;
+    }
   }
 
   // ---- act

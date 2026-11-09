@@ -4116,6 +4116,8 @@ export function createSyncRuntime(
           ownAccepted,
           ownAcceptedCss,
           wasAccepted: (content) => acceptedLink.client.holdsValue(content),
+          // T11 — a hub's own checkout is the project's cache: never a held conflict there.
+          checkoutIsCache: cellPairing !== null,
           createDoc:
             createdHere !== null
               ? async () => ({ status: 'accepted' as const, html: createdHere })
