@@ -12,9 +12,20 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import * as Y from 'yjs';
+
 import { createActionStage } from '../sync/action-stage.ts';
+import { applyHtmlToDoc } from '../sync/codec.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
 import { type LocalHome, openLocalHome } from '../sync/local-kernel.ts';
+import {
+  type AcceptedLaneLink,
+  createDocProjection,
+  type ProposalOutcome,
+} from '../sync/projection.ts';
+import { readRecoveryBody } from '../sync/source-recovery.ts';
+
+const REMOTE = { remote: true };
 
 const dirs: string[] = [];
 const homes: LocalHome[] = [];
@@ -160,5 +171,73 @@ describe('a canvas another run created', () => {
     await runWrite(h, p, 'r2', edited);
     expect(warns.filter((w) => w.includes('run-overlap'))).toEqual([]);
     expect(p.read()).toBe(edited);
+  });
+
+  test('local project: a real overlap still leaves the disk, but its bytes are kept for recovery', async () => {
+    const p = project();
+    p.write(canvas('accepted'));
+    const warns: string[] = [];
+    const h = open(p.designRoot, warns);
+    await h.ready();
+    h.runtime.beginAiAction('run:r1', 'one', { runId: 'r1', chatId: 'c1', claimOnly: true });
+    h.runtime.beginAiAction('run:r2', 'two', { runId: 'r2', chatId: 'c2', claimOnly: true });
+    const first = canvas('first run');
+    await runWrite(h, p, 'r1', first);
+    const second = canvas('second run');
+    await runWrite(h, p, 'r2', second);
+    // A13: the refused write leaves the disk ...
+    expect(warns.some((w) => w.includes('run-overlap'))).toBe(true);
+    expect(p.read()).toBe(first);
+    // ... but the writer's bytes are never lost
+    const historyDir = path.join(p.designRoot, '_history', 'ui-fresh');
+    expect(readRecoveryBody(historyDir, REL, 'local')).toBe(second);
+  });
+
+  test('linked project: the rolled-back bytes of a real overlap are kept for recovery', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'maude-overlap-projection-'));
+    dirs.push(dir);
+    mkdirSync(path.join(dir, 'ui'), { recursive: true });
+    const html = path.join(dir, 'ui', 'fresh.tsx');
+    const accepted = canvas('accepted');
+    writeFileSync(html, accepted);
+    const doc = new Y.Doc();
+    doc.transact(() => applyHtmlToDoc(doc, accepted, REMOTE), REMOTE);
+    const sent: Array<{ answer: (o: ProposalOutcome) => void }> = [];
+    let n = 0;
+    const link: AcceptedLaneLink = {
+      on: () => true,
+      newTransactionId: () => `tx_${++n}`,
+      propose: () => new Promise<ProposalOutcome>((answer) => sent.push({ answer })),
+    };
+    const historyDir = path.join(dir, '_history', 'ui-fresh');
+    const projection = createDocProjection({
+      slug: 'ui-fresh',
+      doc,
+      paths: {
+        html,
+        comments: path.join(dir, '_comments', 'ui-fresh.json'),
+        annotations: path.join(dir, 'ui-fresh.annotations.svg'),
+        css: path.join(dir, 'ui', 'fresh.css'),
+        meta: path.join(dir, 'ui', 'fresh.meta.json'),
+      },
+      flushMs: 0,
+      historyDir,
+      accepted: link,
+    });
+    projection.start();
+    projection.reconcile();
+    const refused = canvas('second run');
+    writeFileSync(html, refused);
+    projection.applyFromFs({
+      path: html,
+      bytes: new TextEncoder().encode(refused),
+      hash: hashBytes(refused),
+    });
+    expect(sent).toHaveLength(1);
+    sent[0]?.answer({ status: 'rejected', code: 'run-overlap' });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(readFileSync(html, 'utf8')).toBe(accepted);
+    expect(readRecoveryBody(historyDir, html, 'local')).toBe(refused);
+    projection.stop?.();
   });
 });

@@ -82,6 +82,7 @@ import { hashBytes } from './echo-guard.ts';
 import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubEffect, hubTextUndoConflict } from './hub-text-undo.ts';
 import { mergeSource } from './source-merge.ts';
+import { saveRecoveryBody } from './source-recovery.ts';
 import { type ParkedCanvas, removeClearedCopies } from './trash-clear-copies.ts';
 import {
   asTarget,
@@ -902,7 +903,21 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     onRefused: (w) => {
       if (!(LOCAL_LANES as readonly string[]).includes(w.lane)) return;
       const lane = w.lane as LocalLane;
-      if (diskLane(w.slug, lane) === w.content) writeLane(w.slug, lane, w.base);
+      if (diskLane(w.slug, lane) !== w.content) return;
+      // the refused bytes leave the disk, never the project: they are kept in the canvas's
+      // recovery folder first, and a write that cannot keep them is not rolled back
+      try {
+        saveRecoveryBody(
+          path.join(opts.designRoot, '_history', canvasSlugFromRel(w.slug, designRel)),
+          lane === 'html' ? w.slug : `${w.slug}.${lane}`,
+          'local',
+          w.content
+        );
+      } catch (err) {
+        log.warn(`[local-kernel] ${w.slug}: refused write kept on disk (${String(err)})`);
+        return;
+      }
+      writeLane(w.slug, lane, w.base);
     },
     // #164 — writes a call's window parked and nobody claimed: recorded as outside, as the watcher
     // would have recorded them (one action per canvas; the disk already holds the bytes)
