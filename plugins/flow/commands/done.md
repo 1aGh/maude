@@ -24,6 +24,8 @@ Input: `$ARGUMENTS` — optionally `--quick` plus a plan path (default: the one 
 
 Any failure → stop, return to `/execute`, then run `/done` again.
 
+**Tracker report (`orbit` only).** When validate returns, load `flow:orbit-backend` and send ONE `orbit_state_report` with `command: "/flow:done"` (`"/flow:done --quick"` under `--quick`) and `verdict: {result, findings}` from the validate run — phase and result mapping per the `/flow:done` row of [guide 02](../skills/orbit-backend/_guide-02-execute.md). Validate sends none of its own here. Warn-only.
+
 ### 2. Acceptance criteria check
 
 Walk `## Acceptance Criteria` in the plan; check off or flag each: all tasks completed · validate passes (under `--quick`: static + affected tests, note the deferred full validate in STATE.md) · no DDR-worthy decision unrecorded · scenario report linked in the PR description (under `--quick`: "scenario deferred to full /flow:validate"). A criterion that can't be met is never skipped — record a blocker in STATE.md and `/pause`.
@@ -99,7 +101,7 @@ Write `.ai/logs/execution-reports/<feature-name>.md` (**artifact store:** honour
 > **kgai close (when `maude kg resolve --json` is `active`, see `flow:kgai-backend`).** Decisions already went in via `/flow:record-ddr`. Mark the plan closed and push once (`kg sync` is a close-time op, never per-edit):
 > `echo '{"decision":{"title":"Closed: <feature>","rationale":"<retro one-liner>","date":"<YYYY-MM-DD>","mutations":[{"op":"upsert_element","kind":"plan","name":"<plan-slug>","props":{"status":"done"}}]}}' | maude kg ingest --root .` then `maude kg sync --warn-only --root .`.
 
-> **orbit close (`provider: orbit`).** Last, after archive: `flow:orbit-backend` Close recipe § B + C — `orbit_artifact_push` the plan, RCA, execution report, code review and retro that exist, then `orbit_state_report` `done`. Warn-only (`⚠ orbit: …`); never blocks or rolls back. Unchanged in `--quick`.
+> **orbit close (`provider: orbit`).** Last, after archive: `flow:orbit-backend` Close recipe § B + C — `orbit_artifact_push` the plan, RCA, execution report, code review and retro that exist, then `orbit_state_report` `done` (with `command: "/flow:done"` / `"/flow:done --quick"`). Warn-only (`⚠ orbit: …`); never blocks or rolls back. Unchanged in `--quick`.
 
 **Coverage baseline (opt-in):** if `skills.coverageTrend.enabled` and the branch equals `baselineBranch` (default `main`), write `.ai/state/coverage-baseline.json` `{ "coverage": <%>, "recordedAt": "<date>", "branch": "<branch>" }`; on any other branch skip (a feature-branch value doesn't represent main).
 

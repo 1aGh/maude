@@ -32,7 +32,7 @@ Payload: `{repo, taskKey: <KEY, omitted when unset — a repo-level artifact>, k
 
 ### C. Final state — last call
 
-`orbit_state_report {repo, taskKey, phase: "done", detail: "PR <url> — <short sha>"}` (drop the PR part when there is none). Needs `KEY`; without one, skip.
+`orbit_state_report {repo, taskKey, phase: "done", detail: "PR <url> — <short sha>", command}` (drop the PR part when there is none). `command` is the invoked command as in [guide 02](./_guide-02-execute.md) — `/flow:done`, `/flow:done --quick` or `/flow:bug-fix`. No `verdict` here: the close-time verdict was sent by Step 1. Needs `KEY`; without one, skip.
 
 ### Report line
 

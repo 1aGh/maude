@@ -112,7 +112,7 @@ Active plan without `## Retro` after `/flow:done` → flag. DDR-worthy change (n
 ✓ scenario: <name> 5/5 PASS — report <path> — parity ✓
 ✓ a11y: 0 blockers, 2 warnings | ✓ design system: 0 violations | ✓ security: <verdict> | ✓ DDR drift: 0
 ```
-Append a non-blocking config line from `maude doctor --json` (`driftCount`, `qualityAdditions`; suggest `maude doctor --fix` when > 0). All green → continue to `/flow:done`.
+Append a non-blocking config line from `maude doctor --json` (`driftCount`, `qualityAdditions`; suggest `maude doctor --fix` when > 0). All green → continue to `/flow:done`. **Tracker report (`orbit` only).** When the user invoked validate (not `/flow:execute` or `/flow:done` calling it), load `flow:orbit-backend` and send ONE `orbit_state_report` when the run finishes — green, or stopped on the first hard fail — with `command: "/flow:validate"` and `verdict: {result, findings}`; phase, detail and the result mapping are the validate rows of [guide 02](../skills/orbit-backend/_guide-02-execute.md). A step-0 skip-if-clean hit reports `skipped`. Warn-only: a failed report never changes the verdict or the exit.
 
 **8b. Record green (DDR-061).** Only on GREEN (all hard gates pass, scenario `blockers == 0`, no security finding ≥ floor), write the step-0 `TREE_SHA` for the next run: `printf '{"tree_sha":"%s","result":"green","validatedAt":"%s","reportPath":"%s"}' "$TREE_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SCENARIO_REPORT_PATH:-}" | maude cache put validate "$BRANCH"`. A red result writes nothing.
 
@@ -142,7 +142,7 @@ Cheap by construction (15–60 s regardless of repo size): only scoped commands 
    - Web: `agent-browser open <local route>` → `snapshot -c` → `screenshot .ai/device/verify/<ts>-<task>.png`. Checks the page loads and key plan elements exist (not a scenario).
    - Native: boot UDID via `xcrun simctl list devices booted -j`, `agent-device --platform ios open <bundle> --udid …`, `snapshot -i`, `screenshot`. Checks app starts, affected screen reachable, no red-screen.
 4. **Optional subagents** for UI tasks, in the same parallel batch: `a11y-auditor`, `design-system-guard`.
-5. **Report** deferred gates explicitly (`✓ lint (scoped) …`, `→ typecheck: deferred …`, `✓ tests: 5/5 (filter verified)`, smoke, warnings).
+5. **Report** deferred gates explicitly (`✓ lint (scoped) …`, `→ typecheck: deferred …`, `✓ tests: 5/5 (filter verified)`, smoke, warnings). **Tracker (`orbit` only):** as in the full pipeline, with `command: "/flow:validate --fast"`, only when the user invoked `--fast` directly (never from `/flow:execute` or `/flow:done --quick` — their own reports cover it); deferred gates make the result `partial`.
 6. **Config drift nudge** (soft): `maude doctor --json | jq -e '(.summary.driftCount + .summary.qualityAdditions) == 0' || echo "⚠ run maude doctor --fix when convenient"`. Gate failures block; this does not.
 
 ## `--security` — security review
