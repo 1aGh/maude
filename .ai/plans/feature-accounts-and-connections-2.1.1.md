@@ -74,7 +74,7 @@ Fixing a broken or missing sign-in takes one click.
 - [x] **T11** (merged dcc8edc87: a hub's own studio never holds a cold-start conflict; root cause = hub proxy refuses /_api/project/conflict by design (S9.24b), not the `_` path. Follow-up F1: a running-time refused proposal still leaves a dead-end card) Web Diagnostics conflict that can't be resolved: "The two versions can't be read right now", and Keep mine answers Not found. Suspected: a document whose path has a `_`-prefixed segment (`preview/_ui-feedback`) in cell/hub mode. The desktop doesn't show it.
 - [x] **T13** (merged c56d83352) "Remove here too" for an incoming held delete batch in Sync details (T9 gap: a peer away during a large purge keeps the files held with no way to accept; `sync/held-deletes.ts`, the file-plane breaker loop, `sync/index.ts` 'until you accept').
 - [x] **T12** (merged fe935f084; follow-ups: visible refusal through the edit check; a canvas moved before its creating run publishes) An AI write to a canvas another run created is reverted silently (`[sync/ai] … refused (run-overlap)`); the writer must be told, or the write must land.
-- [ ] **T8** Gates + What's New entry + review (security on T4/T5 + the exemption).
+- [x] **T8** Gates + What's New entry + review (security on T4/T5 + the exemption). — defender + adversarial + re-review; all blockers fixed (d58db2740, 31d037dad, 561b3fa9d); N7/N8 info deferred to 2.1.2; What's New 41fd71ed5.
 
 ## Acceptance Criteria
 
@@ -83,14 +83,14 @@ Fixing a broken or missing sign-in takes one click.
   - Round 1 (13 artboards). His note: General stacked; Connections-style icon cards, expandable; one look for General/Connections/Advanced.
   - Round 2: "Ano, stavěj".
   - Canvas 17 Accounts and Connections (merged 7a49cbdd6).
-- [ ] A project whose repo names a server this Mac has no valid sign-in for shows a toast, a broken-link avatar, and "Sign in again" with the address prefilled.
-- [ ] Sync popup on a local project offers "Create project on cloud.maude.sh" and "Link your server", and both work.
-- [ ] The avatar menu has "Sign in with custom server…". "Sign in as another account…" on a local project never leaves it stuck on "This Mac only".
-- [ ] One team-server dialog (Advanced: own key + local folder); the old two are gone (nothing-deleted map updated).
-- [ ] Settings › General shows the project's connection; Advanced is an accordion.
-- [ ] New desktop e2e specs green, each run alone; the full quality gate set green; mini studio suite green.
+- [x] A project whose repo names a server this Mac has no valid sign-in for shows a toast, a broken-link avatar, and "Sign in again" with the address prefilled. — for a server THIS Mac linked before (security T8); an address only from the repo is neutral + Review. e2e broken-signin green.
+- [x] Sync popup on a local project offers "Create project on cloud.maude.sh" and "Link your server", and both work. — worded "Create project on Maude Cloud" (contract name); e2e send-local-project green.
+- [x] The avatar menu has "Sign in with custom server…". "Sign in as another account…" on a local project never leaves it stuck on "This Mac only". — Switch account lists existing accounts + No account; native consent.
+- [x] One team-server dialog (Advanced: own key + local folder); the old two are gone (nothing-deleted map updated).
+- [x] Settings › General shows the project's connection; Advanced is an accordion. — all three tabs are expandable cards (Michal's round-2 note).
+- [x] New desktop e2e specs green, each run alone; the full quality gate set green; mini studio suite green. — e2e accounts/team-project/team-cell-missing/home/cloud green on 14468ef77 rebuild; hub 2222/0; studio fails fixed in 14468ef77 (v2-gate-focus error pre-existing at v2.1.0).
 - [x] T9–T11: each has a root cause with evidence, a fail-first regression test and a fix (or a recorded decision why not in 2.1.1).
-- [ ] No test touched the real keychain, `~/.config/maude` or Michal's projects; no system dialog.
+- [x] No test touched the real keychain, `~/.config/maude` or Michal's projects; no system dialog. — config mtimes identical before/after every e2e run; native consent tested through an injected provider.
 
 ## Rules
 
