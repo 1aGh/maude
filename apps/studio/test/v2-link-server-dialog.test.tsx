@@ -180,7 +180,7 @@ describe('the dialog', () => {
     expect(m.closed()).toBe(1);
   });
 
-  test('I have an invite link: a masked field; a pasted link fills the address; it rides start once, then empties', async () => {
+  test('Use an invite link: a masked field; a pasted link fills the address; it rides start once, then empties', async () => {
     const { api, calls } = fakeApi();
     mount(api);
     click('link-server-invite-open');

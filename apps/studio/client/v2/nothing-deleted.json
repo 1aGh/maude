@@ -1637,7 +1637,7 @@
       "v2": {
         "action": null,
         "testid": "settings-team-server-add",
-        "where": "Settings › General › This project › Link your server… (a linked project: Sync details › Link another server…) — issue #204 (Michal 2026-11-04, decision maude/v2-michal-team-server-signin-via-hub-page): the email and password live on the team server’s OWN sign-in page. Since 2.1.1 (T5) that button, the avatar menu, Diagnostics › Sync and Home › Advanced options › Use a self-hosted hub all open the one Link your server dialog (link-server-dialog, action account.link-server): the address is checked as it is typed (link-server-check), Sign in in your browser (link-server-signin) opens the server’s own sign-in page and comes back signed in, I have an invite link opens its invite page, Advanced takes a sign-in key; no email or password field"
+        "where": "Settings › General › This project › Link your server… (a linked project: Sync details › Link another server…) — issue #204 (Michal 2026-11-04, decision maude/v2-michal-team-server-signin-via-hub-page): the email and password live on the team server’s OWN sign-in page. Since 2.1.1 (T5) that button, the avatar menu, Diagnostics › Sync and Home › Advanced options › Use a self-hosted hub all open the one Link your server dialog (link-server-dialog, action account.link-server): the address is checked as it is typed (link-server-check), Sign in in your browser (link-server-signin) opens the server’s own sign-in page and comes back signed in, Use an invite link opens its invite page, Advanced takes a sign-in key; no email or password field"
       }
     },
     {

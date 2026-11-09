@@ -156,10 +156,10 @@ function ChangeMenu({ m, onShowInFinder }) {
           {places.map((o) => (
             <div
               key={o.id}
-              role="menuitemradio"
-              aria-checked={o.current}
-              aria-disabled="true"
-              tabIndex={-1}
+              // the place it lives now — information, not a choice (moving between places has no
+              // backend yet), so it is not a menu item a person could try to pick
+              role="presentation"
+              aria-current={o.current ? 'true' : undefined}
               className="v2s-menu-i"
               data-testid={`settings-project-place-${o.id}`}
             >

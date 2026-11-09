@@ -34026,7 +34026,7 @@
     "hook": "link-server-invite-open",
     "kind": "testid",
     "pattern": false,
-    "meaning": "\"I have an invite link\": opens the invite field.",
+    "meaning": "\"Use an invite link\": opens the invite field.",
     "producer": {
       "file": "apps/studio/client/v2/link-server/LinkServerDialog.jsx",
       "symbol": "LinkServerDialog"

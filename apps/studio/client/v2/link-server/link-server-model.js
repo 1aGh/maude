@@ -35,7 +35,7 @@ export const LINK_WORDS = {
   badAddress: 'That doesn’t look like a server address. Type it like design.example.com.',
   signIn: 'Sign in in your browser',
   signInKey: 'Link with this key',
-  inviteToggle: 'I have an invite link',
+  inviteToggle: 'Use an invite link',
   inviteLabel: 'Invite link',
   invitePlaceholder: 'https://design.example.com/join/…',
   advanced: 'Advanced',
