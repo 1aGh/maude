@@ -1,4 +1,5 @@
 import { $, browser, expect } from '@wdio/globals';
+import { appShot } from '../helpers/accounts';
 import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
 import { pinCurrentWindow } from '../helpers/windows';
@@ -123,10 +124,11 @@ describe('shell-accounts (11 pn-accounts)', () => {
     await $(tid('account-menu-switch')).click();
     await $(tid('account-switch')).waitForExist({ timeout: 4_000 });
     expect(await $(tid(`account-switch-row-${me.id}`)).getAttribute('aria-checked')).toBe('true');
+    await appShot('account-switch-list');
     await $(tid('account-switch-row-e2e-personal')).click();
     await $(tid('account-switch-sheet')).waitForExist({ timeout: 4_000 });
     expect(await t('account-switch-sheet')).toContain('Nothing is moved or uploaded');
-    await capture('account switch sheet');
+    await appShot('account-switch-confirm-sheet');
     await $(tid('account-switch-sheet-cancel')).click();
     // esc closes the menu (the popover listens on the document)
     await browser.keys(['Escape']);

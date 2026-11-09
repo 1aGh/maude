@@ -59,41 +59,45 @@ export async function capturedSignInUrl(): Promise<string> {
 /**
  * A browser's top-level navigation to `href`, with its Fetch Metadata. Node's `fetch` overwrites
  * Sec-Fetch-Mode with `cors`; Home's return answers a navigation only, so this uses node:http.
+ *
+ * This IS the system browser's hop back to the app (2.1.1 T0/T7): a request from this process carries no app
+ * session cookie and no `x-maude-api-key` — exactly what a browser the person signs in with holds. The headers it
+ * sent come back with the answer, so a spec can assert that.
  */
-function navigate(href: string): Promise<number> {
+export function browserReturn(
+  href: string
+): Promise<{ status: number; body: string; sent: Record<string, string> }> {
+  const sent = {
+    accept: 'text/html',
+    'sec-fetch-mode': 'navigate',
+    'sec-fetch-dest': 'document',
+    'sec-fetch-site': 'cross-site',
+  };
   return new Promise((resolve, reject) => {
-    const req = request(
-      href,
-      {
-        method: 'GET',
-        headers: {
-          accept: 'text/html',
-          'sec-fetch-mode': 'navigate',
-          'sec-fetch-dest': 'document',
-          'sec-fetch-site': 'cross-site',
-        },
-      },
-      (res) => {
-        res.resume();
-        res.on('end', () => resolve(res.statusCode ?? 0));
-      }
-    );
+    const req = request(href, { method: 'GET', headers: sent }, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (c: string) => {
+        body += c;
+      });
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, body, sent }));
+    });
     req.on('error', reject);
     req.end();
   });
 }
 
 /**
- * What the system browser does on the hub's page, as requests: GET the page (it sets the signed
- * desktop-request cookie), POST its form with that cookie — the sign-in form, or with `inviteKey`
- * the invite form (`/join`) — then navigate the hand-off link back to the app's loopback return.
+ * What the system browser does on the hub's page, up to the hand-off: GET the page (it sets the signed
+ * desktop-request cookie), POST its form with that cookie — the sign-in form, or with `inviteKey` the invite
+ * form (`/join`). Returns the "Go back to Maude" link (the app's loopback return), not yet followed.
  */
-export async function signInOnHubPage(
+export async function handOffFromHubPage(
   pageUrl: string,
   email: string,
   password: string,
   inviteKey?: string
-): Promise<void> {
+): Promise<string> {
   const page = await fetch(pageUrl, { headers: { accept: 'text/html' } });
   if (page.status !== 200) throw new Error(`the hub page answered ${page.status}`);
   const cookie = (page.headers.getSetCookie?.() ?? [])
@@ -117,6 +121,18 @@ export async function signInOnHubPage(
   const html = await done.text();
   const href = /<a href="([^"]+)">Go back to Maude<\/a>/.exec(html)?.[1]?.replaceAll('&amp;', '&');
   if (!href) throw new Error(`no hand-off back to the app (${done.status}): ${html.slice(0, 300)}`);
-  const back = await navigate(href);
-  if (back !== 200) throw new Error(`the app's return answered ${back}`);
+  return href;
+}
+
+/** The whole browser leg: the hub's page, its form, and the hop back to the app's loopback return. */
+export async function signInOnHubPage(
+  pageUrl: string,
+  email: string,
+  password: string,
+  inviteKey?: string
+): Promise<void> {
+  const href = await handOffFromHubPage(pageUrl, email, password, inviteKey);
+  const back = await browserReturn(href);
+  if (back.status !== 200)
+    throw new Error(`the app's return answered ${back.status}: ${back.body.slice(0, 200)}`);
 }

@@ -909,15 +909,18 @@ describe('team-project (native-desktop)', () => {
   it('12 · cf-offline-create: the hub is gone — Offline, ⌘N still makes a canvas, the prompt is queued and sends on return', async () => {
     const t = TEAM as NonNullable<typeof TEAM>;
     await stopHub(t);
-    // the REAL hub state, before the page is told anything: the cluster's fourth word
+    // the REAL hub state, before the page is told anything: the cluster's fourth word. 2.1.1 (canvas 17 ·
+    // ac-states): the network is up and the SERVER does not answer — "Can’t reach <host>"; "Offline" is the Mac's
+    // own network (below, with the page offline too)
+    const host = new URL(t.hub).host;
     await eventually(
-      'Offline — kept on this Mac',
+      `Can’t reach ${host}`,
       async () => (await statusWord())?.status === 'offline',
       150_000
     );
     expect(await statusWord()).toEqual({
       status: 'offline',
-      text: 'Offline — kept on this Mac',
+      text: `Can’t reach ${host}`,
       control: true,
     });
     await capture('21-status-offline');
@@ -976,7 +979,7 @@ describe('team-project (native-desktop)', () => {
       expect(await (await $(tid('empty-canvas'))).getText()).toContain('Your canvas is ready.');
       expect(await statusWord()).toEqual({
         status: 'offline',
-        text: 'Offline — kept on this Mac',
+        text: 'Offline — changes wait on this Mac',
         control: true,
       });
       await capture('22-offline-new-canvas-queued-prompt');
