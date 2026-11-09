@@ -274,13 +274,16 @@ async fn confirm_team_server(webview: &tauri::Webview, server: &str) -> bool {
         return true;
     }
     let host = server.split("://").nth(1).unwrap_or(server).to_string();
+    let body = format!("Open a team project from {host}? Its canvases will sync with that server.");
+    // 2.1.1: an e2e lane never puts this over the person's screen — logged, and "Cancel" is the answer.
+    if crate::sidecar::dialog_suppressed_logged("Open team project", &body) {
+        return false;
+    }
     let (tx, rx) = tokio::sync::oneshot::channel();
     webview
         .app_handle()
         .dialog()
-        .message(format!(
-            "Open a team project from {host}? Its canvases will sync with that server."
-        ))
+        .message(body)
         .title("Open team project")
         .parent(&webview.window())
         .buttons(MessageDialogButtons::OkCancelCustom(

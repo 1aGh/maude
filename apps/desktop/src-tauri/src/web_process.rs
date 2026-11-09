@@ -95,6 +95,12 @@ pub(crate) fn on_terminate<R: Runtime>(webview: &Webview<R>) {
         "[maude] web content process terminated {MAX_AUTO_RELOADS}× within {}s — asking before reloading again",
         WINDOW.as_secs()
     ));
+    const BODY: &str = "Maude’s window keeps crashing — most likely a canvas that is too heavy to render. \
+             Reload to try again, or close the window and reopen a lighter canvas.";
+    // 2.1.1: an e2e lane never puts this over the person's screen — logged, and "Not now" is the answer.
+    if crate::sidecar::dialog_suppressed_logged("Maude stopped responding", BODY) {
+        return;
+    }
     if DIALOG_OPEN.swap(true, Ordering::SeqCst) {
         return;
     }
@@ -102,10 +108,7 @@ pub(crate) fn on_terminate<R: Runtime>(webview: &Webview<R>) {
     webview
         .app_handle()
         .dialog()
-        .message(
-            "Maude’s window keeps crashing — most likely a canvas that is too heavy to render. \
-             Reload to try again, or close the window and reopen a lighter canvas.",
-        )
+        .message(BODY)
         .title("Maude stopped responding")
         .buttons(MessageDialogButtons::OkCancelCustom(
             "Reload".to_string(),

@@ -178,12 +178,17 @@ impl HomeSpawner for TauriSpawner {
         log_line(&format!(
             "[maude] Home gave up after {MAX_RESTARTS} restarts"
         ));
+        let body = format!(
+            "Maude Home stopped {MAX_RESTARTS} times in a row and is no longer running, so the Home tab can't show your projects.\n\nYour projects and files are untouched."
+        );
+        // 2.1.1: an e2e lane never puts this over the person's screen — logged, and "Close" is the answer.
+        if crate::sidecar::dialog_suppressed_logged("Maude Home stopped", &body) {
+            return;
+        }
         let app = self.app.clone();
         self.app
             .dialog()
-            .message(format!(
-                "Maude Home stopped {MAX_RESTARTS} times in a row and is no longer running, so the Home tab can't show your projects.\n\nYour projects and files are untouched."
-            ))
+            .message(body)
             .title("Maude Home stopped")
             .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
                 "Try again".to_string(),

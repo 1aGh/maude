@@ -360,6 +360,79 @@ where
     })
 }
 
+/// 2.1.1 — the harness switch that keeps every native message dialog off the screen of the person whose Mac runs a
+/// desktop e2e lane (the 2026-11-09 incident: a lane's sidecars crash-looped and each raised "Maude's server for “X”
+/// stopped 3 times in a row…" over Michal's work). Every lane sets it (wdio.conf.ts); a debug build then LOGS what it
+/// would have asked (shell.log) and takes the dialog's dismiss answer (Close / Cancel / Not now) — everything else
+/// behaves the same. A release build never reads it: `e2e_no_dialogs` is a constant `false` there.
+pub(crate) const NO_DIALOGS_ENV: &str = "MAUDE_E2E_NO_DIALOGS";
+
+/// Pure: the dialog is suppressed only in a debug build, and only when the env is exactly `1`. (A release build has no
+/// caller: its `e2e_no_dialogs` is the constant.)
+#[cfg_attr(not(debug_assertions), allow(dead_code))]
+pub(crate) fn dialogs_suppressed(debug_build: bool, value: Option<&str>) -> bool {
+    debug_build && value == Some("1")
+}
+
+/// True when this process must not raise a native message dialog (a debug e2e build only).
+pub(crate) fn e2e_no_dialogs() -> bool {
+    #[cfg(debug_assertions)]
+    {
+        dialogs_suppressed(true, std::env::var(NO_DIALOGS_ENV).ok().as_deref())
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        false
+    }
+}
+
+/// The seam every native message dialog goes through: when `suppressed`, `log` gets one line naming the dialog and the
+/// caller must take its dismiss path instead of showing it. Returns `suppressed`.
+pub(crate) fn suppress_and_log(
+    suppressed: bool,
+    title: &str,
+    body: &str,
+    log: impl FnOnce(&str),
+) -> bool {
+    if suppressed {
+        log(&format!(
+            "[maude] e2e: native dialog not shown ({NO_DIALOGS_ENV}) — {title}: {}",
+            body.replace('\n', " ")
+        ));
+    }
+    suppressed
+}
+
+/// The app's call: `true` ⇒ do NOT show the dialog (it went to shell.log); take the dismiss answer.
+pub(crate) fn dialog_suppressed_logged(title: &str, body: &str) -> bool {
+    suppress_and_log(e2e_no_dialogs(), title, body, log_line)
+}
+
+/// Test scan: the byte offset of every `.dialog()` whose chain goes straight on to `.message(` (a message dialog,
+/// not a file picker).
+#[cfg(test)]
+pub(crate) fn message_dialog_sites(src: &str) -> Vec<usize> {
+    const DIALOG: &str = ".dialog()";
+    src.match_indices(DIALOG)
+        .filter(|(i, _)| src[i + DIALOG.len()..].trim_start().starts_with(".message("))
+        .map(|(i, _)| i)
+        .collect()
+}
+
+/// Test scan: the 1-based line of every message dialog whose enclosing `fn` does not ask `dialog_suppressed_logged`
+/// before it.
+#[cfg(test)]
+pub(crate) fn ungated_message_dialogs(src: &str) -> Vec<usize> {
+    message_dialog_sites(src)
+        .into_iter()
+        .filter(|&i| {
+            let start = src[..i].rfind("fn ").unwrap_or(0);
+            !src[start..i].contains("dialog_suppressed_logged(")
+        })
+        .map(|i| src[..i].matches('\n').count() + 1)
+        .collect()
+}
+
 /// The PATH a project sidecar starts with. A person's `.app` gets the login-shell PATH (DDR-128, `resolve_login_path`);
 /// an e2e lane keeps the PATH it was launched with (p8-e2e-isolation-r13). The lane puts its stub `claude` first on
 /// that PATH, and the login shell sources the person's own rc files — in the 2026-10-27 V2-8.3 record it put the real
@@ -999,12 +1072,17 @@ fn report_sidecar_gave_up(app: &AppHandle, project_root: &str) {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| project_root.to_string()),
     );
+    let body = format!(
+        "Maude's server for \u{201c}{name}\u{201d} stopped {MAX_RESTARTS} times in a row and is no longer running, so this project can't load or save.\n\nYour files on disk are untouched."
+    );
+    // 2.1.1: an e2e lane never puts this over the person's screen — logged, and "Close" is the answer.
+    if dialog_suppressed_logged("Maude's server stopped", &body) {
+        return;
+    }
     let app2 = app.clone();
     let root = project_root.to_string();
     app.dialog()
-        .message(format!(
-            "Maude's server for \u{201c}{name}\u{201d} stopped {MAX_RESTARTS} times in a row and is no longer running, so this project can't load or save.\n\nYour files on disk are untouched."
-        ))
+        .message(body)
         .title("Maude's server stopped")
         .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
             "Try again".to_string(),
@@ -1921,6 +1999,87 @@ mod tests {
         assert!(super::is_e2e_env(vec![v("PATH", "/usr/bin"), v("MAUDE_E2E_RUN_DIR", "/r")]));
         assert!(!super::is_e2e_env(vec![v("MAUDE_E2E_ON_TOP", "")]));
         assert!(!super::is_e2e_env(vec![v("MAUDE_CLAUDE_BIN", ""), v("PATH", "/usr/bin")]));
+    }
+
+    #[test]
+    fn no_dialogs_holds_only_in_a_debug_build_with_the_env_exactly_one() {
+        assert!(super::dialogs_suppressed(true, Some("1")));
+        assert!(!super::dialogs_suppressed(true, None));
+        assert!(!super::dialogs_suppressed(true, Some("")));
+        assert!(!super::dialogs_suppressed(true, Some("0")));
+        assert!(!super::dialogs_suppressed(true, Some("true")));
+        // a release build ignores the env whatever it says
+        assert!(!super::dialogs_suppressed(false, Some("1")));
+    }
+
+    #[test]
+    fn a_release_build_never_reads_the_no_dialogs_env() {
+        let src = include_str!("sidecar.rs");
+        let f = &src[src.find("pub(crate) fn e2e_no_dialogs()").unwrap()..];
+        let f = &f[..f.find("\n}\n").unwrap()];
+        let release = &f[f.find("#[cfg(not(debug_assertions))]").expect("a release branch")..];
+        assert!(!release.contains("env::var"), "the release branch reads no env: {release}");
+        assert!(!release.contains("dialogs_suppressed("), "the release branch is a constant: {release}");
+        let debug = &f[f.find("#[cfg(debug_assertions)]").expect("a debug branch")..];
+        assert!(debug.contains("NO_DIALOGS_ENV"));
+    }
+
+    #[test]
+    fn a_suppressed_dialog_is_logged_and_the_caller_dismisses_it() {
+        // the presenter the call sites gate on: suppressed ⇒ one log line and `true` (do not show)
+        let mut logged = Vec::new();
+        let gated = super::suppress_and_log(
+            true,
+            "Maude's server stopped",
+            "Maude's server for “Broken signin” stopped 3 times.\n\nYour files are untouched.",
+            |l| logged.push(l.to_string()),
+        );
+        assert!(gated);
+        assert_eq!(logged.len(), 1);
+        assert!(logged[0].contains("MAUDE_E2E_NO_DIALOGS"), "{}", logged[0]);
+        assert!(logged[0].contains("Maude's server stopped: Maude's server for “Broken signin”"));
+        assert!(!logged[0].contains('\n'), "one shell.log line");
+
+        // not suppressed ⇒ nothing logged, the dialog is shown as before
+        let mut quiet = Vec::new();
+        assert!(!super::suppress_and_log(false, "t", "b", |l| quiet.push(l.to_string())));
+        assert!(quiet.is_empty());
+    }
+
+    /// Every native MESSAGE dialog in the shell (`.dialog()…​.message(`) sits in a function that first asks
+    /// `dialog_suppressed_logged` — so no e2e lane can raise one over the person's screen. File pickers are not
+    /// message dialogs; the lanes answer those through `MAUDE_E2E_PICK_*` / `_OPEN_PATH(S)` / `_SAVE_PATH`.
+    #[test]
+    fn every_native_message_dialog_is_gated_by_no_dialogs() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut sites = 0;
+        let mut ungated = Vec::new();
+        for entry in std::fs::read_dir(&dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+                continue;
+            }
+            let full = std::fs::read_to_string(&path).unwrap();
+            let src = match full.find("\n#[cfg(test)]\nmod tests") {
+                Some(i) => &full[..i],
+                None => &full[..],
+            };
+            let name = path.file_name().unwrap().to_string_lossy().to_string();
+            ungated.extend(super::ungated_message_dialogs(src).into_iter().map(|l| format!("{name}:{l}")));
+            sites += super::message_dialog_sites(src).len();
+        }
+        assert!(sites >= 12, "the scan found only {sites} message dialogs");
+        assert!(ungated.is_empty(), "gate these with dialog_suppressed_logged: {ungated:?}");
+    }
+
+    #[test]
+    fn the_dialog_scan_tells_a_gated_site_from_an_ungated_one() {
+        let ungated = "fn a(app: &AppHandle) {\n    app.dialog()\n        .message(\"x\")\n        .show(|_| {});\n}\n";
+        let gated = "fn a(app: &AppHandle) {\n    if crate::sidecar::dialog_suppressed_logged(\"t\", \"x\") {\n        return;\n    }\n    app.dialog()\n        .message(\"x\");\n}\n";
+        let picker = "fn a(app: &AppHandle) {\n    app.dialog().file().pick_folder(|_| {});\n}\n";
+        assert_eq!(super::ungated_message_dialogs(ungated), vec![2]);
+        assert!(super::ungated_message_dialogs(gated).is_empty());
+        assert!(super::message_dialog_sites(picker).is_empty());
     }
 
     use super::*;
