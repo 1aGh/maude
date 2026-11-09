@@ -23,6 +23,7 @@ import {
   checkLine,
   confirmLines,
   firstLead,
+  stayLine,
   initialLink,
   LINK_WORDS as W,
   linkReducer,
@@ -203,9 +204,16 @@ export function LinkServerDialog({
               >
                 {s.confirm.empty ? (
                   // 2.1.1 T8 — the first link to a server that holds nothing: what goes up, and where
-                  <p data-testid="link-server-first-lead">
-                    {firstLead(s.confirm.counts, s.confirm.host)}
-                  </p>
+                  <>
+                    <p data-testid="link-server-first-lead">
+                      {firstLead(s.confirm.counts, s.confirm.host)}
+                    </p>
+                    {stayLine(s.confirm.counts, s.confirm.host) ? (
+                      <p data-testid="link-server-count-stay">
+                        {stayLine(s.confirm.counts, s.confirm.host).text}
+                      </p>
+                    ) : null}
+                  </>
                 ) : (
                   <>
                     <p>{W.confirmLead(s.confirm.host)}</p>

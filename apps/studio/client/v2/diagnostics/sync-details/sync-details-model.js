@@ -117,7 +117,9 @@ const ATTENTION = new Set(['conflict', 'stuck', 'referenced-but-unoffered', 'loc
 
 /** Words for the per-file states a person has to look at (file-ledger.ts owns the union). */
 export const DELIVERY_WORD = Object.freeze({
-  conflict: 'conflict — the older copy is in the trash',
+  // 2.1.1 T14 — this Mac's version is parked BESIDE the file (not in the trash); the row that names the
+  // copy is `lists.fileConflicts`. This is the line for a conflict whose copy is not parked yet.
+  conflict: 'changed here and in the project — sync is sorting it out',
   stuck: 'stuck',
   'referenced-but-unoffered': 'used, never received',
   'local-only': 'only on this Mac',
@@ -125,6 +127,51 @@ export const DELIVERY_WORD = Object.freeze({
   'delete-held': 'deleted on this Mac — waiting for your answer',
   'hub-only': 'on the hub only',
 });
+
+/** 2.1.1 T14 — the lane words a set-aside notice carries (`sync/accepted-cold-start.ts` `SET_ASIDE_WORDS`). */
+const SET_ASIDE_LANE_WORD = Object.freeze({
+  meta: 'layout',
+  annotations: 'sticky notes',
+  comments: 'comments',
+});
+const SET_ASIDE_PREFIX = 'set-aside-';
+
+/**
+ * 2.1.1 T14 — the canvases whose layout, sticky notes or comments the server's version replaced after a
+ * first link (the runtime's `set-aside-<slug>` notices): this Mac's are kept in the canvas's recovery
+ * folder. `{ slug, lanes: ['layout', …], where }`; a slug the runtime could not have made is dropped.
+ */
+export function setAsideRows(status) {
+  const out = [];
+  for (const n of Array.isArray(status?.notices) ? status.notices : []) {
+    if (!n || typeof n.id !== 'string' || !n.id.startsWith(SET_ASIDE_PREFIX)) continue;
+    const slug = n.id.slice(SET_ASIDE_PREFIX.length);
+    if (!SAFE_SLUG.test(slug) || out.some((r) => r.slug === slug)) continue;
+    const lanes = (Array.isArray(n.lanes) ? n.lanes : [])
+      .map((l) => SET_ASIDE_LANE_WORD[l])
+      .filter(Boolean)
+      .filter((w, i, all) => all.indexOf(w) === i);
+    out.push({ slug, lanes, where: `_history/${slug}/sync-recovery` });
+  }
+  return out.slice(0, 50);
+}
+
+/** "layout", "layout and comments", "layout, sticky notes and comments" */
+export function laneList(lanes) {
+  if (lanes.length < 2) return lanes[0] ?? 'version';
+  return `${lanes.slice(0, -1).join(', ')} and ${lanes[lanes.length - 1]}`;
+}
+
+/** The sentence a set-aside row says (CONTRACT §4: what happened · what is safe). */
+export function setAsideWords(name, lanes) {
+  const many = lanes.length > 1 || lanes[0] === 'sticky notes' || lanes[0] === 'comments';
+  return `${cleanName(name, 'This canvas')}: the server’s ${laneList(lanes)} ${many ? 'are' : 'is'} used; yours ${many ? 'are' : 'is'} kept.`;
+}
+
+/** The sentence a file-conflict row says: which copy is the file, where yours is. */
+export function fileConflictWords(copyName) {
+  return `The server’s version is the file; yours is kept beside it as ${cleanName(copyName, 'a copy')}.`;
+}
 
 const thousands = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
@@ -246,6 +293,18 @@ export function syncDetailsModel(
     attention.sort((a, b) => a[0].localeCompare(b[0]));
     hubOnly.sort((a, b) => a.localeCompare(b));
   }
+  // 2.1.1 T14 — a file in conflict whose copy is parked beside it gets its own row naming the copy;
+  // the generic attention list keeps the rest (a conflict whose copy is not parked yet included).
+  const copies =
+    files?.conflictCopies && typeof files.conflictCopies === 'object' ? files.conflictCopies : {};
+  const fileConflicts = [];
+  const attentionRest = [];
+  for (const [rel, state] of attention) {
+    const copy = state === 'conflict' ? copies[rel] : undefined;
+    if (typeof copy === 'string' && copy && !copy.includes('..') && !copy.startsWith('/')) {
+      fileConflicts.push({ rel, copy, copyName: copy.slice(copy.lastIndexOf('/') + 1) });
+    } else attentionRest.push([rel, state]);
+  }
 
   const counts = [];
   if (progress) {
@@ -301,7 +360,9 @@ export function syncDetailsModel(
         })),
       rateLimited: files?.rateLimited ? { waiting: rateLimited } : null,
       failed,
-      attention: attention.slice(0, 50),
+      attention: attentionRest.slice(0, 50),
+      fileConflicts: fileConflicts.slice(0, 50),
+      setAside: setAsideRows(status),
       // Issue #207 (7b) — deleted on this Mac and kept on the hub: listed, never "waiting".
       hubOnly: { count: hubOnly.length, paths: hubOnly.slice(0, 50) },
       // Issue #207 — a long run of pictures going up (a render sequence), and the folders this

@@ -2,7 +2,8 @@
 // Sync, rebuilt. The controls carry the v1 hooks the e2e scenarios drive (S11.12b): sync-panel (root) ·
 // sync-ai-held · sync-ai-publish · sync-ai-discard · sync-assets-cancel · sync-signin-again ·
 // sync-delivery-attention · sync-deletes-held (+ -delete / -keep / -confirm / -cancel / -said /
-// -folders / -confirming) · sync-deletes-incoming (+ -remove / -keep / -said / -folders) · sync-deletes-purging · sync-hub-only. Replaces the v1 Sync panel's mount in the sheet (its routes stay; SyncPanel.jsx and
+// -folders / -confirming) · sync-kept (+ sync-file-conflict-<i> / -reveal-<i> / sync-set-aside-<i> /
+// -reveal-<i>, 2.1.1 T14) · sync-deletes-incoming (+ -remove / -keep / -said / -folders) · sync-deletes-purging · sync-hub-only. Replaces the v1 Sync panel's mount in the sheet (its routes stay; SyncPanel.jsx and
 // SourceConflictPanel.jsx keep their files). What needs the person comes first, each with its own
 // choice; the transfer, the counts and the lists follow.
 //
@@ -18,7 +19,15 @@ import { lineDiff } from '../../../panels/SourceConflictPanel.jsx';
 import { readCodeConsent } from '../../code/code-consent.js';
 import { CodeConsentSheet } from '../../code/code-consent-sheet.jsx';
 import { menuRunner } from '../../shell/menu-runner.js';
-import { DELIVERY_WORD, cleanName, resolvedWords, syncDetailsModel } from './sync-details-model.js';
+import { nativeDoors, projectRel } from '../../shell/native-doors.js';
+import {
+  DELIVERY_WORD,
+  cleanName,
+  fileConflictWords,
+  resolvedWords,
+  setAsideWords,
+  syncDetailsModel,
+} from './sync-details-model.js';
 import { UNSYNCED_SHOWN, groupByCanvas, readUnsyncedRefs } from './unsynced-refs.js';
 
 /** Registry id → the `choice` the conflict route takes. */
@@ -649,6 +658,73 @@ function FoldersSection({ sequences, ignored, fetchImpl }) {
  * Read-only on purpose: the fix is a move or a rename in the project, not a button here. Calm — the
  * canvas works on this Mac; the row says what a teammate would miss.
  */
+/**
+ * 2.1.1 T14 — what a first link kept of this Mac's: the copy beside a file that differed, and the
+ * layout, sticky notes or comments the server's version replaced (kept in the canvas's recovery
+ * folder). Nothing here needs an answer; each row says what happened, that it is safe, and — in the
+ * Mac app — offers Show in Finder.
+ */
+function KeptSection({ fileConflicts, setAside, names, designRel, native }) {
+  const [said, setSaid] = useState('');
+  if (!fileConflicts.length && !setAside.length) return null;
+  async function reveal(rel) {
+    const r = await nativeDoors().revealPath(projectRel(designRel, rel));
+    setSaid(
+      r?.ok ? '' : cleanName(r?.error, 'Finder couldn’t open that. The copy is still there.')
+    );
+  }
+  return (
+    <section aria-label="Kept on this Mac" data-testid="sync-kept">
+      <p className="sd-sub">Kept on this Mac · {fileConflicts.length + setAside.length}</p>
+      {fileConflicts.map((c, i) => (
+        <div className="sd-card" key={c.rel} data-testid={`sync-file-conflict-${i}`}>
+          <strong className="sd-ct dg-mono">{cleanName(c.rel, '(unnamed)')}</strong>
+          <span className="sd-cd">{fileConflictWords(c.copyName)}</span>
+          {native ? (
+            <div className="sd-acts">
+              <button
+                type="button"
+                className="dg-btn"
+                data-testid={`sync-file-conflict-reveal-${i}`}
+                onClick={() => reveal(c.copy)}
+              >
+                Show in Finder
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ))}
+      {setAside.map((r, i) => (
+        <div className="sd-card" key={r.slug} data-testid={`sync-set-aside-${i}`}>
+          <strong className="sd-ct">
+            {setAsideWords(names?.get?.(r.slug) ?? r.slug, r.lanes)}
+          </strong>
+          <span className="sd-cd">
+            Kept in <span className="dg-mono">{r.where}</span>.
+          </span>
+          {native ? (
+            <div className="sd-acts">
+              <button
+                type="button"
+                className="dg-btn"
+                data-testid={`sync-set-aside-reveal-${i}`}
+                onClick={() => reveal(r.where)}
+              >
+                Show in Finder
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ))}
+      {said ? (
+        <p className="dg-hint" role="status" data-testid="sync-kept-said">
+          {said}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function useUnsyncedRefs(fetchImpl) {
   const [refs, setRefs] = useState([]);
   useEffect(() => {
@@ -703,6 +779,8 @@ export default function SyncDetails({
   cloud,
   native = false,
   names = null,
+  // 2.1.1 T14 — the design root's project-relative folder, for Show in Finder on a kept copy
+  designRel = '.design',
   onSignInAgain,
   fetchImpl = fetch,
   // p8-held-conflict-status — open this held conflict's Compare (a slug), once per new `focusSeq`
@@ -810,6 +888,14 @@ export default function SyncDetails({
       />
 
       <UnsyncedSection refs={unsynced} />
+
+      <KeptSection
+        fileConflicts={m.lists.fileConflicts}
+        setAside={m.lists.setAside}
+        names={names}
+        designRel={designRel || '.design'}
+        native={native}
+      />
 
       {m.counts.length ? (
         <section aria-label="Counts" data-testid="diag-sync-counts">

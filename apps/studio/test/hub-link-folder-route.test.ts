@@ -77,6 +77,36 @@ describe('compareSurveys — the four counts, per kind', () => {
     });
   });
 
+  test('2.1.1 T14 — pictures and videos a server cannot store are counted apart, not "sent up"', () => {
+    const here = {
+      canvases: new Map([['ui/a.tsx', H('1')]]),
+      files: new Map([
+        ['assets/p1.png', H('2')],
+        ['assets/p2.png', H('3')],
+        ['ui/clip.mp4', H('4')],
+        ['components/x.css', H('5')],
+      ]),
+      media: new Set(['assets/p1.png', 'assets/p2.png', 'ui/clip.mp4']),
+    } as SideSurvey;
+    const there = (storesMedia?: boolean) =>
+      ({
+        canvases: new Map(),
+        files: new Map([['assets/p2.png', H('9')]]),
+        ...(storesMedia === undefined ? {} : { storesMedia }),
+      }) as SideSurvey;
+    // a server that does not store them: the two it lacks stay here (p2 is "there", so it differs)
+    const off = compareSurveys(here, there(false));
+    expect(off.stayHere).toBe(2);
+    expect(off.files).toMatchObject({ onlyHere: 1, differ: 1 });
+    expect(off.onlyHere).toBe(2);
+    // a server that stores them, or one that did not say: everything is sent up as before
+    for (const on of [true, undefined]) {
+      const c = compareSurveys(here, there(on));
+      expect(c.stayHere).toBeUndefined();
+      expect(c.files.onlyHere).toBe(3);
+    }
+  });
+
   test('an older server (names only): a canvas on both sides counts as differ', () => {
     const here = side(
       [
@@ -105,7 +135,14 @@ type Reply = {
   confirm?: string;
   host?: string;
   empty?: boolean;
-  counts?: { onlyHere: number; onlyThere: number; differ: number; same: number };
+  counts?: {
+    onlyHere: number;
+    onlyThere: number;
+    differ: number;
+    same: number;
+    stayHere?: number;
+    files?: { onlyHere: number };
+  };
 };
 
 const canvasSrc = (title: string) =>
@@ -196,7 +233,15 @@ function routeFor(
 
 // ── a fake server for the refusals (no real hub needed) ─────────────────────
 
-const fakeHub = { formatVersion: 2, holds: false, calls: [] as string[] };
+const fakeHub = {
+  formatVersion: 2,
+  holds: false,
+  calls: [] as string[],
+  caps: ['format-v2'] as string[],
+  hubFormat: undefined as undefined | number,
+  setFormat: 200,
+  workspace: undefined as undefined | { checkout: string },
+};
 const fake = Bun.serve({
   port: 0,
   hostname: '127.0.0.1',
@@ -206,11 +251,16 @@ const fake = Bun.serve({
     if (pathname === '/health')
       return Response.json({
         ok: true,
-        formatVersion: fakeHub.formatVersion,
-        capabilities: ['format-v2'],
+        formatVersion: fakeHub.hubFormat ?? fakeHub.formatVersion,
+        capabilities: fakeHub.caps,
+        ...(fakeHub.workspace ? { workspace: fakeHub.workspace } : {}),
       });
     if (req.headers.get('authorization') !== 'Bearer hubtok_secret-token')
       return Response.json({ error: 'sign in' }, { status: 401 });
+    if (pathname === '/api/project-format' && req.method === 'POST')
+      return Response.json(fakeHub.setFormat === 200 ? { epoch: 2 } : { code: 'not-owner' }, {
+        status: fakeHub.setFormat,
+      });
     if (pathname === '/api/projects/current/v1/bootstrap')
       return Response.json({
         docs: fakeHub.holds
@@ -229,6 +279,10 @@ describe('POST /_api/hub/link-folder — refusals write nothing', () => {
     fakeHub.formatVersion = 2;
     fakeHub.holds = false;
     fakeHub.calls = [];
+    fakeHub.caps = ['format-v2'];
+    fakeHub.workspace = undefined;
+    fakeHub.hubFormat = undefined;
+    fakeHub.setFormat = 200;
   });
 
   test('not from the Maude window → 403 window-only, before the body or the server', async () => {
@@ -305,6 +359,41 @@ describe('POST /_api/hub/link-folder — refusals write nothing', () => {
     expect(attached).toBe(0);
   });
 
+  test('2.1.1 T14 — a member linking to a server still on format 1: only its owner can raise it, and the words say so', async () => {
+    const f = makeFolder('a', { 'ui/mine.tsx': canvasSrc('Mine') }, { formatVersion: 2 });
+    saveHubCredential(FAKE, 'hubtok_secret-token', 'member');
+    recordProjectLink(join(tmp, 'elsewhere'), { url: FAKE }, 'link'); // a first link asks first (T8)
+    fakeHub.hubFormat = 1;
+    fakeHub.setFormat = 403; // a member's bearer is not the owner's
+    let attached = 0;
+    const r = await routeFor(f, {
+      attachStored: async () => {
+        attached++;
+        return { status: 200, json: { ok: true, url: FAKE } };
+      },
+    }).post({ url: FAKE });
+    expect(r.status).toBe(409);
+    expect(r.body.reason).toBe('format-owner');
+    const host = `127.0.0.1:${fake.port}`;
+    expect(r.body.error).toBe(
+      `${host} is on an older format. Its owner needs to open it in Maude 2.1 once before this folder can sync. Nothing was linked.`
+    );
+    expect(r.body.error).not.toMatch(/needs an update/);
+    expect(attached).toBe(0);
+    expect(readCfg(f.designRoot).linkedHub).toBeUndefined();
+  });
+
+  test('a server whose software predates the new format still says it needs an update', async () => {
+    const f = makeFolder('a', { 'ui/mine.tsx': canvasSrc('Mine') }, { formatVersion: 2 });
+    saveHubCredential(FAKE, 'hubtok_secret-token', 'member');
+    recordProjectLink(join(tmp, 'elsewhere'), { url: FAKE }, 'link');
+    fakeHub.hubFormat = 1;
+    fakeHub.caps = [];
+    const r = await routeFor(f).post({ url: FAKE });
+    expect(r.body.reason).toBe('format');
+    expect(r.body.error).toMatch(/needs an update/);
+  });
+
   test('a server that holds work → needs-confirm; a wrong or reused code is refused', async () => {
     const f = makeFolder('a', { 'ui/mine.tsx': canvasSrc('Mine') });
     saveHubCredential(FAKE, 'hubtok_secret-token', 'member');
@@ -333,6 +422,29 @@ describe('POST /_api/hub/link-folder — refusals write nothing', () => {
     expect((await route.post({ url: FAKE, confirm: r.body.confirm })).body.reason).toBe(
       'confirm-expired'
     );
+  });
+
+  test('2.1.1 T14 — a server with no place for media: its pictures and videos stay on this Mac, said apart', async () => {
+    const f = makeFolder('a', { 'ui/mine.tsx': canvasSrc('Mine') });
+    mkdirSync(join(f.designRoot, 'assets'), { recursive: true });
+    writeFileSync(join(f.designRoot, 'assets', 'pic0001.png'), 'PNG');
+    writeFileSync(join(f.designRoot, 'ui', 'clip.mp4'), 'VIDEO');
+    saveHubCredential(FAKE, 'hubtok_secret-token', 'member');
+    fakeHub.holds = true;
+    const ask = async () => (await routeFor(f).post({ url: FAKE })).body;
+    // a server with no file journal and no checkout cannot store them
+    expect(await ask()).toMatchObject({
+      counts: { stayHere: 2, files: { onlyHere: 0 }, canvases: { onlyHere: 1 } },
+    });
+    // a server that carries the file journal stores them: they go up like any file
+    fakeHub.caps = ['format-v2', 'ledger'];
+    const on = await ask();
+    expect(on.counts?.stayHere).toBeUndefined();
+    expect(on.counts?.files).toMatchObject({ onlyHere: 2 });
+    // a legacy server with a media checkout stores them too
+    fakeHub.caps = ['format-v2'];
+    fakeHub.workspace = { checkout: 'present' };
+    expect((await ask()).counts?.stayHere).toBeUndefined();
   });
 
   test('no answer ever carries the credential', async () => {
