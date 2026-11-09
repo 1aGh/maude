@@ -103,7 +103,7 @@
       "v2": {
         "action": "account.switch",
         "testid": "cloud-account",
-        "where": "Cloud tab: Menu > File > Sign in as another account… (the row shows the account email; it ends the session). Desktop: Settings > Connections > Maude Cloud (email, Sign out)"
+        "where": "Cloud tab: Menu > File > Switch account… (the row shows the account email; it ends the session). Desktop: Settings > Connections > Maude Cloud (email, Sign out)"
       }
     },
     {

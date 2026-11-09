@@ -9,7 +9,7 @@ import { pinCurrentWindow } from '../helpers/windows';
  * would feed (this lane has no cloud and one profile): `GET /_api/cloud/status` (connected, the e-mail) and the shell's
  * `accounts_list` (the Mac's accounts and their projects). Everything else — the profile (`/_config.profile`), the
  * project name, the chip, the card, the words — is the product's. The chip opens the project's account card
- * (`project-account*`, 2.0.5 W4 — it replaced `account-card`, which listed the other accounts). The sign-in itself (a browser, a keychain) and the
+ * (`account-menu` + `account-switch`, 2.1.1 T2/T4 — they replaced the W4 `project-account` card). The sign-in itself (a browser, a keychain) and the
  * two-profile bookkeeping in Rust are `project-tabs-identity` and the cargo tests; signing out is NOT pressed here.
  */
 const tid = (s: string) => `[data-testid="${s}"]`;
@@ -63,12 +63,19 @@ describe('shell-accounts (11 pn-accounts)', () => {
               invoke: (cmd: string, args?: unknown, opts?: unknown) =>
                 cmd === 'accounts_list'
                   ? Promise.resolve([
-                      { id: mine.id, label: mine.label, email, projects: ['this project'] },
+                      {
+                        id: mine.id,
+                        label: mine.label,
+                        email,
+                        projects: ['this project'],
+                        signedIn: true,
+                      },
                       {
                         id: 'e2e-personal',
                         label: 'Personal',
-                        email: 'you@gmail.com',
-                        projects: others,
+                        email: null,
+                        projects: others.length,
+                        signedIn: true,
                       },
                     ])
                   : realInvoke(cmd, args, opts),
@@ -100,36 +107,33 @@ describe('shell-accounts (11 pn-accounts)', () => {
       timeout: 15_000,
       timeoutMsg: 'no account chip with two accounts on this Mac',
     });
-    expect(await chip.getAttribute('aria-label')).toBe(`Account: ${me.label} · ${EMAIL}`);
+    // 2.1.1 T2 (canvas 17): the face is the account — a Maude Cloud circle for a signed-in profile
+    expect(await chip.getAttribute('data-kind')).toBe('cloud');
+    expect(await chip.getAttribute('aria-label')).toContain(EMAIL);
     await capture('account chip');
-    // the chip opens THIS project's account card (2.0.5 W4: `project-account`, replacing `account-card`)
+    // the chip opens THIS project's account menu (2.1.1: `account-menu`, replacing `project-account`)
     await chip.click();
-    await $(tid('project-account')).waitForExist({ timeout: 6_000 });
+    await $(tid('account-menu')).waitForExist({ timeout: 6_000 });
     const t = async (id: string) => (await $(tid(id))).getText() as Promise<string>;
-    // the seam says this profile is signed in to Maude Cloud as EMAIL: the card names the kind, the
-    // account, the project and the profile on this Mac
-    expect(await t('project-account-kind')).toBe('Maude Cloud');
-    expect(await t('project-account-who')).toBe(EMAIL);
-    expect(await t('project-account-where')).not.toBe('');
-    expect(await t('project-account-profile')).toBe(me.label);
-    // the account row and Sign out exist on this path (the desktop app); the account switch is a button
-    await $(tid('project-account-switch')).waitForExist({ timeout: 4_000 });
-    expect(await t('project-account-signout')).toContain(`Sign out of ${EMAIL}…`);
-    await capture('account card');
-    // the confirm names the effect; Cancel leaves everything as it was (nothing is signed out here)
-    await $(tid('project-account-signout')).click();
-    await $(tid('project-account-confirm')).waitForExist({ timeout: 4_000 });
-    const ask = await t('project-account-confirm');
-    expect(ask).toContain(`Sign out of ${EMAIL}?`);
-    expect(ask).toContain('Every project on it is signed out. Your work stays on this Mac.');
-    await capture('account sign-out confirm');
-    await $(tid('project-account-signout-cancel')).click();
-    // esc closes the card (the popover listens on the document)
+    // the seam says this profile is signed in to Maude Cloud as EMAIL: the block names it
+    expect(await t('account-menu-account')).toContain(EMAIL);
+    expect(await t('account-menu-where')).not.toBe('');
+    await capture('account menu');
+    // Switch account: the accounts already on this Mac; picking another asks first, Cancel changes nothing
+    await $(tid('account-menu-switch')).click();
+    await $(tid('account-switch')).waitForExist({ timeout: 4_000 });
+    expect(await $(tid(`account-switch-row-${me.id}`)).getAttribute('aria-checked')).toBe('true');
+    await $(tid('account-switch-row-e2e-personal')).click();
+    await $(tid('account-switch-sheet')).waitForExist({ timeout: 4_000 });
+    expect(await t('account-switch-sheet')).toContain('Nothing is moved or uploaded');
+    await capture('account switch sheet');
+    await $(tid('account-switch-sheet-cancel')).click();
+    // esc closes the menu (the popover listens on the document)
     await browser.keys(['Escape']);
-    await browser.waitUntil(async () => !(await $(tid('project-account')).isExisting()), {
+    await browser.waitUntil(async () => !(await $(tid('account-menu')).isExisting()), {
       timeout: 4_000,
       interval: 100,
-      timeoutMsg: 'esc did not close the card',
+      timeoutMsg: 'esc did not close the menu',
     });
   });
 

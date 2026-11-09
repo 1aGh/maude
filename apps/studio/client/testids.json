@@ -8233,10 +8233,9 @@
       "symbol": "ProjectAccountCard"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/w4-account-ui.test.tsx"
-    ],
-    "v2": "new"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired 2.1.1 T2/T4 (decision:maude/v2-211-t4-switch-account-existing-profile): the chip opens the account menu (`account-menu`, canvas 17). Sign out per kind lives in Settings › Connections; Switch is `account-switch` (accounts already on this Mac, never a fresh profile); GitHub sign-in is `account.github-signin` (⌘K, every publish line)."
   },
   {
     "hook": "project-account-<part>",
@@ -8248,10 +8247,9 @@
       "symbol": "ProjectAccountCard"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/w4-account-ui.test.tsx"
-    ],
-    "v2": "new"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired 2.1.1 T2/T4 (decision:maude/v2-211-t4-switch-account-existing-profile): the chip opens the account menu (`account-menu`, canvas 17). Sign out per kind lives in Settings › Connections; Switch is `account-switch` (accounts already on this Mac, never a fresh profile); GitHub sign-in is `account.github-signin` (⌘K, every publish line)."
   },
   {
     "hook": "git-signin-github",
@@ -20216,13 +20214,150 @@
     "hook": "share-cluster-account",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The account chip, first in the Share cluster (desktop, signed in, two or more accounts on this Mac): which account this project tab is bound to (`data-account` = the profile id). Opens `account-card`. S1.22a (canvas 11 pn-accounts).",
+    "meaning": "2.1.1 T2 (canvas 17 ac-states): the account chip, first in the Share cluster (desktop project tab). The face says the kind — a circle with a letter (Maude Cloud), a server tile (your server), a laptop (this Mac only) — with at most one badge (`share-cluster-account-badge`). `data-kind` = cloud|server|local, `data-conn` = the connection state (connected · syncing · offline · signin-missing · signin-rejected · unreachable · local), `data-account` = the profile id. Opens `account-menu`.",
     "producer": {
-      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "file": "apps/studio/client/v2/shell/project-account-card.jsx",
       "symbol": "AccountChip"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "apps/studio/test/t4-account-menu.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "share-cluster-account-badge",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The chip face's one badge: `data-badge` = broken (a sign-in the person fixes in one click) or warn (the server does not answer). Offline greys the face, syncing turns a ring; a project only on this Mac never has one.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-account-card.jsx",
+      "symbol": "AccountFace"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/t4-account-menu.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "account-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The avatar menu (`role=menu`, from `share-cluster-account` or `share-cluster-face-you`): the project block, the actions this state needs, Account › Switch account, Project settings…. `data-state` = the connection state. Canvas 17 ac-menus.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-account-card.jsx",
+      "symbol": "ProjectAccountMenu"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/t4-account-menu.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "account-menu-<part>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A part of the account menu. `<part>` ∈ project (the block; `data-bad` when the sign-in is broken), where (Your folder · Kept by Maude · On <server>), account, status (with the last sync), fix (Sign in / Sign in again — your server's own sign-in page with the linked address), fix-address (that address, read-only), action-<id> (share.move-to-cloud, account.link-server, show-in-finder, retry), switch (opens `account-switch`), settings (`settings.open`).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-account-card.jsx",
+      "symbol": "ProjectAccountMenu"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/t4-account-menu.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "account-switch",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Switch account (`role=menu`): the accounts already on this Mac + \"No account — this Mac only\" (the `default` profile), then Add a Maude Cloud account… / Sign in with custom server…. Canvas 17 ac-switch.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-account-card.jsx",
+      "symbol": "SwitchList"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/t4-account-menu.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "account-switch-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One account in Switch account; `<id>` = the profile id (`default` = No account). `aria-checked` on the one this project uses. Picking another opens `account-switch-sheet`.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-account-card.jsx",
+      "symbol": "SwitchList"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/t4-account-menu.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "account-switch-add-cloud",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Add a Maude Cloud account… (`account.add-cloud`).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-account-card.jsx",
+      "symbol": "SwitchList"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/t4-account-menu.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "account-switch-custom-server",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sign in with custom server… (`account.link-server` with `{ intent: 'sign-in' }`).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-account-card.jsx",
+      "symbol": "SwitchList"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/t4-account-menu.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "account-switch-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The confirm before a switch (`role=alertdialog`): \"Use <account> for <project>?\" — the folder stays, nothing is moved or uploaded, the way back. Confirm runs `project_use_account` (the project's server restarts onto that account).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-account-card.jsx",
+      "symbol": "SwitchSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/t4-account-menu.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "account-switch-sheet-<part>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "`<part>` ∈ confirm (Use account), cancel.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-account-card.jsx",
+      "symbol": "SwitchSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/t4-account-menu.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -20236,7 +20371,8 @@
     },
     "region": "other",
     "consumers": [],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired 2.1.1 T2/T4 (decision:maude/v2-211-t4-switch-account-existing-profile): the chip opens the account menu (`account-menu`, canvas 17). Sign out per kind lives in Settings › Connections; Switch is `account-switch` (accounts already on this Mac, never a fresh profile); GitHub sign-in is `account.github-signin` (⌘K, every publish line)."
   },
   {
     "hook": "account-card-current",
@@ -20249,7 +20385,8 @@
     },
     "region": "other",
     "consumers": [],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired 2.1.1 T2/T4 (decision:maude/v2-211-t4-switch-account-existing-profile): the chip opens the account menu (`account-menu`, canvas 17). Sign out per kind lives in Settings › Connections; Switch is `account-switch` (accounts already on this Mac, never a fresh profile); GitHub sign-in is `account.github-signin` (⌘K, every publish line)."
   },
   {
     "hook": "account-card-other-<id>",
@@ -20262,7 +20399,8 @@
     },
     "region": "other",
     "consumers": [],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired 2.1.1 T2/T4 (decision:maude/v2-211-t4-switch-account-existing-profile): the chip opens the account menu (`account-menu`, canvas 17). Sign out per kind lives in Settings › Connections; Switch is `account-switch` (accounts already on this Mac, never a fresh profile); GitHub sign-in is `account.github-signin` (⌘K, every publish line)."
   },
   {
     "hook": "account-card-switch",
@@ -20275,7 +20413,8 @@
     },
     "region": "other",
     "consumers": [],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired 2.1.1 T2/T4 (decision:maude/v2-211-t4-switch-account-existing-profile): the chip opens the account menu (`account-menu`, canvas 17). Sign out per kind lives in Settings › Connections; Switch is `account-switch` (accounts already on this Mac, never a fresh profile); GitHub sign-in is `account.github-signin` (⌘K, every publish line)."
   },
   {
     "hook": "account-card-signout",
@@ -20288,7 +20427,8 @@
     },
     "region": "other",
     "consumers": [],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired 2.1.1 T2/T4 (decision:maude/v2-211-t4-switch-account-existing-profile): the chip opens the account menu (`account-menu`, canvas 17). Sign out per kind lives in Settings › Connections; Switch is `account-switch` (accounts already on this Mac, never a fresh profile); GitHub sign-in is `account.github-signin` (⌘K, every publish line)."
   },
   {
     "hook": "account-card-confirm",
@@ -20301,7 +20441,8 @@
     },
     "region": "other",
     "consumers": [],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired 2.1.1 T2/T4 (decision:maude/v2-211-t4-switch-account-existing-profile): the chip opens the account menu (`account-menu`, canvas 17). Sign out per kind lives in Settings › Connections; Switch is `account-switch` (accounts already on this Mac, never a fresh profile); GitHub sign-in is `account.github-signin` (⌘K, every publish line)."
   },
   {
     "hook": "account-card-signout-confirm",
@@ -20314,7 +20455,8 @@
     },
     "region": "other",
     "consumers": [],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired 2.1.1 T2/T4 (decision:maude/v2-211-t4-switch-account-existing-profile): the chip opens the account menu (`account-menu`, canvas 17). Sign out per kind lives in Settings › Connections; Switch is `account-switch` (accounts already on this Mac, never a fresh profile); GitHub sign-in is `account.github-signin` (⌘K, every publish line)."
   },
   {
     "hook": "account-card-signout-cancel",
@@ -20327,7 +20469,8 @@
     },
     "region": "other",
     "consumers": [],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired 2.1.1 T2/T4 (decision:maude/v2-211-t4-switch-account-existing-profile): the chip opens the account menu (`account-menu`, canvas 17). Sign out per kind lives in Settings › Connections; Switch is `account-switch` (accounts already on this Mac, never a fresh profile); GitHub sign-in is `account.github-signin` (⌘K, every publish line)."
   },
   {
     "hook": "account-card-foot",
@@ -20340,7 +20483,8 @@
     },
     "region": "other",
     "consumers": [],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired 2.1.1 T2/T4 (decision:maude/v2-211-t4-switch-account-existing-profile): the chip opens the account menu (`account-menu`, canvas 17). Sign out per kind lives in Settings › Connections; Switch is `account-switch` (accounts already on this Mac, never a fresh profile); GitHub sign-in is `account.github-signin` (⌘K, every publish line)."
   },
   {
     "hook": "root-missing-card",

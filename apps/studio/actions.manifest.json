@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "b7f2a1ff5c2f",
+  "manifestVersion": "cc9b94549577",
   "actions": [
     {
       "id": "search.open",
@@ -4457,7 +4457,7 @@
     },
     {
       "id": "account.switch",
-      "label": "Sign in as another account…",
+      "label": "Switch account…",
       "kind": "command",
       "exec": "shell",
       "effect": "none",
@@ -4466,6 +4466,18 @@
         "because": "native-window",
         "note": "the desktop app’s profiles; an agent never picks an account"
       }
+    },
+    {
+      "id": "account.add-cloud",
+      "label": "Add a Maude Cloud account…",
+      "kind": "command",
+      "exec": "shell"
+    },
+    {
+      "id": "account.link-server",
+      "label": "Link your server…",
+      "kind": "command",
+      "exec": "shell"
     },
     {
       "id": "account.github-signin",

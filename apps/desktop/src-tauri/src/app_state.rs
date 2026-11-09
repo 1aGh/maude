@@ -936,6 +936,40 @@ pub fn bind_chosen(app: &tauri::AppHandle, root: &str, id: &str) -> Result<(), S
     })
 }
 
+/// 2.1.1 T4 — Switch account: the project at `root` uses an account ALREADY on this Mac (canvas 17
+/// · ac-switch). Never a fresh profile — that stranded a local project on an empty account with no
+/// way back ("Sign in as another account…", V2-3.8's `cloud_sign_in_prepare`); `default` is "No
+/// account — this Mac only" and is always there. Nothing is moved or uploaded: only the binding
+/// changes, and the caller restarts the project's server onto it (env is never hot-swapped).
+/// Ok(true) = rebound; Ok(false) = it already uses that account. Never a worktree tab (#206 §5).
+/// Socket-free, against an explicit registry, so it is testable without a keychain.
+pub(crate) fn use_account(
+    st: &mut AppState,
+    registry: &Path,
+    root: &str,
+    id: &str,
+    now: u64,
+) -> Result<bool, String> {
+    if let Some(words) = st.worktree_sign_in_refusal(root) {
+        return Err(words);
+    }
+    profiles::validate_id(id)?;
+    if !profiles::list_in(registry).iter().any(|p| p.id == id) {
+        return Err("That account isn't on this Mac.".to_string());
+    }
+    if st.profile_for(root) == id {
+        return Ok(false);
+    }
+    st.bind(root, id, now);
+    Ok(true)
+}
+
+/// `use_account` through the app-state lock, against the real registry.
+pub fn use_account_app(app: &tauri::AppHandle, root: &str, id: &str) -> Result<bool, String> {
+    let registry = profiles::registry_file();
+    update(app, |st, now| use_account(st, &registry, root, id, now))
+}
+
 /// `AppState::bind_managed` through the lock. The profile must be valid and
 /// registered (default always is).
 pub fn bind_managed(
@@ -1434,6 +1468,44 @@ pub(crate) mod tests {
 
     fn ids(reg: &Path) -> Vec<String> {
         profiles::list_in(reg).into_iter().map(|p| p.id).collect()
+    }
+
+    // ── 2.1.1 T4: Switch account rebinds to an account already on this Mac ─────
+
+    #[test]
+    fn switch_account_binds_an_existing_profile_and_never_makes_one() {
+        let (reg, mut st, shared) = shared_fixture("t4use");
+        let a = "/v238/t4use/a";
+        let other = profiles::create_in(&reg, "hello@brightside.example").unwrap().id;
+        let before = ids(&reg);
+        assert!(use_account(&mut st, &reg, a, &other, 2).unwrap(), "A is rebound");
+        assert_eq!(st.profile_for(a), other);
+        assert_eq!(st.profile_for("/v238/t4use/b"), shared, "B keeps its account");
+        assert_eq!(ids(&reg), before, "no profile is made");
+        // The same account again: nothing changes.
+        assert!(!use_account(&mut st, &reg, a, &other, 3).unwrap());
+        // "No account — this Mac only" is `default`, always there: the way back.
+        assert!(use_account(&mut st, &reg, a, profiles::DEFAULT_ID, 4).unwrap());
+        assert_eq!(st.profile_for(a), profiles::DEFAULT_ID);
+        assert!(st.projects[&windows::pid_for_root(a)].bound, "bound by choice");
+        assert_eq!(ids(&reg), before);
+    }
+
+    #[test]
+    fn switch_account_refuses_an_unknown_or_invalid_id_and_a_worktree_tab() {
+        let (reg, mut st, shared) = shared_fixture("t4refuse");
+        let a = "/v238/t4refuse/a";
+        for bad in ["nope", "../x", "", "Work"] {
+            assert!(use_account(&mut st, &reg, a, bad, 2).is_err(), "{bad:?} is refused");
+        }
+        assert_eq!(st.profile_for(a), shared, "nothing rebound");
+        let base = tmp("t4-wt");
+        let (main, wt) = make_worktree(&base, "feat-x");
+        st.bind(&main.to_string_lossy(), &shared, 1);
+        let wt_s = wt.to_string_lossy().into_owned();
+        let pids = st.projects.len();
+        assert!(use_account(&mut st, &reg, &wt_s, profiles::DEFAULT_ID, 3).is_err());
+        assert_eq!(st.projects.len(), pids, "a worktree gets no entry of its own");
     }
 
     // ── 2.0.5 W4b: team-server Switch ─────────────────────────────────────────

@@ -1,182 +1,295 @@
-// client/v2/shell/project-account-model.js — 2.0.5 W4: which account THIS project uses, and how.
+// client/v2/shell/project-account-model.js — 2.1.1 T2/T4: the account chip and the avatar menu of THIS
+// project (canvas 17 Accounts and Connections · ac-states, ac-menus, ac-menu-broken, ac-switch).
 //
-// PURE: what the avatar's card says and which existing path each of its buttons runs. Michal's rule
-// after 2.0.4 — every button does something, nothing fails — so a row exists only where its path does:
+// PURE: what the chip's face shows and what the menu says, from what the page already holds. The
+// connection state itself is connection-state.js; this module only words it per project.
 //
-//   kind      team server · Maude Cloud · GitHub · nothing (this Mac only)
-//   profile   `/_config.profile` — the account slot this project is bound to (V2-3.1; the server
-//             learns it from env only, MAUDE_PROFILE_ID / _LABEL)
-//   where     the team server's host, or the cloud project's name
-//   who       the signed-in login / e-mail, only where the page already holds it (the hub's recorded
-//             account from `/_api/connections/hub`, the cloud e-mail from `/_api/cloud/status`, the
-//             GitHub login from `/_api/github/identity`, a cloud tab's `cfg.cloud.user.email`)
-//
-// Sign out, per kind — each the path its Settings › Connections row already runs, never a new one:
-//   cloud-signout   POST /_api/cloud/signout — clears this project's PROFILE cloud credential (V2-3.8)
-//   hub-detach      POST /_api/cloud/detach  — Settings' team-server "Sign out": the link + its sign-in
-//   github-signout  the shell's `github_sign_out` — the calling project's profile keychain slot
-// Switch, per kind — through the bind-on-sign-in rule (decision v2-3.8-bind-on-sign-in):
-//   cloud           `account.switch` → `cloud_sign_in_prepare` (a fresh profile bound to this project)
-//   github          `account.github-signin` → `github_sign_in` (settle_sign_in rebinds on another login)
-//   team server     W4b: `hub-switch` → `team_sign_in_prepare` (this project moves to a fresh profile
-//                   of its own when its profile is shared — the shell restarts it, the page reloads,
-//                   the person signs in there) → `/_api/hub-signin/start` + the server's own page.
-// A browser tab on this Mac has no shell: it says what is known and offers no button. A cloud tab's
-// account is the hub's browser session: `account.switch` ends it (the v1 menubar's Sign out).
+//   face      the kind is the face — a circle with a letter for a Maude Cloud account, a server tile for
+//             your server, a laptop for this Mac only — with at most one badge (broken link · warning ·
+//             grey · a turning ring while syncing). A project only on this Mac never has a badge.
+//   block     the top of the menu: name · where it lives (Your folder / Kept by Maude / On <server>) ·
+//             the account · the status with the last sync; red with "Sign in again" + the server
+//             address when the sign-in is broken (the address is never typed again).
+//   actions   what this state needs: a local project gets its two ways out (Put on Maude Cloud, Link
+//             your server); a reachable folder Show in Finder; an unreachable server Retry.
+//   switch    "Switch account": the accounts already on this Mac (`accounts_list`, profiles.rs — the
+//             caller's own e-mail only, every other account's label and `signedIn`), "No account — this
+//             Mac only" (the `default` profile), then Add a Maude Cloud account / Sign in with custom
+//             server. Picking one asks first (`switchSheet`) and then `project_use_account` rebinds the
+//             project — nothing is moved or uploaded.
 
-import { ACTIONS_BY_ID } from '../../../actions/index.ts';
-import { isCloudHub } from '../settings/connections-model.js';
+import { accountTone } from '../../shell/account-tone.js';
+import { connectionWords, isBrokenSignIn } from './connection-state.js';
 
-// host, plus the port when it is not the scheme's default (URL.host drops 443/80) — as the Home card says it
-const hostOf = (url) => {
-  try {
-    return new URL(String(url)).host.toLowerCase();
-  } catch {
-    return '';
-  }
-};
+export const DEFAULT_PROFILE = 'default';
 const str = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
-const labelOf = (id) => ACTIONS_BY_ID.get(id)?.label ?? '';
+const initialOf = (s) => (s ? Array.from(s)[0].toUpperCase() : '·');
 
-export const KIND_LABELS = Object.freeze({
-  team: 'Team server',
-  cloud: 'Maude Cloud',
-  github: 'GitHub',
-  local: 'This Mac only',
-});
+/** "synced just now" · "synced 4 min ago" · "synced 3 h ago" · "synced yesterday" · "synced 5 days ago" */
+export function syncedAgo(ms, now = Date.now()) {
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const min = Math.floor(Math.max(0, now - ms) / 60_000);
+  if (min < 1) return 'synced just now';
+  if (min < 60) return `synced ${min} min ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `synced ${h} h ago`;
+  if (h < 48) return 'synced yesterday';
+  return `synced ${Math.floor(h / 24)} days ago`;
+}
 
-export const GITHUB_NEEDS_APP = 'Signing in with GitHub needs the Maude desktop app.';
+/** The status word's tone for the menu's dot (StatusWord). */
+const DOT = {
+  connected: 'ok',
+  syncing: 'busy',
+  offline: 'off',
+  'signin-missing': 'error',
+  'signin-rejected': 'error',
+  unreachable: 'warn',
+  local: 'off',
+};
 
 /**
- * @param in.native          the desktop app (a Tauri shell)
- * @param in.cloudTab        `cfg.cloud` of a cloud tab, else null
+ * The account chip's face.
+ * @param in.conn            connectionState()
  * @param in.profile         `/_config.profile` { id, label? }
- * @param in.project         this project's name
- * @param in.linkedHub       { url, credentialed } from `/_api/cloud/status`
- * @param in.hubAccount      the hub sign-in's recorded account (`/_api/connections/hub` `account`)
- * @param in.cloudUrl        the Maude Cloud address this Mac signs in against
- * @param in.cloudConnected  this profile holds a Maude Cloud sign-in
+ * @param in.cloudConnected  this project's profile holds a Maude Cloud sign-in
  * @param in.cloudEmail      its e-mail
- * @param in.github          { state: 'loading'|'in'|'out', login }
  */
-export function projectAccount(input = {}) {
+export function accountFace({ conn, profile = null, cloudConnected = false, cloudEmail = null }) {
+  const c = conn ?? { state: 'local', kind: 'local', badge: null };
+  const id = str(profile?.id) || DEFAULT_PROFILE;
+  const profileLabel = str(profile?.label) || id;
+  const kind = c.kind !== 'local' ? c.kind : cloudConnected ? 'cloud' : 'local';
+  const label =
+    kind === 'server'
+      ? c.host || 'Your server'
+      : kind === 'cloud'
+        ? str(cloudEmail) || profileLabel
+        : 'This Mac';
+  const words = connectionWords(c);
+  return {
+    kind,
+    state: c.state,
+    badge: c.state === 'local' ? null : (c.badge ?? null),
+    label,
+    initial: kind === 'cloud' ? initialOf(label) : '',
+    tone: kind === 'cloud' ? accountTone(id, profileLabel) : kind === 'server' ? 'green' : 'grey',
+    title: `${label} — ${words.word}`,
+  };
+}
+
+/**
+ * Everything the avatar menu says.
+ * @param in.native       the desktop app
+ * @param in.cloudTab     a cloud tab (`cfg.cloud`) — its account is the hub's browser session
+ * @param in.project      this project's name
+ * @param in.conn         connectionState()
+ * @param in.face         accountFace()
+ * @param in.place        `/_api/cloud/status` `place` — `{ kept: true }` | `{ kept: false, folder }`
+ * @param in.hubAccount   the team server sign-in's recorded account
+ * @param in.pending      changes going out
+ * @param in.lastSyncAt   the hub monitor's last real sync (ms), or null
+ */
+export function accountMenu(input = {}) {
   const {
     native = false,
     cloudTab = null,
-    profile = null,
     project = null,
-    linkedHub = null,
+    conn,
+    face,
+    place = null,
     hubAccount = null,
-    cloudUrl = '',
-    cloudConnected = false,
-    cloudEmail = null,
-    github = null,
+    pending = 0,
+    lastSyncAt = null,
+    now = Date.now(),
   } = input;
-  const profileLabel = str(profile?.label) || str(profile?.id) || (native ? 'default' : null);
+  const c = conn ?? { state: 'local', kind: 'local' };
+  const w = connectionWords(c, { pending });
+  const bad = isBrokenSignIn(c);
+  const folder = place && place.kept === false ? str(place.folder) : null;
+  const kept = place?.kept === true;
 
-  if (cloudTab) {
-    // A browser on a cell: a hub with a dashboard is Maude Cloud, one that serves a single project is a
-    // team's own server. No Mac, no keychain, no GitHub.
-    const email = str(cloudTab.user?.email);
-    return {
-      kind: cloudTab.dashboardUrl ? 'cloud' : 'team',
-      kindLabel: KIND_LABELS[cloudTab.dashboardUrl ? 'cloud' : 'team'],
-      profileLabel: null,
-      where: str(cloudTab.projectName) || str(project),
-      who: email,
-      signOut: null,
-      // the registry hides account.switch in a cloud tab without a user (app.jsx); so does the card
-      switch: email ? { id: 'account.switch', label: labelOf('account.switch') } : null,
-      github: null,
+  // where it lives — exactly one of three places
+  let where;
+  if (c.kind === 'server')
+    where = {
+      kind: 'server',
+      text: `On ${c.host}`,
+      extra: kept ? 'copy kept by Maude' : folder ? `copy in ${folder}` : null,
     };
-  }
+  else if (kept)
+    where = {
+      kind: 'kept',
+      text: 'Kept by Maude',
+      extra: c.kind === 'cloud' ? 'also on Maude Cloud' : null,
+    };
+  else
+    where = {
+      kind: 'folder',
+      text: 'Your folder',
+      mono: folder,
+      extra: c.kind === 'cloud' ? 'also on Maude Cloud' : null,
+    };
 
-  const hubUrl = str(linkedHub?.url);
-  const cloudHub = hubUrl ? isCloudHub(hubUrl, cloudUrl) : false;
-  const ghIn = github?.state === 'in';
-  const ghLogin = ghIn ? str(github?.login) : null;
-  let kind = 'local';
-  if (hubUrl && !cloudHub) kind = 'team';
-  else if (cloudConnected || (hubUrl && cloudHub)) kind = 'cloud';
-  else if (ghIn) kind = 'github';
+  // which account
+  let account;
+  if (cloudTab) {
+    const email = str(cloudTab.user?.email);
+    account = { kind: 'cloud', text: email || 'Maude Cloud', sub: email ? 'Maude Cloud' : null };
+  } else if (face?.kind === 'server')
+    account = { kind: 'server', text: str(hubAccount) || c.host, sub: 'your server' };
+  else if (face?.kind === 'cloud')
+    account = { kind: 'cloud', text: face.label, sub: 'Maude Cloud' };
+  else account = { kind: 'local', text: 'No account — only on this Mac', sub: null };
 
-  const who =
-    kind === 'team'
-      ? str(hubAccount)
-      : kind === 'cloud'
-        ? str(cloudEmail)
-        : kind === 'github' && ghLogin
-          ? `@${ghLogin}`
-          : null;
-  const where = kind === 'team' ? hostOf(hubUrl) || hubUrl : kind === 'cloud' ? str(project) : null;
+  // the status, with the last sync where it says something
+  const ago = syncedAgo(lastSyncAt, now);
+  const statusText =
+    c.state === 'local'
+      ? 'Only on this Mac'
+      : c.state === 'signin-rejected'
+        ? `Sign-in stopped working${ago ? ` · ${ago}` : ''}`
+        : c.state === 'connected'
+          ? `Connected${ago ? ` · ${ago}` : ''}`
+          : w.line;
 
-  let signOut = null;
-  let sw = null;
-  if (native) {
-    if (kind === 'cloud' && cloudConnected) {
-      const name = who || profileLabel;
-      // The account card's words (account-card-model.js), unchanged: one confirm on every surface.
-      signOut = {
-        path: 'cloud-signout',
-        label: `Sign out of ${name}…`,
-        confirm: {
-          title: `Sign out of ${name}?`,
-          body: 'Every project on it is signed out. Your work stays on this Mac.',
-          primary: 'Sign out',
-          cancel: 'Cancel',
-        },
-      };
-      sw = { id: 'account.switch', label: labelOf('account.switch') };
-    } else if (kind === 'team') {
-      const host = where || 'this server';
-      // 2.0.5 W4b — Switch through `team_sign_in_prepare`: a project on a profile other projects
-      // share first moves to its own (the shell restarts it); then the team server's own page.
-      sw = {
-        path: 'hub-switch',
-        url: hubUrl,
-        label: linkedHub?.credentialed ? 'Sign in as someone else…' : `Sign in to ${host}…`,
-      };
-      if (linkedHub?.credentialed)
-        signOut = {
-          path: 'hub-detach',
-          label: `Sign out of ${host}…`,
-          confirm: {
-            title: `Sign out of ${host}?`,
-            body: 'This folder stops syncing with it. Your work stays on this Mac.',
-            primary: 'Sign out',
-            cancel: 'Cancel',
-          },
-        };
-    } else if (kind === 'github' && ghLogin) {
-      signOut = {
-        path: 'github-signout',
-        label: `Sign out of @${ghLogin}…`,
-        confirm: {
-          title: `Sign out of @${ghLogin}?`,
-          body: 'Every project on it is signed out of GitHub. Your work stays on this Mac.',
-          primary: 'Sign out',
-          cancel: 'Cancel',
-        },
-      };
-      sw = { id: 'account.github-signin', label: 'Sign in as another GitHub account…' };
+  const fix = bad
+    ? {
+        text: 'Changes wait on this Mac and go out after you sign in.',
+        address: c.host,
+        url: c.url,
+        label: w.fix.label,
+        // your server: its own sign-in page with the linked address; Maude Cloud: its sign-in in Settings
+        path: c.kind === 'server' ? 'hub-signin' : 'cloud-signin',
+      }
+    : null;
+
+  const actions = [];
+  if (!cloudTab) {
+    if (c.state === 'local') {
+      if (native)
+        actions.push({
+          id: 'share.move-to-cloud',
+          label: 'Put this project on Maude Cloud…',
+          icon: 'cloud',
+        });
+      actions.push({ id: 'account.link-server', label: 'Link your server…', icon: 'server' });
+    } else if (c.state === 'unreachable') {
+      actions.push({ id: 'retry', label: w.fix.label, icon: 'reload' });
+    } else if (!bad && native && !kept && folder) {
+      actions.push({ id: 'show-in-finder', label: 'Show in Finder', icon: 'folder' });
     }
   }
 
   return {
-    kind,
-    kindLabel: KIND_LABELS[kind],
-    profileLabel,
+    name: str(cloudTab?.projectName) || str(project) || 'This project',
+    bad,
     where,
-    who,
-    signOut,
-    switch: sw,
-    // The GitHub line: sign in where the app can, sign out where it is the second account of the card.
-    github: native
+    account,
+    status: { tone: DOT[c.state] ?? 'off', text: statusText },
+    fix,
+    actions,
+    // Switch account: the desktop's list; a cloud tab's account.switch ends its browser session
+    switch: native && !cloudTab ? 'list' : cloudTab?.user?.email ? 'sign-out' : null,
+  };
+}
+
+/**
+ * The Switch account list (canvas 17 · ac-switch).
+ * @param accounts `accounts_list` rows `[{ id, label, email, signedIn }]`, or null (an older shell)
+ * @param profile  this project's `/_config.profile`
+ * @param cloudEmail this project's own cloud e-mail (the caller's row carries it too)
+ * @returns {{ rows: Array<{ id, kind: 'local'|'cloud', title, sub, initial, tone, current }>, foot }}
+ */
+export function switchList({ accounts = null, profile = null, cloudEmail = null } = {}) {
+  const currentId = str(profile?.id) || DEFAULT_PROFILE;
+  const list = Array.isArray(accounts)
+    ? accounts.filter((a) => a && typeof a.id === 'string')
+    : [
+        {
+          id: currentId,
+          label: str(profile?.label) || currentId,
+          email: cloudEmail,
+          signedIn: !!cloudEmail,
+        },
+      ];
+  const me = list.find((a) => a.id === currentId) ?? null;
+  const signedIn = (a) => a.signedIn === true || !!str(a.email);
+  const def = list.find((a) => a.id === DEFAULT_PROFILE) ?? {
+    id: DEFAULT_PROFILE,
+    signedIn: false,
+  };
+  const rows = [];
+  // "No account" = the `default` profile while it holds no sign-in. Ticked when this project's own
+  // account holds none — the way back for a project an earlier switch left on an empty profile.
+  if (!signedIn(def))
+    rows.push({
+      id: DEFAULT_PROFILE,
+      kind: 'local',
+      title: 'No account — this Mac only',
+      sub: 'Nothing leaves this Mac',
+      initial: '',
+      tone: 'grey',
+      current: !me || !signedIn(me),
+    });
+  for (const a of list) {
+    if (!signedIn(a)) continue;
+    const title = (a.id === currentId && str(a.email)) || str(a.label) || a.id;
+    rows.push({
+      id: a.id,
+      kind: 'cloud',
+      title,
+      sub: 'Maude Cloud',
+      initial: initialOf(title),
+      tone: accountTone(a.id, str(a.label) || a.id),
+      current: a.id === currentId,
+    });
+  }
+  return {
+    rows,
+    foot: [
+      { id: 'account.add-cloud', label: 'Add a Maude Cloud account…', icon: 'plus' },
+      {
+        id: 'account.link-server',
+        params: { intent: 'sign-in' },
+        label: 'Sign in with custom server…',
+        icon: 'server',
+      },
+    ],
+  };
+}
+
+/** The confirm sheet before a switch (canvas 17 · ac-switch): what happens, and the way back. */
+export function switchSheet({ row, project, place = null, conn = null }) {
+  const name = str(project) || 'This project';
+  const folder = place && place.kept === false ? str(place.folder) : null;
+  const stays = folder
+    ? { text: `${name} stays in `, mono: folder, after: '. Nothing is moved or uploaded.' }
+    : { text: `${name} stays where it is. Nothing is moved or uploaded.` };
+  const linked = conn && conn.kind !== 'local';
+  const none = row?.kind === 'local';
+  const goes = none
+    ? { text: 'Nothing leaves this Mac until you put it on Maude Cloud or link your server.' }
+    : linked
       ? {
-          login: ghLogin,
-          canSignIn: !ghIn && github?.state !== 'loading',
-          canSignOut: ghIn && kind !== 'github',
+          text: `It syncs with ${conn.host} as `,
+          strong: row.title,
+          after: ' — sign in there if it asks.',
         }
-      : { login: null, canSignIn: false, canSignOut: false, note: GITHUB_NEEDS_APP },
+      : { text: 'When you put it on Maude Cloud, it goes to ', strong: row.title, after: '.' };
+  return {
+    title: none ? `Use no account for ${name}?` : `Use ${row?.title} for ${name}?`,
+    lines: [
+      { icon: 'folder', ...stays },
+      { icon: none ? 'laptop' : 'cloud', ...goes },
+      {
+        icon: 'undo',
+        text: none
+          ? 'Switch to an account at any time, from the same list.'
+          : 'Switch back to No account at any time, from the same list.',
+      },
+    ],
+    primary: 'Use account',
+    cancel: 'Cancel',
   };
 }

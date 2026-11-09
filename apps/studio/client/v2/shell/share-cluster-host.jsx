@@ -45,8 +45,6 @@ import {
   heldConflicts,
 } from '../diagnostics/sync-details/sync-details-model.js';
 import { ShareCluster } from './share-cluster.jsx';
-import { AccountChip } from './account-card.jsx';
-import { accountCard, accountChip } from './account-card-model.js';
 import { presentFromLabel } from './present-from-label.js';
 import { copyPresentationLink, copyRowState } from '../present/copy-link.js';
 import { normalizeOpenPath } from '../../share-link.js';
@@ -62,8 +60,16 @@ import {
 import { servedFetch } from './served-routes.js';
 import { CLOUD_CHANGED_EVENT } from '../../panels/CloudBar.jsx';
 import { GitHubSignInSheet, useGitHubSignInHost } from './github-signin-host.jsx';
-import { ProjectAccountCard, ProjectAccountPopover } from './project-account-card.jsx';
-import { projectAccount } from './project-account-model.js';
+import {
+  AccountChip,
+  ProjectAccountMenu,
+  ProjectAccountPopover,
+  SwitchSheet,
+} from './project-account-card.jsx';
+import { accountFace, accountMenu, switchList, switchSheet } from './project-account-model.js';
+import { ACCOUNT_MENU_EVENT } from './project-account-bus.js';
+import { useSignInToast } from './project-account-toast.js';
+import { connectionState, connectionWords } from './connection-state.js';
 import { runTeamSwitch } from './team-switch.js';
 
 /** 2.0.5 W4 — the team server sign-in's recorded account (`GET /_api/connections/hub`, Settings' own read). */
@@ -89,21 +95,6 @@ function useHubAccount(enabled, url) {
   return account;
 }
 
-/** Settings' team-server "Sign out": POST /_api/cloud/detach — the link and its sign-in, this profile only. */
-async function detachHub(host) {
-  try {
-    const r = await fetch('/_api/cloud/detach', { method: 'POST' });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j?.ok) throw new Error(j?.error || String(r.status));
-    window.dispatchEvent(
-      new CustomEvent(CLOUD_CHANGED_EVENT, { detail: { from: 'account-card' } })
-    );
-    shellToast(`Signed out of ${host || 'the team server'}. Your work stays on this Mac.`, true);
-  } catch {
-    shellToast('Could not sign out. Nothing changed — try again.');
-  }
-}
-
 /** `{ ok, status, json }` of a same-origin JSON call (team-switch.js's `api`). */
 async function jsonFetch(path, init) {
   try {
@@ -112,6 +103,17 @@ async function jsonFetch(path, init) {
   } catch {
     return { ok: false, status: 0, json: null };
   }
+}
+
+// 2.1.1 T2 — the save word beside the chip says the connection state in words (canvas 17 · ac-states):
+// the two sign-in states, a server that does not answer, and this Mac offline. Its actions stay the
+// status's own (the word opens Diagnostics › Sync).
+const CONNECTION_WORDS = new Set(['signin-missing', 'signin-rejected', 'unreachable', 'offline']);
+function withConnection(status, conn) {
+  if (!conn || !CONNECTION_WORDS.has(conn.state)) return status;
+  if (status?.kind === 'not-saved' && (status.conflict || status.detail)) return status;
+  const w = connectionWords(conn);
+  return { ...status, word: w.word, icon: w.icon, tone: w.tone, connection: conn.state };
 }
 
 const subscribeOnline = (fn) => {
@@ -300,75 +302,90 @@ export function ShellShareCluster() {
     [selected, canvasActiveArtboard, boards]
   );
 
-  // S1.22a — the account chip (desktop): which Mac account this project tab is bound to. A cloud tab's
-  // account is the hub's, a browser tab has none: both get no chip.
+  // 2.1.1 T2/T4 (canvas 17 Accounts and Connections) — the account chip: its face says the kind (a
+  // Maude Cloud circle, your server's tile, this Mac's laptop) with at most one badge from the
+  // connection state; it and your own face open THIS project's account menu. A cloud tab's account is
+  // the hub's (no chip); a browser tab on this Mac shows the facts and no Mac account.
   const native = isNativeApp();
-  // 2.0.5 W4 — every non-cloud tab reads its account (a browser tab on this Mac shows the facts too)
   const acct = useAccount(!cfg?.cloud);
   const projectName = cfg?.cloud?.projectName || project;
-  const chip = useMemo(
-    () =>
-      accountChip({
-        native,
-        cloud: !!cfg?.cloud,
-        connected: acct.connected,
-        profile: cfg?.profile,
-        email: acct.email,
-        accounts: acct.accounts,
-      }),
-    [native, cfg?.cloud, cfg?.profile, acct.connected, acct.email, acct.accounts]
-  );
-  const card = useMemo(
-    () =>
-      chip
-        ? accountCard({
-            project: projectName,
-            profile: cfg?.profile,
-            email: acct.email,
-            accounts: acct.accounts,
-          })
-        : null,
-    [chip, projectName, cfg?.profile, acct.email, acct.accounts]
-  );
-  // 2.0.5 W4 — the avatar (your face, or the chip) opens THIS project's account: kind, profile, hub or
-  // cloud project, the login; Sign out on the kind's existing path, Switch through bind-on-sign-in.
   const gh = useGitHubSignInHost();
   const [acctOpen, setAcctOpen] = useState(false);
-  const closeAcct = useCallback(() => setAcctOpen(false), []);
+  const [acctView, setAcctView] = useState('menu');
+  const [pick, setPick] = useState(null); // { row, sheet } — the Switch account row being confirmed
+  const [using, setUsing] = useState(false);
+  const closeAcct = useCallback(() => {
+    setAcctOpen(false);
+    setAcctView('menu');
+    setPick(null);
+  }, []);
   // the account's own read once it answered (it follows a sign-out), the shell's link until then
   const linkHub = acct.linkedHub !== undefined ? acct.linkedHub : (cloudLinkedHub ?? null);
   const hubAccount = useHubAccount(!cfg?.cloud && !!linkHub?.credentialed, linkHub?.url);
-  const projectAcct = useMemo(
+  const conn = useMemo(
     () =>
-      projectAccount({
+      cfg?.cloud
+        ? null
+        : connectionState({
+            linkedHub: linkHub,
+            cloudUrl: acct.cloudUrl,
+            syncStatus,
+            phase,
+            pending,
+            online,
+          }),
+    [cfg?.cloud, linkHub, acct.cloudUrl, syncStatus, phase, pending, online]
+  );
+  const face = useMemo(
+    () =>
+      conn
+        ? accountFace({
+            conn,
+            profile: cfg?.profile,
+            cloudConnected: acct.connected,
+            cloudEmail: acct.email,
+          })
+        : null,
+    [conn, cfg?.profile, acct.connected, acct.email]
+  );
+  const menu = useMemo(
+    () =>
+      accountMenu({
         native,
         cloudTab: cfg?.cloud ?? null,
-        profile: cfg?.profile,
         project: projectName,
-        linkedHub: linkHub,
+        conn,
+        face,
+        place: acct.place,
         hubAccount,
-        cloudUrl: acct.cloudUrl,
-        cloudConnected: acct.connected,
-        cloudEmail: acct.email,
-        github: { state: gh.state, login: gh.login },
+        pending,
+        lastSyncAt: syncStatus?.lastSyncAt ?? null,
       }),
-    [native, cfg?.cloud, cfg?.profile, projectName, linkHub, hubAccount, acct, gh.state, gh.login]
+    [native, cfg?.cloud, projectName, conn, face, acct.place, hubAccount, pending, syncStatus]
   );
-  const signOutPath = useCallback(
-    async (path) => {
-      if (path === 'cloud-signout') return acct.signOut();
-      if (path === 'github-signout') return gh.signOut();
-      if (path === 'hub-detach') return detachHub(projectAcct.where);
-    },
-    [acct, gh, projectAcct.where]
+  const list = useMemo(
+    () =>
+      native && !cfg?.cloud
+        ? switchList({ accounts: acct.accounts, profile: cfg?.profile, cloudEmail: acct.email })
+        : null,
+    [native, cfg?.cloud, acct.accounts, cfg?.profile, acct.email]
   );
-  // 2.0.5 W4b — Switch / Sign in for a team server: `team_sign_in_prepare` first (bind-on-sign-in for
-  // a hub), then the server's own page. Words come back as one toast.
-  const switchPath = useCallback(
-    async (spec) => {
-      if (spec?.path !== 'hub-switch') return;
+  // `account.switch` (⌘K, the tab menu) opens the menu on its Switch account list
+  useEffect(() => {
+    const on = (e) => {
+      setPick(null);
+      setAcctView(e?.detail?.view === 'switch' ? 'switch' : 'menu');
+      setAcctOpen(true);
+    };
+    window.addEventListener(ACCOUNT_MENU_EVENT, on);
+    return () => window.removeEventListener(ACCOUNT_MENU_EVENT, on);
+  }, []);
+  // 2.0.5 W4b — a team server's sign-in: `team_sign_in_prepare` first (bind-on-sign-in for a hub), then
+  // the server's own page with the folder's linked address. Words come back as one toast.
+  const hubSignIn = useCallback(
+    async (url) => {
       const r = await runTeamSwitch({
-        url: spec.url,
+        url,
         native,
         invoke: shellInvoke,
         api: jsonFetch,
@@ -385,6 +402,41 @@ export function ShellShareCluster() {
     },
     [native]
   );
+  // The broken sign-in's one button (menu, toast): your server's own sign-in page with the address the
+  // folder already names — never typed again; a Maude Cloud project signs in where Maude Cloud does.
+  const fixSignIn = useCallback(
+    (fix) => {
+      closeAcct();
+      if (fix?.path === 'hub-signin') void hubSignIn(fix.url);
+      else menuRunner.run('settings.open', { tab: 'connections' });
+    },
+    [closeAcct, hubSignIn]
+  );
+  useSignInToast({
+    conn,
+    project: projectName,
+    onFix: () => fixSignIn(menu.fix),
+    toast: notify,
+    enabled: !cfg?.cloud,
+  });
+  const confirmUse = useCallback(async () => {
+    const row = pick?.row;
+    if (!row) return;
+    setUsing(true);
+    try {
+      const rebound = await shellInvoke('project_use_account', { id: row.id });
+      if (rebound)
+        shellToast(
+          `${projectName || 'This project'} now uses ${row.kind === 'local' ? 'no account' : row.title}. Reopening it…`,
+          true
+        );
+      closeAcct();
+    } catch (e) {
+      shellToast(String(e?.message || e || 'Could not switch accounts. Nothing changed.'));
+    } finally {
+      setUsing(false);
+    }
+  }, [pick, projectName, closeAcct]);
   // S9.23 — the faces' menu and people list: where people are, Follow / Go to / Bring everyone here.
   const presence = usePresenceHost({
     lane,
@@ -423,22 +475,47 @@ export function ShellShareCluster() {
           <>
             <span className="sh-pa-anchor">
               <ProjectAccountPopover open={acctOpen} onClose={closeAcct}>
-                <ProjectAccountCard
-                  account={projectAcct}
-                  run={(id) => menuRunner.run(id)}
-                  onSignOut={signOutPath}
-                  onSwitch={switchPath}
-                  onClose={closeAcct}
-                />
+                {pick ? (
+                  <SwitchSheet
+                    sheet={pick.sheet}
+                    busy={using}
+                    onCancel={() => setPick(null)}
+                    onConfirm={confirmUse}
+                  />
+                ) : (
+                  <ProjectAccountMenu
+                    menu={menu}
+                    face={face}
+                    list={list}
+                    view={acctView}
+                    onView={setAcctView}
+                    onFix={fixSignIn}
+                    onPick={(row) =>
+                      setPick({
+                        row,
+                        sheet: switchSheet({ row, project: projectName, place: acct.place, conn }),
+                      })
+                    }
+                    onAction={(id, params) => {
+                      closeAcct();
+                      if (id === 'show-in-finder')
+                        void doors.revealPath(cfg?.designRel || '.design');
+                      else if (id === 'retry') retry();
+                      else menuRunner.run(id, params);
+                    }}
+                  />
+                )}
               </ProjectAccountPopover>
             </span>
-            {chip ? (
+            {native && face ? (
               <AccountChip
-                chip={chip}
-                card={card}
-                onSwitch={() => menuRunner.run('account.switch')}
-                onSignOut={acct.signOut}
-                onOpen={() => setAcctOpen((o) => !o)}
+                face={face}
+                accountId={cfg?.profile?.id || 'default'}
+                onOpen={() => {
+                  setAcctView('menu');
+                  setPick(null);
+                  setAcctOpen((o) => !o);
+                }}
                 opened={acctOpen}
               />
             ) : null}
@@ -449,7 +526,7 @@ export function ShellShareCluster() {
         faces={faces}
         onFollow={lane.follow}
         presence={presence}
-        status={shown}
+        status={withConnection(shown, conn)}
         access={access}
         commentsCount={comments ? Number(comments.unreadCount) || 0 : Number(totalOpen) || 0}
         commentsCountKind={comments ? 'unread' : 'open'}
