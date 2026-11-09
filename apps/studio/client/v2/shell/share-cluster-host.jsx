@@ -33,6 +33,7 @@ import { usePresenceHost } from '../presence/use-presence-host.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { askToEdit } from './ask-to-edit.js';
 import { setExportPeople } from '../export/use-export-spec.js';
+import { requestShareFocus } from '../share/share-model.js';
 import { menuRunner } from './menu-runner.js';
 import { ModeSwitch } from './mode-switch.jsx';
 import { menuCtx } from './project-menu-model.js';
@@ -501,7 +502,12 @@ export function ShellShareCluster() {
                       if (id === 'show-in-finder')
                         void doors.revealPath(cfg?.designRel || '.design');
                       else if (id === 'retry') retry();
-                      else menuRunner.run(id, params);
+                      else if (id === 'review-link') {
+                        // 2.1.1 T8 — an address the repo names: the Share sheet's Connect row, the one
+                        // consent step; never a sign-in with that address filled in
+                        requestShareFocus('connect');
+                        menuRunner.run('share.open');
+                      } else menuRunner.run(id, params);
                     }}
                   />
                 )}

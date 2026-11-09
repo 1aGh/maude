@@ -26,6 +26,7 @@ const DOT = Object.freeze({
   'signin-missing': 'error',
   'signin-rejected': 'error',
   unreachable: 'warn',
+  unconfirmed: 'off',
   local: 'off',
 });
 
@@ -156,7 +157,12 @@ export function thisProjectModel({
     desc,
     account,
     linkKind,
-    hubUrl: linkedHub?.url ?? null,
+    // an address this Mac never confirmed is never handed to a sign-in (2.1.1 T8): Review… instead
+    unconfirmed:
+      conn.state === 'unconfirmed'
+        ? { line: words.line, label: words.fix?.label ?? 'Review…' }
+        : null,
+    hubUrl: conn.state === 'unconfirmed' ? null : (linkedHub?.url ?? null),
     host,
     local: conn.state === 'local',
     changeOptions,

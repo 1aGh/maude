@@ -45,6 +45,7 @@ const DOT = {
   'signin-missing': 'error',
   'signin-rejected': 'error',
   unreachable: 'warn',
+  unconfirmed: 'off',
   local: 'off',
 };
 
@@ -176,6 +177,10 @@ export function accountMenu(input = {}) {
       actions.push({ id: 'account.link-server', label: 'Link your server…', icon: 'server' });
     } else if (c.state === 'unreachable') {
       actions.push({ id: 'retry', label: w.fix.label, icon: 'reload' });
+    } else if (c.state === 'unconfirmed') {
+      // an address the repo names: Review… opens the Share sheet's Connect (the person confirms it is
+      // theirs) — never a sign-in with that address filled in
+      actions.push({ id: 'review-link', label: w.fix.label, icon: 'link' });
     } else if (!bad && native && !kept && folder) {
       actions.push({ id: 'show-in-finder', label: 'Show in Finder', icon: 'folder' });
     }

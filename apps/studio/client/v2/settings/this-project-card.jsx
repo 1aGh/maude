@@ -31,6 +31,7 @@ import { TeamProjectsDialog } from '../../panels/TeamProjects.jsx';
 import { StIcon } from '../../shell/icons.jsx';
 import { getPaletteEnv } from '../search/search-env.js';
 import { useFold } from '../fold/use-fold.js';
+import { requestShareFocus } from '../share/share-model.js';
 import { menuRunner } from '../shell/menu-runner.js';
 import { nativeDoors } from '../shell/native-doors.js';
 import { LINK_SERVER_EVENT } from '../shell/project-account-bus.js';
@@ -383,7 +384,9 @@ export default function ThisProjectCard({
 }) {
   const cloud = useCloudConnection({ onLinkedHub, onLocalProject, syncStatus });
   const online = useOnline();
-  const linkedUrl = cloud.local.linkedHub?.url ?? null;
+  // 2.1.1 T8 — an address this Mac never confirmed is the repo's text: no details are asked about it
+  const linkedUrl =
+    cloud.local.linkedHub?.confirmed === false ? null : (cloud.local.linkedHub?.url ?? null);
   const hub = useHubDetails(linkedUrl);
   const [, setFold] = useFold(PROJECT_FOLD);
   const [teamOpen, setTeamOpen] = useState(false);
@@ -435,6 +438,13 @@ export default function ThisProjectCard({
     window.dispatchEvent(ev);
     if (ev.defaultPrevented) onCloseSheet?.();
     else setTeamOpen(true);
+  };
+  // 2.1.1 T8 — Review… on an address the repo names opens the Share sheet's Connect row, where the
+  // person says whether it is theirs (the one consent step). Nothing is signed in from here.
+  const reviewLink = () => {
+    onCloseSheet?.();
+    requestShareFocus('connect');
+    runAction('share.open');
   };
   const canMove = menuRunner.canRun('share.move-to-cloud');
   const canSwitch = menuRunner.canRun('account.switch');
@@ -647,6 +657,19 @@ export default function ThisProjectCard({
               <span>{m.callout.line}</span>
             </span>
             {fix}
+          </div>
+        ) : null}
+        {m.unconfirmed ? (
+          <div className="v2s-acts" data-testid="settings-project-unconfirmed">
+            <span className="v2s-hint">{m.unconfirmed.line}</span>
+            <button
+              type="button"
+              className={btn}
+              onClick={reviewLink}
+              data-testid="settings-project-review-link"
+            >
+              {m.unconfirmed.label}
+            </button>
           </div>
         ) : null}
         {m.local ? (

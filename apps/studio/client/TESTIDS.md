@@ -908,6 +908,8 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `settings-project-callout` | testid | This project’s broken-sign-in callout with Sign in again. | `client/v2/settings/this-project-card.jsx` · `ThisProjectCard` | — | new in v2 (2.1.1 T6) |
 | `settings-project-sign-in-again` | testid | Sign in / Sign in again — in the closed card’s header, or the open card’s callout. | `client/v2/settings/this-project-card.jsx` · `ThisProjectCard` | — | new in v2 (2.1.1 T6) |
 | `settings-project-local-acts` | testid | A project only on this Mac: Put on Maude Cloud… and Link your server…. | `client/v2/settings/this-project-card.jsx` · `ThisProjectCard` | — | new in v2 (2.1.1 T6) |
+| `settings-project-unconfirmed` | testid | A server address the project names that this Mac never linked: “This project names <host>. Not linked on this Mac.” — neutral, no sign-in. | `client/v2/settings/this-project-card.jsx` · `ThisProjectCard` | test:t8-unconfirmed-link-state.test | new in v2 (2.1.1 T8) |
+| `settings-project-review-link` | testid | Review… on that address: opens the Share sheet’s Connect row (the consent step), never a sign-in. | `client/v2/settings/this-project-card.jsx` · `ThisProjectCard` | — | new in v2 (2.1.1 T8) |
 | `settings-project-put-on-cloud` | testid | Put on Maude Cloud… (`share.move-to-cloud`). | `client/v2/settings/this-project-card.jsx` · `ThisProjectCard` | — | new in v2 (2.1.1 T6) |
 | `settings-project-unlinked` | testid | Advanced › This project › the one-line note shown when the project is not linked to a workspace. | `client/v2/settings/project-sync-settings.jsx` · `ProjectSyncSettings` | — | stable |
 
