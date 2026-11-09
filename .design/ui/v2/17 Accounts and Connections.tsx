@@ -1,17 +1,21 @@
 /**
- * @canvas      16 Accounts and Connections — where am I signed in, in which project, and does the connection work
+ * @canvas      17 Accounts and Connections — where am I signed in, in which project, and does the connection work
  * @ds          maude-v2
  * @platform    desktop
  * @kind        canvas
  * @stack       React 19 · TSX · Bun.build
- * @history     .design/_history/ui-v2-16_accounts_and_connections
+ * @history     .design/_history/ui-v2-17_accounts_and_connections
  * @artboards   ac-model | ac-states | ac-toast | ac-menu-broken | ac-menus | ac-switch | ac-sync |
- *              ac-general | ac-general-states | ac-advanced | ac-link-a | ac-link-b | ac-home
+ *              ac-general | ac-general-states | ac-connections | ac-advanced | ac-link-a | ac-link-b | ac-home
  * @brief       Plan .ai/plans/feature-accounts-and-connections-2.1.1.md, task T1 (Michal, 2026-11-09): "Several accounts on
  *              cloud.maude.sh, several projects under each. A project is either connected to the person's own local repo, or
  *              Maude keeps a copy somewhere in the background. Plus projects on the person's own servers. The person must find
  *              their way at a glance: where they are signed in, in which project, and whether the connection works. As simple
  *              as possible." — the proposal shown to Michal before any builder starts (T2–T6).
+ *              Revision 1 (Michal, verbatim): "general bych taky udelal vzdy pod sebou, libi se mi jak to mel connections
+ *              s ikonami vzdy, jen bych to udelal klidne jako karty spis rozbalovani a sjednotit tenhle vzhled pak pro vse
+ *              general/connections/advanced" → Settings is one column of expandable cards in all three tabs, in the look of
+ *              today's Connections row (v2/settings/connection-row.jsx: icon · title · one line · status · its own Advanced).
  *
  * Ground truth (main @ 91e57a20a, 2026-11-09):
  *   · The avatar card (v2/shell/project-account-card.jsx + project-account-model.js) mixes the account kind with the
@@ -22,25 +26,23 @@
  *   · Two team-server dialogs: Settings "Add a team server" (panels/TeamProjects.jsx) and Home "Sign in to your own hub"
  *     (v2/onboarding/HubSheet.jsx). Here they become ONE "Link your server" dialog.
  *
- * Words (CONTRACT §3, §4): Maude Cloud is the name; the address cloud.maude.sh appears only where an address is read.
- * A self-hosted server shows its own host. The person's words are account, project, your server, this Mac — never
- * hub, profile, token, bearer. Status is a word with a dot or a glyph, never hue alone.
+ * Words (CONTRACT §3, §4): Maude Cloud is the name; the address cloud.maude.sh appears only on account rows. A self-hosted
+ * server shows its own host. The person's words are account, project, your server, this Mac — never hub, profile, token,
+ * bearer. Status is a word with a dot or a glyph, never hue alone. Offline reads "Offline — changes wait on this Mac".
  *
  * Three places, exactly: Your folder (a folder the person chose, path shown) · Kept by Maude (a copy in the background,
  * no path to manage) · On your server. A Maude Cloud project is reachable from any Mac; on this Mac its copy is either
  * your folder or kept by Maude.
  *
- * All pieces local with prefix `ac-`; chrome from ./_kit (Window, Stage, Canvas, Veil, ProjectPill, Toolbar, ZoomUndo,
- * ModeSwitch, Avatar, Icon, Mark, StatusWord, Dialog, Note, Thumb, Artboard, HeroMock). Static mocks — spans, no
- * real controls.
+ * All pieces local with prefix `ac-`; chrome from ./_kit. Static mocks — spans, no real controls.
  */
 import "../../system/maude-v2/colors_and_type.css";
 import "../../system/maude-v2/preview/_components.css";
 import "./_kit.css";
-import "./16 Accounts and Connections.css";
+import "./17 Accounts and Connections.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 import type { CSSProperties, ReactNode } from "react";
-import { Artboard, Avatar, Canvas, Dialog, HeroMock, Icon, InSelect, InSwitch, Mark, ModeSwitch, Note, ProjectPill, Stage, StatusWord, Thumb, Toolbar, V2, Veil, Window, ZoomUndo } from "./_kit";
+import { Artboard, Avatar, Canvas, Dialog, HeroMock, Icon, Mark, ModeSwitch, Note, ProjectPill, Stage, StatusWord, Thumb, Toolbar, V2, Veil, Window, ZoomUndo } from "./_kit";
 import type { Art, Tab, Tone } from "./_kit";
 
 const W = 1440;
@@ -112,14 +114,15 @@ type FaceSize = "sm" | "md" | "lg";
 function Face({ a, conn = "ok", size = "md" }: { a: AcctKey; conn?: Conn; size?: FaceSize }) {
   const acct = ACCTS[a];
   const ic = size === "lg" ? 16 : size === "md" ? 13 : 10;
+  const glyph = size === "sm" ? 8 : size === "md" ? 10 : 12;
   return (
     <span className={`ac-face ac-face--${size}`} data-conn={conn} title={acct.email || acct.where}>
       {acct.kind === "cloud" ? <Avatar ini={acct.ini} tone={acct.tone} size={size} /> : <span className={`ac-tile ac-tile--${acct.kind} ac-tile--${size}`}><Icon name={acct.kind === "server" ? "server" : "laptop"} size={ic} /></span>}
       {conn === "syncing" ? (
         <svg className="ac-ring" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="30 100" /></svg>
       ) : null}
-      {conn === "missing" || conn === "rejected" ? <span className="ac-badge ac-badge--bad" title="Sign-in needed"><BrokenLink size={size === "sm" ? 8 : size === "md" ? 10 : 12} /></span> : null}
-      {conn === "unreachable" ? <span className="ac-badge ac-badge--warn" title="Can’t reach the server"><Icon name="problem" size={size === "sm" ? 8 : size === "md" ? 10 : 12} /></span> : null}
+      {conn === "missing" || conn === "rejected" ? <span className="ac-badge ac-badge--bad" title="Sign-in needed"><BrokenLink size={glyph} /></span> : null}
+      {conn === "unreachable" ? <span className="ac-badge ac-badge--warn" title="Can’t reach the server"><Icon name="problem" size={glyph} /></span> : null}
     </span>
   );
 }
@@ -197,10 +200,11 @@ function Btn({ children, primary = false, ghost = false, icon }: { children: Rea
 function Row({ k, children }: { k: ReactNode; children?: ReactNode }) {
   return <div className="ac-row"><span className="ac-row-k">{k}</span><span className="ac-row-v">{children}</span></div>;
 }
-function Fold({ open = false, hint, children }: { open?: boolean; hint?: string; children?: ReactNode }) {
+/** The disclosure at the foot of a panel or a card — "Advanced" by default (CONTRACT §3). */
+function Fold({ open = false, hint, label = "Advanced", children }: { open?: boolean; hint?: string; label?: string; children?: ReactNode }) {
   return (
     <div className="k-adv ac-fold" data-open={open ? "true" : undefined}>
-      <span className="k-adv-btn"><span className="k-adv-ch"><Icon name="submenu" size={12} /></span>Advanced{!open && hint ? <span className="k-adv-count">{hint}</span> : null}</span>
+      <span className="k-adv-btn"><span className="k-adv-ch"><Icon name="submenu" size={12} /></span>{label}{!open && hint ? <span className="k-adv-count">{hint}</span> : null}</span>
       {open ? <div className="ac-fold-body">{children}</div> : null}
     </div>
   );
@@ -309,7 +313,7 @@ function SwitchSub({ current, style }: { current: AcctKey; style?: CSSProperties
   );
 }
 
-/* ═══ E/G · Settings ════════════════════════════════════════════════════════════════════════════ */
+/* ═══ E · Settings — one column of cards, the Connections look, in every tab ═══════════════════ */
 
 type STab = "General" | "Connections" | "Advanced";
 function SettingsSheet({ tab, children, style }: { tab: STab; children: ReactNode; style?: CSSProperties }) {
@@ -323,38 +327,50 @@ function SettingsSheet({ tab, children, style }: { tab: STab; children: ReactNod
         <span className="ac-set-sp" />
         <span className="ac-set-foot">Maude 2.1.1</span>
       </div>
-      <div className="ac-set-main">{children}</div>
+      <div className="ac-set-main"><div className="ac-cards">{children}</div></div>
     </div>
   );
 }
-function SGroup({ title, children, className = "" }: { title: ReactNode; children: ReactNode; className?: string }) {
-  return <div className={`ac-sg ${className}`}><p className="ac-sg-t">{title}</p>{children}</div>;
+
+/** One settings card — today's Connections row (connection-row.jsx) made expandable: icon · title · one line ·
+ *  status, an action when one click fixes it, the chevron opens it. The same card in General, Connections, Advanced. */
+function SCard({ icon, title, desc, sum, sw, open = false, action, bad = false, bare = false, children }: { icon: ReactNode; title: ReactNode; desc?: ReactNode; sum: ReactNode; sw?: SW; open?: boolean; action?: ReactNode; bad?: boolean; bare?: boolean; children?: ReactNode }) {
+  return (
+    <section className={`ac-card${bad ? " ac-card--bad" : ""}`} data-open={open ? "true" : undefined}>
+      <div className="ac-card-r">
+        <span className={`ac-card-ic${bare ? " ac-card-ic--bare" : ""}`}>{icon}</span>
+        <span className="ac-card-t">
+          <strong>{title}</strong>
+          {desc ? <span className="ac-card-d">{desc}</span> : null}
+          {sw ? <StatusWord state={sw}>{sum}</StatusWord> : <span className="ac-card-s">{sum}</span>}
+        </span>
+        {action ? <span className="ac-card-a">{action}</span> : null}
+        <span className="ac-card-ch"><Icon name="submenu" size={14} /></span>
+      </div>
+      {open && children ? <div className="ac-card-b">{children}</div> : null}
+    </section>
+  );
 }
 
-/** Settings › General › This project — where it lives, account, connection, the one fix. */
-function ThisProject({ p, conn }: { p: Proj; conn: Conn }) {
+function placeDesc(p: Proj): string {
+  const a = ACCTS[p.a];
+  const where = p.place.k === "folder" ? `Your folder · ${p.place.path}` : placeLabel(p.place);
+  if (p.copy) return `${where} · copy ${p.copy.k === "kept" ? "kept by Maude" : "in your folder"}`;
+  return a.kind === "cloud" ? `${where} · also on Maude Cloud` : `${where} · only on this Mac`;
+}
+
+/** General's first card — This project: where it lives, which account, does it connect; the one fix in its header. */
+function ThisProjectCard({ p, conn, open = false }: { p: Proj; conn: Conn; open?: boolean }) {
   const a = ACCTS[p.a];
   const c = CONN[conn];
   const bad = conn === "missing" || conn === "rejected";
+  const status = conn === "rejected" ? "Sign-in stopped working" : conn === "local" ? "Only on this Mac" : c.line;
   return (
-    <div className="ac-tp">
-      <div className="ac-loc">
-        <span className={`ac-loc-ic ac-loc-ic--${p.place.k}`}><PlaceIcon p={p.place} size={18} /></span>
-        <span className="ac-loc-t">
-          <span className="ac-loc-k">Lives in</span>
-          <strong>{placeLabel(p.place)}</strong>
-          {p.place.k === "folder" ? <span className="k-mono ac-loc-path">{p.place.path}</span> : null}
-          <span className="ac-loc-d">
-            {p.place.k === "server" ? "This Mac keeps a copy for you." : a.kind === "cloud" ? "Also on Maude Cloud — open it from any Mac." : p.place.k === "kept" ? "Maude keeps it for you. Nothing to manage." : "Only on this Mac."}
-          </span>
-        </span>
-        <Btn>Change…</Btn>
-      </div>
-      <Row k="Account">
-        <span className="ac-inline"><Face a={p.a} size="sm" />{a.kind === "local" ? "None — only on this Mac" : a.email}</span>
-        <Btn ghost>Switch…</Btn>
-      </Row>
-      <Row k="Connection"><StatusWord state={c.sw}>{conn === "rejected" ? "Sign-in stopped working" : conn === "local" ? "Only on this Mac" : c.line}</StatusWord></Row>
+    <SCard bare bad={bad} open={open} icon={<Sq p={p} size="lg" />} title={<>This project <span className="ac-card-q">{p.name}</span></>} desc={placeDesc(p)} sw={c.sw} sum={status}
+      action={bad && !open ? <Btn primary>Sign in again</Btn> : undefined}>
+      <Row k="Lives in"><PlaceChip p={p.place} /><Btn>Change…</Btn></Row>
+      <Row k="Account"><span className="ac-inline"><Face a={p.a} size="sm" />{a.kind === "local" ? "No account" : a.email}</span><Btn ghost>Switch…</Btn></Row>
+      <Row k="Connection"><StatusWord state={c.sw}>{status}</StatusWord></Row>
       {bad ? (
         <div className="ac-callout">
           <span className="ac-callout-ic"><BrokenLink size={14} /></span>
@@ -362,83 +378,67 @@ function ThisProject({ p, conn }: { p: Proj; conn: Conn }) {
           <Btn primary>Sign in again</Btn>
         </div>
       ) : null}
-      {conn === "local" ? (
-        <div className="ac-acts"><Btn icon="cloud">Put on Maude Cloud…</Btn><Btn icon="server">Link your server…</Btn></div>
-      ) : null}
-    </div>
+      {conn === "local" ? <div className="ac-acts"><Btn icon="cloud">Put on Maude Cloud…</Btn><Btn icon="server">Link your server…</Btn></div> : <Fold label="Sync details" hint="Project files · trash · first link" />}
+    </SCard>
   );
 }
 
-/** The rest of General, unchanged (general-section.jsx): Look · Canvas and view · Keyboard · Terminal · Layout. */
+/** The rest of General (general-section.jsx), one card each, closed — the line says what is set. */
 function GeneralRest() {
   return (
-    <div className="ac-sg-cols">
-      <div className="ac-sg-col">
-        <SGroup title="Look">
-          <Row k="Theme"><span className="seg ac-seg"><span>Light</span><span data-on="true">Dark</span><span>Auto</span></span></Row>
-        </SGroup>
-        <SGroup title="Keyboard">
-          <Row k="Single-key shortcuts"><InSwitch on /></Row>
-        </SGroup>
-      </div>
-      <div className="ac-sg-col">
-        <SGroup title="Canvas and view">
-          <Row k="Minimap"><InSwitch on={false} /></Row>
-          <Row k="Zoom controls"><InSwitch on /></Row>
-          <Row k="Annotations"><InSwitch on /></Row>
-          <Row k="Auto-open Inspector on select"><InSwitch on /></Row>
-        </SGroup>
-      </div>
-      <div className="ac-sg-col">
-        <SGroup title="Terminal">
-          <Row k="Let the terminal open projects in Maude"><InSwitch on /></Row>
-        </SGroup>
-        <SGroup title="Layout">
-          <Row k="Panels"><Btn ghost>Reset panel layout</Btn></Row>
-        </SGroup>
-      </div>
-    </div>
+    <>
+      <SCard icon={<Icon name="view" size={16} />} title="Look" desc="How Maude looks on this Mac." sum="Dark" />
+      <SCard icon={<Icon name="frame" size={16} />} title="Canvas and view" desc="What sits on the canvas with your work." sum="Zoom controls and annotations on · minimap off" />
+      <SCard icon={<Icon name="terminal" size={16} />} title="Terminal" desc="The maude command in your terminal." sum="Opens projects in Maude" />
+      <SCard icon={<Icon name="type" size={16} />} title="Keyboard" desc="Shortcuts on the canvas." sum="Single-key shortcuts on" />
+      <SCard icon={<Icon name="panel-left" size={16} />} title="Layout" desc="Where the panels sit." sum="Panels in their usual places" />
+    </>
   );
 }
 
-/** Settings › Connections, after: only the person's own integrations. */
-function ConnectionsAfter() {
-  const rows: [ReactNode, string, string, SW, string][] = [
-    [<Icon key="c" name="spark" size={16} />, "AI — your Claude account", "alice@example.com · Claude Max", "ok", "Sign out…"],
-    [<Icon key="f" name="component" size={16} />, "Figma", "Not connected", "off", "Connect…"],
-    [<Icon key="g" name="terminal" size={16} />, "GitHub", "@alice", "ok", "Sign out…"],
-    [<Icon key="m" name="image" size={16} />, "AI images, video and voice", "2 providers · fal, ElevenLabs", "ok", "Manage…"],
-  ];
+/** Settings › Connections — only the person's own integrations (no project linking). */
+function ConnectionCards() {
   return (
-    <div className="ac-conns">
-      {rows.map(([ic, t, v, st, act]) => (
-        <div key={t} className="ac-conn">
-          <span className="ac-conn-ic">{ic}</span>
-          <span className="ac-conn-t"><strong>{t}</strong><StatusWord state={st}>{v}</StatusWord></span>
-          <Btn>{act}</Btn>
+    <>
+      <SCard open icon={<Icon name="spark" size={16} />} title="AI — your Claude account" desc="Pro or Max, or an API key." sw="ok" sum="Connected · alice@example.com">
+        <Row k="Signed in as">alice@example.com</Row>
+        <Row k="Plan">Claude Max</Row>
+        <div className="ac-acts"><Btn>Change…</Btn><Btn>Sign out…</Btn></div>
+        <Fold hint="API key · Claude Code version" />
+      </SCard>
+      <SCard icon={<Icon name="component" size={16} />} title="Figma" desc="For Import from Figma." sw="off" sum="Not connected" action={<Btn>Connect…</Btn>} />
+      <SCard icon={<Icon name="link" size={16} />} title="GitHub" desc="GitHub projects and invites by username." sw="ok" sum="Signed in as @alice" action={<Btn>Sign out…</Btn>} />
+      <SCard icon={<Icon name="image" size={16} />} title="AI images, video and voice" desc="Your own keys for pictures, video and voice." sw="ok" sum="2 providers · fal, ElevenLabs" action={<Btn>Manage…</Btn>} />
+      <p className="ac-hint ac-cards-foot">Which account a project uses, and where it lives, is in General › This project.</p>
+    </>
+  );
+}
+
+/** Settings › Advanced — the same cards; This project's switches moved to General › This project › Sync details. */
+function AdvancedCards() {
+  return (
+    <>
+      <SCard icon={<Icon name="spark" size={16} />} title="Generation spend" desc="Limits for AI pictures, video and voice." sum="Stops at $5 a session and $20 a day · asks before a job over $2" />
+      <SCard open icon={<Icon name="laptop" size={16} />} title="This Mac" desc="Version, updates, the local server." sum="Maude 2.1.1 · port 4402 · keys in the macOS Keychain">
+        <div className="ac-card-cols">
+          <div>
+            <Row k="Version"><span className="k-mono">2.1.1 · build 431</span></Row>
+            <Row k="Update">Up to date</Row>
+            <Row k="Local server port"><span className="input ac-in ac-in--num k-mono">4402</span></Row>
+          </div>
+          <div>
+            <Row k="Runtime"><span className="k-mono">Bun 1.3.4 · built in</span></Row>
+            <Row k="Keys are kept in"><span className="k-mono">macOS Keychain</span></Row>
+            <Row k="Server build"><span className="k-mono">maude-server</span></Row>
+          </div>
         </div>
-      ))}
-      <p className="ac-hint">Which account a project uses, and where it lives, is in General › This project.</p>
-    </div>
-  );
-}
-
-const ADV: [string, string][] = [
-  ["Generation spend", "Stops at $5 a session and $20 a day · asks before a job over $2"],
-  ["This Mac", "Maude 2.1.1 · port 4402 · keys in the macOS Keychain"],
-  ["Claude Code", "Plugins design 2.1.1 · flow 2.1.1 · installs by itself"],
-  ["Decision memory", "On · 523 decisions in this project"],
-  ["Engines", "Auto picks · subtitles on this Mac, keyframes by ffmpeg"],
-  ["Privacy", "No usage data · asks before adding logs to a bug report"],
-  ["This project — Brand site", "Syncs project files · follows the trash from other Macs"],
-  ["Experimental", "2 previews, both off"],
-];
-function AdvRow({ title, sum, open = false, children }: { title: string; sum: string; open?: boolean; children?: ReactNode }) {
-  return (
-    <div className="ac-acc" data-open={open ? "true" : undefined}>
-      <span className="ac-acc-hd"><span className="ac-acc-ch"><Icon name="submenu" size={12} /></span><strong>{title}</strong><span className="ac-acc-sum">{sum}</span></span>
-      {open ? <div className="ac-acc-body">{children}</div> : null}
-    </div>
+      </SCard>
+      <SCard icon={<Icon name="terminal" size={16} />} title="Claude Code" desc="The plugins Maude’s AI runs with." sum="design 2.1.1 · flow 2.1.1 · installs by itself" />
+      <SCard icon={<Icon name="history" size={16} />} title="Decision memory" desc="Remembers why things are the way they are." sum="On · 523 decisions in this project" />
+      <SCard icon={<Icon name="video" size={16} />} title="Engines" desc="Subtitles and video keyframes." sum="Auto · subtitles on this Mac, keyframes by ffmpeg" />
+      <SCard icon={<Icon name="lock" size={16} />} title="Privacy" desc="What leaves this Mac besides your work." sum="No usage data · asks before adding logs to a bug report" />
+      <SCard icon={<Icon name="pulse" size={16} />} title="Experimental" desc="Previews of what comes next." sum="2 previews, both off" />
+    </>
   );
 }
 
@@ -532,11 +532,12 @@ function HomeChip({ p }: { p: Proj }) {
 }
 function HomeRow({ p, hl = false }: { p: Proj; hl?: boolean }) {
   const c = CONN[p.conn];
+  const path = p.place.k === "folder" ? p.place.path : p.copy?.k === "folder" ? p.copy.path : null;
   return (
     <span className="ac-hrow" data-hl={hl ? "true" : undefined}>
       <span className="k-stack ac-hrow-pic">{p.arts.map((art, i) => <Thumb key={i} art={art} />)}</span>
       <span className="ac-hrow-name"><strong>{p.name}</strong><span>{p.canvases} {p.canvases === 1 ? "canvas" : "canvases"} · {p.when}</span></span>
-      <span className="ac-hrow-where"><HomeChip p={p} />{(p.place.k === "folder" || p.copy?.k === "folder") ? <span className="k-mono ac-hrow-path">{p.place.k === "folder" ? p.place.path : p.copy?.k === "folder" ? p.copy.path : ""}</span> : null}</span>
+      <span className="ac-hrow-where"><HomeChip p={p} />{path ? <span className="k-mono ac-hrow-path">{path}</span> : null}</span>
       <span className="ac-hrow-st"><Face a={p.a} conn={p.conn} size="sm" /><StatusWord state={c.sw}>{p.conn === "ok" ? "Connected" : p.conn === "rejected" ? "Sign-in stopped working" : c.name}</StatusWord></span>
     </span>
   );
@@ -644,6 +645,21 @@ function StatesBoard() {
   );
 }
 
+/** A settings window: Brand site, Settings open on one tab. */
+function SettingsStage({ tab, note, children }: { tab: STab; note: ReactNode; children: ReactNode }) {
+  return (
+    <Stage note={note}>
+      <Window tabs={TABS_BRAND} activeTab={1}>
+        <Canvas><Artboard label="Desktop" kind="web" x={300} y={140} w={403} h={252}><HeroMock /></Artboard></Canvas>
+        <ProjectPill project="Brand site" canvas="Homepage" />
+        <Cluster conn="ok" />
+        <Veil />
+        <SettingsSheet tab={tab}>{children}</SettingsSheet>
+      </Window>
+    </Stage>
+  );
+}
+
 /* ═══ The canvas ════════════════════════════════════════════════════════════════════════════════ */
 
 export default function AccountsAndConnections() {
@@ -724,7 +740,7 @@ export default function AccountsAndConnections() {
       <DCSection id="sync" title="Sync — a local project" subtitle="Menu › Diagnostics › Sync: “nothing to sync” becomes two ways out">
         <DCArtboard id="ac-sync" label="7 · Only on this Mac — and linked, for comparison" width={W} height={760} fixed>
           <Closeup title="Sync on a project only on this Mac offers the next step, not a dead end" sub="Was: “This project isn’t linked to the cloud, so there is nothing to sync. Everything is on this Mac.” — with no button."
-            note={<Note n={7} title="Two buttons, the same two as the avatar menu.">Create project on Maude Cloud uses the move that exists today; Link your server opens the one dialog (11–12). Either way the folder stays where it is.</Note>}>
+            note={<Note n={7} title="Two buttons, the same two as the avatar menu.">Create project on Maude Cloud uses the move that exists today; Link your server opens the one dialog (12–13). Either way the folder stays where it is.</Note>}>
             <div className="ac-cols">
               <Col label="Only on this Mac" w={500}>
                 <div className="island island--pad ac-sync">
@@ -754,87 +770,60 @@ export default function AccountsAndConnections() {
         </DCArtboard>
       </DCSection>
 
-      {/* ── E/G · Settings ────────────────────────────────────────────────────────────────── */}
-      <DCSection id="settings" title="Settings" subtitle="General opens on This project; Connections keeps only your own integrations; Advanced becomes an accordion">
-        <DCArtboard id="ac-general" label="8 · Settings › General — This project on top" width={W} height={H} fixed>
-          <Stage note={<Note n={8} title="Where it lives, which account, does it connect — first thing in Settings.">The same three facts as the avatar menu. Change… picks the place on this Mac — another folder, or let Maude keep it — and never moves the project off Maude Cloud. The rest of General is unchanged below.</Note>}>
-            <Window tabs={TABS_BRAND} activeTab={1}>
-              <Canvas><Artboard label="Desktop" kind="web" x={300} y={140} w={403} h={252}><HeroMock /></Artboard></Canvas>
-              <ProjectPill project="Brand site" canvas="Homepage" />
-              <Cluster conn="ok" />
-              <Veil />
-              <SettingsSheet tab="General">
-                <SGroup title="This project — Brand site" className="ac-sg--tp">
-                  <ThisProject p={P_BRAND} conn="ok" />
-                  <div className="k-menu ac-change">
-                    <span className="k-mgroup">Where Brand site lives on this Mac</span>
-                    <MRow icon={<Icon name="check" size={14} />} label="Your folder" note="~/git/brand-site" />
-                    <MRow label="Use another folder…" />
-                    <MRow label="Let Maude keep it" note="no path" />
-                    <span className="k-msep" />
-                    <MRow icon={<Icon name="folder" size={14} />} label="Show in Finder" />
-                  </div>
-                </SGroup>
-                <GeneralRest />
-              </SettingsSheet>
-            </Window>
-          </Stage>
+      {/* ── E · Settings ──────────────────────────────────────────────────────────────────── */}
+      <DCSection id="settings" title="Settings — one column of cards" subtitle="General, Connections and Advanced share one card: icon · title · one line · status, a chevron to open it, its own Advanced inside">
+        <DCArtboard id="ac-general" label="8 · Settings › General — This project first, every section a card" width={W} height={H} fixed>
+          <SettingsStage tab="General" note={<Note n={8} title="One column, one card per section — the Connections look, everywhere.">This project opens first: where it lives, which account, does it connect — with Change… and Switch… beside them. The rest stay closed and say what is set. The old Advanced › This project switches live under Sync details.</Note>}>
+            <ThisProjectCard p={P_BRAND} conn="ok" open />
+            <GeneralRest />
+          </SettingsStage>
         </DCArtboard>
-        <DCArtboard id="ac-general-states" label="9 · This project, broken and local — and Connections, after" width={W} height={H} fixed>
-          <Closeup title="This project, in the two states that need the person — and what is left in Connections" sub="The status wording is the chip’s (2). Linking a project moves out of Connections; Connections keeps the person’s own integrations."
-            note={<Note n={9} title="Connections is about you; General › This project is about this project.">Claude, Figma, GitHub and the AI providers follow the person into every project. Maude Cloud and your server belong to a project, so they now sit with it.</Note>}>
+        <DCArtboard id="ac-general-states" label="9 · This project — broken, local, closed" width={W} height={H} fixed>
+          <Closeup title="The This project card in the states that need the person" sub="Status words are the chip’s (2). Closed, the card still carries the one fix — Sign in again sits in its header."
+            note={<Note n={9} title="The fix never hides inside a closed card.">Open or closed, a broken sign-in shows its red status and Sign in again. A project only on this Mac offers its two ways out when opened; Change… picks another folder or lets Maude keep it.</Note>}>
             <div className="ac-cols">
-              <Col label="Your server · sign-in stopped working" w={420}>
-                <div className="ac-panel"><SGroup title="This project — Design system"><ThisProject p={P_DS} conn="rejected" /></SGroup></div>
+              <Col label="Your server · sign-in stopped working · open" w={460}>
+                <div className="ac-panel ac-cards"><ThisProjectCard p={P_DS} conn="rejected" open /></div>
               </Col>
-              <Col label="Only on this Mac · your folder" w={420}>
-                <div className="ac-panel">
-                  <SGroup title="This project — Logo ideas"><ThisProject p={P_LOGO} conn="local" /></SGroup>
+              <Col label="Only on this Mac · open, Change… pressed" w={460}>
+                <div className="ac-panel ac-cards"><ThisProjectCard p={P_LOGO} conn="local" open /></div>
+                <div className="k-menu ac-change">
+                  <span className="k-mgroup">Where Logo ideas lives</span>
+                  <MRow icon={<Icon name="check" size={14} />} label="Your folder" note="~/git/logo-ideas" />
+                  <MRow label="Use another folder…" />
+                  <MRow label="Let Maude keep it" note="no path" />
+                  <span className="k-msep" />
+                  <MRow icon={<Icon name="folder" size={14} />} label="Show in Finder" />
                 </div>
               </Col>
-              <Col label="Connections, after" w={420}>
-                <div className="ac-panel"><SGroup title="Connections — yours, in every project"><ConnectionsAfter /></SGroup></div>
+              <Col label="Closed — four projects" w={384}>
+                <div className="ac-panel ac-cards">
+                  <ThisProjectCard p={P_BRAND} conn="ok" />
+                  <ThisProjectCard p={P_PORT} conn="syncing" />
+                  <ThisProjectCard p={P_DS} conn="rejected" />
+                  <ThisProjectCard p={P_MOOD} conn="local" />
+                </div>
               </Col>
             </div>
           </Closeup>
         </DCArtboard>
-        <DCArtboard id="ac-advanced" label="10 · Settings › Advanced as an accordion — eight rows, one open" width={W} height={H} fixed>
-          <Stage note={<Note n={10} title="Eight sections, each one line until you open it.">The summary says what is set, so most visits end without opening anything. One section is open at a time; ⌘K still finds every row inside by name.</Note>}>
-            <Window tabs={TABS_BRAND} activeTab={1}>
-              <Canvas><Artboard label="Desktop" kind="web" x={300} y={140} w={403} h={252}><HeroMock /></Artboard></Canvas>
-              <ProjectPill project="Brand site" canvas="Homepage" />
-              <Cluster conn="ok" />
-              <Veil />
-              <SettingsSheet tab="Advanced">
-                <div className="ac-accs">
-                  {ADV.map(([t, s]) => (
-                    <AdvRow key={t} title={t} sum={s} open={t === "This Mac"}>
-                      <div className="ac-acc-cols">
-                        <div>
-                          <Row k="Version"><span className="k-mono">2.1.1 · build 431</span></Row>
-                          <Row k="Update">Up to date</Row>
-                          <Row k="Local server port"><span className="input ac-in ac-in--num k-mono">4402</span></Row>
-                        </div>
-                        <div>
-                          <Row k="Runtime"><span className="k-mono">Bun 1.3.4 · built in</span></Row>
-                          <Row k="Keys are kept in"><span className="k-mono">macOS Keychain</span></Row>
-                          <Row k="Logs in bug reports"><InSelect value="Ask each time" /></Row>
-                        </div>
-                      </div>
-                    </AdvRow>
-                  ))}
-                </div>
-              </SettingsSheet>
-            </Window>
-          </Stage>
+        <DCArtboard id="ac-connections" label="10 · Settings › Connections — yours, in every project" width={W} height={H} fixed>
+          <SettingsStage tab="Connections" note={<Note n={10} title="Connections is about you; This project is about this project.">Claude, Figma, GitHub and the AI providers follow the person into every project. Maude Cloud and your server belong to a project, so they moved to General › This project.</Note>}>
+            <ConnectionCards />
+          </SettingsStage>
+        </DCArtboard>
+        <DCArtboard id="ac-advanced" label="11 · Settings › Advanced — the same cards, one open" width={W} height={H} fixed>
+          <SettingsStage tab="Advanced" note={<Note n={11} title="Seven cards; closed, each says what is set.">The status line says what is set, so most visits end without opening anything. This project left Advanced — its switches are under General › This project › Sync details. ⌘K still finds every row inside by name.</Note>}>
+            <AdvancedCards />
+          </SettingsStage>
         </DCArtboard>
       </DCSection>
 
       {/* ── F · Link your server ──────────────────────────────────────────────────────────── */}
       <DCSection id="link" title="Link your server — one dialog" subtitle="Replaces Settings “Add a team server” and Home “Sign in to your own hub”: the address with a check as you type, sign-in in the browser, an invite link, and Advanced for a key and the folder">
-        <DCArtboard id="ac-link-a" label="11 · Empty · checking · answers · an invite link" width={W} height={H} fixed>
+        <DCArtboard id="ac-link-a" label="12 · Empty · checking · answers · an invite link" width={W} height={H} fixed>
           <Closeup title="Type the address — it is checked as you type, then the browser does the sign-in" sub="The primary button wakes only once the server answers. An invite link is the other way in; it fills in the address and the access."
-            note={<Note n={11} title="One field, one check, one button.">No Test connection button: the check runs as the address is typed. The answer names the server and its Maude version, so a wrong address shows before anyone signs in.</Note>}>
+            note={<Note n={12} title="One field, one check, one button.">No Test connection button: the check runs as the address is typed. The answer names the server and its Maude version, so a wrong address shows before anyone signs in.</Note>}>
             <div className="ac-cols ac-cols--dlg">
               <Col label="Empty" w={320}><LinkDialog s="empty" width={320} /></Col>
               <Col label="Checking" w={320}><LinkDialog s="testing" width={320} /></Col>
@@ -843,9 +832,9 @@ export default function AccountsAndConnections() {
             </div>
           </Closeup>
         </DCArtboard>
-        <DCArtboard id="ac-link-b" label="12 · Advanced open · waiting for the browser · two errors" width={W} height={H} fixed>
+        <DCArtboard id="ac-link-b" label="13 · Advanced open · waiting for the browser · two errors" width={W} height={H} fixed>
           <Closeup title="Advanced holds the two things most people never need" sub="A sign-in key from the server’s admin (instead of the browser), and which folder on this Mac the project uses — a copy kept by Maude unless the person picks a folder."
-            note={<Note n={12} title="Errors say what happened and what is safe.">Didn’t answer and isn’t a Maude server are different problems with different next steps; nothing is linked or sent until the sign-in finishes.</Note>}>
+            note={<Note n={13} title="Errors say what happened and what is safe.">Didn’t answer and isn’t a Maude server are different problems with different next steps; nothing is linked or sent until the sign-in finishes.</Note>}>
             <div className="ac-cols ac-cols--dlg">
               <Col label="Advanced open" w={320}><LinkDialog s="advanced" width={320} /></Col>
               <Col label="Waiting for the browser" w={320}><LinkDialog s="waiting" width={320} /></Col>
@@ -858,8 +847,8 @@ export default function AccountsAndConnections() {
 
       {/* ── H · Home ──────────────────────────────────────────────────────────────────────── */}
       <DCSection id="home" title="Home" subtitle="Accounts on top with their state; every project says where it lives and whether it connects">
-        <DCArtboard id="ac-home" label="13 · Home — accounts, and where every project lives" width={W} height={H} fixed>
-          <Stage note={<Note n={13} title="One look answers all three questions.">The accounts row says where you are signed in and whether each sign-in works; each project row says which account or place, with the same badge as the top bar. A broken sign-in is fixed from here too.</Note>}>
+        <DCArtboard id="ac-home" label="14 · Home — accounts, and where every project lives" width={W} height={H} fixed>
+          <Stage note={<Note n={14} title="One look answers all three questions.">The accounts row says where you are signed in and whether each sign-in works; each project row says which account or place, with the same badge as the top bar. A broken sign-in is fixed from here too.</Note>}>
             <Window tabs={TABS_DS} activeTab={0}>
               <Canvas dots={false}>
                 <div className="k-home-bg">

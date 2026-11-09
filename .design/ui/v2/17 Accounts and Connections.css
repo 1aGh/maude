@@ -1,4 +1,4 @@
-/* 16 Accounts and Connections — canvas-local pieces only (prefix ac-). Chrome lives in _kit.css; anatomy
+/* 17 Accounts and Connections —canvas-local pieces only (prefix ac-). Chrome lives in _kit.css; anatomy
    (.island .btn .chip .input .seg .row-item) in the maude-v2 _components.css. Tokens only; no vw/vh/@media. */
 
 /* ─── Faces: a circle = a Maude Cloud account, a tile = your server or this Mac ─────────────── */
@@ -158,50 +158,40 @@
 .ac-set-tab[aria-current="true"] .k-ic { color: var(--accent-text); }
 .ac-set-sp { flex: 1; }
 .ac-set-foot { padding: 0 var(--space-2); font-size: var(--type-xs); color: var(--fg-2); }
-.ac-set-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-4) var(--space-5); overflow: hidden; }
-.ac-sg { display: flex; flex-direction: column; gap: 1px; }
-.ac-sg-t { margin-bottom: var(--space-2); padding-bottom: var(--space-1); box-shadow: inset 0 -0.5px 0 var(--border-default); font-size: var(--type-xs); font-weight: var(--weight-semibold); color: var(--fg-2); }
-.ac-sg--tp { position: relative; }
-.ac-sg--tp .ac-tp { max-width: 600px; }
-.ac-sg-cols .ac-row-k { flex: 1; width: auto; white-space: normal; }
-.ac-sg-cols .ac-row-v { flex: none; }
-.ac-sg-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); }
-.ac-sg-col { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
-.seg.ac-seg > span { display: inline-grid; place-items: center; height: 24px; padding: 0 var(--space-3); border-radius: var(--radius-sm); font-size: var(--type-xs); color: var(--fg-1); }
-.seg.ac-seg > span[data-on] { background: var(--bg-2); color: var(--fg-0); box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--accent); }
-.ac-tp { display: flex; flex-direction: column; gap: 2px; }
-.ac-loc { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); }
-.ac-loc-ic { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--bg-3); color: var(--fg-1); }
-.ac-loc-ic--server { background: var(--object-green); color: var(--object-ink); }
-.ac-loc-ic--server .k-ic { color: var(--object-ink); }
-.ac-loc-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.ac-loc-k { font-size: var(--type-xs); color: var(--fg-2); }
-.ac-loc-t strong { font-size: var(--type-sm); font-weight: var(--weight-semibold); }
-.ac-loc-path { font-size: var(--type-xs); color: var(--fg-1); }
-.ac-loc-d { font-size: var(--type-xs); color: var(--fg-2); }
+.ac-set-main { flex: 1; min-width: 0; padding: var(--space-5) var(--space-6); overflow: hidden; }
+
+/* ─── The settings card — today's Connections row (connection-row.jsx), made expandable ─── */
+.ac-cards { display: flex; flex-direction: column; gap: var(--space-2); max-width: 760px; margin: 0 auto; }
+.ac-card { border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.ac-card[data-open] { box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-strong); }
+.ac-card-r { display: flex; align-items: center; gap: var(--space-3); min-height: 72px; padding: var(--space-3) var(--space-4) var(--space-3) var(--space-3); }
+.ac-card-ic { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: var(--radius-md); background: var(--bg-3); color: var(--fg-1); }
+.ac-card-ic--bare { background: none; }
+.ac-card-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ac-card-t strong { font-size: var(--type-sm); font-weight: var(--weight-semibold); }
+.ac-card-q { margin-left: var(--space-1); font-weight: var(--weight-regular); color: var(--fg-2); }
+.ac-card-d, .ac-card-s { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--type-xs); line-height: var(--lh-xs); }
+.ac-card-d { color: var(--fg-2); }
+.ac-card-s { color: var(--fg-1); }
+.ac-card-t .k-sw { overflow: hidden; text-overflow: ellipsis; }
+.ac-card--bad .ac-card-t .k-sw { color: var(--status-error-text); }
+.ac-card-a { display: flex; gap: var(--space-1); flex: none; }
+.ac-card-ch { display: grid; flex: none; color: var(--fg-2); }
+.ac-card[data-open] .ac-card-ch { rotate: 90deg; }
+.ac-card-b { display: flex; flex-direction: column; gap: 2px; padding: 0 var(--space-4) var(--space-4) 60px; }
+.ac-card-b .ac-fold { margin-top: var(--space-2); }
+.ac-card-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
+.ac-card-cols .ac-row-k { width: 136px; }
+.ac-cards-foot { padding: var(--space-1) var(--space-3) 0; }
 .ac-callout { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: var(--status-error-soft); }
 .ac-callout-ic { display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: var(--radius-pill); background: var(--status-error); color: var(--status-error-fg); }
 .ac-callout-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-1); }
 .ac-callout-t strong { font-size: var(--type-sm); line-height: var(--lh-sm); font-weight: var(--weight-semibold); color: var(--fg-0); }
 .ac-panel { padding: var(--space-4); border-radius: var(--radius-xl); background: var(--bg-2); box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--island-edge); }
-.k-menu.ac-change { left: 608px; top: 48px; width: 280px; z-index: 20; }
-.ac-conns { display: flex; flex-direction: column; gap: var(--space-2); }
-.ac-conn { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); }
-.ac-conn-ic { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: var(--radius-md); background: var(--bg-3); color: var(--fg-1); }
-.ac-conn-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.ac-conn-t strong { font-size: var(--type-sm); font-weight: var(--weight-semibold); }
-.ac-accs { display: flex; flex-direction: column; border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); overflow: hidden; }
-.ac-acc { box-shadow: inset 0 -0.5px 0 var(--border-subtle); }
-.ac-acc:last-child { box-shadow: none; }
-.ac-acc-hd { display: flex; align-items: center; gap: var(--space-3); height: 52px; padding: 0 var(--space-4); font-size: var(--type-sm); }
-.ac-acc-hd strong { flex: none; width: 220px; font-weight: var(--weight-semibold); }
-.ac-acc-sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2); }
-.ac-acc-ch { display: grid; flex: none; color: var(--fg-2); }
-.ac-acc[data-open] { background: var(--bg-2); }
-.ac-acc[data-open] .ac-acc-ch { rotate: 90deg; }
-.ac-acc-body { padding: 0 var(--space-4) var(--space-4) 268px; }
-.ac-acc-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
-.ac-acc-cols .ac-row-k { width: 150px; }
+.ac-panel.ac-cards { max-width: none; margin: 0; padding: var(--space-3); }
+.ac-panel .ac-card-b { padding-left: var(--space-4); }
+.ac-panel .ac-row-k { width: 84px; }
+.k-menu.ac-change { position: relative; z-index: 20; align-self: flex-end; width: 280px; margin: calc(var(--space-3) * -1) var(--space-3) 0 0; }
 
 /* ─── F · Link your server ─── */
 .k-dialog.ac-dlg { gap: var(--space-3); padding: var(--space-5); }
