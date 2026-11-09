@@ -12,6 +12,7 @@ import {
   parseLine,
   readMenuInfo,
   serverWord,
+  soloSync,
   syncWord,
   tilde,
 } from '../client/v2/diagnostics/diagnostics-model.js';
@@ -25,9 +26,9 @@ const linked = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('the Sync word', () => {
-  test('a solo project is a neutral "Local project", not a problem', () => {
-    expect(syncWord(null)).toEqual({ word: 'Local project', tone: 'neutral' });
-    expect(syncWord({ linked: false })).toEqual({ word: 'Local project', tone: 'neutral' });
+  test('a solo project is a neutral "Only on this Mac", not a problem (2.1.1, canvas 17)', () => {
+    expect(syncWord(null)).toEqual({ word: 'Only on this Mac', tone: 'neutral' });
+    expect(syncWord({ linked: false })).toEqual({ word: 'Only on this Mac', tone: 'neutral' });
   });
   test('ok: synced → Up to date, syncing → Syncing…', () => {
     expect(syncWord(linked()).word).toBe('Up to date');
@@ -253,6 +254,30 @@ describe('Resync and Download all (moved out of the Sync panel, wording unchange
     );
     expect(await requestOffline(reply(200, { ok: false }))).toBe(
       'Could not download the project right now.'
+    );
+  });
+});
+
+describe('Sync on a project only on this Mac (2.1.1 T3, canvas 17 ac-sync)', () => {
+  test('two ways out — Maude Cloud (the existing move) and your own server (the one dialog)', () => {
+    const v = soloSync({ native: true, folder: '/Users/me/git/logo-ideas' });
+    expect(v.title).toBe('Only on this Mac');
+    expect(v.body).toBe(
+      'Nothing leaves this Mac yet. Put it on Maude Cloud to open it from any Mac and share it — or sync it with your own server.'
+    );
+    expect(v.actions.map((a) => [a.id, a.label, !!a.primary])).toEqual([
+      ['share.move-to-cloud', 'Create project on Maude Cloud', true],
+      ['account.link-server', 'Link your server', false],
+    ]);
+    expect(v.fine).toContain('either way.');
+  });
+
+  test('no folder known: the line still says it stays; a browser tab gets words, no buttons', () => {
+    expect(soloSync({ native: true }).fine).toBe('It stays on this Mac either way.');
+    const web = soloSync({ native: false, folder: '/x' });
+    expect(web.actions).toEqual([]);
+    expect(web.fine).toBe(
+      'Open this project in the Maude app to put it on Maude Cloud or link your server.'
     );
   });
 });

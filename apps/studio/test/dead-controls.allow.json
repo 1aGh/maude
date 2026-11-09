@@ -82,8 +82,8 @@
       "hook": "home-invite-leave-"
     },
     "hub.connect": {
-      "file": "client/v2/onboarding/HubSheet.jsx",
-      "hook": "AdvSheet"
+      "file": "client/v2/link-server/LinkServerDialog.jsx",
+      "hook": "link-server-signin"
     },
     "project.open-github": {
       "file": "client/v2/onboarding/FolderGithubSheet.jsx",

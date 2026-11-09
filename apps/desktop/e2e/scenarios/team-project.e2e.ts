@@ -304,33 +304,35 @@ describe('team-project (native-desktop)', () => {
     await row.waitForDisplayed({ timeout: 5_000 });
     expect(await row.getAttribute('aria-disabled')).toBeNull();
     await row.click();
-    const sheet = await $(tid('onb-hub'));
+    // 2.1.1 T5: the hub row opens the one "Link your server" dialog
+    const sheet = await $(tid('link-server-dialog'));
     await sheet.waitForDisplayed({ timeout: 10_000 });
-    expect(await (await sheet.$('h2')).getText()).toBe('Sign in to your own hub');
-    expect(await (await $(tid('onb-hub-go'))).getText()).toBe('Sign in');
+    expect(await (await sheet.$('h2')).getText()).toBe('Link your server');
+    expect(await (await $(tid('link-server-signin'))).getText()).toBe('Sign in in your browser');
     // #204 K2: no email or password field in the app
     // (by input type, not by the retired testids — those are not hooks any more)
     // the one masked field is the invite / access-token paste (decision v2-michal-hub-token-paste-stays-password-goes)
     expect(
       await (
-        await sheet.$('input[type="password"]:not([data-testid="onb-hub-invite"])')
+        await sheet.$('input[type="password"]:not([data-testid="link-server-invite"])')
       ).isExisting()
     ).toBe(false);
     expect(await (await sheet.$('input[type="email"]')).isExisting()).toBe(false);
     await capture('01h-home-hub-sheet');
   });
 
-  it('2h · Test connection reads Reachable; a wrong password on the hub’s page sends nothing back and nothing opens', async () => {
+  it('2h · the address is checked as typed and answers; a wrong password on the hub’s page sends nothing back and nothing opens', async () => {
     const t = TEAM as NonNullable<typeof TEAM>;
-    await (await $(tid('onb-hub-url'))).setValue(t.hub);
-    await (await $(tid('onb-hub-test'))).click();
-    const ok = await $(tid('onb-hub-reachable'));
-    await ok.waitForDisplayed({ timeout: 20_000 });
-    expect(await ok.getText()).toContain('Reachable');
+    await (await $(tid('link-server-url'))).setValue(t.hub);
+    await browser.waitUntil(
+      async () => (await (await $(tid('link-server-check'))).getAttribute('data-tone')) === 'ok',
+      { timeout: 20_000, timeoutMsg: 'the address check never answered' }
+    );
+    expect(await (await $(tid('link-server-check'))).getText()).toContain('answers');
     // #204 K2: Sign in opens the hub's OWN page — the e2e takes the URL Home asked Rust to open
     await captureTeamServerSignIn();
-    await (await $(tid('onb-hub-go'))).click();
-    await (await $(tid('onb-hub-waiting'))).waitForDisplayed({ timeout: 15_000 });
+    await (await $(tid('link-server-signin'))).click();
+    await (await $(tid('link-server-waiting'))).waitForDisplayed({ timeout: 15_000 });
     const pageUrl = await capturedSignInUrl();
     expect(pageUrl).toContain('/studio/signin?client=desktop');
     expect(new URL(pageUrl).searchParams.get('redirect_uri')).toMatch(
@@ -341,16 +343,19 @@ describe('team-project (native-desktop)', () => {
     );
     expect(existsSync(t.managedDir)).toBe(false);
     // Cancel forgets the attempt; the sheet stays
-    await (await $(tid('onb-hub-cancel'))).click();
-    await (await $(tid('onb-hub-waiting'))).waitForDisplayed({ reverse: true, timeout: 10_000 });
+    await (await $(tid('link-server-cancel'))).click();
+    await (await $(tid('link-server-waiting'))).waitForDisplayed({
+      reverse: true,
+      timeout: 10_000,
+    });
     await capture('02h-home-wrong-password');
   });
 
   it('3h · the right password on the hub’s page opens the project’s own copy as a tab with the teammate’s canvases', async () => {
     const t = TEAM as NonNullable<typeof TEAM>;
     const before = await labels();
-    await (await $(tid('onb-hub-go'))).click();
-    await (await $(tid('onb-hub-waiting'))).waitForDisplayed({ timeout: 15_000 });
+    await (await $(tid('link-server-signin'))).click();
+    await (await $(tid('link-server-waiting'))).waitForDisplayed({ timeout: 15_000 });
     await signInOnHubPage(await capturedSignInUrl(), 'designer@x.test', t.password);
     await browser.waitUntil(async () => (await labels()).length === before.length + 1, {
       timeout: 60_000,

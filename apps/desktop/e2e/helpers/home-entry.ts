@@ -57,11 +57,16 @@ export async function connectHubFromHome(creds: {
   const row = await $(tid('signin-adv-hub'));
   await row.waitForDisplayed({ timeout: 5_000 });
   await row.click();
-  await (await $(tid('onb-hub'))).waitForDisplayed({ timeout: 10_000 });
-  await (await $(tid('onb-hub-url'))).setValue(creds.hub);
+  // 2.1.1 T5: the one "Link your server" dialog — Sign in wakes once the typed address answered
+  await (await $(tid('link-server-dialog'))).waitForDisplayed({ timeout: 10_000 });
+  await (await $(tid('link-server-url'))).setValue(creds.hub);
+  await browser.waitUntil(
+    async () => (await (await $(tid('link-server-signin'))).getAttribute('disabled')) === null,
+    { timeout: 20_000, timeoutMsg: 'the server address never answered' }
+  );
   await captureTeamServerSignIn();
-  await (await $(tid('onb-hub-go'))).click();
-  await (await $(tid('onb-hub-waiting'))).waitForDisplayed({ timeout: 15_000 });
+  await (await $(tid('link-server-signin'))).click();
+  await (await $(tid('link-server-waiting'))).waitForDisplayed({ timeout: 15_000 });
   await signInOnHubPage(await capturedSignInUrl(), creds.email, creds.password);
   return followNewTab(before);
 }

@@ -1637,7 +1637,7 @@
       "v2": {
         "action": null,
         "testid": "settings-team-server-add",
-        "where": "Settings › Connections › Your team’s own server › Add a team server… — issue #204 (Michal 2026-11-04, decision maude/v2-michal-team-server-signin-via-hub-page): the email and password now live on the team server’s OWN sign-in page; the app’s Sign in (team-hub-open) opens it in the browser and comes back signed in. Home › Advanced options › Use a self-hosted hub (onb-hub) does the same since #204 K2: one Sign in (onb-hub-go), an invite link or key opens the server’s own invite page, no email or password field"
+        "where": "Settings › Connections › Your team’s own server › Add a team server… — issue #204 (Michal 2026-11-04, decision maude/v2-michal-team-server-signin-via-hub-page): the email and password now live on the team server’s OWN sign-in page. Since 2.1.1 (T5) Add a team server…, the avatar menu, Diagnostics › Sync and Home › Advanced options › Use a self-hosted hub all open the one Link your server dialog (link-server-dialog, action account.link-server): the address is checked as it is typed (link-server-check), Sign in in your browser (link-server-signin) opens the server’s own sign-in page and comes back signed in, I have an invite link opens its invite page, Advanced takes a sign-in key; no email or password field"
       }
     },
     {
@@ -2235,6 +2235,7 @@
     "button:studio/client/panels/TeamProjects.jsx#TeamProjects/team-cloud-signin": "A-open-another-folder-or-team-project",
     "button:studio/client/panels/TeamProjects.jsx#TeamProjects/team-recent-p-key": "A-open-another-folder-or-team-project",
     "button:studio/client/panels/TeamProjects.jsx#TeamProjectsDialog/team-projects-close": "A-open-another-folder-or-team-project",
+    "button:studio/client/panels/TeamProjects.jsx#TeamProjectsPicker/team-projects-close": "A-open-another-folder-or-team-project",
     "button:studio/client/panels/TimelinePanel.jsx#renderAddSeams/timeline-seam-add-k": "D15",
     "button:studio/client/panels/TimelinePanel.jsx#renderAudioRow/timeline-audio-replace-i": "D15",
     "button:studio/client/panels/TimelinePanel.jsx#renderBlock/timeline-beat-expand-i": "D15",
@@ -2759,6 +2760,7 @@
     "keydown:studio/client/panels/StickerPicker.jsx#StickerPicker/listener": "testid:toolbar-slot-<toolId>",
     "keydown:studio/client/panels/SyncConsentDialog.jsx#SyncConsentDialog/listener": "D12",
     "keydown:studio/client/panels/TeamProjects.jsx#TeamProjectsDialog/listener": "A-open-another-folder-or-team-project",
+    "keydown:studio/client/panels/TeamProjects.jsx#TeamProjectsPicker/listener": "A-open-another-folder-or-team-project",
     "keydown:studio/client/panels/TimelinePanel.jsx#TimelinePanel/listener": "D15",
     "keydown:studio/client/panels/TimelinePanel.jsx#TimelinePanel/timeline-comment-composer": "D15",
     "keydown:studio/client/share-dialog.jsx#useLinkDialogFocus/listener": "action:share.open",

@@ -13,11 +13,11 @@ import { syncPresentation } from '../../../sync/presentation.ts';
 export const STATUS_IDS = Object.freeze(['diag.sync', 'diag.server', 'diag.ai']);
 export const VALUE_IDS = Object.freeze(['diag.address', 'diag.process', 'diag.project-folder']);
 
-/** Sync: one word. A solo project has nothing to sync (a neutral word, not a problem). */
+/** Sync: one word. A solo project is "Only on this Mac" (a neutral word, not a problem; canvas 17). */
 export function syncWord(syncStatus, { project, aiHeld = false } = {}) {
   if (aiHeld) return { word: 'Needs you', tone: 'warn' };
   const p = syncPresentation(syncStatus, { project });
-  if (!p) return { word: 'Local project', tone: 'neutral' };
+  if (!p) return { word: 'Only on this Mac', tone: 'neutral' };
   switch (p.phase) {
     case 'synced':
       return { word: 'Up to date', tone: 'ok' };
@@ -38,6 +38,36 @@ export function syncWord(syncStatus, { project, aiHeld = false } = {}) {
     default:
       return { word: 'Unknown', tone: 'neutral' };
   }
+}
+
+/**
+ * 2.1.1 T3 — Sync on a project only on this Mac (canvas 17 ac-sync): the next step, not a dead end. Two
+ * ways out, the same two as the avatar menu: Maude Cloud (the existing move, `share.move-to-cloud` → the
+ * Share sheet's Move to Maude Cloud) and your own server (`account.link-server` → the one dialog). Both
+ * are the Mac app's (the move answers only the desktop window), so a browser tab gets words, no buttons.
+ */
+export function soloSync({ native = false, folder = '' } = {}) {
+  const at = typeof folder === 'string' && folder ? tilde(folder) : '';
+  return {
+    title: 'Only on this Mac',
+    body: 'Nothing leaves this Mac yet. Put it on Maude Cloud to open it from any Mac and share it — or sync it with your own server.',
+    actions: native
+      ? [
+          {
+            id: 'share.move-to-cloud',
+            label: 'Create project on Maude Cloud',
+            primary: true,
+            testid: 'diag-sync-to-cloud',
+          },
+          { id: 'account.link-server', label: 'Link your server', testid: 'diag-sync-link-server' },
+        ]
+      : [],
+    fine: !native
+      ? 'Open this project in the Maude app to put it on Maude Cloud or link your server.'
+      : at
+        ? `It stays in ${at} either way.`
+        : 'It stays on this Mac either way.',
+  };
 }
 
 /**

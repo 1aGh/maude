@@ -239,6 +239,7 @@ import ShellErrorBoundary from './v2/shell/shell-error-boundary.jsx';
 import { expectServedFrom, setServedFrom } from './v2/shell/served-routes.js';
 import { cutCopyPaste, createMenuHandlers, menuRunner } from './v2/shell/menu-runner.js';
 import DiagnosticsHost from './v2/diagnostics/diagnostics-host.jsx';
+import LinkServerHost from './v2/link-server/LinkServerHost.jsx';
 import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
 import { usePagesView } from './v2/shell/use-canvas-mode-lane.js';
@@ -3217,6 +3218,8 @@ function ShellTree() {
           <ShellProjectPill />
           {/* V2-4.7b — Menu › Diagnostics: Logs · Server · AI setup · Sync (today's Sync panel, whole). */}
           <DiagnosticsHost toast={shellToast} />
+          {/* 2.1.1 T5 — `account.link-server`: the one "Link your server" dialog (avatar, Settings, Sync). */}
+          <LinkServerHost />
           {/* V2-4.3a — the Share cluster, top-right: faces, status word, comments, Exports, Hide panels, Share. */}
           <ShellShareCluster />
           {/* S2.20 — Menu › Edit › Undo history… (the ⌘Z projection's popover). */}

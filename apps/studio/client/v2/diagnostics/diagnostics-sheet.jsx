@@ -15,6 +15,7 @@ import { useModalFocus } from '../shell/modal-focus.js';
 import { StIcon } from '../../shell/icons.jsx';
 import { TeamProjectsDialog } from '../../panels/TeamProjects.jsx';
 import { isNativeApp } from '../../github.js';
+import { menuRunner } from '../shell/menu-runner.js';
 import SyncDetails from './sync-details/sync-details.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import ReadinessList from '../../panels/ReadinessList.jsx';
@@ -26,6 +27,7 @@ import {
   LOG_FILTERS,
   logLines,
   modeStamp,
+  soloSync,
   tilde,
 } from './diagnostics-model.js';
 import {
@@ -368,21 +370,45 @@ function ResyncCard({ view }) {
   );
 }
 
-function SyncView({ sync }) {
+function SyncView({ sync, folder = '', onClose }) {
   const [latest, setLatest] = useState('');
   const [busy, setBusy] = useState(false);
   const [signInAt, setSignInAt] = useState(null);
   if (!sync.status) {
+    // 2.1.1 T3 (canvas 17 ac-sync): a project only on this Mac offers the next step, not a dead end.
+    const v = soloSync({ native: sync.native ?? isNativeApp(), folder });
     return (
-      <div className="dg-card" data-testid="diag-sync-solo">
+      <div className="dg-card dg-solo" data-testid="diag-sync-solo">
         <div className="dg-hd">
-          <strong>Sync</strong>
+          <strong>{sync.project ? `Sync · ${sync.project}` : 'Sync'}</strong>
           <Word w={sync.word} />
         </div>
-        <p className="dg-empty">
-          This project isn’t linked to the cloud, so there is nothing to sync. Everything is on this
-          Mac.
-        </p>
+        <div className="dg-solo-b">
+          <span className="dg-solo-ic" aria-hidden="true">
+            <StIcon name="laptop" size={20} />
+          </span>
+          <strong>{v.title}</strong>
+          <p className="dg-empty">{v.body}</p>
+          {v.actions.length ? (
+            <div className="dg-solo-acts">
+              {v.actions.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={a.primary ? 'dg-btn dg-btn--primary' : 'dg-btn'}
+                  data-testid={a.testid}
+                  onClick={() => {
+                    menuRunner.run(a.id);
+                    onClose?.();
+                  }}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <p className="dg-hint">{v.fine}</p>
+        </div>
       </div>
     );
   }
@@ -549,7 +575,7 @@ export default function DiagnosticsSheet({
             </div>
           </div>
         ) : (
-          <SyncView sync={sync} />
+          <SyncView sync={sync} folder={info?.folder} onClose={onClose} />
         )}
       </div>
     </section>
