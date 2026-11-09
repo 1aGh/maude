@@ -520,6 +520,16 @@ export function failureLines(failed) {
 /** Restore order: what a canvas needs to BUILD first, inert media last. */
 const CLASS_ORDER = { 'code-module': 0, 'companion-text': 1, 'inert-media': 2 };
 
+/** A predicate that throws answers "not deleted": a restore is never refused on a guess. */
+function deletedInJournal(isDeleted, rel) {
+  if (typeof isDeleted !== 'function') return false;
+  try {
+    return isDeleted(rel) === true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Refill the checkout's `assets/` from the bucket — the restore half.
  *
@@ -555,10 +565,19 @@ export async function hydrateAssets({
   onWritten = null,
   /** Shared with `hydrateFiles` so one boot spends ONE budget (createHydrateBudget). */
   budget = NO_BUDGET,
+  /** True for a path the journal holds as deleted — see `hydrateFiles`. */
+  isDeleted = null,
 }) {
   const scope = prefix ?? assetPrefixFromEnv();
   const list = deps.listObjects ?? listObjects;
-  const result = { restored: [], present: 0, failed: [], listed: 0, skippedForBudget: 0 };
+  const result = {
+    restored: [],
+    present: 0,
+    failed: [],
+    listed: 0,
+    skippedForBudget: 0,
+    skippedDeleted: 0,
+  };
   if (!s3) return result;
 
   const dir = join(designRoot, 'assets');
@@ -581,7 +600,11 @@ export async function hydrateAssets({
   }
   const onDisk = new Set(listRecursive(dir));
   result.present = names.filter((n) => onDisk.has(n)).length;
-  const missing = missingFromCheckout(names, onDisk);
+  const missing = missingFromCheckout(names, onDisk).filter((name) => {
+    if (!deletedInJournal(isDeleted, `assets/${name}`)) return true;
+    result.skippedDeleted += 1;
+    return false;
+  });
   if (missing.length === 0) return result;
 
   log.log?.(
@@ -663,12 +686,20 @@ export async function hydrateAssets({
     }
   }
 
-  if (result.restored.length || result.failed.length || result.skippedForBudget) {
+  if (
+    result.restored.length ||
+    result.failed.length ||
+    result.skippedForBudget ||
+    result.skippedDeleted
+  ) {
     log.log?.(
       `[assets] restored ${result.restored.length} from the bucket, ${result.present} already present` +
         (result.failed.length ? `, ${result.failed.length} failed` : '') +
         (result.skippedForBudget
           ? `, ${result.skippedForBudget} left in the bucket (disk budget)`
+          : '') +
+        (result.skippedDeleted
+          ? `, ${result.skippedDeleted} not restored (deleted in the journal)`
           : '')
     );
     for (const line of failureLines(result.failed)) log.warn?.(line);
@@ -703,10 +734,28 @@ export async function hydrateFiles({
    * inert media from the blob cache instead.
    */
   classes = null,
+  /**
+   * True for a path whose latest journal row is a tombstone.
+   *
+   * A delete never removes the bucket copy (the write-behind only adds), so
+   * "absent from the checkout" alone cannot tell a lost file from a deleted
+   * one. Restoring a deleted one journals it as a new live row, every peer
+   * that kept the deletion deletes it again, and the next boot restores it
+   * again — the loop never converges. Null (no journal) keeps the disk-only
+   * rule.
+   */
+  isDeleted = null,
 }) {
   const scope = prefix ?? assetPrefixFromEnv();
   const list = deps.listObjects ?? listObjects;
-  const result = { restored: [], present: 0, failed: [], listed: 0, skippedForBudget: 0 };
+  const result = {
+    restored: [],
+    present: 0,
+    failed: [],
+    listed: 0,
+    skippedForBudget: 0,
+    skippedDeleted: 0,
+  };
   if (!s3) return result;
 
   let objects;
@@ -747,6 +796,10 @@ export async function hydrateFiles({
       result.present += 1;
       continue;
     }
+    if (deletedInJournal(isDeleted, rel)) {
+      result.skippedDeleted += 1;
+      continue;
+    }
     if ((await budget.admit(Number(obj.size) || 0)) !== 'ok') {
       result.skippedForBudget += 1;
       continue;
@@ -783,13 +836,21 @@ export async function hydrateFiles({
     }
   }
 
-  if (result.restored.length || result.failed.length || result.skippedForBudget) {
+  if (
+    result.restored.length ||
+    result.failed.length ||
+    result.skippedForBudget ||
+    result.skippedDeleted
+  ) {
     log.log?.(
       `[assets] restored ${result.restored.length} plane file(s) from the bucket, ` +
         `${result.present} already present` +
         (result.failed.length ? `, ${result.failed.length} failed` : '') +
         (result.skippedForBudget
           ? `, ${result.skippedForBudget} left in the bucket (disk budget)`
+          : '') +
+        (result.skippedDeleted
+          ? `, ${result.skippedDeleted} not restored (deleted in the journal)`
           : '')
     );
   }

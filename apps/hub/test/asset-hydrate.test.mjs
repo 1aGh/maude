@@ -690,3 +690,69 @@ describe('hydrateAssets — the summary names each failure (2.0.4 J)', () => {
     assert.match(out, /…and 6 more/);
   });
 });
+
+// A DELETED PATH STAYS DELETED ACROSS A BOOT.
+//
+// Nothing is removed from object storage on a delete (the write-behind only
+// adds), so after a purge the bucket still lists every purged file. The restore
+// judged "absent" by the disk alone: each boot put the purged files back and
+// journalled them as new live rows, every peer that kept the deletion deleted
+// them again, and the next boot restored them again — a loop that never
+// converged and woke every open canvas on each pass.
+describe('hydrate — a path the journal has tombstoned is not restored', () => {
+  /** One boot restore as server.mjs runs it, then a peer re-deletes. */
+  async function bootOnce({ dir, isDeleted, journal }) {
+    const deps = {
+      listObjects: async (_c, prefix) =>
+        prefix === 'assets/'
+          ? [{ key: 'assets/cccccccc.png' }]
+          : [{ key: 'files/renders/draft/a.png' }, { key: 'files/renders/draft/live.png' }],
+      getObject: async (_c, key) => Buffer.from(`bucket:${key}`),
+    };
+    const onWritten = ({ path }) => journal.push(path);
+    const base = {
+      designRoot: dir,
+      s3: { bucket: 'x' },
+      prefix: '',
+      log: silent(),
+      deps,
+      onWritten,
+    };
+    const opts = isDeleted ? { ...base, isDeleted } : base;
+    const files = await hydrateFiles(opts);
+    const assets = await hydrateAssets(opts);
+    // A peer that kept the deletion removes the resurrected copies again.
+    for (const rel of ['renders/draft/a.png', 'assets/cccccccc.png']) {
+      rmSync(join(dir, rel), { force: true });
+    }
+    return { files, assets };
+  }
+
+  it('two boots journal nothing for a tombstoned path, and count what they skipped', async () => {
+    const dir = tmp();
+    mkdirSync(join(dir, 'assets'), { recursive: true });
+    const tombstoned = new Set(['renders/draft/a.png', 'assets/cccccccc.png']);
+    const journal = [];
+    const isDeleted = (rel) => tombstoned.has(rel);
+    const first = await bootOnce({ dir, isDeleted, journal });
+    const second = await bootOnce({ dir, isDeleted, journal });
+    // The live file is restored once (present on the second boot), the deleted
+    // ones on neither boot.
+    assert.deepEqual(journal, ['renders/draft/live.png']);
+    assert.equal(first.files.skippedDeleted, 1);
+    assert.equal(first.assets.skippedDeleted, 1);
+    assert.equal(second.files.skippedDeleted, 1);
+    assert.equal(second.assets.skippedDeleted, 1);
+    assert.equal(existsSync(join(dir, 'renders/draft/a.png')), false);
+    assert.equal(existsSync(join(dir, 'assets/cccccccc.png')), false);
+  });
+
+  it('a caller with no journal keeps the old disk-only rule', async () => {
+    const dir = tmp();
+    mkdirSync(join(dir, 'assets'), { recursive: true });
+    const journal = [];
+    await bootOnce({ dir, isDeleted: null, journal });
+    assert.ok(journal.includes('renders/draft/a.png'));
+    assert.ok(journal.includes('assets/cccccccc.png'));
+  });
+});

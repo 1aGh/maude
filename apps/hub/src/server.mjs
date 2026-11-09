@@ -4460,6 +4460,11 @@ async function runAsMain() {
               built.journal.recordWrite({ designRoot, path: rel, source: 'hydrate' });
             }
           };
+          // A path the journal holds as DELETED stays deleted: a delete never
+          // removes the bucket copy, so without this every boot put purged
+          // files back as new live rows, peers that kept the deletion deleted
+          // them again, and the next boot restored them again.
+          const isDeleted = (rel) => built.journal?.latestFor(rel)?.deleted === true;
           // `files/` is the same restore for every file-plane class beyond
           // `assets/` — the prefix the write-behind fills. Durability without a
           // way back is a receipt, not a backup (F-6/B2).
@@ -4468,12 +4473,14 @@ async function runAsMain() {
             s3,
             budget,
             classes: ['code-module', 'companion-text'],
+            isDeleted,
             onWritten: ({ path: rel }) => recordHydrated(rel),
           });
           const restored = await hydrateAssets({
             designRoot,
             s3,
             budget,
+            isDeleted,
             onWritten: ({ path: rel }) => recordHydrated(rel),
           });
           // On a cell, files/ media is never restored to its checkout path —
@@ -4486,6 +4493,7 @@ async function runAsMain() {
                 s3,
                 budget,
                 classes: ['inert-media'],
+                isDeleted,
                 onWritten: ({ path: rel }) => recordHydrated(rel),
               });
           const lanes = [buildFiles, restored, mediaFiles];
