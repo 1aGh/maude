@@ -44092,7 +44092,7 @@
     "hook": "canvas-theme-path",
     "kind": "testid",
     "pattern": false,
-    "meaning": "r5-8 / #217: the canvas's project-relative path, the pill's second line, smaller and grey (`.design/ui/v2/02 Onboarding.tsx`, shortened from the front when long). A click copies the whole path and the button reads \"Copied\" for a moment. Steps aside first when the pill is short of room (the pill's `data-path` is `hidden`).",
+    "meaning": "r5-8 / #217: the canvas's project-relative path, the pill's second line under the buttons (Michal, #217), smaller and grey (`.design/ui/v2/02 Onboarding.tsx`, shortened from the front when long). A click copies the whole path and the button reads \"Copied\" for a moment. Steps aside first when the pill is short of room (the pill's `data-path` is `hidden`).",
     "producer": {
       "file": "apps/studio/canvas-theme-pill.tsx",
       "symbol": "CanvasThemePill"
@@ -44106,10 +44106,26 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-theme-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#217: the pill's top row (the system name, Light | Dark, Canvas | Pages); the path is its own second line under it.",
+    "producer": {
+      "file": "apps/studio/canvas-theme-pill.tsx",
+      "symbol": "CanvasThemePill"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/217-theme-pill-top-band.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "canvas-theme-text",
     "kind": "testid",
     "pattern": false,
-    "meaning": "#217: the pill's two-line text column: the design system's name over the canvas's path.",
+    "meaning": "#217: the pill's design-system name (top row, beside Light | Dark); a canvas with no system has none.",
     "producer": {
       "file": "apps/studio/canvas-theme-pill.tsx",
       "symbol": "CanvasThemePill"

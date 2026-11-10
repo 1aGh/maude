@@ -32,10 +32,11 @@ import { THEME_WORD, ThemeIcon } from './canvas-theme-icons.tsx';
 
 /** The pill's chrome. Kept in step with the `.ds-bar` block of ds/board/board.css (same pill, other canvases). */
 const PILL_CSS = `
-.dc-theme-pill{position:fixed;left:50%;top:16px;translate:-50% 0;z-index:2147483000;box-sizing:border-box;display:flex;align-items:center;gap:8px;min-width:0;min-height:44px;padding:4px 8px 4px 12px;overflow:hidden;border-radius:var(--maude-hud-radius-lg,14px);background:var(--maude-hud-island-bg);color:var(--maude-chrome-fg-0);-webkit-backdrop-filter:saturate(1.4) blur(18px);backdrop-filter:saturate(1.4) blur(18px);box-shadow:var(--maude-hud-island-shadow),inset 0 0 0 .5px var(--maude-hud-island-edge);font:400 var(--maude-hud-type-sm,12px)/1 var(--maude-chrome-font-body);white-space:nowrap}
-.dc-theme-pill>:not(.dc-theme-pill-text){flex:none}
+.dc-theme-pill{position:fixed;left:50%;top:16px;translate:-50% 0;z-index:2147483000;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;min-height:44px;padding:4px 8px;overflow:hidden;border-radius:var(--maude-hud-radius-lg,14px);background:var(--maude-hud-island-bg);color:var(--maude-chrome-fg-0);-webkit-backdrop-filter:saturate(1.4) blur(18px);backdrop-filter:saturate(1.4) blur(18px);box-shadow:var(--maude-hud-island-shadow),inset 0 0 0 .5px var(--maude-hud-island-edge);font:400 var(--maude-hud-type-sm,12px)/1 var(--maude-chrome-font-body);white-space:nowrap}
+.dc-theme-pill-row{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%;padding-left:4px}
+.dc-theme-pill-row>:not(.dc-theme-pill-text){flex:none}
 .dc-theme-pill-ic{display:grid;place-items:center;width:24px;height:24px;border-radius:var(--maude-hud-radius-xs,4px);background:var(--maude-hud-accent-muted);color:var(--maude-hud-accent-text)}
-.dc-theme-pill-text{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;min-width:0;flex:0 1 auto}
+.dc-theme-pill-text{display:flex;align-items:center;min-width:0;flex:0 1 auto}
 .dc-theme-pill-title{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;font-weight:600;line-height:16px}
 .dc-theme-pill-seg{display:inline-flex;margin:0 0 0 8px;min-width:0;border:0;padding:2px;border-radius:var(--maude-hud-radius-md,10px);background:var(--maude-chrome-bg-3)}
 .dc-theme-pill-seg:first-child{margin-left:0}
@@ -44,7 +45,7 @@ const PILL_CSS = `
 .dc-theme-pill-b:disabled{opacity:.4;cursor:default}
 .dc-theme-pill-b--ic{display:grid;place-items:center;padding:4px 7px}
 .dc-theme-pill-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
-.dc-theme-pill-path{appearance:none;display:block;border:0;border-radius:var(--maude-hud-radius-xs,4px);padding:0 2px;margin:0 -2px;background:transparent;color:var(--maude-chrome-fg-2);font:inherit;font-size:var(--maude-hud-type-xs,11px);line-height:14px;font-family:var(--maude-chrome-font-mono,ui-monospace,monospace);text-align:left;cursor:pointer;max-width:calc(100% + 4px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dc-theme-pill-path{appearance:none;display:block;border:0;border-radius:var(--maude-hud-radius-xs,4px);padding:0 4px;margin:0;background:transparent;color:var(--maude-chrome-fg-2);font:inherit;font-size:var(--maude-hud-type-2xs,10px);line-height:13px;font-family:var(--maude-chrome-font-mono,ui-monospace,monospace);text-align:center;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dc-theme-pill[data-path="hidden"] .dc-theme-pill-path{position:absolute;visibility:hidden;pointer-events:none}
 .dc-theme-pill-path:hover{background:var(--maude-chrome-bg-3);color:var(--maude-chrome-fg-0)}
 .dc-theme-pill-path:focus-visible{outline:2px solid var(--maude-hud-focus-ring);outline-offset:1px}
@@ -215,10 +216,10 @@ export function CanvasThemePill({
     const pill = pillRef.current;
     if (!pill) return undefined;
     const fit = () => {
-      // the column is the only part that shrinks (the rest is flex: none), so the pill less the column is fixed
-      const fixed =
-        pill.getBoundingClientRect().width - (textRef.current?.getBoundingClientRect().width ?? 0);
-      const avail = place.maxWidth - fixed;
+      // the path has its own line under the controls (Michal, #217): it may take the pill's whole inner width
+      const cs = getComputedStyle(pill);
+      const avail =
+        place.maxWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
       const btn = pathRef.current;
       let pathW = btn?.scrollWidth ?? 0;
       let chars = PATH_MAX;
@@ -231,7 +232,7 @@ export function CanvasThemePill({
         pathW = charW * shortenCanvasPath(file).length + pad;
         chars = Math.max(8, Math.min(PATH_MAX, Math.floor((avail - pad) / charW)));
       }
-      const next = showPathLine(avail, titleRef.current?.scrollWidth ?? 0, pathW);
+      const next = showPathLine(avail, 0, pathW);
       setPathShown((cur) => (cur === next ? cur : next));
       setPathChars((cur) => (cur === chars ? cur : chars));
     };
@@ -255,63 +256,63 @@ export function CanvasThemePill({
         role="toolbar"
         aria-label="Canvas theme"
       >
-        {name ? (
-          <span className="dc-theme-pill-ic" aria-hidden="true">
-            <DsIcon name="system" size={14} />
-          </span>
-        ) : null}
-        {name || file ? (
-          <span ref={textRef} className="dc-theme-pill-text" data-testid="canvas-theme-text">
-            {name ? (
+        <div className="dc-theme-pill-row" data-testid="canvas-theme-row">
+          {name ? (
+            <span className="dc-theme-pill-ic" aria-hidden="true">
+              <DsIcon name="system" size={14} />
+            </span>
+          ) : null}
+          {name ? (
+            <span ref={textRef} className="dc-theme-pill-text" data-testid="canvas-theme-text">
               <b ref={titleRef} className="dc-theme-pill-title" data-testid="canvas-theme-title">
                 {name}
               </b>
-            ) : null}
-            {file ? (
+            </span>
+          ) : null}
+          <fieldset className="dc-theme-pill-seg" aria-label="Show every artboard in">
+            {(['light', 'dark'] as const).map((m) => (
               <button
-                ref={pathRef}
+                key={m}
                 type="button"
-                className="dc-theme-pill-path"
-                data-testid="canvas-theme-path"
-                title={`Copy relative path — ${file}`}
-                aria-label={`Copy relative path ${file}`}
-                aria-live="polite"
-                onClick={copyPath}
+                className="dc-theme-pill-b dc-theme-pill-b--ic"
+                data-testid={`canvas-theme-mode-${m}`}
+                aria-pressed={mode === m}
+                aria-label={THEME_WORD[m]}
+                disabled={!both && mode !== m}
+                // 2.0.7 — icons only (Michal): the name is the tooltip; a theme the canvas lacks says so there
+                title={!both && mode !== m ? `This canvas has no ${THEME_WORD[m]}` : THEME_WORD[m]}
+                onClick={() => setCanvasTheme(m)}
               >
-                {copied === 'ok'
-                  ? 'Copied'
-                  : copied === 'failed'
-                    ? 'Couldn’t copy'
-                    : shortenCanvasPath(file, pathChars)}
+                <ThemeIcon mode={m} />
               </button>
-            ) : null}
-          </span>
+            ))}
+          </fieldset>
+          {!both ? (
+            // read by a screen reader only; the greyed button's tooltip says the same to everyone else
+            <span className="dc-theme-pill-sr" data-testid="canvas-theme-note">
+              {`This canvas has no ${mode === 'light' ? 'Dark' : 'Light'}`}
+            </span>
+          ) : null}
+          {extra}
+        </div>
+        {file ? (
+          <button
+            ref={pathRef}
+            type="button"
+            className="dc-theme-pill-path"
+            data-testid="canvas-theme-path"
+            title={`Copy relative path — ${file}`}
+            aria-label={`Copy relative path ${file}`}
+            aria-live="polite"
+            onClick={copyPath}
+          >
+            {copied === 'ok'
+              ? 'Copied'
+              : copied === 'failed'
+                ? 'Couldn’t copy'
+                : shortenCanvasPath(file, pathChars)}
+          </button>
         ) : null}
-        <fieldset className="dc-theme-pill-seg" aria-label="Show every artboard in">
-          {(['light', 'dark'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              className="dc-theme-pill-b dc-theme-pill-b--ic"
-              data-testid={`canvas-theme-mode-${m}`}
-              aria-pressed={mode === m}
-              aria-label={THEME_WORD[m]}
-              disabled={!both && mode !== m}
-              // 2.0.7 — icons only (Michal): the name is the tooltip; a theme the canvas lacks says so there
-              title={!both && mode !== m ? `This canvas has no ${THEME_WORD[m]}` : THEME_WORD[m]}
-              onClick={() => setCanvasTheme(m)}
-            >
-              <ThemeIcon mode={m} />
-            </button>
-          ))}
-        </fieldset>
-        {!both ? (
-          // read by a screen reader only; the greyed button's tooltip says the same to everyone else
-          <span className="dc-theme-pill-sr" data-testid="canvas-theme-note">
-            {`This canvas has no ${mode === 'light' ? 'Dark' : 'Light'}`}
-          </span>
-        ) : null}
-        {extra}
       </div>
     </>
   );

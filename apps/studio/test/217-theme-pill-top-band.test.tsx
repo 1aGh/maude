@@ -245,27 +245,39 @@ describe('the canvas pill', () => {
     return pill;
   };
 
-  test('two lines: the system name over the path (smaller, grey, the text-safe grade)', async () => {
+  test('two lines: the name and Light | Dark on top, the path UNDER them (smaller, grey, the text-safe grade)', async () => {
     const { registerCanvasThemeSystem } = await import('../canvas-theme.ts');
     registerCanvasThemeSystem({ name: 'StudyFi v3', themeDefault: null });
     (window as unknown as { __canvas_meta_file__: string }).__canvas_meta_file__ =
       '.design/ui/studyfi/Team/team-structure.tsx';
     const pill = await mount();
-    const text = pill.querySelector('[data-testid="canvas-theme-text"]');
-    expect(text).not.toBeNull();
-    const lines = [...(text?.children ?? [])].map((c) => c.getAttribute('data-testid'));
-    expect(lines).toEqual(['canvas-theme-title', 'canvas-theme-path']);
-    expect(text?.textContent).toContain('StudyFi v3');
-    // Light | Dark stays a sibling of the text column, its actions untouched
-    expect(pill.querySelector('[data-testid="canvas-theme-mode-light"]')).not.toBeNull();
+    // Michal: the path is the pill's second line, under the buttons — never beside them
+    const lines = [...pill.children].map((c) => c.getAttribute('data-testid'));
+    expect(lines).toEqual(['canvas-theme-row', 'canvas-theme-path']);
+    const row = pill.querySelector('[data-testid="canvas-theme-row"]');
+    expect(row?.querySelector('[data-testid="canvas-theme-title"]')?.textContent).toBe(
+      'StudyFi v3'
+    );
+    expect(row?.querySelector('[data-testid="canvas-theme-mode-light"]')).not.toBeNull();
+    expect(row?.querySelector('[data-testid="canvas-theme-path"]')).toBeNull();
     const css = document.querySelector('style[data-dc-theme-pill-css]')?.textContent ?? '';
+    expect(css).toMatch(/\.dc-theme-pill\{[^}]*flex-direction:column/);
     const pathRule = css.match(/\.dc-theme-pill-path\{[^}]*\}/)?.[0] ?? '';
     expect(pathRule).toContain('color:var(--maude-chrome-fg-2)');
-    expect(pathRule).toContain('font-size:var(--maude-hud-type-xs');
+    expect(pathRule).toContain('font-size:var(--maude-hud-type-2xs,10px)');
     expect(pathRule).toContain('text-overflow:ellipsis');
-    expect(css).toMatch(/\.dc-theme-pill-text\{[^}]*flex-direction:column/);
     // the path line can step aside without leaving the flow wide
     expect(css).toMatch(/\[data-path="hidden"\] \.dc-theme-pill-path\{[^}]*visibility:hidden/);
+  });
+
+  test('a canvas with no design system: the buttons on top, the path still on its own line under them', async () => {
+    (window as unknown as { __canvas_meta_file__: string }).__canvas_meta_file__ =
+      '.design/ui/2026/dresy/Uniformy-2027.tsx';
+    const pill = await mount();
+    const lines = [...pill.children].map((c) => c.getAttribute('data-testid'));
+    expect(lines).toEqual(['canvas-theme-row', 'canvas-theme-path']);
+    const row = pill.querySelector('[data-testid="canvas-theme-row"]');
+    expect(row?.querySelector('[data-testid="canvas-theme-path"]')).toBeNull();
   });
 
   test('centred in the band the shell sends, never wider than it; an older shell centres on the frame', async () => {
