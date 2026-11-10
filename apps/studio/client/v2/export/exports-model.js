@@ -307,7 +307,20 @@ export function fileNames(job) {
  * @returns {{ kind: 'info'|'success'|'warning'|'error', title: string, text: string,
  *            action: 'reveal'|'download'|'retry'|'open', label: string }}
  */
-export function toastWords(job, { native = false, folder = null } = {}) {
+/** The file a save wrote, as `{ name, folder }` (`/a/Downloads/x (2).pdf` → `x (2).pdf`, `Downloads`). */
+export function savedParts(path) {
+  if (typeof path !== 'string' || !path) return { name: null, folder: null };
+  const parts = path.split(/[\\/]/).filter(Boolean);
+  return { name: parts.at(-1) ?? null, folder: parts.at(-2) ?? null };
+}
+
+/**
+ * @param saved the path this Mac saved the job to (fix-bulk B5): the toast names the file it became — a clash in
+ *              the folder makes `name (2).pdf` — and the folder it went to.
+ */
+export function toastWords(job, { native = false, folder: folderIn = null, saved = null } = {}) {
+  const got = savedParts(saved);
+  const folder = got.folder ?? folderIn;
   const fmt = formatLabel(job);
   if (isActive(job)) {
     return {
@@ -354,8 +367,8 @@ export function toastWords(job, { native = false, folder = null } = {}) {
     };
   }
   const n = fileNames(job).length;
-  const what =
-    n > 1 ? `Exported ${n} files` : `Exported ${job?.filename ? `“${stemOf(job.filename)}”` : fmt}`;
+  const name = got.name ?? job?.filename;
+  const what = n > 1 ? `Exported ${n} files` : `Exported ${name ? `“${stemOf(name)}”` : fmt}`;
   return {
     kind: 'success',
     title: 'Export ready',

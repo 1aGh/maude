@@ -35847,6 +35847,54 @@
     "v2": "new"
   },
   {
+    "hook": "export-print-outline",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Print › Text as shapes: Advanced › Text's `outline` as a tick (unticked = keep as text). Silences the font warning.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-warns",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The slot the print warnings live in (safe margin, fonts). Always there for a Print PDF, at a two-line warning's height, so a warning arriving does not move the Export button.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-save-to",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Save to (a select). Values: `downloads`; in the Mac app also `remembered` (the project's folder, labelled by its name), `choose` (Choose a folder…: opens the shell's folder picker — an action, never sent) and `ask`. A browser tab offers Downloads only.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/file-rows.jsx",
+      "symbol": "FileRows"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "export-row-colour",
     "kind": "testid",
     "pattern": false,

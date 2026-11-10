@@ -350,4 +350,11 @@ describe('the done toast carries ONE action', () => {
     expect(toastWords(job(), { native: false }).action).toBe('download');
     expect(toastWords(job(), { native: true }).action).toBe('reveal');
   });
+
+  test('fix-bulk B5: a saved export names the file it became and the folder it went to', () => {
+    const one = { id: 'p', format: 'pdf', status: 'done', filename: 'letak.pdf' };
+    const w = toastWords(one, { native: true, saved: '/Users/x/Drive/2026/letak (2).pdf' });
+    expect(w.text).toBe('Exported “letak (2)” to 2026.');
+    expect(toastWords(one, { native: true }).text).toBe('Exported “letak”.');
+  });
 });

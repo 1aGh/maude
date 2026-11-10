@@ -13,6 +13,9 @@ export const BLEED_LABEL = 'Bleed';
 export const CROP_LABEL = 'Crop marks';
 export const CROP_SUB = 'where to cut — outside the bleed';
 export const BACK_SUB = 'page 2 — the back of this artboard';
+// fix-bulk B4 — Advanced › Text's "Turn text into shapes", as a tick of its own
+export const OUTLINE_LABEL = 'Text as shapes';
+export const OUTLINE_SUB = 'prints the same everywhere — no font needs to embed';
 export const COLOUR_ROW = 'Colour';
 /** The one colour line. Print is RGB; the shop converts (09 ex-print). */
 export const COLOUR_LINE = 'RGB — the print shop converts to CMYK.';

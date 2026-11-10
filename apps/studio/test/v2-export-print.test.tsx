@@ -519,4 +519,66 @@ describe('the sheet: a print artboard', () => {
     expect($('[data-testid="export-print-font-warn"]')).toBeNull();
     expect($('[data-testid="export-print-colour"]') !== null).toBe(true);
   });
+
+  // fix-bulk B4 (UI half): Text as shapes is the most common print ask; it sat only under Advanced › Text.
+  test('Text as shapes is a tick in the Print row; it is Advanced’s Text field, and silences the font line', async () => {
+    await mountSheet();
+    const box = $('[data-testid="export-print-outline"]') as HTMLInputElement;
+    expect(box !== null).toBe(true);
+    expect($('[data-testid="export-row-print"]')?.contains(box)).toBe(true);
+    expect(box.checked).toBe(false);
+    expect($('[data-testid="export-print-font-warn"]') !== null).toBe(true);
+    await click('[data-testid="export-print-outline"]');
+    expect(($('[data-testid="export-print-outline"]') as HTMLInputElement).checked).toBe(true);
+    expect($('[data-testid="export-print-font-warn"]')).toBeNull();
+    expect($('[data-testid="export-print-font-ok"]') !== null).toBe(true);
+    await click('[data-testid="export-submit"]');
+    expect(jobs()[0]?.body?.spec?.options?.print).toMatchObject({ text: 'outline' });
+  });
+
+  test('unticking Text as shapes keeps the text as text', async () => {
+    await mountSheet();
+    await click('[data-testid="export-print-outline"]');
+    await click('[data-testid="export-print-outline"]');
+    await click('[data-testid="export-submit"]');
+    expect(jobs()[0]?.body?.spec?.options?.print?.text).toBeUndefined();
+  });
+});
+
+// fix-bulk B6 — picking a scope brought the safe-margin line in above the foot, the sheet (centred) grew and the
+// Export button moved under the pointer. The print warnings now live in one slot that is there, at its height,
+// before any warning arrives — so a warning fills space that was already held.
+describe('fix-bulk B6: the action row does not move when a warning appears', () => {
+  const CLEAN = { ...PREFLIGHT, safeMargin: [], fonts: [PREFLIGHT.fonts[1]] };
+
+  test('with nothing to warn about, the warning slot is already there', async () => {
+    await mountSheet({}, CLEAN);
+    const slot = $('[data-testid="export-print-warns"]');
+    expect(slot !== null).toBe(true);
+    expect(slot?.children.length).toBe(0);
+    expect($('[data-testid="export-print-safe-warn"]')).toBeNull();
+  });
+
+  test('while the page is still measured the slot holds its place too', async () => {
+    await mountSheet({}, 'hang');
+    expect($('[data-testid="export-print-warns"]') !== null).toBe(true);
+  });
+
+  test('a warning arrives inside the slot, before the colour row and above the foot', async () => {
+    await mountSheet();
+    const slot = $('[data-testid="export-print-warns"]');
+    const warn = $('[data-testid="export-print-safe-warn"]');
+    expect(slot?.contains(warn)).toBe(true);
+    const colour = $('[data-testid="export-row-colour"]') as HTMLElement;
+    // eslint-style DOM order check: slot precedes the colour row (same rows column)
+    expect(slot?.compareDocumentPosition(colour) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('the slot reserves one warning’s height in the stylesheet', async () => {
+    const css = await Bun.file(
+      new URL('../client/v2/export/export.css', import.meta.url).pathname
+    ).text();
+    const rule = /\.ex-print-warns\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(rule).toMatch(/min-height:\s*[^;]+;/);
+  });
 });

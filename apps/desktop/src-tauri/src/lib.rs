@@ -744,6 +744,9 @@ pub fn run() {
             export_save::clipboard_write_png,
             // 2.0.3: the canvas LFS placeholder's Copy prompt (the shell has no user activation).
             export_save::clipboard_write_text,
+            // fix-bulk B5: Save to › the project's folder and Choose a folder….
+            export_save::export_folder,
+            export_save::pick_export_folder,
         ])
         .menu(menu::build_menu)
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))

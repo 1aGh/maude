@@ -25,6 +25,8 @@
     "allow-resolve-dev-server-url",
     "allow-save-export",
     "allow-reveal-export",
+    "allow-export-folder",
+    "allow-pick-export-folder",
     "allow-clipboard-write-png",
     "allow-clipboard-write-text",
     "allow-pick-media-file",

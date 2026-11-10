@@ -103,7 +103,14 @@ export function useExportCenter({ enabled = true } = {}) {
           startToastShownRef.current.add(job.id);
           hydratedRef.current.add(job.id);
         }
-        setJobs(m);
+        // Merge, never replace: a live push that landed while this GET was in flight is newer than the
+        // snapshot, and replacing the map dropped it — its row, its toast and its save (fix-bulk B5).
+        setJobs((prev) => {
+          if (prev.size === 0) return m;
+          const next = new Map(m);
+          for (const [id, live] of prev) next.set(id, live);
+          return next;
+        });
       })
       .catch(() => {
         /* offline / restart — the badge just stays empty until a push arrives */
@@ -359,18 +366,40 @@ export function useExportCenter({ enabled = true } = {}) {
 
   // A spec that names where to save (Downloads, or the remembered folder) saves itself on this Mac the
   // moment it is done — no dialog. Any other waits for Show in Finder, which asks once.
+  //
+  // fix-bulk B5 — a done job must always reach its folder. This ran only on a `jobs` change, and skipped a job
+  // that finished while the window was in the background, so a long Print PDF the person waited for in Finder
+  // was never saved and its bytes were later swept. Now: Downloads never shows a panel, so it saves whenever this
+  // tab is the visible one; the remembered folder may have to ask once, so it waits for the window — and both are
+  // tried again each time the window comes back (`comeBack`).
+  const [comeBack, setComeBack] = useState(0);
+  useEffect(() => {
+    if (!isNativeApp()) return undefined;
+    const again = () => {
+      if (document.visibilityState !== 'hidden') setComeBack((n) => n + 1);
+    };
+    window.addEventListener('focus', again);
+    document.addEventListener('visibilitychange', again);
+    return () => {
+      window.removeEventListener('focus', again);
+      document.removeEventListener('visibilitychange', again);
+    };
+  }, []);
   useEffect(() => {
     if (!isNativeApp()) return;
+    void comeBack;
+    if (document.visibilityState === 'hidden') return; // a background tab: the shell refuses its save
     for (const job of jobs.values()) {
       if (job.status !== 'done' || !job.filename || job.deliveredInBrowser) continue;
       const to = job.spec?.options?.saveTo;
       if (to !== 'downloads' && to !== 'remembered') continue;
       if (hydratedRef.current.has(job.id) || autoSavedRef.current.has(job.id)) continue;
-      if (finalizedRef.current.has(job.id) || !document.hasFocus()) continue;
+      if (finalizedRef.current.has(job.id)) continue;
+      if (to === 'remembered' && !document.hasFocus()) continue;
       autoSavedRef.current.add(job.id);
       void save(job);
     }
-  }, [jobs, save]);
+  }, [jobs, save, comeBack]);
 
   const toastJobId = panelOpen ? null : (toastQueue[0] ?? null);
 
