@@ -32,6 +32,8 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { PDFArray, PDFDocument, PDFName, PDFNumber, type PDFPage } from 'pdf-lib';
+
 /**
  * argv prefix for Ghostscript. `MAUDE_GHOSTSCRIPT` overrides (space-separated,
  * so a wrapper or an absolute path both work); otherwise the usual binary
@@ -135,6 +137,80 @@ export const OUTLINE_FLAGS: readonly string[] = [
   '-dSAFER',
 ];
 
+/** Boxes the outline pass carries over. Neither is inheritable, so each lives on its page leaf. */
+const PRINT_BOXES = ['TrimBox', 'BleedBox'] as const;
+/** Points. Ghostscript writes boxes at 4 decimals; anything closer than this is the same box. */
+const BOX_TOLERANCE_PT = 0.05;
+
+function boxNumbers(page: PDFPage, key: string): [number, number, number, number] | null {
+  const raw = page.node.lookup(PDFName.of(key));
+  if (!(raw instanceof PDFArray) || raw.size() !== 4) return null;
+  const nums = raw.asArray().map((v) => (v instanceof PDFNumber ? v.asNumber() : Number.NaN));
+  if (nums.some((n) => !Number.isFinite(n))) return null;
+  const [x1, y1, x2, y2] = nums as [number, number, number, number];
+  return [Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2)];
+}
+
+/**
+ * Put the input's TrimBox / BleedBox back on Ghostscript's output, shifted by however far
+ * Ghostscript moved the MediaBox origin (B4, fix-bulk 2026-11-10).
+ *
+ * A print page with crop marks has a MediaBox with a negative origin (the slug). `pdfwrite`
+ * re-bases every page to a 0,0 MediaBox, and a reported run also dropped both boxes — the
+ * outlined file then no longer says where to cut, which is the one thing a print PDF must say.
+ * Current Ghostscript keeps and shifts them itself; this makes the result independent of the
+ * build the user (or the image) has. Only a box the INPUT page set is restored, and only on a
+ * page whose MediaBox kept its size (a page Ghostscript rotated or resized is left alone rather
+ * than given a box that no longer fits it). Returns whether anything changed.
+ */
+export function restorePageBoxes(input: PDFDocument, output: PDFDocument): boolean {
+  if (input.getPageCount() !== output.getPageCount()) return false;
+  let changed = false;
+  for (let i = 0; i < input.getPageCount(); i += 1) {
+    const src = input.getPage(i);
+    const dst = output.getPage(i);
+    const a = src.getMediaBox();
+    const b = dst.getMediaBox();
+    if (
+      Math.abs(a.width - b.width) > BOX_TOLERANCE_PT ||
+      Math.abs(a.height - b.height) > BOX_TOLERANCE_PT
+    )
+      continue;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    for (const key of PRINT_BOXES) {
+      const want = boxNumbers(src, key);
+      if (!want) continue;
+      const [x1, y1, x2, y2] = [want[0] + dx, want[1] + dy, want[2] + dx, want[3] + dy];
+      const have = boxNumbers(dst, key);
+      if (
+        have &&
+        [x1, y1, x2, y2].every((v, n) => Math.abs(v - (have[n] as number)) <= BOX_TOLERANCE_PT)
+      )
+        continue;
+      dst.node.set(PDFName.of(key), output.context.obj([x1, y1, x2, y2]));
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+/**
+ * `outlined` with the input's print boxes restored, re-saved only when a box was missing or
+ * moved. A document pdf-lib cannot read is returned as Ghostscript wrote it: the box repair is a
+ * best effort on top of an outline that already succeeded, never a reason to fail the export.
+ */
+async function withPrintBoxes(input: Uint8Array, outlined: Uint8Array): Promise<Uint8Array> {
+  try {
+    const before = await PDFDocument.load(input, { updateMetadata: false });
+    const after = await PDFDocument.load(outlined, { updateMetadata: false });
+    if (!restorePageBoxes(before, after)) return outlined;
+    return await after.save();
+  } catch {
+    return outlined;
+  }
+}
+
 export interface OutlineOptions {
   /** Aborts the pass and kills Ghostscript. */
   signal?: AbortSignal;
@@ -187,7 +263,8 @@ export async function outlinePdf(
         `Ghostscript failed to outline the PDF (exit ${code})${detail ? `: ${detail}` : ''}`
       );
     }
-    return new Uint8Array(readFileSync(outPath));
+    const outlined = new Uint8Array(readFileSync(outPath));
+    return await withPrintBoxes(bytes, outlined);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
