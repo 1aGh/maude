@@ -425,6 +425,10 @@ const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs
   runs: runRegistry,
   // V2-1.15 §4 #13 — a person's live hold (awareness `holding`) denies the AI's write
   personHolds: collab ? personHoldsOf(collab.registry, (rel) => api.fileSlug(rel)) : undefined,
+  // #216 — ⌘Z reads the stack after the canvas's live room has flushed its pending gesture
+  settleCanvasRoom: async (repoRel) => {
+    await collab?.registry.peek(api.fileSlug(repoRel))?.flush();
+  },
 });
 askQueue = http.askQueue;
 // S9.9 — `currentAccess()` outside a request (timers, boot): this process's own answer.

@@ -1688,6 +1688,8 @@ export function createHttp(
     cloudRenderDoor?: () => CloudRenderDoor | null;
     /** V2-1.15 §4 #13 — the people holding an element of a canvas now (collab/holds.ts) */
     personHolds?: AgentRouteDeps['personHolds'];
+    /** #216 — flush a canvas's live collab room (repo-relative path) before ⌘Z reads its stack */
+    settleCanvasRoom?: (repoRel: string) => Promise<void>;
   } = {}
 ): Http {
   /** The current request's inspector state (Cloud Phase 27 D3). Resolved per
@@ -2454,6 +2456,7 @@ export function createHttp(
       control: () => ctx.syncControl?.current?.() ?? null,
       designRel: ctx.paths.designRel,
       emit: (e, p) => ctx.bus.emit(e, p),
+      ...(opts.settleCanvasRoom ? { settle: opts.settleCanvasRoom } : {}),
     },
     // S1.12b — Version history (V2-1.9 §5.11): rows, words, names, kept-aside versions. The
     // session's access is `currentAccess()` (S9.9, server.ts withSession).
