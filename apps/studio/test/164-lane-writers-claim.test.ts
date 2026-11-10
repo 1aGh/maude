@@ -32,6 +32,10 @@ const WRITERS: Record<string, Claim> = {
   'cut-to-beat': 'R',
   'trash move': 'R',
   'trash restore': 'R',
+  // fix-bulk W1 follow-up: call() → POST /_api/canvas (claims for the chat, ai/create-claim.ts) and the
+  // legacy /_api/fs-move (claimingLegacyRoutes)
+  'canvas-new': 'R',
+  'canvas-move': 'R',
   annotate: 'T',
   'photo-adjust': 'non-lane',
   handoff: 'non-lane',
