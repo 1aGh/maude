@@ -11,9 +11,9 @@ SEL_VALID=$([[ -n "$SELECTED" && "$SEL_FILE" == "$ACTIVE" ]] && echo 1 || echo 0
 
 `_active.json` is written by the studio from the person's window; you only read it ([schema](../../skills/design/_guide-04-active-state-schema.md)). It holds the canvas they have open and the object they selected on it.
 
-If `SEL_VALID=1`, the edit is **scoped** to the selected object: its `data-cd-id`, selector, path and markup. If not, the edit is **canvas-wide**. A selection from another canvas (`selected.file !== active`) is stale: ignore it and say so once in the result.
+If `SEL_VALID=1`, the edit **starts from** the selected object: its `data-cd-id`, selector, path and markup. If not, the edit is **canvas-wide**. A selection from another canvas (`selected.file !== active`) is stale: ignore it and say so once in the result.
 
-When the person started this chat from a selection (the scope chip in the AI chat panel), the hooks hold the run to it: a write outside the scope is refused `out-of-scope`. Change only the selection, or ask the person to widen it.
+The selected artboards (the scope chip in the AI chat panel, `[maude-scope artboards="…"]`) are a **hint, not a limit**: when the person's words ask for other artboards of the canvas too, change them. Only two things are refused `out-of-scope`: a write to another canvas, and, after ⌘/ on selected elements (`[maude-scope elements="…" … change-only-these]`), a change outside those elements. Then change only the selection, or ask the person to widen it.
 
 #### Open comments
 

@@ -46,7 +46,7 @@ type Studio = {
   provider?: string;
 };
 function studio(): Studio {
-  return { keyConnected: false, generates: [], keyReads: 0, provider: 'google' };
+  return { keyConnected: false, generates: [], keyReads: 0, provider: 'gemini' };
 }
 function fakeStudio(s: Studio) {
   return (async (url: string, init?: RequestInit) => {
@@ -57,7 +57,7 @@ function fakeStudio(s: Studio) {
       return json({
         ok: true,
         quote: 'q-1',
-        provider: s.provider ?? 'google',
+        provider: s.provider ?? 'gemini',
         model: 'nano-banana-pro',
         n: 4,
         aspect: '4:5',
@@ -67,7 +67,7 @@ function fakeStudio(s: Studio) {
     }
     if (path === '/_api/generate/keys') {
       s.keyReads += 1;
-      return json({ configured: s.keyConnected ? ['google'] : [] });
+      return json({ configured: s.keyConnected ? ['gemini'] : [] });
     }
     if (path === '/_api/generate-takes' && init?.method === 'POST') {
       s.generates.push(JSON.parse(String(init.body)));

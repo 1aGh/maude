@@ -65,6 +65,7 @@ REF=$(maude design generate \
 - **exit 3, "no key"** — no provider key configured. Tell the user: *"No Google key configured — add one in Settings (⌘,) or drop it into `~/.config/maude/keys.json` (mode 0600)."* Stop.
 - **exit 3, provider error** — surface the provider's own message (quota, blocked prompt). The message is safe (the key is never in it).
 - **exit 1** — Maude is not running for this project, or `.design` is missing; start Maude and try again.
+- **exit 1, "refused this command … not your provider key"** — Maude's own local check failed; the provider key was never read, so never tell the person their key is missing. Run the same command again in a plain shell. Never name a shell variable `HOME`, `PATH` or `USER` for prompt text (use `P_HOME`, …): the helper finds Maude through them.
 
 ### 3. Place it (default `--inline`)
 

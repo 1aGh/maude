@@ -178,6 +178,13 @@ JOB_ID=$(printf '%s' "$RESP" | jq -r '.jobId // empty' 2>/dev/null || echo "")
 if [ -z "$JOB_ID" ]; then
   REASON=$(printf '%s' "$RESP" | jq -r '.reason // empty' 2>/dev/null || echo "")
   MSG=$(printf '%s' "$RESP" | jq -r '.message // empty' 2>/dev/null || echo "")
+  # #218 — the studio refused THIS helper (its own local access key was missing or wrong), before
+  # any provider was asked. Never word it as a provider key: the person's Gemini key was never read.
+  case "$(printf '%s' "$RESP" | jq -r '.error // empty' 2>/dev/null || echo "")" in
+    api-key-required|api-key-invalid)
+      echo "generate.sh: Maude's project server refused this command: it could not prove it runs on this Mac for this project. This is not your provider key — that was never read. Run the command again as it is, in a fresh shell; if HOME was changed in this shell, unset that change first." >&2
+      exit 1 ;;
+  esac
   case "$REASON" in
     needs-confirm)
       echo "generate.sh: $MSG" >&2

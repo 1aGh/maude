@@ -25,7 +25,9 @@ const POLL_LIMIT_MS = 10 * 60 * 1000;
 const KEY_POLL_MS = 2000;
 const KEY_WAIT_LIMIT_MS = 10 * 60 * 1000;
 // The provider the key sheet names ("Connect a Google key?"). A key that lands is only ever quoted on this one.
-const SHEET_PROVIDER = 'google';
+// The registry id of Google's adapter (generation/adapters/gemini.ts) — 'google' named no provider, so the waiting
+// prompt never saw a key added in Settings (#218; test/218-key-sheet-provider.test.ts).
+export const SHEET_PROVIDER = 'gemini';
 
 export const ASK_WORDS = {
   title: 'Generate an image',

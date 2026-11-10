@@ -153,14 +153,10 @@ async function chatAsk(chatId: string, session: string, artboards: string[] | '*
 }
 
 describe('the edit hook: a scoped chat may change its scope and nothing else', () => {
-  test('an artboard-scoped chat edits its artboard; another artboard is out-of-scope', async () => {
+  test('an artboard-scoped chat edits its artboard and, as a hint not a lock (#219), another one', async () => {
     await chatAsk('c1', 's1', ['pricing']);
     expect(await check('s1', PRICING, 'c1')).toEqual({ decision: 'none' });
-    const out = await check('s1', LANDING, 'c1');
-    expect(out.decision).toBe('deny');
-    expect(out.code).toBe('out-of-scope');
-    expect(String(out.reason)).toContain('ui/Site.tsx › pricing');
-    expect(String(out.reason)).not.toContain('.design/');
+    expect(await check('s1', LANDING, 'c1')).toEqual({ decision: 'none' });
   });
 
   test('a whole-canvas chat edits any artboard of its canvas, and no other canvas', async () => {
@@ -177,6 +173,8 @@ describe('the edit hook: a scoped chat may change its scope and nothing else', (
       chat: 'c2',
     });
     expect(other.code).toBe('out-of-scope');
+    expect(String(other.reason)).toContain('ui/Site.tsx');
+    expect(String(other.reason)).not.toContain('.design/');
   });
 
   test('the lease key is the shell’s key (no doubled design root)', async () => {
