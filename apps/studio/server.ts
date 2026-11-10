@@ -78,6 +78,7 @@ import {
   terminalKeyMode,
 } from './shell/api-key.ts';
 import {
+  appAlreadyServes,
   isCliRole,
   registryPath,
   SERVER_ROLE_ENV,
@@ -124,6 +125,26 @@ if (process.argv.includes('--home')) {
 
 const ctx = createContext();
 bootStep('context');
+
+// fix-bulk B2 (#206 DDR-250 decision 1, boot half) — a terminal-started server decides whether the
+// app already serves this root BEFORE it writes anything (key file, `_server.json`, the store lock) or
+// joins sync. It used to boot fully, overwrite the app's `_server.json`, step down 2 s later and remove
+// the file it had written: the app's server was left with none. The running watcher below still
+// covers an app that opens the project later.
+if (!isWorkspaceMode() && isCliRole(process.env)) {
+  const appPort = await appAlreadyServes({
+    root: ctx.paths.repoRoot,
+    rootId: rootIdentity(ctx.paths.repoRoot),
+    file: registryPath(),
+  });
+  if (appPort !== null) {
+    console.log(
+      `  Maude is serving this project now (port ${appPort}) — this server is not starting.\n` +
+        '  `maude design open <canvas>` shows a canvas there.'
+    );
+    process.exit(0);
+  }
+}
 
 // V2-2.9 (T23) — persist the per-source diagnostics (server · sync · ai · export) under
 // ~/.maude/logs (or $MAUDE_LOG_DIR), scrubbed, 7 days. Local only: nothing is sent anywhere.

@@ -632,6 +632,13 @@ exit: 0 ok · 10 not the app's (use the project's own server; no key) · 11 the 
       it did not answer the check (do not use _server.json) · 4 refused (message on stderr) · 2 usage
 `;
 
+/**
+ * How long a caller that is not latency-bound (the bash helpers' `port` / `key` / `launch-url`, an
+ * export) waits for an app server to answer the attest check: 4 tries, 3 s each, 750 ms apart. A
+ * server busy with an export or a fresh boot answers late; only after the last try is it unverified.
+ */
+export const ATTEST_PATIENCE = Object.freeze({ attempts: 4, retryDelayMs: 750, timeoutMs: 3000 });
+
 function argsOf(argv) {
   const o = { mode: argv[0] };
   for (let i = 1; i < argv.length; i++) {
@@ -681,7 +688,7 @@ export async function main(
   }
   const root = resolve(a.root);
   if (a.mode === 'port') {
-    const p = await probeDesktop(root, { env, attempts: 4, retryDelayMs: 750 });
+    const p = await probeDesktop(root, { env, ...ATTEST_PATIENCE });
     // `--ensure show` (/design:browse): the app shows the project itself — nothing on stdout
     if (a.ensure === 'show' && p.state !== 'no-app' && p.socket) {
       const r = await ensureDesktop(root, { env, purpose: 'show', log });
@@ -726,8 +733,11 @@ export async function main(
       err.write(`desktop-locate: ${a.mode} needs --port N\n${USAGE}`);
       return 2;
     }
-    // the app's attested server, else a terminal-started one's key file (sec-loopback-bearer §7.5)
-    const r = await serverKeyFor(root, Number(a.port), { env });
+    // the app's attested server, else a terminal-started one's key file (sec-loopback-bearer §7.5).
+    // fix-bulk B1 — the same patience as `port` mode: a busy app server (an export, a fresh boot)
+    // answers the check late, and one 1.5 s try read as "did not attest" (exit 11). Still only an
+    // attested port gets its key; a wrong answer stays 11 after the last try.
+    const r = await serverKeyFor(root, Number(a.port), { env, ...ATTEST_PATIENCE });
     if (r.unverified) return 11;
     if (a.mode === 'launch-url') {
       // a browser opens the studio with a one-time token (a server that needs no key: the plain URL)

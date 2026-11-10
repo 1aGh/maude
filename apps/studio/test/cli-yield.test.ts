@@ -13,6 +13,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -292,4 +293,80 @@ describe('a real cli-role server', () => {
     await Bun.sleep(1500);
     expect(proc?.exitCode).toBeNull();
   });
+});
+
+// fix-bulk B2 — `maude design serve` while the app already serves the project: the terminal's server
+// used to boot all the way (its own `_server.json` written over the app's, the store lock taken, sync
+// joined), notice the app 2 s later and step down — and its shutdown then removed the `_server.json` it
+// had written, so the app's server ran with none. It now decides at boot, before it writes or joins
+// anything: an attested app sidecar for this root → one line, exit 0, nothing touched.
+describe('a cli-role server booting while the app already serves the root', () => {
+  let proc: Subprocess | null = null;
+  let sidecar: Server | null = null;
+  afterEach(async () => {
+    if (proc && proc.exitCode === null) await killProc(proc);
+    proc = null;
+    sidecar?.stop(true);
+    sidecar = null;
+  });
+
+  function spawnCli(root: string, file: string) {
+    return Bun.spawn({
+      cmd: ['bun', 'run', join(import.meta.dir, '..', 'server.ts'), '--port', String(nextPort())],
+      cwd: join(import.meta.dir, '..'),
+      env: {
+        ...process.env,
+        NO_OPEN: '1',
+        NODE_ENV: 'test',
+        MAUDE_EXIT_WITH_PARENT: '1',
+        MAUDE_NO_AUTOBUILD: '1',
+        MAUDE_MACHINE_FILE: join(root, '.design', '_state', 'machine.json'),
+        XDG_STATE_HOME: `${root}-state`,
+        MAUDE_SERVER_ROLE: 'cli',
+        MAUDE_APP_REGISTRY_FILE: file,
+        CLAUDE_PROJECT_DIR: root,
+      },
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+  }
+
+  test('steps down at boot: the app’s _server.json, the store and the key folder are untouched', async () => {
+    const { root } = makeSandbox();
+    dirs.push(root, `${root}-state`);
+    const file = join(scratch(), 'servers.json');
+    sidecar = fakeSidecar(KEY, rootIdOf(root));
+    registry(file, [entry(root, sidecar.port ?? 0)]);
+    const appJson = join(root, '.design', '_server.json');
+    const appBytes = JSON.stringify({
+      pid: process.pid,
+      port: sidecar.port,
+      url: `http://localhost:${sidecar.port}`,
+      started: '2026-11-10T08:00:00.000Z',
+    });
+    writeFileSync(appJson, appBytes);
+    proc = spawnCli(root, file);
+    const code = await Promise.race([proc.exited, Bun.sleep(15_000).then(() => 'timeout')]);
+    const out = await new Response(proc.stdout).text();
+    expect(code).toBe(0);
+    expect(out).toContain(`Maude is serving this project now (port ${sidecar.port})`);
+    expect(readFileSync(appJson, 'utf8')).toBe(appBytes);
+    expect(existsSync(join(root, '.design', '_state', 'project-store.lock'))).toBe(false);
+    expect(existsSync(join(`${root}-state`, 'maude', 'servers', `${rootIdOf(root)}.json`))).toBe(
+      false
+    );
+  }, 20_000);
+
+  test('a sidecar that does not attest: the server boots as usual', async () => {
+    const { root } = makeSandbox();
+    dirs.push(root, `${root}-state`);
+    const file = join(scratch(), 'servers.json');
+    sidecar = fakeSidecar(WRONG, rootIdOf(root));
+    registry(file, [entry(root, sidecar.port ?? 0)]);
+    proc = spawnCli(root, file);
+    const json = join(root, '.design', '_server.json');
+    for (let i = 0; i < 300 && !existsSync(json); i++) await Bun.sleep(50);
+    expect(existsSync(json)).toBe(true);
+    expect(proc.exitCode).toBeNull();
+  }, 20_000);
 });

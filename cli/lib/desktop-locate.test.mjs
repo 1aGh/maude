@@ -69,7 +69,7 @@ function project() {
 }
 
 /** A stand-in server: attest answered with `key` for `rootId` at its own port; /_health as a studio. */
-function fakeServer({ key = KEY, rootId, health = {} } = {}) {
+function fakeServer({ key = KEY, rootId, health = {}, slowAttests = 0, slowMs = 0 } = {}) {
   return new Promise((res) => {
     const seen = [];
     const posts = [];
@@ -86,7 +86,11 @@ function fakeServer({ key = KEY, rootId, health = {} } = {}) {
           resp.statusCode = 400;
           return resp.end('{}');
         }
-        return resp.end(JSON.stringify({ mac: mac(key, n, rootId, port) }));
+        const answer = () => resp.end(JSON.stringify({ mac: mac(key, n, rootId, port) }));
+        // a server under load (an export, a boot): the first `slowAttests` answers come late
+        if (seen.filter((x) => x === '/_api/shell/attest').length <= slowAttests)
+          return void setTimeout(answer, slowMs);
+        return answer();
       }
       if (u.pathname === '/_api/ui/open' && req.method === 'POST') {
         let b = '';
@@ -574,6 +578,23 @@ describe('the app server API key', () => {
     const c = await runMode(['key', '--root', root, '--port', String(bad.port)]);
     assert.equal(c.code, 11);
     assert.equal(c.out, '');
+    reset();
+  });
+
+  // fix-bulk B1 — `key` exited 11 against the app's live server: one attest with a 1.5 s budget, while
+  // `port` mode retries. A busy app server (an export, a fresh boot) answers late; the key is still
+  // handed out only for an attested port, and a forged MAC still exits 11.
+  test('key mode: an app server that answers the check late still gets its key', async () => {
+    const root = project();
+    const slow = await fakeServer({ rootId: rootIdOf(root), slowAttests: 1, slowMs: 2000 });
+    reset();
+    writeRegistry(REG, [running(root, slow.port, KEY, { apiKey: API })]);
+    const a = await runMode(['key', '--root', root, '--port', String(slow.port)]);
+    assert.equal(a.code, 0);
+    assert.equal(a.out.trim(), API);
+    const u = await runMode(['launch-url', '--root', root, '--port', String(slow.port)]);
+    assert.equal(u.code, 0);
+    assert.match(u.out, /maude-launch=/);
     reset();
   });
 });
