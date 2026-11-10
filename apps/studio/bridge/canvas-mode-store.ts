@@ -31,12 +31,15 @@ import {
   type ToolId,
 } from './canvas-modes.ts';
 import { acceptFromShell } from './dgn-protocol.ts';
-import { type Insets, ZERO_INSETS } from './occlusion.ts';
+import { type Insets, type TopBand, ZERO_INSETS } from './occlusion.ts';
 
 export interface CanvasModeSnapshot {
   readonly insets: Readonly<Insets>;
   /** The `seq` of the applied `occluded-insets` (-1 = none yet). */
   readonly insetsSeq: number;
+  /** #217 — the free top band between the shell's top islands (iframe px), with the insets; null when the
+   *  shell sent none (an older shell, Present, no room) — the top-centre pill then centres on the frame. */
+  readonly topBand: Readonly<TopBand> | null;
   /** Governed (V2-4.3b): the shell's mode; null until the first applied `set-mode`. */
   readonly mode: CanvasModeV2 | null;
   readonly present: PresentSpec | null;
@@ -86,6 +89,7 @@ export function canvasModeStore(win: Window): CanvasModeStore {
   let snap: CanvasModeSnapshot = {
     insets: ZERO_INSETS,
     insetsSeq: -1,
+    topBand: null,
     mode: null,
     present: null,
     caps: null,
@@ -176,7 +180,12 @@ export function canvasModeStore(win: Window): CanvasModeStore {
     }
     if (m?.dgn !== 'occluded-insets') return;
     if (m.seq <= snap.insetsSeq) return; // I4 — an older (or repeated) seq is dropped
-    snap = { ...snap, insets: Object.freeze({ ...m.insets }), insetsSeq: m.seq };
+    snap = {
+      ...snap,
+      insets: Object.freeze({ ...m.insets }),
+      insetsSeq: m.seq,
+      topBand: m.topBand ? Object.freeze({ ...m.topBand }) : null,
+    };
     for (const fn of subs) fn(snap);
   });
   Object.defineProperty(store, 'doc', { value: win.document });

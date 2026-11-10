@@ -11,7 +11,7 @@
 // Pure and DOM-free on purpose (the hook in use-occluded-insets.js owns the observers): `measure`,
 // `send` and `schedule` are injected, so the pump is exercised headlessly.
 
-import { insetsFromIslands, ZERO_INSETS } from '../../../bridge/occlusion.ts';
+import { insetsFromIslands, topBandFromIslands, ZERO_INSETS } from '../../../bridge/occlusion.ts';
 
 const EDGES = new Set(['top', 'right', 'bottom', 'left']);
 
@@ -44,9 +44,23 @@ const boxOf = (el) => {
  * @param opts.presenting Present mode hides all chrome and the canvas uses 0 there — send zeros
  */
 export function measureShellInsets(frameEl, root, { presenting = false } = {}) {
-  if (presenting || !frameEl || !root) return { ...ZERO_INSETS };
+  const m = frameAndIslands(frameEl, root, presenting);
+  return m ? insetsFromIslands(m.frame, m.islands) : { ...ZERO_INSETS };
+}
+
+/**
+ * #217 — the free top band between the top islands (project pill on the left, the Share cluster on the right),
+ * in frame px; the canvas centres its top-centre pill there. Null in Present, with no frame, or with no room.
+ */
+export function measureShellTopBand(frameEl, root, { presenting = false } = {}) {
+  const m = frameAndIslands(frameEl, root, presenting);
+  return m ? topBandFromIslands(m.frame, m.islands) : null;
+}
+
+function frameAndIslands(frameEl, root, presenting) {
+  if (presenting || !frameEl || !root) return null;
   const frame = boxOf(frameEl);
-  if (!frame || !(frame.right > frame.left && frame.bottom > frame.top)) return { ...ZERO_INSETS };
+  if (!frame || !(frame.right > frame.left && frame.bottom > frame.top)) return null;
   const islands = [];
   for (const el of root.querySelectorAll('[data-occludes]')) {
     const edge = el.getAttribute('data-occludes');
@@ -54,7 +68,7 @@ export function measureShellInsets(frameEl, root, { presenting = false } = {}) {
     const rect = boxOf(el);
     if (rect) islands.push({ rect, edge });
   }
-  return insetsFromIslands(frame, islands);
+  return { frame, islands };
 }
 
 /**
@@ -92,26 +106,38 @@ export function seedOnLadder(pump, to, { alive = () => true, setTimer, clearTime
 
 const same = (a, b) =>
   a.top === b.top && a.right === b.right && a.bottom === b.bottom && a.left === b.left;
+const sameBand = (a, b) => (a && b ? a.left === b.left && a.right === b.right : a === b);
 
 /**
  * @param measure () => Insets      the current insets
- * @param send (seq, insets, to?) => void    `to` is undefined for "every canvas", a target for a seed
+ * @param measureBand () => TopBand | null   #217 — the free top band (optional; absent ⇒ never sent)
+ * @param send (seq, insets, to?, topBand?) => void    `to` is undefined for "every canvas", a target for a
+ *   seed; `topBand` is the band, or null when there is none to send
  * @param schedule (fn) => handle   requestAnimationFrame in the browser
  * @param cancel (handle) => void
  */
-export function createInsetsPump({ measure, send, schedule, cancel = () => {} }) {
+export function createInsetsPump({
+  measure,
+  measureBand = () => null,
+  send,
+  schedule,
+  cancel = () => {},
+}) {
   let seq = 0;
   let last = { ...ZERO_INSETS }; // what the canvases hold: the canvas default is all zero (seq -1)
+  let lastBand = null; // …and no band
   let handle = null;
   let disposed = false;
   const flush = () => {
     handle = null;
     if (disposed) return;
     const next = measure();
-    if (same(next, last)) return;
+    const band = measureBand();
+    if (same(next, last) && sameBand(band, lastBand)) return;
     last = next;
+    lastBand = band;
     seq += 1;
-    send(seq, next);
+    send(seq, next, undefined, band);
   };
   return {
     /** Ask for a re-measure; any number of calls in one frame make one send. */
@@ -132,9 +158,11 @@ export function createInsetsPump({ measure, send, schedule, cancel = () => {} })
     seed(to) {
       if (disposed) return;
       const next = measure();
+      const band = measureBand();
       last = next;
+      lastBand = band;
       seq += 1;
-      send(seq, next, to);
+      send(seq, next, to, band);
     },
     dispose() {
       disposed = true;

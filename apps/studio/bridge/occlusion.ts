@@ -106,3 +106,48 @@ export function revealViewBox(host: Box, ins: Insets | null | undefined): Box {
     bottom: host.top + v.y + v.h,
   };
 }
+
+/** #217 — the free stretch of the top edge between the top islands, in iframe px from its left edge
+ *  (`left` = the left island's right edge, `right` = the right cluster's left edge). The canvas centres
+ *  its top-centre pill (canvas-theme-pill.tsx) in it instead of in the whole frame. */
+export interface TopBand {
+  left: number;
+  right: number;
+}
+
+/** Validate an untrusted top band: both edges finite, 0 ≤ left < right ≤ 8192, rounded; else null. */
+export function clampTopBand(raw: unknown): TopBand | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const { left, right } = raw as Record<string, unknown>;
+  if (typeof left !== 'number' || typeof right !== 'number') return null;
+  if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
+  const l = Math.round(left);
+  const r = Math.round(right);
+  if (l < 0 || r > MAX_INSET_PX || !(l < r)) return null;
+  return { left: l, right: r };
+}
+
+/** Shell side: the top band the `top` islands leave free on the frame. An island whose centre is left of
+ *  the frame's centre bounds the band on the left (its right edge), any other on the right (its left
+ *  edge). Hidden islands, other edges and islands off the frame count for nothing. Null when no room is
+ *  left. */
+export function topBandFromIslands(
+  frame: Box,
+  islands: ReadonlyArray<{ rect: Box; edge: IslandEdge }>
+): TopBand | null {
+  if (!(frame.right > frame.left)) return null;
+  const mid = (frame.left + frame.right) / 2;
+  let lo = frame.left;
+  let hi = frame.right;
+  for (const { rect: r, edge } of islands) {
+    if (edge !== 'top' || !(r.right > r.left && r.bottom > r.top)) continue;
+    const ix = Math.min(r.right, frame.right) - Math.max(r.left, frame.left);
+    const iy = Math.min(r.bottom, frame.bottom) - Math.max(r.top, frame.top);
+    if (ix <= 0 || iy <= 0) continue; // off the frame (docked beside it)
+    if ((r.left + r.right) / 2 <= mid) lo = Math.max(lo, r.right);
+    else hi = Math.min(hi, r.left);
+  }
+  const left = Math.ceil(lo - frame.left);
+  const right = Math.floor(hi - frame.left);
+  return left < right ? { left, right } : null;
+}
