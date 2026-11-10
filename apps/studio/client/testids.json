@@ -44059,7 +44059,7 @@
     "hook": "canvas-theme-pill",
     "kind": "testid",
     "pattern": false,
-    "meaning": "r4 #6: the Light | Dark pill at the top of every ordinary canvas (the same one the Design system canvas has): it switches every artboard, starts at the canvas's design system's default, and the pick is remembered per canvas per Mac. Tagged `data-dc-overlay`, so an export never carries it.",
+    "meaning": "r4 #6: the Light | Dark pill at the top of every ordinary canvas (the same one the Design system canvas has): it switches every artboard, starts at the canvas's design system's default, and the pick is remembered per canvas per Mac. Tagged `data-dc-overlay`, so an export never carries it. #217: two lines, centred in the free top band the shell sends with `occluded-insets` (`data-band` is `band`, or `frame` when no band came) and never wider than it; `data-path` is `shown` or `hidden`.",
     "producer": {
       "file": "apps/studio/canvas-theme-pill.tsx",
       "symbol": "CanvasThemePill"
@@ -44067,6 +44067,7 @@
     "region": "canvas",
     "consumers": [],
     "sourceConsumers": [
+      "apps/studio/test/217-theme-pill-top-band.test.tsx",
       "apps/studio/test/r4-global-light-dark.test.tsx"
     ],
     "v2": "new"
@@ -44091,7 +44092,7 @@
     "hook": "canvas-theme-path",
     "kind": "testid",
     "pattern": false,
-    "meaning": "r5-8: the canvas's project-relative path on the Light | Dark pill (`.design/ui/v2/02 Onboarding.tsx`, shortened from the front when long). A click copies the whole path and the button reads \"Copied\" for a moment.",
+    "meaning": "r5-8 / #217: the canvas's project-relative path, the pill's second line, smaller and grey (`.design/ui/v2/02 Onboarding.tsx`, shortened from the front when long). A click copies the whole path and the button reads \"Copied\" for a moment. Steps aside first when the pill is short of room (the pill's `data-path` is `hidden`).",
     "producer": {
       "file": "apps/studio/canvas-theme-pill.tsx",
       "symbol": "CanvasThemePill"
@@ -44099,7 +44100,40 @@
     "region": "canvas",
     "consumers": [],
     "sourceConsumers": [
+      "apps/studio/test/217-theme-pill-top-band.test.tsx",
       "apps/studio/test/r5-canvas-theme-multiclass.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-theme-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#217: the pill's two-line text column: the design system's name over the canvas's path.",
+    "producer": {
+      "file": "apps/studio/canvas-theme-pill.tsx",
+      "symbol": "CanvasThemePill"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/217-theme-pill-top-band.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-theme-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#217: the pill's first line, the canvas's design system name. Truncates with an ellipsis only once the path line has stepped aside.",
+    "producer": {
+      "file": "apps/studio/canvas-theme-pill.tsx",
+      "symbol": "CanvasThemePill"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/217-theme-pill-top-band.test.tsx"
     ],
     "v2": "new"
   },

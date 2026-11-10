@@ -32,7 +32,7 @@ import {
   TOOL_IDS,
   type ToolId,
 } from './canvas-modes.ts';
-import { clampInsets, type Insets } from './occlusion.ts';
+import { clampInsets, clampTopBand, type Insets, type TopBand } from './occlusion.ts';
 import { parsePasteData } from './paste-data.ts';
 import { stillImageBytes } from './still-webp.ts';
 
@@ -743,7 +743,9 @@ export interface ShellToCanvas {
     tool?: ToolId;
     caps: ModeCaps;
   };
-  'occluded-insets': { seq: number; insets: Insets };
+  // #217 — `topBand`: the free stretch of the top edge between the top islands (iframe px); the canvas
+  // centres its top-centre pill there. Absent from an older shell (the pill centres on the frame).
+  'occluded-insets': { seq: number; insets: Insets; topBand?: TopBand };
   'present-step': { to: number | 'next' | 'prev' };
   // S3.7a — the follower page tells its canvas which session to follow (`sid: null` = the first
   // presenter seen), whether it is live, and whether it is the locked audience window.
@@ -1069,6 +1071,9 @@ const sid: V = (v) => (typeof v === 'string' && PRESENT_SID.test(v) ? v : BAD);
 export const PRESENT_NAME_MAX = 64;
 const presenterName: V = (v) => (typeof v === 'string' && v.length <= PRESENT_NAME_MAX ? v : BAD);
 const insets: V = (v) => clampInsets(v) ?? BAD;
+/** #217 — an optional cosmetic hint: a bad band is dropped (the pill centres on the frame), never the insets
+ *  the camera needs. */
+const topBand: V = (v) => (v === undefined ? undefined : (clampTopBand(v) ?? undefined));
 /** S10.4 — a designRoot-relative `.css` path; the same rule as the shell's `DS_CSS_REL` (no URL, no `..`). */
 const DS_CSS_REL = /^(?!\/)(?!.*\.\.)[A-Za-z0-9_][A-Za-z0-9 ._/-]{0,255}\.css$/;
 const dsCssPath: V = (v) => (typeof v === 'string' && DS_CSS_REL.test(v) ? v : BAD);
@@ -2685,7 +2690,7 @@ const s2c: S2C = {
     gate: 'parent',
     status: 'new',
     owner: 'bridge/canvas-mode-store',
-    parse: p({ seq: num, insets }),
+    parse: p({ seq: num, insets, topBand }),
   },
   // S3.1 — live: the shell lane's `step` sends it; canvas-mode-store keeps it for the Present stage.
   'present-step': {

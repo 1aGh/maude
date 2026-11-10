@@ -5,7 +5,12 @@
 import { useEffect, useRef } from 'react';
 import { postToCanvas } from '../../../bridge/dgn-protocol.ts';
 import { setShellInsets } from './insets-now.js';
-import { createInsetsPump, measureShellInsets, seedOnLadder } from './occlusion-insets.js';
+import {
+  createInsetsPump,
+  measureShellInsets,
+  measureShellTopBand,
+  seedOnLadder,
+} from './occlusion-insets.js';
 
 /** V2-4.3b — the live pump's synchronous flush, for the mode lane (insets before `set-mode`). A no-op
  *  until the hook has mounted. */
@@ -28,13 +33,18 @@ export function useOccludedInsets({ bodyRef, iframesRef, presenting, layoutKey }
     const frameEl = () => body.querySelector(':scope > .main');
     const measure = () =>
       measureShellInsets(frameEl(), body, { presenting: presentingRef.current });
+    // #217 — the free top band, so the canvas's top-centre pill sits between the islands, not under them
+    const measureBand = () =>
+      measureShellTopBand(frameEl(), body, { presenting: presentingRef.current });
     const frames = () => [...(iframesRef.current?.values() ?? [])];
     const pump = createInsetsPump({
       measure,
-      send(seq, insets, to) {
+      measureBand,
+      send(seq, insets, to, topBand) {
         setShellInsets(insets); // P8 C5: shell surfaces that centre on the free canvas read the same value
         const targets = to ? [to] : frames().map((f) => f.contentWindow);
-        for (const win of targets) postToCanvas(win, 'occluded-insets', { seq, insets }, '*');
+        const msg = topBand ? { seq, insets, topBand } : { seq, insets };
+        for (const win of targets) postToCanvas(win, 'occluded-insets', msg, '*');
       },
       schedule: (fn) => requestAnimationFrame(fn),
       cancel: (h) => cancelAnimationFrame(h),
