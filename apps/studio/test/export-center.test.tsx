@@ -334,3 +334,131 @@ describe('useExportCenter', () => {
     host.remove();
   });
 });
+
+// fix-bulk B5 — a second Print PDF ended "done" and no file reached Downloads: the Mac app's auto-save ran once,
+// at the done transition, and skipped it while the window was in the background (the person was in Finder
+// looking at the first file). Nothing ran it again, so the job never left `_export-jobs/` and was swept later.
+describe('useExportCenter — the Mac app delivers every done export', () => {
+  type W = { __TAURI__?: unknown };
+  let originalFetch: typeof fetch;
+  let originalHasFocus: typeof document.hasFocus;
+  let invoked: Array<{ cmd: string; args: Record<string, unknown> }>;
+  let n = 0;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    originalHasFocus = document.hasFocus;
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ jobs: [] }), { status: 200 })) as unknown as typeof fetch;
+    invoked = [];
+    n = 0;
+    (window as unknown as W).__TAURI__ = {
+      core: {
+        invoke: async (cmd: string, args: Record<string, unknown>) => {
+          invoked.push({ cmd, args });
+          n += 1;
+          // the shell numbers a clash: the second file of one name is "name (2).pdf"
+          return n === 1 ? '/Users/x/Downloads/letak.pdf' : '/Users/x/Downloads/letak (2).pdf';
+        },
+      },
+    };
+  });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    document.hasFocus = originalHasFocus;
+    (window as unknown as W).__TAURI__ = undefined;
+  });
+
+  const printJob = (id: string, saveTo = 'downloads') =>
+    job({
+      id,
+      format: 'pdf',
+      status: 'done',
+      filename: 'letak.pdf',
+      spec: { v: 2, options: { saveTo } },
+    });
+  const saves = () => invoked.filter((c) => c.cmd === 'save_export');
+  const settle = () => new Promise((r) => setTimeout(r, 20));
+
+  function probe() {
+    const host = document.createElement('div');
+    const root = mount(host);
+    const ref: { center?: ReturnType<typeof useExportCenter> } = {};
+    function Probe() {
+      ref.center = useExportCenter();
+      return null;
+    }
+    act(() => {
+      root.render(createElement(Probe));
+    });
+    return { root, ref };
+  }
+
+  test('a job that finishes while the window is in the background saves when it comes back', async () => {
+    const { root, ref } = probe();
+    document.hasFocus = () => false;
+    await act(async () => {
+      ref.center?.upsert(printJob('second', 'remembered'));
+      await settle();
+    });
+    expect(saves()).toHaveLength(0); // never pops anything while the person is elsewhere
+    document.hasFocus = () => true;
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+      await settle();
+    });
+    expect(saves()).toHaveLength(1);
+    expect(saves()[0]?.args).toMatchObject({ jobId: 'second', saveTo: 'remembered' });
+    // once only, however often the window comes back
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+      await settle();
+    });
+    expect(saves()).toHaveLength(1);
+    act(() => root.unmount());
+  });
+
+  test('Downloads needs no panel, so it saves at once even with the window in the background', async () => {
+    const { root, ref } = probe();
+    document.hasFocus = () => false;
+    await act(async () => {
+      ref.center?.upsert(printJob('bg'));
+      await settle();
+    });
+    expect(saves()).toHaveLength(1);
+    act(() => root.unmount());
+  });
+
+  test('two exports of one name both land, and each says the file it became', async () => {
+    const { root, ref } = probe();
+    document.hasFocus = () => true;
+    await act(async () => {
+      await settle(); // the first list has arrived
+    });
+    await act(async () => {
+      ref.center?.upsert(printJob('first'));
+      await settle();
+    });
+    await act(async () => {
+      ref.center?.upsert(printJob('again'));
+      await settle();
+    });
+    expect(saves().map((c) => c.args.jobId)).toEqual(['first', 'again']);
+    expect(ref.center?.savedPaths.get('first')).toBe('/Users/x/Downloads/letak.pdf');
+    expect(ref.center?.savedPaths.get('again')).toBe('/Users/x/Downloads/letak (2).pdf');
+    act(() => root.unmount());
+  });
+
+  test('a job pushed before the first list arrives is kept, and saved', async () => {
+    const { root, ref } = probe();
+    document.hasFocus = () => true;
+    // no wait: the push lands while the hydration GET is still in flight
+    await act(async () => {
+      ref.center?.upsert(printJob('early'));
+      await settle();
+    });
+    expect(ref.center?.jobs.map((j) => j.id)).toEqual(['early']);
+    expect(saves().map((c) => c.args.jobId)).toEqual(['early']);
+    act(() => root.unmount());
+  });
+});

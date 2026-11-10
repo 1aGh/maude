@@ -13,15 +13,12 @@ import { isNativeApp } from '../../github.js';
 import { DegradedNote, ProgressBar } from './job-row.jsx';
 import { progressPct, toastWords } from './exports-model.js';
 
-const folderOf = (p) =>
-  typeof p === 'string' && p ? (p.split(/[\\/]/).filter(Boolean).slice(-2, -1)[0] ?? null) : null;
-
 function JobNotice({ job, center, say, native }) {
   const saving = center.savingIds.has(job.id);
   const pending = job.status === 'queued' || job.status === 'running';
   const id = `export-${job.id}`;
-  const folder = folderOf(center.savedPaths?.get(job.id));
-  const w = toastWords(job, { native, folder });
+  // fix-bulk B5: the file this Mac wrote — its own name (a clash makes "name (2).pdf") and its folder
+  const w = toastWords(job, { native, saved: center.savedPaths?.get(job.id) ?? null });
 
   useEffect(() => {
     const act = () => {
