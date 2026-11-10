@@ -38,6 +38,7 @@ import {
 } from '../lib/export-spec.mjs';
 import { writeGitignoreBlock } from '../lib/gitignore-block.mjs';
 import { isCompiledBinary, resolveAppSidecar } from '../lib/pkg-root.mjs';
+import { studioHeaders } from '../lib/studio-locate.mjs';
 import { subVerbArgs } from '../lib/sub-verbs.mjs';
 
 const SUBCOMMANDS = new Set([
@@ -991,6 +992,42 @@ function checkDevDeps({ pkgRoot }) {
   return missing;
 }
 
+const UNVERIFIED_LINE =
+  'Maude has this project open, but its server did not answer the check. Close and reopen the tab in Maude, or quit Maude to use a separate server.';
+
+/**
+ * fix-bulk B1 — `{ base, apiKey? }` of the studio an export goes to, or `{ error }`. The project is
+ * the session's (AI chat) or the one at or above the cwd; `--port` names a port, else the app's
+ * attested server or `_server.json` (verified by `/_health`) is used. Always 127.0.0.1.
+ */
+export async function exportStudio(portFlag, { env = process.env, cwd = process.cwd() } = {}) {
+  const { sessionRoot } = await import('../lib/confine-root.mjs');
+  const { probeStudio } = await import('../lib/studio-locate.mjs');
+  const { ATTEST_PATIENCE, serverKeyFor } = await import('../lib/desktop-locate.mjs');
+  const root = sessionRoot(env, cwd) ?? cwd;
+  if (portFlag !== undefined && portFlag !== true) {
+    const port = Number(portFlag);
+    if (!Number.isInteger(port) || port < 1 || port > 65535)
+      return { error: `--port ${portFlag} is not a port.` };
+    const k = await serverKeyFor(root, port, { env, ...ATTEST_PATIENCE });
+    if (k.unverified) return { error: UNVERIFIED_LINE };
+    return { base: `http://127.0.0.1:${port}`, ...(k.key ? { apiKey: k.key } : {}) };
+  }
+  const p = await probeStudio(root, {
+    timeoutMs: ATTEST_PATIENCE.timeoutMs,
+    attempts: ATTEST_PATIENCE.attempts,
+    retryDelayMs: ATTEST_PATIENCE.retryDelayMs,
+  });
+  if (p.studio) return p.studio;
+  if (p.unverified) return { error: UNVERIFIED_LINE };
+  if (p.state === 'busy')
+    return { error: 'the studio is busy and did not answer. Try again in a moment.' };
+  return {
+    error:
+      'no running studio for this project (no --port given, and neither the Maude app nor .design/_server.json names one). Open the project in Maude, or start one with `maude design serve`.',
+  };
+}
+
 async function runExport({ args }) {
   // `maude design export <format> [--scope ...] [--port N] [--out <path>] [--option key=value]`
   // v2 (S8.1c, contract S8-export-spec.md §5.7): `--scope selection|canvas|folder|project` with
@@ -1022,20 +1059,15 @@ async function runExport({ args }) {
     process.exit(2);
   }
 
-  // Resolve port: --port > .design/_server.json
-  let port = flags.port ? Number(flags.port) : null;
-  if (!port) {
-    try {
-      const raw = await readFile(resolve(process.cwd(), '.design', '_server.json'), 'utf8');
-      port = JSON.parse(raw).port;
-    } catch {
-      /* no server.json — handled below */
-    }
-  }
-  if (!port) {
-    process.stderr.write(
-      'maude design export: no --port given and .design/_server.json not found. Start the dev server first (`maude design serve`).\n'
-    );
+  // fix-bulk B1 (#221) — the studio and its key, the way every other verb finds them
+  // (sec-loopback-bearer §7.6): the desktop app's ATTESTED server for this project first (its key from
+  // the app's registry), else `_server.json`'s port once `/_health` names this project (a
+  // terminal-started server's key from its per-user key file). An explicit --port gets the key of
+  // whichever of those serves there. Never a key or an address from a project file; the export used
+  // to POST with no key at all, and a server in required mode answered 401 api-key-required.
+  const studio = await exportStudio(flags.port);
+  if (studio.error) {
+    process.stderr.write(`maude design export: ${studio.error}\n`);
     process.exit(1);
   }
 
@@ -1065,9 +1097,9 @@ async function runExport({ args }) {
     body = { format, scope, options: parsed.options };
   }
 
-  const r = await fetch(`http://localhost:${port}${route}`, {
+  const r = await fetch(`${studio.base}${route}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: studioHeaders(studio, { 'content-type': 'application/json' }),
     body: JSON.stringify(body),
   });
   if (!r.ok) {

@@ -17,10 +17,24 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const BIN = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'apps', 'studio', 'bin');
+const HERE = dirname(fileURLToPath(import.meta.url));
+const BIN = join(HERE, '..', '..', 'apps', 'studio', 'bin');
+// fix-bulk B1 (#221) — the in-process verbs too: `maude design export` POSTed /_api/export with no key
+// and every export from the CLI and the AI chat answered 401 api-key-required.
+const CLI_DIRS = [join(HERE, '..', 'commands'), HERE];
+
+/** CLI files whose calls are not the studio's main origin. Each with its reason. */
+const CLI_NOT_THE_STUDIO = {
+  'hub.mjs': '`maude hub status` probes a hub’s /health at the URL the person names',
+  'design-link.mjs': 'probes a hub’s /health while linking; the studio is never called here',
+  'hub-workspace.mjs': 'a self-hosted workspace’s own services (auth, storage, render)',
+  'kg.mjs': 'GitHub releases API',
+  'update-check.mjs': 'the npm registry',
+};
 
 /** §7.3 — answered without a credential. */
-const EXEMPT_PATH = /\/(_health|_canvas-runtime\/|_canvas-shell(\.html)?\b)/;
+const EXEMPT_PATH =
+  /\/(_health|_canvas-runtime\/|_canvas-shell(\.html)?\b|_api\/shell\/(status|attest|clip-export|clip-asset|clip-import)\b)/;
 /** A studio address a helper builds: loopback + a port variable. */
 const STUDIO_URL = /(127\.0\.0\.1|localhost):\$\{?(PORT|port|SERVER_PORT|p)\b/;
 
@@ -109,6 +123,16 @@ test('every JS helper sends the API key on a studio fetch', () => {
   assert.deepEqual(bad, [], `a studio fetch without the API key:\n${bad.join('\n')}`);
 });
 
+test('every in-process CLI verb sends the API key on a studio fetch', () => {
+  const bad = [];
+  for (const dir of CLI_DIRS)
+    for (const f of readdirSync(dir).filter(
+      (x) => x.endsWith('.mjs') && !x.endsWith('.test.mjs') && !CLI_NOT_THE_STUDIO[x]
+    ))
+      for (const l of bareStudioFetches(readFileSync(join(dir, f), 'utf8'))) bad.push(`${f}:${l}`);
+  assert.deepEqual(bad, [], `a studio fetch without the API key:\n${bad.join('\n')}`);
+});
+
 test('the checks see the shapes they are for', () => {
   assert.equal(bareStudioCurls('PORT=1\ncurl -s "http://127.0.0.1:$PORT/_api/x"\n').length, 1);
   assert.equal(
@@ -127,6 +151,13 @@ test('the checks see the shapes they are for', () => {
     0
   );
   assert.equal(bareStudioFetches('fetch(`http://127.0.0.1:${port}/_health`)').length, 0);
+  // the shape `maude design export` had before fix-bulk B1
+  assert.equal(
+    bareStudioFetches(
+      "const raw = readFile('.design/_server.json');\nconst r = await fetch(`http://localhost:${port}${route}`, {\n  method: 'POST',\n  headers: { 'content-type': 'application/json' },\n});"
+    ).length,
+    1
+  );
 });
 
 test('the bash key helpers never put the key on argv or in the environment', () => {

@@ -55,8 +55,14 @@ export async function probeStudio(
   root,
   { timeoutMs = 300, attempts = 1, retryDelayMs = 250 } = {}
 ) {
-  const app = await probeDesktop(root, { timeoutMs: Math.max(timeoutMs, 300) });
-  if (app.state === 'unverified') return { state: 'none' };
+  // fix-bulk B1 — the app's attest check gets the same tries as `/_health` below: a busy app server
+  // (an export, a fresh boot) answers late, and one try read as "no studio" for every verb
+  const app = await probeDesktop(root, {
+    timeoutMs: Math.max(timeoutMs, 300),
+    attempts,
+    retryDelayMs,
+  });
+  if (app.state === 'unverified') return { state: 'none', unverified: true };
   if (app.state === 'running') {
     const base = `http://127.0.0.1:${app.port}`;
     let health = null;
