@@ -24,7 +24,7 @@ The hook refuses a write with a named reason. Do not retry the same edit, and ne
 | --- | --- | --- |
 | `artboard-busy:` | another AI is changing that artboard (the text names whose) | Work on the other artboards, or edit a copy. In a Maude chat the rest comes back to this chat when the artboard is free. |
 | `soft-locked:` | a person is editing that element, or it is locked | Change the rest. Leave that element, and say so in the result. |
-| `out-of-scope:` | this chat started from a selection and the edit reaches outside it | Change only the selection, or ask the person to widen it. |
+| `out-of-scope:` | the edit reaches another canvas than the chat's, or outside the elements a ⌘/ ask named (selected artboards alone never refuse) | Change only what the reason names as inside, or ask the person to widen it. |
 | `lease-lost:` | this chat lost its turn while the Mac slept and another AI changed the artboard | Stop editing. The person decides whether to keep going. |
 | `read-only:` | the project is view-only here | Describe the change instead. |
 | `whole-file-rewrite:` | a Write over an existing canvas | Use Edit. It keeps the element ids. |

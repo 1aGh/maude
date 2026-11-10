@@ -228,17 +228,13 @@ describe('H1 — a write on an artboard another run holds → artboard-busy', ()
   });
 });
 
-describe('H2 — a write outside the chip → out-of-scope', () => {
-  test('another artboard and code every artboard shares are out of scope; an import is not', async () => {
+describe('H2 — the chip’s artboards are a hint (#219), its canvas is the scope', () => {
+  test('another artboard and code every artboard shares are allowed and leased; an import needs no lease', async () => {
     await chatRun('c2', ['hero']);
     await post('/_api/agent/run/begin', { session: 's2', chat: 'c2', actor: 'maude-chat' });
     expect((await check('s2', HERO, 'c2')).body).toEqual({ decision: 'none' });
-    const off = await check('s2', PRICING, 'c2');
-    expect(off.body.code).toBe('out-of-scope');
-    expect(off.body.artboards).toEqual(['pricing']);
-    const shared = await check('s2', SHARED, 'c2');
-    expect(shared.body.code).toBe('out-of-scope');
-    noSecrets(shared.body.reason);
+    expect((await check('s2', PRICING, 'c2')).body).toEqual({ decision: 'none' });
+    expect((await check('s2', SHARED, 'c2')).body).toEqual({ decision: 'none' });
     // an import-only addition needs no lease and is inside every scope (V2-1.15 §4 #9)
     const imp = await check(
       's2',
@@ -330,7 +326,8 @@ describe('H4 — the hub away: a provisional claim, confirmed by CAS; a lost CAS
 
 describe('H5 — MAUDE_CHAT_ID binds the hook to the chat’s starting run', () => {
   test('run/begin with `chat` is that run — never a second one; without it a lazy claude-code run', async () => {
-    const run = await chatRun('c6', ['hero']);
+    // an element-scoped ask (⌘/ on a selection): its scope still limits writes, so it shows the binding
+    const run = await chatRun('c6', ['hero'], ['title']);
     expect(run.state).toBe('starting');
     const a = await post('/_api/agent/run/begin', {
       session: 's6',

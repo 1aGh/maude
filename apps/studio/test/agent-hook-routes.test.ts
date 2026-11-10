@@ -390,7 +390,10 @@ describe('POST /_api/agent/* (routes/agent.ts)', () => {
     await post('/_api/agent/run/end', { session: 'sl', outcome: 'done' });
   });
 
-  test('edit/check: a selection-scoped run (⌘/, G-AI-6) outside its scope → deny out-of-scope', async () => {
+  // #219 — the artboards a chat started from (the scope chip, which follows the selection) are a hint
+  // for the AI, not a write lock: another artboard of the same canvas is allowed and leased like any
+  // lazy write, so "one AI per artboard" still holds. Another canvas stays out of scope.
+  test('edit/check: an artboard-scoped run may change other artboards of its canvas; another canvas is out-of-scope (#219)', async () => {
     writeFileSync(join(project, '.design', 'ui', 'S.tsx'), CANVAS);
     const begun = await post('/_api/agent/run/begin', {
       session: 'sq',
@@ -403,13 +406,23 @@ describe('POST /_api/agent/* (routes/agent.ts)', () => {
     const inside = await ask('q1', 'ui/S.tsx', { old: 'Hi', new: 'Hello' });
     expect(inside.body).toEqual({ decision: 'none' });
     const other = await ask('q2', 'ui/S.tsx', { old: '<p>x</p>', new: '<p>y</p>' });
-    expect(other.body.code).toBe('out-of-scope');
-    expect(other.body.artboards).toEqual(['pricing']);
-    expect(String(other.body.reason)).toMatch(/^out-of-scope: .*hero/);
+    expect(other.body).toEqual({ decision: 'none' });
+    // the write leased `pricing` for this run: another AI is still kept off it
+    await post('/_api/agent/run/begin', { session: 'sq2', actor: 'claude-code' });
+    const rival = await post('/_api/agent/edit/check', {
+      session: 'sq2',
+      toolUseId: 'q2b',
+      tool: 'Edit',
+      path: 'ui/S.tsx',
+      edit: { old: '<p>x</p>', new: '<p>z</p>' },
+    });
+    expect(rival.body.code).toBe('artboard-busy');
+    await post('/_api/agent/run/end', { session: 'sq2', outcome: 'done' });
     const shared = await ask('q3', 'ui/S.tsx', { old: "'warm'", new: "'cool'" });
-    expect(shared.body.code).toBe('out-of-scope');
+    expect(shared.body).toEqual({ decision: 'none' });
     const elsewhere = await ask('q4', 'ui/L.tsx', { old: '>Hi<', new: '>Yo<' });
     expect(elsewhere.body.code).toBe('out-of-scope');
+    expect(String(elsewhere.body.reason)).toMatch(/^out-of-scope: .*ui\/S\.tsx/);
     // a bad scope is a usage error
     for (const scope of [
       { canvas: '../x.tsx' },
@@ -483,7 +496,8 @@ ${planted}" /></DCArtboard>
       expect(busy.body.code).toBe('artboard-busy');
       unsafe(busy.body.reason);
     }
-    // out-of-scope: the reached artboards are named sanitised too
+    // #219: an artboard scope no longer refuses another artboard — the edit reaches the lock check,
+    // whose reason names the planted artboard sanitised too
     await post('/_api/agent/run/begin', {
       session: 'se5',
       actor: 'maude-chat',
@@ -496,9 +510,8 @@ ${planted}" /></DCArtboard>
       path: 'ui/E.tsx',
       edit: { old: 'alt="pic', new: 'alt="pic2' },
     });
-    expect(scoped.body.code).toBe('out-of-scope');
+    expect(scoped.body.code).toBe('soft-locked');
     unsafe(scoped.body.reason);
-    expect(scoped.body.artboards).toEqual([]);
     for (const s of ['se1', 'se3', 'se4', 'se5'])
       await post('/_api/agent/run/end', { session: s, outcome: 'done' });
   });

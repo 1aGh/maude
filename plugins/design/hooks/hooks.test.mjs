@@ -998,7 +998,7 @@ describe('S5.4 — MAUDE_CHAT_ID binds a chat’s hooks to its run (V2-1.15 §5.
   });
   const CHAT = { MAUDE_AGENT_ACTOR: 'maude-chat', MAUDE_CHAT_ID: 'chat1' };
 
-  test('the chat’s prompt hook is its `starting` run; its chip denies the other artboard', async () => {
+  test('the chat’s prompt hook is its `starting` run; its chip does not lock the other artboard', async () => {
     const run = await reg.ask({
       chatId: 'chat1',
       origin: 'maude-chat',
@@ -1011,8 +1011,9 @@ describe('S5.4 — MAUDE_CHAT_ID binds a chat’s hooks to its run (V2-1.15 §5.
     expect(await hook('pre-edit', edit(project, 'cs1', 'e1', 'Hi', 'Hello'), CHAT)).toMatchObject({
       stdout: '',
     });
+    // #219: the chip's artboard is a hint, not a lock — another artboard of the canvas is allowed
     const off = await hook('pre-edit', edit(project, 'cs1', 'e2', '<p>x</p>', '<p>y</p>'), CHAT);
-    expect(isDeny(off, 'out-of-scope')).toBe(true);
+    expect(off).toMatchObject({ stdout: '' });
   });
 
   test('a terminal session (no MAUDE_CHAT_ID) is its own run and is denied the chat’s artboard', async () => {

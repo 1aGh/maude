@@ -809,11 +809,15 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
           ? ('*' as const)
           : reach.artboards;
       const self = runs.get(session, chat);
-      // G-AI-6: a ⌘/ selection-scoped run changes only its selection
+      // G-AI-6: a scoped run changes only its canvas. #219 (Michal): the ARTBOARDS a chat started from
+      // (the scope chip follows the selection) are a hint for the AI, never a write lock — another
+      // artboard of the canvas goes on to the lock, hold and lease checks below like any lazy write,
+      // so one AI per artboard still holds. Only an element-scoped ask (⌘/ on a selection, S2.19)
+      // keeps its artboards as a limit.
       const sc = self?.scope;
       if (sc) {
         const offCanvas = rel !== sc.canvas;
-        const allowed = sc.artboards.length ? sc.artboards : null;
+        const allowed = sc.artboards.length && sc.elements?.length ? sc.artboards : null;
         const outside = offCanvas
           ? reach.artboards
           : allowed
