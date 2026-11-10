@@ -2,7 +2,7 @@
 //
 // The words ratchet (plugin-v2-words.test.mjs) keeps the old strings out. These pins keep the
 // behaviour that replaced them:
-//   - a canvas is made by the create the app uses (POST /_api/canvas), never by a template copy
+//   - a canvas is made by the create the app uses (`maude design canvas-new` → POST /_api/canvas), never by a template copy
 //     and a hand-written .meta.json, so the file, the name and the meta match ⌘N;
 //   - the draft arrives artboard by artboard: every artboard empty with its kind and size, then
 //     big before small, words last;
@@ -60,8 +60,9 @@ test('S12.10: no stage hand-rolls a canvas file or its .meta.json (reachability 
 
 test('S12.10: a canvas is made by the app’s own create, with the C4 name and the system', () => {
   const t = refText('09-');
-  assert.match(t, /maude design curl-local/);
-  assert.match(t, /\/_api\/canvas/);
+  // since the 2.1.x key gate the create is the keyed verb, never curl-local (fix bulk 2026-11-10)
+  assert.match(t, /maude design canvas-new/);
+  assert.doesNotMatch(t, /curl-local[^\n]*\/_api\/canvas/);
   assert.match(t, /Untitled canvas/);
   assert.match(t, /"designSystem"|designSystem/);
   assert.match(t, /folder/i, 'the folder a canvas starts in is named');
@@ -82,7 +83,7 @@ test('S12.10: the draft goes artboard by artboard — empty first, big before sm
 
 test('S12.10: a blank brief canvas is made by the create too, and the seed hint is one Edit', () => {
   const t = refText('10-');
-  assert.match(t, /\/_api\/canvas/);
+  assert.match(t, /maude design canvas-new [^\n]*--kind brief-board/);
   assert.match(t, /maude design open/);
   assert.doesNotMatch(t, /_active\.json/, 'the studio owns the active canvas');
 });

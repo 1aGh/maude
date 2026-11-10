@@ -147,7 +147,8 @@ test('S12.14: generate covers the three modalities and the take swap', () => {
 
 test('S12.14: reel makes its canvas with the app’s create and places shots with reel-place', () => {
   const r = readVideo('commands/reel.md');
-  assert.match(r, /POST \/_api\/canvas/);
+  assert.match(r, /maude design canvas-new/);
+  assert.doesNotMatch(r, /curl-local[^\n]*\/_api\/canvas/);
   assert.match(r, /maude design reel-place <slug> --next/);
   assert.doesNotMatch(r, /Maude 1\.x/);
   assert.doesNotMatch(r, /View → Timeline/);
