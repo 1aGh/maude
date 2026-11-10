@@ -23,7 +23,7 @@ import {
 } from 'node:fs';
 import { createServer } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
-import { homedir, tmpdir } from 'node:os';
+import { homedir, tmpdir, userInfo } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -923,5 +923,48 @@ describe('a terminal-started server key', () => {
     assert.equal((await runMode(['key', '--root', root, '--port', String(other.port)])).code, 10);
     const plain = await runMode(['launch-url', '--root', root, '--port', String(other.port)]);
     assert.equal(plain.out.trim(), `http://localhost:${other.port}/`);
+  });
+});
+
+// #218 — an AI chat's Bash assigned a prompt fragment to a shell variable named HOME
+// (`HOME="HOME kit (the two dark green jerseys …)"`), then ran `maude design generate`. The helper
+// resolved the app registry and the terminal key dir from that $HOME, found no server, sent no
+// studio key, and the server's `api-key-required` read as "no Gemini key". A $HOME that is not an
+// absolute path is not a home: the account's own home (the passwd entry) stands in.
+describe('a clobbered $HOME (#218)', () => {
+  const withHome = (value, fn) => {
+    const prev = process.env.HOME;
+    process.env.HOME = value;
+    try {
+      return fn();
+    } finally {
+      if (prev === undefined) delete process.env.HOME;
+      else process.env.HOME = prev;
+    }
+  };
+  const real = userInfo().homedir;
+  const BAD = 'HOME kit (the two dark green jerseys on the left of the drawing): dark green jersey';
+
+  test('the registry path and the terminal key dir come from the account, not the stray value', () => {
+    withHome(BAD, () => {
+      assert.equal(
+        appDataRegistryPath({ HOME: BAD }, 'darwin'),
+        join(real, 'Library', 'Application Support', 'com.maude.app', 'servers.json')
+      );
+      assert.equal(serverKeyDir({ HOME: BAD }), join(real, '.local', 'state', 'maude', 'servers'));
+    });
+  });
+
+  test('an absolute $HOME still wins (throwaway-HOME harnesses keep working)', () => {
+    withHome('/tmp/fake-home', () => {
+      assert.equal(
+        appDataRegistryPath({ HOME: '/tmp/fake-home' }, 'darwin'),
+        '/tmp/fake-home/Library/Application Support/com.maude.app/servers.json'
+      );
+      assert.equal(
+        serverKeyDir({ HOME: '/tmp/fake-home' }),
+        '/tmp/fake-home/.local/state/maude/servers'
+      );
+    });
   });
 });

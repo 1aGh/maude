@@ -37,7 +37,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { createConnection } from 'node:net';
-import { homedir } from 'node:os';
+import { homedir, userInfo } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -115,8 +115,26 @@ function real(p) {
 
 const underTest = (e) => !!e && (!!e.NODE_TEST_CONTEXT || e.NODE_ENV === 'test');
 
+/**
+ * #218 — the home the app's files sit under. `$HOME` when it is an absolute path (a throwaway-HOME
+ * harness keeps its own); anything else is not a home — an AI chat's shell once assigned a prompt
+ * fragment to a variable named HOME, every helper then found no app and sent no studio key — so the
+ * account's own home (the passwd entry, which ignores `$HOME`) stands in. Never throws.
+ */
+export function homeOf(env = process.env) {
+  const h = env.HOME;
+  if (h && isAbsolute(h)) return h;
+  try {
+    const u = userInfo().homedir;
+    if (u && isAbsolute(u)) return u;
+  } catch {
+    /* no passwd entry: the platform default below */
+  }
+  return homedir();
+}
+
 /** The registry the app writes: Tauri's `app_data_dir()` + `servers.json` (cli-yield.ts registryPath). */
-export function registryPath(env = process.env, platform = process.platform, home = homedir()) {
+export function registryPath(env = process.env, platform = process.platform, home = homeOf(env)) {
   const override = env[REGISTRY_FILE_ENV];
   if (override && isAbsolute(override)) return override;
   // Under a test runner (node --test, bun test) only an explicit override counts: a suite that runs
@@ -129,7 +147,7 @@ export function registryPath(env = process.env, platform = process.platform, hom
 export function appDataRegistryPath(
   env = process.env,
   platform = process.platform,
-  home = homedir()
+  home = homeOf(env)
 ) {
   if (platform === 'darwin')
     return join(home, 'Library', 'Application Support', APP_IDENTIFIER, 'servers.json');
@@ -324,9 +342,9 @@ const LAUNCH_DOMAIN = 'maude-launch/1';
 const HELPER_LAUNCH_DOMAIN = 'maude-launch-helper/1';
 
 /** apps/studio/shell/key-file.ts `serverKeyDir`, verbatim: `<state>/maude/servers`. */
-export function serverKeyDir(env = process.env, home = homedir()) {
+export function serverKeyDir(env = process.env, home = homeOf(env)) {
   const s = env.XDG_STATE_HOME;
-  const state = s && isAbsolute(s) ? s : join(env.HOME || home, '.local', 'state');
+  const state = s && isAbsolute(s) ? s : join(home, '.local', 'state');
   return join(state, 'maude', 'servers');
 }
 
