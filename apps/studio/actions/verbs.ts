@@ -48,6 +48,10 @@ const t = (verb: string, effect: VerbEffect, extra: Partial<VerbDef> = {}): Verb
 const KG_LOG =
   'writes the versioned .kgai log (repo-tracked, merge=union) — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)';
 
+// fix-bulk 2026-11-10 follow-up (lead brief: "keep each family's tier; do NOT widen").
+const HELD_AT_RECIPE_TIER =
+  'replaced a `curl-local` recipe (prompt) that a keyed studio answered 401 — lead: keeps prompting, a key fix widens no tier';
+
 export const MAUDE_VERBS: readonly VerbDef[] = [
   // ── `maude design`, effect none (reads, computes, runtime `_*` state) ────────────────────
   d('prep', 'none'),
@@ -158,6 +162,45 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
     hold: '/design:export documents `--out ~/Downloads/…` — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)',
   }),
   d('ds-check', 'project', { note: '--fix=mechanical / --emit write canvases / tokens.json' }),
+  // fix-bulk 2026-11-10 follow-up — the verbs that replaced the last `curl-local` recipes (a keyed studio
+  // answered those 401, sec-loopback-bearer §7). Each keeps its action's effect (actions/agents.ts) and
+  // the prompt tier the recipe had: a key fix widens nothing. The Sync details answers are shared
+  // (they change the project for everyone), so they prompt by their effect.
+  d('asset-trash', 'project', {
+    hold: HELD_AT_RECIPE_TIER,
+    note: 'Assets › Move to trash: pictures and sidecars to _trash/; one a canvas uses stays',
+  }),
+  d('asset-rename', 'project', {
+    hold: HELD_AT_RECIPE_TIER,
+    note: 'Assets › Rename…: a picture and its sidecars; one a canvas uses keeps its name',
+  }),
+  d('retry-save', 'project', {
+    hold: HELD_AT_RECIPE_TIER,
+    note: 'Retry on Not saved: lands the canvas writes a full disk held',
+  }),
+  d('footage', 'project', {
+    hold: HELD_AT_RECIPE_TIER,
+    note: '`show` reads a clip’s analysis / a cut’s EDL; `save` writes assets/<sha8>.footage.json or the EDL',
+  }),
+  d('sync compare', 'none', {
+    hold: HELD_AT_RECIPE_TIER,
+    note: 'a held source conflict’s two versions, read only',
+  }),
+  d('sync cancel-transfer', 'none', {
+    hold: HELD_AT_RECIPE_TIER,
+    note: 'stops the running picture / video transfer; it starts again on the next sync',
+  }),
+  d('sync keep-mine', 'shared', { note: 'a held source conflict: this Mac’s version wins' }),
+  d('sync use-theirs', 'shared', { note: 'a held source conflict: the project’s version wins' }),
+  d('sync keep-both', 'shared', {
+    note: 'a held source conflict: the project’s version, and this Mac’s as a new canvas',
+  }),
+  d('sync publish-ai-edit', 'shared', {
+    note: 'an unfinished AI edit held from the project goes out',
+  }),
+  d('sync discard-ai-edit', 'shared', {
+    note: 'an unfinished AI edit held from the project is undone',
+  }),
   // ── `maude design`, prompt ────────────────────────────────────────────────────────────────
   d('curl-local', 'external', { note: 'any method/body against any loopback port: every route' }),
   d('draw-build', 'external', { note: 'runs model-authored code (Q2)' }),

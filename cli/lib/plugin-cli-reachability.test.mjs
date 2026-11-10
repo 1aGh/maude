@@ -102,7 +102,7 @@ test('the V2-2.4b verbs are reachable as `maude design <verb>` and answer --help
 // S12.9: a plugin never `curl`s a studio route that has a verb or a hook behind it. The v1
 // /design:edit step 4.5 did (`/_api/ai/start|heartbeat|end`): in v2 the hooks open and close the
 // run and the run folder line names it, so a second, hand-made bracket would fork the run
-// registry (two runs for one edit). A `curl` at a route with no verb (footage, export-jobs) stays
+// registry (two runs for one edit). A `curl` at a route with no verb (export-jobs) stays
 // legal until its own verb lands; `curl-local` is the loopback-only wrapper, not a raw curl.
 const ROUTES_WITH_A_VERB = [
   ['/_api/ai/start', 'the hooks, which open the run'],
@@ -120,6 +120,14 @@ const ROUTES_WITH_A_VERB = [
   // fix-bulk W1 follow-up — and with the studio's key, which no curl carries (curl-local-keyed-routes.test.mjs)
   ['/_api/canvas', '`maude design canvas-new`'],
   ['/_api/fs-move', '`maude design canvas-move`'],
+  // fix-bulk 2026-11-10 follow-up — the same reason
+  ['/_api/assets/trash', '`maude design asset-trash`'],
+  ['/_api/assets/rename', '`maude design asset-rename`'],
+  ['/_api/diagnostics/disk-retry', '`maude design retry-save`'],
+  ['/_api/project/conflict', '`maude design sync compare|keep-mine|use-theirs|keep-both`'],
+  ['/_api/project/ai-action', '`maude design sync publish-ai-edit|discard-ai-edit`'],
+  ['/_api/sync/cancel-assets', '`maude design sync cancel-transfer`'],
+  ['/_api/footage', '`maude design footage show|save`'],
 ];
 
 function markdownUnder(dir, out = []) {

@@ -7,7 +7,7 @@ its beat.
 
 | What the person does | What an agent does |
 | --- | --- |
-| Clip inspector › Other takes…, or ⌘K › Swap a take, then click a take | Read the shots: `GET /_api/footage?asset=assets/<sha8>.<ext>` (`{}` when AI has not watched the clip; run `/design-video:video-analyze` first). Then `video.take.swap` through `POST /_api/edit-op` with `{ stableId, srcStart, sourceSeconds }`; it sets the clip media's `trimBefore` (output frames) and keeps `durationInFrames`, so nothing after it moves. |
+| Clip inspector › Other takes…, or ⌘K › Swap a take, then click a take | Read the shots: `maude design footage show --asset assets/<sha8>.<ext>` (`{}` when AI has not watched the clip; run `/design-video:video-analyze` first). Then `video.take.swap` through `POST /_api/edit-op` with `{ stableId, srcStart, sourceSeconds }`; it sets the clip media's `trimBefore` (output frames) and keeps `durationInFrames`, so nothing after it moves. |
 
 What counts as a take: a **usable** shot that is at least as long as the clip's source window
 (`durationInFrames × playbackRate ÷ fps` seconds), and whose start leaves that much source after it

@@ -93,6 +93,13 @@ const BIN_VERBS = new Set([
   // `curl-local …/_api/canvas|fs-move`, which every keyed studio answers 401 (sec-loopback-bearer §7).
   'canvas-new',
   'canvas-move',
+  // fix-bulk 2026-11-10 follow-up — the last `curl-local` recipe families, each a verb that sends the
+  // studio's key: Assets › Move to trash / Rename…, Retry on Not saved, and the footage sidecars
+  // (/design-video:reel). Sync details' buttons are `sync` sub-verbs. All prompt (verbs.ts).
+  'asset-trash',
+  'asset-rename',
+  'retry-save',
+  'footage',
   'chat-open',
   'ensure-browser',
   'fetch-asset',
@@ -567,12 +574,22 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
         runs only the items of one export that did not make it.
   assets [--usage <asset>] [--not-used] [--json]
         The project's assets and the canvases that use them; not-used ones once older versions are checked. Read-only.
+  asset-trash <asset>... · asset-rename <asset> <new name>
+        Move pictures to the Trash or rename one, as Assets does; one a canvas uses stays. Asks first.
+  retry-save
+        The saves a full disk held try to land now (Retry on Not saved). Asks first.
+  footage show (--asset <clip> | --cut <slug>) · footage save (--asset | --cut) --from <file.json>
+        A clip's footage analysis or a cut's EDL; save stores it as the studio validates it. Asks first.
   runs list [--canvas <canvas>] [--json] · runs stop <run>
         The AI runs on this project and the artboards each is changing; stop one of yours.
   logs [--source all|sync|server|ai|export] [--tail N] [--grep <text>] [--json]
         This Mac's Maude log lines, redacted, merged by time (what Diagnostics › Logs shows). Read-only.
   sync status [--json] · sync resync [--no-wait] [--json]
         Sync in one word + the last resync; or compare every file with the cloud copy. Resync asks first.
+  sync compare <canvas> · sync keep-mine|use-theirs|keep-both <canvas>
+  sync publish-ai-edit|discard-ai-edit [--run <id>] · sync cancel-transfer
+        Sync details' buttons: a held conflict's two versions and its answer, an unfinished AI edit's
+        answer, stop the picture transfer. Each asks first.
   captions add|list|export <canvas>#<artboard> · cut-words <canvas>#<artboard> --clip <id> --words w12-w15
   cut-to-beat <canvas>#<artboard> [--every 1|2|4] · beats <assets/x.mp3> [--bpm N] [--dry-run]
         A video's captions, edit by transcript, Cut to the beat (one undoable edit each, in the

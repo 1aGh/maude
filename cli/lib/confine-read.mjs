@@ -56,6 +56,8 @@ export const SOURCE_VERBS = new Set([
  */
 export const SOURCE_FLAGS = new Map([
   ['annotate', ['--board', '--flow', '--ops', '--rects', '--canvas-state']],
+  // fix-bulk 2026-11-10 follow-up: `footage save --from <file.json>` stores that file's JSON in the project
+  ['footage', ['--from']],
 ]);
 
 /** The values of `flags` in `args` (`--f v` and `--f=v`). */

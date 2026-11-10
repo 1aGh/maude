@@ -5,4 +5,4 @@
   `startSec` is the only seconds value (source in-point).
 
 Both are **VERSIONED** (DDR-115 — they commit + sync like `.meta.json`). Written
-only via the loopback `PUT /_api/footage` route (validated); read with a plain GET.
+only via `maude design footage save` (the studio validates it); read with `maude design footage show`.
