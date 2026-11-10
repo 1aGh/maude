@@ -1,11 +1,11 @@
 {
-  "generated": "2026-11-09T00:00:00.000Z",
-  "version": "2.1.1",
+  "generated": "2026-11-10T00:00:00.000Z",
+  "version": "2.1.2",
   "entries": [
     {
       "id": "export-and-chat-fixes-2026-11",
-      "version": null,
-      "date": null,
+      "version": "2.1.2",
+      "date": "2026-11-10",
       "kind": "fix",
       "title": "Export from the chat, steadier AI edits",
       "summary": "Export works again from the AI chat, and Save to can be any folder. ⌘Z undoes your latest annotation, a failed picture generation no longer stops the project, and a selected artboard no longer stops the AI from editing the others.",
@@ -13,8 +13,8 @@
     },
     {
       "id": "home-declutter",
-      "version": null,
-      "date": null,
+      "version": "2.1.2",
+      "date": "2026-11-10",
       "kind": "improvement",
       "title": "A calmer Home",
       "summary": "Home now shows what you make and where: recent canvases and your projects. Accounts sit behind one button at the top right, a banner appears only when a sign-in needs you, old servers fold away with Forget, and a project row says where it lives and when you last opened it.",
