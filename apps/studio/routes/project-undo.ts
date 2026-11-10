@@ -179,6 +179,14 @@ export interface ProjectUndoDeps {
    * sticky while keeping the thread (contract S4-S9-votes-comments §3.2).
    */
   guard?: (target: UndoTarget, req: Request) => Promise<Response | null>;
+  /**
+   * #216 — bring the canvas's pending writes onto the op log before the stack is read. An annotation
+   * gesture made with the canvas open lands in its live collab room, which reaches the op log only at
+   * the room's debounced flush (800 ms, re-armed by every update): ⌘Z read before it found nothing, or
+   * took back the step BEFORE the gesture (the stickies made inside a section the person just moved).
+   * http.ts wires it to that room's `flush()`. A failure never blocks the read.
+   */
+  settle?: (repoRel: string) => Promise<void>;
 }
 
 /** V2-1.5 §5.3 bus payload, from a history row (+ the attribution when known). */
@@ -356,6 +364,8 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
         const since = Number(url.searchParams.get('since') ?? 0);
         const runtime = deps.control();
         if (!runtime?.acceptedHistory) return json(200, { ok: false, reason: 'legacy' });
+        // #216 — the canvas's live room flushed first: the gesture ⌘Z means is on the stack
+        await deps.settle?.(repoRel).catch(() => {});
         // P8 (board 01 cf-undo-ai) — a run whose turn just ended is on the stack before ⌘Z reads it.
         await runsLanded(runtime);
         const rows = await runtime

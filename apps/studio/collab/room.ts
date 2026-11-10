@@ -254,21 +254,35 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     }, DEBOUNCE_MS);
   }
 
+  // #216 — the flush on its way. A caller that flushes to READ what the room holds (⌘Z's stack read)
+  // waits for it: `dirty` is cleared as a flush starts, so a second call used to return while the
+  // first was still projecting the board.
+  let writing: Promise<void> | null = null;
+
   async function flush(): Promise<void> {
+    if (writing) await writing;
     if (!dirty || destroyed) return;
     dirty = false;
     if (flushTimer) {
       clearTimeout(flushTimer);
       flushTimer = null;
     }
+    const run = (async () => {
+      try {
+        await callbacks.persistJson(slug, doc);
+        await callbacks.persistBinary(slug, Y.encodeStateAsUpdate(doc));
+      } catch (err) {
+        // Re-arm so the next mutation retries. Loud-log; persistence loss is a
+        // user-visible bug if it stays silent.
+        dirty = true;
+        console.error(`[collab/${slug}] flush failed:`, err);
+      }
+    })();
+    writing = run;
     try {
-      await callbacks.persistJson(slug, doc);
-      await callbacks.persistBinary(slug, Y.encodeStateAsUpdate(doc));
-    } catch (err) {
-      // Re-arm so the next mutation retries. Loud-log; persistence loss is a
-      // user-visible bug if it stays silent.
-      dirty = true;
-      console.error(`[collab/${slug}] flush failed:`, err);
+      await run;
+    } finally {
+      if (writing === run) writing = null;
     }
   }
 
