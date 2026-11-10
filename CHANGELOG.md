@@ -10,6 +10,15 @@
 - A project row shows its name, where it lives, a state only when something needs you, and when you last opened it. The path, copies, worktrees and account moved into its "…" menu, with Show in Finder and Remove from list (the folder and its files stay where they are).
 - A copy Maude kept that has moved no longer shows next to its live project; a moved folder shows once with Find the folder… and Remove from list.
 - Fixed the account card's "Waiting for the browser…" button overlapping its text.
+- **Export works from the AI chat and the terminal again** (#221). `maude design export` and its estimate and preflight send the studio's key, and the helper waits for a busy app server to answer its check. The AI's create, move, rename, asset, conflict, footage and Sync recipes go through `maude design` verbs that send the key.
+- `maude design serve` no longer removes the app's server note when the app already serves the project. It steps aside before writing anything.
+- The project server no longer exits when a picture generation fails, for example when a provider's credits run out (#220). The chat now shows the provider's message.
+- A shell variable named `HOME` in the AI's commands no longer hides the app from Maude's helpers. This is what read as "the chat doesn't see my Gemini key" (#218). Generate in Assets now picks up a Gemini key added in Settings.
+- A selected artboard is a hint for the AI, not a lock; it can edit other artboards of the same canvas (#219).
+- ⌘Z undoes your latest annotation edit. Before, it could undo the step before it, and after moving a section that deleted the stickies inside it (#216).
+- The canvas pill at the top is a two-line island centred in the free space, with the path in small grey on the second line. It never runs under the side bars (#217).
+- Print PDF: artboards outside the window keep their pictures and webfonts. Fonts that Chromium turns into Type 3 are named in the preflight. Outlined text keeps the trim and bleed boxes. Print has a "Text as shapes" option.
+- Export: Save to any folder (remembered per project). A finished export always lands in its folder, even if the window wasn't focused when it finished, and the toast names the file. The Export button no longer jumps when a print warning appears.
 
 ## 2.1.1
 

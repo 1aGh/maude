@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "export-and-chat-fixes-2026-11",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Export from the chat, steadier AI edits",
+      "summary": "Export works again from the AI chat, and Save to can be any folder. ⌘Z undoes your latest annotation, a failed picture generation no longer stops the project, and a selected artboard no longer stops the AI from editing the others.",
+      "surface": "design-ui"
+    },
+    {
       "id": "home-declutter",
       "version": null,
       "date": null,
