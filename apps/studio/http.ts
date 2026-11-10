@@ -4264,7 +4264,7 @@ export function createHttp(
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }
-      // S12.16 — the AI chat creates through `maude design curl-local`, which names its chat
+      // S12.16 — the AI chat creates through `maude design canvas-new`, which names its chat
       // (ai/create-claim.ts): the new canvas is that chat's live run's write, not an outside one.
       const mine = runForCreate(req, runs);
       if (mine) {

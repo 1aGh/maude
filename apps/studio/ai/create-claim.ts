@@ -1,6 +1,6 @@
 // create-claim.ts — a canvas an AI session creates is that run's AI write (S12.16, live journey S1).
 //
-// The AI chat makes a canvas the documented way: `maude design curl-local` → `POST /_api/canvas`.
+// The AI chat makes a canvas the documented way: `maude design canvas-new` → `POST /_api/canvas`.
 // That call is an HTTP write with no tool-call behind it, so the chat tracker (acp/index.ts) never
 // saw a path to claim, and with more than one run open the stage could not tell whose file the
 // watcher had imported: Version history recorded the create as `outside`.
