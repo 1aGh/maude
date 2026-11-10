@@ -88,6 +88,11 @@ const BIN_VERBS = new Set([
   // S11.6 — read-only: the canvases that can't be drawn, and a canvas's source or one artboard's lines.
   'canvas-errors',
   'canvas-source',
+  // fix-bulk W1 follow-up. `canvas-new` makes a canvas (blank / brief / empty video, or a duplicate) and
+  // `canvas-move` renames or moves one, through the studio's own routes WITH its key — the recipes used
+  // `curl-local …/_api/canvas|fs-move`, which every keyed studio answers 401 (sec-loopback-bearer §7).
+  'canvas-new',
+  'canvas-move',
   'chat-open',
   'ensure-browser',
   'fetch-asset',
@@ -547,6 +552,10 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
         Restore a canvas / undo an action or a whole AI chat, each as ONE new version; name a version (synced projects). Asks first.
   history restore <canvas> <ref> --artboard <id> | --element <artboard>/<id> · history restore <canvas> @last-good
         Put back only one artboard or object, or the last version that drew without an error.
+  canvas-new [<name>] [--kind blank|brief-board|video-comp] [--group <folder>] · canvas-new --duplicate <canvas>
+        Make a canvas as Canvases › New canvas / Duplicate do; prints the file to Edit.
+  canvas-move <canvas> [--name <new name>] [--to <folder>]
+        Rename or move a canvas as Canvases › Rename / Move to… do.
   trash list [--json] · trash move <canvas> · trash restore <id | canvas path>
         What is in the Trash; move one canvas to it (as Canvases › Move canvas to trash); bring one item back.
   trash clear [--item <id>]... [--yes]

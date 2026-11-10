@@ -299,13 +299,13 @@ describe('S12.16 — a new canvas is made by the create, never written by hand',
     ...extra,
   });
 
-  test('a Write that creates a new .tsx canvas is denied, naming the create route', async () => {
+  test('a Write that creates a new .tsx canvas is denied, naming the create verb', async () => {
     const r = await hook('pre-edit', write('ui/Welcome.tsx', 'n1'));
     expect(isDeny(r, 'new-canvas')).toBe(true);
     const why = r.json.hookSpecificOutput.permissionDecisionReason;
-    expect(why).toContain('maude design curl-local');
-    expect(why).toContain('POST');
-    expect(why).toContain('/_api/canvas');
+    // fix-bulk W1 follow-up: the verb carries the studio's key; curl-local does not (a keyed studio: 401)
+    expect(why).toContain('maude design canvas-new');
+    expect(why).not.toContain('curl-local');
     // nothing was snapshotted for a refused write
     expect(existsSync(join(project, '.design', 'ui', 'Welcome.tsx'))).toBe(false);
     expect(isDeny(await hook('pre-edit', write('Top.tsx', 'n2')), 'new-canvas')).toBe(true);

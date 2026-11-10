@@ -117,6 +117,9 @@ const ROUTES_WITH_A_VERB = [
   ['/_api/annotations/ops', '`maude design annotate`'],
   ['/_api/generate', '`maude design generate`'],
   ['/_api/photo-edit', '`maude design photo-adjust`'],
+  // fix-bulk W1 follow-up — and with the studio's key, which no curl carries (curl-local-keyed-routes.test.mjs)
+  ['/_api/canvas', '`maude design canvas-new`'],
+  ['/_api/fs-move', '`maude design canvas-move`'],
 ];
 
 function markdownUnder(dir, out = []) {

@@ -580,7 +580,9 @@ test('the use-verb / use-trash messages name a route that exists', () => {
   const msg = (cmd) => classifyBash(cmd, { cwd: ROOT, designRoot: DR })?.reason ?? '';
   const mv = msg('mv .design/ui/C.tsx .design/ui/D.tsx');
   const rm = msg('rm .design/ui/C.tsx');
-  assert.match(mv, /curl-local .*\/_api\/fs-move/);
+  // fix-bulk W1 follow-up: the verb, never `curl-local …/_api/fs-move` (a keyed studio answers that 401)
+  assert.match(mv, /maude design canvas-move <canvas path> --name/);
+  assert.doesNotMatch(mv, /curl-local/);
   // V2-8.16: `maude design trash move` exists now (sub-verbs.mjs), and both refusals name it for the trash
   assert.match(rm, /maude design trash move <canvas path>/);
   assert.match(mv, /maude design trash move <canvas path>/);

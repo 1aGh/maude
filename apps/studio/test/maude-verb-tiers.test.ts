@@ -136,6 +136,20 @@ describe('maude verb tiers — the generated allow list', () => {
     }
   });
 
+  // fix-bulk W1 follow-up — the canvas file verbs are the registry actions canvas.new / duplicate /
+  // rename / move (effect project), so auto like `trash move`; curl-local, which they replace in the
+  // recipes, stays prompt (pinned above).
+  test('canvas-new and canvas-move are project writes, auto like trash move', () => {
+    for (const verb of ['canvas-new', 'canvas-move', 'trash move']) {
+      const v = MAUDE_VERBS.find((x) => x.scope === 'design' && x.verb === verb);
+      expect({ verb, effect: v?.effect, tier: v && verbTier(v) }).toEqual({
+        verb,
+        effect: 'project',
+        tier: 'auto',
+      });
+    }
+  });
+
   test('lead answers a–c (decision:maude/v2-2.4b-held-and-prompting-verbs)', () => {
     const tier = (scope: string, verb: string) => {
       const v = MAUDE_VERBS.find((x) => x.scope === scope && x.verb === verb);

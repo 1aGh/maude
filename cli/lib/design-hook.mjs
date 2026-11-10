@@ -1104,7 +1104,7 @@ export function handMadeCanvasReason(designRoot, rel) {
     return dir !== '' && (rel === dir || rel.startsWith(`${dir}/`));
   };
   if (dirs.some(under)) return null;
-  return `new-canvas: ${rel} does not exist yet, and a canvas is never written by hand. Make it with the app's own create — \`maude design curl-local "http://127.0.0.1:<port>/_api/canvas" --method POST --header "Content-Type: application/json" --data '{"kind":"blank","name":"<name>"}'\` (the port is in ${DESIGN_REL}/_server.json; the answer's \`rel\` is the file) — then Edit the file it made. A component goes in the newComponentDir instead.`;
+  return `new-canvas: ${rel} does not exist yet, and a canvas is never written by hand. Make it with the app's own create — \`maude design canvas-new "<name>"\` (it prints the file it made) — then Edit that file. A component goes in the newComponentDir instead.`;
 }
 
 async function preEdit(ctx, input) {
