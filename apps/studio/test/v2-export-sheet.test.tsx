@@ -451,6 +451,44 @@ const specOptions = () =>
   (posts()[0].body?.spec?.options ?? {}) as { annotations?: boolean; size?: unknown };
 const posts = () => calls.filter((c) => c.method === 'POST' && c.url.endsWith('/_api/export-jobs'));
 
+/** The Mac app's shell, as far as Save to asks it: the project's last folder, and the folder picker's answer. */
+function nativeShell({
+  folder = null,
+  picked = null,
+}: {
+  folder?: string | null;
+  picked?: string | null;
+} = {}) {
+  const calls: string[] = [];
+  const w = window as unknown as { __TAURI__?: unknown };
+  w.__TAURI__ = {
+    core: {
+      invoke: async (cmd: string) => {
+        calls.push(cmd);
+        if (cmd === 'export_folder') return folder;
+        if (cmd === 'pick_export_folder') return picked;
+        return null;
+      },
+    },
+  };
+  return {
+    calls,
+    off: () => {
+      w.__TAURI__ = undefined;
+    },
+  };
+}
+const sentSaveTo = () =>
+  (posts()[0]?.body?.spec?.options as { saveTo?: string } | undefined)?.saveTo;
+const pickSaveTo = async (value: string) => {
+  const select = $('[data-testid="export-save-to"]') as HTMLSelectElement;
+  await act(async () => {
+    select.value = value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await tick(20);
+  });
+};
+
 async function mountSheet(props: Record<string, unknown> = {}) {
   stubFetch();
   const { ExportDialog } = await import('../client/dialogs/export-dialog.jsx');
@@ -836,16 +874,76 @@ describe('P8-C4: the sheet anatomy (09 ex-social)', () => {
 
   test('Save to travels with the spec (Downloads, or ask each time)', async () => {
     estimate = EST_POST;
-    await mountSheet(sel);
-    const select = $('[data-testid="export-save-to"]') as HTMLSelectElement;
-    await act(async () => {
-      select.value = 'ask';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-      await tick(10);
+    const shell = nativeShell();
+    try {
+      await mountSheet(sel);
+      await pickSaveTo('ask');
+      await click('[data-testid="export-submit"]');
+      const sent = posts()[0].body?.spec?.options as { saveTo?: string };
+      expect(sent.saveTo).toBe('ask');
+    } finally {
+      shell.off();
+    }
+  });
+
+  // fix-bulk B5 — "Save to" offered only Downloads (and Ask); Michal needs any folder (a Drive folder for 2026).
+  describe('fix-bulk B5: Save to any folder', () => {
+    const optionsOf = () =>
+      [...(($('[data-testid="export-save-to"]') as HTMLSelectElement)?.options ?? [])].map((o) => [
+        o.value,
+        o.textContent,
+      ]);
+
+    test('a browser tab has no folder to pick: Downloads only', async () => {
+      estimate = EST_POST;
+      await mountSheet(sel);
+      expect(optionsOf()).toEqual([['downloads', 'Downloads']]);
     });
-    await click('[data-testid="export-submit"]');
-    const sent = posts()[0].body?.spec?.options as { saveTo?: string };
-    expect(sent.saveTo).toBe('ask');
+
+    test('the Mac app offers Choose a folder…; the folder picked is where it saves', async () => {
+      estimate = EST_POST;
+      const shell = nativeShell({ picked: '/Users/x/Drive/2026' });
+      try {
+        await mountSheet(sel);
+        expect(optionsOf().map(([v]) => v)).toEqual(['downloads', 'choose', 'ask']);
+        await pickSaveTo('choose');
+        expect(shell.calls).toContain('pick_export_folder');
+        const select = $('[data-testid="export-save-to"]') as HTMLSelectElement;
+        expect(select.value).toBe('remembered');
+        expect(optionsOf()).toContainEqual(['remembered', '2026']);
+        await click('[data-testid="export-submit"]');
+        expect(sentSaveTo()).toBe('remembered');
+      } finally {
+        shell.off();
+      }
+    });
+
+    test('a cancelled picker leaves Save to where it was', async () => {
+      estimate = EST_POST;
+      const shell = nativeShell({ picked: null });
+      try {
+        await mountSheet(sel);
+        await pickSaveTo('choose');
+        expect(($('[data-testid="export-save-to"]') as HTMLSelectElement).value).toBe('downloads');
+      } finally {
+        shell.off();
+      }
+    });
+
+    test('the project’s last folder is remembered: the next sheet opens on it', async () => {
+      estimate = EST_POST;
+      const shell = nativeShell({ folder: '/Users/x/Drive/2026' });
+      try {
+        await mountSheet(sel);
+        const select = $('[data-testid="export-save-to"]') as HTMLSelectElement;
+        expect(select.value).toBe('remembered');
+        expect(optionsOf()).toContainEqual(['remembered', '2026']);
+        await click('[data-testid="export-submit"]');
+        expect(sentSaveTo()).toBe('remembered');
+      } finally {
+        shell.off();
+      }
+    });
   });
 
   test('a folder is named by its own name and counts canvases; the project says what is in it', async () => {

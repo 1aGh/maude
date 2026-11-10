@@ -397,6 +397,98 @@ fn session_folders() -> std::sync::MutexGuard<'static, SessionFolders> {
     SESSION_FOLDERS.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+// ── Choose a folder… (fix-bulk B5) ───────────────────────────────────────────
+
+pub const NOT_A_FOLDER: &str = "Pick a folder that exists on this Mac.";
+pub const NOT_WRITABLE: &str = "Maude can’t write into that folder. Pick another.";
+pub const RUNTIME_FOLDER: &str = "That folder holds Maude’s own working files. Pick another.";
+
+/// True when `dir` (canonical) sits in the project's runtime state: under `<root>/.git`, or under a
+/// `_`-prefixed folder of the design root (`<root>/.design/_*` — `_export-jobs/`, `_state/`, `_history/`…,
+/// DDR-115). An export written there would be swept, synced as state, or read as the project's own file.
+pub fn inside_runtime_state(dir: &Path, project_root: &Path) -> bool {
+    let root = std::fs::canonicalize(project_root).unwrap_or_else(|_| project_root.to_path_buf());
+    let Ok(rel) = dir.strip_prefix(&root) else {
+        return false;
+    };
+    let parts: Vec<String> = rel
+        .components()
+        .filter_map(|c| match c {
+            Component::Normal(s) => Some(s.to_string_lossy().into_owned()),
+            _ => None,
+        })
+        .collect();
+    match parts.first().map(String::as_str) {
+        Some(".git") => true,
+        Some(".design") => parts.get(1).is_some_and(|p| p.starts_with('_')),
+        _ => false,
+    }
+}
+
+/// A folder `saveTo: 'remembered'` may write into: an absolute path to a folder that exists (resolved through
+/// every symlink, so a link cannot smuggle a runtime folder past the check), outside the project's runtime
+/// state, and one this process can create a file in (probed with a `create_new` file it removes at once).
+/// Returns the canonical folder.
+pub fn check_export_folder(dir: &Path, project_root: &Path) -> Result<PathBuf, String> {
+    if !dir.is_absolute() {
+        return Err(NOT_A_FOLDER.to_string());
+    }
+    let canon = usable_dir(dir).ok_or_else(|| NOT_A_FOLDER.to_string())?;
+    if inside_runtime_state(&canon, project_root) {
+        return Err(RUNTIME_FOLDER.to_string());
+    }
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
+    let probe = canon.join(format!(".maude-write-check-{}-{nanos}", std::process::id()));
+    match std::fs::OpenOptions::new().write(true).create_new(true).open(&probe) {
+        Ok(_) => {
+            let _ = std::fs::remove_file(&probe);
+            Ok(canon)
+        }
+        Err(_) => Err(NOT_WRITABLE.to_string()),
+    }
+}
+
+/// The folder picker, starting in the project's folder when it has one. `None` = cancelled.
+async fn pick_folder_panel(
+    app: &tauri::AppHandle,
+    webview: &tauri::Webview,
+    start: Option<&Path>,
+) -> Result<Option<PathBuf>, String> {
+    // E2E (debug builds only): a native folder picker can't be DOM-driven, so the harness names the folder
+    // via MAUDE_E2E_PICK_EXPORT_DIR (the export twin of MAUDE_E2E_PICK_DIR). Under MAUDE_E2E_NO_DIALOGS with
+    // no folder named, the picker is never raised: it is logged and answers Cancel. Never in the release `.app`.
+    #[cfg(debug_assertions)]
+    {
+        if let Ok(p) = std::env::var("MAUDE_E2E_PICK_EXPORT_DIR") {
+            if !p.is_empty() {
+                return Ok(Some(PathBuf::from(p)));
+            }
+        }
+        if sidecar::dialog_suppressed_logged("Choose a folder", "the Export sheet's folder picker") {
+            return Ok(None);
+        }
+    }
+    let mut panel = app.dialog().file().set_parent(&webview.window());
+    if let Some(dir) = start {
+        panel = panel.set_directory(dir);
+    }
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    panel.pick_folder(move |folder| {
+        let _ = tx.send(folder.and_then(|f| f.into_path().ok()));
+    });
+    rx.await.map_err(|_| "Folder picker closed unexpectedly.".to_string())
+}
+
+/// The project's remembered folder, when it is still one `check_export_folder` would take.
+fn remembered_folder(app: &tauri::AppHandle, caller: &windows::CallerProject) -> Option<PathBuf> {
+    session_folders()
+        .recall(&caller.pid, app_state::export_folder_of(app, &caller.pid))
+        .and_then(|d| usable_dir(&d))
+        .filter(|d| !inside_runtime_state(d, Path::new(&caller.root)))
+}
+
 // ── Copy as PNG ──────────────────────────────────────────────────────────────
 
 /// `bytes` when they are one whole PNG under the cap: the signature, IHDR first, IEND last.
@@ -501,9 +593,7 @@ pub async fn save_export(
     let key = probe.and_then(|p| p.api_key);
     let url = export_download_url(info_file.as_deref(), &job_id)?;
     let name = clean_file_name(&filename);
-    let remembered = session_folders()
-        .recall(&caller.pid, app_state::export_folder_of(&app, &caller.pid))
-        .and_then(|d| usable_dir(&d));
+    let remembered = remembered_folder(&app, &caller);
     let straight_in = match mode {
         SaveTo::Ask => None,
         SaveTo::Remembered => remembered.clone(),
@@ -527,6 +617,39 @@ pub async fn save_export(
     let canonical = std::fs::canonicalize(&wrote).map_err(|_| COULDNT_WRITE.to_string())?;
     written().record(&caller.pid, canonical.clone());
     Ok(Some(canonical.to_string_lossy().into_owned()))
+}
+
+/// fix-bulk B5 — `export_folder()` → the folder `saveTo: 'remembered'` writes into for the calling project, or
+/// `None`. The Export sheet names it in Save to. Takes no argument: the page never names a folder.
+#[tauri::command]
+pub async fn export_folder(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+) -> Result<Option<String>, String> {
+    let caller = windows::caller_project(&webview, false)?;
+    windows::caller_in_front(&webview)?;
+    Ok(remembered_folder(&app, &caller).map(|d| d.to_string_lossy().into_owned()))
+}
+
+/// fix-bulk B5 — Save to › "Choose a folder…": the native folder picker on the calling tab, the pick checked
+/// (`check_export_folder`) and kept as the project's folder in app-state (this run's memory for a project the
+/// registry does not hold) — never in the project. Returns the canonical folder, or `None` when cancelled. The
+/// page passes nothing: the only folder this can store is one the person picked in the shell's own panel.
+#[tauri::command]
+pub async fn pick_export_folder(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+) -> Result<Option<String>, String> {
+    let caller = windows::caller_project(&webview, false)?;
+    windows::caller_in_front(&webview)?; // 1g: no native dialog from a hidden tab
+    let start = remembered_folder(&app, &caller);
+    let Some(picked) = pick_folder_panel(&app, &webview, start.as_deref()).await? else {
+        return Ok(None);
+    };
+    let dir = check_export_folder(&picked, Path::new(&caller.root))?;
+    let persisted = app_state::set_export_folder(&app, &caller.pid, &dir);
+    session_folders().keep(&caller.pid, dir.clone(), persisted);
+    Ok(Some(dir.to_string_lossy().into_owned()))
 }
 
 /// `reveal_export({path})` — Finder with `path` selected, when `save_export` wrote it for
@@ -923,6 +1046,86 @@ mod tests {
         assert_eq!(check_text(prompt), Ok(prompt));
     }
 
+    /// fix-bulk B5: Choose a folder… keeps only a real, writable folder outside the project's runtime state.
+    #[test]
+    fn a_chosen_export_folder_is_real_writable_and_outside_runtime_state() {
+        let d = scratch("export-folder");
+        let project = d.join("proj");
+        for sub in [".design/_export-jobs/x", ".design/_state", ".design/ui", ".git/objects", "exports"] {
+            std::fs::create_dir_all(project.join(sub)).unwrap();
+        }
+        let drive = d.join("Drive").join("2026");
+        std::fs::create_dir_all(&drive).unwrap();
+        let canon = |p: &Path| std::fs::canonicalize(p).unwrap();
+
+        // any folder on this Mac, the project's own folders included
+        assert_eq!(check_export_folder(&drive, &project), Ok(canon(&drive)));
+        assert_eq!(check_export_folder(&project.join("exports"), &project), Ok(canon(&project.join("exports"))));
+        assert_eq!(
+            check_export_folder(&project.join(".design/ui"), &project),
+            Ok(canon(&project.join(".design/ui")))
+        );
+        // the probe file leaves nothing behind
+        assert_eq!(std::fs::read_dir(&drive).unwrap().count(), 0);
+
+        // never the runtime state: the jobs folder (swept), _state, .git
+        for bad in [".design/_export-jobs/x", ".design/_export-jobs", ".design/_state", ".git/objects"] {
+            assert_eq!(
+                check_export_folder(&project.join(bad), &project),
+                Err(RUNTIME_FOLDER.to_string()),
+                "{bad}"
+            );
+        }
+        // nor through a symlink that points there
+        #[cfg(unix)]
+        {
+            let link = d.join("innocent");
+            std::os::unix::fs::symlink(project.join(".design/_state"), &link).unwrap();
+            assert_eq!(check_export_folder(&link, &project), Err(RUNTIME_FOLDER.to_string()));
+        }
+        // a relative path, a missing folder, a file
+        assert_eq!(check_export_folder(Path::new("Drive/2026"), &project), Err(NOT_A_FOLDER.to_string()));
+        assert_eq!(check_export_folder(&d.join("gone"), &project), Err(NOT_A_FOLDER.to_string()));
+        std::fs::write(d.join("file.txt"), b"x").unwrap();
+        assert_eq!(check_export_folder(&d.join("file.txt"), &project), Err(NOT_A_FOLDER.to_string()));
+        // a folder this process cannot write into
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let ro = d.join("read-only");
+            std::fs::create_dir_all(&ro).unwrap();
+            std::fs::set_permissions(&ro, std::fs::Permissions::from_mode(0o555)).unwrap();
+            let r = check_export_folder(&ro, &project);
+            std::fs::set_permissions(&ro, std::fs::Permissions::from_mode(0o755)).unwrap();
+            // root can write anywhere; everyone else is refused
+            if r.is_ok() {
+                eprintln!("running as a user that can write a 0555 folder; skipping the read-only half");
+            } else {
+                assert_eq!(r, Err(NOT_WRITABLE.to_string()));
+            }
+        }
+        let _ = std::fs::remove_dir_all(d);
+    }
+
+    /// fix-bulk B5: two saves of one name into one folder both land — the second is numbered, never dropped,
+    /// never an overwrite — and each returns the file it became.
+    #[test]
+    fn a_second_export_of_one_name_lands_numbered_and_says_where() {
+        let d = scratch("same-name");
+        let folder = d.join("Downloads");
+        std::fs::create_dir_all(&folder).unwrap();
+        let port = serve(vec![ok_body("first"), ok_body("second")]);
+        let url = format!("http://127.0.0.1:{port}/_api/export-jobs/download?id=a");
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let one = rt.block_on(download_new_in(&url, None, &folder, "letak.pdf")).unwrap();
+        let two = rt.block_on(download_new_in(&url, None, &folder, "letak.pdf")).unwrap();
+        assert_eq!(one, folder.join("letak.pdf"));
+        assert_eq!(two, folder.join("letak (2).pdf"));
+        assert_eq!(std::fs::read_to_string(&one).unwrap(), "first");
+        assert_eq!(std::fs::read_to_string(&two).unwrap(), "second");
+        let _ = std::fs::remove_dir_all(d);
+    }
+
     /// Source ratchet: each command checks its caller, then the front tab, before it
     /// parses an argument, touches a path, or reads a byte; none runs a shell.
     #[test]
@@ -934,6 +1137,8 @@ mod tests {
             ("reveal_export", "written().resolve("),
             ("clipboard_write_png", "request.body()"),
             ("clipboard_write_text", "check_text("),
+            ("export_folder", "remembered_folder("),
+            ("pick_export_folder", "pick_folder_panel("),
         ] {
             let start = code
                 .find(&format!("pub async fn {cmd}("))

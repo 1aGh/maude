@@ -30,6 +30,9 @@ export const SAVE_COMMANDS = Object.freeze({
   reveal: 'reveal_export',
   copyPng: 'clipboard_write_png',
   copyText: 'clipboard_write_text',
+  // fix-bulk B5: Save to › the project's last folder, and Choose a folder… (export_save.rs)
+  folder: 'export_folder',
+  pickFolder: 'pick_export_folder',
 });
 
 /** Mirrors export_save.rs `MAX_CLIPBOARD_TEXT` (UTF-8 bytes). */
@@ -115,6 +118,36 @@ export function nativeSave(win = typeof window !== 'undefined' ? window : null, 
         if (saveTo) args.saveTo = saveTo;
         const path = await invoke(SAVE_COMMANDS.save, args);
         return path ? { ok: true, path } : { ok: false, reason: 'cancelled' };
+      } catch (e) {
+        return { ok: false, reason: 'refused', error: words(e) };
+      }
+    },
+
+    /**
+     * fix-bulk B5 — the folder `saveTo: 'remembered'` writes into for this project (app-state, never the
+     * project), or null: none yet, a browser tab, or the shell refused. Never throws.
+     */
+    async folder() {
+      if (!invoke) return null;
+      try {
+        const p = await invoke(SAVE_COMMANDS.folder, {});
+        return typeof p === 'string' && p ? p : null;
+      } catch {
+        return null;
+      }
+    },
+
+    /**
+     * fix-bulk B5 — Choose a folder…: the native folder picker; the shell checks the folder and keeps it as the
+     * project's. `{ ok:true, path }`, `{ ok:false, reason:'cancelled' }`, or a refusal in the shell's words.
+     */
+    async pickFolder() {
+      if (!invoke) return { ok: false, reason: 'browser' };
+      try {
+        const p = await invoke(SAVE_COMMANDS.pickFolder, {});
+        return typeof p === 'string' && p
+          ? { ok: true, path: p }
+          : { ok: false, reason: 'cancelled' };
       } catch (e) {
         return { ok: false, reason: 'refused', error: words(e) };
       }

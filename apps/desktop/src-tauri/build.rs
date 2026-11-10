@@ -52,6 +52,9 @@ fn main() {
                 "reveal_export",
                 "clipboard_write_png",
                 "clipboard_write_text",
+                // fix-bulk B5 (export_save.rs): Save to › the project's folder, Choose a folder….
+                "export_folder",
+                "pick_export_folder",
                 "pick_media_file",
                 "pick_media_files",
                 "read_picked_media",

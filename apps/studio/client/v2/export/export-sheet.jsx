@@ -49,8 +49,9 @@ import {
   FILE_NAMES_TEMPLATE,
   FOLDERS_OPTIONS,
   FileRows,
+  effectiveSaveTo,
   fileNamesPick,
-  SAVE_TO_DEFAULT,
+  useSaveFolder,
 } from './file-rows.jsx';
 import { fitBox, Pic, PreviewColumn, sizeLine, useBoardPicture } from './preview.jsx';
 import { AccessLine, exportAccess } from './access-line.jsx';
@@ -216,6 +217,8 @@ export function ExportSheet({
 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null); // { ok, msg }
+  // fix-bulk B5: Save to › the project's folder and Choose a folder… (the Mac app; a browser tab downloads)
+  const place = useSaveFolder();
   // S8.5 — a video's Render row: cloud or this Mac (Suggest each time / always, export-lane.js)
   const online = useOnline();
   const [pickedLane, setPickedLane] = useState(null);
@@ -369,7 +372,10 @@ export function ExportSheet({
       body: {
         v: 2,
         spec: withRenderLane(
-          withSaveTo(waitForAi ? { ...spec, wait: 'ai' } : spec, state.saveTo ?? SAVE_TO_DEFAULT),
+          withSaveTo(
+            waitForAi ? { ...spec, wait: 'ai' } : spec,
+            effectiveSaveTo(state.saveTo, place)
+          ),
           render
         ),
       },
@@ -508,6 +514,7 @@ export function ExportSheet({
       onName={single ? (stem) => set({ adv: { ...(state.adv ?? {}), nameTemplate: stem } }) : null}
       saveTo={state.saveTo}
       onSaveTo={(saveTo) => set({ saveTo })}
+      place={place}
       folders={
         batch ? (
           state.scope === 'selection' ? (

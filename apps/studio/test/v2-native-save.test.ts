@@ -50,6 +50,32 @@ describe('native save (S8.23)', () => {
     expect(MAX_CLIPBOARD_TEXT).toBe(64 * 1024);
   });
 
+  test('fix-bulk B5: the project’s folder and Choose a folder… — no argument names a path', async () => {
+    let picked: string | null = '/Users/x/Drive/2026';
+    const r = recorder((cmd) => {
+      if (cmd === 'export_folder') return '/Users/x/Drive/2026';
+      if (cmd === 'pick_export_folder') {
+        if (picked === 'boom')
+          throw new Error('That folder is inside the project’s runtime files.');
+        return picked;
+      }
+      return null;
+    });
+    const doors = nativeSave(null, { invoke: r.invoke });
+    expect(await doors.folder()).toBe('/Users/x/Drive/2026');
+    expect(await doors.pickFolder()).toEqual({ ok: true, path: '/Users/x/Drive/2026' });
+    picked = null;
+    expect(await doors.pickFolder()).toEqual({ ok: false, reason: 'cancelled' });
+    picked = 'boom';
+    expect(await doors.pickFolder()).toMatchObject({ ok: false, reason: 'refused' });
+    // the page never hands the shell a folder: the picker and the read take no arguments
+    for (const [, args] of r.calls) expect(args).toEqual({});
+    // a browser tab has neither
+    const browser = nativeSave(null, { invoke: null as unknown as undefined });
+    expect(await browser.folder()).toBeNull();
+    expect(await browser.pickFolder()).toEqual({ ok: false, reason: 'browser' });
+  });
+
   test('save sends jobId + filename (+ saveTo) and returns the path Rust wrote', async () => {
     const r = recorder(() => '/Users/x/Downloads/social/Hero.png');
     const doors = nativeSave(null, { invoke: r.invoke });
