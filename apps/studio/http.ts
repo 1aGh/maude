@@ -6853,7 +6853,8 @@ export function createHttp(
         });
         // Don't await the run — the job's own status (GET + the generate:job WS
         // push) is the completion signal. A failure is recorded on the job
-        // record, so swallow the rejection here to avoid an unhandled rejection.
+        // record; the queue itself marks the rejection handled (generation/jobs.ts,
+        // #220 — before that, a failed job ended the whole server).
         return Response.json(
           { jobId: id },
           { status: 202, headers: { 'Cache-Control': 'no-store' } }
