@@ -126,3 +126,45 @@ describe('generation job queue', () => {
     }
   });
 });
+
+// #220 — POST /_api/generate-jobs answers 202 and never awaits `result`; a failed job must not
+// reject a promise nobody listens to (the server has no unhandledRejection handler, so Bun exits).
+describe('#220 — a failed job with no listener is not an unhandled rejection', () => {
+  test('enqueue a failing run and drop `result` → no unhandledRejection, job reads failed', async () => {
+    const rejections: unknown[] = [];
+    const onUnhandled = (err: unknown) => rejections.push(err);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const { bus } = fakeBus();
+      const q = createGenerationJobQueue(bus as never, dir);
+      const { id } = q.enqueue({
+        provider: 'gemini',
+        modality: 'image',
+        run: async () => {
+          throw new Error('provider error: credits depleted');
+        },
+      });
+      const deadline = Date.now() + 2000;
+      while (q.get(id)?.status !== 'failed' && Date.now() < deadline) await Bun.sleep(5);
+      await Bun.sleep(50);
+      expect(q.get(id)?.status).toBe('failed');
+      expect(q.get(id)?.error).toMatch(/credits depleted/);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+    expect(rejections).toEqual([]);
+  });
+
+  test('a caller that awaits `result` still sees the failure', async () => {
+    const { bus } = fakeBus();
+    const q = createGenerationJobQueue(bus as never, dir);
+    const { result } = q.enqueue({
+      provider: 'gemini',
+      modality: 'image',
+      run: async () => {
+        throw new Error('refused');
+      },
+    });
+    await expect(result).rejects.toThrow(/refused/);
+  });
+});

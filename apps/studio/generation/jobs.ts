@@ -230,6 +230,12 @@ export function createGenerationJobQueue(bus: Bus, designRoot: string): Generati
         release();
       }
     })();
+    // #220 — the failure is on the job record (status, error, the generate:job push), so a caller
+    // that drops `result` — POST /_api/generate-jobs answers 202 and never awaits it — must not leave
+    // a rejection nobody handles: the server has no unhandledRejection handler and Bun would end the
+    // whole project server (exit 1) on every failed generation. This marks it handled; a caller that
+    // awaits `result` still gets the rejection.
+    result.catch(() => {});
 
     return { id, result };
   }
