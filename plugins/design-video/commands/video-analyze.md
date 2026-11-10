@@ -82,8 +82,9 @@ prompt: "ASSET=assets/<sha8>.<ext>  DURATION=<durationSec>
 ```
 
 **Then the ORCHESTRATOR persists it** (the analyst has no network): take the returned
-JSON and `PUT /_api/footage?asset=<sha8>` (loopback route; it validates + stamps the
-`assets/<sha8>.footage.json` sidecar). A non-200 = the JSON failed validation — fix the
+JSON, write it to a file in your temp folder and run
+`maude design footage save --asset assets/<sha8>.<ext> --from <that file>` (the studio validates +
+stamps the `assets/<sha8>.footage.json` sidecar; the verb sends its key). A non-200 = the JSON failed validation — fix the
 offending field and retry. Preserve an existing `ai-generated` provenance stub's tag.
 
 **Cache:** skip a clip whose `assets/<sha8>.footage.json` already holds a usable shot
@@ -91,7 +92,7 @@ offending field and retry. Preserve an existing `ai-generated` provenance stub's
 
 ### Step 3.5 — Record the footage node (kgai — when active)
 
-The sidecar lands via `PUT /_api/footage` (a **server write**), so kgai's edit-tool Stop hook does NOT catch it — record it explicitly at the command boundary. Load **`flow:kgai-backend`**; when `maude kg resolve --json` is `active`, ingest a content-addressed `footage:<sha8>` node (deterministic id converges across machines):
+The sidecar lands via `maude design footage save` (a **server write**), so kgai's edit-tool Stop hook does NOT catch it — record it explicitly at the command boundary. Load **`flow:kgai-backend`**; when `maude kg resolve --json` is `active`, ingest a content-addressed `footage:<sha8>` node (deterministic id converges across machines):
 
 ```bash
 echo '{"decision":{"title":"Footage: <sha8>","rationale":"<summary>","date":"<YYYY-MM-DD>","mutations":[{"op":"upsert_element","kind":"footage","name":"<sha8>","props":{"summary":"<summary>","tags":"<tags>"}},{"op":"add_link","from":"footage:<sha8>","to":"asset:<sha8>","link":"FROM"}]}}' | maude kg ingest --root "$CLAUDE_PROJECT_DIR"

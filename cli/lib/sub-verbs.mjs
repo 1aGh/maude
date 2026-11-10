@@ -47,7 +47,19 @@ export const SUB_VERBS = {
   // S5.4 (V2-1.15 §5.10): the AI runs — `list` reads, `stop` stops one of your own runs.
   runs: { list: NATIVE, stop: NATIVE },
   // S11.11: `status` reads; `resync` re-compares every file with the cloud copy (shared → prompt).
-  sync: { status: NATIVE, resync: NATIVE },
+  // fix-bulk 2026-11-10 follow-up: Sync details' buttons. All prompt (verbs.ts: the answers are shared,
+  // `compare` / `cancel-transfer` are held at the tier their recipe had).
+  sync: {
+    status: NATIVE,
+    resync: NATIVE,
+    compare: NATIVE,
+    'keep-mine': NATIVE,
+    'use-theirs': NATIVE,
+    'keep-both': NATIVE,
+    'publish-ai-edit': NATIVE,
+    'discard-ai-edit': NATIVE,
+    'cancel-transfer': NATIVE,
+  },
   // S7.6c (V2-1.10 §5.7): a video's captions — `list` reads, `add` / `export` write in the project.
   captions: { add: NATIVE, list: NATIVE, export: NATIVE },
   // S10.3 (S10 §2.4): the design-system reads; the helper (ds/ds-verb.ts) refuses a write flag

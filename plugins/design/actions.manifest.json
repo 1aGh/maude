@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "168a056702c9",
+  "manifestVersion": "924d3acafe2c",
   "actions": [
     {
       "id": "search.open",
@@ -2087,7 +2087,7 @@
       },
       "agent": {
         "path": "cli",
-        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/assets/trash --method POST --header \"Content-Type: application/json\" --data '{\"assets\":[\"assets/<name>\"]}'"
+        "verb": "maude design asset-trash assets/<name>"
       }
     },
     {
@@ -2104,7 +2104,7 @@
       },
       "agent": {
         "path": "cli",
-        "verb": "maude design curl-local http://127.0.0.1:<port>/_api/assets/rename --method POST --header \"Content-Type: application/json\" --data '{\"asset\":\"assets/<name>.<ext>\",\"name\":\"<new name>\"}'"
+        "verb": "maude design asset-rename assets/<name>.<ext> \"<new name>\""
       }
     },
     {
@@ -6352,7 +6352,7 @@
       "effect": "project",
       "agent": {
         "path": "cli",
-        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/diagnostics/disk-retry"
+        "verb": "maude design retry-save"
       },
       "minRole": "edit",
       "server": {
@@ -6374,7 +6374,7 @@
       },
       "agent": {
         "path": "cli",
-        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/conflict -d '{\"file\":\"<slug>\",\"choice\":\"mine\"}'"
+        "verb": "maude design sync keep-mine <slug>"
       }
     },
     {
@@ -6391,7 +6391,7 @@
       },
       "agent": {
         "path": "cli",
-        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/conflict -d '{\"file\":\"<slug>\",\"choice\":\"theirs\"}'"
+        "verb": "maude design sync use-theirs <slug>"
       }
     },
     {
@@ -6408,7 +6408,7 @@
       },
       "agent": {
         "path": "cli",
-        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/conflict -d '{\"file\":\"<slug>\",\"choice\":\"keep-both\"}'"
+        "verb": "maude design sync keep-both <slug>"
       }
     },
     {
@@ -6419,7 +6419,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design curl-local \"http://127.0.0.1:<port>/_api/project/conflict?file=<slug>\""
+        "verb": "maude design sync compare <slug>"
       }
     },
     {
@@ -6435,7 +6435,7 @@
       },
       "agent": {
         "path": "cli",
-        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/ai-action -d '{\"choice\":\"publish\"}'"
+        "verb": "maude design sync publish-ai-edit"
       }
     },
     {
@@ -6451,7 +6451,7 @@
       },
       "agent": {
         "path": "cli",
-        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/ai-action -d '{\"choice\":\"discard\"}'"
+        "verb": "maude design sync discard-ai-edit"
       }
     },
     {
@@ -6467,7 +6467,7 @@
       },
       "agent": {
         "path": "cli",
-        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/sync/cancel-assets"
+        "verb": "maude design sync cancel-transfer"
       }
     },
     {
@@ -7691,6 +7691,78 @@
       "verb": "design ds-check",
       "effect": "project",
       "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design asset-trash",
+      "effect": "project",
+      "tier": "prompt",
+      "hold": "replaced a `curl-local` recipe (prompt) that a keyed studio answered 401 — lead: keeps prompting, a key fix widens no tier"
+    },
+    {
+      "scope": "design",
+      "verb": "design asset-rename",
+      "effect": "project",
+      "tier": "prompt",
+      "hold": "replaced a `curl-local` recipe (prompt) that a keyed studio answered 401 — lead: keeps prompting, a key fix widens no tier"
+    },
+    {
+      "scope": "design",
+      "verb": "design retry-save",
+      "effect": "project",
+      "tier": "prompt",
+      "hold": "replaced a `curl-local` recipe (prompt) that a keyed studio answered 401 — lead: keeps prompting, a key fix widens no tier"
+    },
+    {
+      "scope": "design",
+      "verb": "design footage",
+      "effect": "project",
+      "tier": "prompt",
+      "hold": "replaced a `curl-local` recipe (prompt) that a keyed studio answered 401 — lead: keeps prompting, a key fix widens no tier"
+    },
+    {
+      "scope": "design",
+      "verb": "design sync compare",
+      "effect": "none",
+      "tier": "prompt",
+      "hold": "replaced a `curl-local` recipe (prompt) that a keyed studio answered 401 — lead: keeps prompting, a key fix widens no tier"
+    },
+    {
+      "scope": "design",
+      "verb": "design sync cancel-transfer",
+      "effect": "none",
+      "tier": "prompt",
+      "hold": "replaced a `curl-local` recipe (prompt) that a keyed studio answered 401 — lead: keeps prompting, a key fix widens no tier"
+    },
+    {
+      "scope": "design",
+      "verb": "design sync keep-mine",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design sync use-theirs",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design sync keep-both",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design sync publish-ai-edit",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design sync discard-ai-edit",
+      "effect": "shared",
+      "tier": "prompt"
     },
     {
       "scope": "design",

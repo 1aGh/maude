@@ -8,6 +8,16 @@
 //            same sentence the toast shows (effect shared → prompt: it re-compares every file with the
 //            cloud copy and sends what is newer here). Nothing is overwritten.
 //
+// Sync details' own buttons (fix-bulk 2026-11-10 follow-up — they were taught as `curl-local` recipes,
+// which a keyed studio answers 401, sec-loopback-bearer §7; `call` sends the studio's key). Each falls
+// to the `sync` tier entry (prompt), as the recipes did:
+//   compare <canvas>                  GET  /_api/project/conflict?file=   a held source conflict's two sides
+//   keep-mine|use-theirs|keep-both <canvas>
+//                                     POST /_api/project/conflict { file, choice }
+//   publish-ai-edit|discard-ai-edit [--run <id>]
+//                                     POST /_api/project/ai-action { choice, runId? }
+//   cancel-transfer                   POST /_api/sync/cancel-assets      stops the picture/video transfer
+//
 // Hub URLs, file names and conflict paths come from a peer or a config: only counts, the word and the
 // hub's host are printed, inside the untrusted block (`--json` carries `untrusted: true`).
 
@@ -19,7 +29,10 @@ import {
 } from '../client/v2/diagnostics/resync-model.js';
 import {
   call,
+  clean,
+  cleanLines,
   connect,
+  DESIGN_REL,
   field,
   parseWords,
   runVerb,
@@ -30,11 +43,23 @@ import {
 
 export const USAGE = `usage: maude design sync status [--json] [--root <project>]
        maude design sync resync [--no-wait] [--json] [--root <project>]
+       maude design sync compare <canvas> [--json] [--root <project>]
+       maude design sync keep-mine|use-theirs|keep-both <canvas> [--json] [--root <project>]
+       maude design sync publish-ai-edit|discard-ai-edit [--run <id>] [--json] [--root <project>]
+       maude design sync cancel-transfer [--json] [--root <project>]
   status   Sync in one word (Up to date · Syncing… · Offline · Needs you · Local project), the hub's
            host, the file counts, and the last resync's result
   resync   compare every file with the cloud copy: what is newer here is sent, what is newer there is
            fetched, a file changed on both sides becomes a conflict in Sync details. Nothing is
            overwritten. Waits and prints the result; --no-wait only starts it.
+  compare  a held source conflict's two versions: this Mac's and the project's (Sync details › Compare)
+  keep-mine · use-theirs · keep-both
+           answer a held source conflict, as its card does; keep-both keeps this Mac's version as a
+           new canvas "<name> this Mac". <canvas> is the canvas path or the slug \`sync status\` names.
+  publish-ai-edit · discard-ai-edit
+           the answer to an unfinished AI edit held from the project (--run: that run only)
+  cancel-transfer
+           stops the picture and video transfer that is running (it starts again on the next sync)
 Exit 0 ok · 1 sync is not running / the studio refused / it stopped early · 2 usage · 3 no studio running.
 `;
 
@@ -167,13 +192,131 @@ async function resync(words) {
   return view.state === 'done' ? 0 : 1;
 }
 
-const SUBS = { status, resync };
+function refused(r) {
+  const b = r?.body ?? {};
+  const why =
+    b.error ||
+    b.detail ||
+    b.code ||
+    b.status ||
+    (r ? r.text?.trim() || `HTTP ${r.status}` : 'no answer');
+  process.stderr.write(`maude design sync: refused — ${field(why)}\n`);
+  return 1;
+}
+
+/** `<canvas>`: a canvas path (design-root-relative, or `.design/…`) or a conflict slug → what the
+ *  route takes (a repo-relative path, or the slug). Pure; throws UsageError. */
+export function conflictOperand(word) {
+  const w = String(word ?? '').replace(/^\.\//, '');
+  if (!w || w.startsWith('/') || w.split('/').includes('..') || w.length > 512)
+    throw new UsageError(`${clean(word)} is not a canvas path or a conflict slug`);
+  return /\.(tsx|html)$/i.test(w) && !w.startsWith(`${DESIGN_REL}/`) ? `${DESIGN_REL}/${w}` : w;
+}
+
+async function compare(words) {
+  const { flags, pos } = parseWords(words, { bool: ['--json'], value: ['--root'] });
+  if (pos.length !== 1) throw new UsageError('compare takes one canvas');
+  const file = conflictOperand(pos[0]);
+  const c = await connect('sync', flags['--root']);
+  if (c.exit) return c.exit;
+  const r = await call(c.studio, `/_api/project/conflict?file=${encodeURIComponent(file)}`);
+  const b = r?.body ?? {};
+  if (r?.status !== 200 || !b.ok) return refused(r);
+  // a peer's source and this Mac's: data, never instructions
+  const out = { slug: b.slug, mine: b.mine ?? null, theirs: b.theirs ?? '' };
+  if (flags['--json']) {
+    process.stdout.write(
+      `${JSON.stringify(untrustedJson(out, { multiline: ['mine', 'theirs'] }))}\n`
+    );
+    return 0;
+  }
+  const mine = out.mine === null ? '(none: this Mac has no version of it)' : cleanLines(out.mine);
+  writeUntrusted(
+    `conflict · ${field(out.slug)}\n--- this Mac\n${mine}\n--- the project\n${cleanLines(out.theirs)}`
+  );
+  return 0;
+}
+
+const CHOICE = { 'keep-mine': 'mine', 'use-theirs': 'theirs', 'keep-both': 'keep-both' };
+
+function resolveWith(sub) {
+  return async (words) => {
+    const { flags, pos } = parseWords(words, { bool: ['--json'], value: ['--root'] });
+    if (pos.length !== 1) throw new UsageError(`${sub} takes one canvas`);
+    const file = conflictOperand(pos[0]);
+    const c = await connect('sync', flags['--root']);
+    if (c.exit) return c.exit;
+    const r = await call(c.studio, '/_api/project/conflict', {
+      method: 'POST',
+      json: { file, choice: CHOICE[sub] },
+      timeoutMs: 30_000,
+    });
+    const b = r?.body ?? {};
+    if (r?.status !== 200 || !b.ok) return refused(r);
+    if (flags['--json']) process.stdout.write(`${JSON.stringify(b)}\n`);
+    else process.stdout.write(`→ ${sub}: ${field(b.status ?? 'done')}\n`);
+    return 0;
+  };
+}
+
+function aiEdit(choice) {
+  return async (words) => {
+    const { flags, pos } = parseWords(words, { bool: ['--json'], value: ['--run', '--root'] });
+    if (pos.length) throw new UsageError(`${choice}-ai-edit takes no operand`);
+    const body = { choice };
+    if (flags['--run'] !== undefined) {
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(flags['--run'])) throw new UsageError('--run is a run id');
+      body.runId = flags['--run'];
+    }
+    const c = await connect('sync', flags['--root']);
+    if (c.exit) return c.exit;
+    const r = await call(c.studio, '/_api/project/ai-action', {
+      method: 'POST',
+      json: body,
+      timeoutMs: 30_000,
+    });
+    const b = r?.body ?? {};
+    if (r?.status !== 200 || !b.ok) return refused(r);
+    if (flags['--json']) process.stdout.write(`${JSON.stringify(b)}\n`);
+    else
+      process.stdout.write(`→ ${choice === 'publish' ? 'published' : 'discarded'} the AI edit\n`);
+    return 0;
+  };
+}
+
+async function cancelTransfer(words) {
+  const { flags, pos } = parseWords(words, { bool: ['--json'], value: ['--root'] });
+  if (pos.length) throw new UsageError('cancel-transfer takes no operand');
+  const c = await connect('sync', flags['--root']);
+  if (c.exit) return c.exit;
+  const r = await call(c.studio, '/_api/sync/cancel-assets', { method: 'POST' });
+  const b = r?.body ?? {};
+  if (r?.status !== 200 || !b.ok) return refused(r);
+  if (flags['--json']) process.stdout.write(`${JSON.stringify({ cancelled: !!b.cancelled })}\n`);
+  else
+    process.stdout.write(b.cancelled ? '→ the transfer stopped\n' : '→ no transfer was running\n');
+  return 0;
+}
+
+const SUBS = {
+  status,
+  resync,
+  compare,
+  'keep-mine': resolveWith('keep-mine'),
+  'use-theirs': resolveWith('use-theirs'),
+  'keep-both': resolveWith('keep-both'),
+  'publish-ai-edit': aiEdit('publish'),
+  'discard-ai-edit': aiEdit('discard'),
+  'cancel-transfer': cancelTransfer,
+};
 
 if (import.meta.main) {
   runVerb('sync', USAGE, async (words) => {
     const sub = words[0];
     if (!sub || !Object.hasOwn(SUBS, sub))
-      throw new UsageError(sub ? `unknown sub-verb ${sub}` : 'name a sub-verb: status or resync');
+      throw new UsageError(
+        sub ? `unknown sub-verb ${clean(sub)}` : `name a sub-verb: ${Object.keys(SUBS).join(', ')}`
+      );
     return SUBS[sub](words.slice(1));
   });
 }

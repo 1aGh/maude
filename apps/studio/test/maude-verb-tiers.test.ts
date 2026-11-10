@@ -150,6 +150,38 @@ describe('maude verb tiers — the generated allow list', () => {
     }
   });
 
+  // fix-bulk 2026-11-10 follow-up — the verbs that replaced the last curl-local recipes keep their
+  // action's effect and the prompt tier the recipe had: a key fix widens no tier.
+  test('the curl-local replacement verbs keep their effect and prompt', () => {
+    const rows = [
+      ['asset-trash', 'project'],
+      ['asset-rename', 'project'],
+      ['retry-save', 'project'],
+      ['footage', 'project'],
+      ['sync compare', 'none'],
+      ['sync cancel-transfer', 'none'],
+      ['sync keep-mine', 'shared'],
+      ['sync use-theirs', 'shared'],
+      ['sync keep-both', 'shared'],
+      ['sync publish-ai-edit', 'shared'],
+      ['sync discard-ai-edit', 'shared'],
+    ] as const;
+    for (const [verb, effect] of rows) {
+      const v = MAUDE_VERBS.find((x) => x.scope === 'design' && x.verb === verb);
+      expect({ verb, effect: v?.effect, tier: v && verbTier(v) }).toEqual({
+        verb,
+        effect,
+        tier: 'prompt',
+      });
+    }
+    const rules = MAUDE_DEFAULT_ALLOWED_TOOLS.join('\n');
+    for (const cmd of ['asset-trash', 'asset-rename', 'retry-save', 'footage', 'sync compare'])
+      expect({ cmd, allowed: rules.includes(`maude design ${cmd}`) }).toEqual({
+        cmd,
+        allowed: false,
+      });
+  });
+
   test('lead answers a–c (decision:maude/v2-2.4b-held-and-prompting-verbs)', () => {
     const tier = (scope: string, verb: string) => {
       const v = MAUDE_VERBS.find((x) => x.scope === scope && x.verb === verb);

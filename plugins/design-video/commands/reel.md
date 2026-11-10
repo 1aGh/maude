@@ -45,8 +45,8 @@ skill **`video-comp`** (the Remotion iron rules) before generating.
 1. Resolve config + designRoot (`maude design prep --shell-export --root "$REPO"` /
    `bootstrap-check`). Fail loud if there's no `.design/`.
 2. Make sure Maude is running and capture the port: `PORT=$(maude design server-up --root "$REPO")`.
-   The analyses and the EDL are saved through it, on the loopback `/_api/footage` route
-   (no verb exists for that write).
+   The analyses and the EDL are read and saved through it with `maude design footage show|save`,
+   which sends the studio's key (a plain loopback curl is refused).
 
 ## Step 1 — Ingest the footage → content-addressed assets
 
@@ -114,7 +114,7 @@ REF=$(maude design generate --modality video --provider gemini \
 > same three sub-steps** `/design-video:video-analyze` Step 3 owns: extract scene-aware
 > keyframes (skill `footage-keyframes` / `maude design smart-frames`) → optionally
 > transcribe → spawn the **Read-only, egress-free** `footage-analyst` to watch the
-> frames and RETURN JSON → the ORCHESTRATOR persists it via `PUT /_api/footage`. The
+> frames and RETURN JSON → the ORCHESTRATOR persists it via `maude design footage save`. The
 > analyst never runs a command or writes a file (DDR-183 F2 — untrusted footage never
 > reaches an agent that could act on it). See `/design-video:video-analyze` for the canonical
 > description; do not re-derive it.
@@ -124,11 +124,11 @@ For each video clip (fan out, **capped 3–4 concurrent**): (1) run
 (2) **optionally** `maude design transcribe` (reel is usually visual-first — transcribe
 only when spoken content should inform the cut; pass the transcript through for a
 `speech` note), (3) spawn the watch-only analyst with the manifest's `frames[]` +
-`SCOUT` (+ `TRANSCRIPT` if you transcribed) + `BRIEF`, (4) `PUT /_api/footage` with the
-JSON it returns.
+`SCOUT` (+ `TRANSCRIPT` if you transcribed) + `BRIEF`, (4) save the JSON it returns with
+`maude design footage save --asset assets/<sha8>.<ext> --from <file.json>`.
 
 **Cache:** skip a clip whose `assets/<sha8>.footage.json` already holds a **usable
-shot** (GET `/_api/footage?asset=<sha8>` → a `shots[]` entry with `usable !== false`) —
+shot** (`maude design footage show --asset assets/<sha8>.<ext>` → a `shots[]` entry with `usable !== false`) —
 analysis is deterministic per clip hash, so re-running on the same folder re-analyzes
 nothing. A bare **provenance stub** from a generated clip (Step 1.5 — `ai-generated`
 tag, empty `shots`) is NOT a cache hit: analyze it so it gets real shots (keep the tag).
@@ -140,7 +140,8 @@ prompt: "ASSET=assets/<sha8>.mp4  DURATION=<durationSec>
          BRIEF=\"<brief verbatim>\"  [TRANSCRIPT=<text> if you transcribed].
          Read the frames in t-order and RETURN the full FootageAnalysis JSON. Do not write anything."
 ```
-Then PUT the returned JSON to `/_api/footage?asset=<sha8>` yourself.
+Then write the returned JSON to a file in your temp folder and store it yourself:
+`maude design footage save --asset assets/<sha8>.<ext> --from <that file>`.
 
 Collect the verdicts. Drop clips that returned `{ error: "no video track" }`
 (surface them). If **no** clip yielded a usable shot, stop and report.
@@ -205,7 +206,7 @@ Step 1.5 (the user drove generation explicitly — don't double-ask).
      `startSec`/`durationFrames` (it already carries a provenance sidecar from the
      generate route, so Step 2's shot-aware cache re-analyzes it).
    - An **audio** result splices directly as an `audioTracks[]` entry, and
-     **captions** fill the `captions` track — PUT `/_api/footage?slug=<slug>`; no
+     **captions** fill the `captions` track — `maude design footage save --cut <slug> --from <edl.json>`; no
      re-direct needed.
    Then re-run **Step 4** codegen on the updated EDL.
 5. **Auto Mode (AskUserQuestion denied) → default (c) Skip** — never spend the
@@ -228,7 +229,7 @@ in the command; nothing paid runs without the explicit `AskUserQuestion` yes.
 
 Make the canvas the way `/design:new` does (its step 3): `maude design canvas-new "<Name>"`, which
 prints the file it made. Never write the `.tsx` or its `.meta.json` by hand. Then read the EDL
-(`GET /_api/footage?slug=<slug>`) and **Edit** the new canvas (the file the create printed) to add one video artboard carrying the comp,
+(`maude design footage show --cut <slug>`) and **Edit** the new canvas (the file the create printed) to add one video artboard carrying the comp,
 following the skill's **EDL → `<TransitionSeries>`
 codegen contract**: one **literal** `<TransitionSeries.Sequence name>` block per
 beat (NEVER `.map()`), `<OffthreadVideo startFrom>` for each in-point, literal-sum
@@ -261,7 +262,7 @@ title/subtitle/tags `["reel","video"]` through the canvas's own meta edit, as `/
 
 ### Step 5.5 — Record the reel decision (kgai — when active)
 
-The EDL is a **decision** — the "reziser" cut. It lands via a server write (`PUT /_api/footage`), so record it explicitly. Load **`flow:kgai-backend`**; when `maude kg resolve --json` is `active`, ingest a `reel:<slug>` node with a `USES` link per beat's clip:
+The EDL is a **decision** — the "reziser" cut. It lands via a server write (`maude design footage save`), so record it explicitly. Load **`flow:kgai-backend`**; when `maude kg resolve --json` is `active`, ingest a `reel:<slug>` node with a `USES` link per beat's clip:
 
 ```bash
 echo '{"decision":{"title":"Reel: <slug>","rationale":"<why this cut>","date":"<YYYY-MM-DD>","mutations":[{"op":"upsert_element","kind":"reel","name":"<slug>"},{"op":"upsert_element","kind":"footage","name":"<beat.clip sha8>"},{"op":"add_link","from":"reel:<slug>","to":"footage:<beat.clip sha8>","link":"USES"}]}}' | maude kg ingest --root "$CLAUDE_PROJECT_DIR"

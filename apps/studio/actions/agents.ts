@@ -132,9 +132,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // An agent's own writes go straight to the files; it frees space and may press Retry the same way.
   'save.retry-held': {
     effect: 'project',
-    agent: cli(
-      'maude design curl-local -X POST http://127.0.0.1:<port>/_api/diagnostics/disk-retry'
-    ),
+    agent: cli('maude design retry-save'),
     minRole: 'edit',
     server: { route: '/_api/diagnostics/disk-retry', method: 'POST' },
   },
@@ -145,23 +143,17 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // S11.12 — Sync details (06 ad-syncd). A held SOURCE conflict's three picks; the slug is the
   // `source-conflict-<slug>` notice id `maude design sync status` lists. Keep both writes this Mac's
   // version as a new canvas "<name> this Mac" (ONE doc.create — one undo step) + a history aside.
+  // fix-bulk 2026-11-10: taught as the `sync` sub-verbs of the same names, which send the studio's key
+  // (the old `curl-local` recipes were answered 401 by a keyed studio); still prompt (`sync` is shared).
   ...Object.fromEntries(
-    (
-      [
-        ['keep-mine', 'mine'],
-        ['use-theirs', 'theirs'],
-        ['keep-both', 'keep-both'],
-      ] as const
-    ).map(([k, choice]) => [
+    (['keep-mine', 'use-theirs', 'keep-both'] as const).map((k) => [
       `sync.${k}`,
       {
         effect: 'shared',
         minRole: 'edit',
         undo: 'step',
         server: { route: '/_api/project/conflict', method: 'POST' },
-        agent: cli(
-          `maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/conflict -d '{"file":"<slug>","choice":"${choice}"}'`
-        ),
+        agent: cli(`maude design sync ${k} <slug>`),
       } satisfies ActionDefAI,
     ])
   ),
@@ -172,9 +164,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
         effect: 'shared',
         minRole: 'edit',
         server: { route: '/_api/project/ai-action', method: 'POST' },
-        agent: cli(
-          `maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/ai-action -d '{"choice":"${choice}"}'`
-        ),
+        agent: cli(`maude design sync ${choice}-ai-edit`),
       } satisfies ActionDefAI,
     ])
   ),
@@ -182,7 +172,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     minRole: 'edit',
     server: { route: '/_api/sync/cancel-assets', method: 'POST' },
-    agent: cli('maude design curl-local -X POST http://127.0.0.1:<port>/_api/sync/cancel-assets'),
+    agent: cli('maude design sync cancel-transfer'),
   },
   // Issue #207 — which folders a project syncs is the person's choice (a versioned config write
   // that changes what reaches the team), so the AI is never taught it.
@@ -255,9 +245,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // No `server`: the action itself only opens a sheet; the read under it is Sync details' own GET.
   'sync.compare': {
     effect: 'none',
-    agent: cli(
-      'maude design curl-local "http://127.0.0.1:<port>/_api/project/conflict?file=<slug>"'
-    ),
+    agent: cli('maude design sync compare <slug>'),
   },
   'sync.get-latest': GIT('/_api/git/pull', 'git pull'),
   // fix/207 — the person's yes / no to shared code (.ts/.js) from the project's hub: it runs on this
@@ -1011,9 +999,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/assets/trash', method: 'POST' },
     // V2-8.16 — the route, not mv: it refuses a picture a canvas uses or an older version shows and
     // answers per item (moved, or used | kept-by-versions | checking); `assets --not-used` lists them.
-    agent: cli(
-      `maude design curl-local http://127.0.0.1:<port>/_api/assets/trash --method POST --header "Content-Type: application/json" --data '{"assets":["assets/<name>"]}'`
-    ),
+    agent: cli('maude design asset-trash assets/<name>'),
   },
   // P8 round 7 — Rename… an asset: assets/<name>.<ext> and its sidecars take the new name (asset-rename.ts). Never a
   // picture a canvas uses or an older version shows — their references would break — so nothing else is rewritten.
@@ -1024,9 +1010,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/assets/rename', method: 'POST' },
     // V2-8.16 — the route, not mv: {ok, to} or 409 {reason: used | kept-by-versions | checking | exists |
     // same | bad-name | invalid | missing}.
-    agent: cli(
-      `maude design curl-local http://127.0.0.1:<port>/_api/assets/rename --method POST --header "Content-Type: application/json" --data '{"asset":"assets/<name>.<ext>","name":"<new name>"}'`
-    ),
+    agent: cli('maude design asset-rename assets/<name>.<ext> "<new name>"'),
   },
   'tool.create-default': TSX(
     'Add the element’s JSX at its default size: a frame or rectangle is 100 × 100 (see object.insert-shape), a text is a <p> with the words “Text”'

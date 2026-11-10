@@ -24,21 +24,29 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 /** Routes the key gate answers without a credential (api-key.ts `isExempt`, the GET half aside). */
 const EXEMPT = new Set(['/_api/hub-signin/return', '/_api/shell/status', '/_api/shell/session']);
 
-/** Never again through curl-local: the verbs replace them (canvas-new / canvas-move). */
-const BANNED = new Set(['/_api/canvas', '/_api/fs-move']);
-
 /**
- * Recipes still taught through curl-local, each against a keyed route (so each is broken against the
- * app). Follow-up: a verb per family, like canvas-new / canvas-move. Remove a line when its recipes go.
+ * Never again through curl-local: a verb that sends the studio's key replaces each family —
+ * canvas-new / canvas-move (W1 follow-up), then asset-trash / asset-rename, retry-save and the
+ * `sync` sub-verbs compare / keep-mine / use-theirs / keep-both / publish-ai-edit /
+ * discard-ai-edit / cancel-transfer (fix-bulk 2026-11-10 follow-up), and footage show|save.
  */
-const PENDING = new Set([
+const BANNED = new Set([
+  '/_api/canvas',
+  '/_api/fs-move',
   '/_api/assets/trash',
   '/_api/assets/rename',
   '/_api/diagnostics/disk-retry',
   '/_api/project/conflict',
   '/_api/project/ai-action',
   '/_api/sync/cancel-assets',
+  '/_api/footage',
 ]);
+
+/**
+ * Recipes still taught through curl-local against a keyed route (each broken against the app). A
+ * closed ratchet, empty since the fix-bulk 2026-11-10 follow-up: a new one gets a verb, never a line.
+ */
+const PENDING = new Set([]);
 
 function walk(dir, keep, out = []) {
   for (const name of readdirSync(dir)) {
@@ -111,7 +119,7 @@ test('no taught curl-local recipe hits a keyed studio route (ratchet: PENDING)',
     }
   }
   const banned = [...found].filter(([r]) => BANNED.has(r)).flatMap(([, w]) => w);
-  assert.deepEqual(banned, [], 'canvas create / move: teach maude design canvas-new / canvas-move');
+  assert.deepEqual(banned, [], 'these routes have verbs that send the key: teach the verb');
   const fresh = [...found].filter(([r]) => !PENDING.has(r) && !BANNED.has(r));
   assert.deepEqual(
     fresh,
