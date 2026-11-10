@@ -15,7 +15,7 @@
 // of a webfont and a picture, both served with a delay.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PDFDict, PDFDocument, PDFName, PDFNumber, type PDFObject, PDFStream } from 'pdf-lib';
@@ -153,38 +153,53 @@ function inventory(resources: PDFObject | undefined): { images: number; fonts: s
   return res;
 }
 
-describe('capture shims settle an off-screen artboard before the shot', () => {
-  test('_pdf-playwright: the second section’s pages carry the picture and the webfont', async () => {
-    const dir = join(out, 'pdf');
-    await runShim('_pdf-playwright.mjs', dir);
-    const got: Record<string, { picture: boolean; webfont: boolean }> = {};
-    for (const id of ['b1', 'b2', 'b3']) {
-      const doc = await PDFDocument.load(readFileSync(join(dir, `${id}.pdf`)));
-      const inv = inventory(doc.getPage(0).node.Resources());
-      got[id] = { picture: inv.images > 0, webfont: inv.fonts.some((f) => /Inter/.test(f)) };
-    }
-    expect(got).toEqual({
-      b1: { picture: true, webfont: true },
-      b2: { picture: true, webfont: true },
-      b3: { picture: true, webfont: false },
-    });
-  }, 90_000);
+// The capture shims need Playwright's Chromium; a CI shard without it skips (the shims answer exit 3).
+const HAS_CHROMIUM = await (async () => {
+  try {
+    const { chromium } = await import('playwright');
+    return existsSync(chromium.executablePath());
+  } catch {
+    return false;
+  }
+})();
 
-  test('_png-playwright: every off-screen artboard has its picture painted', async () => {
-    const dir = join(out, 'png');
-    await runShim('_png-playwright.mjs', dir);
-    // The picture is the only saturated blue on a navy board: find it in each decoded shot.
-    // (`page.screenshot` waits for webfonts by itself, which hides the race on b1/b2; b3's
-    // picture arrives after that wait, so only a settle before the shot catches it.)
-    const got: Record<string, boolean> = {};
-    for (const id of ['b1', 'b2', 'b3']) {
-      const shot = Bun.file(join(dir, `${id}.png`));
-      const { picturePixels } = await countPicturePixels(new Uint8Array(await shot.arrayBuffer()));
-      got[id] = picturePixels > 1000;
-    }
-    expect(got).toEqual({ b1: true, b2: true, b3: true });
-  }, 90_000);
-});
+describe.skipIf(!HAS_CHROMIUM)(
+  'capture shims settle an off-screen artboard before the shot',
+  () => {
+    test('_pdf-playwright: the second section’s pages carry the picture and the webfont', async () => {
+      const dir = join(out, 'pdf');
+      await runShim('_pdf-playwright.mjs', dir);
+      const got: Record<string, { picture: boolean; webfont: boolean }> = {};
+      for (const id of ['b1', 'b2', 'b3']) {
+        const doc = await PDFDocument.load(readFileSync(join(dir, `${id}.pdf`)));
+        const inv = inventory(doc.getPage(0).node.Resources());
+        got[id] = { picture: inv.images > 0, webfont: inv.fonts.some((f) => /Inter/.test(f)) };
+      }
+      expect(got).toEqual({
+        b1: { picture: true, webfont: true },
+        b2: { picture: true, webfont: true },
+        b3: { picture: true, webfont: false },
+      });
+    }, 90_000);
+
+    test('_png-playwright: every off-screen artboard has its picture painted', async () => {
+      const dir = join(out, 'png');
+      await runShim('_png-playwright.mjs', dir);
+      // The picture is the only saturated blue on a navy board: find it in each decoded shot.
+      // (`page.screenshot` waits for webfonts by itself, which hides the race on b1/b2; b3's
+      // picture arrives after that wait, so only a settle before the shot catches it.)
+      const got: Record<string, boolean> = {};
+      for (const id of ['b1', 'b2', 'b3']) {
+        const shot = Bun.file(join(dir, `${id}.png`));
+        const { picturePixels } = await countPicturePixels(
+          new Uint8Array(await shot.arrayBuffer())
+        );
+        got[id] = picturePixels > 1000;
+      }
+      expect(got).toEqual({ b1: true, b2: true, b3: true });
+    }, 90_000);
+  }
+);
 
 /** Count the fixture picture's saturated-blue pixels in a decoded PNG shot (8-bit RGB/RGBA). */
 async function countPicturePixels(png: Uint8Array): Promise<{ picturePixels: number }> {

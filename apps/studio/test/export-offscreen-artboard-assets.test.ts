@@ -17,7 +17,7 @@
 // `export-shim-offscreen-settle.test.ts`, which serves the same assets with a delay.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { deflateSync, inflateSync } from 'node:zlib';
 import type { Subprocess } from 'bun';
@@ -258,47 +258,60 @@ async function exportCanvas(format: 'pdf' | 'png'): Promise<Uint8Array> {
   return body;
 }
 
-describe('canvas-as-separate export — an artboard that starts off screen keeps its pictures and webfont', () => {
-  test('PDF: every page of the second section has its image and the webfont', async () => {
-    const doc = await PDFDocument.load(await exportCanvas('pdf'));
-    expect(doc.getPageCount()).toBe(4);
-    const pages = doc.getPages().map((p) => pageInventory(p.node.Resources()));
-    // Pages 3 and 4 are B1 and B2 (document order). Both draw the same picture and the same face.
-    const summary = pages.map((p, i) => ({
-      page: i + 1,
-      // the 64×64 picture, not Chromium's 14×16 broken-image glyph
-      picture: p.images > 0,
-      webfont: p.fonts.some((f) => /Inter/.test(f)),
-      fallback: p.fonts.some((f) => /Times|Serif/i.test(f)),
-    }));
-    expect(summary.slice(2)).toEqual([
-      { page: 3, picture: true, webfont: true, fallback: false },
-      { page: 4, picture: true, webfont: true, fallback: false },
-    ]);
-  }, 120_000);
+// The capture shims need Playwright's Chromium; a CI shard without it skips (the shims answer exit 3).
+const HAS_CHROMIUM = await (async () => {
+  try {
+    const { chromium } = await import('playwright');
+    return existsSync(chromium.executablePath());
+  } catch {
+    return false;
+  }
+})();
 
-  test('PNG: the second section’s first artboard has its picture painted', async () => {
-    const zip = await JSZip.loadAsync(await exportCanvas('png'));
-    const name = Object.keys(zip.files).find((n) => /b1/.test(n));
-    expect(name).toBeDefined();
-    const img = pngPixels(
-      await (zip.file(name as string) as JSZip.JSZipObject).async('uint8array')
-    );
-    // The picture sits at (24, 24 + headline) in CSS px; probe its centre band at any scale.
-    const sx = img.w / 420;
-    let hits = 0;
-    for (
-      let y = Math.round(90 * sx);
-      y < Math.round(260 * sx);
-      y += Math.max(1, Math.round(4 * sx))
-    ) {
-      const [r, g] = img.at(Math.round(100 * sx), y) as number[];
-      if (
-        ((r as number) > 180 && (g as number) < 90) ||
-        ((r as number) < 60 && (g as number) > 140)
-      )
-        hits += 1;
-    }
-    expect(hits).toBeGreaterThan(5);
-  }, 120_000);
-});
+describe.skipIf(!HAS_CHROMIUM)(
+  'canvas-as-separate export — an artboard that starts off screen keeps its pictures and webfont',
+  () => {
+    test('PDF: every page of the second section has its image and the webfont', async () => {
+      const doc = await PDFDocument.load(await exportCanvas('pdf'));
+      expect(doc.getPageCount()).toBe(4);
+      const pages = doc.getPages().map((p) => pageInventory(p.node.Resources()));
+      // Pages 3 and 4 are B1 and B2 (document order). Both draw the same picture and the same face.
+      const summary = pages.map((p, i) => ({
+        page: i + 1,
+        // the 64×64 picture, not Chromium's 14×16 broken-image glyph
+        picture: p.images > 0,
+        webfont: p.fonts.some((f) => /Inter/.test(f)),
+        fallback: p.fonts.some((f) => /Times|Serif/i.test(f)),
+      }));
+      expect(summary.slice(2)).toEqual([
+        { page: 3, picture: true, webfont: true, fallback: false },
+        { page: 4, picture: true, webfont: true, fallback: false },
+      ]);
+    }, 120_000);
+
+    test('PNG: the second section’s first artboard has its picture painted', async () => {
+      const zip = await JSZip.loadAsync(await exportCanvas('png'));
+      const name = Object.keys(zip.files).find((n) => /b1/.test(n));
+      expect(name).toBeDefined();
+      const img = pngPixels(
+        await (zip.file(name as string) as JSZip.JSZipObject).async('uint8array')
+      );
+      // The picture sits at (24, 24 + headline) in CSS px; probe its centre band at any scale.
+      const sx = img.w / 420;
+      let hits = 0;
+      for (
+        let y = Math.round(90 * sx);
+        y < Math.round(260 * sx);
+        y += Math.max(1, Math.round(4 * sx))
+      ) {
+        const [r, g] = img.at(Math.round(100 * sx), y) as number[];
+        if (
+          ((r as number) > 180 && (g as number) < 90) ||
+          ((r as number) < 60 && (g as number) > 140)
+        )
+          hits += 1;
+      }
+      expect(hits).toBeGreaterThan(5);
+    }, 120_000);
+  }
+);
