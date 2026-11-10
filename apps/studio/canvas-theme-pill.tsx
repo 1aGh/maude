@@ -110,6 +110,17 @@ export function showPathLine(avail: number, title: number, path: number): boolea
 
 const noSub = () => () => {};
 
+/** The laid-out width of an element's text, overflow or not (0 without layout). */
+function textWidthOf(el: Element): number {
+  try {
+    const r = el.ownerDocument.createRange();
+    r.selectNodeContents(el);
+    return r.getBoundingClientRect().width;
+  } catch {
+    return 0;
+  }
+}
+
 /** The shell's top band, live (null outside a browser document or before the shell sent one). */
 function useTopBand(): Readonly<TopBand> | null {
   const s = typeof window === 'undefined' ? null : canvasModeStore(window);
@@ -197,6 +208,8 @@ export function CanvasThemePill({
   const titleRef = useRef<HTMLElement>(null);
   const pathRef = useRef<HTMLButtonElement>(null);
   const [pathShown, setPathShown] = useState(true);
+  // how many characters of the path fit: it loses its leading folders first, never its file name
+  const [pathChars, setPathChars] = useState(PATH_MAX);
   // biome-ignore lint/correctness/useExhaustiveDependencies: name, file and copied change the lines' natural widths
   useLayoutEffect(() => {
     const pill = pillRef.current;
@@ -205,12 +218,22 @@ export function CanvasThemePill({
       // the column is the only part that shrinks (the rest is flex: none), so the pill less the column is fixed
       const fixed =
         pill.getBoundingClientRect().width - (textRef.current?.getBoundingClientRect().width ?? 0);
-      const next = showPathLine(
-        place.maxWidth - fixed,
-        titleRef.current?.scrollWidth ?? 0,
-        pathRef.current?.scrollWidth ?? 0
-      );
+      const avail = place.maxWidth - fixed;
+      const btn = pathRef.current;
+      let pathW = btn?.scrollWidth ?? 0;
+      let chars = PATH_MAX;
+      const shown = btn?.textContent ?? '';
+      const textW = btn && file && copied === 'no' && shown ? textWidthOf(btn) : 0;
+      if (btn && file && textW > 0) {
+        // the path is set in a monospace face: one character's width prices the whole path and what fits
+        const charW = textW / shown.length;
+        const pad = Math.max(0, btn.scrollWidth - textW);
+        pathW = charW * shortenCanvasPath(file).length + pad;
+        chars = Math.max(8, Math.min(PATH_MAX, Math.floor((avail - pad) / charW)));
+      }
+      const next = showPathLine(avail, titleRef.current?.scrollWidth ?? 0, pathW);
       setPathShown((cur) => (cur === next ? cur : next));
+      setPathChars((cur) => (cur === chars ? cur : chars));
     };
     fit();
     if (typeof ResizeObserver !== 'function') return undefined;
@@ -259,7 +282,7 @@ export function CanvasThemePill({
                   ? 'Copied'
                   : copied === 'failed'
                     ? 'Couldn’t copy'
-                    : shortenCanvasPath(file)}
+                    : shortenCanvasPath(file, pathChars)}
               </button>
             ) : null}
           </span>
