@@ -48,7 +48,7 @@
   - fail-first unit tests;
   - Home e2e on the mini or with the no-dialog env, never popping dialogs;
   - screenshots.
-- [ ] **H5** Gates, What's New, release on Michal's OK.
+- [x] **H5** Gates, What's New, release on Michal's OK.
 
 ## Acceptance Criteria
 
@@ -90,3 +90,4 @@ Same as `.ai/scenarios/accounts-2.1.1/builder-brief.md`. Never read or write Mic
   - The 1 error is the pre-existing one at v2.1.0.
   - CLI: 1025/1, the known slot tag-state failure.
   - Desktop e2e (sidecar probed first, no-dialog env): home 1/1, accounts 3/3. Config unchanged; no dialog needed suppressing.
+- 2026-11-10: Released in v2.1.2 together with the fix bulk.
