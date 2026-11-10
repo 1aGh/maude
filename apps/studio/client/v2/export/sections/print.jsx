@@ -26,6 +26,8 @@ import {
   CROP_LABEL,
   CROP_SUB,
   LEGEND,
+  OUTLINE_LABEL,
+  OUTLINE_SUB,
   PAPER_NONE,
   PAPER_PENDING,
   PRINT_FORMATS,
@@ -238,29 +240,44 @@ export function PrintSection({
                   {backLabel(c.back)}
                 </Check>
               ) : null}
+              {/* fix-bulk B4: Advanced › Text's `outline`, here because it is the most common print ask */}
+              <Check
+                checked={c.outlines}
+                sub={OUTLINE_SUB}
+                testid="export-print-outline"
+                onChange={(on) => setAdv({ text: on ? 'outline' : 'keep' })}
+              >
+                {OUTLINE_LABEL}
+              </Check>
             </span>
           </Row>
         ) : null}
-        {c.printPdf && safeLine ? (
-          <Hint
-            icon="problem"
-            tone="warn"
-            testid="export-print-safe-warn"
-            action={SHOW_ON_CANVAS}
-            onAction={() => onShowOnCanvas?.(findings[0])}
-          >
-            {safeLine}
-          </Hint>
-        ) : null}
-        {c.printPdf && fonts ? (
-          <Hint icon="type" tone="warn" testid="export-print-font-warn">
-            {fonts}
-          </Hint>
-        ) : null}
-        {c.printPdf && c.outlines && (preflight?.fonts ?? []).some((f) => !f.embeddable) ? (
-          <Hint icon="type" testid="export-print-font-ok">
-            {OUTLINES_ON}
-          </Hint>
+        {c.printPdf ? (
+          // fix-bulk B6: one slot for the print warnings, there (at one warning's height) before any arrives, so a
+          // warning that comes with the preflight does not grow the sheet and move the Export button
+          <div className="ex-print-warns" data-testid="export-print-warns">
+            {safeLine ? (
+              <Hint
+                icon="problem"
+                tone="warn"
+                testid="export-print-safe-warn"
+                action={SHOW_ON_CANVAS}
+                onAction={() => onShowOnCanvas?.(findings[0])}
+              >
+                {safeLine}
+              </Hint>
+            ) : null}
+            {fonts ? (
+              <Hint icon="type" tone="warn" testid="export-print-font-warn">
+                {fonts}
+              </Hint>
+            ) : null}
+            {c.outlines && (preflight?.fonts ?? []).some((f) => !f.embeddable) ? (
+              <Hint icon="type" testid="export-print-font-ok">
+                {OUTLINES_ON}
+              </Hint>
+            ) : null}
+          </div>
         ) : null}
         <Row k={COLOUR_ROW} testid="export-row-colour">
           <span className="ex-val" data-testid="export-print-colour">

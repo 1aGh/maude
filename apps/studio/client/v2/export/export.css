@@ -626,6 +626,15 @@
     margin: -3px 0;
     color: var(--accent-text);
   }
+  /* fix-bulk B6: the print warnings' slot holds a two-line warning's height before one arrives (the safe-margin
+     line wraps beside Show on canvas), so the preflight answering does not grow the centred sheet and move
+     the Export button under the pointer */
+  .ex-print-warns {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    min-height: calc(2 * var(--space-2, 8px) + 2 * var(--lh-sm, 1.4) * var(--type-sm, 13px));
+  }
   /* 09 ex-huge: the Include row's ticks sit side by side */
   .ex-checks.ex-checks--row {
     flex-direction: row;
