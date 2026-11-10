@@ -194,6 +194,52 @@ export interface CliYieldOptions {
 
 export type CliYieldState = 'watching' | 'yielding' | 'yielded' | 'stopped';
 
+/**
+ * The port of a RUNNING app sidecar for `root` that answers the attest challenge, or null. Skips this
+ * server's own entry (pid, or port once it has one). Never throws.
+ */
+export async function attestedSidecarPort(o: {
+  root: string;
+  rootId: string;
+  selfPid: number;
+  selfPort?: number;
+  file: string;
+  fetchImpl?: typeof fetch;
+  alive?: (pid: number) => boolean;
+}): Promise<number | null> {
+  try {
+    const reg = readRegistry(o.file);
+    if (!reg || !(o.alive ?? pidAlive)(reg.appPid)) return null;
+    const ownRoot = real(o.root) ?? o.root;
+    for (const e of reg.servers) {
+      if (e.state !== 'running' || (o.selfPort !== undefined && e.port === o.selfPort)) continue;
+      if (e.pid !== undefined && e.pid === o.selfPid) continue;
+      if (real(e.root) !== ownRoot) continue;
+      if (await attests(e, o.rootId, o.fetchImpl)) return e.port;
+    }
+  } catch {
+    /* no answer is no sidecar */
+  }
+  return null;
+}
+
+/**
+ * fix-bulk B2 — the boot-time half of the handover: a cli-role server asks once, BEFORE it writes its
+ * key file or `_server.json`, takes the store lock or joins sync. When the app's sidecar already
+ * serves this root (attested), the server prints one line and does not start — so it never writes
+ * over the app's `_server.json` and its shutdown never removes the file it wrote there.
+ */
+export async function appAlreadyServes(o: {
+  root: string;
+  rootId: string;
+  file: string | null;
+  fetchImpl?: typeof fetch;
+  alive?: (pid: number) => boolean;
+}): Promise<number | null> {
+  if (!o.file) return null;
+  return attestedSidecarPort({ ...o, file: o.file, selfPid: process.pid });
+}
+
 export function watchForAppSidecar(o: CliYieldOptions): {
   stop(): void;
   state(): CliYieldState;
@@ -238,17 +284,8 @@ export function watchForAppSidecar(o: CliYieldOptions): {
     if (state !== 'watching' || checking) return;
     checking = true;
     try {
-      const reg = readRegistry(o.file);
-      if (!reg || !alive(reg.appPid)) return;
-      for (const e of reg.servers) {
-        if (e.state !== 'running' || e.port === o.selfPort) continue;
-        if (e.pid !== undefined && e.pid === o.selfPid) continue;
-        if (real(e.root) !== ownRoot) continue;
-        if (await attests(e, o.rootId, o.fetchImpl)) {
-          if (state === 'watching') beginYield(e.port);
-          return;
-        }
-      }
+      const port = await attestedSidecarPort({ ...o, root: ownRoot, alive });
+      if (port !== null && state === 'watching') beginYield(port);
     } finally {
       checking = false;
     }
