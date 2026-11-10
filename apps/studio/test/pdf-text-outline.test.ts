@@ -254,7 +254,10 @@ async function bleedDocWithMarks(): Promise<{ bytes: Uint8Array; slug: number }>
   for (const registration of [false, true]) {
     const page = doc.addPage([300, 150]);
     page.drawText('Gators', { x: 20, y: 60, size: 24, font, color: rgb(0, 0, 0) });
-    applyPrintBoxesAndMarks(page, 3, { includeBleed: true, marks: { crop: true, registration } });
+    applyPrintBoxesAndMarks(page, 3, {
+      includeBleed: true,
+      marks: { crop: true, registration, colorBars: false, pageInfo: false },
+    });
   }
   const slug = -doc.getPage(0).getMediaBox().x;
   return { bytes: await doc.save(), slug };
