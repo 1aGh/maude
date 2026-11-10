@@ -32,7 +32,7 @@ import { THEME_WORD, ThemeIcon } from './canvas-theme-icons.tsx';
 
 /** The pill's chrome. Kept in step with the `.ds-bar` block of ds/board/board.css (same pill, other canvases). */
 const PILL_CSS = `
-.dc-theme-pill{position:fixed;left:50%;top:16px;translate:-50% 0;z-index:2147483000;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;min-height:44px;padding:4px 8px;overflow:hidden;border-radius:var(--maude-hud-radius-lg,14px);background:var(--maude-hud-island-bg);color:var(--maude-chrome-fg-0);-webkit-backdrop-filter:saturate(1.4) blur(18px);backdrop-filter:saturate(1.4) blur(18px);box-shadow:var(--maude-hud-island-shadow),inset 0 0 0 .5px var(--maude-hud-island-edge);font:400 var(--maude-hud-type-sm,12px)/1 var(--maude-chrome-font-body);white-space:nowrap}
+.dc-theme-pill{position:fixed;left:50%;top:16px;translate:-50% 0;z-index:2147483000;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;min-height:44px;padding:3px 8px 4px;overflow:hidden;border-radius:var(--maude-hud-radius-lg,14px);background:var(--maude-hud-island-bg);color:var(--maude-chrome-fg-0);-webkit-backdrop-filter:saturate(1.4) blur(18px);backdrop-filter:saturate(1.4) blur(18px);box-shadow:var(--maude-hud-island-shadow),inset 0 0 0 .5px var(--maude-hud-island-edge);font:400 var(--maude-hud-type-sm,12px)/1 var(--maude-chrome-font-body);white-space:nowrap}
 .dc-theme-pill-row{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%;padding-left:4px}
 .dc-theme-pill-row>:not(.dc-theme-pill-text){flex:none}
 .dc-theme-pill-ic{display:grid;place-items:center;width:24px;height:24px;border-radius:var(--maude-hud-radius-xs,4px);background:var(--maude-hud-accent-muted);color:var(--maude-hud-accent-text)}
@@ -256,6 +256,24 @@ export function CanvasThemePill({
         role="toolbar"
         aria-label="Canvas theme"
       >
+        {file ? (
+          <button
+            ref={pathRef}
+            type="button"
+            className="dc-theme-pill-path"
+            data-testid="canvas-theme-path"
+            title={`Copy relative path — ${file}`}
+            aria-label={`Copy relative path ${file}`}
+            aria-live="polite"
+            onClick={copyPath}
+          >
+            {copied === 'ok'
+              ? 'Copied'
+              : copied === 'failed'
+                ? 'Couldn’t copy'
+                : shortenCanvasPath(file, pathChars)}
+          </button>
+        ) : null}
         <div className="dc-theme-pill-row" data-testid="canvas-theme-row">
           {name ? (
             <span className="dc-theme-pill-ic" aria-hidden="true">
@@ -295,24 +313,6 @@ export function CanvasThemePill({
           ) : null}
           {extra}
         </div>
-        {file ? (
-          <button
-            ref={pathRef}
-            type="button"
-            className="dc-theme-pill-path"
-            data-testid="canvas-theme-path"
-            title={`Copy relative path — ${file}`}
-            aria-label={`Copy relative path ${file}`}
-            aria-live="polite"
-            onClick={copyPath}
-          >
-            {copied === 'ok'
-              ? 'Copied'
-              : copied === 'failed'
-                ? 'Couldn’t copy'
-                : shortenCanvasPath(file, pathChars)}
-          </button>
-        ) : null}
       </div>
     </>
   );

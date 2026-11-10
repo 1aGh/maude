@@ -245,15 +245,15 @@ describe('the canvas pill', () => {
     return pill;
   };
 
-  test('two lines: the name and Light | Dark on top, the path UNDER them (smaller, grey, the text-safe grade)', async () => {
+  test('two lines: the path on top (smaller, grey, the text-safe grade), the name and Light | Dark under it', async () => {
     const { registerCanvasThemeSystem } = await import('../canvas-theme.ts');
     registerCanvasThemeSystem({ name: 'StudyFi v3', themeDefault: null });
     (window as unknown as { __canvas_meta_file__: string }).__canvas_meta_file__ =
       '.design/ui/studyfi/Team/team-structure.tsx';
     const pill = await mount();
-    // Michal: the path is the pill's second line, under the buttons — never beside them
+    // Michal: the path is its own line ABOVE the buttons — never beside them
     const lines = [...pill.children].map((c) => c.getAttribute('data-testid'));
-    expect(lines).toEqual(['canvas-theme-row', 'canvas-theme-path']);
+    expect(lines).toEqual(['canvas-theme-path', 'canvas-theme-row']);
     const row = pill.querySelector('[data-testid="canvas-theme-row"]');
     expect(row?.querySelector('[data-testid="canvas-theme-title"]')?.textContent).toBe(
       'StudyFi v3'
@@ -270,12 +270,12 @@ describe('the canvas pill', () => {
     expect(css).toMatch(/\[data-path="hidden"\] \.dc-theme-pill-path\{[^}]*visibility:hidden/);
   });
 
-  test('a canvas with no design system: the buttons on top, the path still on its own line under them', async () => {
+  test('a canvas with no design system: the path still on its own line above the buttons', async () => {
     (window as unknown as { __canvas_meta_file__: string }).__canvas_meta_file__ =
       '.design/ui/2026/dresy/Uniformy-2027.tsx';
     const pill = await mount();
     const lines = [...pill.children].map((c) => c.getAttribute('data-testid'));
-    expect(lines).toEqual(['canvas-theme-row', 'canvas-theme-path']);
+    expect(lines).toEqual(['canvas-theme-path', 'canvas-theme-row']);
     const row = pill.querySelector('[data-testid="canvas-theme-row"]');
     expect(row?.querySelector('[data-testid="canvas-theme-path"]')).toBeNull();
   });
