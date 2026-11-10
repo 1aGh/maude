@@ -8,6 +8,7 @@
 // binary error — still run.
 
 import { afterEach, describe, expect, test } from 'bun:test';
+import path from 'node:path';
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, rgb } from 'pdf-lib';
 
 import {
@@ -16,8 +17,10 @@ import {
   OUTLINE_FLAGS,
   outlinePdf,
   resetGhostscriptProbe,
+  restorePageBoxes,
 } from '../exporters/ghostscript.ts';
 import {
+  applyPrintBoxesAndMarks,
   applyTextMode,
   assertOutlinedSizeOk,
   MAX_TOTAL_OUTPUT_BYTES,
@@ -238,6 +241,87 @@ describe.skipIf(!hasGs)('outlinePdf — real Ghostscript round trip', () => {
     await expect(outlinePdf(bytes, { signal: controller.signal })).rejects.toThrow(
       /cancelled|abort/i
     );
+  });
+});
+
+// B4 (fix-bulk 2026-11-10) — a print page with crop marks has a MediaBox with a NEGATIVE origin
+// (the slug, -9.92 pt), and a reported Ghostscript run re-based it to 0,0 and dropped TrimBox +
+// BleedBox: the outlined file no longer said where to cut. The outline pass now restores both
+// boxes, shifted by the same origin offset, whatever the Ghostscript build does.
+async function bleedDocWithMarks(): Promise<{ bytes: Uint8Array; slug: number }> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont('Helvetica');
+  for (const registration of [false, true]) {
+    const page = doc.addPage([300, 150]);
+    page.drawText('Gators', { x: 20, y: 60, size: 24, font, color: rgb(0, 0, 0) });
+    applyPrintBoxesAndMarks(page, 3, {
+      includeBleed: true,
+      marks: { crop: true, registration, colorBars: false, pageInfo: false },
+    });
+  }
+  const slug = -doc.getPage(0).getMediaBox().x;
+  return { bytes: await doc.save(), slug };
+}
+
+function expectBoxesShifted(before: PDFDocument, after: PDFDocument): void {
+  expect(after.getPageCount()).toBe(before.getPageCount());
+  for (let i = 0; i < before.getPageCount(); i += 1) {
+    const a = before.getPage(i);
+    const b = after.getPage(i);
+    const dx = b.getMediaBox().x - a.getMediaBox().x;
+    const dy = b.getMediaBox().y - a.getMediaBox().y;
+    for (const key of ['TrimBox', 'BleedBox'] as const) {
+      expect(b.node.get(PDFName.of(key))).toBeDefined();
+      const want = key === 'TrimBox' ? a.getTrimBox() : a.getBleedBox();
+      const got = key === 'TrimBox' ? b.getTrimBox() : b.getBleedBox();
+      expect(got.x).toBeCloseTo(want.x + dx, 1);
+      expect(got.y).toBeCloseTo(want.y + dy, 1);
+      expect(got.width).toBeCloseTo(want.width, 1);
+      expect(got.height).toBeCloseTo(want.height, 1);
+    }
+  }
+}
+
+describe('outlinePdf — TrimBox / BleedBox survive a re-based MediaBox', () => {
+  const FAKE_GS = `bun ${path.join(import.meta.dir, 'fixtures', 'fake-gs-drops-boxes.ts')}`;
+
+  test('a Ghostscript that re-bases MediaBox and drops the boxes gets them back, offset applied', async () => {
+    const { bytes, slug } = await bleedDocWithMarks();
+    expect(slug).toBeGreaterThan(9); // the marks really did push the origin negative
+    process.env.MAUDE_GHOSTSCRIPT = FAKE_GS;
+    resetGhostscriptProbe();
+
+    const before = await PDFDocument.load(bytes);
+    const after = await PDFDocument.load(await outlinePdf(bytes, { timeoutSec: 60 }));
+    // Fail-first anchor: the stand-in really re-based the origin.
+    expect(after.getPage(0).getMediaBox().x).toBe(0);
+    expectBoxesShifted(before, after);
+    // Concretely, for page 1: trim 8.5 pt in from the bleed edge, both moved by the slug.
+    expect(after.getPage(0).getTrimBox().x).toBeCloseTo(slug + 8.5, 1);
+    expect(after.getPage(0).getBleedBox().x).toBeCloseTo(slug, 1);
+  });
+
+  test('restorePageBoxes leaves a document whose boxes already match untouched', async () => {
+    const { bytes } = await bleedDocWithMarks();
+    const doc = await PDFDocument.load(bytes);
+    expect(restorePageBoxes(await PDFDocument.load(bytes), doc)).toBe(false);
+  });
+
+  test('restorePageBoxes never invents a box the input did not set', async () => {
+    const src = await PDFDocument.create();
+    src.addPage([200, 100]);
+    const out = await PDFDocument.create();
+    out.addPage([200, 100]);
+    expect(restorePageBoxes(src, out)).toBe(false);
+    expect(out.getPage(0).node.get(PDFName.of('TrimBox'))).toBeUndefined();
+  });
+
+  test.skipIf(!hasGs)('the real Ghostscript keeps both boxes, offset applied', async () => {
+    const { bytes } = await bleedDocWithMarks();
+    const before = await PDFDocument.load(bytes);
+    const after = await PDFDocument.load(await outlinePdf(bytes, { timeoutSec: 120 }));
+    expect(analyzePdfFonts(after)).toHaveLength(0);
+    expectBoxesShifted(before, after);
   });
 });
 

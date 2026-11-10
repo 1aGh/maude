@@ -192,6 +192,104 @@ export async function afterPaint(page) {
   );
 }
 
+// B3 (fix-bulk 2026-11-10) — settle ONE capture target, right before its shot.
+//
+// Every `.dc-artboard-body` is `content-visibility: auto` (canvas-lib, the pan/zoom jank fix), so
+// an artboard outside the viewport is neither laid out nor painted. The canvas mounts after
+// `load`, so nothing about such an artboard is ready when the shim starts: its webfont has never
+// been requested (the one `document.fonts.ready` awaited after load resolved without it) and its
+// pictures may still be on the wire. A multi-page Print PDF of LetakA6 lost the photos and the
+// colour font of exactly the artboard that started below the viewport; a warm re-run was fine.
+//
+// So, for the target's own artboard (or, for a region, the element given — the world plane):
+//   1. render it now — `content-visibility: visible !important` on its culled bodies, restored
+//      by the returned function (set through CSSOM, which the canvas CSP allows);
+//   2. lay it out, then wait until no font face is loading (re-checked after a frame: a face is
+//      requested only once text that needs it is shaped);
+//   3. wait for every `<img>` (lazy ones made eager) to load or fail, then `decode()` it, and
+//      `decode()` every SVG `<image>`;
+//   4. two frames, so the shot carries what was just decoded (`afterPaint`).
+// Bounded by `budgetMs`: a picture that never arrives costs one budget and the shot goes ahead
+// (the old behaviour) with a line on stderr, never a hung export.
+//
+// @param {import('playwright').ElementHandle | import('playwright').Locator} handle
+// @param {{ budgetMs?: number, label?: string }} [opts]
+// @returns {Promise<() => Promise<void>>} restores the culling it lifted
+export async function settleForCapture(handle, opts = {}) {
+  const budgetMs = Math.max(1000, Math.min(60_000, opts.budgetMs ?? 15_000));
+  const result = await handle.evaluateHandle(async (el, budget) => {
+    const root = el.closest('[data-dc-screen]') ?? el;
+    const lifted = [];
+    const candidates = [
+      root,
+      ...root.querySelectorAll('.dc-artboard-body, [style*="content-visibility"]'),
+    ];
+    for (const node of candidates) {
+      if (getComputedStyle(node).contentVisibility === 'visible') continue;
+      lifted.push({
+        node,
+        value: node.style.getPropertyValue('content-visibility'),
+        priority: node.style.getPropertyPriority('content-visibility'),
+      });
+      node.style.setProperty('content-visibility', 'visible', 'important');
+    }
+    root.getBoundingClientRect(); // lay it out now, so the faces its text needs are requested
+
+    const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
+    const settle = async () => {
+      for (const img of root.querySelectorAll('img')) {
+        if (img.loading === 'lazy') img.loading = 'eager';
+      }
+      for (let round = 0; round < 3; round += 1) {
+        await document.fonts.ready;
+        const loading = [...document.fonts].filter((f) => f.status === 'loading');
+        await Promise.all(loading.map((f) => f.loaded.catch(() => {})));
+        await Promise.all(
+          [...root.querySelectorAll('img')].map(async (img) => {
+            if (!img.complete) {
+              await new Promise((r) => {
+                img.addEventListener('load', r, { once: true });
+                img.addEventListener('error', r, { once: true });
+              });
+            }
+            if (img.naturalWidth > 0) await img.decode().catch(() => {});
+          })
+        );
+        await Promise.all(
+          [...root.querySelectorAll('image')].map((im) =>
+            typeof im.decode === 'function' ? im.decode().catch(() => {}) : null
+          )
+        );
+        await frame();
+        if (![...document.fonts].some((f) => f.status === 'loading')) break;
+      }
+      await frame();
+      await frame();
+      return true;
+    };
+    const settled = await Promise.race([
+      settle(),
+      new Promise((r) => setTimeout(() => r(false), budget)),
+    ]);
+    return { settled, lifted };
+  }, budgetMs);
+  const settled = await (await result.getProperty('settled')).jsonValue();
+  if (!settled) {
+    console.error(
+      `capture: ${opts.label ?? 'target'} still had fonts or pictures loading after ${budgetMs} ms — shooting it anyway`
+    );
+  }
+  return async () => {
+    await result.evaluate(({ lifted }) => {
+      for (const { node, value, priority } of lifted) {
+        if (value) node.style.setProperty('content-visibility', value, priority);
+        else node.style.removeProperty('content-visibility');
+      }
+    });
+    await result.dispose();
+  };
+}
+
 // Shared by every raster-capture export shim (_png/_pdf-playwright.mjs) that
 // scales its render surface by `deviceScaleFactor` (feature-2-print-artboards
 // T4's DPI support). The requested pixel output is only knowable once the

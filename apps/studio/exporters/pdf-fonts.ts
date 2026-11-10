@@ -27,10 +27,12 @@ import {
   PDFArray,
   PDFDict,
   type PDFDocument,
+  PDFHexString,
   PDFName,
   type PDFObject,
   PDFRef,
   PDFStream,
+  PDFString,
 } from 'pdf-lib';
 
 /**
@@ -88,6 +90,27 @@ function descriptorHasFontProgram(descriptor: PDFDict): boolean {
   return false;
 }
 
+/** Read a string-valued key (`/FontFamily (Arvo)`) as plain text, or null. */
+function stringValue(dict: PDFDict, key: string): string | null {
+  const v = dict.lookup(PDFName.of(key));
+  if (v instanceof PDFString || v instanceof PDFHexString) return v.decodeText() || null;
+  return v instanceof PDFName ? v.decodeText() || null : null;
+}
+
+/**
+ * A name for a font dict that has no `/BaseFont`: its descriptor's
+ * `/FontName`, then its `/FontFamily`, then the dict's own `/Name`.
+ */
+function fallbackFontName(font: PDFDict): string | null {
+  const descriptor = font.lookup(PDFName.of('FontDescriptor'));
+  if (descriptor instanceof PDFDict) {
+    const fromDescriptor =
+      nameValue(descriptor, 'FontName') ?? stringValue(descriptor, 'FontFamily');
+    if (fromDescriptor) return fromDescriptor;
+  }
+  return nameValue(font, 'Name');
+}
+
 /**
  * Classify ONE font dictionary.
  *
@@ -101,10 +124,14 @@ function classifyFontDict(font: PDFDict): PdfFontInfo | null {
   const subtype = nameValue(font, 'Subtype');
   if (!subtype) return null;
 
-  const baseFontRaw = nameValue(font, 'BaseFont');
-  // A Type 3 font is not required to have a /BaseFont at all. Chromium does set
-  // one, but a hand-authored or third-party PDF may not — name it after the
-  // subtype rather than dropping it from the report.
+  // A Type 3 font is not required to have a /BaseFont at all, and today's
+  // Chromium (Skia) writes none: it names the face only in the font's
+  // /FontDescriptor (`/FontName /AAAAAA+Arvo-Bold`, `/FontFamily (Arvo)`).
+  // Reading only /BaseFont reported a real Gators-Bold headline as
+  // "(unnamed Type3)" (B4, fix-bulk 2026-11-10), which tells the user nothing
+  // about which text to fix. Fall back through the descriptor, then the PDF 1.0
+  // `/Name`, and name it after the subtype only when nothing names it at all.
+  const baseFontRaw = nameValue(font, 'BaseFont') ?? fallbackFontName(font);
   const name = baseFontRaw ? stripSubsetPrefix(baseFontRaw) : `(unnamed ${subtype})`;
 
   if (subtype === 'Type3') {

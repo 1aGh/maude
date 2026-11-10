@@ -8,7 +8,7 @@
 // base name appearing as both).
 
 import { describe, expect, test } from 'bun:test';
-import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream } from 'pdf-lib';
+import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, PDFString } from 'pdf-lib';
 
 import {
   analyzePdfFonts,
@@ -76,16 +76,39 @@ function compositeFont(doc: PDFDocument, baseFont: string, embedded: boolean) {
   );
 }
 
-/** A Type 3 font — glyphs as content streams, no font program anywhere. */
-function type3Font(doc: PDFDocument, baseFont: string | null) {
+/**
+ * A Type 3 font — glyphs as content streams, no font program anywhere.
+ *
+ * `extra` adds the fields today's Chromium writes INSTEAD of a `/BaseFont`
+ * (B4, 2026-11-10): a `/FontDescriptor` carrying `/FontName` + `/FontFamily`,
+ * and optionally the PDF 1.0 `/Name`.
+ */
+function type3Font(
+  doc: PDFDocument,
+  baseFont: string | null,
+  extra: { fontName?: string; fontFamily?: string; name?: string } = {}
+) {
   const proc = doc.context.register(
     PDFRawStream.of(doc.context.obj({ Length: 3 }), new TextEncoder().encode('0 g'))
   );
+  const descriptor =
+    extra.fontName || extra.fontFamily
+      ? doc.context.register(
+          doc.context.obj({
+            Type: 'FontDescriptor',
+            ...(extra.fontName ? { FontName: extra.fontName } : {}),
+            ...(extra.fontFamily ? { FontFamily: PDFString.of(extra.fontFamily) } : {}),
+            FontWeight: 700,
+          })
+        )
+      : null;
   return doc.context.register(
     doc.context.obj({
       Type: 'Font',
       Subtype: 'Type3',
       ...(baseFont ? { BaseFont: baseFont } : {}),
+      ...(extra.name ? { Name: extra.name } : {}),
+      ...(descriptor ? { FontDescriptor: descriptor } : {}),
       FontBBox: [0, 0, 1000, 1000],
       FontMatrix: [0.001, 0, 0, 0.001, 0, 0],
       CharProcs: doc.context.register(doc.context.obj({ a: proc })),
@@ -181,6 +204,45 @@ describe('pdf-fonts — analyzePdfFonts classification', () => {
       name: '(unnamed Type3)',
       kind: 'type3',
     });
+  });
+
+  // B4 (fix-bulk 2026-11-10) — a Gators-Bold (Arvo Bold woff2) headline came out of Chromium as
+  // Type 3 and the preflight said only "(unnamed Type3)": today's Skia writes no /BaseFont on a
+  // Type 3 font, but it does write a /FontDescriptor with the face's /FontName and /FontFamily.
+  test('a Chromium Type 3 font is named from its FontDescriptor, not "(unnamed Type3)"', async () => {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([100, 100]);
+    attachFonts(doc, page, {
+      F1: type3Font(doc, null, { fontName: 'AAAAAA+Arvo-Bold', fontFamily: 'Arvo' }),
+    });
+    const fonts = analyzePdfFonts(doc);
+    expect(fonts[0]).toMatchObject({ name: 'Arvo-Bold', kind: 'type3' });
+    expect(describeFontProblem(unprintableFonts(fonts)).reason).toContain('Arvo-Bold');
+  });
+
+  test('a Type 3 descriptor with only a family is named by the family', async () => {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([100, 100]);
+    attachFonts(doc, page, { F1: type3Font(doc, null, { fontFamily: 'Arvo' }) });
+    expect(analyzePdfFonts(doc)[0]).toMatchObject({ name: 'Arvo', kind: 'type3' });
+  });
+
+  test('a Type 3 font with only the PDF 1.0 /Name is named by it', async () => {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([100, 100]);
+    attachFonts(doc, page, { F1: type3Font(doc, null, { name: 'T3Gators' }) });
+    expect(analyzePdfFonts(doc)[0]).toMatchObject({ name: 'T3Gators', kind: 'type3' });
+  });
+
+  test('a synthetic italic is still spotted when the Type 3 half is named only by its descriptor', async () => {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([100, 100]);
+    attachFonts(doc, page, {
+      F1: compositeFont(doc, 'AAAAAA+Arvo-Bold', true),
+      F2: type3Font(doc, null, { fontName: 'BAAAAA+Arvo-Bold', fontFamily: 'Arvo' }),
+    });
+    const t3 = analyzePdfFonts(doc).find((f) => f.kind === 'type3');
+    expect(t3).toMatchObject({ name: 'Arvo-Bold', syntheticItalicSuspect: true });
   });
 });
 
