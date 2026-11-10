@@ -116,6 +116,12 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   // ── `maude design`, effect project (writes versioned files of this project) ──────────────
   d('annotate', 'project'),
   d('canvas-edit', 'project'),
+  // fix-bulk W1 follow-up — the app's own create / duplicate and rename / move (POST /_api/canvas,
+  // /_api/fs-move), the registry actions canvas.new / duplicate / rename / move already rate `project`.
+  d('canvas-new', 'project', { note: 'one new canvas file, recorded in Version history' }),
+  d('canvas-move', 'project', {
+    note: 'renames or moves one canvas, recorded in Version history as one canvas',
+  }),
   d('handoff', 'project'),
   d('import-asset', 'project'),
   d('import-tokens', 'project'),

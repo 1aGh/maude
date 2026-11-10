@@ -226,10 +226,9 @@ in the command; nothing paid runs without the explicit `AskUserQuestion` yes.
 > the cut shot by shot"). Give the shots beat-grid lengths when there is music (`maude design beats`
 > first). The codegen below writes the rest of the comp (overlays, audio, captions).
 
-Make the canvas the way `/design:new` does (its step 3): `POST /_api/canvas` through
-`maude design curl-local`, with `name` = `<Name>` and `kind: "blank"`. Never write the `.tsx` or its
-`.meta.json` by hand. Then read the EDL (`GET /_api/footage?slug=<slug>`) and **Edit** the new canvas
-`<designRoot>/<rel>` (the `rel` the create answered) to add one video artboard carrying the comp,
+Make the canvas the way `/design:new` does (its step 3): `maude design canvas-new "<Name>"`, which
+prints the file it made. Never write the `.tsx` or its `.meta.json` by hand. Then read the EDL
+(`GET /_api/footage?slug=<slug>`) and **Edit** the new canvas (the file the create printed) to add one video artboard carrying the comp,
 following the skill's **EDL → `<TransitionSeries>`
 codegen contract**: one **literal** `<TransitionSeries.Sequence name>` block per
 beat (NEVER `.map()`), `<OffthreadVideo startFrom>` for each in-point, literal-sum

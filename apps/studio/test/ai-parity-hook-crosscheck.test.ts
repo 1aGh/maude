@@ -102,14 +102,38 @@ describe('a taught agent path is one the design hook allows', () => {
     );
   });
 
-  test('the new-canvas actions name the app’s create route', () => {
+  // fix-bulk W1 follow-up — through the verb, which sends the studio's key; `curl-local` sends none and a
+  // keyed studio answers it 401 (sec-loopback-bearer §7), so the route itself is no longer named here.
+  test('the new-canvas actions name the app’s create verb', () => {
     for (const id of ['canvas.new', 'canvas.new-brief', 'canvas.new-video', 'home.ask']) {
       const how = rows.find((r) => r.id === id)?.agent?.how ?? '';
-      expect({ id, route: how.includes('/_api/canvas --method POST') }).toEqual({
+      expect({
         id,
-        route: true,
+        verb: how.includes('maude design canvas-new'),
+        curl: how.includes('curl-local'),
+      }).toEqual({
+        id,
+        verb: true,
+        curl: false,
       });
     }
+  });
+
+  test('duplicate / rename / move are taught as the canvas verbs', () => {
+    const verb = (id: string) => rows.find((x) => x.id === id)?.agent;
+    expect(verb('canvas.duplicate')).toEqual({
+      path: 'cli',
+      verb: 'maude design canvas-new --duplicate <canvas path>',
+    });
+    for (const id of ['canvas.rename', 'canvas.rename-file'])
+      expect(verb(id)).toEqual({
+        path: 'cli',
+        verb: 'maude design canvas-move <canvas path> --name "<new name>"',
+      });
+    expect(verb('canvas.move')).toEqual({
+      path: 'cli',
+      verb: 'maude design canvas-move <canvas path> --to <folder>',
+    });
   });
 
   test('canvas.trash is taught as the trash verb', () => {

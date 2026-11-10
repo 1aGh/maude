@@ -565,13 +565,13 @@ const SCRIPT_WRITES =
   /\b(?:writeFile(?:Sync)?|appendFile(?:Sync)?|createWriteStream|rmSync|unlink(?:Sync)?|rename(?:Sync)?|copyFile(?:Sync)?|cpSync|truncate(?:Sync)?|Bun\.write|write_text|write_bytes|os\.remove|os\.replace|os\.rename|shutil\.\w+|File\.write|FileUtils)\b|\bopen\s*\([^)]*['"][wax+]b?['"]|\bmode\s*=\s*['"][wax+]|\bopen\s*\([^)]*['"]\+?>{1,2}/;
 
 const MESSAGES = {
-  // The route is the studio's own (the one Canvases uses), reached with `curl-local`; the port is in
-  // `.design/_server.json`. (These messages once named `maude design trash move` / `canvas move`:
-  // neither verb exists, and the agent spent 15+ calls finding this route.)
+  // The verbs are the studio's own routes (the ones Canvases uses), sent with the studio's key —
+  // `curl-local` sends none, and a keyed studio answers it 401 (sec-loopback-bearer §7). (These
+  // messages once named verbs that did not exist, and the agent spent 15+ calls finding the route.)
   'use-trash': (rel) =>
     `use-trash: ${rel} is a versioned design file — Bash never deletes it. Move a canvas to the trash with \`maude design trash move <canvas path>\` (the studio's own Move canvas to trash; \`maude design trash restore <canvas path>\` brings it back — or ask the person to delete it in Canvases); remove one artboard by deleting its DCArtboard block with Edit.`,
   'use-verb': (rel) =>
-    `use-verb: ${rel} is a versioned design file — Bash never moves it. Rename or move it with the studio's own route: \`maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toName":"<new name>"}'\` (add "toDir" to move it to another folder; port: .design/_server.json; or ask the person to move it in Canvases). To the trash: \`maude design trash move <canvas path>\`.`,
+    `use-verb: ${rel} is a versioned design file — Bash never moves it. Rename or move it as Canvases does: \`maude design canvas-move <canvas path> --name "<new name>"\` (\`--to <folder>\` moves it to another folder; or ask the person to move it in Canvases). To the trash: \`maude design trash move <canvas path>\`.`,
   'out-of-project': (path) =>
     `out-of-project: this \`maude\` command's output would be written to ${path}, outside the project. Write inside the project or the temp dir (or drop the redirection and read the output).`,
   'other-project': (what) =>
