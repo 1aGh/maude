@@ -6,12 +6,13 @@
 // viewport exactly and crop to the target element's bounding box.
 
 import { mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import {
   afterPaint,
   launchChromium,
   newShellContext,
   safeArtboardFilename,
+  settleForCapture,
 } from './_pw-launch.mjs';
 import { layoutRegion, parseRegionArg } from './_region.mjs';
 
@@ -206,6 +207,12 @@ try {
     const vp = page.viewportSize();
     const clipX = Math.min(Math.max(0, Math.floor(finalRect.x)), Math.max(0, vp.width - 1));
     const clipY = Math.min(Math.max(0, Math.floor(finalRect.y)), Math.max(0, vp.height - 1));
+    // B3 — an artboard that started off screen was never laid out (content-visibility), so its
+    // webfont was never requested and its pictures may still be loading: settle it first.
+    const restoreCulling = await settleForCapture(widenedHandle, {
+      budgetMs: timeoutMs,
+      label: basename(target),
+    });
     // Shoot a frame painted at this size and position, never the previous surface (afterPaint).
     await afterPaint(page);
     await page.screenshot({
@@ -219,6 +226,7 @@ try {
       },
     });
     written.push(target);
+    await restoreCulling();
     // Restore the artboard's original position now that its capture is done,
     // so it doesn't stay pinned at (0,0) and corrupt the next target's clip.
     await widenedHandle.evaluate((el, prev) => {
@@ -239,6 +247,11 @@ try {
     const box = await layoutRegion(page, region);
     assertOutputSizeOk(box.width, box.height);
     await page.setViewportSize({ width: Math.max(1, box.width), height: Math.max(1, box.height) });
+    // B3 — the region spans artboards that were off screen until now; settle all of them.
+    const restoreCulling = await settleForCapture(page.locator('.dc-world').first(), {
+      budgetMs: timeoutMs,
+      label: 'region',
+    });
     // Shoot a frame painted at this size and position, never the previous surface (afterPaint).
     await afterPaint(page);
     await page.screenshot({
@@ -247,6 +260,7 @@ try {
       clip: { x: 0, y: 0, width: box.width, height: box.height },
     });
     written.push(out);
+    await restoreCulling();
   } else if (multi) {
     if (!outDir) {
       console.error('_png-playwright: --multi requires --out-dir');

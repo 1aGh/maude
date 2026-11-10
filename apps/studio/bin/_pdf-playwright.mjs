@@ -29,6 +29,7 @@ import {
   launchChromium,
   newShellContext,
   safeArtboardFilename,
+  settleForCapture,
 } from './_pw-launch.mjs';
 import { layoutRegion, parseRegionArg } from './_region.mjs';
 
@@ -120,6 +121,11 @@ try {
     const box = await layoutRegion(page, region);
     assertRenderOutputSizeOk(box.width, box.height, deviceScaleFactor, '_pdf-playwright');
     await page.setViewportSize({ width: Math.max(1, box.width), height: Math.max(1, box.height) });
+    // B3 — the region spans artboards that were off screen until now; settle all of them.
+    const restoreCulling = await settleForCapture(page.locator('.dc-world').first(), {
+      budgetMs: timeoutMs,
+      label: 'region',
+    });
     const pdf = await page.pdf({
       width: `${box.width}px`,
       height: `${box.height}px`,
@@ -129,6 +135,7 @@ try {
     });
     writeFileSync(out, pdf);
     written.push(out);
+    await restoreCulling();
   }
 
   for (let i = 0; i < (region ? 0 : screens.length); i += 1) {
@@ -174,6 +181,12 @@ try {
       el.scrollIntoView({ block: 'start', inline: 'start' });
       window.scrollTo(0, 0);
     });
+    // B3 — an artboard that started off screen was never laid out (content-visibility), so its
+    // webfont was never requested and its pictures may still be loading: settle it first.
+    const restoreCulling = await settleForCapture(handle, {
+      budgetMs: timeoutMs,
+      label: screenId ?? `artboard ${i + 1}`,
+    });
     const pdf = await page.pdf({
       width: `${Math.ceil(rect.w)}px`,
       height: `${Math.ceil(rect.h)}px`,
@@ -183,6 +196,7 @@ try {
     });
     writeFileSync(targetPath, pdf);
     written.push(targetPath);
+    await restoreCulling();
     // Restore the artboard's original position now that its page is written.
     await handle.evaluate((el, prev) => {
       const ab = el.closest('[data-dc-screen]') ?? el;
