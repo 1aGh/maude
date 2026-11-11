@@ -160,6 +160,15 @@ test('wiring: /flow:done has the handoff sweep + soft-gate DDR-066 reference', (
   assert.match(DONE, /DDR-066/);
 });
 
+test('wiring: /flow:done runs fast by default; --full is the whole validate; --quick is an alias', () => {
+  assert.match(DONE, /^argument-hint: "\[--full\] \[path to plan\]"$/m);
+  assert.match(DONE, /- \*\*Default:\*\* run `\/flow:validate --fast`/);
+  assert.match(DONE, /- \*\*`--full`:\*\* run `\/flow:validate` \(/);
+  assert.match(DONE, /`--quick` is the old name of the default run: it is still accepted/);
+  assert.match(DONE, /\*\*CLAUDE\.md debrief\*\* \(only under `--full`\)/);
+  assert.doesNotMatch(DONE, /under `--quick`|skip in `--quick`/);
+});
+
 test('wiring: the codebase map (/flow:init --map) has the Design artifacts section', () => {
   assert.match(MAP_CMD, /--map/);
   assert.match(MAP_CMD, /Design artifacts/);
