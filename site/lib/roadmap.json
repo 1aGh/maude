@@ -1,29 +1,7 @@
 {
-  "generated": "2026-11-09T00:00:00.000Z",
+  "generated": "2026-11-10T00:00:00.000Z",
   "currentPhase": null,
   "phases": [
-    {
-      "id": "feature-home-declutter-2.1.2",
-      "title": "2.1.2: Home declutter",
-      "status": "done",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Status: active · Owner: Michal (feedback via keeper, 2026-11-09) · Lead: Maude v2 session Push, tag and release: only with Michal's OK.",
-      "planPath": ".ai/plans/archive/feature-home-declutter-2.1.2.md",
-      "archived": true,
-      "phaseKey": null
-    },
-    {
-      "id": "fix-bulk-2026-11-10",
-      "title": "Fix bulk 2026-11-10 — export, CLI connectivity, issues #216–#221",
-      "status": "done",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Owner: Maude v2 lead · source: Michal (via the alligators export session + the keeper) · target: 2.1.x patch",
-      "planPath": ".ai/plans/archive/fix-bulk-2026-11-10.md",
-      "archived": true,
-      "phaseKey": null
-    },
     {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
@@ -2419,6 +2397,28 @@
       "date": "2026-11-09",
       "summary": "Status: active · Owner: Michal (request via keeper, 2026-11-09) · Lead: Maude v2 session Target: 2.1.1. Push, tag and release need Michal's OK.",
       "planPath": ".ai/plans/archive/feature-accounts-and-connections-2.1.1.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-home-declutter-2.1.2",
+      "title": "2.1.2: Home declutter",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-11-10",
+      "summary": "Status: active · Owner: Michal (feedback via keeper, 2026-11-09) · Lead: Maude v2 session Push, tag and release: only with Michal's OK.",
+      "planPath": ".ai/plans/archive/feature-home-declutter-2.1.2.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "fix-bulk-2026-11-10",
+      "title": "Fix bulk 2026-11-10 — export, CLI connectivity, issues #216–#221",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-11-10",
+      "summary": "Owner: Maude v2 lead · source: Michal (via the alligators export session + the keeper) · target: 2.1.x patch",
+      "planPath": ".ai/plans/archive/fix-bulk-2026-11-10.md",
       "archived": true,
       "phaseKey": null
     },

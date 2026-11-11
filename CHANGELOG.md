@@ -1,5 +1,15 @@
 # @1agh/maude
 
+## 2.2.0
+
+### Minor Changes
+
+- bb3947c: `/flow:done` now runs the fast close by default (`/flow:validate --fast`, everything else unchanged): what used to be `/flow:done --quick`. The whole `/flow:validate` (build, scenario, a11y, design-system) plus the CLAUDE.md debrief moved to `/flow:done --full`; use it for auth, migrations, cross-package, CI config or security-sensitive work, or when no full validate or CI runs before merge. `--quick` is still accepted and changes nothing. `/flow:bug-fix` with the orbit tracker hands off to plain `/flow:done`.
+
+### Patch Changes
+
+- ee0a760: flow + orbit tracker: state reports carry `command` and `verdict`; `/flow:execute` checks for a plan attached to the task and asks before running a tracker plan (shows version and who pushed it); `/flow:done` never moves a task past `doneStatus`, attaches UI screenshots from this run's scenario report (`integrations.tracker.attachScreenshots`) and re-checks closed parent/linked tasks for regressions (`integrations.tracker.regressionCheck`) through a new tool-less `flow:tracker-reader` agent. Tracker text is always treated as untrusted data. `/flow:bug-fix` with the orbit tracker no longer closes the task itself: after the scoped verify it hands off to `/flow:done --quick`, which takes the RCA as its plan, so code review, regression check and screenshots also run for bug fixes.
+
 ## 2.1.2
 
 ### Patch Changes
