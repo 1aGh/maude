@@ -669,9 +669,19 @@
               "default": "ORBIT_MCP_TOKEN",
               "description": "Name of the environment variable holding the per-machine bearer token for the tracker's MCP server — used by `provider: orbit`; other providers ignore it. Only the variable NAME is stored here; the token lives in the user's environment and `.mcp.json` references it as `${<tokenEnv>}`. Flow commands check whether it is set — they never read, print or write its value."
             },
+            "attachScreenshots": {
+              "type": "boolean",
+              "default": true,
+              "description": "Only meaningful with `provider: orbit`; other providers ignore it. When not `false`, `/flow:done` attaches 1-6 key screenshots from the scenario report to the task (as a comment saying where to find the change) if the change touches UI, and asks for or records a blocker when a UI change has no screenshot. Set `false` to turn it off."
+            },
+            "regressionCheck": {
+              "type": "boolean",
+              "default": true,
+              "description": "Only meaningful with `provider: orbit`; other providers ignore it. When not `false`, `/flow:done` looks at the closed parent and linked tasks of the current task (at most 5), takes the scenario names and test paths from their plans that exist in this repo and overlap the branch diff, and re-runs them through `quality.tests` and the scenario runner within a 10 minute budget (`--quick`: tests only). A failure asks before anything else; a bug task is created only after explicit confirmation. Set `false` to turn it off."
+            },
             "defaults": {
               "type": "object",
-              "description": "Free-form project-specific defaults (list IDs, milestone names, custom field IDs, status labels, …). Generic commands pass this object through to MCP calls untouched. Schema-free on purpose — your tracker's idiosyncrasies belong here, not in the plugin.",
+              "description": "Free-form project-specific defaults (list IDs, milestone names, custom field IDs, status labels, …). Generic commands pass this object through to MCP calls untouched. `doneStatus` (status name or category, default `done`) is the status `/flow:done` sets at close; flow never moves a task further than it. Schema-free on purpose — your tracker's idiosyncrasies belong here, not in the plugin.",
               "additionalProperties": true
             },
             "artifacts": {

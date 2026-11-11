@@ -16,7 +16,9 @@ jq '{name, tracker: (.integrations.tracker // {})}' .ai/workflows.config.json
 | `tracker.tokenEnv` | NAME of the env var holding the bearer token | `ORBIT_MCP_TOKEN` |
 | `tracker.defaults.repo` | repo name orbit files artifacts and states under | top-level `name` |
 | `tracker.defaults.list` | orbit list for new tasks (`List` or `Space/List`) | asked once at create time |
-| `tracker.defaults.doneStatus` | status name or category set at close | `done` |
+| `tracker.defaults.doneStatus` | status name or category set at close; flow never moves a task past it | `done` |
+| `tracker.attachScreenshots` | attach 1–6 scenario screenshots of a UI change at close ([guide 03 § D](./_guide-03-close.md)); `false` turns it off | `true` |
+| `tracker.regressionCheck` | `/flow:done` re-runs tests and scenarios of closed parent and linked tasks that overlap the branch diff ([guide 07](./_guide-07-regression.md)); `false` turns it off | `true` |
 | `tracker.artifacts.store` | where plans, RCAs and reports live: `local` \| `orbit` \| `both` | `local` — today's behaviour, `.ai/` files with a close-time copy |
 
 `defaults` stays free-form — other keys are ignored here, never an error. The rest of `artifacts` (`local`, `spoolDir`, `kinds`) belongs to [guide 06](./_guide-06-artifact-store.md); read it only in a command that writes one of the five artifacts.
@@ -27,7 +29,7 @@ Artifacts whose push failed earlier wait in `spoolDir`. Non-empty and orbit acti
 
 ### 2. Capability gate — `active`
 
-`active` is true when the session exposes the orbit tools: a tool whose name ends in `orbit_get_task` on the configured server (Claude Code: `mcp__orbit__orbit_get_task`; other hosts name MCP tools differently — match on the `orbit_<tool>` suffix and use that one server for every call). The tools used by the recipes: `orbit_get_task`, `orbit_create_task`, `orbit_update_task`, `orbit_state_report`, `orbit_artifact_push`, `orbit_artifact_pull`.
+`active` is true when the session exposes the orbit tools: a tool whose name ends in `orbit_get_task` on the configured server (Claude Code: `mcp__orbit__orbit_get_task`; other hosts name MCP tools differently — match on the `orbit_<tool>` suffix and use that one server for every call). The tools used by the recipes: `orbit_get_task`, `orbit_create_task`, `orbit_update_task`, `orbit_state_report`, `orbit_artifact_push`, `orbit_artifact_pull`, `orbit_attach` (close-time screenshots only), `orbit_link` (regression check, only after the user confirms a new bug).
 
 Not active → print ONE line and continue the command as if the provider were `none`:
 

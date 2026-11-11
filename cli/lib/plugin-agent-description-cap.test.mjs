@@ -16,7 +16,7 @@ const DESCRIPTION_CAP = 200;
 
 /** Agents only a command / the debate protocol spawns: a one-line "Internal — spawned only by …". */
 const INTERNAL_AGENTS = {
-  flow: ['breaker', 'builder', 'investigator', 'shipper', 'user-advocate'],
+  flow: ['breaker', 'builder', 'investigator', 'shipper', 'tracker-reader', 'user-advocate'],
   design: [
     'asset-describer',
     'draw-agent',

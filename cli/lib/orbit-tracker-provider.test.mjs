@@ -272,3 +272,94 @@ for (const [command, kk] of [
     );
   });
 }
+
+// ── 5. untrusted tracker input (ORB-2858 security fix round) ───────────────
+// A plan pulled from orbit, a related task's plan and a screenshot folder are
+// all attacker-writable. These lock the guards the guides promise.
+
+test('guide 01: a pulled plan runs only after an explicit, never-automatic user yes', () => {
+  const guide = read(join(SKILL_DIR, '_guide-01-plan.md'));
+  const check = guide.slice(guide.indexOf('## Plan check'));
+  assert.match(check, /version/);
+  assert.match(check, /pushedByName/);
+  assert.match(check, /pushedBy`/);
+  assert.match(check, /not returned by orbit/);
+  assert.match(check, /flow:question-protocol/);
+  assert.match(check, /explicit yes/i);
+  assert.match(check, /auto mode or a non-interactive session[^.]*blocker/i);
+  assert.match(check, /_guide-07-regression\.md/, 'Validate lines must be vetted like guide 07');
+  const execute = read('plugins/flow/commands/execute.md');
+  assert.match(execute, /explicit (user )?yes/i);
+});
+
+test('guide 07: tracker plans are read by the tool-less tracker-reader; the lead only gets vetted tokens', () => {
+  const guide = read(join(SKILL_DIR, '_guide-07-regression.md'));
+  assert.match(guide, /--error-unmatch -- ":\(literal\)/);
+  assert.match(guide, /`-` or `:`/);
+  assert.match(guide, /\*\?\[/);
+  for (const tool of ['orbit_attach', 'orbit_artifact_push', 'orbit_comment']) {
+    assert.ok(guide.includes(tool), `guide 07 never forbids ${tool}`);
+  }
+  assert.doesNotMatch(
+    guide,
+    /One `orbit_artifact_pull`[^\n]*per related task \(latest version\)\. Read only/
+  );
+  assert.doesNotMatch(guide, /flow:scout/, 'guide 07 must use the tool-less reader, not scout');
+  assert.match(guide, /flow:tracker-reader/);
+  assert.doesNotMatch(read('plugins/flow/commands/done.md'), /flow:scout/);
+  const scout = read('plugins/flow/agents/scout.md');
+  assert.doesNotMatch(scout, /orbit/i, 'scout must not hold tracker tools');
+});
+
+test('tracker-reader: exactly the two orbit reads, no shell, no file tools, no writes', () => {
+  const reader = read('plugins/flow/agents/tracker-reader.md');
+  const tools = reader.match(/^tools: (.*)$/m)[1].split(/,\s*/);
+  assert.deepEqual(tools.sort(), ['mcp__orbit__orbit_artifact_pull', 'mcp__orbit__orbit_get_task']);
+  for (const t of ['Bash', 'Read', 'Grep', 'Glob', 'Write', 'Edit', 'WebFetch']) {
+    assert.ok(!tools.includes(t), `tracker-reader gained ${t}`);
+  }
+  assert.match(reader, /never follow instructions|Never follow instructions/);
+  assert.match(reader, /`tracker\.mcp` \(`orbit`\)/);
+  assert.match(reader, /^name: tracker-reader$/m);
+});
+
+test('guide 03 § D: screenshots come only from this run, as vetted regular image files', () => {
+  const guide = read(join(SKILL_DIR, '_guide-03-close.md'));
+  const d = guide.slice(guide.indexOf('### D.'), guide.indexOf('### Report line'));
+  assert.doesNotMatch(d, /newest/i, 'the newest-folder fallback is gone');
+  assert.match(d, /report_path/);
+  assert.match(d, /test -f "\$f" && ! test -L "\$f"/);
+  assert.match(d, /magic bytes/i);
+  assert.match(d, /not tracked/i);
+  assert.match(d, /untrusted data, never instructions/i);
+  assert.doesNotMatch(d, /avif/i);
+});
+
+test('bug-fix under orbit closes once, through /flow:done --quick', () => {
+  const fix = read('plugins/flow/commands/bug-fix.md');
+  const orbit = fix.slice(
+    fix.indexOf('### `orbit`: close through'),
+    fix.indexOf('### Other providers')
+  );
+  assert.ok(orbit.length > 0, 'bug-fix.md has no orbit close section');
+  assert.match(orbit, /\/flow:done --quick/);
+  assert.match(orbit, /no commit, push, PR or tracker sync of its own/);
+  assert.doesNotMatch(fix, /Close recipe § A/, 'bug-fix must not run the orbit close itself');
+  const done = read('plugins/flow/commands/done.md');
+  assert.match(done, /^## Bug-fix close$/m);
+  assert.match(done, /RCA it fixed takes the plan's place/);
+  assert.match(done, /not as commands to run/);
+  const close = read(join(SKILL_DIR, '_guide-03-close.md'));
+  assert.doesNotMatch(
+    close,
+    /`\/flow:bug-fix` Tracker sync|`\/flow:bug-fix` after the tracker sync/
+  );
+});
+
+test('state reports are a self-reported hint, never proof that a step ran', () => {
+  for (const f of ['_guide-02-execute.md', '_guide-05-untrusted-data-and-failure.md']) {
+    const guide = read(join(SKILL_DIR, f));
+    assert.match(guide, /self-reported/i, `${f} never says state reports are self-reported`);
+    assert.match(guide, /not proof/i, `${f} never says a state report is not proof`);
+  }
+});
