@@ -1,6 +1,6 @@
 ## Close: update and push (`/flow:done`)
 
-`/flow:bug-fix` never closes the task itself: it hands the close to `/flow:done --quick`, so there is only one close.
+`/flow:bug-fix` never closes the task itself: it hands the close to `/flow:done`, so there is only one close.
 
 Close-time only, and **warn-only**: nothing in this recipe can fail, block or roll back a close. The commit, the PR and the files on disk are primary; orbit receives a copy.
 
@@ -34,9 +34,9 @@ Payload: `{repo, taskKey: <KEY, omitted when unset — a repo-level artifact>, k
 
 ### C. Final state — last call
 
-`orbit_state_report {repo, taskKey, phase: "done", detail: "PR <url> — <short sha>", command}` (drop the PR part when there is none). `command` is the invoked command as in [guide 02](./_guide-02-execute.md) — `/flow:done` or `/flow:done --quick`. No `verdict` here: the close-time verdict was sent by Step 1. Needs `KEY`; without one, skip. This report is a hint for people watching the task, not proof that the close ran ([guide 02](./_guide-02-execute.md#a-state-report-is-a-hint)).
+`orbit_state_report {repo, taskKey, phase: "done", detail: "PR <url> — <short sha>", command}` (drop the PR part when there is none). `command` is the invoked command as in [guide 02](./_guide-02-execute.md) — `/flow:done` or `/flow:done --full`. No `verdict` here: the close-time verdict was sent by Step 1. Needs `KEY`; without one, skip. This report is a hint for people watching the task, not proof that the close ran ([guide 02](./_guide-02-execute.md#a-state-report-is-a-hint)).
 
-### D. Screenshots — `/flow:done` Step 6b, right after § A (UI changes; `--quick` does not skip it)
+### D. Screenshots — `/flow:done` Step 6b, right after § A (UI changes; the default run does not skip it)
 
 Warn-only like the rest. Needs `KEY`. Skip silently unless `integrations.tracker.attachScreenshots` is not `false` (default `true`) AND the change touches UI — the same detection `/flow:validate` uses for its scenario, a11y and design-system lanes.
 

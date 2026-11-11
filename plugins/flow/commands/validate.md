@@ -142,7 +142,7 @@ Cheap by construction (15–60 s regardless of repo size): only scoped commands 
    - Web: `agent-browser open <local route>` → `snapshot -c` → `screenshot .ai/device/verify/<ts>-<task>.png`. Checks the page loads and key plan elements exist (not a scenario).
    - Native: boot UDID via `xcrun simctl list devices booted -j`, `agent-device --platform ios open <bundle> --udid …`, `snapshot -i`, `screenshot`. Checks app starts, affected screen reachable, no red-screen.
 4. **Optional subagents** for UI tasks, in the same parallel batch: `a11y-auditor`, `design-system-guard`.
-5. **Report** deferred gates explicitly (`✓ lint (scoped) …`, `→ typecheck: deferred …`, `✓ tests: 5/5 (filter verified)`, smoke, warnings). **Tracker (`orbit` only):** as in the full pipeline, with `command: "/flow:validate --fast"`, only when the user invoked `--fast` directly (never from `/flow:execute` or `/flow:done --quick` — their own reports cover it); deferred gates make the result `partial`.
+5. **Report** deferred gates explicitly (`✓ lint (scoped) …`, `→ typecheck: deferred …`, `✓ tests: 5/5 (filter verified)`, smoke, warnings). **Tracker (`orbit` only):** as in the full pipeline, with `command: "/flow:validate --fast"`, only when the user invoked `--fast` directly (never from `/flow:execute` or `/flow:done` — their own reports cover it); deferred gates make the result `partial`.
 6. **Config drift nudge** (soft): `maude doctor --json | jq -e '(.summary.driftCount + .summary.qualityAdditions) == 0' || echo "⚠ run maude doctor --fix when convenient"`. Gate failures block; this does not.
 
 ## `--security` — security review

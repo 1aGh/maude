@@ -7,7 +7,7 @@ description: "Validate and close a feature: decision capture, delivery, retrospe
 | -------- | ----- |
 | **Command** | `/flow:done` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `[--quick] [path to plan]` |
+| **Argument hint** | `[--full] [path to plan]` |
 | **Source** | [`plugins/flow/commands/done.md`](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/done.md) |
 
 ## Description
@@ -19,13 +19,13 @@ Validate and close a feature: decision capture, delivery, retrospective and arch
 **Claude Code**
 
 ```text
-/flow:done [--quick] [path to plan]
+/flow:done [--full] [path to plan]
 ```
 
 **Codex**
 
 ```text
-$flow:source-command-done [--quick] [path to plan]
+$flow:source-command-done [--full] [path to plan]
 ```
 
 Use the same arguments and flags. See [native Codex setup](/docs/codex) for

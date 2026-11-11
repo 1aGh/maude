@@ -38,7 +38,7 @@ Nothing relevant → one report line (§ 6).
 
 ### 5. Run and judge
 
-**Budget: 10 minutes in total** for all related tasks (a single run is cut at the remainder; state `timed out` and treat it as not run, never as pass). **`--quick`: tests only** — scenarios are listed as `deferred to full /flow:validate`.
+**Budget: 10 minutes in total** for all related tasks (a single run is cut at the remainder; state `timed out` and treat it as not run, never as pass). **Default run: tests only** — scenarios are listed as `deferred to full /flow:validate`; `/flow:done --full` runs them too.
 
 - **Tests.** Shell-quote every path (`printf '%q'`, collected NUL-safe as `--quick` does for changed files) and append them to the configured command: `eval "$(jq -r '.quality.tests // empty' .ai/workflows.config.json) -- $PATHS"`. `quality.tests` undeclared → `→ regression tests: quality.tests not declared`, skip (never invent a runner). Apply the filter-sanity guard of `flow:quality-gates` § 7.
 - **Scenarios.** Spawn `scenario-runner` per `flow:scenario` with the vetted names, sequentially, inside the same budget.

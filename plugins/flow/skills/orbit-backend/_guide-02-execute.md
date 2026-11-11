@@ -15,7 +15,7 @@ Needs `KEY` from the resolver. No key → one line `[orbit] no task key — stat
 
 ### `command` — on every report
 
-`command` is the command as the user invoked it: `/flow:<name>` plus its bare flags — `/flow:execute`, `/flow:done`, `/flow:done --quick`, `/flow:validate --fast`, `/flow:bug-fix`. It must match `^/flow:[a-z-]+( --[a-z-]+)*$` (max 60), so drop flag values, paths, ticket keys and quoted text; a flag with a value is sent bare or not at all. Send it on every report in every guide (Plan, Execute, Close); orbit shows which command produced the chip.
+`command` is the command as the user invoked it: `/flow:<name>` plus its bare flags — `/flow:execute`, `/flow:done`, `/flow:done --full`, `/flow:validate --fast`, `/flow:bug-fix`. It must match `^/flow:[a-z-]+( --[a-z-]+)*$` (max 60), so drop flag values, paths, ticket keys and quoted text; a flag with a value is sent bare or not at all. Send it on every report in every guide (Plan, Execute, Close); orbit shows which command produced the chip.
 
 ### `verdict` — validate and done Step 1 only
 

@@ -21,7 +21,7 @@ The references below retain the complete procedure. Read the resolver first, the
 | `/flow:plan` — find or create the task, write the Metadata ticket line | [Plan: resolve or create](./_guide-01-plan.md) |
 | `/flow:execute` pre-flight with no readable plan file — pull the task's plan, confirm it with the user (never in auto mode), vet its `Validate` lines | [Plan: resolve or create § Plan check](./_guide-01-plan.md) |
 | `/flow:execute` — working-state reports at milestones | [Execute: state reports](./_guide-02-execute.md) |
-| `/flow:done` (also the close of `/flow:bug-fix`, which hands off to `/flow:done --quick`) — close the task (never past `doneStatus`), push artifacts, attach vetted UI screenshots from this run's report (`orbit_attach`) | [Close: update and push](./_guide-03-close.md) |
+| `/flow:done` (also the close of `/flow:bug-fix`, which hands off to `/flow:done`) — close the task (never past `doneStatus`), push artifacts, attach vetted UI screenshots from this run's report (`orbit_attach`) | [Close: update and push](./_guide-03-close.md) |
 | `/flow:done` Step 1b — re-check the tests and scenarios of closed parent and linked tasks via the tool-less `flow:tracker-reader` (`regressionCheck`) | [Regression check](./_guide-07-regression.md) |
 | A command has just authored a plan, RCA, execution report, retro or review — where it lives | [Artifact store](./_guide-06-artifact-store.md) |
 | `/flow:run --status`, `/flow:bug-rca`, `/flow:bug-fix`, ticket-only `/flow:execute` — read a task | [Read a task](./_guide-04-read.md) |

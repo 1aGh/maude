@@ -677,7 +677,7 @@
             "regressionCheck": {
               "type": "boolean",
               "default": true,
-              "description": "Only meaningful with `provider: orbit`; other providers ignore it. When not `false`, `/flow:done` looks at the closed parent and linked tasks of the current task (at most 5), takes the scenario names and test paths from their plans that exist in this repo and overlap the branch diff, and re-runs them through `quality.tests` and the scenario runner within a 10 minute budget (`--quick`: tests only). A failure asks before anything else; a bug task is created only after explicit confirmation. Set `false` to turn it off."
+              "description": "Only meaningful with `provider: orbit`; other providers ignore it. When not `false`, `/flow:done` looks at the closed parent and linked tasks of the current task (at most 5), takes the scenario names and test paths from their plans that exist in this repo and overlap the branch diff, and re-runs them through `quality.tests` and the scenario runner within a 10 minute budget (scenarios only under `/flow:done --full`, tests otherwise). A failure asks before anything else; a bug task is created only after explicit confirmation. Set `false` to turn it off."
             },
             "defaults": {
               "type": "object",

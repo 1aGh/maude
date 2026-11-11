@@ -335,14 +335,15 @@ test('guide 03 § D: screenshots come only from this run, as vetted regular imag
   assert.doesNotMatch(d, /avif/i);
 });
 
-test('bug-fix under orbit closes once, through /flow:done --quick', () => {
+test('bug-fix under orbit closes once, through /flow:done', () => {
   const fix = read('plugins/flow/commands/bug-fix.md');
   const orbit = fix.slice(
     fix.indexOf('### `orbit`: close through'),
     fix.indexOf('### Other providers')
   );
   assert.ok(orbit.length > 0, 'bug-fix.md has no orbit close section');
-  assert.match(orbit, /\/flow:done --quick/);
+  assert.match(orbit, /\/flow:done <ORB-n>/);
+  assert.doesNotMatch(orbit, /--quick/, 'the fast run is the default now');
   assert.match(orbit, /no commit, push, PR or tracker sync of its own/);
   assert.doesNotMatch(fix, /Close recipe § A/, 'bug-fix must not run the orbit close itself');
   const done = read('plugins/flow/commands/done.md');
