@@ -1,8 +1,10 @@
-## Close: update and push (`/flow:done`, `/flow:bug-fix`)
+## Close: update and push (`/flow:done`)
+
+`/flow:bug-fix` never closes the task itself: it hands the close to `/flow:done --quick`, so there is only one close.
 
 Close-time only, and **warn-only**: nothing in this recipe can fail, block or roll back a close. The commit, the PR and the files on disk are primary; orbit receives a copy.
 
-### A. Task update — `/flow:done` Step 6b, `/flow:bug-fix` Tracker sync
+### A. Task update — `/flow:done` Step 6b
 
 The command asks its usual question ("Mark ticket `ORB-<n>` as done in orbit and link this PR?"). On yes:
 
@@ -10,7 +12,7 @@ The command asks its usual question ("Mark ticket `ORB-<n>` as done in orbit and
 
 **Never past `doneStatus`.** The default target is `tracker.defaults.doneStatus`; flow never moves a task further than that status (anything after it belongs to people or other automation), and a task that already shows a done-category status keeps it — omit `status` then. Only the fields given change. `status` may be a status name or a category (`todo` / `in_progress` / `done` / `canceled`); an ambiguous or unknown status comes back as an error naming the candidates — show it and move on, no retry loop. No key, and the user accepts the command's "create a ticket?" offer → run the Plan recipe's create step (list, title from the plan) first, then update.
 
-### B. Artifact push — end of `/flow:done` Step 7 (after the retro is appended and the plan archived); `/flow:bug-fix` after the tracker sync
+### B. Artifact push — end of `/flow:done` Step 7 (after the retro is appended and the plan archived)
 
 **`integrations.tracker.artifacts.store` is `orbit` or `both`** → most of this list was pushed the moment it was written ([guide 06](./_guide-06-artifact-store.md)). Push only what is still missing: the artifacts that exist on disk, plus the plan in its FINAL state (its close-time version is the one worth keeping). With `local: scratch` there are no files left to walk — sweep the spool instead and push the plan from wherever the command has it. Re-pushing an unchanged artifact is harmless (a new version), but noise; skip it via the `orbit_artifact_pull` check below.
 
@@ -32,7 +34,7 @@ Payload: `{repo, taskKey: <KEY, omitted when unset — a repo-level artifact>, k
 
 ### C. Final state — last call
 
-`orbit_state_report {repo, taskKey, phase: "done", detail: "PR <url> — <short sha>", command}` (drop the PR part when there is none). `command` is the invoked command as in [guide 02](./_guide-02-execute.md) — `/flow:done`, `/flow:done --quick` or `/flow:bug-fix`. No `verdict` here: the close-time verdict was sent by Step 1. Needs `KEY`; without one, skip. This report is a hint for people watching the task, not proof that the close ran ([guide 02](./_guide-02-execute.md#a-state-report-is-a-hint)).
+`orbit_state_report {repo, taskKey, phase: "done", detail: "PR <url> — <short sha>", command}` (drop the PR part when there is none). `command` is the invoked command as in [guide 02](./_guide-02-execute.md) — `/flow:done` or `/flow:done --quick`. No `verdict` here: the close-time verdict was sent by Step 1. Needs `KEY`; without one, skip. This report is a hint for people watching the task, not proof that the close ran ([guide 02](./_guide-02-execute.md#a-state-report-is-a-hint)).
 
 ### D. Screenshots — `/flow:done` Step 6b, right after § A (UI changes; `--quick` does not skip it)
 

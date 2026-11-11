@@ -335,6 +335,27 @@ test('guide 03 § D: screenshots come only from this run, as vetted regular imag
   assert.doesNotMatch(d, /avif/i);
 });
 
+test('bug-fix under orbit closes once, through /flow:done --quick', () => {
+  const fix = read('plugins/flow/commands/bug-fix.md');
+  const orbit = fix.slice(
+    fix.indexOf('### `orbit`: close through'),
+    fix.indexOf('### Other providers')
+  );
+  assert.ok(orbit.length > 0, 'bug-fix.md has no orbit close section');
+  assert.match(orbit, /\/flow:done --quick/);
+  assert.match(orbit, /no commit, push, PR or tracker sync of its own/);
+  assert.doesNotMatch(fix, /Close recipe § A/, 'bug-fix must not run the orbit close itself');
+  const done = read('plugins/flow/commands/done.md');
+  assert.match(done, /^## Bug-fix close$/m);
+  assert.match(done, /RCA it fixed takes the plan's place/);
+  assert.match(done, /not as commands to run/);
+  const close = read(join(SKILL_DIR, '_guide-03-close.md'));
+  assert.doesNotMatch(
+    close,
+    /`\/flow:bug-fix` Tracker sync|`\/flow:bug-fix` after the tracker sync/
+  );
+});
+
 test('state reports are a self-reported hint, never proof that a step ran', () => {
   for (const f of ['_guide-02-execute.md', '_guide-05-untrusted-data-and-failure.md']) {
     const guide = read(join(SKILL_DIR, f));

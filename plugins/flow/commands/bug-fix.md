@@ -98,6 +98,19 @@ Fix any scoped-verify failures before proceeding.
 
 ## Post-Fix Flow
 
+### `orbit`: close through `/flow:done --quick`
+
+When `integrations.tracker.provider` is `orbit`, this command stops after the scoped verify. It makes no commit, push, PR or tracker sync of its own. Ask:
+
+> **Fix verified (scoped). Try it, then close it with `/flow:done --quick`?**
+
+- **Yes** → run `/flow:done --quick <ORB-n>` (Claude Code: Skill tool `flow:done`, args `--quick <ORB-n>`; Codex: the done procedure with the same input). Use plain `/flow:done` when the fix touches what `--quick` excludes (auth, migrations, cross-package, CI config, security-sensitive code). Done takes this RCA as its plan ([done § Bug-fix close](./done.md#bug-fix-close)). It runs the code review, the parent regression check, the `fix:` commit, the PR, the screenshots, the task update and the done report, each exactly once.
+- **Not yet** → stop with `Fix ready — close it with /flow:done --quick <ORB-n> once you have tried it.` The task keeps its working status until done runs.
+
+There is only one close. A second one would move the task and send the done report twice. Done's code review also reads the uncommitted diff, so a commit made here would leave the review nothing to read.
+
+### Other providers
+
 After the scoped verify passes, ask:
 
 > **Fix verified (scoped). Run a full `/flow:validate` now, or go straight to commit?** (Full validate before the PR merges is required either way.)
@@ -127,6 +140,6 @@ If `integrations.tracker.provider !== "none"` and the matching MCP tool is avail
 
 If yes → call `<integrations.tracker.mcp>_*_update_task` (or provider equivalent) with `defaults.doneStatus` and a comment containing the PR URL and commit hash. Pass `defaults` through untouched.
 
-If `provider === "orbit"`, the update is `flow:orbit-backend` Close recipe § A; then run § B (pushes the RCA if its latest version in orbit differs) and § C (`done` state). **Warn-only** — a failed orbit call never blocks the fix.
+`provider === "orbit"` never reaches this step: `/flow:done --quick` closes the task through `flow:orbit-backend` (see the orbit section above).
 
 If `provider === "github"`, the PR's `Closes #$ARGUMENTS` already takes care of the link — no extra step needed.
