@@ -8,13 +8,15 @@
 // 13 `DsBar`: island · 24 px `system` glyph tile · name · `.seg` Light | Dark · Review… as the primary button.
 // 2.0.7 polish (decision `v2-207-pages-on-ds-canvas`): Canvas | Pages and, in Pages, ‹ n / N › after Light | Dark —
 // the switch every ordinary canvas has on its pill (canvas-pages-view.tsx), which this canvas does not draw.
+// #225: the bar IS the canvas pill's island (`CanvasTopIsland`) with these controls on its row — the same place in the
+// shell's free top band, the same chrome, the path line above; board.css no longer keeps a copy of the island.
 
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { DsIcon } from '../../canvas-ds-icons.tsx';
 import { CanvasPagesSwitch } from '../../canvas-pages-view.tsx';
 import { setCanvasTheme } from '../../canvas-theme.ts';
 import { THEME_WORD, ThemeIcon } from '../../canvas-theme-icons.tsx';
+import { CanvasTopIsland, TopIslandTitle } from '../../canvas-theme-pill.tsx';
 import { isEmbedCanvas } from '../../read-only-mode.ts';
 import { useBoardMode, useBoardModel } from './state.ts';
 import type { BoardMode, BoardModel } from './types.ts';
@@ -45,17 +47,21 @@ export function DsBarView({
   const waiting = linked ? null : waitingWords(model.pendingCount);
   const hasDark = model.themes.dark !== null;
   return (
-    <div className="ds-bar" data-testid="ds-bar" role="toolbar" aria-label="Design system">
-      <span className="ds-bar-ic" aria-hidden="true">
-        <DsIcon name="system" size={14} />
-      </span>
-      <b>{model.label}</b>
-      <fieldset className="ds-bar-seg" aria-label="Show the system in">
+    // #225 — the same island as every canvas's pill (canvas-theme-pill.tsx): placed in the shell's free top band, the
+    // canvas's path on its own line above this row; never a second copy of the chrome
+    <CanvasTopIsland
+      testid="ds-bar"
+      ariaLabel="Design system"
+      rowTestid="ds-bar-row"
+      pathTestid="ds-bar-path"
+    >
+      <TopIslandTitle name={model.label} />
+      <fieldset className="dc-theme-pill-seg" aria-label="Show the system in">
         {(['light', 'dark'] as const).map((m) => (
           <button
             key={m}
             type="button"
-            className="ds-bar-b ds-bar-b--ic k-seg-b"
+            className="dc-theme-pill-b dc-theme-pill-b--ic"
             data-testid={`ds-bar-mode-${m}`}
             aria-pressed={mode === m}
             aria-label={THEME_WORD[m]}
@@ -96,7 +102,7 @@ export function DsBarView({
           ) : null}
         </>
       ) : null}
-    </div>
+    </CanvasTopIsland>
   );
 }
 

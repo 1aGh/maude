@@ -15,6 +15,9 @@
 // (smaller, grey), centred in the free band the shell reports with its `occluded-insets` (`topBand`, the stretch
 // between the project pill and the Share cluster) and never wider than it. Short of room the path line goes first,
 // then the name truncates. An older shell sends no band: the pill centres on the frame, as before.
+//
+// #225 — the Design system canvas's bar is the same island (`CanvasTopIsland`, its own controls on the row): it kept a
+// copy of this chrome in ds/board/board.css and missed #217, so on that screen the bar sat elsewhere.
 
 import {
   type ReactNode,
@@ -30,7 +33,7 @@ import { DsIcon } from './canvas-ds-icons.tsx';
 import { getCanvasThemeSystemName, setCanvasTheme, useCanvasTheme } from './canvas-theme.ts';
 import { THEME_WORD, ThemeIcon } from './canvas-theme-icons.tsx';
 
-/** The pill's chrome. Kept in step with the `.ds-bar` block of ds/board/board.css (same pill, other canvases). */
+/** The island's chrome — the canvas pill's AND the Design system bar's (#225: one copy, `CanvasTopIsland`). */
 const PILL_CSS = `
 .dc-theme-pill{position:fixed;left:50%;top:16px;translate:-50% 0;z-index:2147483000;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;min-height:44px;padding:4px 8px 5px;overflow:hidden;border-radius:var(--maude-hud-radius-lg,14px);background:var(--maude-hud-island-bg);color:var(--maude-chrome-fg-0);-webkit-backdrop-filter:saturate(1.4) blur(18px);backdrop-filter:saturate(1.4) blur(18px);box-shadow:var(--maude-hud-island-shadow),inset 0 0 0 .5px var(--maude-hud-island-edge);font:400 var(--maude-hud-type-sm,12px)/1 var(--maude-chrome-font-body);white-space:nowrap}
 .dc-theme-pill-row{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%;padding-left:4px}
@@ -152,33 +155,26 @@ function canvasFilePath(): string | null {
 }
 
 /**
- * @param bothThemes  does the canvas's design system define Light AND Dark? Asked on every render (the answer can
- *                    arrive after first paint, once the system's stylesheet has parsed — the pill re-asks on load).
+ * #225 — the one top-centre island every canvas draws: the canvas pill below, and the Design system canvas's bar
+ * (ds/board/ds-bar.tsx), which used to keep its own copy of the chrome — still centred on the frame in the old one-row
+ * form after #217, so on that screen the bar sat elsewhere. Placed in the shell's free top band (`pillPlacement`), a
+ * column with the canvas's path on its own line above `children` (the host's controls row). Maude's chrome, so tagged
+ * `data-dc-overlay` (an export never carries it) and stepping aside while a people pill holds the spot.
  */
-export function CanvasThemePill({
-  bothThemes,
-  onProbeStale,
-  extra,
+export function CanvasTopIsland({
+  testid,
+  ariaLabel,
+  rowTestid,
+  pathTestid,
+  children,
 }: {
-  bothThemes: () => boolean;
-  /** subscribe to "the answer may have changed" (a stylesheet or the first artboard wrapper arrived) */
-  onProbeStale?: (f: () => void) => () => void;
-  /** 2.0.7 B2 — drawn after Light | Dark: the canvas's Canvas | Pages (canvas-pages-view.tsx) */
-  extra?: ReactNode;
+  testid: string;
+  ariaLabel: string;
+  rowTestid: string;
+  pathTestid: string;
+  /** the controls row, under the path line */
+  children: ReactNode;
 }) {
-  const mode = useCanvasTheme();
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const again = () => tick((n) => n + 1);
-    if (document.readyState === 'complete') again();
-    else window.addEventListener('load', again, { once: true });
-    const off = onProbeStale?.(again);
-    return () => {
-      window.removeEventListener('load', again);
-      off?.();
-    };
-  }, [onProbeStale]);
   // r5-8 — the canvas's path on the pill; a click copies it whole and the pill says so for a moment
   const [copied, setCopied] = useState<'no' | 'ok' | 'failed'>('no');
   useEffect(() => {
@@ -198,20 +194,16 @@ export function CanvasThemePill({
       setCopied('failed');
     }
   };
-  const both = bothThemes();
-  const name = getCanvasThemeSystemName();
   // #217 — placed in the shell's free top band; the path line goes first when the band is short
   const band = useTopBand();
   const vw = useViewportWidth();
   const place = pillPlacement(band, vw);
   const pillRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLSpanElement>(null);
-  const titleRef = useRef<HTMLElement>(null);
   const pathRef = useRef<HTMLButtonElement>(null);
   const [pathShown, setPathShown] = useState(true);
   // how many characters of the path fit: it loses its leading folders first, never its file name
   const [pathChars, setPathChars] = useState(PATH_MAX);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: name, file and copied change the lines' natural widths
+  // file and copied change the path line's natural width; the row's own changes reach `fit` through the ResizeObserver
   useLayoutEffect(() => {
     const pill = pillRef.current;
     if (!pill) return undefined;
@@ -241,7 +233,7 @@ export function CanvasThemePill({
     const ro = new ResizeObserver(fit); // Light | Dark and Canvas | Pages may change width after first paint
     ro.observe(pill);
     return () => ro.disconnect();
-  }, [place.maxWidth, name, file, copied]);
+  }, [place.maxWidth, file, copied]);
   return (
     <>
       <style data-dc-theme-pill-css="">{PILL_CSS}</style>
@@ -249,19 +241,19 @@ export function CanvasThemePill({
         ref={pillRef}
         className="dc-theme-pill"
         data-dc-overlay=""
-        data-testid="canvas-theme-pill"
+        data-testid={testid}
         data-band={place.banded ? 'band' : 'frame'}
         data-path={file ? (pathShown ? 'shown' : 'hidden') : undefined}
         style={{ left: `${place.left}px`, maxWidth: `${place.maxWidth}px` }}
         role="toolbar"
-        aria-label="Canvas theme"
+        aria-label={ariaLabel}
       >
         {file ? (
           <button
             ref={pathRef}
             type="button"
             className="dc-theme-pill-path"
-            data-testid="canvas-theme-path"
+            data-testid={pathTestid}
             title={`Copy relative path — ${file}`}
             aria-label={`Copy relative path ${file}`}
             aria-live="polite"
@@ -274,46 +266,107 @@ export function CanvasThemePill({
                 : shortenCanvasPath(file, pathChars)}
           </button>
         ) : null}
-        <div className="dc-theme-pill-row" data-testid="canvas-theme-row">
-          {name ? (
-            <span className="dc-theme-pill-ic" aria-hidden="true">
-              <DsIcon name="system" size={14} />
-            </span>
-          ) : null}
-          {name ? (
-            <span ref={textRef} className="dc-theme-pill-text" data-testid="canvas-theme-text">
-              <b ref={titleRef} className="dc-theme-pill-title" data-testid="canvas-theme-title">
-                {name}
-              </b>
-            </span>
-          ) : null}
-          <fieldset className="dc-theme-pill-seg" aria-label="Show every artboard in">
-            {(['light', 'dark'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                className="dc-theme-pill-b dc-theme-pill-b--ic"
-                data-testid={`canvas-theme-mode-${m}`}
-                aria-pressed={mode === m}
-                aria-label={THEME_WORD[m]}
-                disabled={!both && mode !== m}
-                // 2.0.7 — icons only (Michal): the name is the tooltip; a theme the canvas lacks says so there
-                title={!both && mode !== m ? `This canvas has no ${THEME_WORD[m]}` : THEME_WORD[m]}
-                onClick={() => setCanvasTheme(m)}
-              >
-                <ThemeIcon mode={m} />
-              </button>
-            ))}
-          </fieldset>
-          {!both ? (
-            // read by a screen reader only; the greyed button's tooltip says the same to everyone else
-            <span className="dc-theme-pill-sr" data-testid="canvas-theme-note">
-              {`This canvas has no ${mode === 'light' ? 'Dark' : 'Light'}`}
-            </span>
-          ) : null}
-          {extra}
+        <div className="dc-theme-pill-row" data-testid={rowTestid}>
+          {children}
         </div>
       </div>
     </>
+  );
+}
+
+/** The design system's glyph tile and name, as both islands draw them (the name truncates first, never a control). */
+export function TopIslandTitle({
+  name,
+  textTestid,
+  titleTestid,
+}: {
+  name: string;
+  textTestid?: string;
+  titleTestid?: string;
+}) {
+  return (
+    <>
+      <span className="dc-theme-pill-ic" aria-hidden="true">
+        <DsIcon name="system" size={14} />
+      </span>
+      <span className="dc-theme-pill-text" data-testid={textTestid}>
+        <b className="dc-theme-pill-title" data-testid={titleTestid}>
+          {name}
+        </b>
+      </span>
+    </>
+  );
+}
+
+/**
+ * @param bothThemes  does the canvas's design system define Light AND Dark? Asked on every render (the answer can
+ *                    arrive after first paint, once the system's stylesheet has parsed — the pill re-asks on load).
+ */
+export function CanvasThemePill({
+  bothThemes,
+  onProbeStale,
+  extra,
+}: {
+  bothThemes: () => boolean;
+  /** subscribe to "the answer may have changed" (a stylesheet or the first artboard wrapper arrived) */
+  onProbeStale?: (f: () => void) => () => void;
+  /** 2.0.7 B2 — drawn after Light | Dark: the canvas's Canvas | Pages (canvas-pages-view.tsx) */
+  extra?: ReactNode;
+}) {
+  const mode = useCanvasTheme();
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const again = () => tick((n) => n + 1);
+    if (document.readyState === 'complete') again();
+    else window.addEventListener('load', again, { once: true });
+    const off = onProbeStale?.(again);
+    return () => {
+      window.removeEventListener('load', again);
+      off?.();
+    };
+  }, [onProbeStale]);
+  const both = bothThemes();
+  const name = getCanvasThemeSystemName();
+  return (
+    <CanvasTopIsland
+      testid="canvas-theme-pill"
+      ariaLabel="Canvas theme"
+      rowTestid="canvas-theme-row"
+      pathTestid="canvas-theme-path"
+    >
+      {name ? (
+        <TopIslandTitle
+          name={name}
+          textTestid="canvas-theme-text"
+          titleTestid="canvas-theme-title"
+        />
+      ) : null}
+      <fieldset className="dc-theme-pill-seg" aria-label="Show every artboard in">
+        {(['light', 'dark'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            className="dc-theme-pill-b dc-theme-pill-b--ic"
+            data-testid={`canvas-theme-mode-${m}`}
+            aria-pressed={mode === m}
+            aria-label={THEME_WORD[m]}
+            disabled={!both && mode !== m}
+            // 2.0.7 — icons only (Michal): the name is the tooltip; a theme the canvas lacks says so there
+            title={!both && mode !== m ? `This canvas has no ${THEME_WORD[m]}` : THEME_WORD[m]}
+            onClick={() => setCanvasTheme(m)}
+          >
+            <ThemeIcon mode={m} />
+          </button>
+        ))}
+      </fieldset>
+      {!both ? (
+        // read by a screen reader only; the greyed button's tooltip says the same to everyone else
+        <span className="dc-theme-pill-sr" data-testid="canvas-theme-note">
+          {`This canvas has no ${mode === 'light' ? 'Dark' : 'Light'}`}
+        </span>
+      ) : null}
+      {extra}
+    </CanvasTopIsland>
   );
 }

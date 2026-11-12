@@ -28,9 +28,10 @@ describe('the Design system bar', () => {
     const out = renderToStaticMarkup(
       <DsBarView model={model} mode="light" onMode={() => {}} onReview={() => {}} />
     );
-    expect(out).toContain('class="ds-bar-ic"');
+    // #225 — the glyph tile and the seg are the canvas pill's own (one island, canvas-theme-pill.tsx)
+    expect(out).toContain('class="dc-theme-pill-ic"');
     // 2.0.7 — the seg is two icons (sun, moon) named by aria-label, like the canvas pill
-    expect(out).toContain('class="ds-bar-b ds-bar-b--ic k-seg-b"');
+    expect(out).toContain('class="dc-theme-pill-b dc-theme-pill-b--ic"');
     expect(out).toContain('aria-label="Light"');
     expect(out).toContain('aria-label="Dark"');
     expect(out).toContain('ds-bar-review btn btn--primary btn--sm');
@@ -42,9 +43,15 @@ describe('the Design system bar', () => {
       CSS.indexOf('@media (prefers-reduced-motion')
     );
     expect(bar).not.toMatch(/\b(Canvas|CanvasText|Highlight|HighlightText)\b/);
-    expect(rule('.ds-bar')).toContain('var(--maude-hud-island-bg)');
-    expect(rule('.ds-bar')).toContain('height: 44px');
+    // #225 — the island and its glyph tile are the canvas pill's chrome (one copy, in canvas-theme-pill.tsx)
+    const pill = readFileSync(join(import.meta.dir, '../canvas-theme-pill.tsx'), 'utf8');
+    const pillRule = (sel: string) => pill.match(new RegExp(`\\n${sel}\\{[^}]*\\}`))?.[0] ?? '';
+    expect(pillRule('\\.dc-theme-pill')).toContain('var(--maude-hud-island-bg)');
+    expect(pillRule('\\.dc-theme-pill')).toContain('min-height:44px');
+    expect(pillRule('\\.dc-theme-pill-ic')).toContain('var(--maude-hud-accent-muted)');
+    expect(pill.slice(pill.indexOf('const PILL_CSS'), pill.indexOf('`;'))).not.toMatch(
+      /\b(Canvas|CanvasText|Highlight|HighlightText)\b/
+    );
     expect(rule('.ds-bar-review')).toContain('var(--maude-hud-accent)');
-    expect(rule('.ds-bar-ic')).toContain('var(--maude-hud-accent-muted)');
   });
 });
