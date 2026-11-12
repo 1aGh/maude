@@ -330,8 +330,16 @@
     color: var(--fg-2);
     font-variant-numeric: tabular-nums;
   }
+  /* #224: the strip scrolls itself within a cap. A system row opened into its artboards (65 for a big system)
+     used to grow it past the panel: `.sh-sidebar` clips (F35), so the canvas list below — the panel's only
+     scroller — was squeezed to nothing and no wheel scrolled anything. Still `flex: none`: a shrinkable strip
+     gave way to the canvas list and cut the system row itself (26 of its 61 px). */
   .lp-pinned {
     flex: none;
+    max-height: 40%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     margin: 0 var(--space-2) var(--space-1);
     padding-bottom: var(--space-1);
     box-shadow: inset 0 -0.5px 0 var(--border-default);
