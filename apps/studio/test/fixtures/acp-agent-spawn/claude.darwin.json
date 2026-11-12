@@ -1,0 +1,86 @@
+{
+  "argv": [],
+  "env": {
+    "HOME": "<TMP>/home",
+    "XDG_CONFIG_HOME": "<TMP>/xdg",
+    "TMPDIR": "<SCRATCH>/",
+    "PATH": "/usr/bin:/bin",
+    "LANG": "en_US.UTF-8",
+    "KEEP_ME": "kept",
+    "MAUDE_ACP_ADAPTER_ENTRY": "<STUDIO>/test/fixtures/mock-acp-agent-spawn.mjs",
+    "MAUDE_ACP_RUNTIME": "<BUN>",
+    "MAUDE_CLAUDE_BIN": "<BUN>",
+    "MAUDE_TEST_SPAWN_LOG": "<TMP>/claude-1.ndjson",
+    "CLAUDE_CODE_EXECUTABLE": "<BUN>",
+    "MAUDE_AGENT_ACTOR": "maude-chat",
+    "MAUDE_SESSION_ROOT": "<TMP>/repo",
+    "MAUDE_READ_ROOTS": "<TMP>/repo:<TMP>/repo/.design:<TMP>/plugins/design:<STUDIO>:<MAUDE>/plugins:<SCRATCH>:/private<SCRATCH>",
+    "MAUDE_OWN_PORTS": "4399,4400",
+    "MAUDE_GRANTS_FILE": "<TMP>/grants.json",
+    "MAUDE_CHAT_ID": "c1"
+  },
+  "clientCapabilities": {
+    "fs": {
+      "readTextFile": false,
+      "writeTextFile": false
+    },
+    "terminal": false,
+    "auth": {
+      "terminal": false
+    },
+    "elicitation": {
+      "form": {}
+    }
+  },
+  "newSession": {
+    "cwd": "<TMP>/repo",
+    "mcpServers": [],
+    "_meta": {
+      "systemPrompt": {
+        "append": "BRIEF"
+      },
+      "claudeCode": {
+        "options": {
+          "settingSources": ["user"],
+          "allowedTools": [
+            "Read(/<TMP>/repo/**)",
+            "Read(/<TMP>/repo/.design/**)",
+            "Read(/<TMP>/plugins/design/**)",
+            "Read(/<STUDIO>/**)",
+            "Read(/<MAUDE>/plugins/**)",
+            "Read(/<SCRATCH>/**)",
+            "Read(//private<SCRATCH>/**)",
+            "<MAUDE_DEFAULT_ALLOWED_TOOLS>"
+          ],
+          "disallowedTools": [
+            "Read(/<TMP>/home/.config/maude/**)",
+            "Read(/<TMP>/xdg/maude/**)",
+            "Read(/<TMP>/home/.ssh/**)",
+            "Read(/<TMP>/home/.aws/**)",
+            "Read(/<TMP>/home/.gnupg/**)",
+            "Read(/<TMP>/home/Library/Keychains/**)",
+            "Read(/<TMP>/home/.local/state/maude/servers/**)",
+            "Read(/<TMP>/home/Library/Application Support/com.maude.app/run/**)",
+            "Read(/<TMP>/home/Library/Application Support/com.maude.app/shell-info/**)",
+            "Read(/<TMP>/home/Library/Application Support/com.maude.app/home/**)",
+            "Read(/<TMP>/home/Library/Application Support/com.maude.app/servers.json)",
+            "Read(/<TMP>/home/Library/Application Support/com.maude.app/cli.sock)",
+            "Read(/<TMP>/home/cloud.json)"
+          ],
+          "plugins": [
+            {
+              "type": "local",
+              "path": "<TMP>/plugins/design",
+              "skipMcpDiscovery": true
+            }
+          ],
+          "settings": {
+            "enabledPlugins": {
+              "design@maude": false
+            }
+          }
+        }
+      }
+    }
+  }
+}
