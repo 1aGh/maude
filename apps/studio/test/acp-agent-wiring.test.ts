@@ -132,8 +132,18 @@ const ROGUE: AgentDescriptor = {
   enforcement: undefined,
 };
 
+const PINNED: AgentDescriptor = fakeCodex({
+  id: 'opencode',
+  label: 'opencode',
+  enforcement: {
+    ...(fakeCodex().enforcement as NonNullable<AgentDescriptor['enforcement']>),
+    pinMode: { modeId: 'workspace-write', refuse: ['agent'] },
+  },
+});
+
 const AGENTS: Record<string, AgentDescriptor> = {
   codex: fakeCodex(),
+  opencode: PINNED,
   gemini: ROGUE,
   claude: CLAUDE,
 };
@@ -215,35 +225,57 @@ describe('the chat agent: picked once, recorded, never switched', () => {
     }
   }, 20000);
 
-  test('a later attach naming another agent is refused (live bridge and from the record)', async () => {
+  test('a chat with nothing said yet may change its agent; one with history may not', async () => {
     setScript();
     const acp = makeAcp();
     const a = fakeWs('w-switch');
+    const metaFile = join(repo, '.design', '_chat', 'w2.meta.json');
     try {
       acp.onOpen(a.ws);
       acp.onMessage(a.ws, JSON.stringify({ t: 'attach', chat: 'w2', agent: 'codex' }));
       await until(() => a.frames.find((f) => f.t === 'attached'));
+      // the picker before the first message: allowed, re-recorded
       acp.onMessage(a.ws, JSON.stringify({ t: 'attach', chat: 'w2', agent: 'claude' }));
+      await until(() => JSON.parse(readFileSync(metaFile, 'utf8')).agent === 'claude' || undefined);
+      expect(errors(a.frames)).toEqual([]);
+      // once the chat has history it keeps its agent
+      writeFileSync(join(repo, '.design', '_chat', 'w2.jsonl'), '{"role":"user","text":"x"}\n');
+      acp.onMessage(a.ws, JSON.stringify({ t: 'attach', chat: 'w2', agent: 'codex' }));
       const refused = await until(() => errors(a.frames)[0]);
       expect(refused).toMatchObject({
         code: 'agent-switch-refused',
         chat: 'w2',
-        agent: 'codex',
-        requested: 'claude',
+        agent: 'claude',
+        requested: 'codex',
       });
     } finally {
       acp.stopAll();
     }
-    // a fresh server: the recorded agent still wins
+    // a fresh server: the recorded agent still wins for a chat with history
     const acp2 = makeAcp();
     const b = fakeWs('w-switch-2');
     try {
       acp2.onOpen(b.ws);
-      acp2.onMessage(b.ws, JSON.stringify({ t: 'prompt', chat: 'w2', text: 'x', agent: 'claude' }));
+      acp2.onMessage(b.ws, JSON.stringify({ t: 'prompt', chat: 'w2', text: 'x', agent: 'codex' }));
       const refused = await until(() => errors(b.frames)[0]);
       expect(refused.code).toBe('agent-switch-refused');
     } finally {
       acp2.stopAll();
+    }
+  }, 20000);
+
+  test('caps lists only the allowed modes for a pinned agent (allowedModes)', async () => {
+    setScript([], { MAUDE_TEST_MODES: '1' });
+    const acp = makeAcp();
+    const a = fakeWs('w-modes');
+    try {
+      acp.onOpen(a.ws);
+      acp.onMessage(a.ws, JSON.stringify({ t: 'warm', chat: 'w-modes', agent: 'opencode' }));
+      const caps = await until(() => a.frames.find((f) => f.t === 'caps' && f.allowedModes));
+      expect(caps.allowedModes).toEqual(['read-only', 'workspace-write']);
+    } finally {
+      acp.stopAll();
+      delete process.env.MAUDE_TEST_MODES;
     }
   }, 20000);
 

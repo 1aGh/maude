@@ -868,8 +868,9 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
 
   /**
    * B3 — the agent a chat runs, or the error frame that refuses the request. The chat's own record
-   * wins (a live bridge, else `_chat/<id>.meta.json` `agent`, else Claude for a chat with history);
-   * a request naming another agent is refused, never switched. An 'unrestricted' agent needs this
+   * wins (a live bridge, else `_chat/<id>.meta.json` `agent`, else Claude for a chat with history).
+   * A chat with no history yet may change agent (its idle bridge is reaped and the record rewritten);
+   * once it has history a request naming another agent is refused, never switched. An 'unrestricted' agent needs this
    * project's consent (app-owned, `agents/consent.ts`): `consent: true` records it, except from a
    * read-only socket. A new non-Claude chat records its agent here.
    */
@@ -902,9 +903,17 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         'This chat runs an AI agent this version of Maude does not have.'
       );
     }
-    const current =
-      recorded ??
-      (existsSync(transcriptPathFor(chatId)) ? (lookupAgent('claude') ?? CLAUDE) : undefined);
+    const hasHistory = existsSync(transcriptPathFor(chatId));
+    let current = recorded ?? (hasHistory ? (lookupAgent('claude') ?? CLAUDE) : undefined);
+    // A chat with nothing said yet may still change its agent (the picker before the first
+    // message, or Allow on a consent card): drop the idle bridge and re-record. Once the chat has
+    // history it keeps its agent for good.
+    let switched = false;
+    if (requested && current && requested.id !== current.id && !hasHistory) {
+      if (live) reap(live);
+      current = undefined;
+      switched = true;
+    }
     if (requested && current && requested.id !== current.id) {
       return refuse(
         'agent-switch-refused',
@@ -913,7 +922,17 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       );
     }
     const agent = current ?? requested ?? CLAUDE;
-    if (agent.policy === 'claude-meta') return { ok: true, agent };
+    if (agent.policy === 'claude-meta') {
+      // A chat switched back to Claude before its first message drops the old record.
+      if (switched) {
+        try {
+          writeChatMeta(ctx.paths.designRoot, chatId, { agent: agent.id });
+        } catch {
+          /* a read-only _chat/: the live bridge still holds the agent for this server run */
+        }
+      }
+      return { ok: true, agent };
+    }
     const health = agentHealth(agent.id);
     if (!health.available) {
       return refuse(
@@ -941,7 +960,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         );
       }
     }
-    if (!live && !recordedId) {
+    if (switched || (!live && !recordedId)) {
       try {
         writeChatMeta(ctx.paths.designRoot, chatId, { agent: agent.id });
       } catch {
@@ -1149,7 +1168,16 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       // F3 — `agent` names which agent the roster belongs to (additive; the picker lists only
       // the modes its descriptor allows — the bridge filters refused ones out, rule 10).
       onCaps: (modes, configOptions) =>
-        broadcast(entry, { t: 'caps', modes, configOptions, agent: entry.bridge?.agentInfo }),
+        broadcast(entry, {
+          t: 'caps',
+          modes,
+          configOptions,
+          agent: entry.bridge?.agentInfo,
+          // The modes the picker may list (rule 10); Claude's frame stays as before.
+          ...(agent.enforcement?.pinMode && modes
+            ? { allowedModes: modes.availableModes.map((m) => m.id) }
+            : {}),
+        }),
       onSessionInfo: (info) => broadcast(entry, { t: 'session-info', ...info }),
       // Issue #177 — the live background tasks (chrome, like caps: replayed on attach, never transcripted).
       onBackground: (tasks) => broadcast(entry, { t: 'background', tasks }),

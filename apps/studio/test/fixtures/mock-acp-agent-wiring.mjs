@@ -76,6 +76,20 @@ acp
   .onRequest('session/new', (ctx) => {
     const sessionId = `wiring-${process.pid}-${++n}`;
     log({ m: 'new', sessionId, params: ctx.params });
+    // MAUDE_TEST_MODES=1: report a Codex-shaped mode roster (rule 10 / allowedModes).
+    if (process.env.MAUDE_TEST_MODES === '1') {
+      return {
+        sessionId,
+        modes: {
+          currentModeId: 'workspace-write',
+          availableModes: [
+            { id: 'read-only', name: 'Read only' },
+            { id: 'workspace-write', name: 'Workspace' },
+            { id: 'agent', name: 'Agent' },
+          ],
+        },
+      };
+    }
     return { sessionId };
   })
   .onRequest('session/load', (ctx) => {
