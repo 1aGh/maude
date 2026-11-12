@@ -362,10 +362,11 @@ const SEG_TITLE = {
   pages: 'One artboard at a time',
 } as const;
 
-/** The two homes of the switch: the canvas pill (canvas-theme-pill.tsx) and the Design system bar (ds-bar.tsx). */
+/** The two homes of the switch: the canvas pill (canvas-theme-pill.tsx) and the Design system bar (ds-bar.tsx) —
+ *  one island since #225, so one set of classes. */
 const SEG_CLASS = {
   pill: { seg: 'dc-theme-pill-seg', b: 'dc-theme-pill-b' },
-  ds: { seg: 'ds-bar-seg', b: 'ds-bar-b' },
+  ds: { seg: 'dc-theme-pill-seg', b: 'dc-theme-pill-b' },
 } as const;
 
 /**

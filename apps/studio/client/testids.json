@@ -44056,6 +44056,38 @@
     "v2": "new"
   },
   {
+    "hook": "ds-bar-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#225: the Design system bar's controls row (glyph tile, the system's name, Light | Dark, Canvas | Pages, changes waiting, Review…); the canvas's path is its own line above it, as on the canvas pill (`canvas-theme-row`). The bar is the pill's island (`CanvasTopIsland`), placed in the shell's free top band.",
+    "producer": {
+      "file": "apps/studio/ds/board/ds-bar.tsx",
+      "symbol": "DsBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/225-ds-bar-top-band.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-bar-path",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "#225: the Design system canvas's project-relative path on the bar's own line above its controls (`.design/system/<ds>/design-system.tsx`), the same button as the canvas pill's `canvas-theme-path`: a click copies the whole path; steps aside first when the band is short (`data-path=\"hidden\"` on the bar).",
+    "producer": {
+      "file": "apps/studio/ds/board/ds-bar.tsx",
+      "symbol": "DsBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/225-ds-bar-top-band.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "canvas-theme-pill",
     "kind": "testid",
     "pattern": false,
