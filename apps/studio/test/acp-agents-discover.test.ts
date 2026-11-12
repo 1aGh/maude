@@ -31,6 +31,7 @@ import {
   probeAgentVersion,
   resolveAgentBin,
 } from '../acp/agents/discover.ts';
+import { createAgentStateStore } from '../acp/agents/state.ts';
 import { resolveClaudePath } from '../acp/probe.ts';
 import { CANVAS_SAFE_API } from '../http.ts';
 import { createAgentsRoutes } from '../routes/agents.ts';
@@ -373,11 +374,19 @@ describe('GET /_api/agents', () => {
         calls.push({ force: o?.force });
         return [row] as never;
       },
+      // F7 added the connect state to every row; keep this test off the real profile's agents.json
+      store: createAgentStateStore(
+        join(mkdtempSync(join(tmpdir(), 'agents-route-')), 'agents.json')
+      ),
+      authStatus: async () => 'unknown',
     });
     const res = await spec.handle(new Request('http://localhost/_api/agents'), {});
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store');
-    expect(await res.json()).toEqual({ agents: [row] });
+    const body = await res.json();
+    expect(body.agents).toHaveLength(1);
+    expect(body.agents[0]).toMatchObject(row); // F2's fields are untouched
+    expect(body.offerAgents).toEqual([]);
     await spec.handle(new Request('http://localhost/_api/agents?refresh=1'), {});
     await spec.handle(new Request('http://localhost/_api/agents?refresh=0'), {});
     expect(calls).toEqual([{ force: false }, { force: true }, { force: false }]);
@@ -388,6 +397,9 @@ describe('GET /_api/agents', () => {
       discover: async () => {
         throw new Error('boom');
       },
+      store: createAgentStateStore(
+        join(mkdtempSync(join(tmpdir(), 'agents-route-')), 'agents.json')
+      ),
     });
     const res = await spec.handle(new Request('http://localhost/_api/agents'), {});
     expect(res.status).toBe(500);

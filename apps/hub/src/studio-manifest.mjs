@@ -405,6 +405,8 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/settings/about': REFUSED,
   // F2 — which ACP agents are installed is a fact about one Mac; a cell runs no local AI
   '/_api/agents': REFUSED,
+  // …and its `:id` verbs (connect, signin, signin-status, signin-cancel, disconnect, dismiss-offer): `:param`
+  // paths match no entry here and are refused default-closed, like the outbox's
   // S8.19 — asset state merges THIS machine's disk + upload queue with its linked hub's
   // presence. A cell is the hub: its studio has no peer hub to ask, and a browser member's
   // client reads a refusal as the quiet "Not here yet" (contract §5.5, offline row).

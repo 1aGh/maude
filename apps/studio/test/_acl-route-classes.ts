@@ -42,6 +42,13 @@ const NONE = [
   '/_api/settings/about',
   // F2 — which ACP agents this Mac has: about the machine, no canvas in it
   '/_api/agents',
+  // F7 — connect another agent: per-Mac, per-profile state and the vendor's own sign-in; no canvas in it
+  '/_api/agents/:id/connect',
+  '/_api/agents/:id/signin',
+  '/_api/agents/:id/signin-status',
+  '/_api/agents/:id/signin-cancel',
+  '/_api/agents/:id/disconnect',
+  '/_api/agents/:id/dismiss-offer',
   '/_api/shell/status',
   '/_api/shell/attest', // #206: one MAC over a nonce
   '/_api/workspace/disclosure',

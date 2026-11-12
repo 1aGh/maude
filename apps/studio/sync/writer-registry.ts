@@ -608,6 +608,14 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/kg/summary': { class: 'read' },
   '/_api/settings/about': { class: 'read' },
   '/_api/agents': { class: 'read' }, // routes/agents.ts (F2): ACP agents on this Mac, a bounded --version probe, no effect
+  // routes/agents.ts (F7): which agents the person connected — this profile's agents.json outside the project
+  // (acp/agents/state.ts) — and the vendor's own sign-in child; nothing under the design root
+  '/_api/agents/:id/connect': { class: 'local' },
+  '/_api/agents/:id/signin': { class: 'local' },
+  '/_api/agents/:id/signin-status': { class: 'read' }, // a bounded status probe of the vendor CLI, no effect
+  '/_api/agents/:id/signin-cancel': { class: 'local' },
+  '/_api/agents/:id/disconnect': { class: 'local' },
+  '/_api/agents/:id/dismiss-offer': { class: 'local' },
   '/_api/sync/availability': { class: 'read' }, // routes/availability.ts (S11.4): listed minus on disk, no effect
   '/_api/sync/conflicts': { class: 'read' }, // routes/sync-conflicts.ts (S9.24): this Mac's _state/conflicts/, no effect
   // S9.24 — a conflict pick is the canvas's own op path: one batch, one annotations lane.replace.
