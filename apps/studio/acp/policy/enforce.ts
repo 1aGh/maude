@@ -434,6 +434,7 @@ interface SeenCall {
   kind?: string;
   paths: string[];
   cwd?: string;
+  command?: string;
 }
 
 /** Per-session memory: a `tool_call_update` usually carries only its status, the first frame the rest. */
@@ -478,6 +479,12 @@ export function tripwire(
   if (typeof u.kind === 'string') seen.kind = u.kind;
   const raw = obj(u.rawInput);
   if (raw && typeof raw.cwd === 'string' && raw.cwd) seen.cwd = raw.cwd;
+  // Security review 2026-11-12 (A1): the shell command is judged too — a completed `cat` of a key
+  // names it only in its command words.
+  if (raw) {
+    const command = commandOf(raw);
+    if (command) seen.command = command;
+  }
   for (const p of pathsOf(u, enforcement.targetKeys))
     if (!seen.paths.includes(p)) seen.paths.push(p);
   if (id && memory) memory.calls.set(id, seen);
@@ -488,7 +495,7 @@ export function tripwire(
     ? (agentPath(seen.cwd, ctx.scopeRoot, home)?.abs ?? ctx.scopeRoot)
     : ctx.scopeRoot;
   const paths = seen.cwd ? [...seen.paths, seen.cwd] : seen.paths;
-  const req: KindRequest = { kind: seen.kind, paths, command: '', cwd };
+  const req: KindRequest = { kind: seen.kind, paths, command: seen.command ?? '', cwd };
   if (credentialRefusalByKind(req, ctx.credentialPaths, home))
     return {
       violated: true,

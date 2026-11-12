@@ -905,6 +905,12 @@ export function bashReadsOutside(
  * "Always allow" off a card, so it carries writers (`cp`, `sed -i`, `tar`) and readers that run a
  * program (`find -exec`, `rg --pre`) or write a file (`tree -o`, `sort -o`, `xxd in out`). None here
  * does either, whatever its options.
+ *
+ * Security review 2026-11-12 (defender H2, attacker A1): no reader that RECURSES. The gate judges the
+ * words it sees, not the files a recursive reader opens on the way down, and BSD `grep -rS`, `diff -r`
+ * and `du -L` follow an in-repo symlink (a relative "ladder" lands on HOME at any clone depth) into
+ * the person's credentials. `grep`/`egrep`/`fgrep`/`diff`/`du` therefore go to the card;
+ * `RECURSE_OR_DEREF_FLAG` refuses a recursive or dereferencing option on what is left (`ls -R`).
  */
 export const APPROVABLE_READ_BASH: ReadonlySet<string> = new Set([
   'cat',
@@ -913,15 +919,17 @@ export const APPROVABLE_READ_BASH: ReadonlySet<string> = new Set([
   'wc',
   'ls',
   'stat',
-  'grep',
-  'egrep',
-  'fgrep',
   'nl',
   'cmp',
-  'diff',
   'strings',
-  'du',
 ]);
+
+/**
+ * An option word that recurses or follows symlinks: a long `--recursive` / `--dereference*`, or a
+ * short cluster (`-rn`, `-lR`) holding `r`, `R`, `S`, `L` or `H`. Over-broad on purpose — a harmless
+ * `tail -r` or `ls -S` only reaches the card.
+ */
+const RECURSE_OR_DEREF_FLAG = /^(?:--(?:recursive|dereference)|-[^-=]*[rRSLH])/;
 
 /**
  * The words of a ONE-command shell line with no expansion anywhere, or null. Anything a word test
@@ -977,6 +985,7 @@ export function bashReadOnlyInside(
   if (!isAbsolute(cwd) || !inside(resolve(cwd))) return false;
   for (let w of words.slice(1)) {
     if (w.startsWith('-')) {
+      if (RECURSE_OR_DEREF_FLAG.test(w)) return false;
       const eq = w.indexOf('=');
       if (eq < 0) {
         if (w.includes('/') || w.includes('.')) return false;

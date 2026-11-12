@@ -3,11 +3,17 @@
 // synthetic ones, on a tmp project OUTSIDE git and one INSIDE a git repo (contract contradiction 6).
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-
-import { MAUDE_VERBS, verbTier } from '../actions/verbs.ts';
 import type { AgentDescriptor, PolicyCtx } from '../acp/agents/descriptor.ts';
 import {
   APPROVABLE_READ_BASH,
@@ -32,6 +38,7 @@ import {
   tripwire,
 } from '../acp/policy/enforce.ts';
 import { pinScopeRoot, resolveWriteTargets } from '../acp/write-scope.ts';
+import { MAUDE_VERBS, verbTier } from '../actions/verbs.ts';
 
 const FRAMES = resolve(import.meta.dir, '../../../.ai/plans/notes/universal-acp-frames');
 
@@ -431,7 +438,7 @@ describe('rule 7 — shell', () => {
     expect(gatePermission(exec('cat notes.txt'), OPENCODE, f.ctx, live(f)).decision).toBe(
       'allow_once'
     );
-    expect(gatePermission(exec('grep -n "a b" notes.txt'), OPENCODE, f.ctx, live(f)).decision).toBe(
+    expect(gatePermission(exec('head -n 2 notes.txt'), OPENCODE, f.ctx, live(f)).decision).toBe(
       'allow_once'
     );
     for (const c of [
@@ -447,6 +454,49 @@ describe('rule 7 — shell', () => {
       const d = gatePermission(exec(c, cwd ? { cwd } : {}), OPENCODE, f.ctx, live(f)).decision;
       expect({ c, d }).toEqual({ c, d: 'ask' });
     }
+  });
+
+  // Security review 2026-11-12 (defender H2, attacker A1): a recursive reader judged by the words it
+  // shows follows in-repo symlinks to the person's credentials. The relative "ladder" lands on HOME
+  // at any clone depth, so it needs no username.
+  test('opencode: a recursive or dereferencing reader over a symlink ladder → the card, never once', () => {
+    const f = nonGit;
+    const ref = join(f.proj, 'ref');
+    mkdirSync(ref, { recursive: true });
+    mkdirSync(join(f.proj, 'empty'), { recursive: true });
+    writeFileSync(join(f.home, '.config', 'maude', 'keys.json'), '{"k":"FAKE"}');
+    for (let n = 1; n <= 4; n++)
+      symlinkSync(`${'../'.repeat(n)}home/.config/maude`, join(ref, `l${n}`));
+    for (const c of [
+      'grep -rS "" ref',
+      'grep -R key .',
+      'grep -rn key ref',
+      'grep --recursive key ref',
+      'egrep -r key ref',
+      'fgrep -r key ref',
+      'grep key notes.txt',
+      'diff -rN empty ref',
+      'diff notes.txt notes.txt',
+      'du -aL ref',
+      'du ref',
+      'ls -RL ref',
+      'ls -R ref',
+      'ls -lR ref',
+      'ls -L ref/l2',
+      'stat --dereference ref/l1',
+      'cat ref/l2/keys.json',
+    ]) {
+      // the card, or a refusal when a word itself resolves into the credential store
+      const d = gatePermission(exec(c, { cwd: f.proj }), OPENCODE, f.ctx, live(f)).decision;
+      expect({ c, once: d === 'allow_once' }).toEqual({ c, once: false });
+    }
+    // a plain, non-recursive read inside the project still needs no card
+    for (const c of ['ls ref', 'cat notes.txt', 'wc -l notes.txt']) {
+      const d = gatePermission(exec(c, { cwd: f.proj }), OPENCODE, f.ctx, live(f)).decision;
+      expect({ c, d }).toEqual({ c, d: 'allow_once' });
+    }
+    for (const r of ['grep', 'egrep', 'fgrep', 'diff', 'du'])
+      expect(APPROVABLE_READ_BASH.has(r)).toBe(false);
   });
 
   test('an execute with no command → refused', () => {
@@ -614,6 +664,36 @@ describe('rule 12 — tripwire', () => {
       f.home
     );
     expect(v.violated).toBe(true);
+  });
+
+  // Security review 2026-11-12 (attacker A1): the tripwire judged an execute with an empty command,
+  // so a completed shell read of a credential never tripped.
+  test('a completed execute whose command reads a credential trips', () => {
+    const f = nonGit;
+    const memory = newTripwireMemory();
+    const first = tripwire(
+      {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'sh1',
+        kind: 'execute',
+        status: 'pending',
+        rawInput: { command: 'cat ../home/.ssh/id_rsa', cwd: f.proj },
+      },
+      OPENCODE,
+      f.ctx,
+      memory,
+      f.home
+    );
+    expect(first.violated).toBe(false);
+    const done = tripwire(
+      { sessionUpdate: 'tool_call_update', toolCallId: 'sh1', status: 'completed' },
+      OPENCODE,
+      f.ctx,
+      memory,
+      f.home
+    );
+    expect(done.violated).toBe(true);
+    expect(done.reason).toBe('completed execute touched a credential store');
   });
 
   test('a write the person approved on a card does not trip', () => {

@@ -158,7 +158,7 @@ Applied only when `descriptor.policy === 'bridge-enforced'`, in this order. Ever
    - `shellGate:'os-sandbox'` (Codex): the request is by definition an *escalation out of the sandbox* → always the person's card, never auto-approved. Show the command, `cwd` and `locations`.
    - `shellGate:'command-text'` (opencode):
      - a `maude design <verb>` in the auto tier → `allow_once`;
-     - a read-only verb whose path tokens all stay inside `readRoots` → `allow_once`;
+     - a read-only verb whose path tokens all stay inside `readRoots` → `allow_once`. Only non-recursive readers (`cat head tail wc ls stat nl cmp strings`, `APPROVABLE_READ_BASH`), and never with a recursive or dereferencing option (`-r -R -S -L -H` in any short cluster, `--recursive`, `--dereference*`). A recursive reader opens files the gate never sees: BSD `grep -rS`, `diff -r` and `du -L` follow an in-repo symlink ladder into the person's credentials (security review 2026-11-12, defender H2 / attacker A1). `grep`, `diff` and `du` go to the card;
      - anything else → the person's card. Reuse the Claude Bash classification (`bashReadsOutsideNow`, write-scope).
 8. **Anything else** (`think`, `switch_mode`, `other`, a missing `toolCall`, an unknown `kind`) → refuse.
 9. **Never auto-select an `allow_always` option, and strip it from the person's card.** Codex's `accept_execpolicy_amendment` writes a persistent rule into `CODEX_HOME`, which is a user-config write. opencode's `always` widens the session. Keep `allow_once` and `reject_once`.
@@ -171,6 +171,7 @@ Applied only when `descriptor.policy === 'bridge-enforced'`, in this order. Ever
     - Trigger: a `tool_call` / `tool_call_update` with status `completed` whose targets break the launch policy, for example a `kind:read` `completed` outside `readRoots` for a `readGate:'os-sandbox'` agent.
     - Response: end the session, mark the agent **Unavailable — policy not enforced** in Settings, and keep the frames.
     - Tool updates are evidence, never a gate. Codex omits frames for sandbox-denied commands, so a missing frame proves nothing.
+    - A completed `execute` is judged with its command words too (`rawInput.command`, remembered from the first frame), so a shell `cat` of a credential trips (security review 2026-11-12, A1).
 13. **Reject semantics.** When `rejectEndsTurn` is set (Codex), the panel says "Codex stopped: Maude refused <what>". The person sees why the turn ended; it is not an error card.
 14. **Env (B2).**
     - Start from the shared scrub (`scrubAgentEnv`), and default-scrub `OPENAI_*`, `CODEX_API_KEY`, `GEMINI_*`, `GOOGLE_API_KEY`/`GOOGLE_APPLICATION_CREDENTIALS`, `GITHUB_TOKEN`/`GH_TOKEN`, `COPILOT_*`, `OPENCODE_API_KEY`/`OPENCODE_AUTH_CONTENT`/`OPENCODE_CONSOLE_TOKEN`, `ANTHROPIC_*`.
