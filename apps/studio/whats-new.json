@@ -6,8 +6,8 @@
       "version": null,
       "date": null,
       "kind": "feature",
-      "title": "Codex and opencode in the AI chat",
-      "summary": "When Codex or opencode is installed on this Mac, the AI chat can run it under the same limits as Claude. Connect it from the chat or from Settings › Connections › AI agents, where you can also add your own API key.",
+      "title": "Codex and other agents in the AI chat",
+      "summary": "When Codex, opencode, Gemini CLI or GitHub Copilot CLI is installed on this Mac, the AI chat can run it under the same limits as Claude. Connect it from the chat or from Settings › Connections › AI agents, where you can also add your own API key.",
       "learnMore": "https://maude.sh/docs/desktop#other-ai-agents-advanced",
       "surface": "design-ui"
     },

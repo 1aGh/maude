@@ -26,7 +26,7 @@ New here? [Getting started](/docs/getting-started) walks from download to first 
 | Windows  | 10 (64-bit) | `.msi` |
 | Linux    | Debian 12 / Ubuntu 22.04 (64-bit), WebKitGTK 4.1 | `.deb` |
 
-Disk: ~250 MB. AI runs on your own Claude account (Pro or Max, or an API key) — see [What AI needs](#what-ai-needs). Codex and opencode can run in the chat too: [Other AI agents](#other-ai-agents-advanced).
+Disk: ~250 MB. AI runs on your own Claude account (Pro or Max, or an API key) — see [What AI needs](#what-ai-needs). Codex, opencode, Gemini CLI and GitHub Copilot CLI can run in the chat too: [Other AI agents](#other-ai-agents-advanced).
 
 ### Media playback on Linux
 
@@ -68,11 +68,11 @@ If AI stops working, **Menu › Diagnostics › AI setup** lists each piece with
 
 Claude is the AI Maude is built around, and it stays the one the app asks you to connect. If you already use another coding agent, the chat can run it too.
 
-- **Maude only looks at what is on this Mac.** When it finds Codex or opencode installed, the empty AI chat shows one quiet line: *Codex is on this Mac. Use it in Maude too?* **Connect** starts that agent's own sign-in. **Not now** hides the line for good. Nothing else changes, and a Mac with only Claude sees nothing new.
+- **Maude only looks at what is on this Mac.** When it finds Codex, opencode, Gemini CLI or GitHub Copilot CLI installed, the empty AI chat shows one quiet line: *Codex is on this Mac. Use it in Maude too?* **Connect** starts that agent's own sign-in. **Not now** hides the line for good. Nothing else changes, and a Mac with only Claude sees nothing new.
 - **Settings › Connections › AI agents** lists every agent Maude found, with its state: Connected, Sign in, Untested version, or Unavailable.
 - **Pick the agent per chat.** With two or more agents connected, a small chip in the composer picks the agent for a new chat. A chat keeps the agent it started with.
-- **The same limits as Claude.** Maude starts Codex and opencode with its own rules: they read your project and the folders you granted, write only inside the project, never your passwords, keys or Maude's own settings, and stay off the web. Before an agent's first chat, Maude checks on this Mac that those rules hold, and it stops an agent that steps outside them. Replies and errors are labelled with the agent's name, so you know who said what.
-- **Agents Maude cannot confine** (Gemini CLI, GitHub Copilot CLI, Goose, Cursor agent, for now) sit under **Advanced** in that card. They run only after you allow them for a project.
+- **The same limits as Claude.** Maude starts these agents with its own rules: they read your project and the folders you granted, write only inside the project, never your passwords, keys or Maude's own settings, and stay off the web. Before an agent's first chat, Maude checks on this Mac that those rules hold, and it stops an agent that steps outside them. Replies and errors are labelled with the agent's name, so you know who said what.
+- **Agents Maude has not checked yet** (Goose, Cursor agent, for now) sit under **Advanced** in that card. They run only after you allow them for a project.
 - **Your own API key.** Under **Advanced** you can give an agent its own API key instead of its sign-in. Claude can use an Anthropic API key too: that bills the API account, not your Claude plan, so it is off until you turn it on.
 
 Codex runs through Maude's bundled adapter and **your own `codex` install** (0.154 or newer). Install Codex the way OpenAI describes, sign in once, and Maude finds it.
