@@ -661,3 +661,38 @@ describe('Claude-only', () => {
     expect(normalizeAgents(null)).toEqual({ agents: [], offerAgents: [] });
   });
 });
+
+describe('vendor status page (DDR-054: no general opener on desktop)', () => {
+  test('desktop copies the link and opens nothing', async () => {
+    const { openStatusPage } = await import('../client/v2/ai/AgentNotice.jsx');
+    const copied: string[] = [];
+    let opened = 0;
+    const r = await openStatusPage('https://status.openai.com', {
+      desktop: true,
+      copy: async (t: string) => {
+        copied.push(t);
+      },
+      windowOpen: () => {
+        opened++;
+        return null;
+      },
+    });
+    expect(r).toBe('copied');
+    expect(copied).toEqual(['https://status.openai.com']);
+    expect(opened).toBe(0);
+  });
+
+  test('the browser opens a new tab with noopener', async () => {
+    const { openStatusPage } = await import('../client/v2/ai/AgentNotice.jsx');
+    const calls: unknown[][] = [];
+    const r = await openStatusPage('https://status.openai.com', {
+      desktop: false,
+      windowOpen: (...a: unknown[]) => {
+        calls.push(a);
+        return null;
+      },
+    });
+    expect(r).toBe('ok');
+    expect(calls[0]).toEqual(['https://status.openai.com', '_blank', 'noopener,noreferrer']);
+  });
+});

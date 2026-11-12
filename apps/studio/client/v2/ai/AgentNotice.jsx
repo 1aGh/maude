@@ -9,12 +9,41 @@
 // Claude's own errors never come here (agents-model.js `agentErrorModel` answers null for them).
 
 import { useEffect, useState } from 'react';
-import { openExternal } from '../../panels/CloudBar.jsx';
 import { StIcon } from '../../shell/icons.jsx';
 import { agentErrorModel } from './agents-model.js';
 
+/** The desktop app (Tauri), where the webview has no general browser opener (DDR-054). */
+const isDesktop = () => typeof window !== 'undefined' && !!window.__TAURI__;
+
+/**
+ * A vendor status page. The URL is a catalog constant the server sent, never canvas or agent text.
+ * Browser: a new tab. Desktop: copied to the clipboard. The webview's openers are zone-locked
+ * (`open_cloud_url`) or confirm-sheet-only (`open_link_external`, S3.10b), and DDR-054 forbids a
+ * general one, so this is the same named fallback the website sheet uses: Copy link.
+ */
+export function openStatusPage(url, deps = {}) {
+  if (!url) return Promise.resolve('failed');
+  const desktop = deps.desktop ?? isDesktop();
+  if (desktop) {
+    const copy = deps.copy ?? ((t) => navigator.clipboard.writeText(t));
+    return Promise.resolve()
+      .then(() => copy(url))
+      .then(
+        () => 'copied',
+        () => 'failed'
+      );
+  }
+  try {
+    (deps.windowOpen ?? window.open)(url, '_blank', 'noopener,noreferrer');
+    return Promise.resolve('ok');
+  } catch {
+    return Promise.resolve('failed');
+  }
+}
+
 /** The card for an agent's own error, or null when the error is not an agent's. */
-export function AgentErrorCard({ error, onRetry, onConsent, onDecline, open = openExternal }) {
+export function AgentErrorCard({ error, onRetry, onConsent, onDecline, open = openStatusPage }) {
+  const [copied, setCopied] = useState(false);
   const m = agentErrorModel(error);
   if (!m) return null;
   if (m.kind === 'consent')
@@ -69,9 +98,15 @@ export function AgentErrorCard({ error, onRetry, onConsent, onDecline, open = op
               type="button"
               className="btn btn--sm btn--ghost"
               data-testid="ai-agent-error-status"
-              onClick={() => open(m.statusUrl)}
+              onClick={() =>
+                Promise.resolve(open(m.statusUrl)).then((r) => r === 'copied' && setCopied(true))
+              }
             >
-              {`${m.agent.vendor || m.agent.label} status ↗`}
+              {copied
+                ? 'Status page link copied'
+                : isDesktop()
+                  ? `Copy ${m.agent.vendor || m.agent.label} status link`
+                  : `${m.agent.vendor || m.agent.label} status ↗`}
             </button>
           ) : null}
           {m.kind === 'reported' && onRetry ? (
