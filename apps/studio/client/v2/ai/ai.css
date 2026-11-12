@@ -246,6 +246,69 @@
     line-height: var(--lh-xs);
   }
 
+  /* ── Universal ACP B6: another agent on this Mac (agents-model.js). Quiet: the hint's ink, a text link. ── */
+  .ai-agent-offer {
+    padding: var(--space-1) var(--space-1) 0;
+  }
+  .ai-agent-offer-t {
+    margin: 0;
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+  }
+  .maude .ai-agent-link {
+    display: inline;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    cursor: pointer;
+  }
+  .maude .ai-agent-link:hover {
+    text-decoration: underline;
+  }
+  .maude .ai-agent-link:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+  .maude .ai-agent-link--quiet {
+    color: var(--fg-2);
+  }
+  .ai-agent-sep {
+    margin: 0 var(--space-1);
+    color: var(--fg-2);
+  }
+  .ai-agent-note {
+    margin: var(--space-1) 0 0;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .ai-agent-note--err {
+    color: var(--status-error);
+  }
+  .ai-agent-badge {
+    display: inline-block;
+    margin-bottom: var(--space-1);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
+  .maude .ai-agent-chip {
+    flex: none;
+    max-width: 120px;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
+  .maude .ai-agent-chip--locked {
+    color: var(--fg-2);
+  }
+  .maude .ai-conn-other {
+    align-self: flex-start;
+    font-size: var(--type-xs);
+  }
+
   /* ── An answer that touched nothing ── */
   .ai-unchanged {
     margin: var(--space-2) 0 0;

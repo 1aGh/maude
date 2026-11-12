@@ -9,7 +9,7 @@
 // the mask — and a Figma or provider key only ever reads as "configured".
 
 /** The fold ids, one per connection row (registered in fold-store.js FOLD_PANELS). */
-export const CONNECTION_ROWS = Object.freeze(['cloud', 'hub', 'github', 'ai', 'figma']);
+export const CONNECTION_ROWS = Object.freeze(['cloud', 'hub', 'github', 'ai', 'figma', 'agents']);
 export const connectionFoldId = (row) => `connections.${row}`;
 
 const MASK = '••••';

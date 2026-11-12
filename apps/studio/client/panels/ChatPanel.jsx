@@ -192,6 +192,8 @@ function ChatThread({
   suggestOn,
   onSetSuggestOn,
   unavailable = false,
+  claudeReady = false,
+  aiRunning = false,
   viewer = false,
   onConnected,
   projectName = '',
@@ -311,6 +313,9 @@ function ChatThread({
   // ThreadPrimitive.Messages' component registry, which doesn't pass custom
   // props through, so this context is the only way it reaches the filter.
   const [lightboxSrc, setLightboxSrc] = useState(null);
+  // Universal ACP B6 — the agent this chat runs on, as the server reports it (null: Claude, or not said yet)
+  const [chatAgent, setChatAgent] = useState(null);
+  useEffect(() => conn.onAgent?.(setChatAgent), [conn]);
   // P8 c10 (03 `ai-long`): the chat's runs, so an earlier reply can draw its own result card (v2/ai/TurnResult.jsx)
   const { runs: chatRunList } = useChatRuns(conn, chatId);
   const chatRuns = useMemo(() => ({ runs: chatRunList }), [chatRunList]);
@@ -321,8 +326,9 @@ function ChatThread({
       designRel,
       transcriptView,
       chatRuns,
+      agent: chatAgent, // B6: the vendor badge on a reply from an agent other than Claude
     }),
-    [designRel, transcriptView, chatRuns]
+    [designRel, transcriptView, chatRuns, chatAgent]
   );
   const [activeTools, setActiveTools] = useState([]);
   useEffect(() => conn.onActivity(setActiveTools), [conn]);
@@ -451,7 +457,7 @@ function ChatThread({
           <DropOverlay attach={attach} />
           {/* DDR-184 #3 — said up front when the current mode can't edit (plan / dontAsk),
             so a user typing "change X" isn't silently ignored. Above the feed. */}
-          <SuggestOnlyBanner modes={caps.modes} onSetMode={onSetMode} />
+          <SuggestOnlyBanner modes={caps.modes} onSetMode={onSetMode} agent={chatAgent} />
           <ThreadPrimitive.Root className="chat-thread">
             {/* gate-b-a11y: the feed scrolls, so it is a tab stop with a name (axe scrollable-region-focusable) */}
             <ThreadPrimitive.Viewport
@@ -461,7 +467,7 @@ function ChatThread({
               aria-label="Conversation"
             >
               <ThreadPrimitive.Empty>
-                <ChatEmpty />
+                <ChatEmpty claudeConnected={claudeReady} running={aiRunning} />
               </ThreadPrimitive.Empty>
               <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
               {/* Background work that outlived the turn — streamed here so it's not
@@ -541,7 +547,12 @@ function ChatThread({
               chatId={chatId}
               chatTitle={chatTitle}
               active={!hidden && !panelHidden}
-              caps={{ modes: caps.modes, parsedOptions }}
+              caps={{
+                modes: caps.modes,
+                parsedOptions,
+                agent: chatAgent ?? caps.agent ?? null,
+                allowedModes: caps.allowedModes,
+              }}
               onSetMode={onSetMode}
               onSetConfig={onSetConfig}
               transcriptView={transcriptView}
@@ -916,6 +927,8 @@ export default function ChatPanel({
   }, [chats, openChatIds, sessionTitles, runsView]);
 
   const connected = status.available !== false;
+  // B6: the offer line waits while any chat runs (Claude busy is not idle)
+  const aiRunning = Object.values(busyChats).some(Boolean);
 
   return (
     <AiChatIsland hidden={hidden} resizing={resizing} width={width}>
@@ -1031,6 +1044,8 @@ export default function ChatPanel({
               suggestOn={suggestOn}
               onSetSuggestOn={onSetSuggestOn}
               unavailable={status.available === false}
+              claudeReady={status.available === true}
+              aiRunning={aiRunning}
               viewer={readOnly}
               onConnected={recheck}
             />

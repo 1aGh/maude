@@ -92,6 +92,9 @@ export function ConnectSheet({
   fine = "Your prompt waits here and runs as soon as it's connected.",
   // 09 ex-handoff-edges draws the card without the "Claude Pro or Max" row: just the words and the two buttons
   option = true,
+  // Universal ACP B6 (Design Decision 3): the sheet stays Claude-only; when another agent is on this Mac it
+  // gains one quiet link to Settings › Connections › AI agents. null = no link (always, for Claude-only).
+  onOtherAgent = null,
   children,
 }) {
   const titleId = useId();
@@ -143,6 +146,16 @@ export function ConnectSheet({
           </p>
         ) : null}
         {fine ? <p className="ai-conn-fine">{fine}</p> : null}
+        {onOtherAgent ? (
+          <button
+            type="button"
+            className="ai-agent-link ai-conn-other"
+            data-testid="connect-other-agent-link"
+            onClick={onOtherAgent}
+          >
+            Use another agent…
+          </button>
+        ) : null}
       </div>
       <div className="ai-conn-a">
         <button

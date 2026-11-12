@@ -8,6 +8,7 @@ import { deriveSuggestions } from './suggest-why.js';
 import { useAnswered, useResultShown } from './result-shown.js';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { repairOfferFor, subscribeRepairOffer } from '../create/repair-offer.js';
+import { AgentOffer } from './AgentOffer.jsx';
 
 // Persistent quick-action verbs (prefill the composer; never fire blind). The
 // one-time `/design:setup-ds` is offered contextually in the empty state, not here.
@@ -18,7 +19,7 @@ export const QUICK_ACTIONS = [
   { label: '/design:screenshot', prompt: '/design:screenshot' },
 ];
 
-export function ChatEmpty() {
+export function ChatEmpty({ claudeConnected = false, running = false }) {
   return (
     <>
       {/* P8-C6 (03 `.ai-hint`): one quiet paragraph, left-aligned, type-sm fg-2 — it sits right above the
@@ -26,6 +27,9 @@ export function ChatEmpty() {
       <p className="ai-hint" data-testid="ai-hint">
         Ask for a change, a few variants, or an answer. AI works on what the chip says.
       </p>
+      {/* Universal ACP B6 (Design Decision 1): another agent on this Mac, offered once, in one quiet line.
+          Nothing at all when only Claude is here. */}
+      <AgentOffer claudeConnected={claudeConnected} running={running} />
       {/* S5.17 G4 — 03 `ai-open` draws only this hint and the one suggestion strip above the field
           (SuggestStrip). The v1 "Create new design system" CTA, the four /design:* verb buttons and the
           three slash suggestions are gone from the EMPTY state only: every /design:* verb (setup-ds

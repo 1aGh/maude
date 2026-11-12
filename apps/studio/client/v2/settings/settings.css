@@ -1244,6 +1244,13 @@
     font-size: var(--type-xs);
     color: var(--status-error);
   }
+  /* universal ACP B6 — one agent in Settings › Connections › AI agents (agents-card.jsx) */
+  .v2s-agent + .v2s-agent {
+    margin-top: var(--space-2);
+  }
+  .v2s-agent .v2s-hint {
+    margin: 0;
+  }
 
   /* gate-b-polish2 — Look › Theme: Light · Dark · Auto (02 ob-settings), the DS `.seg` with native radios */
   .v2s-seg {

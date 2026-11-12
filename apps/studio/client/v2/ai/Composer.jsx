@@ -27,6 +27,7 @@ import {
   uploadChatImage,
 } from './paste-chips.jsx';
 import { AttachChips } from './AChip.jsx';
+import { AgentPicker } from './AgentPicker.jsx';
 import { AttachMenu } from './AttachMenu.jsx';
 import { Consent } from './Consent.jsx';
 import { ScopeChip } from './ScopeChip.jsx';
@@ -621,6 +622,9 @@ export function Composer({
               onRemove={onCtxDismiss}
             />
           ) : null}
+          {/* Universal ACP B6 — which agent this chat runs on; drawn only with two or more connected */}
+          <AgentPicker conn={conn} chatId={chatId} />
+
           <HighlightedInput
             existsSet={existsSet}
             attachmentsRef={attachmentsRef}

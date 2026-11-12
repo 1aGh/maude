@@ -46815,5 +46815,485 @@
       "apps/studio/test/v2-code-consent.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "ai-agent-offer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Universal ACP B6 (Design Decision 1): the one quiet line in the AI panel's empty state, \"Codex is on this Mac. Use it in Maude too?\" (several agents share it). Only while Claude is connected and idle and `/_api/agents` offers an agent.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentOffer.jsx",
+      "symbol": "AgentOfferLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-offer-connect",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: Connect on the offer line. One agent without a note connects here (that vendor's own sign-in); several agents, or a note to read first, open Settings › Connections › AI agents.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentOffer.jsx",
+      "symbol": "AgentOfferLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-offer-dismiss",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: Not now on the offer line. Permanent for every agent the line names (`POST /_api/agents/:id/dismiss-offer`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentOffer.jsx",
+      "symbol": "AgentOfferLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-offer-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: Cancel while the offer line's connect runs (it withdraws the vendor's sign-in).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentOffer.jsx",
+      "symbol": "AgentOfferLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-offer-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: why the offer line's connect did not go through, in words.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentOffer.jsx",
+      "symbol": "AgentOfferLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "connect-other-agent-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6 (Design Decision 3): \"Use another agent…\" on the Claude Connect sheet; opens Settings › Connections › AI agents. Only when an agent is offered or a bridge-enforced agent is installed; never for Claude-only.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ConnectSheet.jsx",
+      "symbol": "ConnectSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-picker",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6 (Design Decision 4): the agent chip in the composer, only with two or more connected agents. A `<select>` on a new chat; a read-only chip (`data-agent`) once the chat has started.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentPicker.jsx",
+      "symbol": "AgentPickerChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-badge",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6 (Design Decision 5): the small vendor badge on a reply from an agent other than Claude.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
+      "symbol": "AssistantMessage"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: an error an agent other than Claude reported (`data-kind` = reported | stopped, `data-agent`): \"Codex reported: …\" or \"Codex was stopped: it did not stay inside Maude's limits.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentNotice.jsx",
+      "symbol": "AgentErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-error-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: the words of an agent error card.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentNotice.jsx",
+      "symbol": "AgentErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-error-status",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: the vendor's status page (https only) from an agent error card.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentNotice.jsx",
+      "symbol": "AgentErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-error-retry",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: Try again on an agent's reported error.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentNotice.jsx",
+      "symbol": "AgentErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-consent",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: `agent-needs-consent`: \"<label> runs without Maude's file and network limits. Allow it for this project?\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentNotice.jsx",
+      "symbol": "AgentErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-consent-allow",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: Allow on the consent card: re-attaches with `consent: true` and tries the turn again.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentNotice.jsx",
+      "symbol": "AgentErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-consent-dismiss",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: Not now on the consent card.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentNotice.jsx",
+      "symbol": "AgentErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-agent-refused",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: a turn that ended `reason: 'refused'`, its notice as one quiet line (not an error card).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AgentNotice.jsx",
+      "symbol": "AgentRefusedLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agents-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6 (Design Decision 2): Settings › Connections › AI agents, under the Claude card. Drawn only when an agent other than Claude is installed.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentsCardView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-conn-agents-status",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: the AI agents card's status line (\"Codex connected\").",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentsCardView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agents-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: the card's folded Advanced: the unrestricted agents, each behind a consent card.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentsCardView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agents-refresh",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: Look again: reads `/_api/agents?refresh=1`.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentsCardView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-consent",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: the consent card before an unrestricted agent connects.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentConsent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-consent-allow",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: Allow and connect (`POST …/connect {consent:true}`).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentConsent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-consent-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B6: Cancel on the consent card.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentConsent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B6: one installed agent (`data-state` = connected | sign-in | untested | unavailable | available). Claude never has one.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-state-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B6: the row's state words: Connected · Sign in · Untested version · Unavailable — check <label> · Available, or the connect's progress.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-connect-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B6: Connect (or Sign in…) on a row; an unrestricted agent asks its consent card first.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-disconnect-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B6: Disconnect on a connected row.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-cancel-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B6: Cancel while a row's connect or sign-in runs.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-note-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B6: the agent's `connectNote` (opencode's hosted model), shown before connecting.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-error-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B6: why a row's connect did not go through.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-ui.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

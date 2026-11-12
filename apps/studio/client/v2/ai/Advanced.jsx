@@ -175,8 +175,8 @@ function MaySwitch({ row, label, on, onChange }) {
 }
 
 /** The one-line "AI is set to suggest only. The canvas won't change. [Allow changes]" above the thread. */
-export function SuggestOnlyBanner({ modes, onSetMode }) {
-  const b = modeBanner(modes);
+export function SuggestOnlyBanner({ modes, onSetMode, agent = null }) {
+  const b = modeBanner(modes, agent);
   if (!b) return null;
   return (
     <div className="ai-modebar" role="alert" data-testid="chat-mode-banner">
@@ -261,7 +261,8 @@ export function ChatAdvanced({
 
   const parsed = caps?.parsedOptions ?? { model: null, effort: null, fast: null, others: [] };
   const modes = caps?.modes ?? null;
-  const modeList = modeOptions(modes);
+  // B6: the chat's agent's own modes; Claude's ids keep their plain words, the server's allowed list wins
+  const modeList = modeOptions(modes, { agent: caps?.agent, allowed: caps?.allowedModes });
   const currentMode = modeList.find((m) => m.id === modes?.currentModeId);
   // "Change canvases" is the ask-before mode seen as a switch: the "AI changes nothing" modes are off.
   const changesNothing = modeList.find((m) => m.id === modes?.currentModeId)?.group === 'nochange';

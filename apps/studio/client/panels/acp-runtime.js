@@ -11,6 +11,7 @@ import { readMay } from '../v2/ai/ai-may.js';
 import { mayField, mergeOutbox, newAskId, promptFrame, reduceQueued } from '../v2/ai/ask-frame.js';
 import { noteAskedAnnotations } from '../v2/ai/ai-offer.js';
 import { cleanTasks } from '../v2/ai/background-model.js';
+import { frameAgent, refusedNotice } from '../v2/ai/agents-model.js';
 
 const WS_PATH = '/_ws/acp';
 
@@ -271,13 +272,48 @@ export function createAcpConnection() {
   // it as its own channel too so the panel can render a proper retry card
   // instead — same "chrome, not turn content" treatment as commands/caps.
   const errorListeners = new Set();
-  let lastError = null; // { message, code? } | null — `code` is the server's (S5.6: read-only | not-queued)
+  // { message, code?, agent? } | null — `code` is the server's (S5.6: read-only | not-queued; B6:
+  // agent-needs-consent | agent-policy-violated), `agent` the `{ id, label, vendor }` that said it (B6).
+  let lastError = null;
   function emitError() {
     for (const fn of errorListeners) fn(lastError);
   }
-  function setError(message, code) {
-    lastError = message ? (code ? { message, code } : { message }) : null;
+  function setError(message, code, agent) {
+    const who = frameAgent(agent);
+    lastError = message
+      ? { message, ...(code ? { code } : {}), ...(who ? { agent: who } : {}) }
+      : null;
     emitError();
+  }
+
+  // Universal ACP B6 — the agent this chat runs on (`agent` on the `ready` / `caps` frames: `{ id, label,
+  // vendor }`; null until the server says, and from an older server that never does), the agent a NEW chat
+  // asks for on `attach`, and a refused turn's one quiet line (`turn-end` `reason: 'refused'`).
+  let chatAgent = null;
+  const agentListeners = new Set();
+  function setChatAgent(v) {
+    const next = frameAgent(v);
+    if (!next || (chatAgent && chatAgent.id === next.id && chatAgent.label === next.label)) return;
+    chatAgent = next;
+    for (const fn of agentListeners) fn(chatAgent);
+  }
+  let attachAgent; // the id the `attach` frame carries (undefined = the server's default, Claude)
+  let attachConsent = false;
+  let notice = null;
+  const noticeListeners = new Set();
+  function setNotice(v) {
+    if (notice === v) return;
+    notice = v;
+    for (const fn of noticeListeners) fn(notice);
+  }
+  function attachFrame() {
+    return {
+      t: 'attach',
+      chat: attachedChatId,
+      seq: hydratedSeq,
+      ...(attachAgent ? { agent: attachAgent } : {}),
+      ...(attachAgent && attachConsent ? { consent: true } : {}),
+    };
   }
 
   // S5.13 — the chat's waiting prompts (`{t:'queued'}`, S5.6) and the runs it has (`{t:'run'}`). Neither is
@@ -327,6 +363,7 @@ export function createAcpConnection() {
       status.ready = true;
       status.available = frame.available;
       status.reason = frame.reason;
+      if (frame.agent) setChatAgent(frame.agent);
       emitStatus();
       return;
     }
@@ -340,7 +377,14 @@ export function createAcpConnection() {
     // Same treatment for the capability channel — chrome, not turn content,
     // arrives on establish + on every live mode/config-option change.
     if (frame.t === 'caps') {
-      caps = { modes: frame.modes ?? null, configOptions: frame.configOptions ?? [] };
+      if (frame.agent) setChatAgent(frame.agent);
+      caps = {
+        modes: frame.modes ?? null,
+        configOptions: frame.configOptions ?? [],
+        // B6: the modes the server lets this agent use (the bridge refuses the rest); absent = all offered
+        ...(Array.isArray(frame.allowedModes) ? { allowedModes: frame.allowedModes } : {}),
+        ...(frameAgent(frame.agent) ? { agent: frameAgent(frame.agent) } : {}),
+      };
       for (const fn of capsListeners) fn(caps);
       return;
     }
@@ -375,8 +419,13 @@ export function createAcpConnection() {
     // A refusal with a code (S5.6: `read-only`, `not-queued`) can arrive with no turn in flight (a
     // continuation, or a role that dropped mid-socket). It is a card, not a thrown turn.
     if (frame.t === 'error' && frame.code && !turnHandler) {
-      setError(frame.message || 'AI could not do that.', frame.code);
+      setError(frame.message || 'AI could not do that.', frame.code, frame.agent);
       return;
+    }
+    // B6: a refused turn says so in one quiet line (the turn itself ends below, as any turn-end does)
+    if (frame.t === 'turn-end') {
+      const said = refusedNotice(frame);
+      if (said) setNotice(said);
     }
     if (frame.t === 'permission-request') {
       pendingPermissions = [
@@ -460,7 +509,7 @@ export function createAcpConnection() {
         // prompt.
         if (attachedChatId) {
           try {
-            sock.send(JSON.stringify({ t: 'attach', chat: attachedChatId, seq: hydratedSeq }));
+            sock.send(JSON.stringify(attachFrame()));
           } catch {
             /* the frame handlers below surface a dead socket */
           }
@@ -616,6 +665,42 @@ export function createAcpConnection() {
       hydratedSeq = Number.isFinite(seq) && seq > 0 ? Math.floor(seq) : 0;
     },
 
+    /**
+     * B6 — the agent this chat asks for on `attach` (`agent: <id>`; Claude or none = the server's default, so
+     * a Claude chat's frame is unchanged). `consent` answers `agent-needs-consent` for an unrestricted agent.
+     * With the socket already open the attach is sent again at once; otherwise it rides the next open.
+     */
+    setAgent(agentId, { consent = false } = {}) {
+      const next = agentId && agentId !== 'claude' ? agentId : undefined;
+      const changed = next !== attachAgent || (consent && !attachConsent);
+      attachAgent = next;
+      attachConsent = !!(next && consent);
+      if (!changed || !attachedChatId || ws?.readyState !== WebSocket.OPEN) return;
+      try {
+        ws.send(JSON.stringify(attachFrame()));
+      } catch {
+        /* the next open sends it */
+      }
+    },
+    /** The id the next `attach` carries (undefined = Claude, the server's default). */
+    get attachAgent() {
+      return attachAgent;
+    },
+
+    /** Subscribe to the agent this chat runs on (`{ id, label, vendor }` or null); replays the current one. */
+    onAgent(fn) {
+      agentListeners.add(fn);
+      fn(chatAgent);
+      return () => agentListeners.delete(fn);
+    },
+
+    /** Subscribe to the refused turn's quiet line (string or null); replays the current one. */
+    onNotice(fn) {
+      noticeListeners.add(fn);
+      fn(notice);
+      return () => noticeListeners.delete(fn);
+    },
+
     /** Subscribe to `{ chat, running }` — fires once per successful attach.
      *  `running: true` means this socket re-joined a LIVE turn. */
     onAttached(fn) {
@@ -733,7 +818,7 @@ export function createAcpConnection() {
           if (!sawTurn) ended = true;
         } else if (frame.t === 'error') {
           failure = frame.message || 'The Claude bridge errored.';
-          setError(failure, frame.code); // Task C3: the styled retry card's source
+          setError(failure, frame.code, frame.agent); // Task C3: the styled retry card's source
         } else {
           sawTurn = true;
           queue.push(frame); // update / connected / permission
@@ -760,6 +845,7 @@ export function createAcpConnection() {
       // busy before these empty emits.
       resetBackground();
       setError(null); // a fresh turn clears any stale card from a prior failure
+      setNotice(null); // …and a refused turn's line (B6)
       if (activeTools.size) {
         activeTools.clear();
         emitActivity();

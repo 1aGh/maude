@@ -12,6 +12,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { dismissNotice, notify } from '../../../notifications.tsx';
 import ElicitationPrompt from '../../panels/ElicitationPrompt.jsx';
 import ChoiceCard from './ChoiceCard.jsx';
+import { AgentErrorCard, AgentRefusedLine } from './AgentNotice.jsx';
+import { agentErrorModel, otherAgentLinkVisible } from './agents-model.js';
+import { useAgents } from './agents-store.js';
+import { openAgentsSettings } from './AgentOffer.jsx';
 import { ConnectModal } from './ConnectSheet.jsx';
 import { connectClaude } from './connect-flow.js';
 import { ErrorCard } from './Feed.jsx';
@@ -217,6 +221,11 @@ export default function NeedsYouSlot({
     refresh();
   }, [queued, refresh]);
 
+  // B6: an error an agent other than Claude reported (agents-model.js); Not now on a consent card hides it
+  const agentSaid = !!agentErrorModel(turnError);
+  const agentList = useAgents();
+  const [declined, setDeclined] = useState(null);
+
   const activePermission = pendingPermissions[0] ?? null;
   const activeElicitation = activePermission ? null : (pendingElicitations[0] ?? null);
   const choice = activeElicitation ? choiceModel(activeElicitation) : null;
@@ -262,7 +271,18 @@ export default function NeedsYouSlot({
         )
       ) : settled ? (
         <ChoiceCard settled model={settled.model} picked={settled.picked} />
-      ) : turnError?.code ? (
+      ) : agentSaid && turnError !== declined ? (
+        // B6 (Design Decision 5): an agent other than Claude said it — its words, its status page
+        <AgentErrorCard
+          error={turnError}
+          onRetry={onRetry}
+          onConsent={(agent) => {
+            conn.setAgent?.(agent.id, { consent: true });
+            onRetry?.();
+          }}
+          onDecline={() => setDeclined(turnError)}
+        />
+      ) : agentSaid ? null : turnError?.code ? (
         // A refusal the server coded (S5.6: view only, prompt not kept) says plainly what happened.
         <ProblemCard error={turnError} />
       ) : (
@@ -276,9 +296,12 @@ export default function NeedsYouSlot({
             error={connectError}
             onConnect={connect}
             onCancel={cancelConnect}
+            // B6 (Design Decision 3): Claude-only, with one quiet way to another agent when one is here
+            onOtherAgent={otherAgentLinkVisible(agentList) ? () => openAgentsSettings() : null}
           />
         </QueuedState>
       ) : null}
+      <AgentRefusedLine conn={conn} />
     </div>
   );
 }

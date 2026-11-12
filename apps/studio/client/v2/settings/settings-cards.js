@@ -21,7 +21,8 @@ export const CARDS = Object.freeze({
     // a cloud tab has no This project card: the account the hub signed it in as is its own card
     'account',
   ]),
-  connections: Object.freeze(['claude', 'figma', 'github', 'ai']),
+  // B6: `agents` (AI agents) is drawn only when an agent other than Claude is on this Mac
+  connections: Object.freeze(['claude', 'agents', 'figma', 'github', 'ai']),
   advanced: Object.freeze([
     'spend',
     'this-mac',

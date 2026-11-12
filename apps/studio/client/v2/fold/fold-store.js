@@ -31,6 +31,7 @@ export const FOLD_PANELS = Object.freeze([
   'connections.github',
   'connections.ai',
   'connections.figma',
+  'connections.agents', // universal ACP B6 — Settings › AI agents › Advanced (the unrestricted agents)
   'ai',
   'share',
   'timeline',

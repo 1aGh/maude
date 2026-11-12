@@ -499,6 +499,7 @@ export const FOLD_LABELS = Object.freeze({
   'connections.github': 'Connections › GitHub › Advanced',
   'connections.ai': 'Connections › AI images, video and voice › Advanced',
   'connections.figma': 'Connections › Figma › Advanced',
+  'connections.agents': 'Connections › AI agents › Advanced',
   share: 'Share › Advanced',
   timeline: 'Timeline › Advanced',
   export: 'Export › Advanced',

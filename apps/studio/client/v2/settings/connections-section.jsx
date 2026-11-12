@@ -23,6 +23,7 @@ import { GitHubDeviceDialog } from '../../panels/IdentityBar.jsx';
 import { ProviderCard } from '../../panels/SettingsPanel.jsx';
 import { ConnectSheet } from '../ai/ConnectSheet.jsx';
 import { reasonProps } from '../access/disabled-reason.js';
+import { AgentsCard } from './agents-card.jsx';
 import { ConnField } from './connection-row.jsx';
 import {
   claudeRow,
@@ -172,6 +173,9 @@ export default function ConnectionsSection({ focus = null }) {
           </div>
         ) : null}
       </SettingsCard>
+
+      {/* Universal ACP B6 (Design Decision 2): the other AI agents on this Mac — absent with Claude only */}
+      <AgentsCard card={card} />
 
       <SettingsCard
         id="figma"

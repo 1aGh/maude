@@ -101,22 +101,31 @@ export const MODE_GROUP_LABEL = Object.freeze({
   free: 'No safety net',
 });
 
+/** Universal ACP B6: the words above are Claude Code's mode ids, so they are Claude's labels only. */
+const isClaude = (agent) => !agent || agent === 'claude' || agent?.id === 'claude';
+
 /**
  * The modes the SESSION offers, in plain words. The agent decides which it offers; the rest stay hidden
  * ("Skip every check" shows only where the agent allows it). An id Maude has no words for keeps the agent's
  * own name (and its own description as the hint) rather than vanishing.
+ *
+ * B6 — `agent` is the chat's agent (`{ id }`, an id, or none for Claude). The plain words above are Claude's;
+ * any other agent's modes keep their own names and descriptions, in the agent's own order. `allowed` is the
+ * list the server sends in `caps` (`allowedModes`): a mode the bridge refuses is never listed.
  */
-export function modeOptions(modes) {
-  const list = modes?.availableModes ?? [];
+export function modeOptions(modes, { agent = null, allowed = null } = {}) {
+  const claude = isClaude(agent);
+  const ok = Array.isArray(allowed) ? new Set(allowed) : null;
+  const list = (modes?.availableModes ?? []).filter((m) => !ok || ok.has(m.id));
   return list
-    .map((m) => {
-      const w = WORDS.get(m.id);
+    .map((m, i) => {
+      const w = claude ? WORDS.get(m.id) : undefined;
       return {
         id: m.id,
         label: w?.label ?? m.name ?? m.id,
         note: m.id,
         group: w?.group ?? 'asks',
-        order: w?.order ?? 100,
+        order: w?.order ?? (claude ? 100 : i),
         description: m.description ?? '',
         hint: w?.hint ?? m.description ?? '',
         risky: w?.risky ?? false,
@@ -135,8 +144,10 @@ export function currentModeNote(modes) {
  * ONE verb to undo it — "Allow changes". The target is the least-privilege mode that can edit (v1 DDR-184
  * #3: Accept edits if offered, else the asking default). `null` when the mode can edit.
  */
-export function modeBanner(modes) {
+export function modeBanner(modes, agent = null) {
   const id = modes?.currentModeId;
+  // B6: `plan` / `dontAsk` are Claude Code's ids; another agent's mode of the same name means something else
+  if (!isClaude(agent)) return null;
   if (!id || !NO_EDIT_MODE_IDS.has(id)) return null;
   const ids = new Set((modes.availableModes ?? []).map((m) => m.id));
   const target = ids.has('acceptEdits') ? 'acceptEdits' : ids.has('default') ? 'default' : null;

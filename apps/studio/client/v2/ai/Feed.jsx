@@ -25,6 +25,7 @@ import { StIcon } from '../../shell/icons.jsx';
 import { Copy, Retry, Spark } from './icons.jsx';
 import { OPEN_ASSETS_EVENT } from './AttachMenu.jsx';
 import { failureModel } from './needs-you.js';
+import { agentBadge } from './agents-model.js';
 
 // ── message-part renderers ──
 // Assistant text: markdown, plus a thumbnail strip for any designRoot image
@@ -364,10 +365,17 @@ export function AssistantMessage() {
   const turnChanged = !!turnRun && changedSomething(turnRun);
   // A turn that has only called tools so far says nothing yet: no empty bubble, no empty gap.
   const bare = grouped.length === 0;
+  const badge = bare ? null : agentBadge(media?.agent);
   return (
     <div
       className={`chat-msg chat-msg--assistant${bare ? ' chat-msg--bare' : ''}${status === 'running' ? ' chat-msg--live' : ''}`}
     >
+      {/* Universal ACP B6 (Design Decision 5): a reply from an agent other than Claude says whose it is */}
+      {badge ? (
+        <span className="ai-agent-badge" data-testid="ai-agent-badge" title={badge.title}>
+          {badge.label}
+        </span>
+      ) : null}
       {grouped.map((g, i) =>
         g.type === 'tool-group' ? (
           <ToolGroup

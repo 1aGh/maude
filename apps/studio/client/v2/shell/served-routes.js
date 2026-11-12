@@ -32,6 +32,7 @@ export const CELL_UNSERVED = Object.freeze([
   '/_api/project/undo-stack', // personal undo is this Mac's
   '/_api/asset-state', // the per-Mac asset ledger
   '/_api/votes', // board votes are the hub's (S9.13)
+  '/_api/agents', // which AI agents this Mac has (universal ACP B6); a cell runs no local AI
 ]);
 
 /** How long a first ask waits for `/_config` before it goes out anyway. */
