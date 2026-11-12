@@ -63,3 +63,9 @@ patchedDependencies:
   css-tree@2.2.1: patches/css-tree@2.2.1.patch
   css-tree@3.2.1: patches/css-tree@3.2.1.patch
   csso@5.0.5: patches/csso@5.0.5.patch
+# DDR-252 D3 — @agentclientprotocol/codex-acp (apps/studio) depends on @openai/codex only as a
+# fallback for when CODEX_PATH is unset. Maude always sets CODEX_PATH to the person's own codex, so
+# the real package and its ~350 MB per-platform native binaries are dropped here ('-' removes the
+# dependency); apps/studio/package.json `overrides` does the same for bun with an empty stub.
+overrides:
+  '@openai/codex': '-'

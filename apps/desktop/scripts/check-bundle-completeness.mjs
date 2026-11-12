@@ -29,6 +29,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { stubClaudeEnv } from '../../../scripts/lib/stub-claude.mjs';
+import { CODEX_ADAPTER_PKG, checkStagedCodexAdapter } from './codex-adapter.mjs';
 import {
   classifyHelpers,
   collectImports,
@@ -171,6 +172,50 @@ if (runtimeFound) {
     'the ACP adapter and the 15 "bun run" design helpers need a JS runtime; none is bundled, so a machine with no node/bun cannot run them. ' +
       'Stage a "bun" launcher (compiled sidecar via BUN_BE_BUN) into Contents/MacOS and point MAUDE_ACP_RUNTIME at it.'
   );
+}
+
+// === Check 2b — the Codex ACP adapter: entry only, never @openai/codex (DDR-252 D3) ===
+console.log('\n[2b] Codex ACP adapter (entry only, no @openai/codex)');
+{
+  const problems = checkStagedCodexAdapter(stagedNodeModules);
+  if (problems.length) fail('Codex ACP adapter staging', problems.join('; '));
+  else ok('Codex ACP adapter staged', `${CODEX_ADAPTER_PKG} entry + LICENSE, no @openai/codex`);
+  // --smoke: the adapter must load under the BUNDLED runtime on a stripped PATH and reach the point
+  // of spawning the person's codex (CODEX_PATH) — a missing module or a bundled-codex fallback fails.
+  if (doSmoke && runtimeFound && !problems.length) {
+    const entry = join(stagedNodeModules, CODEX_ADAPTER_PKG, 'dist', 'index.js');
+    const sentinel = '/nonexistent/maude-smoke-codex';
+    const init = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: { protocolVersion: 1, clientCapabilities: { fs: {}, terminal: false } },
+    });
+    let out = '';
+    try {
+      out = execFileSync(runtimeFound, [entry], {
+        input: `${init}\n`,
+        timeout: 20_000,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: {
+          PATH: '/usr/bin:/bin:/usr/sbin:/sbin',
+          HOME: mkdtempSync(join(tmpdir(), 'maude-codex-smoke-')),
+          CODEX_PATH: sentinel,
+          ...(/maude(-server)?$/.test(runtimeFound) ? { BUN_BE_BUN: '1' } : {}),
+        },
+      });
+    } catch (e) {
+      out = `${e.stdout ?? ''}${e.stderr ?? ''}${e.message ?? ''}`;
+    }
+    if (/Cannot find (module|package)|ERR_MODULE_NOT_FOUND|SyntaxError/i.test(out)) {
+      fail('Codex adapter smoke', out.slice(0, 400));
+    } else if (!out.includes(sentinel)) {
+      fail('Codex adapter smoke', `never tried CODEX_PATH (${sentinel}): ${out.slice(0, 400)}`);
+    } else {
+      ok('Codex adapter smoke', 'loads under the bundled runtime and spawns CODEX_PATH only');
+    }
+  }
 }
 
 // === Check 3 — every standalone helper's dep closure is staged (G4) ===========

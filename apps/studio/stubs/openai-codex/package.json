@@ -1,0 +1,6 @@
+{
+  "name": "@openai/codex",
+  "version": "0.0.0-maude-stub",
+  "private": true,
+  "description": "Empty stand-in for @openai/codex (DDR-252 D3). @agentclientprotocol/codex-acp depends on it only as a fallback for when CODEX_PATH is unset; Maude always sets CODEX_PATH to the person's own codex, so the real package and its ~350 MB per-platform native binaries are never installed, staged or run. Wired by the `overrides` in apps/studio/package.json (bun) and pnpm-workspace.yaml (pnpm)."
+}

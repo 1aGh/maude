@@ -53,6 +53,7 @@ import {
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { checkStagedCodexAdapter, stageCodexAdapter } from './codex-adapter.mjs';
 import { standaloneHelperNpmDeps } from './helper-deps.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -419,6 +420,20 @@ console.log(
   console.log(
     `[stage-resources] staged ACP adapter closure (${closure.size} pkgs) → ${ACP_ENTRY_PKG}`
   );
+}
+
+// --- Codex ACP adapter (DDR-252 D3, plan Task B5): the entry file only -------------------------
+// One pre-bundled JS file with node builtins only; never its node_modules and never @openai/codex
+// (CODEX_PATH always points at the person's own codex). Fails the build loud when it is missing or
+// a bumped release stops being self-contained.
+try {
+  const staged = stageCodexAdapter(STUDIO, OUT_STUDIO);
+  const problems = checkStagedCodexAdapter(join(OUT_STUDIO, 'node_modules'));
+  if (problems.length) throw new Error(problems.join('; '));
+  console.log(`[stage-resources] staged Codex ACP adapter ${staged.version} (entry only)`);
+} catch (e) {
+  console.error(`[stage-resources] ${e.message}`);
+  process.exit(1);
 }
 
 console.log(`[stage-resources] staged dev-server runtime + source → ${OUT}`);

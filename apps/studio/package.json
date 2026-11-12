@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/claude-agent-acp": "0.57.0",
+    "@agentclientprotocol/codex-acp": "2.5.0",
     "@agentclientprotocol/sdk": "0.28.1",
     "@assistant-ui/react": "0.14.26",
     "@happy-dom/global-registrator": "20.10.6",
@@ -67,6 +68,9 @@
     "svgo": "^4.0.1",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.31"
+  },
+  "overrides": {
+    "@openai/codex": "file:./stubs/openai-codex"
   },
   "patchedDependencies": {
     "css-tree@2.2.1": "../../patches/css-tree@2.2.1.patch",
