@@ -201,8 +201,10 @@ describe('agentRows', () => {
     ]);
     expect(main.find((r) => r.id === 'opencode')?.connectNote).toContain('hosted model');
   });
-  test('the card is drawn only when an agent other than Claude is installed', () => {
-    expect(agentsCardVisible(CLAUDE_ONLY.agents)).toBe(false);
+  test('the card is Settings’ reference list: drawn once the list loads, Claude-only included', () => {
+    expect(agentsCardVisible([])).toBe(false);
+    expect(agentsCardVisible(CLAUDE_ONLY.agents)).toBe(true);
+    expect(agentsCardSummary(CLAUDE_ONLY.agents)).toBe('No other AI agents on this Mac');
     expect(agentsCardVisible(list([claude(), codex()]).agents)).toBe(true);
     expect(agentsCardSummary(list([claude(), codex({ connected: true })]).agents)).toBe(
       'Codex connected'
@@ -628,7 +630,7 @@ describe('ConnectSheet and agent cards', () => {
 
 // ── The pin: Claude-only users see ZERO visual change ─────────────────────────────────────────────
 describe('Claude-only', () => {
-  test('no offer line, no picker, no Connect-sheet link, no Settings card, no badge', async () => {
+  test('no offer line, no picker, no Connect-sheet link, no badge; Settings keeps its reference card', async () => {
     const { AgentOfferLine } = await import('../client/v2/ai/AgentOffer.jsx');
     const { AgentPickerChip } = await import('../client/v2/ai/AgentPicker.jsx');
     const { AgentsCardView } = await import('../client/v2/settings/agents-card.jsx');
@@ -637,14 +639,20 @@ describe('Claude-only', () => {
       <>
         <AgentOfferLine {...CLAUDE_ONLY} claudeConnected conn={idle} />
         <AgentPickerChip agents={CLAUDE_ONLY.agents} value="claude" />
-        <AgentsCardView
-          list={CLAUDE_ONLY}
-          c={idle}
-          card={() => ({ open: true, onToggle: () => {} })}
-        />
       </>
     );
+    // the AI panel: nothing at all
     expect(m.host.innerHTML).toBe('');
+    // Settings: the always-present reference card, so Claude's own API key option is reachable
+    const s = await mount(
+      <AgentsCardView
+        list={CLAUDE_ONLY}
+        c={idle}
+        card={() => ({ open: true, onToggle: () => {} })}
+      />
+    );
+    expect(s.q('settings-agents-card')).not.toBeNull();
+    expect(s.host.textContent).toContain('No other AI agents on this Mac');
     expect(otherAgentLinkVisible(CLAUDE_ONLY)).toBe(false);
     // the empty chat, wired to the shared list: the hint alone with Claude only, the line once Codex is offered
     const { setAgentsForTest } = await import('../client/v2/ai/agents-store.js');

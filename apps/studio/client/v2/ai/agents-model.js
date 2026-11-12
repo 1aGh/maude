@@ -163,9 +163,13 @@ export function agentRows(agents = []) {
   };
 }
 
-/** Is the AI agents card drawn at all? Only when an agent other than Claude is installed. */
+/**
+ * Is the AI agents card drawn at all? Settings' reference list is always there once the list has
+ * loaded (plan Design Decision 2), so a Mac with only Claude still reaches the Advanced fold (an
+ * own API key for Claude). Only the AI panel stays unchanged for Claude-only users.
+ */
 export function agentsCardVisible(agents = []) {
-  return agents.some((a) => a.id !== CLAUDE_ID && a.installed);
+  return agents.length > 0;
 }
 
 /** The closed card's line: "Codex connected" · "Codex and opencode on this Mac". */
@@ -174,6 +178,7 @@ export function agentsCardSummary(agents = []) {
   const all = [...main, ...advanced];
   const on = all.filter((r) => r.connected).map((r) => r.label);
   if (on.length) return `${andList(on)} connected`;
+  if (!all.length) return 'No other AI agents on this Mac';
   return `${andList(all.map((r) => r.label))} on this Mac`;
 }
 
