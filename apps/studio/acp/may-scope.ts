@@ -182,7 +182,9 @@ interface ToolCallLike {
 const PATH_KEYS = ['file_path', 'notebook_path', 'path', 'abs_path', 'filePath'] as const;
 const VERB_RE = /(?:^|[\s;&|()`$])(?:maude|mdcc)\s+design\s+([a-z][a-z0-9-]*)/g;
 // A downloader as a COMMAND word: `curl-local` (loopback-only, its own verb) is not one.
-const DOWNLOADER_RE = /(?:^|[\s;&|()`$])(?:curl|wget|aria2c)(?![\w-])/;
+// E2E finding (2026-11-12): also by its path (`/usr/bin/curl`, `./bin/aria2c`), quoted (`"curl"`)
+// or escaped (`\curl`) — each slipped past "Search the web: off" (test/acp-may-abs-downloader).
+const DOWNLOADER_RE = /(?:^|[\s;&|()`$'"\\])(?:[\w.~+-]*\/)*(?:curl|wget|aria2c)(?![\w-])/;
 
 function insideAny(p: string, repoRoot: string, roots: readonly string[]): boolean {
   const lexical = isAbsolute(p) ? resolve(p) : resolve(repoRoot, p);
