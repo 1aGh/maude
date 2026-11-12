@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { CATALOG } from '@/lib/catalog';
 import { Icon } from './kit/glyphs';
+import { QuickStart } from './quick-start';
 
 export function AdvancedDoor() {
   return (
@@ -16,24 +17,32 @@ export function AdvancedDoor() {
             Live in a terminal? It's all still here.
           </h3>
           <p className="ps-body">
-            The Mac app runs on two Claude Code plugins and a CLI. Use them on their own, with the
-            same files and the same design system.
+            The Mac app runs on the Maude CLI and the design plugin. Install just those in Claude
+            Code or Codex and drive the same canvases from your own agent, with the same files and
+            the same design system.
           </p>
-          <Link className="btn btn--sm" href="/docs#advanced" style={{ alignSelf: 'flex-start' }}>
-            Open the Advanced docs
+          <Link
+            className="btn btn--sm"
+            href="/docs/use-from-your-agent"
+            style={{ alignSelf: 'flex-start' }}
+          >
+            Use Maude from your agent
           </Link>
         </div>
-        <div className="ps-grid-2">
-          {CATALOG.map((item) => (
-            <div key={item.slug} className="ps-adv-item">
-              <b>
-                <Link href={item.docs}>{item.slug}</Link>
-              </b>
-              <span className="ps-small">{item.summary}</span>
-              <span className="ps-mono">{item.install}</span>
-              <span className="ps-small ps-adv-detail">{item.detail}</span>
-            </div>
-          ))}
+        <div className="ps-adv-main">
+          <QuickStart />
+          <div className="ps-grid-2">
+            {CATALOG.map((item) => (
+              <div key={item.slug} className="ps-adv-item">
+                <b>
+                  <Link href={item.docs}>{item.slug}</Link>
+                </b>
+                <span className="ps-small">{item.summary}</span>
+                <span className="ps-mono">{item.install}</span>
+                <span className="ps-small ps-adv-detail">{item.detail}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

@@ -1,0 +1,49 @@
+---
+title: Use Maude from your own agent
+description: Install the Maude CLI and the design plugin in Claude Code or Codex, and drive the same canvases from your own terminal agent.
+---
+
+Maude Studio is the product. Download it, open a project, ask AI. Most people never need this page.
+
+This page is for people who already live in a coding agent. You install two things, the `maude` CLI and the `design` plugin, and your own Claude Code or Codex session edits the same canvases Studio shows. Same files, same design system, same critics.
+
+<QuickStart />
+
+## What you get with the CLI and `design`
+
+- **Canvases as real files.** `/design:new` and `/design:edit` write `.tsx` canvases under `.design/`. Studio renders them live.
+- **Scoped edits.** Open the canvas in Studio, press <kbd>V</kbd>, click an element. The next `/design:edit` knows which one you mean.
+- **Screenshots, critics and exports.** The plugin calls `maude design <verb>` for the parts that need a renderer: `/design:screenshot`, `/design:critic`, `/design:export`.
+- **Studio next to your agent.** `/design:browse` reuses the project's running Studio or starts one. You can also start it by hand:
+
+```bash
+maude design serve --root /absolute/path/to/your-project
+```
+
+The Markdown plugin alone is not enough. The CLI is what renders, screenshots and exports, so install both.
+
+## What `flow` adds
+
+`flow` is the plan-to-ship loop: `/flow:plan`, `/flow:execute`, `/flow:validate`, `/flow:done`, with a `.ai/` workspace for decisions. Design leans on its question, debate and memory skills, so installing it is worth it even if you only design.
+
+## Video
+
+Video tools live in the opt-in `design-video` plugin. It needs `design`. Install it when you want reels, video analysis or Lottie exports:
+
+```bash
+claude plugin install design-video@maude   # Claude Code
+codex plugin add design-video@maude        # Codex
+```
+
+## Per agent
+
+<Cards>
+  <Card title="Claude Code" href="/docs/design" description="The design plugin, its commands and the critic panel." />
+  <Card title="Codex" href="/docs/codex" description="Native Codex install, invocation names, what Codex needs for visual checks." />
+  <Card title="The maude CLI" href="/docs/cli" description="Every subcommand, including doctor and the design verbs." />
+  <Card title="flow" href="/docs/flow" description="The plan-to-ship loop and its .ai/ workspace." />
+</Cards>
+
+## Updating
+
+The CLI and the plugins update separately. `npm i -g @1agh/maude` updates the CLI. Update the plugins through your agent's own plugin manager, then start a new session. Updating one does not update the other.

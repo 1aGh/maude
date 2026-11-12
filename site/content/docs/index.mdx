@@ -46,11 +46,9 @@ Everything the desktop app does is also available from a terminal, a plugin or a
 - **`flow`**. The agentic loop that ships things eventually. Second-brain `.ai/` workspace, project-agnostic via per-repo `workflows.config.json`. Same plugin runs in Next.js, Expo, Go, anything.
 - **`maude`** (legacy alias: `mdcc`). Small CLI. Scaffolds the `.ai/` workspace, reads and writes config, boots the design dev server, runs health diagnostics (`doctor`), manages the sidecar cache, and hosts the optional sync hub.
 
-<Callout type="info" title="Claude Code and terminal Codex">
-The same canvas and workflow procedures are available through
-[native Codex plugins](/docs/codex). Codex can drive Studio through the Maude CLI,
-project files and browser tools. This does not switch Studio's built-in ACP chat.
-</Callout>
+Live in Claude Code or Codex? Install the CLI and the design plugin and drive the same canvases from your own agent: [Use Maude from your own agent](/docs/use-from-your-agent).
+
+<QuickStart />
 
 <ArchitectureMap caption="maude at a glance — Claude Code, the two plugins, the CLI, and the .ai/ + .design/ workspaces" />
 

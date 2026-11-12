@@ -7,14 +7,6 @@ Maude's `design` and `flow` plugins share their workflow procedures between
 Claude Code and Codex. Codex uses native plugin manifests and short skill entry
 points. It can read and edit the same project canvases that you see in Studio.
 
-<Callout type="info" title="Distribution status">
-The native packages are prepared in the repository. Until this change is
-published, install from a checkout containing `.agents/plugins/marketplace.json`
-and both `.codex-plugin/plugin.json` files. The examples below use that local
-checkout; a released GitHub marketplace install requires those files in the
-published revision. Native discovery was verified on Codex CLI 0.154.0.
-</Callout>
-
 ## Install
 
 Install the Maude CLI for rendering, screenshots, exports and other executable
@@ -26,17 +18,27 @@ maude --version
 codex --version
 ```
 
-Register the Maude **checkout root**, then install both plugins:
+Add the Maude marketplace and install the plugins:
 
 ```bash
-codex plugin marketplace add /absolute/path/to/maude
-codex plugin add flow@maude
+codex plugin marketplace add 1aGh/maude
 codex plugin add design@maude
+codex plugin add flow@maude
 ```
 
-Start a fresh Codex session in the project you want to work on. The Maude source
-checkout and your target project can be different directories. Design uses flow's
+`design` is the canvas plugin. `flow` is the plan-to-ship loop; design uses its
 question, debate and decision-memory skills, so install both for the full set.
+Video tools (reels, video analysis, Lottie export) are in the opt-in
+`design-video@maude` plugin, which needs `design`.
+
+Check the result with `codex plugin list`, then start a fresh Codex session in the
+project you want to work on. The quick start for both agents is on
+[Use Maude from your own agent](/docs/use-from-your-agent).
+
+<Callout type="info" title="Contributing to Maude">
+To test unreleased plugin changes, register your checkout root instead:
+`codex plugin marketplace add /absolute/path/to/maude`.
+</Callout>
 
 ### Existing `maude codex` installations
 
@@ -47,8 +49,7 @@ mirrored command entries. Use one owner for each `design@maude` / `flow@maude`
 installation. Do not layer direct installation over a conflicting managed mirror
 or delete an existing cache without reviewing how it is installed.
 
-After publishing a new revision, update the marketplace and plugins through the
-native host's plugin management, then start a new session. Updating only the npm
+To update, run `codex plugin marketplace upgrade maude`, then start a new session. Updating only the npm
 CLI does not update Markdown plugins, and updating plugins does not update the
 CLI's renderer.
 
@@ -163,9 +164,8 @@ These checks do not certify every design-generation, critic, video/export or mob
 workflow on every model. Native Codex role prompts retain the role's restrictions,
 but Markdown is not an enforced per-role tool whitelist.
 
-Studio's **built-in ACP chat** is a separate follow-up. `design:chat` opens the
-existing panel; it does not switch that panel to Codex. See the
-[desktop guide](/docs/desktop) for the current in-app chat behavior.
+Studio's built-in AI chat runs on your Claude account. Driving Studio from terminal
+Codex, as above, does not change that chat.
 
 ## Dependencies, kgai and fallback behavior
 

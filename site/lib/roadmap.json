@@ -1,18 +1,7 @@
 {
-  "generated": "2026-11-10T00:00:00.000Z",
+  "generated": "2026-11-12T00:00:00.000Z",
   "currentPhase": null,
   "phases": [
-    {
-      "id": "fix-ds-screen-224-225",
-      "title": "Design system screen: #224 + #225",
-      "status": "done",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Owner: Michal (via keeper, 2026-11-12) · Lead: Maude v2 session · Target: next patch after 2.2.0. Push, tag and release need Michal's OK.",
-      "planPath": ".ai/plans/archive/fix-ds-screen-224-225.md",
-      "archived": true,
-      "phaseKey": null
-    },
     {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
@@ -2430,6 +2419,17 @@
       "date": "2026-11-10",
       "summary": "Owner: Maude v2 lead · source: Michal (via the alligators export session + the keeper) · target: 2.1.x patch",
       "planPath": ".ai/plans/archive/fix-bulk-2026-11-10.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "fix-ds-screen-224-225",
+      "title": "Design system screen: #224 + #225",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-11-12",
+      "summary": "Owner: Michal (via keeper, 2026-11-12) · Lead: Maude v2 session · Target: next patch after 2.2.0. Push, tag and release need Michal's OK.",
+      "planPath": ".ai/plans/archive/fix-ds-screen-224-225.md",
       "archived": true,
       "phaseKey": null
     },

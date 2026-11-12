@@ -19,6 +19,7 @@ const ADVANCED: { group: string; shown: Item[]; more?: Item[] }[] = [
   {
     group: 'Explore',
     shown: [
+      ['Use Maude from your agent', '/docs/use-from-your-agent'],
       ['The design plugin', '/docs/design'],
       ['The flow plugin', '/docs/flow'],
       ['The maude CLI', '/docs/cli'],
@@ -106,7 +107,9 @@ export function DocsDoors() {
                 <h2 id="h-door-adv" className="ps-h3">
                   Advanced
                 </h2>
-                <p className="ps-door-for">For Claude Code, the command line and self-hosting.</p>
+                <p className="ps-door-for">
+                  For Claude Code, Codex, the command line and self-hosting.
+                </p>
                 <p className="ps-door-mode">
                   Reference, explanations and recipes · every page kept
                 </p>
