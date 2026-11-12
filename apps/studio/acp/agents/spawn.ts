@@ -11,11 +11,17 @@
 // and the launch policy, for this descriptor only. The one read outside the inputs: when the caller
 // passes no `chatKeyEnv`, it comes from the 0600 key store (generation/keys.ts) at spawn time. A
 // Claude spawn without the Advanced opt-in adds nothing.
+//
+// S3 (defender H1) — the other read outside the inputs: an agent whose reads are judged by its own
+// permission engine (`readGate: 'agent-permission-engine'`: opencode, Gemini, Copilot) is refused
+// (`UnsafeLinkError`, code `agent-unsafe-link`) while any root it is given holds a link out of the
+// read roots (acp/agents/link-scan.ts). A root that does not exist holds no link.
 
 import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from '../env.ts';
 import { mayEnv } from '../may-scope.ts';
 import { chatKeyEnvFor } from './chat-key.ts';
 import type { AgentDescriptor, PolicyCtx } from './descriptor.ts';
+import { assertNoUnsafeLinks } from './link-scan.ts';
 
 export interface AgentSpawnInput {
   descriptor: AgentDescriptor;
@@ -62,6 +68,17 @@ export function agentSpawn(input: AgentSpawnInput): AgentSpawn {
   const d = input.descriptor;
   const env: Record<string, string> = { ...input.scrubbed };
   let cmd: string[];
+  // S3 — before the launch policy (which reads the person's config): a refused spawn touches nothing.
+  if (d.enforcement?.readGate === 'agent-permission-engine') {
+    const c = input.policyCtx;
+    assertNoUnsafeLinks({
+      roots: [...c.writeRoots, ...c.readRoots],
+      readRoots: c.readRoots,
+      credentialPaths: c.credentialPaths,
+      label: d.label,
+      projectRoot: c.scopeRoot,
+    });
+  }
   const policy = d.enforcement?.launchPolicy(input.policyCtx);
 
   if (d.launch.kind === 'adapter-js') {

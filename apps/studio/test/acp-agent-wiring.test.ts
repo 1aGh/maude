@@ -21,6 +21,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -633,6 +634,54 @@ describe('the bridge gate on a non-Claude agent', () => {
       expect(err.chat).toBe('g8');
       expect(String(err.message)).toContain('Codex');
     } finally {
+      acp.stopAll();
+    }
+  }, 20000);
+});
+
+describe('S3: a link out of the project stops an agent-permission-engine agent', () => {
+  test('prompt → error frame agent-unsafe-link naming the link; nothing spawned; Codex unaffected', async () => {
+    setScript();
+    const engine = fakeCodex({
+      id: 'opencode',
+      label: 'opencode',
+      enforcement: {
+        ...(fakeCodex().enforcement as NonNullable<AgentDescriptor['enforcement']>),
+        readGate: 'agent-permission-engine',
+        shellGate: 'command-text',
+      },
+    });
+    const byId = (id: string) => (id === 'opencode' ? engine : AGENTS[id]);
+    const acp = createAcp(ctxFor(), undefined, {
+      permissionTimeoutMs: 4000,
+      agents: {
+        byId,
+        resolveBin: () => process.execPath,
+        consentFile,
+        store: connectedStore(),
+        version: async () => '1.0.0',
+      },
+    });
+    const link = join(repo, 'ref-link');
+    writeFileSync(join(outside, 'secret.txt'), 'FAKE-SECRET');
+    symlinkSync(join(outside, 'secret.txt'), link);
+    const a = fakeWs('w-link');
+    try {
+      acp.onOpen(a.ws);
+      acp.onMessage(
+        a.ws,
+        JSON.stringify({ t: 'prompt', chat: 'l1', text: 'go', agent: 'opencode' })
+      );
+      const err = await until(() => errors(a.frames)[0]);
+      expect(err).toMatchObject({ code: 'agent-unsafe-link', chat: 'l1', link: 'ref-link' });
+      expect(err.agent).toMatchObject({ id: 'opencode' });
+      expect(String(err.message)).toContain('ref-link');
+      expect(readLog().filter((l) => l.m === 'spawn' || l.m === 'init')).toEqual([]);
+      // Codex judges reads in its OS sandbox: the same project starts it.
+      acp.onMessage(a.ws, JSON.stringify({ t: 'prompt', chat: 'l2', text: 'go', agent: 'codex' }));
+      await until(() => turnEnds(a.frames)[0]);
+    } finally {
+      rmSync(link, { force: true });
       acp.stopAll();
     }
   }, 20000);

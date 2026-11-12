@@ -230,7 +230,22 @@ export const PERSISTENT_OPTION_IDS: ReadonlySet<string> = new Set([
   'allow_for_session', // Codex: "don't ask again for these files"
   'always', // opencode: widens the session
   'allow_always',
+  // S3 — codex-acp ApprovalOptionId: a permissions request's grants widen the turn or the session,
+  // a network amendment persists a rule, an MCP `allow_session` covers the session.
+  'allow_permissions_turn',
+  'allow_permissions_turn_strict_auto_review',
+  'allow_permissions_session',
+  'apply_network_policy_amendment',
+  'allow_session',
 ]);
+
+/**
+ * Rule 9 — a persistent id: one of PERSISTENT_OPTION_IDS, or any `allow_permissions_*` (Codex's
+ * permission-profile grants: a variant a newer codex-acp adds is refused until someone lists it).
+ */
+export function isPersistentOptionId(id: string): boolean {
+  return PERSISTENT_OPTION_IDS.has(id) || id.startsWith('allow_permissions_');
+}
 
 /** The options a card may show: `allow_once` and `reject_once` only, minus any persistent id. */
 export function cardOptions(options: unknown): PermissionOption[] {
@@ -240,7 +255,7 @@ export function cardOptions(options: unknown): PermissionOption[] {
       !!o &&
       typeof o.optionId === 'string' &&
       (o.kind === 'allow_once' || o.kind === 'reject_once') &&
-      !PERSISTENT_OPTION_IDS.has(o.optionId)
+      !isPersistentOptionId(o.optionId)
   );
 }
 

@@ -147,7 +147,6 @@ describe('runConformance against fake agents', () => {
       'outside-write',
       'runtime-state-write',
       'protected-write',
-      'symlink-read',
       'tmp-read',
       'curl-egress',
       'subagent-secret-read',
@@ -161,6 +160,31 @@ describe('runConformance against fake agents', () => {
     // What it did not break stays green: the probe is not failing everything wholesale.
     expect(failed.has('project-read')).toBe(false);
     expect(failed.has('project-write')).toBe(false);
+    // S3 — an agent-permission-engine agent never starts with the link there: it cannot read
+    // through it, so symlink-read passes by the refusal, not by the agent's own restraint.
+    const link = r.checks.find((c) => c.name === 'symlink-read');
+    expect(link?.ok).toBe(true);
+    expect(link?.detail).toContain('agent-unsafe-link');
+  }, 60_000);
+
+  test('S3: an os-sandbox agent is not refused; reading through the link fails symlink-read', async () => {
+    const d = fakeDescriptor('violate');
+    const sandboxed: AgentDescriptor = {
+      ...d,
+      enforcement: {
+        ...(d.enforcement as NonNullable<AgentDescriptor['enforcement']>),
+        readGate: 'os-sandbox',
+      },
+    };
+    const r = await runConformance(sandboxed, process.execPath, {
+      profile: FAKE_PROFILE,
+      scratchBase: base,
+      agentVersion: '1.0.0',
+      timeoutMs: 45_000,
+    });
+    const link = r.checks.find((c) => c.name === 'symlink-read');
+    expect(link?.ok).toBe(false);
+    expect(link?.detail).not.toContain('agent-unsafe-link');
   }, 60_000);
 
   // F6b — an agent that obeys every boundary but starts the person's own MCP server (or runs their

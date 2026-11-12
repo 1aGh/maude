@@ -43,6 +43,7 @@ import { hasAgentConsent, recordAgentConsent } from './agents/consent.ts';
 import { type AgentDescriptor, versionFit } from './agents/descriptor.ts';
 import { probeAgentVersion, resolveAgentBin } from './agents/discover.ts';
 import { agentHealth, markAgentUnavailable } from './agents/health.ts';
+import { UnsafeLinkError } from './agents/link-scan.ts';
 import { type AgentStateStore, createAgentStateStore } from './agents/state.ts';
 import { type AskQueue, noteRateLimit, promptLabel } from './ask-queue.ts';
 import { createHubWriteAudience, type WriteAudienceSource } from './audience.ts';
@@ -101,7 +102,9 @@ import {
  *   `agent-unknown` (no such agent) · `agent-switch-refused` (`agent` = the chat's, `requested`) ·
  *   `agent-needs-consent` (an 'unrestricted' agent this project has no yes for; resend with
  *   `consent: true` — refused on a read-only socket) · `agent-unavailable` (its policy did not hold
- *   earlier this run) · `agent-policy-violated` (the tripwire ended this chat's session).
+ *   earlier this run) · `agent-policy-violated` (the tripwire ended this chat's session) ·
+ *   `agent-unsafe-link` (S3: an agent that judges reads by its own permission engine was not
+ *   started — the project holds a link out of the folders AI may read; `link` names it).
  * Frames of a non-Claude chat carry `agent: { id, label, vendor, statusUrl? }` on `error`; a turn a
  * Maude refusal ended is `{ t: 'turn-end', stopReason, reason: 'refused', notice }`; an "AI may"
  * restart that could not keep the session sends `{ t: 'agent-note', chat, kind, message }`.
@@ -1426,6 +1429,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         broadcast(entry, {
           t: 'error',
           message: err instanceof Error ? err.message : String(err),
+          // S3 — the spawn refused a project with a link out of it (acp/agents/link-scan.ts).
+          ...(err instanceof UnsafeLinkError ? { code: err.code, link: err.link } : {}),
           // B3 — "Codex reported: …" (Claude's errors read as they always have)
           ...(attribution ? { chat: entry.chatId, agent: attribution } : {}),
         });

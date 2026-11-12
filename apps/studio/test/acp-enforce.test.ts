@@ -32,10 +32,12 @@ import {
 } from '../acp/may-scope.ts';
 import {
   answerCard,
+  cardOptions,
   createPermissionGate,
   type EnforcedDescriptor,
   gatePermission,
   isForbiddenClientMethod,
+  isPersistentOptionId,
   isRefusedMode,
   newTripwireMemory,
   PERSISTENT_OPTION_IDS,
@@ -870,5 +872,28 @@ describe('the Claude-name-keyed gates are unchanged', () => {
     expect(resolveWriteTargets({ locations: [{ path: join(f.scratch, 'x') }] }, r).reason).toBe(
       'outside'
     );
+  });
+});
+
+describe('rule 9 — S3: Codex permission-profile grants are persistent ids', () => {
+  // codex-acp ApprovalOptionId: these widen the turn / session / network policy whatever `kind`
+  // they claim (allow_once on a permissions request).
+  const ids = [
+    'allow_permissions_turn',
+    'allow_permissions_turn_strict_auto_review',
+    'allow_permissions_session',
+    'apply_network_policy_amendment',
+    'allow_session',
+    'allow_permissions_turn_some_future_variant',
+  ];
+  test('never shown on a card, never picked; a plain allow_once stays', () => {
+    const options = [
+      ...ids.map((optionId) => ({ optionId, kind: 'allow_once', name: optionId })),
+      { optionId: 'allow_once', kind: 'allow_once', name: 'Yes' },
+      { optionId: 'decline', kind: 'reject_once', name: 'No' },
+    ];
+    expect(cardOptions(options).map((o) => o.optionId)).toEqual(['allow_once', 'decline']);
+    for (const id of ids) expect([id, isPersistentOptionId(id)]).toEqual([id, true]);
+    expect(isPersistentOptionId('allow_once')).toBe(false);
   });
 });

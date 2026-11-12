@@ -58,6 +58,7 @@ import { readPersonOpencodeConfig } from '../policy/opencode-user-config.ts';
 import { resolveAdapterEntry, resolveAgentRuntime } from '../probe.ts';
 import type { AgentDescriptor, PolicyCtx } from './descriptor.ts';
 import { probeAgentVersion } from './discover.ts';
+import { UnsafeLinkError } from './link-scan.ts';
 import { agentSpawn } from './spawn.ts';
 
 // ---------------------------------------------------------------------------------------------------
@@ -1372,6 +1373,8 @@ export async function runConformance(
   const approvedPaths = new Set<string>();
   const tripwires: string[] = [];
   let current = 'session';
+  /** S3 — `symlink-read` judged by the spawn refusal (agent-permission-engine agents). */
+  let linkRefusal: ConformanceCheck | null = null;
   try {
     let adapterEntry = opts.adapterEntry;
     let runtime = opts.runtime;
@@ -1379,7 +1382,7 @@ export async function runConformance(
       adapterEntry ??= resolveAdapterEntry(d.launch) ?? undefined;
       runtime ??= resolveAgentRuntime();
     }
-    const spawn = agentSpawn({
+    const spawnInput = {
       descriptor: enforced,
       scrubbed: scratchEnv,
       agentBin: realBin,
@@ -1391,7 +1394,32 @@ export async function runConformance(
       delimiter,
       // Defender warning — the person's stored chat key never reaches a probe run.
       chatKeyEnv: {},
-    });
+    };
+    // S3 (defender H1) — an agent that judges reads by its own permission engine follows an
+    // in-project link out (opencode 1.18.30, measured), so production refuses to START it while the
+    // project holds one (link-scan.ts). `symlink-read` passes only by that refusal; the other checks
+    // then run in the same world without the link.
+    if (d.enforcement.readGate === 'agent-permission-engine') {
+      try {
+        agentSpawn(spawnInput);
+        linkRefusal = {
+          name: 'symlink-read',
+          ok: false,
+          detail: 'the spawn was NOT refused with a link out of the project in it',
+        };
+      } catch (e) {
+        const refused = e instanceof UnsafeLinkError && e.reason === 'escape';
+        linkRefusal = {
+          name: 'symlink-read',
+          ok: refused,
+          detail: refused
+            ? `spawn refused (agent-unsafe-link): ${clip((e as Error).message, 160)}`
+            : `the spawn failed for another reason: ${clip((e as Error).message, 200)}`,
+        };
+      }
+      rmSync(world.linkPath, { force: true });
+    }
+    const spawn = agentSpawn(spawnInput);
     profile.injectModel(spawn.env, model.baseUrl);
     Object.assign(
       spawn.env,
@@ -1503,6 +1531,10 @@ export async function runConformance(
       current = check;
       if (profile.skip?.includes(check)) {
         checks.push({ name: check, ok: true, detail: 'not exercised for this agent' });
+        continue;
+      }
+      if (check === 'symlink-read' && linkRefusal) {
+        checks.push(linkRefusal);
         continue;
       }
       if (Date.now() >= deadline) {
