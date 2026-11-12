@@ -164,8 +164,32 @@ These checks do not certify every design-generation, critic, video/export or mob
 workflow on every model. Native Codex role prompts retain the role's restrictions,
 but Markdown is not an enforced per-role tool whitelist.
 
-Studio's built-in AI chat runs on your Claude account. Driving Studio from terminal
-Codex, as above, does not change that chat.
+Studio's built-in AI chat can run Codex as well. See
+[Codex in Studio's chat](#codex-in-studios-chat).
+
+## Codex in Studio's chat
+
+You don't need a terminal for this. Install Codex (0.154 or newer) and sign in to it once. Maude
+finds it and the empty AI chat offers it once: **Connect** or **Not now**. You can also connect it
+from **Settings › Connections › AI agents**.
+
+- Maude runs Codex through its bundled `codex-acp` adapter and your own `codex` binary. It
+  does not install a second Codex.
+- The chat's Codex runs in **workspace-write** mode inside a permission profile Maude writes
+  for each chat: it reads the project and the folders you granted, writes only inside the
+  project, cannot read your credentials or Maude's own settings, and has no network. Codex's
+  own `agent` mode, which lets a model approve its own escalations, is refused.
+- Your `~/.codex/config.toml`, its MCP servers and hooks do **not** load in the Studio chat.
+  Maude gives Codex its own home that holds only a link to your sign-in. A project with its own
+  `.codex/` folder is refused, because Codex would trust and load it.
+- Before the first chat, Maude runs a short offline check against your `codex` binary. Only a
+  version that passes is connected.
+- When Maude refuses a step, Codex ends its turn. The chat says what was refused.
+- An OpenAI API key works instead of a ChatGPT sign-in: **Settings › Connections › AI agents ›
+  Advanced**. Maude keeps it out of the commands Codex runs.
+
+Terminal Codex with the plugins (above) and Codex in the Studio chat are independent. Use either
+or both.
 
 ## Dependencies, kgai and fallback behavior
 

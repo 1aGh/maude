@@ -24,7 +24,7 @@
     "cli.mdx": "2026-11-02",
     "cloud/pricing.mdx": "2026-11-05",
     "cloud/trust.mdx": "2026-11-05",
-    "codex.mdx": "2026-10-25",
+    "codex.mdx": "2026-11-12",
     "commands-design/assets.mdx": "2026-11-02",
     "commands-design/board.mdx": "2026-11-02",
     "commands-design/browse.mdx": "2026-11-02",
@@ -80,7 +80,7 @@
     "desktop/window.mdx": "2026-11-09",
     "flow-migration.mdx": "2026-10-25",
     "flow.mdx": "2026-10-25",
-    "getting-started.mdx": "2026-11-05",
+    "getting-started.mdx": "2026-11-12",
     "hub/aws.mdx": "2026-08-21",
     "hub/deploy.mdx": "2026-08-18",
     "hub/durability.mdx": "2026-11-07",
@@ -93,7 +93,7 @@
     "hub/self-host.mdx": "2026-11-02",
     "hub/team-projects.mdx": "2026-11-03",
     "hub/workspace.mdx": "2026-11-05",
-    "index.mdx": "2026-11-05",
+    "index.mdx": "2026-11-12",
     "legal/dpa.mdx": "2026-11-05",
     "legal/privacy.mdx": "2026-11-05",
     "legal/terms.mdx": "2026-11-05",
@@ -104,6 +104,7 @@
     "recipes/monorepo.mdx": "2026-10-25",
     "recipes/nextjs.mdx": "2026-10-25",
     "security.mdx": "2026-08-16",
-    "share-links.mdx": "2026-11-02"
+    "share-links.mdx": "2026-11-02",
+    "use-from-your-agent.mdx": "2026-11-12"
   }
 }
