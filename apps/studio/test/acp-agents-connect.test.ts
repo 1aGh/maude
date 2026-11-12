@@ -326,6 +326,15 @@ describe('GET /_api/agents', () => {
     expect(body.agents.find((a: any) => a.id === 'custom:open').state).toBe('unavailable');
   });
 
+  test('an agent caught breaking the limits this run is unavailable and never offered', async () => {
+    writeFileSync(SIGNED, '');
+    const r = routes({ health: (id) => (id === 'custom:fakecode' ? 'unavailable' : 'ok') });
+    const { body } = await call(r, 'GET', '/_api/agents');
+    const fake = body.agents.find((a: any) => a.id === 'custom:fakecode');
+    expect(fake).toMatchObject({ health: 'unavailable', state: 'unavailable', offer: false });
+    expect(body.offerAgents).not.toContain('custom:fakecode');
+  });
+
   test('only Claude detected → no offer line', async () => {
     rows = [
       row(CLAUDE, { offerable: false }),

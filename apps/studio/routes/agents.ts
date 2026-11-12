@@ -8,7 +8,7 @@
 //        Row = { id, label, vendor, installed, realBin, version, fit, policy, offerable,   (F2)
 //                connected, connectedAt, auth, offerDismissed, offer, health, connectNote, state }
 //        auth   'signed-in' | 'signed-out' | 'not-needed' | 'unknown'
-//        health 'ok' | …            (acp/agents/health.ts, when it lands; 'ok' until then)
+//        health 'ok' | 'unavailable'  (acp/agents/health.ts: caught breaking Maude's limits this run)
 //        state  the Settings › AI agents list word: 'connected' | 'sign-in' | 'untested' |
 //               'unavailable' | 'available'
 //        offer  Studio may show the one-time offer for this agent;  offerAgents = the ids with offer
@@ -37,7 +37,8 @@ import {
   startAgentSignin,
 } from '../acp/agents/auth.ts';
 import { agentById, CATALOG } from '../acp/agents/catalog.ts';
-import type { AgentDescriptor } from '../acp/agents/descriptor.ts';
+import type { AgentDescriptor, AgentId } from '../acp/agents/descriptor.ts';
+import { agentHealth } from '../acp/agents/health.ts';
 import {
   type DiscoveredAgent,
   type DiscoverOptions,
@@ -78,10 +79,7 @@ export interface AgentsRouteDeps {
   startSignin?: typeof startAgentSignin;
   signinState?: typeof agentSigninState;
   cancelSignin?: typeof cancelAgentSignin;
-  /**
-   * TODO(F-health): acp/agents/health.ts (`agentHealth(id)`) is another worker's; until it lands every
-   * agent reports 'ok'. Replace this default with `agentHealth` when the module is in the tree.
-   */
+  /** 'ok', or 'unavailable' when this run caught the agent breaking Maude's limits (acp/agents/health.ts). */
   health?: (id: string) => string;
   /** Claude's side, from the same functions `/_api/claude/*` and `/_api/acp/status` use. */
   claude?: {
@@ -151,7 +149,8 @@ export function createAgentsRoutes(deps: AgentsRouteDeps = {}): RouteSpec[] {
   const start = deps.startSignin ?? startAgentSignin;
   const signinState = deps.signinState ?? agentSigninState;
   const cancel = deps.cancelSignin ?? cancelAgentSignin;
-  const health = deps.health ?? (() => 'ok');
+  const health =
+    deps.health ?? ((id: string) => (agentHealth(id as AgentId).available ? 'ok' : 'unavailable'));
   const claude = deps.claude ?? defaultClaude;
 
   /** The discovered row of one agent (cached discovery), or null. */
@@ -210,7 +209,9 @@ export function createAgentsRoutes(deps: AgentsRouteDeps = {}): RouteSpec[] {
               }
               const connected = row.id === 'claude' ? claudeAvail.available : rec !== undefined;
               const offerDismissed = state.offerDismissed[row.id] === true;
+              const healthy = health(row.id) === 'ok';
               const offer =
+                healthy &&
                 row.id !== 'claude' &&
                 row.offerable &&
                 !connected &&
@@ -223,9 +224,11 @@ export function createAgentsRoutes(deps: AgentsRouteDeps = {}): RouteSpec[] {
                 auth,
                 offerDismissed,
                 offer,
-                health: health(row.id),
+                health: healthy ? 'ok' : 'unavailable',
                 connectNote: d?.connectNote ?? null,
-                state: agentListState({ installed: row.installed, fit: row.fit, connected, auth }),
+                state: healthy
+                  ? agentListState({ installed: row.installed, fit: row.fit, connected, auth })
+                  : 'unavailable',
               };
             })
           );
