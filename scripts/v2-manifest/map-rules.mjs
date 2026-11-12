@@ -35,6 +35,7 @@ export const V2_CODE_IDS = new Set([
   'testid:studio/canvas-theme-pill.tsx#canvas/canvas-theme-note', // r5-7 "This canvas has no Dark" on the pill
   'testid:studio/canvas-theme-pill.tsx#canvas/canvas-theme-text', // #217 the pill's two-line text column
   'testid:studio/canvas-theme-pill.tsx#canvas/canvas-theme-title', // #217 the pill's first line (the system name)
+  'testid:studio/canvas-theme-pill.tsx#canvas/canvas-theme-row', // #217 the pill's controls row (the path sits above it)
   'button:studio/client/shell/banners.jsx#FormatGateBanner/format-gate-update', // V2-1.12 file formats
   'keydown:studio/client/hooks/use-action-keys.jsx#useActionKeys/listener', // V2-2.4 registry keys
   'testid:studio/client/inspector/inspector-panel.jsx#inspector/inspector-view-id', // P8-C2 picture view switch (css / photo)
