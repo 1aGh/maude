@@ -2489,6 +2489,17 @@
       "phaseKey": null
     },
     {
+      "id": "fix-ds-screen-224-225",
+      "title": "Design system screen: #224 + #225",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Owner: Michal (via keeper, 2026-11-12) · Lead: Maude v2 session · Target: next patch after 2.2.0. Push, tag and release need Michal's OK.",
+      "planPath": ".ai/plans/fix-ds-screen-224-225.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
       "id": "feature-post-1.0-hardening-backlog",
       "title": "Feature: post-1.0 hardening backlog (deferred 4-0 from the v1.0.0 gate)",
       "status": "icebox",
