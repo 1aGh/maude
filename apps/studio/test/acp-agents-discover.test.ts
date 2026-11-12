@@ -274,8 +274,8 @@ describe('discoverAgents', () => {
       realBin: ECHO,
       version: '0.166.1',
       fit: 'ok',
-      policy: 'unrestricted',
-      offerable: false,
+      policy: 'bridge-enforced',
+      offerable: true,
     });
   });
 
@@ -293,7 +293,7 @@ describe('discoverAgents', () => {
           force: true,
         })
       )[0];
-    expect((await fit('codex-cli 0.154.0')).fit).toBe('too-old');
+    expect((await fit('codex-cli 0.153.0')).fit).toBe('too-old');
     expect((await fit('codex-cli 0.170.0')).fit).toBe('untested');
     const unknown = await fit('no version here');
     expect(unknown).toMatchObject({ installed: true, version: null, fit: null });
@@ -366,8 +366,8 @@ describe('GET /_api/agents', () => {
       realBin: '/x/codex',
       version: '0.166.1',
       fit: 'ok',
-      policy: 'unrestricted',
-      offerable: false,
+      policy: 'bridge-enforced',
+      offerable: true,
     };
     const [spec] = createAgentsRoutes({
       discover: async (o) => {
@@ -386,7 +386,8 @@ describe('GET /_api/agents', () => {
     const body = await res.json();
     expect(body.agents).toHaveLength(1);
     expect(body.agents[0]).toMatchObject(row); // F2's fields are untouched
-    expect(body.offerAgents).toEqual([]);
+    // Codex is bridge-enforced in the catalog: installed, fitting, not connected → offered.
+    expect(body.offerAgents).toEqual(['codex']);
     await spec.handle(new Request('http://localhost/_api/agents?refresh=1'), {});
     await spec.handle(new Request('http://localhost/_api/agents?refresh=0'), {});
     expect(calls).toEqual([{ force: false }, { force: true }, { force: false }]);

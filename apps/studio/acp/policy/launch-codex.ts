@@ -22,9 +22,10 @@
 // Pure: no file system, no process. The host (platform + home) is a parameter so tests stay exact.
 
 import { homedir } from 'node:os';
-import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 import { RUNTIME_STATE_DIRS } from '../../sync/file-membership.ts';
+import { AGENT_RUNTIME_OUTPUTS } from '../write-scope.ts';
 import type { LaunchPolicy, PolicyCtx } from '../agents/descriptor.ts';
 
 export type FsAccess = 'none' | 'read' | 'write';
@@ -82,8 +83,8 @@ export function userTrees(host: LaunchHost): string[] {
 /**
  * B3 — each design root's runtime-state folders (the DDR-115 taxonomy, `RUNTIME_STATE_DIRS`:
  * `_canvas-state`, `_state`, `_chat`, `_comments`, `_untrusted`, `_history`, `_trash`, `_draw`,
- * `_smoke`, …), made READ-only inside the writable scope: Codex may read them (the brief says so)
- * but never plant a chat transcript, a comment, a grant-adjacent state file or a history snapshot.
+ * `_smoke`, …). Those the agent does not own are `none` inside the writable scope (see
+ * codexFilesystem): Codex never plants a chat transcript, a comment or a grant-adjacent state file.
  * Only the top-level folders of each design root are named; the bridge's write gate covers a
  * deeper runtime path and the root-level runtime FILES (`_server.json`, `_active.json`, `_sync.json`
  * …): a permission profile names paths, it cannot glob files, so those are not in the profile.
@@ -121,10 +122,14 @@ export function codexFilesystem(
   for (const t of userTrees(host)) fs.set(t, 'none');
   for (const r of reads) if (granted(r)) fs.set(r, 'read');
   for (const w of writes) if (granted(w)) fs.set(w, 'write');
-  // A runtime folder that IS a write root (none today: the chat scratch lives in the temp folder)
-  // stays writable; one that holds a deeper write root is read-only above it, writable below.
+  // Runtime state the agent does not own is `none`. Measured (F6b, codex 0.154/0.165/0.166): a
+  // `read` entry inside a `write` root does NOT stop a write in Seatbelt, `none` does. The folders the
+  // agent may write for Claude too (`AGENT_RUNTIME_OUTPUTS`: _history, _draw, _smoke …) stay writable.
+  // A runtime folder that IS a write root (none today: the chat scratch lives in the temp folder) is
+  // left alone.
   for (const r of runtimeStateDirs(ctx.designRoots, writes)) {
-    if (granted(r) && fs.get(r) !== 'write') fs.set(r, 'read');
+    if (AGENT_RUNTIME_OUTPUTS.includes(basename(r))) continue;
+    if (granted(r) && fs.get(r) !== 'write') fs.set(r, 'none');
   }
   for (const c of creds) fs.set(c, 'none');
   return Object.fromEntries(fs);

@@ -60,11 +60,10 @@ export const CODEX: AgentDescriptor = assertDescriptor({
     bins: ['codex'],
     versionArgs: ['--version'],
     versionRe: /codex-cli (\d+\.\d+\.\d+)/,
-    // The bundled codex-acp 2.5.0 depends on @openai/codex ^0.165. The F6 conformance probe ran it
-    // against 0.154 (the app-server too), 0.165 and 0.166 with identical results, but no version
-    // passed in full (contract note, "F6 conformance results"), so the range stays as B0 set it until
-    // one does: then minVersion 0.154.0, testedMax the highest passing version.
-    minVersion: '0.166.0',
+    // The bundled codex-acp 2.5.0 depends on @openai/codex ^0.165. The conformance probe passed every
+    // check on 0.154 (the person's, through codex-acp's app-server), 0.165 and 0.166 once runtime
+    // state was `none` in the permission profile (2026-11-12, contract note "F6b").
+    minVersion: '0.154.0',
     testedMax: '0.166.99',
   },
   launch: {
@@ -80,13 +79,12 @@ export const CODEX: AgentDescriptor = assertDescriptor({
     apiKeyEnv: ['OPENAI_API_KEY'],
   },
   envAllow: [],
-  // Enforcement is wired (F4) but the policy stays 'unrestricted' until the conformance probe (F6,
-  // acp/agents/conformance.ts) passes every check: nothing offers Codex before then. F6b fixed the
-  // person's MCP servers / hooks (a Maude-owned CODEX_HOME) and refuses a project `.codex/`; still
-  // failing on 0.154 / 0.165 / 0.166 (2026-11-12): a write into `.design/_state/`. A runtime folder
-  // marked `read` inside the `write` scope does not stop writes under codex-acp's workspace-write
-  // mode (it does under `codex sandbox`); `none` does, and passes every check (contract note, F6b).
-  policy: 'unrestricted',
+  // Bridge-enforced (DDR-252): every conformance check passes on 0.154 / 0.165 / 0.166. F6b fixed the
+  // person's MCP servers / hooks (a Maude-owned CODEX_HOME) and refuses a project `.codex/`; runtime
+  // state the agent does not own is `none` in the permission profile (a `read` inside the `write`
+  // scope does not stop writes under codex-acp's workspace-write mode; `none` does). Connect still
+  // runs the probe on this Mac's binary before the first chat.
+  policy: 'bridge-enforced',
   enforcement: {
     // F6b — a Maude-owned CODEX_HOME (made or repaired here, at every spawn; a failure stops the
     // spawn): the person's config.toml / hooks.json never load, only their sign-in is shared. A

@@ -14,6 +14,7 @@ import {
   OPENCODE_FLAGS,
   opencodeLaunchPolicy,
 } from '../acp/policy/launch-opencode.ts';
+import { AGENT_RUNTIME_OUTPUTS } from '../acp/write-scope.ts';
 import { RUNTIME_STATE_DIRS } from '../sync/file-membership.ts';
 
 const HOME = '/Users/u';
@@ -41,9 +42,16 @@ function ctx(over: Partial<PolicyCtx> = {}): PolicyCtx {
   };
 }
 
-/** The runtime-state folders of the fixture's design root (DDR-115 list), read-only (B3). */
+/**
+ * The runtime-state folders of the fixture's design root (DDR-115 list): `none` unless the agent
+ * owns it (`AGENT_RUNTIME_OUTPUTS`, left writable by the scope). A `read` inside a write root does
+ * not stop a Seatbelt write (measured, F6b).
+ */
 const RUNTIME_READ_ONLY: Record<string, string> = Object.fromEntries(
-  RUNTIME_STATE_DIRS.map((d) => [`/Users/u/git/proj/.design/_${d}`, 'read'])
+  RUNTIME_STATE_DIRS.filter((d) => !AGENT_RUNTIME_OUTPUTS.includes(`_${d}`)).map((d) => [
+    `/Users/u/git/proj/.design/_${d}`,
+    'none',
+  ])
 );
 
 type CodexCfg = {
@@ -96,13 +104,14 @@ describe('codex launch policy', () => {
     });
   });
 
-  test('B3: each design root runtime-state folder is read-only inside the writable scope', () => {
+  test('B3: runtime state the agent does not own is denied; its own output folders stay writable', () => {
     const fs = codexCfg(ctx()).permissions.maude.filesystem;
-    for (const d of ['_canvas-state', '_state', '_chat', '_comments', '_untrusted', '_history']) {
-      expect([d, fs[`/Users/u/git/proj/.design/${d}`]]).toEqual([d, 'read']);
+    for (const d of ['_canvas-state', '_state', '_chat', '_comments', '_untrusted', '_trash']) {
+      expect([d, fs[`/Users/u/git/proj/.design/${d}`]]).toEqual([d, 'none']);
     }
-    for (const d of ['_trash', '_draw', '_smoke', '_runs']) {
-      expect([d, fs[`/Users/u/git/proj/.design/${d}`]]).toEqual([d, 'read']);
+    for (const d of ['_history', '_draw', '_smoke']) {
+      // not named: the writable scope above covers it, as for Claude (AGENT_RUNTIME_OUTPUTS)
+      expect([d, fs[`/Users/u/git/proj/.design/${d}`]]).toEqual([d, undefined]);
     }
     // the design root itself keeps what its roots gave it; the scope stays writable
     expect(fs['/Users/u/git/proj']).toBe('write');
@@ -112,8 +121,8 @@ describe('codex launch policy', () => {
     const fs = codexCfg(
       ctx({ designRoots: ['/Users/u/git/proj/.design', '/Users/u/elsewhere/.design'] })
     ).permissions.maude.filesystem;
-    expect(fs['/Users/u/git/proj/.design/_chat']).toBe('read');
-    // naming it `read` would widen what Codex may read outside its roots
+    expect(fs['/Users/u/git/proj/.design/_chat']).toBe('none');
+    // naming it would change what Codex may read outside its roots
     expect(fs['/Users/u/elsewhere/.design/_chat']).toBeUndefined();
     expect(runtimeStateDirs(['/a/p/.design'], ['/a/p'])).toContain('/a/p/.design/_chat');
     expect(runtimeStateDirs(['/a/p/.design'], ['/b'])).toEqual([]);
@@ -281,10 +290,10 @@ describe('catalog wiring', () => {
   afterAll(() => rmSync(scratch, { recursive: true, force: true }));
   const wired = () => ctx({ hostEnv: { HOME: scratch, XDG_CONFIG_HOME: join(scratch, 'xdg') } });
 
-  test('opencode passed the conformance probe in full (F6b) and is bridge-enforced; Codex is not yet', () => {
-    expect(CODEX.policy).toBe('unrestricted');
+  test('Codex and opencode passed the conformance probe in full (F6b) and are bridge-enforced', () => {
+    expect(CODEX.policy).toBe('bridge-enforced');
     expect(OPENCODE.policy).toBe('bridge-enforced');
-    expect(isOfferable(CODEX)).toBe(false);
+    expect(isOfferable(CODEX)).toBe(true);
     expect(isOfferable(OPENCODE)).toBe(true);
 
     const cx = CODEX.enforcement;

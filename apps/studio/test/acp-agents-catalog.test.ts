@@ -22,13 +22,16 @@ describe('agent catalog', () => {
     }
   });
 
-  test('F6b: opencode passed the conformance probe and is offerable; Codex is not yet', () => {
-    expect(CATALOG.filter(isOfferable).map((d) => d.id)).toEqual(['opencode']);
+  test('F6b: Codex and opencode passed the conformance probe and are offerable', () => {
+    expect(CATALOG.filter(isOfferable).map((d) => d.id)).toEqual(['codex', 'opencode']);
     expect(agentById('opencode')?.detect).toMatchObject({
       minVersion: '1.18.30',
       testedMax: '1.18.99',
     });
-    expect(agentById('codex')?.policy).toBe('unrestricted');
+    expect(agentById('codex')?.detect).toMatchObject({
+      minVersion: '0.154.0',
+      testedMax: '0.166.99',
+    });
   });
 
   test('a bridge-enforced descriptor without enforcement fails at load', () => {
@@ -54,7 +57,8 @@ describe('versions', () => {
   test('versionFit classifies against min and tested range', () => {
     const codex = agentById('codex');
     if (!codex) throw new Error('codex missing from the catalog');
-    expect(versionFit(codex, '0.154.0')).toBe('too-old');
+    expect(versionFit(codex, '0.153.9')).toBe('too-old');
+    expect(versionFit(codex, '0.154.0')).toBe('ok');
     expect(versionFit(codex, '0.166.2')).toBe('ok');
     expect(versionFit(codex, '0.170.0')).toBe('untested');
   });
