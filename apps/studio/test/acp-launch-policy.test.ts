@@ -201,6 +201,12 @@ describe('opencode launch policy', () => {
     expect(p.bash).toBe('ask');
     expect(p.webfetch).toBe('deny');
     expect(p.websearch).toBe('deny');
+    // security review 2026-11-12 (A4): no sub-agents — a `task` child runs under whatever
+    // permission block the person's own config gives that agent, never Maude's
+    expect((p as Record<string, unknown>).task).toBe('deny');
+    const c = ocCfg(ctx());
+    expect((c.agent.build.permission as Record<string, unknown>).task).toBe('deny');
+    expect((c.agent.plan.permission as Record<string, unknown>).task).toBe('deny');
     // F4 measured the map (contract note, "F4 measurement"): it is the default
     expect(OPENCODE_EXTERNAL_DIRECTORY_MAP).toBe(true);
     expect(typeof p.external_directory).toBe('object');

@@ -90,6 +90,11 @@ export function opencodePermission(
     external_directory: externalDirectory(ctx, useMap),
     webfetch: 'deny',
     websearch: 'deny',
+    // Security review 2026-11-12 (attacker A4): no sub-agents. A `task` child runs as another opencode
+    // agent (`general`, `explore`, or one from the person's own config), whose own permission block
+    // wins over this one; Maude repeats its block only for build/plan. Measured on 1.18.30 with the
+    // conformance probe (contract note, "A4").
+    task: 'deny',
   } as const;
 }
 
