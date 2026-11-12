@@ -110,7 +110,9 @@ const NEEDS_SIGN_IN: readonly IntentKind[] = [
  * content-lane entry without a final answer (O4: the `after` gate).
  */
 export function closedGates(
-  record: Pick<IntentRecord, 'kind' | 'project' | 'watermark'>,
+  record: Pick<IntentRecord, 'kind' | 'project' | 'watermark'> & {
+    payload?: { kind: string; agent?: unknown };
+  },
   facts: GateFacts,
   contentPending: readonly number[],
   now: number
@@ -122,7 +124,11 @@ export function closedGates(
   // S8.10 — a Handoff to production is an AI run that writes the code: it waits on the AI gates too
   // ("Connect your Claude account to let AI draft this."; after Connect, the waiting handoff runs).
   if (record.kind === 'ai.prompt' || record.kind === 'export.handoff') {
-    if (!facts.aiConnected) closed.add('ai-connected');
+    // E2E finding (2026-11-12): `aiConnected` is CLAUDE's sign-in. A chat on another agent (Codex,
+    // opencode — its connection is checked at attach) is not held by it (plan Decision 1).
+    const agent = record.payload?.kind === 'ai.prompt' ? record.payload.agent : null;
+    const otherAgent = typeof agent === 'string' && agent !== 'claude';
+    if (!facts.aiConnected && !otherAgent) closed.add('ai-connected');
     if (!facts.aiReady) closed.add('ai-ready');
     if (typeof facts.allowanceResetsAt === 'number' && now < facts.allowanceResetsAt)
       closed.add('ai-allowance');

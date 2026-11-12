@@ -84,11 +84,16 @@ export function createAskQueue(deps: AskQueueDeps) {
   const now = deps.now ?? Date.now;
   const project = () => deps.project?.() ?? { id: null, hub: null };
 
-  /** The gates closed for a chat prompt right now. */
-  function closed(): Gate[] {
+  /** The gates closed for a chat prompt right now (`agent`: the chat's agent when not Claude). */
+  function closed(agent?: string): Gate[] {
     try {
       return closedGates(
-        { kind: 'ai.prompt', project: project(), watermark: null },
+        {
+          kind: 'ai.prompt',
+          project: project(),
+          watermark: null,
+          payload: { kind: 'ai.prompt', agent },
+        },
         deps.gates(),
         [],
         now()
@@ -117,8 +122,11 @@ export function createAskQueue(deps: AskQueueDeps) {
     chatId: string;
     text: string;
     scope: RunScope | null;
+    /** the chat's agent id (B3); a non-Claude agent is not held by Claude's sign-in gate */
+    agent?: string;
   }): Queued | { refused: string } | null {
-    const gates = closed();
+    const agent = p.agent && p.agent !== 'claude' ? p.agent : undefined;
+    const gates = closed(agent);
     if (!gates.length && !chatHasQueued(p.chatId)) return null;
     const words = gateWords(gates, 'ai.prompt', allowanceTime());
     const r = deps.outbox.enqueue({
@@ -134,6 +142,7 @@ export function createAskQueue(deps: AskQueueDeps) {
         scope: p.scope,
         attachments: [],
         presentation: words?.presentation === 'field' ? 'field' : 'sent',
+        ...(agent ? { agent } : {}),
       },
       gates,
       allowanceResetsAt: safeFacts()?.allowanceResetsAt ?? null,

@@ -85,6 +85,11 @@ export type IntentPayload =
       attachments: string[];
       /** 'field' = 03's "waits in the field" (setting up, used up) */
       presentation: 'sent' | 'field';
+      /**
+       * B3 (universal ACP) — the chat's agent when it is not Claude. Claude's sign-in gate
+       * (`ai-connected`) does not hold it: that agent's connection is checked at attach.
+       */
+      agent?: string;
     }
   | { kind: 'share.invite'; email: string; role: Role; scope: ShareScope; message?: string }
   | { kind: 'share.ask-to-edit'; scope: ShareScope; note?: string }
