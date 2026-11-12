@@ -1473,7 +1473,13 @@ export async function runConformance(
           reason: r.reason,
           paths: r.shown.paths,
         });
-        log({ dir: 'permission', check: current, toolCall: p.toolCall, decision: r.decision });
+        log({
+          dir: 'permission',
+          check: current,
+          toolCall: p.toolCall,
+          options: p.options,
+          decision: r.decision,
+        });
         if (r.decision === 'allow_once') for (const path of r.shown.paths) approvedPaths.add(path);
         // The simulated person declines every card.
         const optionId =

@@ -23,8 +23,13 @@ import { isAbsolute, join, relative, resolve } from 'node:path';
 import type { CredentialPaths } from '../may-scope.ts';
 import { isInsideRoot } from '../write-scope.ts';
 
-/** Default caps: a project past them is refused as "too large to check" (fail closed). */
-export const LINK_SCAN_MAX_ENTRIES = 100_000;
+/**
+ * Default caps: a project past them is refused as "too large to check" (fail closed). Measured
+ * 2026-11-12 (M-series, warm cache): ≈1.8 µs per entry (42k entries in 77 ms), so 250k entries is
+ * ≈0.5 s and the time cap only bites on a slow or cold disk. The read roots include Maude's own
+ * studio folder (≈42k entries in a source checkout, few in the app), so the cap is shared with it.
+ */
+export const LINK_SCAN_MAX_ENTRIES = 250_000;
 export const LINK_SCAN_MAX_MS = 2_000;
 
 export type LinkScanReason = 'escape' | 'credential' | 'loop' | 'unreadable' | 'too-large';
