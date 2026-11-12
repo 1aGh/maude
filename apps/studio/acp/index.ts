@@ -1822,7 +1822,10 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
 
       const chatId = typeof frame.chat === 'string' && frame.chat ? frame.chat : 'default';
       // B3 — which agent the chat runs (a new chat's pick; an existing chat's must match).
-      const want = { agent: frame.agent, consent: frame.consent };
+      // Security review 2026-11-12 (defender M5) — `consent` counts only on a socket the person's
+      // own page opened (server.ts stamps `person` at the handshake); a helper's is ignored.
+      const personSocket = 'person' in ws.data && ws.data.person === true;
+      const want = { agent: frame.agent, consent: personSocket ? frame.consent : undefined };
 
       // S5.6 (D3, decision v2-S5-acp-role-gate-per-frame) — the read-only gate, PER FRAME against
       // the live predicate: a role that drops mid-socket refuses the very next frame. Refused:

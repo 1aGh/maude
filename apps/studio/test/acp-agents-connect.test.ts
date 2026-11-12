@@ -131,12 +131,17 @@ async function call(
   specs: RouteSpec[],
   method: 'GET' | 'POST',
   path: string,
-  body?: unknown
+  body?: unknown,
+  person = true
 ): Promise<{ status: number; body: any }> {
   const url = `http://localhost:4399${path}`;
   const req = new Request(url, {
     method,
-    headers: { 'content-type': 'application/json' },
+    // the studio page sends Origin on a write (personRequest, security review M5); a helper does not
+    headers: {
+      'content-type': 'application/json',
+      ...(person ? { origin: 'http://localhost:4399', host: 'localhost:4399' } : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const pathname = new URL(url).pathname;

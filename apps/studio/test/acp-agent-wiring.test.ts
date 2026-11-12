@@ -160,10 +160,11 @@ async function until<T>(fn: () => T | undefined | false, timeoutMs = 12000): Pro
 }
 
 type Frame = Record<string, unknown>;
-function fakeWs(id: string) {
+/** `person`: the socket was opened by the studio page (server.ts stamps it; security review M5). */
+function fakeWs(id: string, person = true) {
   const frames: Frame[] = [];
   const ws = {
-    data: { id } as WsData,
+    data: { id, kind: 'acp', person } as WsData,
     send: (raw: string) => {
       frames.push(JSON.parse(raw));
     },
@@ -362,6 +363,25 @@ describe('a bridge-enforced agent starts only when connected at the version foun
 });
 
 describe('an unrestricted agent needs this project consent', () => {
+  // Security review 2026-11-12 (defender M5): consent rides only a socket the person's page opened.
+  test('consent:true from a socket no person opened is not recorded', async () => {
+    setScript();
+    const acp = makeAcp();
+    const h = fakeWs('w-helper', false);
+    try {
+      acp.onOpen(h.ws);
+      acp.onMessage(
+        h.ws,
+        JSON.stringify({ t: 'attach', chat: 'u0', agent: 'gemini', consent: true })
+      );
+      const refused = await until(() => errors(h.frames)[0]);
+      expect(refused).toMatchObject({ code: 'agent-needs-consent', chat: 'u0' });
+      expect(hasAgentConsent({ projectRoot: repo, file: consentFile }, 'gemini')).toBe(false);
+    } finally {
+      acp.stopAll();
+    }
+  });
+
   test('no consent → agent-needs-consent, nothing spawned; read-only consent ignored; consent:true records it', async () => {
     setScript();
     const ro = makeAcp(true);

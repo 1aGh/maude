@@ -80,12 +80,17 @@ async function call(
   specs: RouteSpec[],
   method: 'GET' | 'POST',
   path: string,
-  body?: unknown
+  body?: unknown,
+  person = true
 ): Promise<{ status: number; text: string; body: any }> {
   const url = `http://localhost:4399${path}`;
   const req = new Request(url, {
     method,
-    headers: { 'content-type': 'application/json' },
+    // the studio page sends Origin on a write (personRequest, security review M5); a helper does not
+    headers: {
+      'content-type': 'application/json',
+      ...(person ? { origin: 'http://localhost:4399', host: 'localhost:4399' } : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const pathname = new URL(url).pathname;
@@ -204,6 +209,28 @@ describe('own API key routes', () => {
     const off = await call(specs, 'GET', '/_api/agents');
     expect(agentRow(off.body, 'claude')).toMatchObject({ keySet: false, billing: null });
     expect(logged.join('\n')).not.toContain(FAKE_ANTHROPIC);
+  });
+
+  // Security review 2026-11-12 (defender M5): a loopback caller with no browser Origin (a helper,
+  // a key holder) is not the person.
+  test('key, key-remove, the Claude opt-in and connect are the person’s acts only', async () => {
+    const specs = routes();
+    for (const [path, body] of [
+      ['/_api/agents/codex/key', { key: FAKE_OPENAI }],
+      ['/_api/agents/claude/key', { key: FAKE_ANTHROPIC, optIn: true }],
+      ['/_api/agents/codex/key-remove', undefined],
+      ['/_api/agents/codex/connect', { consent: true }],
+    ] as const) {
+      const r = await call(specs, 'POST', path, body, false);
+      expect({ path, status: r.status, reason: r.body?.reason }).toEqual({
+        path,
+        status: 403,
+        reason: 'person-only',
+      });
+    }
+    const list = await call(specs, 'GET', '/_api/agents');
+    expect(agentRow(list.body, 'codex').keySet).toBe(false);
+    expect(agentRow(list.body, 'claude').keySet).toBe(false);
   });
 
   test('both key routes are main-origin writes refused in a read-only session', () => {

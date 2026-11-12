@@ -99,6 +99,9 @@ export type WsData =
       id: string;
       remote: string;
       kind: 'acp';
+      /** Security review 2026-11-12 (M5) — the person's own page opened it (server.ts): an agent
+       *  consent sent on this socket counts. Absent/false: a helper's socket, consent ignored. */
+      person?: boolean;
     };
 
 /**

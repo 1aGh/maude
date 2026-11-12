@@ -72,6 +72,7 @@ import {
   setChatKey,
   setClaudeApiKey,
 } from '../generation/keys.ts';
+import { personRequest } from '../shell/api-key.ts';
 import type { RouteSpec } from './table.ts';
 
 export type { AgentAuthState };
@@ -122,6 +123,14 @@ export interface AgentsRouteDeps {
 const noStore = { 'Cache-Control': 'no-store' };
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: noStore });
+
+/**
+ * Security review 2026-11-12 (defender M5) — connecting an agent, storing or removing a key and the
+ * Claude API-key opt-in are the person's acts, never a key-holding helper's: the same check spend
+ * approval uses (`personRequest`, shell/api-key.ts). Null = a person; else the 403 answer.
+ */
+const notPerson = (req: Request): Response | null =>
+  personRequest(req) ? null : json({ ok: false, reason: 'person-only' }, 403);
 
 const defaultClaude: NonNullable<AgentsRouteDeps['claude']> = {
   available: probeAcpAvailabilityAuthed,
@@ -312,6 +321,8 @@ export function createAgentsRoutes(deps: AgentsRouteDeps = {}): RouteSpec[] {
     write({
       path: '/_api/agents/:id/connect',
       handle: async (req, params) => {
+        const refused = notPerson(req);
+        if (refused) return refused;
         const t = await target(params);
         if (t instanceof Response) return t;
         const { d, row } = t;
@@ -423,6 +434,8 @@ export function createAgentsRoutes(deps: AgentsRouteDeps = {}): RouteSpec[] {
     write({
       path: '/_api/agents/:id/key',
       handle: async (req, params) => {
+        const refused = notPerson(req);
+        if (refused) return refused;
         const d = lookup(params.id ?? '');
         if (!d) return json({ ok: false, reason: 'unknown-agent' }, 404);
         if (!acceptsChatKey(d)) return json({ ok: false, reason: 'no-api-key' }, 409);
@@ -445,7 +458,9 @@ export function createAgentsRoutes(deps: AgentsRouteDeps = {}): RouteSpec[] {
 
     write({
       path: '/_api/agents/:id/key-remove',
-      handle: async (_req, params) => {
+      handle: async (req, params) => {
+        const refused = notPerson(req);
+        if (refused) return refused;
         const d = lookup(params.id ?? '');
         if (!d) return json({ ok: false, reason: 'unknown-agent' }, 404);
         if (!acceptsChatKey(d)) return json({ ok: false, reason: 'no-api-key' }, 409);

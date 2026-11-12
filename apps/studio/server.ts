@@ -70,10 +70,12 @@ import { runStageHooks } from './routes/index.ts';
 import { bindShellRuntime, shellPendingWork } from './routes/shell.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import {
+  apiKeyRequired,
   bootApiKey,
   LAUNCH_PARAM,
   mainOriginKeyRefusal,
   mintLaunchToken,
+  requestCredential,
   terminalKeylessForSplitOff,
   terminalKeyMode,
 } from './shell/api-key.ts';
@@ -739,6 +741,13 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
             id: crypto.randomUUID(),
             remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
             kind: 'acp',
+            // Security review 2026-11-12 (M5) — an agent consent on this socket counts only when
+            // the person's page opened it: a browser always sends Origin on a WS handshake (the
+            // same-origin check above vouched for it), and with the API key on, only the session
+            // cookie (never the header key a helper holds) is the person — as `personRequest`.
+            person:
+              !!req.headers.get('origin') &&
+              (!apiKeyRequired() || requestCredential(req) === 'session'),
           },
         });
         if (ok) return undefined as unknown as Response;
