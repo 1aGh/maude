@@ -445,7 +445,7 @@ describe('POST /_api/agents/:id/connect', () => {
     expect(store.read().connected).toEqual({});
   });
 
-  test('the default conformance passes a bridge-enforced agent and fails anything else', async () => {
+  test('the default conformance is the real probe: no pass without one, never for an unrestricted agent', async () => {
     writeFileSync(SIGNED, '');
     const specs = createAgentsRoutes({
       discover: async () => rows,
@@ -453,11 +453,13 @@ describe('POST /_api/agents/:id/connect', () => {
       store,
       claude: claudeFake,
     });
-    expect((await call(specs, 'POST', '/_api/agents/custom:fakecode/connect', {})).body.ok).toBe(
-      true
-    );
+    // F6b: a bridge-enforced agent the probe has no profile for is not judged conformant (the
+    // earlier default passed every bridge-enforced agent unprobed).
+    const fake = await call(specs, 'POST', '/_api/agents/custom:fakecode/connect', {});
+    expect(fake.body).toMatchObject({ ok: false, reason: 'conformance-failed' });
     const r = await call(specs, 'POST', '/_api/agents/custom:risky/connect', { consent: true });
     expect(r.body).toMatchObject({ ok: false, reason: 'conformance-failed' });
+    expect(store.read().connected).toEqual({});
   });
 
   test('an unrestricted agent is refused without consent, and only with consent: true', async () => {

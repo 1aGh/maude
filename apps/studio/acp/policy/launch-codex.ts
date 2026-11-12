@@ -164,21 +164,28 @@ export function codexConfig(ctx: PolicyCtx, host: LaunchHost = currentHost()) {
     permissions: {
       maude: { extends: ':workspace', filesystem: codexFilesystem(ctx, host) },
     },
-    // B0 open question 3: the person's own MCP servers and hooks (~/.codex/config.toml) would start
-    // OUTSIDE the sandbox. MEASURED by the F6 conformance probe (0.154 / 0.165 / 0.166): these empty
-    // tables MERGE with config.toml's, they do not replace it — an MCP server planted in a scratch
-    // CODEX_HOME still started, and so did it with `mcp_servers.<name>.enabled = false` here (the
-    // session config arrives after app-server startup). Kept as a no-op marker; the real fix is open
-    // (contract note, "F6 conformance results"). Hooks were not probed.
+    // B0 open question 3: these empty tables MERGE with the config.toml Codex reads (measured, F6),
+    // so they are not what keeps the person's MCP servers and hooks off: the Maude-owned CODEX_HOME is
+    // (codex-home.ts, F6b). Kept so a server the session config could add stays empty.
     mcp_servers: {},
     hooks: {},
     shell_environment_policy: CODEX_SHELL_ENV_POLICY,
   };
 }
 
-export function codexLaunchPolicy(ctx: PolicyCtx, host: LaunchHost = currentHost()): LaunchPolicy {
+/**
+ * `codexHome` (F6b): the Maude-owned CODEX_HOME (`ensureMaudeCodexHome`, codex-home.ts) — never the
+ * person's, whose config.toml / hooks.json would start their MCP servers and hooks outside the
+ * sandbox. Omitted only by the pure tests of the profile itself.
+ */
+export function codexLaunchPolicy(
+  ctx: PolicyCtx,
+  host: LaunchHost = currentHost(),
+  codexHome?: string
+): LaunchPolicy {
   return {
     env: {
+      ...(codexHome ? { CODEX_HOME: absPath(codexHome, 'codexHome') } : {}),
       CODEX_PATH: absPath(ctx.agentBin, 'agentBin'),
       INITIAL_AGENT_MODE: 'workspace-write',
       CODEX_CONFIG: JSON.stringify(codexConfig(ctx, host)),

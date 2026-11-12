@@ -13,15 +13,16 @@
 //   launch-codex.ts).
 // - The block is repeated at `agent.build.permission` and `agent.plan.permission` (B0 open q. 6): an
 //   agent-level block in the person's global config may beat the global one.
-// - `mcp:{}` + `plugin:[]` (open q. 3): the person's own MCP servers and plugins would run outside
-//   every gate. MEASURED by the F6 conformance probe (1.18.30): `mcp:{}` MERGES with the global
-//   opencode.json, it does not replace it — a planted MCP server still started. Open (contract note,
-//   "F6 conformance results"); plugins were not probed.
+// - The person's own MCP servers and plugins (open q. 3) would run outside every gate. `mcp:{}` MERGES
+//   with the global opencode.json (measured, F6), so F6b names each of the person's servers
+//   `enabled:false` (opencode-user-config.ts reads them at spawn), and OPENCODE_PURE=1 skips every
+//   external plugin, config-listed or in a plugin folder (measured, F6b).
 //
 // Pure: no file system, no process.
 
 import type { LaunchPolicy, PolicyCtx } from '../agents/descriptor.ts';
 import { absPath, inside, rootPath } from './launch-codex.ts';
+import { disabledMcp, type PersonOpencodeConfig } from './opencode-user-config.ts';
 
 /**
  * B0 open question 2: `external_directory` as a path map that re-allows the read roots.
@@ -47,6 +48,9 @@ export const OPENCODE_FLAGS: Readonly<Record<string, string>> = Object.freeze({
   OPENCODE_DISABLE_AUTOUPDATE: '1',
   OPENCODE_DISABLE_SHARE: '1',
   OPENCODE_DISABLE_LSP_DOWNLOAD: '1',
+  // F6b — no external plugins at all (config `plugin` entries and plugin folders): a plugin is code
+  // that runs inside opencode's own process, outside every Maude gate.
+  OPENCODE_PURE: '1',
 });
 
 type Rule = 'allow' | 'ask' | 'deny';
@@ -89,25 +93,33 @@ export function opencodePermission(
   } as const;
 }
 
-export function opencodeConfig(ctx: PolicyCtx, useMap: boolean = OPENCODE_EXTERNAL_DIRECTORY_MAP) {
+/** The person's config as far as the launch policy needs it: which MCP servers to switch off. */
+export type OpencodePerson = Pick<PersonOpencodeConfig, 'mcpNames'>;
+
+export function opencodeConfig(
+  ctx: PolicyCtx,
+  useMap: boolean = OPENCODE_EXTERNAL_DIRECTORY_MAP,
+  person: OpencodePerson = { mcpNames: [] }
+) {
   absPath(ctx.scopeRoot, 'scopeRoot');
   for (const w of ctx.writeRoots) absPath(w, 'write root');
   const permission = opencodePermission(ctx, useMap);
   return {
     permission,
     agent: { build: { permission }, plan: { permission } },
-    mcp: {},
+    mcp: disabledMcp(person.mcpNames),
     plugin: [],
   };
 }
 
 export function opencodeLaunchPolicy(
   ctx: PolicyCtx,
-  useMap: boolean = OPENCODE_EXTERNAL_DIRECTORY_MAP
+  useMap: boolean = OPENCODE_EXTERNAL_DIRECTORY_MAP,
+  person: OpencodePerson = { mcpNames: [] }
 ): LaunchPolicy {
   return {
     env: {
-      OPENCODE_CONFIG_CONTENT: JSON.stringify(opencodeConfig(ctx, useMap)),
+      OPENCODE_CONFIG_CONTENT: JSON.stringify(opencodeConfig(ctx, useMap, person)),
       ...OPENCODE_FLAGS,
     },
   };

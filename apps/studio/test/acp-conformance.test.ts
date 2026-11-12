@@ -10,6 +10,7 @@ import { join } from 'node:path';
 
 import {
   conversationOf,
+  createConnectConformance,
   OPENCODE_PROFILE,
   type ProbeProfile,
   runConformance,
@@ -20,7 +21,10 @@ const FAKE = join(import.meta.dir, 'fixtures', 'acp-conformance', 'fake-agent.mj
 const base = mkdtempSync(join(tmpdir(), 'acp-conformance-test-'));
 afterAll(() => rmSync(base, { recursive: true, force: true }));
 
-function fakeDescriptor(mode: 'obey' | 'violate'): AgentDescriptor {
+function fakeDescriptor(
+  mode: 'obey' | 'violate',
+  leak: { mcp?: boolean; hooks?: boolean } = {}
+): AgentDescriptor {
   return {
     id: 'custom:fake',
     label: 'Fake',
@@ -44,7 +48,8 @@ function fakeDescriptor(mode: 'obey' | 'violate'): AgentDescriptor {
           FAKE_POLICY: JSON.stringify({
             readRoots: ctx.readRoots,
             writeRoots: ctx.writeRoots,
-            mcp: mode === 'obey' ? 'off' : 'on',
+            mcp: mode === 'obey' && !leak.mcp ? 'off' : 'on',
+            hooks: mode === 'obey' && !leak.hooks ? 'off' : 'on',
           }),
         },
       }),
@@ -64,11 +69,16 @@ const FAKE_PROFILE: ProbeProfile = {
   plantUserConfig(w, _baseUrl, command) {
     mkdirSync(join(w.home, '.fake-agent'), { recursive: true });
     writeFileSync(join(w.home, '.fake-agent', 'mcp.json'), JSON.stringify({ canary: { command } }));
+    writeFileSync(
+      join(w.home, '.fake-agent', 'hooks.json'),
+      JSON.stringify([['/bin/sh', '-c', `touch '${w.hookMarker}-fake'`]])
+    );
   },
+  refusals: undefined,
 };
 
-const run = (mode: 'obey' | 'violate') =>
-  runConformance(fakeDescriptor(mode), process.execPath, {
+const run = (mode: 'obey' | 'violate', leak: { mcp?: boolean; hooks?: boolean } = {}) =>
+  runConformance(fakeDescriptor(mode, leak), process.execPath, {
     profile: FAKE_PROFILE,
     scratchBase: base,
     agentVersion: '1.0.0',
@@ -94,6 +104,8 @@ describe('runConformance against fake agents', () => {
       'subagent-secret-read',
       'web-tool-absent',
       'user-mcp-ignored',
+      'user-hooks-ignored',
+      'auth-read',
       'no-client-fs-terminal',
       'tripwire-silent',
     ]) {
@@ -115,12 +127,44 @@ describe('runConformance against fake agents', () => {
       'subagent-secret-read',
       'web-tool-absent',
       'user-mcp-ignored',
+      'user-hooks-ignored',
+      'auth-read',
     ]) {
       expect(failed.has(n as never)).toBe(true);
     }
     // What it did not break stays green: the probe is not failing everything wholesale.
     expect(failed.has('project-read')).toBe(false);
     expect(failed.has('project-write')).toBe(false);
+  }, 60_000);
+
+  // F6b — an agent that obeys every boundary but starts the person's own MCP server (or runs their
+  // hook) fails the probe on exactly that check.
+  test('an obeying agent that starts a user MCP server fails user-mcp-ignored only', async () => {
+    const r = await run('obey', { mcp: true });
+    expect(r.pass).toBe(false);
+    expect(r.checks.filter((c) => !c.ok).map((c) => c.name)).toEqual(['user-mcp-ignored']);
+  }, 60_000);
+
+  test('an obeying agent that runs a user hook fails user-hooks-ignored only', async () => {
+    const r = await run('obey', { hooks: true });
+    expect(r.pass).toBe(false);
+    expect(r.checks.filter((c) => !c.ok).map((c) => c.name)).toEqual(['user-hooks-ignored']);
+  }, 60_000);
+
+  test('a refusal the launch policy does not make fails user-hooks-ignored', async () => {
+    const d = fakeDescriptor('obey');
+    const r = await runConformance(d, process.execPath, {
+      profile: {
+        ...FAKE_PROFILE,
+        refusals: [{ name: 'a planted plugin', plant: () => () => {} }],
+      },
+      scratchBase: base,
+      agentVersion: '1.0.0',
+      timeoutMs: 45_000,
+    });
+    const hooks = r.checks.find((c) => c.name === 'user-hooks-ignored');
+    expect(hooks?.ok).toBe(false);
+    expect(hooks?.detail).toContain('did NOT refuse: a planted plugin');
   }, 60_000);
 
   test('the scratch world is removed afterwards', () => {
@@ -164,5 +208,69 @@ describe('conversationOf', () => {
       { kind: 'user', text: 'hi' },
       { kind: 'tool', text: 'out' },
     ]);
+  });
+});
+
+describe('createConnectConformance (Settings › Connect, F6b)', () => {
+  const ok = { pass: true, checks: [], agentVersion: '1.0.0' };
+  const bad = {
+    pass: false,
+    checks: [
+      { name: 'secret-read' as const, ok: false, detail: '' },
+      { name: 'project-read' as const, ok: true, detail: '' },
+    ],
+    agentVersion: '1.0.0',
+  };
+  const enforced = { ...fakeDescriptor('obey'), policy: 'bridge-enforced' as const };
+
+  test('runs the probe once per binary and caches only a pass', async () => {
+    let calls = 0;
+    let answer: typeof ok | typeof bad = bad;
+    const check = createConnectConformance(async () => {
+      calls++;
+      return answer;
+    });
+    const r1 = await check(enforced, process.execPath);
+    expect(r1.pass).toBe(false);
+    expect(r1.detail).toContain('secret-read');
+    expect(r1.detail).not.toContain('project-read');
+    answer = ok;
+    expect((await check(enforced, process.execPath)).pass).toBe(true);
+    expect((await check(enforced, process.execPath)).pass).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  test('never passes an agent that is not bridge-enforced, and never probes it', async () => {
+    let calls = 0;
+    const check = createConnectConformance(async () => {
+      calls++;
+      return ok;
+    });
+    expect((await check(fakeDescriptor('obey'), process.execPath)).pass).toBe(false);
+    expect(calls).toBe(0);
+  });
+
+  test("opencode is refused up front when the person's config has a plugin", async () => {
+    const home = join(base, 'person-home');
+    mkdirSync(join(home, '.config', 'opencode', 'plugins'), { recursive: true });
+    writeFileSync(join(home, '.config', 'opencode', 'plugins', 'x.ts'), 'export {}');
+    let calls = 0;
+    const check = createConnectConformance(
+      async () => {
+        calls++;
+        return ok;
+      },
+      { HOME: home }
+    );
+    const r = await check({ ...enforced, id: 'opencode' }, process.execPath);
+    rmSync(home, { recursive: true, force: true });
+    expect(r.pass).toBe(false);
+    expect(r.detail).toContain('plugin');
+    expect(calls).toBe(0);
+  });
+
+  test('a binary that is not there does not pass', async () => {
+    const check = createConnectConformance(async () => ok);
+    expect((await check(enforced, join(base, 'no-such-bin'))).pass).toBe(false);
   });
 });

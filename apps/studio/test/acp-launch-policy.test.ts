@@ -1,17 +1,20 @@
 // F4 (B3) — the agent-native launch policies Maude writes per session for Codex and opencode.
 // Contract: .ai/plans/notes/universal-acp-contract.md § "Launch policies" + DDR-252.
-import { describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test } from 'bun:test';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
-import { CODEX, OPENCODE, isOfferable } from '../acp/agents/catalog.ts';
+import { CODEX, isOfferable, OPENCODE } from '../acp/agents/catalog.ts';
 import type { PolicyCtx } from '../acp/agents/descriptor.ts';
-import { RUNTIME_STATE_DIRS } from '../sync/file-membership.ts';
 import { codexLaunchPolicy, runtimeStateDirs, userTrees } from '../acp/policy/launch-codex.ts';
 import {
+  externalDirectory,
   OPENCODE_EXTERNAL_DIRECTORY_MAP,
   OPENCODE_FLAGS,
-  externalDirectory,
   opencodeLaunchPolicy,
 } from '../acp/policy/launch-opencode.ts';
+import { RUNTIME_STATE_DIRS } from '../sync/file-membership.ts';
 
 const HOME = '/Users/u';
 const MAC = { platform: 'darwin' as const, home: HOME };
@@ -272,11 +275,17 @@ describe('opencode launch policy', () => {
 });
 
 describe('catalog wiring', () => {
-  test('codex and opencode carry enforcement and stay non-offerable (unrestricted until probed)', () => {
+  // F6b: the catalog's launch policies read the agent's own home/config from `hostEnv`; a scratch
+  // HOME keeps this test off the real ~/.codex and ~/.config/opencode.
+  const scratch = mkdtempSync(join(tmpdir(), 'acp-launch-policy-'));
+  afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+  const wired = () => ctx({ hostEnv: { HOME: scratch, XDG_CONFIG_HOME: join(scratch, 'xdg') } });
+
+  test('opencode passed the conformance probe in full (F6b) and is bridge-enforced; Codex is not yet', () => {
     expect(CODEX.policy).toBe('unrestricted');
-    expect(OPENCODE.policy).toBe('unrestricted');
+    expect(OPENCODE.policy).toBe('bridge-enforced');
     expect(isOfferable(CODEX)).toBe(false);
-    expect(isOfferable(OPENCODE)).toBe(false);
+    expect(isOfferable(OPENCODE)).toBe(true);
 
     const cx = CODEX.enforcement;
     const oc = OPENCODE.enforcement;
@@ -294,7 +303,10 @@ describe('catalog wiring', () => {
     expect(cx.targetKeys).toContain('path');
     expect(oc.targetKeys).toContain('filePath');
 
-    expect(cx.launchPolicy(ctx()).env.INITIAL_AGENT_MODE).toBe('workspace-write');
-    expect(oc.launchPolicy(ctx()).env.OPENCODE_DISABLE_PROJECT_CONFIG).toBe('1');
+    expect(cx.launchPolicy(wired()).env.INITIAL_AGENT_MODE).toBe('workspace-write');
+    expect(cx.launchPolicy(wired()).env.CODEX_HOME).toBe(
+      join(scratch, '.config', 'maude', 'agents', 'codex-home')
+    );
+    expect(oc.launchPolicy(wired()).env.OPENCODE_DISABLE_PROJECT_CONFIG).toBe('1');
   });
 });

@@ -74,6 +74,12 @@ export interface PolicyCtx {
   designRoots: readonly string[];
   /** The discovered real binary of the agent (realpath). */
   agentBin: string;
+  /**
+   * F6b — the env the agent's OWN home and config are found from (HOME, CODEX_HOME,
+   * XDG_CONFIG_HOME, OPENCODE_CONFIG, MAUDE_PROFILE_ID …). Default `process.env` (the bridge); the
+   * conformance probe passes its scratch world so a probe never touches the person's real files.
+   */
+  hostEnv?: Readonly<Record<string, string | undefined>>;
 }
 
 export interface LaunchPolicy {

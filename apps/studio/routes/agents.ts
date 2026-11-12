@@ -48,6 +48,7 @@ import {
 } from '../acp/agents/auth.ts';
 import { agentById, CATALOG } from '../acp/agents/catalog.ts';
 import { acceptsChatKey } from '../acp/agents/chat-key.ts';
+import { createConnectConformance } from '../acp/agents/conformance.ts';
 import type { AgentDescriptor, AgentId } from '../acp/agents/descriptor.ts';
 import {
   type DiscoveredAgent,
@@ -75,7 +76,7 @@ import type { RouteSpec } from './table.ts';
 
 export type { AgentAuthState };
 
-/** The conformance probe's answer (acp/agents/conformance.ts, another worker's, wired later). */
+/** The conformance probe's answer (acp/agents/conformance.ts `createConnectConformance`). */
 export interface ConformanceResult {
   pass: boolean;
   /** A short, human sentence for the Connect step when it fails. */
@@ -90,8 +91,8 @@ export interface AgentsRouteDeps {
   /** The connected / dismissed store; defaults to this profile's `agents.json`, opened lazily. */
   store?: AgentStateStore;
   /**
-   * The conformance probe a connect must pass. Default: bridge-enforced passes, anything else does
-   * not: the real probe (acp/agents/conformance.ts) replaces it when it is wired.
+   * The conformance probe a connect must pass. Default: the real probe for a bridge-enforced agent
+   * (`createConnectConformance`); anything else does not pass.
    */
   conformance?: (d: AgentDescriptor, realBin: string) => Promise<ConformanceResult>;
   authStatus?: (d: AgentDescriptor, realBin: string) => Promise<AgentAuthState>;
@@ -138,9 +139,16 @@ const defaultKeys: NonNullable<AgentsRouteDeps['keys']> = {
   clearClaude: () => clearClaudeApiKey(),
 };
 
-const defaultConformance = async (d: AgentDescriptor): Promise<ConformanceResult> => ({
-  pass: d.policy === 'bridge-enforced',
-});
+/**
+ * F6b — the real probe (acp/agents/conformance.ts): a bridge-enforced agent connects only when it
+ * stays inside Maude's limits in a scratch world, and not at all when the person's own config makes
+ * Maude refuse it (opencode plugins). Cached per binary for the server run. Tests inject a fake.
+ */
+let lazyConformance: ReturnType<typeof createConnectConformance> | undefined;
+const defaultConformance = (d: AgentDescriptor, realBin: string): Promise<ConformanceResult> => {
+  if (!lazyConformance) lazyConformance = createConnectConformance();
+  return lazyConformance(d, realBin);
+};
 
 /** The Settings word for a row (the plan's list: Connected · Sign in · Untested version · Unavailable). */
 export function agentListState(args: {

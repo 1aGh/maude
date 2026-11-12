@@ -4,12 +4,18 @@
 //
 // Policy status (DDR-252):
 //   claude    claude-meta      today's path, unchanged
-//   codex     bridge-enforced  once its launch policy + conformance probe land (F4/F6); until then
-//   opencode  bridge-enforced  'unrestricted' so nothing offers it
+//   codex     'unrestricted'   until the conformance probe passes in full (F6b: runtime-state write
+//                              still allowed by its Seatbelt profile under codex-acp's mode)
+//   opencode  bridge-enforced  probe passed in full on 1.18.30 (F6b)
 //   gemini, copilot, goose, cursor: 'unrestricted' until their own probe passes (B8)
 
-import { codexLaunchPolicy } from '../policy/launch-codex.ts';
-import { opencodeLaunchPolicy } from '../policy/launch-opencode.ts';
+import { ensureMaudeCodexHome, refuseProjectCodexConfig } from '../policy/codex-home.ts';
+import { codexLaunchPolicy, currentHost } from '../policy/launch-codex.ts';
+import {
+  OPENCODE_EXTERNAL_DIRECTORY_MAP,
+  opencodeLaunchPolicy,
+} from '../policy/launch-opencode.ts';
+import { readPersonOpencodeConfig } from '../policy/opencode-user-config.ts';
 import { type AgentDescriptor, type AgentId, assertDescriptor } from './descriptor.ts';
 
 const SEMVER = /(\d+\.\d+\.\d+)/;
@@ -75,12 +81,24 @@ export const CODEX: AgentDescriptor = assertDescriptor({
   },
   envAllow: [],
   // Enforcement is wired (F4) but the policy stays 'unrestricted' until the conformance probe (F6,
-  // acp/agents/conformance.ts) passes every check: nothing offers Codex before then. Failing on
-  // 2026-11-12: a write into `.design/_state/` is allowed by the Seatbelt profile, and the person's
-  // own MCP servers (~/.codex/config.toml) still start — `mcp_servers: {}` merges, it does not replace.
+  // acp/agents/conformance.ts) passes every check: nothing offers Codex before then. F6b fixed the
+  // person's MCP servers / hooks (a Maude-owned CODEX_HOME) and refuses a project `.codex/`; still
+  // failing on 0.154 / 0.165 / 0.166 (2026-11-12): a write into `.design/_state/`. A runtime folder
+  // marked `read` inside the `write` scope does not stop writes under codex-acp's workspace-write
+  // mode (it does under `codex sandbox`); `none` does, and passes every check (contract note, F6b).
   policy: 'unrestricted',
   enforcement: {
-    launchPolicy: (ctx) => codexLaunchPolicy(ctx),
+    // F6b — a Maude-owned CODEX_HOME (made or repaired here, at every spawn; a failure stops the
+    // spawn): the person's config.toml / hooks.json never load, only their sign-in is shared. A
+    // project `.codex/` (which codex-acp makes a trusted layer) stops the spawn.
+    launchPolicy: (ctx) => {
+      refuseProjectCodexConfig(ctx.scopeRoot);
+      return codexLaunchPolicy(
+        ctx,
+        currentHost(),
+        ensureMaudeCodexHome(ctx.hostEnv ?? process.env)
+      );
+    },
     readGate: 'os-sandbox',
     shellGate: 'os-sandbox',
     pinMode: { modeId: 'workspace-write', refuse: ['agent', 'agent-full-access'] },
@@ -104,12 +122,20 @@ export const OPENCODE: AgentDescriptor = assertDescriptor({
   launch: { kind: 'native-acp', args: ['acp'] },
   auth: { gate: 'none', loginArgs: ['auth', 'login'] },
   envAllow: [],
-  // As Codex: enforcement wired (F4), 'unrestricted' until the conformance probe (F6) passes every
-  // check. Failing on 2026-11-12 (1.18.30, project outside git and its own git repo): the person's own
-  // MCP servers (global opencode.json) still start — `mcp: {}` merges, it does not replace.
-  policy: 'unrestricted',
+  // F6b (2026-11-12): the conformance probe passed every check on 1.18.30, project outside git and
+  // its own git repo, with the person's MCP servers named off and plugins / tools / a project
+  // `.opencode` refused at spawn (contract note, "F6b"). Re-run the probe before raising testedMax.
+  policy: 'bridge-enforced',
   enforcement: {
-    launchPolicy: (ctx) => opencodeLaunchPolicy(ctx),
+    // F6b — each of the person's MCP servers named off (read at every spawn); a config that cannot
+    // be read, a plugin or tool, or a `.opencode` folder in or above the project stops the spawn
+    // (opencode imports that code whatever its flags say).
+    launchPolicy: (ctx) =>
+      opencodeLaunchPolicy(
+        ctx,
+        OPENCODE_EXTERNAL_DIRECTORY_MAP,
+        readPersonOpencodeConfig(ctx.hostEnv ?? process.env, ctx.scopeRoot)
+      ),
     readGate: 'agent-permission-engine',
     shellGate: 'command-text',
     rejectEndsTurn: false,

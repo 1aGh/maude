@@ -22,6 +22,15 @@ describe('agent catalog', () => {
     }
   });
 
+  test('F6b: opencode passed the conformance probe and is offerable; Codex is not yet', () => {
+    expect(CATALOG.filter(isOfferable).map((d) => d.id)).toEqual(['opencode']);
+    expect(agentById('opencode')?.detect).toMatchObject({
+      minVersion: '1.18.30',
+      testedMax: '1.18.99',
+    });
+    expect(agentById('codex')?.policy).toBe('unrestricted');
+  });
+
   test('a bridge-enforced descriptor without enforcement fails at load', () => {
     expect(() =>
       assertDescriptor({ ...CLAUDE, id: 'codex', policy: 'bridge-enforced', plugins: 'none' })

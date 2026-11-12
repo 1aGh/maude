@@ -65,6 +65,7 @@
             "Read(/<TMP>/home/Library/Application Support/com.maude.app/home/**)",
             "Read(/<TMP>/home/Library/Application Support/com.maude.app/servers.json)",
             "Read(/<TMP>/home/Library/Application Support/com.maude.app/cli.sock)",
+            "Read(/<TMP>/home/.codex/auth.json)",
             "Read(/<TMP>/home/cloud.json)"
           ],
           "plugins": [

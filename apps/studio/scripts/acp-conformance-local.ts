@@ -9,12 +9,20 @@
 //       [--frames <dir>]          write every frame + model request per run
 //       [--keep]                  keep the scratch worlds
 //       [--json]                  print the raw results
+//       [--control]               POSITIVE CONTROL: undo the F6b isolation after the launch policy
+//                                 (Codex: the person's own CODEX_HOME back; opencode: no MCP
+//                                 disables, no OPENCODE_PURE) to show the planted MCP server and
+//                                 hooks/plugins really run when nothing stops them. Expect FAILs.
 
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { agentById } from '../acp/agents/catalog.ts';
-import { type ConformanceResult, runConformance } from '../acp/agents/conformance.ts';
+import {
+  type ConformanceOptions,
+  type ConformanceResult,
+  runConformance,
+} from '../acp/agents/conformance.ts';
 import { discoverAgents } from '../acp/agents/discover.ts';
 
 const argv = process.argv.slice(2);
@@ -28,6 +36,16 @@ const wanted = ids.length ? ids : ['codex', 'opencode'];
 const gitModes =
   (flag('--git') ?? 'both') === 'both' ? ['none', 'project'] : [flag('--git') as string];
 const frames = flag('--frames');
+const control: ConformanceOptions['extraEnv'] = argv.includes('--control')
+  ? (w, env): Record<string, string> => {
+      if (env.OPENCODE_CONFIG_CONTENT) {
+        const cfg = JSON.parse(env.OPENCODE_CONFIG_CONTENT);
+        cfg.mcp = {};
+        return { OPENCODE_CONFIG_CONTENT: JSON.stringify(cfg), OPENCODE_PURE: '0' };
+      }
+      return { CODEX_HOME: w.codexHome };
+    }
+  : undefined;
 if (frames) mkdirSync(frames, { recursive: true });
 
 const rows = await discoverAgents({ force: true });
@@ -43,12 +61,13 @@ for (const id of wanted) {
   }
   const modes = id === 'opencode' ? gitModes : ['none'];
   for (const git of modes) {
-    const label = `${id} ${git === 'project' ? '(project is a git repo)' : '(no git)'}`;
+    const label = `${id} ${git === 'project' ? '(project is a git repo)' : '(no git)'}${control ? ' [CONTROL: isolation undone]' : ''}`;
     const t = Date.now();
     const result = await runConformance(d, bin, {
       git: git as 'none' | 'project',
       keepScratch: argv.includes('--keep'),
       framesLog: frames ? join(frames, `${id}-${git}.ndjson`) : undefined,
+      extraEnv: control,
     });
     results.push({ label, result });
     console.log(

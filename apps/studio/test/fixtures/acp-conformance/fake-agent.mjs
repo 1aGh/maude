@@ -4,7 +4,8 @@
 // the tool calls it is handed, either OBEYING its launch policy (FAKE_POLICY: read only inside the
 // read roots, ask before every write and shell call, never start the user's MCP servers) or
 // VIOLATING it (reads anything, writes and runs without asking, offers a web tool, starts the MCP
-// server planted in its user config). No network beyond the loopback model, no real binaries.
+// server and runs the hooks planted in its user config). FAKE_POLICY.mcp / .hooks = 'on' make an
+// otherwise obeying agent start just that one. No network beyond the loopback model, no real binaries.
 
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -30,6 +31,11 @@ if ((mode === 'violate' || policy.mcp !== 'off') && existsSync(mcpFile)) {
   for (const s of Object.values(JSON.parse(readFileSync(mcpFile, 'utf8')))) {
     spawn(s.command[0], s.command.slice(1), { stdio: 'ignore', detached: true }).unref();
   }
+}
+// …and the person's own hooks (F6b), run at start like Codex's SessionStart hook.
+const hooksFile = join(process.env.HOME ?? '/nonexistent', '.fake-agent', 'hooks.json');
+if ((mode === 'violate' || policy.hooks !== 'off') && existsSync(hooksFile)) {
+  for (const h of JSON.parse(readFileSync(hooksFile, 'utf8'))) spawnSync(h[0], h.slice(1));
 }
 
 const TOOLS = ['read', 'write', 'bash', 'task', ...(mode === 'violate' ? ['websearch'] : [])];

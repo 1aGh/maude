@@ -416,6 +416,17 @@ export function credentialPathsFor(
       if (real !== abs) files.add(real);
     }
   }
+  // F6b — the person's Codex sign-in (`$CODEX_HOME/auth.json`, default ~/.codex). The Studio chat's
+  // Codex reads it through a link in Maude's own Codex home (acp/policy/codex-home.ts, itself under
+  // the `.config/maude` folder above), in its own process; no agent's tool call reads it.
+  const codexHome =
+    env.CODEX_HOME && isAbsolute(env.CODEX_HOME) ? resolve(env.CODEX_HOME) : join(home, '.codex');
+  {
+    const abs = join(codexHome, 'auth.json');
+    files.add(abs);
+    const real = resolveRealPath(abs, abs);
+    if (real !== abs) files.add(real);
+  }
   // B7 — a custom key-store path (generation/keys.ts) holds media AND chat keys: denied like the
   // profile's own credential files when it sits outside the folders above.
   for (const k of ['MAUDE_CLOUD_CONFIG', 'HUBS_CONFIG_PATH', 'MAUDE_GEN_KEYS_PATH']) {
