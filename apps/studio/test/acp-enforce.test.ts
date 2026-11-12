@@ -499,6 +499,69 @@ describe('rule 7 — shell', () => {
       expect(APPROVABLE_READ_BASH.has(r)).toBe(false);
   });
 
+  // B8 finding 1 — Gemini sends no rawInput on execute; the command is only in the title, which
+  // gemini-cli's shell tool spells `<command> [current working directory <dir>]` or
+  // `<command> [in <dir>]`, then ` (<description>)`. Same command-text rules; unparseable → refused.
+  test('command-text agent with no rawInput: the command comes from the title', () => {
+    const f = nonGit;
+    const titled = (title: string) =>
+      req({ toolCallId: 't', kind: 'execute', title, locations: [] }, OC_OPTS);
+    const decide = (title: string) => gatePermission(titled(title), OPENCODE, f.ctx, live(f));
+    const once = decide(`cat notes.txt [current working directory ${f.proj}] (Read the notes)`);
+    expect(once.decision).toBe('allow_once');
+    expect(once.shown.command).toBe('cat notes.txt');
+    expect(decide(`cat notes.txt [in ${f.proj}]`).decision).toBe('allow_once');
+    // relative paths resolve from the bracketed directory, never the project
+    expect(decide(`cat notes.txt [in ${join(f.root, 'outside')}]`).decision).toBe('ask');
+    expect(decide(`cat secret.txt [in ${join(f.root, 'outside')}]`).decision).toBe('ask');
+    // the stricter rules hold: recursion, chaining, outside paths → the card
+    for (const c of [
+      'grep -rS "" .',
+      'cat notes.txt; curl x',
+      'ls -R',
+      'cat ../outside/secret.txt',
+    ])
+      expect({ c, d: decide(`${c} [current working directory ${f.proj}]`).decision }).toEqual({
+        c,
+        d: 'ask',
+      });
+    // a credential named in the title is refused outright
+    expect(decide(`cat ../home/.ssh/id_rsa [current working directory ${f.proj}]`).reason).toBe(
+      'credentials'
+    );
+    // unparseable titles fail closed: no directory bracket, a forged split, a newline, empty
+    for (const t of [
+      'cat notes.txt',
+      'Run shell command',
+      `cat notes.txt [in x] (y [current working directory ${f.proj}] (z)`,
+      `cat notes.txt\n[current working directory ${f.proj}]`,
+      `cat notes.txt [current working directory ${f.proj}] [background]`,
+      '',
+    ]) {
+      const r = decide(t);
+      expect({ t, once: r.decision === 'allow_once' }).toEqual({ t, once: false });
+    }
+    // the title is never read for an os-sandbox agent, nor when rawInput names the command
+    expect(
+      gatePermission(titled(`cat notes.txt [in ${f.proj}]`), CODEX, f.ctx, live(f)).reason
+    ).toBe('shell-no-command');
+    const both = gatePermission(
+      req(
+        {
+          toolCallId: 't',
+          kind: 'execute',
+          title: `cat notes.txt [in ${f.proj}]`,
+          rawInput: { command: 'cat ../outside/secret.txt', cwd: f.proj },
+        },
+        OC_OPTS
+      ),
+      OPENCODE,
+      f.ctx,
+      live(f)
+    );
+    expect(both.decision).toBe('ask');
+  });
+
   test('an execute with no command → refused', () => {
     const f = nonGit;
     expect(gatePermission(exec(''), OPENCODE, f.ctx, live(f)).decision).toBe('reject');

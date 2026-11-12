@@ -142,13 +142,41 @@ function commandOf(raw: Record<string, unknown>): string {
 }
 
 /**
+ * B8 finding 1 — Gemini sends an `execute` with no `rawInput`: the command is only in `title`, which
+ * gemini-cli's shell tool builds as `<command>` + ` [in <dir>]` or ` [current working directory
+ * <dir>]` + an optional ` (<description>)`. Returns the command and its directory, or null when the
+ * title is not exactly that shape (the caller then has no command: refused, fail closed).
+ *
+ * The split is the first ` [in ` / ` [current working directory ` that leaves a well-formed tail;
+ * a description that itself carries a directory bracket is refused, so a command spelled to look
+ * like a shorter one (`cat x [in y] (z …`) never parses. A bracket, paren or newline left in the
+ * command makes `plainWords` refuse it afterwards, so a mis-split can only reach the card.
+ */
+const TITLE_RE =
+  /^(?<command>[^\n\r]+?) \[(?:in (?<inDir>[^\]\n\r]+)|current working directory (?<cwdDir>[^\]\n\r]+))\](?: \((?<desc>[^\n\r]*)\))?$/;
+
+export function commandFromTitle(title: unknown): { command: string; dir: string } | null {
+  if (typeof title !== 'string' || !title) return null;
+  const m = TITLE_RE.exec(title);
+  const g = m?.groups;
+  if (!g?.command) return null;
+  const dir = g.inDir ?? g.cwdDir;
+  if (!dir) return null;
+  if (g.desc !== undefined && /\[(?:in |current working directory )/.test(g.desc)) return null;
+  const command = g.command.trim();
+  return command ? { command, dir } : null;
+}
+
+/**
  * Rule 2: `kind`; targets = `locations[].path` ∪ `rawInput[targetKeys]` (∪ `rawInput.cwd` in `paths`);
  * command = `rawInput.command` (a string, or an argv joined with spaces); relative paths resolve from
- * the request's own cwd (spelled through agent-path.ts), else from the session's scope root.
+ * the request's own cwd (spelled through agent-path.ts), else from the session's scope root. A
+ * `command-text` agent's `execute` with no `rawInput.command` takes it from `title`
+ * (`commandFromTitle`, Gemini), with the title's directory as the cwd.
  */
 export function normaliseRequest(
   req: Pick<RequestPermissionRequest, 'toolCall'> | null | undefined,
-  enforcement: Pick<Enforcement, 'targetKeys'>,
+  enforcement: Pick<Enforcement, 'targetKeys'> & Partial<Pick<Enforcement, 'shellGate'>>,
   ctx: Pick<PolicyCtx, 'scopeRoot'>,
   home: string = process.env.HOME || homedir()
 ): NormalisedRequest {
@@ -165,7 +193,20 @@ export function normaliseRequest(
   }
   const raw = obj(toolCall.rawInput) ?? {};
   const targets = pathsOf(toolCall, enforcement.targetKeys);
-  const rawCwd = typeof raw.cwd === 'string' && raw.cwd ? raw.cwd : null;
+  let command = commandOf(raw);
+  let rawCwd = typeof raw.cwd === 'string' && raw.cwd ? raw.cwd : null;
+  if (
+    !command &&
+    toolCall.kind === 'execute' &&
+    enforcement.shellGate === 'command-text' &&
+    !(typeof raw.command === 'string' || Array.isArray(raw.command))
+  ) {
+    const fromTitle = commandFromTitle(toolCall.title);
+    if (fromTitle) {
+      command = fromTitle.command;
+      rawCwd = fromTitle.dir;
+    }
+  }
   const spelledCwd = rawCwd ? agentPath(rawCwd, ctx.scopeRoot, home) : null;
   const url = raw.url;
   return {
@@ -174,7 +215,7 @@ export function normaliseRequest(
     kind: typeof toolCall.kind === 'string' ? toolCall.kind : undefined,
     targets,
     paths: rawCwd ? [...targets, rawCwd] : targets,
-    command: commandOf(raw),
+    command,
     cwd: spelledCwd?.abs ?? ctx.scopeRoot,
     webShaped: typeof url === 'string' && /^\s*https?:/i.test(url),
   };
@@ -484,6 +525,11 @@ export function tripwire(
   if (raw) {
     const command = commandOf(raw);
     if (command) seen.command = command;
+  }
+  // B8 — Gemini names its shell command only in the title
+  if (!seen.command && enforcement.shellGate === 'command-text') {
+    const fromTitle = commandFromTitle(u.title);
+    if (fromTitle) seen.command = fromTitle.command;
   }
   for (const p of pathsOf(u, enforcement.targetKeys))
     if (!seen.paths.includes(p)) seen.paths.push(p);
