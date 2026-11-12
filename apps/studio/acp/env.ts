@@ -89,8 +89,14 @@ const SHELL_SECRET_RE = /^MAUDE_(TOKEN|SHELL|HOME)_/i;
  * included, loses them: a Codex key in the person's shell must not ride into Gemini, and none of
  * them into Claude. An agent that needs one names it in its descriptor's `envAllow` — the only
  * keys `envAllow` can bring back (ANTHROPIC_* and Maude's own secrets never come back).
+ *
+ * Security review 2026-11-12 (defender M7): every `OPENCODE_*` and `CODEX_*` too, not only their
+ * keys. opencode reads `OPENCODE_PERMISSION` / `OPENCODE_CONFIG` / `OPENCODE_CONFIG_DIR` and Codex
+ * `CODEX_HOME` / `CODEX_CONFIG` from its env, so an inherited one could override Maude's launch
+ * policy. The launch policy adds back exactly the ones it sets (spawn.ts passes its keys as the
+ * allow list).
  */
-const AGENT_SECRET_RE = /^(OPENAI_|GEMINI_|COPILOT_)/i;
+const AGENT_SECRET_RE = /^(OPENAI_|GEMINI_|COPILOT_|OPENCODE_|CODEX_)/i;
 const AGENT_SECRET_KEYS: ReadonlySet<string> = new Set([
   'CODEX_API_KEY',
   'GOOGLE_API_KEY',

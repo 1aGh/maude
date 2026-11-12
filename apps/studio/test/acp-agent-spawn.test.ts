@@ -20,7 +20,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-import { CLAUDE } from '../acp/agents/catalog.ts';
+import { CLAUDE, OPENCODE } from '../acp/agents/catalog.ts';
 import type { AgentDescriptor, PolicyCtx } from '../acp/agents/descriptor.ts';
 import { agentSpawn } from '../acp/agents/spawn.ts';
 import {
@@ -32,6 +32,7 @@ import {
 } from '../acp/bridge.ts';
 import { scrubAgentEnv } from '../acp/env.ts';
 import type { AiMay } from '../acp/may-scope.ts';
+import { opencodeLaunchPolicy } from '../acp/policy/launch-opencode.ts';
 import { DEV_SERVER_ROOT } from '../paths.ts';
 
 const FIXTURE = join(import.meta.dir, 'fixtures', 'mock-acp-agent-spawn.mjs');
@@ -374,6 +375,55 @@ describe('(c) the agent env: shared scrub, envAllow, launch policy, actor env', 
     // web off rides the spawn env (no _meta channel); teams are Claude's only
     expect(env.MAUDE_NO_EGRESS).toBe('1');
     expect(env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS).toBeUndefined();
+  });
+
+  // Security review 2026-11-12 (defender M7): opencode reads OPENCODE_PERMISSION / OPENCODE_CONFIG*
+  // from its env and they may override Maude's launch policy; codex reads CODEX_HOME / CODEX_CONFIG.
+  test('inherited OPENCODE_* / CODEX_* never reach the agent; only the launch policy sets them', () => {
+    const inherited = {
+      PATH: '/bin',
+      OPENCODE_PERMISSION: '{"bash":"allow","edit":"allow"}',
+      OPENCODE_CONFIG: '/evil/opencode.json',
+      OPENCODE_CONFIG_DIR: '/evil',
+      OPENCODE_DISABLE_PROJECT_CONFIG: '0',
+      OPENCODE_PURE: '0',
+      CODEX_HOME: '/evil/codex',
+      CODEX_CONFIG: '{"sandbox_mode":"danger-full-access"}',
+    };
+    const d: AgentDescriptor = {
+      ...OPENCODE,
+      enforcement: {
+        ...(OPENCODE.enforcement as NonNullable<AgentDescriptor['enforcement']>),
+        launchPolicy: (ctx) => opencodeLaunchPolicy(ctx),
+      },
+    };
+    const out = agentSpawn({
+      descriptor: d,
+      scrubbed: scrubAgentEnv(inherited, d.envAllow),
+      agentBin: '/opt/opencode',
+      policyCtx: {
+        scopeRoot: '/p',
+        readRoots: ['/p'],
+        writeRoots: ['/p'],
+        credentialPaths: { dirs: [], files: [] },
+        may: { assets: true, web: true },
+        designRoots: ['/p/.design'],
+        agentBin: '/opt/opencode',
+      },
+      actor: { sessionRoot: '/p', readRoots: ['/p'] },
+      teams: false,
+      delimiter: ':',
+      chatKeyEnv: {},
+    });
+    for (const k of ['OPENCODE_PERMISSION', 'OPENCODE_CONFIG', 'OPENCODE_CONFIG_DIR', 'CODEX_HOME'])
+      expect([k, k in out.env]).toEqual([k, false]);
+    expect(out.env.CODEX_CONFIG).toBeUndefined();
+    expect(out.env.OPENCODE_DISABLE_PROJECT_CONFIG).toBe('1');
+    expect(out.env.OPENCODE_PURE).toBe('1');
+    expect(JSON.parse(out.env.OPENCODE_CONFIG_CONTENT ?? '{}').permission.bash).toBe('ask');
+    // Claude loses them too (the shared scrub)
+    const claude = scrubAgentEnv(inherited, CLAUDE.envAllow);
+    expect(Object.keys(claude)).toEqual(['PATH']);
   });
 
   test('agentSpawn (pure): an adapter-js agent gets its binary in agentBinEnv and runs the adapter', () => {

@@ -28,6 +28,14 @@ import type { AgentDescriptor } from './descriptor.ts';
  */
 const vendorCwd = (): string => tmpdir();
 
+/**
+ * The shared scrub drops every `CODEX_*` (defender M7), but the person's own sign-in lives in THEIR
+ * `CODEX_HOME`: the vendor's status and sign-in commands keep it (the chat's Codex finds it from the
+ * person's env too, codex-home.ts). Nothing else comes back.
+ */
+const vendorEnvAllow = (d: AgentDescriptor): string[] =>
+  d.id === 'codex' ? [...d.envAllow, 'CODEX_HOME'] : [...d.envAllow];
+
 export type AgentAuthState = 'signed-in' | 'signed-out' | 'not-needed' | 'unknown';
 
 export const AUTH_STATUS_TIMEOUT_MS = 5000;
@@ -88,7 +96,7 @@ export async function agentAuthStatus(
   try {
     proc = Bun.spawn([realBin, ...d.auth.statusArgs], {
       cwd: vendorCwd(),
-      env: scrubAgentEnv(opts.env ?? process.env, d.envAllow),
+      env: scrubAgentEnv(opts.env ?? process.env, vendorEnvAllow(d)),
       windowsHide: true,
       stdin: 'ignore',
       stdout: 'pipe',
@@ -185,7 +193,7 @@ export function startAgentSignin(
   try {
     const child = Bun.spawn([realBin, ...d.auth.loginArgs], {
       cwd: vendorCwd(),
-      env: scrubAgentEnv(opts.env ?? process.env, d.envAllow),
+      env: scrubAgentEnv(opts.env ?? process.env, vendorEnvAllow(d)),
       windowsHide: true,
       stdin: 'ignore',
       // the vendor's progress text is not Maude's to read or keep
