@@ -1,0 +1,223 @@
+// F4 (B3) — the agent-native launch policies Maude writes per session for Codex and opencode.
+// Contract: .ai/plans/notes/universal-acp-contract.md § "Launch policies" + DDR-252.
+import { describe, expect, test } from 'bun:test';
+
+import { CODEX, OPENCODE, isOfferable } from '../acp/agents/catalog.ts';
+import type { PolicyCtx } from '../acp/agents/descriptor.ts';
+import { codexLaunchPolicy, userTrees } from '../acp/policy/launch-codex.ts';
+import {
+  OPENCODE_EXTERNAL_DIRECTORY_MAP,
+  OPENCODE_FLAGS,
+  opencodeLaunchPolicy,
+} from '../acp/policy/launch-opencode.ts';
+
+const HOME = '/Users/u';
+const MAC = { platform: 'darwin' as const, home: HOME };
+const LINUX = { platform: 'linux' as const, home: '/home/u' };
+
+function ctx(over: Partial<PolicyCtx> = {}): PolicyCtx {
+  return {
+    scopeRoot: '/Users/u/git/proj',
+    readRoots: [
+      '/Users/u/git/proj',
+      '/Users/u/git/proj/.design',
+      '/Applications/Maude.app/Contents/Resources',
+      '/var/folders/x/T/maude-chat-501/abc/default',
+    ],
+    writeRoots: ['/Users/u/git/proj', '/var/folders/x/T/maude-chat-501/abc/default'],
+    credentialPaths: {
+      dirs: ['/Users/u/.config/maude', '/Users/u/.ssh', '/Users/u/git/proj/.secrets'],
+      files: ['/Users/u/Library/Application Support/com.maude.app/servers.json'],
+    },
+    may: { assets: true, web: false },
+    designRoots: ['/Users/u/git/proj/.design'],
+    agentBin: '/Users/u/.local/bin/codex',
+    ...over,
+  };
+}
+
+type CodexCfg = {
+  web_search: string;
+  default_permissions: string;
+  permissions: { maude: { extends: string; filesystem: Record<string, string> } };
+  mcp_servers: Record<string, unknown>;
+  hooks: Record<string, unknown>;
+};
+const codexCfg = (c: PolicyCtx, host = MAC): CodexCfg =>
+  JSON.parse(codexLaunchPolicy(c, host).env.CODEX_CONFIG ?? 'null');
+
+describe('codex launch policy', () => {
+  test('env: the discovered binary, workspace-write mode, a JSON config', () => {
+    const env = codexLaunchPolicy(ctx(), MAC).env;
+    expect(env.CODEX_PATH).toBe('/Users/u/.local/bin/codex');
+    expect(env.INITIAL_AGENT_MODE).toBe('workspace-write');
+    expect(Object.keys(env).sort()).toEqual(['CODEX_CONFIG', 'CODEX_PATH', 'INITIAL_AGENT_MODE']);
+  });
+
+  test('profile maude extends :workspace and is the default; web search off; own mcp/hooks emptied', () => {
+    const cfg = codexCfg(ctx());
+    expect(cfg.default_permissions).toBe('maude');
+    expect(cfg.permissions.maude.extends).toBe(':workspace');
+    expect(cfg.web_search).toBe('disabled');
+    expect(cfg.mcp_servers).toEqual({});
+    expect(cfg.hooks).toEqual({});
+  });
+
+  test('may.web on does not widen it: web search stays disabled', () => {
+    const cfg = codexCfg(ctx({ may: { assets: true, web: true } }));
+    expect(cfg.web_search).toBe('disabled');
+    expect(cfg.permissions.maude.extends).toBe(':workspace');
+  });
+
+  test('filesystem: user trees none, read roots read, write roots write, credentials none', () => {
+    const fs = codexCfg(ctx()).permissions.maude.filesystem;
+    expect(fs).toEqual({
+      '/Users': 'none',
+      '/Volumes': 'none',
+      '/Users/u/git/proj': 'write',
+      '/Users/u/git/proj/.design': 'read',
+      '/Applications/Maude.app/Contents/Resources': 'read',
+      '/var/folders/x/T/maude-chat-501/abc/default': 'write',
+      '/Users/u/.config/maude': 'none',
+      '/Users/u/.ssh': 'none',
+      '/Users/u/git/proj/.secrets': 'none',
+      '/Users/u/Library/Application Support/com.maude.app/servers.json': 'none',
+    });
+  });
+
+  test('the scope root is writable even when writeRoots omits it', () => {
+    const fs = codexCfg(ctx({ writeRoots: [] })).permissions.maude.filesystem;
+    expect(fs['/Users/u/git/proj']).toBe('write');
+    expect(fs['/var/folders/x/T/maude-chat-501/abc/default']).toBe('read');
+  });
+
+  test('a root inside a credential store is dropped (it would out-rank the deny)', () => {
+    const fs = codexCfg(
+      ctx({ readRoots: ['/Users/u/git/proj', '/Users/u/.ssh/keys'], writeRoots: ['/Users/u/.ssh'] })
+    ).permissions.maude.filesystem;
+    expect(fs['/Users/u/.ssh/keys']).toBeUndefined();
+    expect(fs['/Users/u/.ssh']).toBe('none');
+  });
+
+  test('paths are normalised', () => {
+    const fs = codexCfg(ctx({ readRoots: ['/Users/u/git/proj/', '/Users/u/git/other/../lib'] }))
+      .permissions.maude.filesystem;
+    expect(fs['/Users/u/git/lib']).toBe('read');
+    expect(Object.keys(fs).every((k) => !k.endsWith('/') && !k.includes('..'))).toBe(true);
+  });
+
+  test('a relative root, scope or binary throws', () => {
+    expect(() => codexLaunchPolicy(ctx({ readRoots: ['proj'] }), MAC)).toThrow(/absolute/);
+    expect(() => codexLaunchPolicy(ctx({ writeRoots: ['./proj'] }), MAC)).toThrow(/absolute/);
+    expect(() => codexLaunchPolicy(ctx({ scopeRoot: 'proj' }), MAC)).toThrow(/absolute/);
+    expect(() => codexLaunchPolicy(ctx({ agentBin: 'codex' }), MAC)).toThrow(/absolute/);
+    expect(() =>
+      codexLaunchPolicy(ctx({ credentialPaths: { dirs: ['.ssh'], files: [] } }), MAC)
+    ).toThrow(/absolute/);
+  });
+
+  test('the disk root as a read or write root throws (it would cancel every deny)', () => {
+    expect(() => codexLaunchPolicy(ctx({ readRoots: ['/'] }), MAC)).toThrow(/disk root/);
+  });
+
+  test('user trees are derived per platform and from the home folder', () => {
+    expect(userTrees(MAC)).toEqual(['/Users', '/Volumes']);
+    expect(userTrees(LINUX)).toEqual(['/home']);
+    expect(userTrees({ platform: 'linux', home: '/srv/people/u' })).toEqual([
+      '/home',
+      '/srv/people',
+    ]);
+    // a home directly under / (root's /root): deny the home itself, never the disk root
+    expect(userTrees({ platform: 'linux', home: '/root' })).toEqual(['/home', '/root']);
+  });
+});
+
+type OcPerm = Record<string, unknown>;
+type OcCfg = {
+  permission: OcPerm;
+  agent: { build: { permission: OcPerm }; plan: { permission: OcPerm } };
+  mcp: Record<string, unknown>;
+};
+const ocCfg = (c: PolicyCtx): OcCfg =>
+  JSON.parse(opencodeLaunchPolicy(c).env.OPENCODE_CONFIG_CONTENT ?? 'null');
+
+describe('opencode launch policy', () => {
+  test('permission block: read allow, edit/bash ask, web tools denied, outside dirs denied', () => {
+    const p = ocCfg(ctx()).permission;
+    expect(p.read).toBe('allow');
+    expect(p.edit).toBe('ask');
+    expect(p.bash).toBe('ask');
+    expect(p.webfetch).toBe('deny');
+    expect(p.websearch).toBe('deny');
+    if (OPENCODE_EXTERNAL_DIRECTORY_MAP) {
+      const ext = p.external_directory as Record<string, string>;
+      expect(Object.keys(ext)[0]).toBe('*');
+      expect(ext['*']).toBe('deny');
+    } else {
+      expect(p.external_directory).toBe('deny');
+    }
+  });
+
+  test('the same block at the global, agent.build and agent.plan levels', () => {
+    const cfg = ocCfg(ctx());
+    expect(cfg.agent.build.permission).toEqual(cfg.permission);
+    expect(cfg.agent.plan.permission).toEqual(cfg.permission);
+  });
+
+  test('web stays denied when may.web is on', () => {
+    const p = ocCfg(ctx({ may: { assets: true, web: true } })).permission;
+    expect(p.webfetch).toBe('deny');
+    expect(p.websearch).toBe('deny');
+  });
+
+  test('its own MCP servers are emptied', () => {
+    expect(ocCfg(ctx()).mcp).toEqual({});
+  });
+
+  test('flags: project config, Claude Code import, autoupdate, share and LSP download off', () => {
+    const env = opencodeLaunchPolicy(ctx()).env;
+    for (const k of [
+      'OPENCODE_DISABLE_PROJECT_CONFIG',
+      'OPENCODE_DISABLE_CLAUDE_CODE',
+      'OPENCODE_DISABLE_AUTOUPDATE',
+      'OPENCODE_DISABLE_SHARE',
+      'OPENCODE_DISABLE_LSP_DOWNLOAD',
+    ]) {
+      expect(env[k]).toBe('1');
+      expect(OPENCODE_FLAGS[k]).toBe('1');
+    }
+  });
+
+  test('a relative root throws', () => {
+    expect(() => opencodeLaunchPolicy(ctx({ readRoots: ['proj'] }))).toThrow(/absolute/);
+    expect(() => opencodeLaunchPolicy(ctx({ scopeRoot: 'proj' }))).toThrow(/absolute/);
+  });
+});
+
+describe('catalog wiring', () => {
+  test('codex and opencode carry enforcement and stay non-offerable (unrestricted until probed)', () => {
+    expect(CODEX.policy).toBe('unrestricted');
+    expect(OPENCODE.policy).toBe('unrestricted');
+    expect(isOfferable(CODEX)).toBe(false);
+    expect(isOfferable(OPENCODE)).toBe(false);
+
+    const cx = CODEX.enforcement;
+    const oc = OPENCODE.enforcement;
+    if (!cx || !oc) throw new Error('enforcement missing');
+    expect(cx.readGate).toBe('os-sandbox');
+    expect(cx.shellGate).toBe('os-sandbox');
+    expect(cx.pinMode).toEqual({
+      modeId: 'workspace-write',
+      refuse: ['agent', 'agent-full-access'],
+    });
+    expect(cx.rejectEndsTurn).toBe(true);
+    expect(oc.readGate).toBe('agent-permission-engine');
+    expect(oc.shellGate).toBe('command-text');
+    expect(oc.rejectEndsTurn).toBe(false);
+    expect(cx.targetKeys).toContain('path');
+    expect(oc.targetKeys).toContain('filePath');
+
+    expect(cx.launchPolicy(ctx()).env.INITIAL_AGENT_MODE).toBe('workspace-write');
+    expect(oc.launchPolicy(ctx()).env.OPENCODE_DISABLE_PROJECT_CONFIG).toBe('1');
+  });
+});

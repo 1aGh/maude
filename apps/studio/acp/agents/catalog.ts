@@ -8,9 +8,14 @@
 //   opencode  bridge-enforced  'unrestricted' so nothing offers it
 //   gemini, copilot, goose, cursor: 'unrestricted' until their own probe passes (B8)
 
+import { codexLaunchPolicy } from '../policy/launch-codex.ts';
+import { opencodeLaunchPolicy } from '../policy/launch-opencode.ts';
 import { assertDescriptor, type AgentDescriptor, type AgentId } from './descriptor.ts';
 
 const SEMVER = /(\d+\.\d+\.\d+)/;
+
+/** rawInput keys a request may carry a path in (B0 frames: opencode filePath/filepath/path). */
+const TARGET_KEYS = ['filePath', 'filepath', 'file_path', 'path', 'abs_path', 'paths'];
 
 export const CLAUDE: AgentDescriptor = assertDescriptor({
   id: 'claude',
@@ -66,7 +71,17 @@ export const CODEX: AgentDescriptor = assertDescriptor({
     apiKeyEnv: ['OPENAI_API_KEY'],
   },
   envAllow: [],
+  // Enforcement is wired (F4) but the policy stays 'unrestricted' until the conformance probe (F6)
+  // passes against it: nothing offers Codex before then.
   policy: 'unrestricted',
+  enforcement: {
+    launchPolicy: (ctx) => codexLaunchPolicy(ctx),
+    readGate: 'os-sandbox',
+    shellGate: 'os-sandbox',
+    pinMode: { modeId: 'workspace-write', refuse: ['agent', 'agent-full-access'] },
+    rejectEndsTurn: true,
+    targetKeys: TARGET_KEYS,
+  },
   plugins: 'harness:codex',
 });
 
@@ -84,7 +99,15 @@ export const OPENCODE: AgentDescriptor = assertDescriptor({
   launch: { kind: 'native-acp', args: ['acp'] },
   auth: { gate: 'none', loginArgs: ['auth', 'login'] },
   envAllow: [],
+  // As Codex: enforcement wired (F4), 'unrestricted' until the conformance probe (F6) passes.
   policy: 'unrestricted',
+  enforcement: {
+    launchPolicy: (ctx) => opencodeLaunchPolicy(ctx),
+    readGate: 'agent-permission-engine',
+    shellGate: 'command-text',
+    rejectEndsTurn: false,
+    targetKeys: TARGET_KEYS,
+  },
   plugins: 'harness:opencode',
   connectNote:
     'Without a provider of your own, opencode sends prompts to its free hosted model. Pick a provider in opencode first if that is not what you want.',
