@@ -34,6 +34,12 @@ export interface StudioBriefFacts {
    * only. (`/flow:*` is intentionally excluded from the chat for now — 2026-07-03.)
    */
   commandsAvailable?: boolean;
+  /**
+   * B4 (universal ACP) — the session runs an agent that is not Claude (Codex, opencode …). It has
+   * no `/design:*` slash commands; the brief tells it where Maude's commands come from instead.
+   * Implies `commandsAvailable: false`.
+   */
+  agentCli?: boolean;
 }
 
 /**
@@ -75,11 +81,12 @@ function safeFact(value: string, max: number): string {
 export function buildStudioBrief(facts: StudioBriefFacts): string {
   const dr = safeFact((facts.designRel || '.design').replace(/\/+$/, ''), 80) || '.design';
   const label = safeFact(facts.projectLabel || '', 80) || 'this project';
+  const commandsAvailable = facts.commandsAvailable === true && !facts.agentCli;
   // DDR-143 — on the native/desktop path the `/design:*` command family is loaded
   // in this session (auto-injected or already installed), so state that plainly
   // instead of leaving the agent to guess. On the web path stay with the plain
   // line. (`/flow:*` is intentionally left out of the chat for now — 2026-07-03.)
-  const slashCommands = facts.commandsAvailable
+  const slashCommands = commandsAvailable
     ? `For small, targeted changes edit the canvas file directly — the live canvas hot-reloads on save. The \`/design:*\` slash commands (edit, new, critic, screenshot, draw) are available in this session — no install needed; they run full multi-step workflows (dev-server checks, screenshots, critic passes), so reach for them only when the user explicitly asks for that depth. Runtime helpers: \`maude design <verb>\`.`
     : `For small, targeted changes edit the canvas file directly — the live canvas hot-reloads on save. The \`/design:*\` slash commands (edit, new, critic, screenshot, draw) run full multi-step workflows (dev-server checks, screenshots, critic passes); reach for them only when the user explicitly asks for that depth. Runtime helpers: \`maude design <verb>\`.`;
   // S12.3 — the studio's own verbs, named so the agent drives the product through
@@ -91,7 +98,7 @@ export function buildStudioBrief(facts: StudioBriefFacts): string {
   // "annotations"; `/design:board` is only the command's name (S12-slices D4).
   // The command claim rides only when it is in this session's catalogue
   // (commandsAvailable, DDR-143 plugin auto-load).
-  const annotationsFact = facts.commandsAvailable
+  const annotationsFact = commandsAvailable
     ? `Each canvas also has annotations — sticky notes, shapes, arrows, sections and Stickers drawn over the artboards. \`/design:board\` reads them, answers or adds to them, or lays a whole template out on the canvas (retro, kanban, content calendar, roadmap, brainstorm, checklist, user flow) from a plain request like "make me a sprint retro" or "vytvoř mi kanban".`
     : `Each canvas also has annotations — sticky notes, shapes, arrows, sections and Stickers drawn over the artboards.`;
   // S12.3 — capability facts the studio enforces (CONTRACT §7 One AI per
@@ -101,7 +108,7 @@ export function buildStudioBrief(facts: StudioBriefFacts): string {
   // S12.3 — the two skills that carry the studio's map and its voice (D13:
   // contract-voice is for the AI's own messages and Maude's own fields, not the
   // user's canvases). Only claimed where the plugin is loaded.
-  const skillsFact = facts.commandsAvailable
+  const skillsFact = commandsAvailable
     ? `The \`studio-actions\` skill maps every studio capability to its file or \`maude design\` verb. The \`contract-voice\` skill sets the words for your replies in the AI chat panel and for text written into Maude's own fields (comments, version names, chat titles) — not for the user's canvases.`
     : null;
   return [
@@ -112,6 +119,12 @@ export function buildStudioBrief(facts: StudioBriefFacts): string {
     annotationsFact,
     runFacts,
     ...(skillsFact ? [skillsFact] : []),
+    // B4 — a non-Claude agent has no slash commands and no plugin: its Maude commands are the CLI.
+    ...(facts.agentCli
+      ? [
+          `Maude commands come from the \`maude design <verb>\` CLI, run in your shell (\`maude design help\` lists them); the \`/design:*\` slash commands are not available to you.`,
+        ]
+      : []),
     // DDR-185 — a raw `curl` still pauses for approval every time. Since V2-2.8
     // S4, `curl-local` does too (only auto-tier `maude design <verb>` calls run
     // immediately — actions/verbs.ts); it still refuses non-loopback hosts. This

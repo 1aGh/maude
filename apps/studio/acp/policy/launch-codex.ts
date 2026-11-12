@@ -22,8 +22,9 @@
 // Pure: no file system, no process. The host (platform + home) is a parameter so tests stay exact.
 
 import { homedir } from 'node:os';
-import { dirname, isAbsolute, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
+import { RUNTIME_STATE_DIRS } from '../../sync/file-membership.ts';
 import type { LaunchPolicy, PolicyCtx } from '../agents/descriptor.ts';
 
 export type FsAccess = 'none' | 'read' | 'write';
@@ -78,6 +79,29 @@ export function userTrees(host: LaunchHost): string[] {
   return [...out];
 }
 
+/**
+ * B3 — each design root's runtime-state folders (the DDR-115 taxonomy, `RUNTIME_STATE_DIRS`:
+ * `_canvas-state`, `_state`, `_chat`, `_comments`, `_untrusted`, `_history`, `_trash`, `_draw`,
+ * `_smoke`, …), made READ-only inside the writable scope: Codex may read them (the brief says so)
+ * but never plant a chat transcript, a comment, a grant-adjacent state file or a history snapshot.
+ * Only the top-level folders of each design root are named; the bridge's write gate covers a
+ * deeper runtime path and the root-level runtime FILES (`_server.json`, `_active.json`, `_sync.json`
+ * …): a permission profile names paths, it cannot glob files, so those are not in the profile.
+ * A design root outside every write root is skipped: naming it `read` would widen what Codex reads.
+ */
+export function runtimeStateDirs(
+  designRoots: readonly string[],
+  writeRoots: readonly string[]
+): string[] {
+  const out = new Set<string>();
+  for (const d of designRoots) {
+    const root = absPath(d, 'design root');
+    if (!writeRoots.some((w) => inside(root, w))) continue;
+    for (const name of RUNTIME_STATE_DIRS) out.add(join(root, `_${name}`));
+  }
+  return [...out];
+}
+
 /** The `permissions.maude.filesystem` map (path → access), most specific path wins in Seatbelt. */
 export function codexFilesystem(
   ctx: PolicyCtx,
@@ -97,6 +121,11 @@ export function codexFilesystem(
   for (const t of userTrees(host)) fs.set(t, 'none');
   for (const r of reads) if (granted(r)) fs.set(r, 'read');
   for (const w of writes) if (granted(w)) fs.set(w, 'write');
+  // A runtime folder that IS a write root (none today: the chat scratch lives in the temp folder)
+  // stays writable; one that holds a deeper write root is read-only above it, writable below.
+  for (const r of runtimeStateDirs(ctx.designRoots, writes)) {
+    if (granted(r) && fs.get(r) !== 'write') fs.set(r, 'read');
+  }
   for (const c of creds) fs.set(c, 'none');
   return Object.fromEntries(fs);
 }

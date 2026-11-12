@@ -55,6 +55,11 @@ export interface ChatMeta {
   archived?: boolean;
   /** S5.7 — set while the chat is in the trash (ms since epoch). */
   trashedAt?: number;
+  /**
+   * B3 (universal ACP) — the agent this chat runs (`codex`, `opencode` …), recorded at its first
+   * attach and kept: a chat never switches agents. Absent → Claude (every chat before this).
+   */
+  agent?: string;
 }
 
 export interface ChatMessagePart {
@@ -84,6 +89,9 @@ function chatDir(designRoot: string): string {
   return join(designRoot, '_chat');
 }
 
+/** An agent id as the catalog spells one (`codex`, `custom:x`) — anything else is not an agent. */
+const AGENT_ID_RE = /^[a-z][a-z0-9-]{0,31}(?::[A-Za-z0-9_-]{1,64})?$/;
+
 function metaPath(designRoot: string, chatId: string): string {
   return join(chatDir(designRoot), `${chatId}.meta.json`);
 }
@@ -110,6 +118,7 @@ export function readChatMeta(designRoot: string, chatId: string): ChatMeta {
     if (typeof r.archived === 'boolean') meta.archived = r.archived;
     if (typeof r.trashedAt === 'number' && Number.isFinite(r.trashedAt))
       meta.trashedAt = r.trashedAt;
+    if (typeof r.agent === 'string' && AGENT_ID_RE.test(r.agent)) meta.agent = r.agent;
     return meta;
   } catch {
     return {};
@@ -190,6 +199,8 @@ export function writeChatMeta(
     canvas?: string | null;
     /** S5.18 (G5) — the artboards of its latest scoped ask (`null` clears). */
     artboards?: string[] | null;
+    /** B3 — the chat's agent (set once at first attach; a non-id is not stored). */
+    agent?: string;
   }
 ): ChatMeta {
   const dir = chatDir(designRoot);
@@ -213,6 +224,9 @@ export function writeChatMeta(
     const c = plainCanvasKey(patch.canvas);
     if (c) next.canvas = c;
     else delete next.canvas;
+  }
+  if ('agent' in patch && typeof patch.agent === 'string' && AGENT_ID_RE.test(patch.agent)) {
+    next.agent = patch.agent;
   }
   if ('artboards' in patch) {
     const a = plainArtboardIds(patch.artboards);

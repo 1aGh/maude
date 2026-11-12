@@ -22,6 +22,7 @@ import {
   ndJsonStream,
   PROTOCOL_VERSION,
   type PromptResponse,
+  RequestError,
   type RequestPermissionRequest,
   type RequestPermissionResponse,
   type SessionConfigOption,
@@ -80,7 +81,8 @@ import {
   readVerdict,
 } from './may-scope.ts';
 import { type SdkPluginConfig, suppressionFor } from './plugin-bootstrap.ts';
-import type { GateDecision, PermissionGate } from './policy/gate-types.ts';
+import { FORBIDDEN_METHOD_ERROR, type GateResult } from './policy/enforce.ts';
+import type { PermissionGate } from './policy/gate-types.ts';
 import {
   type AgentInfo,
   agentInfoOf,
@@ -117,11 +119,19 @@ export interface AcpBridgeOptions {
    */
   agentBin?: string;
   /**
-   * F3 → F5 — the bridge-enforced permission gate (acp/policy/enforce.ts). Called for every
-   * permission request of an agent whose policy is not 'claude-meta'. A 'bridge-enforced' agent
-   * with none refuses everything (fail closed).
+   * B3 — the permission gate of an agent that is not Claude (acp/policy/bridge-gate.ts over
+   * enforce.ts, contract rules 1–13). Every `session/request_permission` of such an agent goes
+   * through it and never reaches the Claude-shaped gates. A non-Claude agent with none is refused
+   * everything (fail closed).
    */
   permissionGate?: PermissionGate;
+  /**
+   * B3 rule 12 — the tripwire saw a completed tool call that broke the agent's launch policy. The
+   * bridge stops itself right after; the caller marks the agent unavailable and tells the panel.
+   */
+  onPolicyViolation?: (reason: string) => void;
+  /** B3 — a one-line note for the panel (a "AI may" restart that could not keep the session). */
+  onNote?: (note: { kind: string; message: string }) => void;
   /**
    * P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — the project's design root, whose `assets/` folder
    * "Use Assets and footage" covers (acp/may-scope.ts). Absent → `<repoRoot>/.design`.
@@ -332,26 +342,26 @@ export interface BridgeUsage {
   rateLimit?: unknown;
 }
 
-/** Flatten a `SessionConfigSelect.options` — a flat option array OR grouped
- *  (`SessionConfigSelectGroup[]`) — into one list of `{value,name}` leaves. */
 /**
- * F3 — a gate's no-card answer as the agent's response. `select` must name an offered option
- * (else `cancelled`); `refuse` takes the agent's `reject_once` when it offers one.
+ * B4 — the studio brief as the first block of a non-Claude agent's first prompt (no system-prompt
+ * channel). Marked as Maude's, so the agent does not read it as the person's words.
  */
-function gateResponse(
-  req: RequestPermissionRequest,
-  decision: Extract<GateDecision, { kind: 'select' | 'refuse' }>
-): RequestPermissionResponse {
-  const options = req.options ?? [];
-  const chosen =
-    decision.kind === 'select'
-      ? options.find((o) => o.optionId === decision.optionId)
-      : options.find((o) => o.kind === 'reject_once');
-  return {
-    outcome: chosen ? { outcome: 'selected', optionId: chosen.optionId } : { outcome: 'cancelled' },
-  };
+export function studioBriefPreamble(brief: string): string {
+  return `<maude-studio-brief>\nEnvironment facts from the Maude studio (not the person's message):\n${brief}\n</maude-studio-brief>`;
 }
 
+/**
+ * B3 — the Claude tool name an ACP `kind` stands for, for an agent that sends no name (the read
+ * tracker and the writer-verb hold know Claude's names). A kind not listed is tracked as nothing.
+ */
+const KIND_AS_TOOL_NAME: Readonly<Record<string, string>> = Object.freeze({
+  read: 'Read',
+  search: 'Grep',
+  execute: 'Bash',
+});
+
+/** Flatten a `SessionConfigSelect.options` — a flat option array OR grouped
+ *  (`SessionConfigSelectGroup[]`) — into one list of `{value,name}` leaves. */
 function flattenSelectOptions(options: unknown): Array<{ value: string; name?: string | null }> {
   const list = Array.isArray(options) ? options : [];
   const out: Array<{ value: string; name?: string | null }> = [];
@@ -1089,6 +1099,19 @@ export class AcpBridge {
    * handshake has answered — so a session may be established while `initialize` is in flight.
    */
   private canLoadSession: Promise<boolean> = Promise.resolve(false);
+  /**
+   * B4 — from `initialize`: the agent takes a client system prompt on session/new and session/load
+   * (`agentCapabilities.sessionCapabilities.systemPrompt`, codex-acp). Else the studio brief rides
+   * the first prompt of each new session as a preamble (`briefPending`). Claude never uses either:
+   * its brief rides `_meta` (newSessionParams).
+   */
+  private canSystemPrompt: Promise<boolean> = Promise.resolve(false);
+  /** B4 — new sessions whose first prompt still owes the studio-brief preamble. */
+  private readonly briefPending = new Set<string>();
+  /** B3 rule 13 — why the running turn ended on a Maude refusal ("Codex stopped: …"), if it did. */
+  private turnRefusal: string | null = null;
+  /** B3 rule 12 — the tripwire fired once; everything after is teardown. */
+  private violated = false;
 
   constructor(private readonly opts: AcpBridgeOptions) {
     this.agent = opts.agent ?? CLAUDE;
@@ -1162,6 +1185,21 @@ export class AcpBridge {
   /** F3 — which agent this bridge runs (the `caps` frame names it). */
   get agentInfo(): AgentInfo {
     return agentInfoOf(this.agent);
+  }
+
+  /**
+   * B3 — who an error came from, for a non-Claude agent ("Codex reported: …", with the vendor's
+   * status page). Null for Claude: its errors read as they always have.
+   */
+  get agentAttribution(): { id: string; label: string; vendor: string; statusUrl?: string } | null {
+    const d = this.agent;
+    if (d.policy === 'claude-meta') return null;
+    return {
+      id: d.id,
+      label: d.label,
+      vendor: d.vendor,
+      ...(d.statusUrl ? { statusUrl: d.statusUrl } : {}),
+    };
   }
 
   /** F3 (rule 10) — true when the descriptor refuses `modeId` (the panel says why). */
@@ -1413,7 +1451,11 @@ export class AcpBridge {
     if (inFlight) return inFlight;
 
     const promise = (
-      existing ? this.reestablishForMay(chatId, existing) : this.establishSession(chatId)
+      existing
+        ? this.agent.policy === 'claude-meta'
+          ? this.reestablishForMay(chatId, existing)
+          : this.restartForMay(chatId, existing)
+        : this.establishSession(chatId)
     ).finally(() => {
       this.sessionPromises.delete(chatId);
     });
@@ -1456,6 +1498,41 @@ export class AcpBridge {
     return this.establishSession(chatId, closed ? sessionId : null);
   }
 
+  /**
+   * B3 (F3 hand-back) — an agent that is not Claude carries the "AI may" switches in its LAUNCH
+   * policy (Codex's network/permission profile, opencode's permission block, MAUDE_NO_EGRESS): env
+   * at spawn, which no session call can change. A switch change therefore restarts the agent
+   * process with the new policy and resumes the chat's session through `loadSession` when the agent
+   * can; otherwise it starts a new session and says so in one line (the history stays in the chat).
+   * Only between turns (`sessionFor` never comes here under a running one).
+   */
+  private async restartForMay(chatId: string, sessionId: string): Promise<string> {
+    const proc = this.proc;
+    this.conn = null;
+    this.proc = null;
+    try {
+      proc?.kill();
+    } catch {
+      /* already gone */
+    }
+    this.denyAllPendingPermissions();
+    this.sessions.clear();
+    this.sessionMay.clear();
+    this.sessionGatedRules.clear();
+    this.briefPending.clear();
+    await this.ensureStarted();
+    const canLoad = await this.canLoadSession;
+    const next = await this.establishSession(chatId, canLoad ? sessionId : null);
+    if (next !== sessionId) {
+      await this.appendTranscript({ role: 'bootstrap', kind: 'may-restart-new-session' });
+      this.opts.onNote?.({
+        kind: 'may-restart-new-session',
+        message: `${this.agent.label} restarted with the new "AI may" settings in a new session: it no longer sees the earlier messages of this chat.`,
+      });
+    }
+    return next;
+  }
+
   /** `resume`: undefined → the id persisted for this chat; null → never resume (a fresh session). */
   private async establishSession(chatId: string, resume?: string | null): Promise<string> {
     if (!this.conn) throw new Error('ACP adapter not started');
@@ -1484,6 +1561,21 @@ export class AcpBridge {
         audienceGated: gated,
       }
     );
+    // B4 — a non-Claude agent that takes a client system prompt gets the studio brief there, on
+    // session/new and session/load alike (codex-acp: `systemPrompt: {mode, content}`).
+    const briefInPrompt =
+      this.agent.policy !== 'claude-meta' &&
+      !!this.opts.studioBrief &&
+      (await this.canSystemPrompt);
+    const sessionParams = briefInPrompt
+      ? {
+          ...params,
+          systemPrompt: {
+            mode: 'append',
+            content: [{ type: 'text', text: this.opts.studioBrief as string }],
+          },
+        }
+      : params;
     const persistedId = resume === undefined ? await this.readPersistedSessionId() : resume;
     let sessionId: string | undefined;
     let modes: SessionModeState | null | undefined;
@@ -1498,7 +1590,7 @@ export class AcpBridge {
       try {
         this.replaying = true;
         const result = await withTimeout(
-          this.conn.loadSession({ ...params, sessionId: persistedId }),
+          this.conn.loadSession({ ...sessionParams, sessionId: persistedId }),
           LOAD_SESSION_TIMEOUT_MS
         );
         if (result === TIMED_OUT) {
@@ -1520,8 +1612,12 @@ export class AcpBridge {
     }
 
     if (sessionId === undefined) {
-      const created = await this.conn.newSession(params);
+      const created = await this.conn.newSession(sessionParams);
       this.sessions.set(chatId, created.sessionId);
+      // B4 — otherwise the brief rides this new session's first prompt (a loaded one already has it).
+      if (this.agent.policy !== 'claude-meta' && this.opts.studioBrief && !briefInPrompt) {
+        this.briefPending.add(created.sessionId);
+      }
       await this.writePersistedSessionId(created.sessionId);
       sessionId = created.sessionId;
       modes = created.modes;
@@ -1668,22 +1764,160 @@ export class AcpBridge {
     });
   }
 
-  /**
-   * F3 → F5 — the bridge-enforced gate's answer for one request. 'unrestricted' (Advanced, the
-   * person consented) passes the request on unchanged; 'bridge-enforced' with no gate wired, or a
-   * gate that throws, refuses (fail closed).
-   */
-  private agentGateDecision(req: RequestPermissionRequest): GateDecision {
-    const gate = this.opts.permissionGate;
-    if (!gate) {
-      return this.agent.policy === 'bridge-enforced'
-        ? { kind: 'refuse', reason: 'no-gate' }
-        : { kind: 'ask', options: req.options ?? [] };
-    }
+  /** A getter the caller passes in, read now; a throw is `fallback` (each call site picks the safe side). */
+  private live<T>(get: (() => T) | undefined, fallback: T): T {
     try {
-      return gate({ req, descriptor: this.agent, ctx: this.policyCtx(this.opts.agentBin ?? '') });
+      return get ? get() : fallback;
     } catch {
-      return { kind: 'refuse', reason: 'gate-error' };
+      return fallback;
+    }
+  }
+
+  /**
+   * B3 — one `session/request_permission` of an agent that is not Claude, end to end, through the
+   * gate (acp/policy/gate-types.ts). It never falls through to the Claude-shaped gates below, which
+   * key on Claude tool names this agent does not send.
+   *   • refuse → the request's `reject_once` (else `cancelled`), no card; with `rejectEndsTurn` the
+   *     turn ends with the refusal notice (rule 13).
+   *   • allow  → granted once, after the audience hold (H1): a write is checked like Claude's
+   *     in-project write, a `maude design` writer verb like Claude's Bash one; a read carries
+   *     nothing anywhere and passes.
+   *   • ask    → the person's card with only `allow_once` / `reject_once` (rule 9); the answer goes
+   *     back through the gate, which remembers an approval for the tripwire.
+   * No gate wired, or a gate that throws → refused (fail closed).
+   */
+  private agentPermission(params: RequestPermissionRequest): Promise<RequestPermissionResponse> {
+    const gate = this.opts.permissionGate;
+    // The request names its call: the writer-verb hold below finds it by kind even when the agent
+    // streamed no tool_call first.
+    const tc = params.toolCall as { toolCallId?: unknown; kind?: unknown } | undefined;
+    if (typeof tc?.toolCallId === 'string' && !this.toolNames.has(tc.toolCallId)) {
+      this.rememberToolName({
+        sessionUpdate: 'tool_call',
+        toolCallId: tc.toolCallId,
+        kind: tc.kind,
+      } as unknown as SessionUpdate);
+    }
+    const refuse = (): Promise<RequestPermissionResponse> => {
+      const reject = (params.options ?? []).find((o) => o.kind === 'reject_once');
+      return Promise.resolve({
+        outcome: reject
+          ? { outcome: 'selected', optionId: reject.optionId }
+          : { outcome: 'cancelled' },
+      });
+    };
+    if (!gate) return refuse();
+    let result: GateResult;
+    try {
+      result = gate.decide({
+        req: params,
+        descriptor: this.agent,
+        ctx: this.policyCtx(this.opts.agentBin ?? ''),
+        state: {
+          stopped: this.stopped,
+          grantRoots: this.live(this.opts.readRoots, []),
+          // S8.10 — a scoped run: a getter that throws is a run scoped to nothing (fail closed);
+          // no getter at all is no run scope.
+          onlyPaths: this.opts.writeOnlyRoots
+            ? this.live<readonly string[] | null>(this.opts.writeOnlyRoots, [])
+            : null,
+        },
+      });
+    } catch {
+      return refuse();
+    }
+    if (result.decision === 'reject') {
+      this.noteRefusal(gate.refusalNotice(result));
+      return Promise.resolve(
+        result.optionId
+          ? { outcome: { outcome: 'selected', optionId: result.optionId } }
+          : { outcome: { outcome: 'cancelled' } }
+      );
+    }
+    const card = (info?: PermissionScopeInfo) =>
+      this.askPerson(
+        { ...params, options: result.strippedOptions },
+        { stripAlways: true, info }
+      ).then((res) => {
+        const answered = gate.answer(
+          result,
+          res.outcome.outcome === 'selected' ? res.outcome.optionId : null
+        );
+        if (!this.grants(answered, result)) this.noteRefusal(gate.cardRefusalNotice());
+        return answered;
+      });
+    if (result.decision === 'ask') {
+      return card(
+        result.reason === 'write-outside'
+          ? {
+              outOfProjectWrite: true,
+              resolvedPaths: result.shown.paths,
+              scopeRoot: this.scopeRoot,
+              reason: 'outside',
+            }
+          : undefined
+      );
+    }
+    // allow_once — the audience hold (H1) before it is granted
+    const auto: RequestPermissionResponse = {
+      outcome: { outcome: 'selected', optionId: result.optionId as string },
+    };
+    if (result.reason === 'write-inside') {
+      const targets = result.shown.paths.filter((p) => p !== result.shown.cwd);
+      // S5.10 — a folder AI may read is never a write path, whichever chat it is attached to.
+      // (no getter = no grants; a getter that throws = unknown → the card)
+      const readOnly = this.opts.readOnlyRoots ? this.live(this.opts.readOnlyRoots, null) : [];
+      if (
+        readOnly === null ||
+        targets.some((t) => readOnly.some((r) => t === r || isInsideRoot(t, r)))
+      ) {
+        return card({
+          outOfProjectWrite: true,
+          resolvedPaths: targets,
+          scopeRoot: this.scopeRoot,
+          reason: 'read-only-grant',
+        });
+      }
+      const held = this.audienceHold(targets);
+      if (!held) return Promise.resolve(auto);
+      return held.then((info) => {
+        if (this.stopped) return { outcome: { outcome: 'cancelled' } };
+        return info ? card(info) : auto;
+      });
+    }
+    if (result.reason === 'shell-auto-verb' || result.reason === 'shell-read-inside') {
+      const verb = this.writerVerbHold({ ...params, options: result.strippedOptions });
+      if (!verb) return Promise.resolve(auto);
+      return verb.then((res) => {
+        if (!this.grants(res, result)) this.noteRefusal(gate.cardRefusalNotice());
+        return res;
+      });
+    }
+    return Promise.resolve(auto);
+  }
+
+  /** True when `res` picked an `allow_once` option the gate offered. */
+  private grants(res: RequestPermissionResponse, result: GateResult): boolean {
+    if (res.outcome.outcome !== 'selected') return false;
+    const id = res.outcome.optionId;
+    return result.strippedOptions.some((o) => o.optionId === id && o.kind === 'allow_once');
+  }
+
+  /** B3 rule 13 — the first refusal of a turn is the one the panel names. */
+  private noteRefusal(notice: string | null): void {
+    if (notice && this.turnRefusal === null && this.pendingTurns.size > 0)
+      this.turnRefusal = notice;
+  }
+
+  /** B3 rule 12 — the launch policy did not hold: end the session, keep the frames, tell the caller. */
+  private policyViolated(reason: string): void {
+    if (this.violated) return;
+    this.violated = true;
+    console.error(`[acp-agent:${this.agent.id}] launch policy not enforced: ${reason}`);
+    try {
+      this.opts.onPolicyViolation?.(reason);
+    } finally {
+      void this.stop();
     }
   }
 
@@ -1805,12 +2039,29 @@ export class AcpBridge {
         // transcript and already rendered client-side, so forwarding/re-appending
         // it here would duplicate every message in the panel and the jsonl file.
         if (this.replaying) return;
+        // B3 rule 12 — the tripwire: a completed tool call that broke the launch policy ends the
+        // session. Evidence, never a gate (the permission request already went through the gate);
+        // the frame is still delivered and kept below. Not on replayed history: a resumed session's
+        // calls were judged when they ran, and approvals made then are not remembered now.
+        let violation: string | null = null;
+        if (this.agent.policy !== 'claude-meta' && !this.violated) {
+          try {
+            const v = this.opts.permissionGate?.observe(
+              u,
+              this.policyCtx(this.opts.agentBin ?? '')
+            );
+            if (v?.violated) violation = v.reason;
+          } catch {
+            /* an observer that throws proves nothing either way */
+          }
+        }
         // Claim the transcript line FIRST, then hand the same number to both
         // consumers. Deriving it separately in each would let them disagree,
         // which is exactly the desync the seam exists to prevent.
         const seq = ++this.transcriptLines;
         this.opts.onUpdate(u, seq);
         void this.appendTranscript({ role: 'agent', update: u }, seq);
+        if (violation) this.policyViolated(violation);
       },
       // V2-8.9 round B A1 — every way this resolves is reported (`onPermissionDecided`): a shell verb's
       // run-stage window reopens only on a grant.
@@ -1832,13 +2083,7 @@ export class AcpBridge {
           this.opts.onPermission?.(params);
           // F3 → F5 — an agent that is not Claude goes through the bridge-enforced gate first
           // (acp/policy/enforce.ts); the Claude-shaped gates below key on Claude tool names.
-          if (this.agent.policy !== 'claude-meta') {
-            const decision = this.agentGateDecision(params);
-            if (decision.kind === 'select' || decision.kind === 'refuse') {
-              return Promise.resolve(gateResponse(params, decision));
-            }
-            if (decision.kind === 'ask') params = { ...params, options: decision.options };
-          }
+          if (this.agent.policy !== 'claude-meta') return this.agentPermission(params);
           // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — an "AI may" switch the person turned off
           // refuses the call here, against the CURRENT state, with no card: the person already said no.
           // Before the write gate, so an off switch is never auto-approved as an in-project write.
@@ -1946,11 +2191,35 @@ export class AcpBridge {
       },
     };
 
+    // B3 rule 11 — a non-Claude agent is never offered file or terminal access (`fs:false`, no
+    // `terminal`), so one asking anyway is a protocol violation: a JSON-RPC error, logged. Claude's
+    // client is left exactly as it was.
+    if (this.agent.policy !== 'claude-meta') {
+      const forbidden = (method: string) => (): never => {
+        console.error(`[acp-agent:${this.agent.id}] refused ${method}: not offered to this agent`);
+        throw new RequestError(FORBIDDEN_METHOD_ERROR.code, FORBIDDEN_METHOD_ERROR.message, {
+          method,
+        });
+      };
+      Object.assign(client, {
+        readTextFile: forbidden('fs/read_text_file'),
+        writeTextFile: forbidden('fs/write_text_file'),
+        createTerminal: forbidden('terminal/create'),
+        terminalOutput: forbidden('terminal/output'),
+        releaseTerminal: forbidden('terminal/release'),
+        waitForTerminalExit: forbidden('terminal/wait_for_exit'),
+        killTerminal: forbidden('terminal/kill'),
+      });
+    }
     const conn = new ClientSideConnection(() => client, stream);
     this.conn = conn;
     let settleLoad: (can: boolean) => void = () => {};
     this.canLoadSession = new Promise<boolean>((r) => {
       settleLoad = r;
+    });
+    let settleSystemPrompt: (can: boolean) => void = () => {};
+    this.canSystemPrompt = new Promise<boolean>((r) => {
+      settleSystemPrompt = r;
     });
 
     // RCA-G1 — bound the handshake. If the spawned "adapter" is actually a
@@ -1984,10 +2253,12 @@ export class AcpBridge {
     ).catch((err: unknown) => {
       // A handshake that fails must not leave a session start waiting on the answer forever.
       settleLoad(false);
+      settleSystemPrompt(false);
       throw err;
     });
     if (initResult === TIMED_OUT) {
       settleLoad(false);
+      settleSystemPrompt(false);
       this.conn = null;
       try {
         proc.kill();
@@ -2004,6 +2275,11 @@ export class AcpBridge {
     }
     // F3 — resume only an agent that said it can (`loadSession`); others start a new session.
     settleLoad(initResult.agentCapabilities?.loadSession === true);
+    // B4 — `sessionCapabilities.systemPrompt` (an ACP draft codex-acp ships; not in this SDK's types).
+    const sessionCaps = (
+      initResult.agentCapabilities as { sessionCapabilities?: unknown } | undefined
+    )?.sessionCapabilities as { systemPrompt?: unknown } | null | undefined;
+    settleSystemPrompt(!!sessionCaps?.systemPrompt && typeof sessionCaps.systemPrompt === 'object');
     // Sessions are created lazily per chat (sessionFor) — not here.
   }
 
@@ -2011,11 +2287,14 @@ export class AcpBridge {
   async prompt(
     text: string,
     chatId: string
-  ): Promise<{ stopReason: PromptResponse['stopReason'] }> {
+  ): Promise<{ stopReason: PromptResponse['stopReason']; refusal?: string }> {
     await this.ensureStarted();
-    const conn = this.conn;
-    if (!conn) throw new Error('ACP adapter not ready');
+    if (!this.conn) throw new Error('ACP adapter not ready');
     const sessionId = await this.sessionFor(chatId);
+    // B3 — read the connection AFTER the session: an "AI may" restart of a non-Claude agent
+    // (`restartForMay`) replaced it while the session was being re-established.
+    const conn = this.conn as ClientSideConnection | null;
+    if (!conn) throw new Error('ACP adapter not ready');
     this.currentSession = sessionId;
 
     // Audit record (feature-acp-context-hardening, BREAKER guard): the brief
@@ -2066,7 +2345,16 @@ export class AcpBridge {
     // is racing anymore (an unhandled rejection).
     try {
       this.pendingTurns.add(turn);
-      const promptCall = conn.prompt({ sessionId, prompt: [{ type: 'text', text }] });
+      this.turnRefusal = null;
+      // B4 — a new session of an agent with no system-prompt channel gets the studio brief as a
+      // preamble block of its FIRST prompt only. The transcript keeps the person's own text (above)
+      // and the brief as its `bootstrap` line, so the panel never shows the brief as theirs.
+      const blocks: Array<{ type: 'text'; text: string }> = [];
+      if (this.briefPending.delete(sessionId) && this.opts.studioBrief) {
+        blocks.push({ type: 'text', text: studioBriefPreamble(this.opts.studioBrief) });
+      }
+      blocks.push({ type: 'text', text });
+      const promptCall = conn.prompt({ sessionId, prompt: blocks });
       promptCall.catch(() => {}); // a forced-reject race must not surface as an unhandled rejection
       response = await Promise.race([promptCall, forced]);
     } finally {
@@ -2074,7 +2362,11 @@ export class AcpBridge {
       resolveSettled();
     }
     await this.appendTranscript({ role: 'stop', stopReason: response.stopReason });
-    return { stopReason: response.stopReason };
+    const refusal = this.turnRefusal;
+    this.turnRefusal = null;
+    return refusal
+      ? { stopReason: response.stopReason, refusal }
+      : { stopReason: response.stopReason };
   }
 
   /**
@@ -2148,9 +2440,21 @@ export class AcpBridge {
     // declared as an open `unknown`-valued record, and `claudeCode.toolName` is
     // an adapter-INTERNAL convention (like the `_meta` payloads newSessionParams
     // sends the other way), not part of the ACP schema.
-    const view = u as { toolCallId?: unknown; _meta?: { claudeCode?: { toolName?: unknown } } };
+    const view = u as {
+      toolCallId?: unknown;
+      kind?: unknown;
+      _meta?: { claudeCode?: { toolName?: unknown } };
+    };
     const id = view.toolCallId;
-    const name = view._meta?.claudeCode?.toolName;
+    // B3 — an agent that is not Claude sends no tool name, only the ACP `kind`. The read tracker
+    // (H1) and the writer-verb hold key on Claude's names, so the kind stands in for one; a
+    // `_meta` name such an agent sends is never trusted.
+    const name =
+      this.agent.policy === 'claude-meta'
+        ? view._meta?.claudeCode?.toolName
+        : typeof view.kind === 'string'
+          ? KIND_AS_TOOL_NAME[view.kind]
+          : undefined;
     if (typeof id !== 'string' || !id || typeof name !== 'string' || !name) return;
     if (!this.toolNames.has(id) && this.toolNames.size >= MAX_TRACKED_TOOL_NAMES) {
       const oldest = this.toolNames.keys().next().value;
@@ -2755,7 +3059,10 @@ export class AcpBridge {
   }
 
   private async drainStderr(proc: Spawned): Promise<void> {
-    const log = (line: string) => console.error('[acp-adapter]', line);
+    // B3 — another agent's lines are named after it, so a log reader can tell who reported what.
+    const tag =
+      this.agent.policy === 'claude-meta' ? '[acp-adapter]' : `[acp-agent:${this.agent.id}]`;
+    const log = (line: string) => console.error(tag, line);
     const lines = createLineSplitter((line) =>
       relayAdapterLine(line, log, (snap) => this.setBackground(proc, snap))
     );

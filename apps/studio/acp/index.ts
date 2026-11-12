@@ -38,6 +38,11 @@ import { listCanvases } from '../routes/canvas-source.ts';
 import { isCanvasSource, isUnderscoreModuleRel } from '../skip-dirs.ts';
 import { getHubRecord } from '../sync/hubs-config.ts';
 import type { WsData } from '../ws.ts';
+import { agentById, CLAUDE } from './agents/catalog.ts';
+import { hasAgentConsent, recordAgentConsent } from './agents/consent.ts';
+import type { AgentDescriptor } from './agents/descriptor.ts';
+import { resolveAgentBin } from './agents/discover.ts';
+import { agentHealth, markAgentUnavailable } from './agents/health.ts';
 import { type AskQueue, noteRateLimit, promptLabel } from './ask-queue.ts';
 import { createHubWriteAudience, type WriteAudienceSource } from './audience.ts';
 import { buildStudioBrief } from './bootstrap-brief.ts';
@@ -45,12 +50,19 @@ import { AcpBridge, type BridgeUsage } from './bridge.ts';
 import { shellOpensWindow, shellOutlivesCall } from './design-write-verb.ts';
 import { type AiMay, parseMay } from './may-scope.ts';
 import { isNativePluginContext, resolveSessionPlugins } from './plugin-bootstrap.ts';
+import { createBridgeGate } from './policy/bridge-gate.ts';
 import { probeAcpAvailability } from './probe.ts';
 import { registerActivityProbe, registerRunningChatsProbe } from './running.ts';
-import { linkChatCanvas, noteChatArtboards, readChatLinesAfter } from './transcript.ts';
+import {
+  linkChatCanvas,
+  noteChatArtboards,
+  readChatLinesAfter,
+  readChatMeta,
+  writeChatMeta,
+} from './transcript.ts';
 
 /**
- * Browser → server frames: `{ t: 'attach', chat, seq }` (Addendum Task 8 — bind
+ * Browser → server frames: `{ t: 'attach', chat, seq, agent?, consent? }` (Addendum Task 8 — bind
  * this socket to the chat's possibly-already-running bridge and replay the
  * transcript lines after `seq`, which is what the client hydrated over HTTP),
  * `{ t: 'prompt', text, chat?, model?, effort?, mode?, may? }`,
@@ -80,6 +92,19 @@ import { linkChatCanvas, noteChatArtboards, readChatLinesAfter } from './transcr
  * Every `update` frame carries a `seq` — its transcript line — so a client can
  * join the live stream to the history it hydrated without duplicating or
  * dropping output (see `transcript.ts`'s "re-attach seam").
+ *
+ * B3 (universal ACP, DDR-252) — which agent a chat runs. `attach` / `prompt` / `warm` may carry
+ * `agent` (a catalog id, default `claude`) and `consent: true`. A chat records its agent at its
+ * first attach (`_chat/<id>.meta.json` `agent`) and keeps it; a chat with history and no record is
+ * a Claude chat. Refusals are `error` frames with a `code`:
+ *   `agent-unknown` (no such agent) · `agent-switch-refused` (`agent` = the chat's, `requested`) ·
+ *   `agent-needs-consent` (an 'unrestricted' agent this project has no yes for; resend with
+ *   `consent: true` — refused on a read-only socket) · `agent-unavailable` (its policy did not hold
+ *   earlier this run) · `agent-policy-violated` (the tripwire ended this chat's session).
+ * Frames of a non-Claude chat carry `agent: { id, label, vendor, statusUrl? }` on `error`; a turn a
+ * Maude refusal ended is `{ t: 'turn-end', stopReason, reason: 'refused', notice }`; an "AI may"
+ * restart that could not keep the session sends `{ t: 'agent-note', chat, kind, message }`.
+ * `attached` carries `agent: { id, label, vendor }`.
  */
 export interface Acp {
   onOpen(ws: ServerWebSocket<WsData>): void;
@@ -142,6 +167,25 @@ export interface AcpOptions {
    * the linked hub's canvas grants over this project's closure (`projectWriteAudience`).
    */
   writeAudience?: WriteAudienceSource;
+  /** B3 — tests only: the agent catalog lookup, binary discovery and the consent file. */
+  agents?: {
+    byId?: (id: string) => AgentDescriptor | undefined;
+    resolveBin?: (d: AgentDescriptor) => string | null;
+    consentFile?: string;
+  };
+}
+
+/** B3 — who an error came from, for a non-Claude agent ("Codex reported: …"). */
+export function agentAttribution(
+  d: AgentDescriptor
+): { id: string; label: string; vendor: string; statusUrl?: string } | undefined {
+  if (d.policy === 'claude-meta') return undefined;
+  return {
+    id: d.id,
+    label: d.label,
+    vendor: d.vendor,
+    ...(d.statusUrl ? { statusUrl: d.statusUrl } : {}),
+  };
 }
 
 /**
@@ -705,6 +749,10 @@ interface BridgeEntry {
   sentRuns: Map<string, string>;
   /** rc2-e — runs whose refused `begin` this chat was already told about (once, never again) */
   toldRefused: Set<string>;
+  /** B3 — the agent this chat runs (fixed for the chat's life). */
+  agent: AgentDescriptor;
+  /** B3 rule 12 — the tripwire ended this bridge; its turn's own error frame is not sent. */
+  violated: boolean;
 }
 
 export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOptions = {}): Acp {
@@ -763,7 +811,9 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
   function reap(entry: BridgeEntry): void {
     if (entry.reapTimer) clearTimeout(entry.reapTimer);
     entry.reapTimer = null;
-    bridges.delete(entry.chatId);
+    // B3 — a bridge the tripwire ended is reaped at once; a later reap of it must not drop the
+    // chat's NEXT bridge.
+    if (bridges.get(entry.chatId) === entry) bridges.delete(entry.chatId);
     // The agent really is gone now, so any "Claude is editing …" banner it
     // raised must clear — unlike on a mere detach, where the banner is still
     // TRUE (a detached-but-running turn is still editing files).
@@ -810,8 +860,99 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     }
   }
 
+  const lookupAgent = (id: string) => (options.agents?.byId ?? agentById)(id);
+  const consentPlace = () => ({
+    projectRoot: ctx.paths.repoRoot,
+    ...(options.agents?.consentFile ? { file: options.agents.consentFile } : {}),
+  });
+
+  /**
+   * B3 — the agent a chat runs, or the error frame that refuses the request. The chat's own record
+   * wins (a live bridge, else `_chat/<id>.meta.json` `agent`, else Claude for a chat with history);
+   * a request naming another agent is refused, never switched. An 'unrestricted' agent needs this
+   * project's consent (app-owned, `agents/consent.ts`): `consent: true` records it, except from a
+   * read-only socket. A new non-Claude chat records its agent here.
+   */
+  function pickAgent(
+    chatId: string,
+    want: { agent?: unknown; consent?: unknown } = {}
+  ): { ok: true; agent: AgentDescriptor } | { ok: false; frame: Record<string, unknown> } {
+    const refuse = (code: string, message: string, extra: Record<string, unknown> = {}) => ({
+      ok: false as const,
+      frame: { t: 'error', code, chat: chatId, message, ...extra },
+    });
+    let requested: AgentDescriptor | undefined;
+    if (want.agent !== undefined && want.agent !== null) {
+      requested = typeof want.agent === 'string' ? lookupAgent(want.agent) : undefined;
+      if (!requested) return refuse('agent-unknown', 'Maude does not know that AI agent.');
+    }
+    const live = bridges.get(chatId);
+    let recordedId: string | undefined = live?.agent.id;
+    if (!live) {
+      try {
+        recordedId = readChatMeta(ctx.paths.designRoot, chatId).agent;
+      } catch {
+        recordedId = undefined;
+      }
+    }
+    const recorded = recordedId ? lookupAgent(recordedId) : undefined;
+    if (recordedId && !recorded) {
+      return refuse(
+        'agent-unknown',
+        'This chat runs an AI agent this version of Maude does not have.'
+      );
+    }
+    const current =
+      recorded ??
+      (existsSync(transcriptPathFor(chatId)) ? (lookupAgent('claude') ?? CLAUDE) : undefined);
+    if (requested && current && requested.id !== current.id) {
+      return refuse(
+        'agent-switch-refused',
+        `This chat runs ${current.label}. Start a new chat to use ${requested.label}.`,
+        { agent: current.id, requested: requested.id }
+      );
+    }
+    const agent = current ?? requested ?? CLAUDE;
+    if (agent.policy === 'claude-meta') return { ok: true, agent };
+    const health = agentHealth(agent.id);
+    if (!health.available) {
+      return refuse(
+        'agent-unavailable',
+        `${agent.label} is unavailable: Maude stopped it earlier because its policy did not hold.`,
+        { agent: agentAttribution(agent), reason: health.reason }
+      );
+    }
+    if (agent.policy === 'unrestricted') {
+      let consented = false;
+      try {
+        consented = hasAgentConsent(consentPlace(), agent.id);
+        if (!consented && want.consent === true && !readOnlyNow()) {
+          recordAgentConsent(consentPlace(), agent.id);
+          consented = true;
+        }
+      } catch {
+        consented = false;
+      }
+      if (!consented) {
+        return refuse(
+          'agent-needs-consent',
+          `Maude cannot confine ${agent.label} in this project. Allow it here first.`,
+          { agent: agentAttribution(agent) }
+        );
+      }
+    }
+    if (!live && !recordedId) {
+      try {
+        writeChatMeta(ctx.paths.designRoot, chatId, { agent: agent.id });
+      } catch {
+        /* a read-only _chat/: the live bridge still holds the agent for this server run */
+      }
+    }
+    return { ok: true, agent };
+  }
+
   /** Get-or-create the per-CHAT bridge, wiring its update/permission/command sinks. */
-  function getOrCreateEntry(chatId: string): BridgeEntry | null {
+  function getOrCreateEntry(chatId: string, agent: AgentDescriptor = CLAUDE): BridgeEntry | null {
     const existing = bridges.get(chatId);
     if (existing) return existing;
     // A3 — before minting a new bridge (and with it a `claude` process stack),
@@ -847,8 +988,35 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       runId: null,
       sentRuns: new Map(),
       toldRefused: new Set(),
+      agent,
+      violated: false,
     };
+    // B3 — Claude's bridge options stay exactly as before; another agent gets its descriptor, its
+    // real binary, the bridge gate and the CLI flavour of the brief, and no Claude plugins.
+    const claude = agent.policy === 'claude-meta';
     entry.bridge = new AcpBridge({
+      ...(claude
+        ? {}
+        : {
+            agent,
+            agentBin: (options.agents?.resolveBin ?? resolveAgentBin)(agent) ?? undefined,
+            permissionGate: createBridgeGate(agent),
+            onPolicyViolation: (reason: string) => {
+              entry.violated = true;
+              markAgentUnavailable(agent.id, reason);
+              broadcast(entry, {
+                t: 'error',
+                code: 'agent-policy-violated',
+                chat: chatId,
+                agent: agentAttribution(agent),
+                reason,
+                message: `Maude stopped ${agent.label}: it did something its Maude policy does not allow. It stays off until Maude restarts.`,
+              });
+              reap(entry);
+            },
+            onNote: (note: { kind: string; message: string }) =>
+              broadcast(entry, { t: 'agent-note', chat: chatId, ...note }),
+          }),
       // V2-1.15 §5.4 — the adapter carries MAUDE_CHAT_ID=<this chat> (the hook's run binding).
       chatId,
       // S5.10 — a folder AI may read is never a write path (acp/write-scope `read-only-grant`).
@@ -884,13 +1052,15 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         // that plainly instead of hedging. (`/flow:*` is intentionally excluded
         // from the chat for now — 2026-07-03.)
         commandsAvailable: isNativePluginContext(),
+        // B4 — a non-Claude agent's Maude commands are the `maude design` CLI.
+        ...(claude ? {} : { agentCli: true }),
       }),
       // DDR-143 — session-scoped `design` auto-load for the zero-install desktop
       // path (`/flow` auto-load disabled for now — 2026-07-03). Empty on the
       // power-user (already-installed) + web-serve no-op paths. Computed once
       // here; carried on the readonly bridge options so it survives an adapter
       // re-spawn (model/effort change).
-      plugins: resolveSessionPlugins(),
+      plugins: claude ? resolveSessionPlugins() : undefined,
       // S5.6 (D7) — Needs you waits while a socket is attached; a detached bridge still denies
       // once nobody has watched it for the full timeout (a never-attached one counts from birth).
       detachedFor: () =>
@@ -1001,8 +1171,18 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
    * detached. Re-attaching cancels the reaper, which is what makes a page
    * reload a no-op for a running turn instead of a kill.
    */
-  function attach(ws: ServerWebSocket<WsData>, chatId: string): BridgeEntry | null {
-    const entry = getOrCreateEntry(chatId);
+  function attach(
+    ws: ServerWebSocket<WsData>,
+    chatId: string,
+    want: { agent?: unknown; consent?: unknown } = {}
+  ): BridgeEntry | 'refused' | null {
+    // B3 — which agent this chat runs; a refusal is its own error frame (the caller stops there).
+    const pick = pickAgent(chatId, want);
+    if (!pick.ok) {
+      send(ws, pick.frame);
+      return 'refused';
+    }
+    const entry = getOrCreateEntry(chatId, pick.agent);
     if (!entry) return null;
     entry.sinks.add(ws);
     entry.detachedSince = 0;
@@ -1095,6 +1275,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     entry.tracker?.beginTurn?.(text, runId);
     let turnOutcome: 'done' | 'failed' = 'failed';
     let stopReason: string | null = null;
+    let refusal: string | undefined;
     try {
       await bridge.ensureStarted();
       if (runId && runs) {
@@ -1105,17 +1286,29 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
           return;
         }
       }
-      ({ stopReason } = await bridge.prompt(text, entry.chatId));
+      ({ stopReason, refusal } = await bridge.prompt(text, entry.chatId));
       // Only a turn that ended on its own publishes; a cancel, a refusal or a
       // token limit leaves its edits for the person (T16).
       if (stopReason === 'end_turn') turnOutcome = 'done';
       broadcast(entry, { t: 'connected', sessionId: bridge.sessionId });
-      broadcast(entry, { t: 'turn-end', stopReason });
+      // B3 rule 13 — a turn a Maude refusal ended says why ("Codex stopped: Maude refused …").
+      broadcast(
+        entry,
+        refusal
+          ? { t: 'turn-end', stopReason, reason: 'refused', notice: refusal }
+          : { t: 'turn-end', stopReason }
+      );
     } catch (err) {
-      broadcast(entry, {
-        t: 'error',
-        message: err instanceof Error ? err.message : String(err),
-      });
+      // B3 — the tripwire already said why this turn ended (`agent-policy-violated`).
+      if (!entry.violated) {
+        const attribution = agentAttribution(entry.agent);
+        broadcast(entry, {
+          t: 'error',
+          message: err instanceof Error ? err.message : String(err),
+          // B3 — "Codex reported: …" (Claude's errors read as they always have)
+          ...(attribution ? { chat: entry.chatId, agent: attribution } : {}),
+        });
+      }
     } finally {
       entry.turnActive = false;
       entry.runId = null;
@@ -1127,7 +1320,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       // The turn was the only reason a detached bridge was being kept alive; now
       // that it's done, let the ordinary TTL run out rather than holding the
       // subprocess indefinitely for a client that never came back.
-      if (entry.sinks.size === 0) {
+      if (entry.sinks.size === 0 && !entry.violated) {
         if (!entry.detachedSince) entry.detachedSince = Date.now();
         armReap(entry);
       }
@@ -1204,7 +1397,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     effort: string | null,
     modeId: string | null,
     ask: { askId?: unknown; scope?: unknown } = {},
-    may: AiMay | null = null
+    may: AiMay | null = null,
+    want: { agent?: unknown; consent?: unknown } = {}
   ): Promise<void> {
     const safeChat = sanitizeChatId(chatId);
     // S5.17 G1 — a scope that was sent but names nothing inside the design root (`..`, absolute, a
@@ -1219,7 +1413,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       });
       return;
     }
-    const entry = attach(ws, safeChat);
+    const entry = attach(ws, safeChat, want);
+    if (entry === 'refused') return;
     if (!entry) {
       send(ws, { t: 'error', message: 'Too many chats are open. Close one and try again.' });
       return;
@@ -1288,7 +1483,11 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     const fail = () => {
       if (isLive(runs.get(rec.runId) ?? rec)) void runs.turnEnded(rec.runId, 'failed');
     };
-    const entry = getOrCreateEntry(sanitizeChatId(rec.chatId));
+    const runChat = sanitizeChatId(rec.chatId);
+    // B3 — a registry turn runs on the chat's own agent (refused like any other frame would be).
+    const pick = bridges.has(runChat) ? null : pickAgent(runChat);
+    if (pick && !pick.ok) return fail();
+    const entry = getOrCreateEntry(runChat, pick?.ok ? pick.agent : CLAUDE);
     if (!entry || !text) return fail();
     // D3 — a turn the registry generates by itself (a continuation, a run that waited in line,
     // Keep going) is a write as much as a typed prompt: the live predicate gates it too.
@@ -1334,10 +1533,11 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     model: string | null,
     effort: string | null,
     modeId: string | null,
-    may: AiMay | null = null
+    may: AiMay | null = null,
+    want: { agent?: unknown; consent?: unknown } = {}
   ): Promise<void> {
-    const entry = attach(ws, sanitizeChatId(chatId));
-    if (!entry) return; // at the ceiling — warm-up is best-effort, stay silent
+    const entry = attach(ws, sanitizeChatId(chatId), want);
+    if (!entry || entry === 'refused') return; // at the ceiling — warm-up is best-effort
     const { bridge } = entry;
     bridge.setSessionStorePath(sessionStorePathFor(chatId));
     bridge.setConfig(model, effort, modeId);
@@ -1488,9 +1688,13 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         askId?: unknown;
         scope?: unknown;
         may?: unknown;
+        agent?: unknown;
+        consent?: unknown;
       };
 
       const chatId = typeof frame.chat === 'string' && frame.chat ? frame.chat : 'default';
+      // B3 — which agent the chat runs (a new chat's pick; an existing chat's must match).
+      const want = { agent: frame.agent, consent: frame.consent };
 
       // S5.6 (D3, decision v2-S5-acp-role-gate-per-frame) — the read-only gate, PER FRAME against
       // the live predicate: a role that drops mid-socket refuses the very next frame. Refused:
@@ -1530,7 +1734,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         // stretch. Replaying exactly that range is why a reload neither
         // duplicates the last few seconds nor leaves a hole in them.
         const safeChat = sanitizeChatId(chatId);
-        const entry = attach(ws, safeChat);
+        const entry = attach(ws, safeChat, want);
+        if (entry === 'refused') return;
         if (!entry) {
           send(ws, { t: 'error', message: 'Too many chats are open. Close one and try again.' });
           return;
@@ -1544,7 +1749,12 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         // Tells the client whether it re-joined a LIVE turn (so it can restore
         // the busy state) rather than a finished one. Without this a reload
         // mid-turn would look idle while the agent kept working.
-        send(ws, { t: 'attached', chat: safeChat, running: entry.turnActive });
+        send(ws, {
+          t: 'attached',
+          chat: safeChat,
+          running: entry.turnActive,
+          agent: entry.bridge.agentInfo,
+        });
         // Issue #177 — what is still running in the background (a reload must not hide it).
         send(ws, { t: 'background', tasks: entry.bridge.backgroundTasks });
         entry.sentRuns.clear(); // a re-attached client gets the chat's live runs again
@@ -1558,10 +1768,11 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
           effort,
           modeId,
           { askId: frame.askId, scope: frame.scope },
-          may
+          may,
+          want
         );
       } else if (frame.t === 'warm') {
-        void handleWarm(ws, chatId, model, effort, modeId, may);
+        void handleWarm(ws, chatId, model, effort, modeId, may, want);
       } else if (frame.t === 'cancel') {
         // RC5 — a cancelled turn may never resolve prompt(); clear banners now.
         const entry = entryForSocket(ws, typeof frame.chat === 'string' ? frame.chat : undefined);
