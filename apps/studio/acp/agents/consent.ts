@@ -8,6 +8,7 @@
 // never ship a yes. A file that would resolve inside the project is ignored (reads say no,
 // writes throw).
 
+import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 
@@ -60,6 +61,16 @@ export function hasAgentConsent(place: ConsentPlace, id: AgentId): boolean {
   return Object.hasOwn(read(file).agents, id);
 }
 
+/**
+ * Security review 2026-11-12 — a random temp name opened exclusively (`wx`): a same-user process
+ * cannot pre-plant a symlink at a predictable name for this write to follow.
+ */
+function writeAtomic(file: string, doc: unknown): void {
+  const tmp = `${file}.${randomUUID()}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(doc, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
+  renameSync(tmp, file);
+}
+
 export function recordAgentConsent(place: ConsentPlace, id: AgentId, now = Date.now()): void {
   const file = place.file ?? agentConsentFileFor(place.projectRoot);
   if (misplaced(file, place.projectRoot))
@@ -67,9 +78,7 @@ export function recordAgentConsent(place: ConsentPlace, id: AgentId, now = Date.
   const next = read(file);
   next.agents[id] = { grantedAt: now };
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
-  renameSync(tmp, file);
+  writeAtomic(file, next);
 }
 
 export function revokeAgentConsent(place: ConsentPlace, id: AgentId): void {
@@ -79,7 +88,5 @@ export function revokeAgentConsent(place: ConsentPlace, id: AgentId): void {
   if (!Object.hasOwn(next.agents, id)) return;
   delete next.agents[id];
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
-  renameSync(tmp, file);
+  writeAtomic(file, next);
 }
