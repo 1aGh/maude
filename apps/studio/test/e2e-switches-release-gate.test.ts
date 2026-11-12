@@ -4,6 +4,12 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { fakeInstallEnabled, installRefusal, wellKnownInstallPath } from '../acp/login-state.ts';
+import {
+  opencodeAuthFile,
+  opencodeConfigDirs,
+  opencodeConfigSources,
+  opencodePersonHome,
+} from '../acp/policy/opencode-user-config.ts';
 import { isE2eEnv, resolveClaudePath } from '../acp/probe.ts';
 import { resolvePort } from '../port.ts';
 import { e2eForcedClaudeStatus } from '../readiness.ts';
@@ -63,6 +69,17 @@ describe('e2e switches are ignored by a release build', () => {
     const env = { MAUDE_E2E_RUN_DIR: '/tmp/x' };
     expect(installRefusal(env, false)).not.toBeNull();
     expect(installRefusal(env, true)).toBeNull();
+  });
+
+  test("the opencode person-home redirect is ignored by a release build (and never moves the project's home exception)", () => {
+    const env = { HOME: '/Users/person', MAUDE_E2E_OPENCODE_HOME: '/tmp/e2e/opencode-home' };
+    expect(opencodePersonHome(env, false)).toBe('/tmp/e2e/opencode-home');
+    expect(opencodePersonHome(env, true)).toBe('/Users/person');
+    // from source (not a release build) the global sources follow the redirect
+    expect(opencodeConfigSources(env)).toContain('/tmp/e2e/opencode-home/.opencode/opencode.json');
+    expect(opencodeConfigSources(env)).not.toContain('/Users/person/.opencode/opencode.json');
+    expect(opencodeConfigDirs(env)).toContain('/tmp/e2e/opencode-home/.opencode');
+    expect(opencodeAuthFile(env)).toBe('/tmp/e2e/opencode-home/.local/share/opencode/auth.json');
   });
 
   test('the e2e port ladder is ignored by a release build', () => {

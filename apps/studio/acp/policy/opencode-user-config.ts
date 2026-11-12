@@ -37,6 +37,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 
+import { e2eSwitch, IS_RELEASE_BUILD } from '../../release-build.ts';
 import type { HostEnv } from './codex-home.ts';
 
 export class OpencodeConfigError extends Error {
@@ -55,9 +56,20 @@ export interface PersonOpencodeConfig {
 
 const REFUSE = 'Maude does not start opencode while it is there.';
 
+/**
+ * The home the person's GLOBAL opencode sources are read under (`~/.opencode`, the `~/.config` and
+ * `~/.local/share` fallbacks). Only the universal-ACP desktop e2e lane moves it (`MAUDE_E2E_OPENCODE_HOME`,
+ * e2e sidecar builds only — release-build.ts `e2eSwitch`; a release build ignores it): the lane's fake
+ * opencode must not be refused for the developer's own opencode plugins. The project's `.opencode` chain
+ * (`projectOpencodeEntries`) always keeps the real HOME as its one exception.
+ */
+export function opencodePersonHome(env: HostEnv = process.env, release = IS_RELEASE_BUILD): string {
+  return abs(e2eSwitch(env, 'MAUDE_E2E_OPENCODE_HOME', release)) ?? abs(env.HOME) ?? homedir();
+}
+
 /** Global config folders opencode scans for plugins / tools / agents (existing or not). */
 export function opencodeConfigDirs(env: HostEnv = process.env): string[] {
-  const home = abs(env.HOME) ?? homedir();
+  const home = opencodePersonHome(env);
   const xdg = abs(env.XDG_CONFIG_HOME) ?? join(home, '.config');
   const out = [join(xdg, 'opencode'), join(home, '.opencode')];
   const dir = abs(env.OPENCODE_CONFIG_DIR);
@@ -107,7 +119,7 @@ const abs = (p: string | undefined) => (p && isAbsolute(p) ? resolve(p) : null);
 
 /** The person's global opencode config files, in opencode's load order (existing or not). */
 export function opencodeConfigSources(env: HostEnv = process.env): string[] {
-  const home = abs(env.HOME) ?? homedir();
+  const home = opencodePersonHome(env);
   const xdg = abs(env.XDG_CONFIG_HOME) ?? join(home, '.config');
   const out = ['config.json', 'opencode.json', 'opencode.jsonc'].map((f) =>
     join(xdg, 'opencode', f)
@@ -122,7 +134,7 @@ export function opencodeConfigSources(env: HostEnv = process.env): string[] {
 
 /** opencode's auth store (`$XDG_DATA_HOME/opencode/auth.json`). Only entry TYPES are looked at. */
 export function opencodeAuthFile(env: HostEnv = process.env): string {
-  const home = abs(env.HOME) ?? homedir();
+  const home = opencodePersonHome(env);
   return join(abs(env.XDG_DATA_HOME) ?? join(home, '.local', 'share'), 'opencode', 'auth.json');
 }
 

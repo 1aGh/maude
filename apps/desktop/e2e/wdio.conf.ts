@@ -56,6 +56,8 @@ const DEDICATED: Record<string, string> = {
   // P8 e2e live lanes: the AI panel's own contracts on the SCRIPTED fake agent + a signed-in claude stub (no model).
   'acp-capability-picker.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:acp-fake',
   'acp-write-scope.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:acp-fake',
+  // universal ACP: a fake opencode dropped on the lane's PATH mid-run + the claude stub (wdio.agents.conf.ts)
+  'agents.e2e.ts': 'pnpm test:e2e:desktop:agents',
   'cloud-attach.e2e.ts': 'pnpm test:e2e:desktop:cloud',
   'git-branch-switcher.e2e.ts': 'pnpm test:e2e:desktop:git',
   'git-lifecycle.e2e.ts': 'pnpm test:e2e:desktop:lifecycle',
