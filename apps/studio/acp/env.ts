@@ -76,6 +76,29 @@ const GENERATION_KEY_CUSTODY_RE = /^MAUDE_GEN_KEY/i;
  */
 const SHELL_SECRET_RE = /^MAUDE_(TOKEN|SHELL|HOME)_/i;
 
+/**
+ * Universal ACP (DDR-252, contract rule 14) — other vendors' credentials. Every agent, Claude
+ * included, loses them: a Codex key in the person's shell must not ride into Gemini, and none of
+ * them into Claude. An agent that needs one names it in its descriptor's `envAllow` — the only
+ * keys `envAllow` can bring back (ANTHROPIC_* and Maude's own secrets never come back).
+ */
+const AGENT_SECRET_RE = /^(OPENAI_|GEMINI_|COPILOT_)/i;
+const AGENT_SECRET_KEYS: ReadonlySet<string> = new Set([
+  'CODEX_API_KEY',
+  'GOOGLE_API_KEY',
+  'GOOGLE_APPLICATION_CREDENTIALS',
+  'GITHUB_TOKEN',
+  'GH_TOKEN',
+  'OPENCODE_API_KEY',
+  'OPENCODE_AUTH_CONTENT',
+  'OPENCODE_CONSOLE_TOKEN',
+]);
+
+/** True for a vendor credential the shared scrub drops (rule 14) and `envAllow` may re-add. */
+export function isAgentSecretKey(key: string): boolean {
+  return AGENT_SECRET_RE.test(key) || AGENT_SECRET_KEYS.has(key.toUpperCase());
+}
+
 /** V2-8.9 M2 — the profile's credential-file pointers (sidecar::profile_env), never the agent's. */
 const PROFILE_POINTER_KEYS: ReadonlySet<string> = new Set([
   'MAUDE_CLOUD_CONFIG',
@@ -134,14 +157,19 @@ export function teamsSpawnEnv(
  * Return a copy of `source` with the billing/provider-redirect keys removed and
  * any `undefined` values dropped (Bun.spawn's `env` wants Record<string,string>).
  * Pure — never mutates the input, so `process.env` stays intact for the parent.
+ *
+ * `allow` (a descriptor's `envAllow`) keeps the named vendor credentials (`isAgentSecretKey`) and
+ * nothing else: Anthropic billing keys and Maude's own secrets are dropped whatever it says.
  */
 export function scrubAgentEnv(
-  source: Record<string, string | undefined> = process.env
+  source: Record<string, string | undefined> = process.env,
+  allow: readonly string[] = []
 ): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(source)) {
     if (value === undefined) continue;
     if (PROVIDER_REDIRECT_RE.test(key)) continue;
+    if (isAgentSecretKey(key) && !allow.includes(key)) continue;
     if (GENERATION_KEY_CUSTODY_RE.test(key)) continue;
     // The cell materializer's loopback credential is the studio's alone — an
     // agent it spawns has no business filling the cache (Phase 1 review L3).

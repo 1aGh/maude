@@ -1,0 +1,99 @@
+// How the bridge starts one ACP agent from its descriptor (F3 / plan Task B2, contract rule 14).
+// Pure: the bridge resolves the binaries, the scope and the prefs, then asks this ONE function for
+// the argv and the whole child env, so a test can assert exactly what an agent is handed.
+//
+// Claude (policy 'claude-meta') comes out exactly as before the descriptor existed
+// (test/acp-agent-spawn.test.ts pins it): its least-privilege policy rides `_meta.claudeCode`,
+// not the env. Every other agent gets its launch policy's env (and argv for native ACP) plus
+// MAUDE_NO_EGRESS when web is off — it has no `_meta` channel for either.
+
+import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from '../env.ts';
+import { mayEnv } from '../may-scope.ts';
+import type { AgentDescriptor, PolicyCtx } from './descriptor.ts';
+
+export interface AgentSpawnInput {
+  descriptor: AgentDescriptor;
+  /**
+   * `scrubAgentEnv(process.env, descriptor.envAllow)`. The caller scrubs, so every spawn site
+   * visibly goes through the one scrub (acp-env.test.ts pins that).
+   */
+  scrubbed: Record<string, string>;
+  /** The agent's real binary: `launch.agentBinEnv` for an adapter, argv[0] for native ACP. */
+  agentBin: string;
+  /** adapter-js only — the bundled adapter's entry script. */
+  adapterEntry?: string;
+  /** adapter-js only — the JS runtime that runs it (probe.ts `resolveAgentRuntime`). */
+  runtime?: { bin: string; bunBeBun: boolean };
+  /** The session scope the launch policy is built from. */
+  policyCtx: PolicyCtx;
+  /** What the chat's `maude design` verbs are held to (the actor env). */
+  actor: {
+    sessionRoot: string;
+    readRoots: readonly string[];
+    ownPorts?: readonly number[];
+    /** This chat's scratch, when it could be made safely; absent → TMPDIR left as it was. */
+    tmpdir?: string | null;
+    grantsFile?: string;
+  };
+  /** Settings › Advanced › teams (Claude only). */
+  teams: boolean;
+  chatId?: string;
+  /** path.delimiter (':' on POSIX) — a parameter so the function stays pure. */
+  delimiter: string;
+}
+
+export interface AgentSpawn {
+  cmd: string[];
+  env: Record<string, string>;
+}
+
+export function agentSpawn(input: AgentSpawnInput): AgentSpawn {
+  const d = input.descriptor;
+  const env: Record<string, string> = { ...input.scrubbed };
+  let cmd: string[];
+  const policy = d.enforcement?.launchPolicy(input.policyCtx);
+
+  if (d.launch.kind === 'adapter-js') {
+    if (!input.adapterEntry || !input.runtime) {
+      throw new Error(`agent ${d.id}: an adapter-js launch needs its adapter entry and runtime`);
+    }
+    // DDR-123 guardrail #2 (Claude) and its analog for every adapter: pin it to the person's OWN
+    // agent binary (CODEX_PATH, CLAUDE_CODE_EXECUTABLE), never a bundled one.
+    if (d.launch.agentBinEnv) env[d.launch.agentBinEnv] = input.agentBin;
+    // RCA-G1 — our own compiled self behaves as `bun` only with BUN_BE_BUN=1.
+    if (input.runtime.bunBeBun) env.BUN_BE_BUN = '1';
+    cmd = [input.runtime.bin, input.adapterEntry];
+  } else {
+    cmd = [input.agentBin, ...d.launch.args, ...(policy?.args ?? [])];
+  }
+
+  if (policy) {
+    // The launch policy is Maude's own code, but it never gets to hand the agent a secret the
+    // scrub drops (ANTHROPIC_*, MAUDE_SHELL_*, …): its keys go through the same scrub.
+    Object.assign(env, scrubAgentEnv(policy.env, Object.keys(policy.env)));
+  }
+  // Claude carries the egress switch in `_meta.claudeCode.options.env` (newSessionParams); an
+  // agent without that channel carries it from spawn.
+  if (d.policy !== 'claude-meta') Object.assign(env, mayEnv(input.policyCtx.may));
+
+  // The actor env, last, so nothing above can name another chat's root or ports.
+  // V2-2.4b — `maude design hook` tells a Maude chat run from a terminal one by this.
+  env.MAUDE_AGENT_ACTOR = 'maude-chat';
+  // gate-b-sec2 — the project this chat's maude verbs are held to.
+  env.MAUDE_SESSION_ROOT = input.actor.sessionRoot;
+  // V2-8.9 H2 — the read boundary for the verbs that read a path they are given.
+  env.MAUDE_READ_ROOTS = input.actor.readRoots.join(input.delimiter);
+  // V2-8.9 re-check 2 H-a — this session's own server ports; none → unset (helpers refuse all).
+  const ports = (input.actor.ownPorts ?? []).filter(
+    (p) => Number.isInteger(p) && p > 0 && p < 65536
+  );
+  if (ports.length) env.MAUDE_OWN_PORTS = [...new Set(ports)].join(',');
+  // V2-8.9 M2 — the agent's temp folder is this chat's own scratch.
+  if (input.actor.tmpdir) env.TMPDIR = `${input.actor.tmpdir}/`;
+  if (input.actor.grantsFile) env.MAUDE_GRANTS_FILE = input.actor.grantsFile;
+
+  // S11.13 — agent teams are a Claude Code switch; V2-1.15 §5.4 — this chat's id and no other's.
+  const withTeams =
+    d.policy === 'claude-meta' ? teamsSpawnEnv(env, { experimentalTeams: input.teams }) : env;
+  return { cmd, env: chatSpawnEnv(withTeams, input.chatId) };
+}

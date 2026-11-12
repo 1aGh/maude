@@ -976,7 +976,10 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         latestCommands = commands;
         broadcast(entry, { t: 'commands', commands });
       },
-      onCaps: (modes, configOptions) => broadcast(entry, { t: 'caps', modes, configOptions }),
+      // F3 — `agent` names which agent the roster belongs to (additive; the picker lists only
+      // the modes its descriptor allows — the bridge filters refused ones out, rule 10).
+      onCaps: (modes, configOptions) =>
+        broadcast(entry, { t: 'caps', modes, configOptions, agent: entry.bridge?.agentInfo }),
       onSessionInfo: (info) => broadcast(entry, { t: 'session-info', ...info }),
       // Issue #177 — the live background tasks (chrome, like caps: replayed on attach, never transcripted).
       onBackground: (tasks) => broadcast(entry, { t: 'background', tasks }),
@@ -1382,6 +1385,14 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     const entry = entryForSocket(ws, chatId);
     const bridge = entry?.bridge;
     if (!entry || !bridge) return;
+    // F3 (rule 10) — a mode the agent's descriptor refuses is answered, not silently dropped.
+    if (bridge.refusesMode(modeId)) {
+      send(ws, {
+        t: 'error',
+        message: `${bridge.agentInfo.label} can't use the "${modeId}" mode in Maude.`,
+      });
+      return;
+    }
     if (!bridge.modes?.availableModes.some((m) => m.id === modeId)) return; // not advertised — reject silently
     try {
       await bridge.setMode(entry.chatId, modeId);
@@ -1400,6 +1411,13 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     // Attachment-scoped via entryForSocket, same as handleSetMode above.
     const bridge = entryForSocket(ws, chatId)?.bridge;
     if (!bridge) return;
+    if (configId === 'mode' && bridge.refusesMode(value)) {
+      send(ws, {
+        t: 'error',
+        message: `${bridge.agentInfo.label} can't use the "${value}" mode in Maude.`,
+      });
+      return;
+    }
     if (!optionOffers(bridge, configId, value)) return; // not advertised — reject silently
     try {
       await bridge.setConfigOption(sanitizeChatId(chatId), configId, value);
@@ -1430,7 +1448,12 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
   return {
     onOpen(ws) {
       const probe = probeAcpAvailability();
-      send(ws, { t: 'ready', available: probe.available, reason: probe.reason });
+      send(ws, {
+        t: 'ready',
+        available: probe.available,
+        reason: probe.reason,
+        agent: probe.agent,
+      });
       // Replay the last-known command catalogue so autocomplete is instant on a
       // re-open (no re-warm needed within a dev-server lifetime).
       if (latestCommands.length) send(ws, { t: 'commands', commands: latestCommands });

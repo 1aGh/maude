@@ -9,7 +9,7 @@
 // auth precedence falls through to the user's Pro/Max subscription.
 
 import { randomBytes } from 'node:crypto';
-import { rmSync, statSync } from 'node:fs';
+import { existsSync, rmSync, statSync } from 'node:fs';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { delimiter, dirname, isAbsolute, join, resolve } from 'node:path';
 
@@ -35,6 +35,9 @@ import { HANDOFF_RUN_VERBS } from '../handoff/write-scopes.ts';
 import { DEV_SERVER_ROOT } from '../paths.ts';
 import { readUiPrefs } from '../ui-prefs.ts';
 import { relayAdapterLine } from './adapter-stderr.ts';
+import { CLAUDE } from './agents/catalog.ts';
+import type { AgentDescriptor, PolicyCtx } from './agents/descriptor.ts';
+import { agentSpawn } from './agents/spawn.ts';
 import {
   type AudienceLeak,
   audienceLeak,
@@ -54,7 +57,7 @@ import {
   foldSnapshot,
   sameTasks,
 } from './background-tasks.ts';
-import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from './env.ts';
+import { scrubAgentEnv } from './env.ts';
 import {
   type AiMay,
   assetsRootsFor,
@@ -77,7 +80,10 @@ import {
   readVerdict,
 } from './may-scope.ts';
 import { type SdkPluginConfig, suppressionFor } from './plugin-bootstrap.ts';
+import type { GateDecision, PermissionGate } from './policy/gate-types.ts';
 import {
+  type AgentInfo,
+  agentInfoOf,
   resolveAdapterEntry,
   resolveAgentClaudeExecutable,
   resolveAgentRuntime,
@@ -99,6 +105,23 @@ import {
 export interface AcpBridgeOptions {
   /** Absolute repo root the ACP session runs in (where `.design/` + the CLI operate). */
   repoRoot: string;
+  /**
+   * F3 (universal ACP, DDR-252) — which agent this bridge spawns. Absent → Claude, exactly as
+   * before the descriptor existed (test/acp-agent-spawn.test.ts pins it byte for byte).
+   */
+  agent?: AgentDescriptor;
+  /**
+   * F3 — another agent's real binary, from discovery (acp/agents/discover.ts, F2): `CODEX_PATH`
+   * for an adapter, argv[0] for a native-ACP agent. Claude ignores it and resolves its own
+   * (`resolveClaudePath`, the trusted `MAUDE_CLAUDE_BIN` override).
+   */
+  agentBin?: string;
+  /**
+   * F3 → F5 — the bridge-enforced permission gate (acp/policy/enforce.ts). Called for every
+   * permission request of an agent whose policy is not 'claude-meta'. A 'bridge-enforced' agent
+   * with none refuses everything (fail closed).
+   */
+  permissionGate?: PermissionGate;
   /**
    * P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — the project's design root, whose `assets/` folder
    * "Use Assets and footage" covers (acp/may-scope.ts). Absent → `<repoRoot>/.design`.
@@ -311,6 +334,24 @@ export interface BridgeUsage {
 
 /** Flatten a `SessionConfigSelect.options` — a flat option array OR grouped
  *  (`SessionConfigSelectGroup[]`) — into one list of `{value,name}` leaves. */
+/**
+ * F3 — a gate's no-card answer as the agent's response. `select` must name an offered option
+ * (else `cancelled`); `refuse` takes the agent's `reject_once` when it offers one.
+ */
+function gateResponse(
+  req: RequestPermissionRequest,
+  decision: Extract<GateDecision, { kind: 'select' | 'refuse' }>
+): RequestPermissionResponse {
+  const options = req.options ?? [];
+  const chosen =
+    decision.kind === 'select'
+      ? options.find((o) => o.optionId === decision.optionId)
+      : options.find((o) => o.kind === 'reject_once');
+  return {
+    outcome: chosen ? { outcome: 'selected', optionId: chosen.optionId } : { outcome: 'cancelled' },
+  };
+}
+
 function flattenSelectOptions(options: unknown): Array<{ value: string; name?: string | null }> {
   const list = Array.isArray(options) ? options : [];
   const out: Array<{ value: string; name?: string | null }> = [];
@@ -785,6 +826,30 @@ export function newSessionParams(
   };
 }
 
+/**
+ * F3 — session/new params for `descriptor`. Claude ('claude-meta') gets `newSessionParams`
+ * unchanged. Any other agent gets no `_meta.claudeCode` at all (it would ignore it, and a reader
+ * would take it for a policy that holds): its policy is the launch policy + the bridge gate.
+ */
+export function newSessionParamsFor(
+  descriptor: AgentDescriptor,
+  ...args: Parameters<typeof newSessionParams>
+): { cwd: string; mcpServers: never[]; _meta?: Record<string, unknown> } {
+  if (descriptor.policy === 'claude-meta') return newSessionParams(...args);
+  return { cwd: args[0], mcpServers: [] };
+}
+
+/** F3 (rule 10) — a mode the agent's descriptor refuses (`enforcement.pinMode.refuse`). */
+export class ModeRefusedError extends Error {
+  constructor(
+    readonly modeId: string,
+    label: string
+  ) {
+    super(`Maude keeps ${label} out of the "${modeId}" mode in this chat.`);
+    this.name = 'ModeRefusedError';
+  }
+}
+
 // Milestone B (DDR-125 F2 retirement) — how long a permission request waits
 // for a human decision before the bridge settles it itself. Generous (a
 // person reading a tool-call card and clicking a button, not a network hop)
@@ -1016,7 +1081,17 @@ export class AcpBridge {
   /** re-check 2 M-c — which repo files git does not track (private for the audience gate). */
   private readonly repoPrivacy: RepoPrivacy;
 
+  /** F3 — the agent this bridge spawns (default Claude). */
+  private readonly agent: AgentDescriptor;
+  /**
+   * F3 — from `initialize`: whether the agent can load a persisted session at all. A promise,
+   * because `ensureStarted` lets a second caller through once `conn` exists — before the
+   * handshake has answered — so a session may be established while `initialize` is in flight.
+   */
+  private canLoadSession: Promise<boolean> = Promise.resolve(false);
+
   constructor(private readonly opts: AcpBridgeOptions) {
+    this.agent = opts.agent ?? CLAUDE;
     this.scopeRoot = pinScopeRoot(opts.repoRoot);
     const instance = randomBytes(6).toString('hex');
     this.scratch = chatScratchDir(opts.repoRoot, opts.chatId, instance);
@@ -1081,12 +1156,48 @@ export class AcpBridge {
 
   /** The last-advertised mode roster + current mode (read-only snapshot). */
   get modes(): SessionModeState | null {
-    return this.lastModes;
+    return this.visibleModes();
+  }
+
+  /** F3 — which agent this bridge runs (the `caps` frame names it). */
+  get agentInfo(): AgentInfo {
+    return agentInfoOf(this.agent);
+  }
+
+  /** F3 (rule 10) — true when the descriptor refuses `modeId` (the panel says why). */
+  refusesMode(modeId: string): boolean {
+    return this.agent.enforcement?.pinMode?.refuse.includes(modeId) ?? false;
+  }
+
+  /** The roster the panel may offer: a refused mode is never listed (rule 10). */
+  private visibleModes(): SessionModeState | null {
+    const m = this.lastModes;
+    if (!m || !this.agent.enforcement?.pinMode) return m;
+    return { ...m, availableModes: m.availableModes.filter((x) => !this.refusesMode(x.id)) };
+  }
+
+  /** The config options the panel may offer: a refused mode leaves the `mode` select too. */
+  private visibleConfigOptions(): SessionConfigOption[] {
+    if (!this.agent.enforcement?.pinMode) return this.lastConfigOptions;
+    return this.lastConfigOptions.map((o) =>
+      o.id === 'mode' && o.type === 'select' && Array.isArray(o.options)
+        ? ({
+            ...o,
+            options: (o.options as Array<{ value?: unknown }>).filter(
+              (x) => typeof x.value !== 'string' || !this.refusesMode(x.value)
+            ),
+          } as SessionConfigOption)
+        : o
+    );
+  }
+
+  private emitCaps(): void {
+    this.opts.onCaps?.(this.visibleModes(), this.visibleConfigOptions());
   }
 
   /** The last-advertised generic config-option set (read-only snapshot). */
   get configOptions(): SessionConfigOption[] {
-    return this.lastConfigOptions;
+    return this.visibleConfigOptions();
   }
 
   /** The last-seen usage snapshot (read-only), or null before the first `usage_update`. */
@@ -1156,6 +1267,7 @@ export class AcpBridge {
    * validates `modeId` against `this.modes` before invoking this.
    */
   async setMode(chatId: string, modeId: string): Promise<void> {
+    if (this.refusesMode(modeId)) throw new ModeRefusedError(modeId, this.agent.label);
     await this.ensureStarted();
     const sessionId = await this.sessionFor(chatId);
     if (!this.conn) throw new Error('ACP adapter not ready');
@@ -1169,12 +1281,15 @@ export class AcpBridge {
    * every listener sees the side effects, not just the option that changed.
    */
   async setConfigOption(chatId: string, configId: string, value: string): Promise<void> {
+    if (configId === 'mode' && this.refusesMode(value)) {
+      throw new ModeRefusedError(value, this.agent.label);
+    }
     await this.ensureStarted();
     const sessionId = await this.sessionFor(chatId);
     if (!this.conn) throw new Error('ACP adapter not ready');
     const response = await this.conn.setSessionConfigOption({ sessionId, configId, value });
     this.lastConfigOptions = response.configOptions;
-    this.opts.onCaps?.(this.lastModes, this.lastConfigOptions);
+    this.emitCaps();
   }
 
   /** True when `value` is currently offered for the select-type option `configId`. */
@@ -1194,6 +1309,21 @@ export class AcpBridge {
    * (e.g. an effort level unsupported by the model claude resolved to) is
    * silently skipped, leaving the session's own default in place.
    */
+  /**
+   * F3 (rule 10) — a descriptor that pins a mode gets it right after session/new or load, when the
+   * session reports another one. A pin the agent refuses ends the session start: a bridge-enforced
+   * agent in an unpinned mode (Codex `agent`: Guardian auto-review) is not a session to run.
+   */
+  private async pinModeOnce(sessionId: string): Promise<void> {
+    const pin = this.agent.enforcement?.pinMode;
+    if (!pin || !this.conn) return;
+    if (this.lastModes?.currentModeId === pin.modeId) return;
+    await this.conn.setSessionMode({ sessionId, modeId: pin.modeId });
+    this.lastModes = this.lastModes
+      ? { ...this.lastModes, currentModeId: pin.modeId }
+      : { currentModeId: pin.modeId, availableModes: [] };
+  }
+
   private async applyDesiredConfigOnce(sessionId: string): Promise<void> {
     if (!this.conn) return;
     try {
@@ -1215,6 +1345,7 @@ export class AcpBridge {
       }
       if (
         this.desiredModeId &&
+        !this.refusesMode(this.desiredModeId) &&
         this.lastModes?.availableModes.some((m) => m.id === this.desiredModeId)
       ) {
         await this.conn.setSessionMode({ sessionId, modeId: this.desiredModeId });
@@ -1339,19 +1470,31 @@ export class AcpBridge {
     }
     const may = { ...this.may };
     const gated = this.audienceGatedNow();
-    const params = newSessionParams(this.opts.repoRoot, this.opts.studioBrief, this.opts.plugins, {
-      readRoots: this.readRoots,
-      onlyVerbs: scoped === null ? null : HANDOFF_RUN_VERBS,
-      may,
-      assetsRoots: this.assetsRoots,
-      credentials: this.credentialPaths,
-      audienceGated: gated,
-    });
+    const params = newSessionParamsFor(
+      this.agent,
+      this.opts.repoRoot,
+      this.opts.studioBrief,
+      this.opts.plugins,
+      {
+        readRoots: this.readRoots,
+        onlyVerbs: scoped === null ? null : HANDOFF_RUN_VERBS,
+        may,
+        assetsRoots: this.assetsRoots,
+        credentials: this.credentialPaths,
+        audienceGated: gated,
+      }
+    );
     const persistedId = resume === undefined ? await this.readPersistedSessionId() : resume;
     let sessionId: string | undefined;
     let modes: SessionModeState | null | undefined;
     let configOptions: SessionConfigOption[] | null | undefined;
-    if (persistedId) {
+    // F3 — an agent that did not advertise `loadSession` would never answer it: go straight to a
+    // new session instead of waiting LOAD_SESSION_TIMEOUT_MS for nothing.
+    const canLoad = persistedId ? await this.canLoadSession : false;
+    if (persistedId && !canLoad) {
+      await this.appendTranscript({ role: 'bootstrap', kind: 'resume-unsupported' });
+    }
+    if (persistedId && canLoad) {
       try {
         this.replaying = true;
         const result = await withTimeout(
@@ -1403,8 +1546,9 @@ export class AcpBridge {
     );
     this.lastModes = modes ?? null;
     this.lastConfigOptions = configOptions ?? [];
+    await this.pinModeOnce(sessionId);
     await this.applyDesiredConfigOnce(sessionId);
-    this.opts.onCaps?.(this.lastModes, this.lastConfigOptions);
+    this.emitCaps();
     return sessionId;
   }
 
@@ -1441,84 +1585,127 @@ export class AcpBridge {
     }
   }
 
-  private async start(): Promise<void> {
-    const adapterEntry = resolveAdapterEntry();
-    if (!adapterEntry) {
-      throw new Error('The Claude agent bridge is not installed in this build.');
+  /**
+   * F3 — the agent's argv and its whole env, built once (acp/agents/spawn.ts). Claude's errors and
+   * its spawn are exactly as before the descriptor existed; another agent's name its label.
+   */
+  private spawnPlan(): { cmd: string[]; env: Record<string, string> } {
+    const d = this.agent;
+    let adapterEntry: string | undefined;
+    let agentBin: string;
+    if (d.id === CLAUDE.id) {
+      adapterEntry = resolveAdapterEntry() ?? undefined;
+      if (!adapterEntry) {
+        throw new Error('The Claude agent bridge is not installed in this build.');
+      }
+      const claudePath = resolveClaudePath();
+      if (!claudePath) {
+        throw new Error("Claude Code isn't connected — run `claude` in a terminal and `/login`.");
+      }
+      // #148 — a Windows npm `claude.cmd` shim can't be spawned by Node without a shell.
+      const agentClaude = resolveAgentClaudeExecutable(claudePath);
+      if (!agentClaude) {
+        throw new Error(
+          'Claude Code is installed as an npm `claude.cmd` shim the chat cannot start — reinstall it with the native installer.'
+        );
+      }
+      // DDR-123 guardrail #2 — pin the adapter to the user's OWN `claude` CLI
+      // (CLAUDE_CODE_EXECUTABLE, the descriptor's agentBinEnv). Without it the adapter falls back
+      // to the ~210 MB native binary of @anthropic-ai/claude-agent-sdk, which the desktop bundle
+      // deliberately does not stage (stage-resources.mjs) — and the turn would leave the user's
+      // subscription.
+      agentBin = agentClaude;
+    } else {
+      if (d.launch.kind === 'adapter-js') {
+        adapterEntry = resolveAdapterEntry(d.launch) ?? undefined;
+        if (!adapterEntry) {
+          throw new Error(`The ${d.label} agent bridge is not installed in this build.`);
+        }
+      }
+      const bin = this.opts.agentBin;
+      if (!bin || !existsSync(bin)) {
+        throw new Error(`${d.label} isn't installed on this Mac — connect it in Settings.`);
+      }
+      agentBin = bin;
     }
-    const claudePath = resolveClaudePath();
-    if (!claudePath) {
-      throw new Error("Claude Code isn't connected — run `claude` in a terminal and `/login`.");
-    }
-    // #148 — a Windows npm `claude.cmd` shim can't be spawned by Node without a shell.
-    const agentClaude = resolveAgentClaudeExecutable(claudePath);
-    if (!agentClaude) {
-      throw new Error(
-        'Claude Code is installed as an npm `claude.cmd` shim the chat cannot start — reinstall it with the native installer.'
-      );
+    if (d.policy === 'bridge-enforced' && !d.enforcement) {
+      throw new Error(`${d.label} has no Maude policy to run under.`);
     }
 
-    // DDR-123 guardrail #1 — strip ANTHROPIC_API_KEY so the child stays on the
-    // user's subscription. This is the whole compliance story; do not weaken it.
-    const env = scrubAgentEnv(process.env);
-    // DDR-123 guardrail #2 — pin the adapter to the user's OWN `claude` CLI.
-    // `claude-agent-acp`'s `claudeCliPath()` honors CLAUDE_CODE_EXECUTABLE and
-    // ONLY otherwise falls back to the ~210 MB native Claude binary shipped as a
-    // platform-specific OPTIONAL dep of @anthropic-ai/claude-agent-sdk. The
-    // desktop bundle deliberately stages just the adapter's JS closure (not that
-    // native binary — see apps/desktop/scripts/stage-resources.mjs), so without
-    // this pin the packaged adapter would throw "native binary not found". Driving
-    // the user's installed CLI is also the documented intent: it keeps the turn on
-    // their subscription rather than the SDK's embedded runtime.
-    env.CLAUDE_CODE_EXECUTABLE = agentClaude;
-    // Least-privilege: the adapter child never talks to the dev-server's GitHub
-    // token bridge (only apps/studio/github/token.ts does). scrubAgentEnv above
-    // drops its loopback handle (MAUDE_TOKEN_*) with every other shell secret —
-    // one strip for the bridge, the probe and login-state alike (V2-3.6 M4).
-    // Model + effort are no longer env-at-spawn (Task A3) — the adapter starts
-    // on its own default and `establishSession`/`applyDesiredConfigOnce` live-
-    // applies the user's persisted picks via `setSessionConfigOption` once the
-    // session (and its advertised options) exist. No respawn on a config change.
-
-    // RCA-G1 — resolve a runnable JS runtime. On a node/bun-less machine this
-    // falls back to our own compiled self, which must be spawned with
-    // BUN_BE_BUN=1 to behave as `bun` (else it re-runs the embedded server and
-    // the handshake below never completes → "Working…" forever). Set on `env`
-    // AFTER scrubAgentEnv (which doesn't touch BUN_BE_BUN).
-    const runtime = resolveAgentRuntime();
-    if (runtime.bunBeBun) env.BUN_BE_BUN = '1';
-    // V2-2.4b (decision:maude/v2-2.4b-actor-env-marker) — the adapter hands its env to `claude`,
-    // and `claude` to every design-plugin hook: `maude design hook` reads this to tell a Maude chat
-    // run from a terminal Claude Code (the run's actor, and who brackets it — acp/index.ts does).
-    env.MAUDE_AGENT_ACTOR = 'maude-chat';
-    // gate-b-sec2 (decision v2-gate-b-sec2-session-root): the project this chat's maude verbs are
-    // held to — `maude design` refuses a --root / cwd / CLAUDE_PROJECT_DIR naming another one.
-    env.MAUDE_SESSION_ROOT = this.opts.repoRoot;
-    // V2-8.9 H2 — the read boundary of this chat for the verbs that read a path they are given
-    // (cli/lib/confine-read.mjs): the fixed roots now, the consented folders live from the store.
-    env.MAUDE_READ_ROOTS = this.readRoots.join(delimiter);
-    // V2-8.9 re-check 2 H-a — the ports of THIS session's own server (main, canvas, capture): the
-    // browser helpers open no other loopback port (bin/_url-guard.mjs). Plain ports only; none →
-    // unset, and the helpers refuse every page (fail closed). Scrubbed + bash-guarded like the rest.
+    // Model + effort are no longer env-at-spawn (Task A3) — `applyDesiredConfigOnce` live-applies
+    // the persisted picks once the session exists. No respawn on a config change.
+    // V2-8.9 re-check 2 H-a — a ports getter that throws hands the helpers none (fail closed).
+    let ownPorts: readonly number[] = [];
     try {
-      const ports = (this.opts.ownPorts?.() ?? []).filter(
-        (p) => Number.isInteger(p) && p > 0 && p < 65536
-      );
-      if (ports.length) env.MAUDE_OWN_PORTS = [...new Set(ports)].join(',');
+      ownPorts = this.opts.ownPorts?.() ?? [];
     } catch {
-      /* no list: the helpers open nothing */
+      ownPorts = [];
     }
-    // V2-8.9 M2 — the agent's temp folder is this chat's own scratch (inside its read boundary), not
-    // the shared /tmp. Owner-only, never through a planted link (re-check 2 L3); a failure leaves
-    // TMPDIR as it was (reads there then ask).
-    if (ensureChatScratch(this.scratch)) env.TMPDIR = `${this.scratch}/`;
-    if (this.opts.grantsFile) env.MAUDE_GRANTS_FILE = this.opts.grantsFile;
-    const proc = Bun.spawn([runtime.bin, adapterEntry], {
+    return agentSpawn({
+      descriptor: d,
+      // DDR-123 guardrail #1 — strip ANTHROPIC_API_KEY (and every other vendor's key, rule 14) so
+      // the child stays on the user's own sign-in. This is the whole compliance story; do not
+      // weaken it. The shell's per-spawn secrets (MAUDE_TOKEN_* …) go with it (V2-3.6 M4).
+      scrubbed: scrubAgentEnv(process.env, d.envAllow),
+      agentBin,
+      adapterEntry,
+      // RCA-G1 — a runnable JS runtime; on a node/bun-less machine our own compiled self, which
+      // must run with BUN_BE_BUN=1 (else the handshake below never completes → "Working…").
+      runtime: d.launch.kind === 'adapter-js' ? resolveAgentRuntime() : undefined,
+      policyCtx: this.policyCtx(agentBin),
+      actor: {
+        sessionRoot: this.opts.repoRoot,
+        readRoots: this.readRoots,
+        ownPorts,
+        // V2-8.9 M2 — owner-only, never through a planted link; a failure leaves TMPDIR alone.
+        tmpdir: ensureChatScratch(this.scratch) ? this.scratch : null,
+        grantsFile: this.opts.grantsFile,
+      },
+      // S11.13 — Settings › Advanced › teams (prefs.json experimentalTeams), read at each spawn.
+      teams: readUiPrefs().experimentalTeams === true,
+      chatId: this.opts.chatId,
+      delimiter,
+    });
+  }
+
+  /**
+   * F3 → F5 — the bridge-enforced gate's answer for one request. 'unrestricted' (Advanced, the
+   * person consented) passes the request on unchanged; 'bridge-enforced' with no gate wired, or a
+   * gate that throws, refuses (fail closed).
+   */
+  private agentGateDecision(req: RequestPermissionRequest): GateDecision {
+    const gate = this.opts.permissionGate;
+    if (!gate) {
+      return this.agent.policy === 'bridge-enforced'
+        ? { kind: 'refuse', reason: 'no-gate' }
+        : { kind: 'ask', options: req.options ?? [] };
+    }
+    try {
+      return gate({ req, descriptor: this.agent, ctx: this.policyCtx(this.opts.agentBin ?? '') });
+    } catch {
+      return { kind: 'refuse', reason: 'gate-error' };
+    }
+  }
+
+  /** F3 — the session scope a launch policy and the bridge gate are built from (PolicyCtx). */
+  private policyCtx(agentBin: string): PolicyCtx {
+    return {
+      scopeRoot: this.scopeRoot,
+      readRoots: this.readRoots,
+      writeRoots: [this.scopeRoot, this.scratch],
+      credentialPaths: this.credentialPaths,
+      may: { ...this.may },
+      designRoots: this.designRoots,
+      agentBin,
+    };
+  }
+
+  private async start(): Promise<void> {
+    const { cmd, env } = this.spawnPlan();
+    const proc = Bun.spawn(cmd, {
       cwd: this.opts.repoRoot,
       windowsHide: true, // #141 — never a console window for the adapter on Windows
-      // V2-1.15 §5.4 — this chat's id and no other's (a stale MAUDE_CHAT_ID is dropped).
-      // S11.13 — Settings › Advanced › teams (prefs.json experimentalTeams), read at each spawn.
-      env: chatSpawnEnv(teamsSpawnEnv(env, readUiPrefs()), this.opts.chatId),
+      env,
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
@@ -1579,7 +1766,7 @@ export class AcpBridge {
           this.lastModes = this.lastModes
             ? { ...this.lastModes, currentModeId: u.currentModeId }
             : { currentModeId: u.currentModeId, availableModes: [] };
-          this.opts.onCaps?.(this.lastModes, this.lastConfigOptions);
+          this.emitCaps();
           return;
         }
         if (u.sessionUpdate === 'config_option_update') {
@@ -1595,7 +1782,7 @@ export class AcpBridge {
               ? { ...this.lastModes, currentModeId: modeOpt.currentValue }
               : { currentModeId: modeOpt.currentValue, availableModes: [] };
           }
-          this.opts.onCaps?.(this.lastModes, this.lastConfigOptions);
+          this.emitCaps();
           return;
         }
         if (u.sessionUpdate === 'session_info_update') {
@@ -1643,6 +1830,15 @@ export class AcpBridge {
           // transparency callback (every request, however it resolves);
           // `onPermissionRequest` is the actual UI hook the client answers.
           this.opts.onPermission?.(params);
+          // F3 → F5 — an agent that is not Claude goes through the bridge-enforced gate first
+          // (acp/policy/enforce.ts); the Claude-shaped gates below key on Claude tool names.
+          if (this.agent.policy !== 'claude-meta') {
+            const decision = this.agentGateDecision(params);
+            if (decision.kind === 'select' || decision.kind === 'refuse') {
+              return Promise.resolve(gateResponse(params, decision));
+            }
+            if (decision.kind === 'ask') params = { ...params, options: decision.options };
+          }
           // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — an "AI may" switch the person turned off
           // refuses the call here, against the CURRENT state, with no card: the person already said no.
           // Before the write gate, so an off switch is never auto-approved as an in-project write.
@@ -1752,6 +1948,10 @@ export class AcpBridge {
 
     const conn = new ClientSideConnection(() => client, stream);
     this.conn = conn;
+    let settleLoad: (can: boolean) => void = () => {};
+    this.canLoadSession = new Promise<boolean>((r) => {
+      settleLoad = r;
+    });
 
     // RCA-G1 — bound the handshake. If the spawned "adapter" is actually a
     // mis-launched runtime that never speaks ACP (the exact node-less bug: a
@@ -1781,8 +1981,13 @@ export class AcpBridge {
         },
       }),
       INITIALIZE_TIMEOUT_MS
-    );
+    ).catch((err: unknown) => {
+      // A handshake that fails must not leave a session start waiting on the answer forever.
+      settleLoad(false);
+      throw err;
+    });
     if (initResult === TIMED_OUT) {
+      settleLoad(false);
       this.conn = null;
       try {
         proc.kill();
@@ -1792,9 +1997,13 @@ export class AcpBridge {
       this.proc = null;
       throw new Error(
         `AI editing couldn't start: the agent runtime didn't respond within ${INITIALIZE_TIMEOUT_MS / 1000}s. ` +
-          `Check that Claude Code is installed and signed in (Help ▸ Check AI editing readiness).`
+          (this.agent.id === CLAUDE.id
+            ? `Check that Claude Code is installed and signed in (Help ▸ Check AI editing readiness).`
+            : `Check that ${this.agent.label} is installed and signed in.`)
       );
     }
+    // F3 — resume only an agent that said it can (`loadSession`); others start a new session.
+    settleLoad(initResult.agentCapabilities?.loadSession === true);
     // Sessions are created lazily per chat (sessionFor) — not here.
   }
 

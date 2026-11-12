@@ -20,7 +20,18 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-import { AcpBridge, MAUDE_DEFAULT_ALLOWED_TOOLS } from '../acp/bridge.ts';
+import { CLAUDE } from '../acp/agents/catalog.ts';
+import type { AgentDescriptor, PolicyCtx } from '../acp/agents/descriptor.ts';
+import { agentSpawn } from '../acp/agents/spawn.ts';
+import {
+  AcpBridge,
+  MAUDE_DEFAULT_ALLOWED_TOOLS,
+  ModeRefusedError,
+  newSessionParams,
+  newSessionParamsFor,
+} from '../acp/bridge.ts';
+import { scrubAgentEnv } from '../acp/env.ts';
+import type { AiMay } from '../acp/may-scope.ts';
 import { DEV_SERVER_ROOT } from '../paths.ts';
 
 const FIXTURE = join(import.meta.dir, 'fixtures', 'mock-acp-agent-spawn.mjs');
@@ -172,5 +183,296 @@ describe('(a) Claude spawns byte-identical to before the descriptor refactor', (
       return;
     }
     expect(got).toEqual(JSON.parse(readFileSync(SNAPSHOT, 'utf8')));
+  });
+});
+
+// ── (b)–(e): agents that are not Claude ──────────────────────────────────────────────────────────
+
+/** Rule 14 — every one of these is gone from every agent's env unless its envAllow names it. */
+const VENDOR_SECRETS: Record<string, string> = {
+  OPENAI_API_KEY: 'sk-openai',
+  OPENAI_BASE_URL: 'https://openai.evil.test',
+  CODEX_API_KEY: 'codex',
+  GEMINI_API_KEY: 'gemini',
+  GOOGLE_API_KEY: 'google',
+  GOOGLE_APPLICATION_CREDENTIALS: '/creds.json',
+  GITHUB_TOKEN: 'ghp_x',
+  GH_TOKEN: 'gho_x',
+  COPILOT_TOKEN: 'copilot',
+  OPENCODE_API_KEY: 'oc',
+  OPENCODE_AUTH_CONTENT: '{}',
+  OPENCODE_CONSOLE_TOKEN: 'occ',
+};
+
+function fakeAgent(over: Partial<AgentDescriptor> = {}): AgentDescriptor {
+  return {
+    id: 'custom:fake',
+    label: 'Fake',
+    vendor: 'Fake Inc',
+    detect: {
+      bins: ['fake'],
+      versionArgs: ['--version'],
+      versionRe: /(\d+\.\d+\.\d+)/,
+      minVersion: '0.0.0',
+      testedMax: '9.9.9',
+    },
+    launch: { kind: 'native-acp', args: [FIXTURE, '--acp'] },
+    auth: { gate: 'none' },
+    envAllow: [],
+    policy: 'unrestricted',
+    plugins: 'none',
+    ...over,
+  };
+}
+
+const MODES = {
+  currentModeId: 'yolo',
+  availableModes: [
+    { id: 'safe', name: 'Safe' },
+    { id: 'yolo', name: 'Yolo' },
+  ],
+};
+
+function enforcedAgent(seen: PolicyCtx[] = []): AgentDescriptor {
+  return fakeAgent({
+    policy: 'bridge-enforced',
+    envAllow: ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY'],
+    enforcement: {
+      launchPolicy: (ctx) => {
+        seen.push(ctx);
+        return {
+          env: {
+            FAKE_POLICY: `write=${ctx.writeRoots.length}`,
+            // A policy can never hand the agent a secret the scrub drops, nor rename the root.
+            MAUDE_SHELL_TOKEN: 'leak',
+            MAUDE_SESSION_ROOT: '/somewhere/else',
+          },
+          args: ['--sandbox'],
+        };
+      },
+      readGate: 'os-sandbox',
+      shellGate: 'os-sandbox',
+      pinMode: { modeId: 'safe', refuse: ['yolo'] },
+      rejectEndsTurn: true,
+      targetKeys: ['path'],
+    },
+  });
+}
+
+async function agentRun(
+  agent: AgentDescriptor | undefined,
+  opts: {
+    extraEnv?: Record<string, string>;
+    may?: AiMay;
+    store?: string;
+    during?: (bridge: AcpBridge) => Promise<void>;
+  } = {}
+): Promise<{ log: LogLine[]; bridge: AcpBridge }> {
+  const logPath = join(tmp, `agent-${++logN}.ndjson`);
+  const bridge = await withEnv(
+    fixtureEnv(logPath, { ...VENDOR_SECRETS, ...opts.extraEnv }),
+    async () => {
+      const b = new AcpBridge({
+        repoRoot: repo,
+        designRoot: join(repo, '.design'),
+        chatId: 'c1',
+        studioBrief: 'BRIEF',
+        agent,
+        agentBin: process.execPath,
+        ownPorts: () => [4399],
+        onUpdate: () => {},
+      });
+      if (opts.store) b.setSessionStorePath(opts.store);
+      if (opts.may) b.setMay(opts.may);
+      try {
+        await b.prompt('hi', 'c1');
+        await opts.during?.(b);
+      } finally {
+        await b.stop();
+      }
+      return b;
+    }
+  );
+  return { log: readLog(logPath), bridge };
+}
+
+describe('(b) a native-ACP agent spawns its own binary and gets nothing Claude-shaped', () => {
+  test('argv is [bin, ...launch.args]; session/new has no _meta; fs stays off', async () => {
+    const { log } = await agentRun(fakeAgent());
+    const spawn = log.find((l) => l.m === 'spawn');
+    expect(spawn?.argv).toEqual(['--acp']);
+    expect(spawn?.env?.CLAUDE_CODE_EXECUTABLE).toBeUndefined();
+    expect(spawn?.env?.BUN_BE_BUN).toBeUndefined();
+    expect(log.find((l) => l.m === 'new')?.params).toEqual({ cwd: repo, mcpServers: [] });
+    const caps = log.find((l) => l.m === 'initialize')?.params?.clientCapabilities as
+      | { fs?: unknown }
+      | undefined;
+    expect(caps?.fs).toEqual({ readTextFile: false, writeTextFile: false });
+  });
+
+  test('newSessionParamsFor: Claude is newSessionParams, anything else is cwd + no MCP', () => {
+    const scope = { may: { assets: true, web: false } };
+    expect(newSessionParamsFor(CLAUDE, repo, 'BRIEF', [], scope)).toEqual(
+      newSessionParams(repo, 'BRIEF', [], scope)
+    );
+    expect(newSessionParamsFor(fakeAgent(), repo, 'BRIEF', [], scope)).toEqual({
+      cwd: repo,
+      mcpServers: [],
+    });
+  });
+
+  test('a bridge-enforced launch policy appends its args', async () => {
+    const { log } = await agentRun(enforcedAgent(), {
+      extraEnv: { MAUDE_TEST_MODES: JSON.stringify(MODES) },
+    });
+    expect(log.find((l) => l.m === 'spawn')?.argv).toEqual(['--acp', '--sandbox']);
+  });
+});
+
+describe('(c) the agent env: shared scrub, envAllow, launch policy, actor env', () => {
+  test('Claude loses every vendor secret too', async () => {
+    const { log } = await agentRun(undefined);
+    const env = log.find((l) => l.m === 'spawn')?.env ?? {};
+    for (const k of Object.keys(VENDOR_SECRETS)) expect([k, k in env]).toEqual([k, false]);
+    expect(env.KEEP_ME).toBe('kept');
+    expect(env.CLAUDE_CODE_EXECUTABLE).toBe(process.execPath);
+  });
+
+  test('a non-Claude agent: secrets gone, envAllow back, policy env + actor env present', async () => {
+    const ctxs: PolicyCtx[] = [];
+    const { log } = await agentRun(enforcedAgent(ctxs), {
+      may: { assets: true, web: false },
+      extraEnv: { MAUDE_TEST_MODES: JSON.stringify(MODES) },
+    });
+    const env = log.find((l) => l.m === 'spawn')?.env ?? {};
+    for (const k of Object.keys(VENDOR_SECRETS)) {
+      expect([k, k in env]).toEqual([k, k === 'OPENAI_API_KEY']);
+    }
+    // envAllow can never bring back Anthropic billing keys or Maude's own secrets.
+    for (const k of [
+      'ANTHROPIC_API_KEY',
+      'ANTHROPIC_BASE_URL',
+      'MAUDE_SHELL_TOKEN',
+      'MAUDE_TOKEN_KEY',
+      'MAUDE_GEN_KEY_KEY',
+      'MAUDE_CLOUD_CONFIG',
+    ]) {
+      expect([k, k in env]).toEqual([k, false]);
+    }
+    // the launch policy's env, built from the bridge's own scope
+    expect(env.FAKE_POLICY).toBe('write=2');
+    expect(ctxs[0]?.scopeRoot).toBe(repo);
+    expect(ctxs[0]?.may).toEqual({ assets: true, web: false });
+    expect(ctxs[0]?.agentBin).toBe(process.execPath);
+    // the actor env, last: the policy cannot rename the session root
+    expect(env.MAUDE_AGENT_ACTOR).toBe('maude-chat');
+    expect(env.MAUDE_SESSION_ROOT).toBe(repo);
+    expect(env.MAUDE_READ_ROOTS?.split(':')).toContain(repo);
+    expect(env.MAUDE_OWN_PORTS).toBe('4399');
+    expect(env.MAUDE_CHAT_ID).toBe('c1');
+    expect(env.TMPDIR?.endsWith('/')).toBe(true);
+    // web off rides the spawn env (no _meta channel); teams are Claude's only
+    expect(env.MAUDE_NO_EGRESS).toBe('1');
+    expect(env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS).toBeUndefined();
+  });
+
+  test('agentSpawn (pure): an adapter-js agent gets its binary in agentBinEnv and runs the adapter', () => {
+    const d = fakeAgent({
+      launch: { kind: 'adapter-js', adapterPkg: 'x', adapterBin: 'x', agentBinEnv: 'FAKE_PATH' },
+    });
+    const out = agentSpawn({
+      descriptor: d,
+      scrubbed: scrubAgentEnv({ PATH: '/bin', OPENAI_API_KEY: 'k' }, d.envAllow),
+      agentBin: '/opt/fake',
+      adapterEntry: '/adapter.js',
+      runtime: { bin: '/bun', bunBeBun: true },
+      policyCtx: {
+        scopeRoot: '/p',
+        readRoots: ['/p'],
+        writeRoots: ['/p'],
+        credentialPaths: { dirs: [], files: [] },
+        may: { assets: true, web: true },
+        designRoots: ['/p/.design'],
+        agentBin: '/opt/fake',
+      },
+      actor: { sessionRoot: '/p', readRoots: ['/p', '/q'] },
+      teams: true,
+      chatId: 'c9',
+      delimiter: ':',
+    });
+    expect(out.cmd).toEqual(['/bun', '/adapter.js']);
+    expect(out.env).toEqual({
+      PATH: '/bin',
+      FAKE_PATH: '/opt/fake',
+      BUN_BE_BUN: '1',
+      MAUDE_AGENT_ACTOR: 'maude-chat',
+      MAUDE_SESSION_ROOT: '/p',
+      MAUDE_READ_ROOTS: '/p:/q',
+      MAUDE_CHAT_ID: 'c9',
+    });
+  });
+});
+
+describe('(d) an agent without loadSession starts a new session at once', () => {
+  test('a persisted session id is not loaded; session/new answers with no wait', async () => {
+    const store = join(tmp, `store-${++logN}.json`);
+    writeFileSync(store, JSON.stringify({ sessionId: 'persisted-1', updatedAt: 1 }));
+    const started = Date.now();
+    const { log } = await agentRun(fakeAgent(), {
+      store,
+      extraEnv: { MAUDE_TEST_LOAD_SESSION: '0' },
+    });
+    expect(log.some((l) => l.m === 'load')).toBe(false);
+    expect(log.some((l) => l.m === 'new')).toBe(true);
+    expect(Date.now() - started).toBeLessThan(5000);
+  }, 20000);
+
+  test('an agent WITH loadSession still resumes', async () => {
+    const store = join(tmp, `store-${++logN}.json`);
+    writeFileSync(store, JSON.stringify({ sessionId: 'persisted-2', updatedAt: 1 }));
+    const { log } = await agentRun(fakeAgent(), { store });
+    expect(log.find((l) => l.m === 'load')?.params?.sessionId).toBe('persisted-2');
+    expect(log.some((l) => l.m === 'new')).toBe(false);
+  });
+});
+
+describe('(e) the pinned mode: set after session/new, refused modes rejected and hidden', () => {
+  test('set_mode(pin) is sent; the roster drops the refused mode; a switch to it throws', async () => {
+    let refusedMode: unknown;
+    let refusedConfig: unknown;
+    let shown: string[] = [];
+    let current: string | undefined;
+    const { log, bridge } = await agentRun(enforcedAgent(), {
+      extraEnv: { MAUDE_TEST_MODES: JSON.stringify(MODES) },
+      during: async (b) => {
+        current = b.modes?.currentModeId;
+        shown = b.modes?.availableModes.map((m) => m.id) ?? [];
+        refusedMode = await b.setMode('c1', 'yolo').catch((e) => e);
+        refusedConfig = await b.setConfigOption('c1', 'mode', 'yolo').catch((e) => e);
+      },
+    });
+    expect(current).toBe('safe');
+    expect(shown).toEqual(['safe']);
+    expect(log.filter((l) => l.m === 'set_mode').map((l) => l.params?.modeId)).toEqual(['safe']);
+    expect(refusedMode).toBeInstanceOf(ModeRefusedError);
+    expect(refusedConfig).toBeInstanceOf(ModeRefusedError);
+    expect(log.some((l) => l.m === 'set_config_option')).toBe(false);
+    expect(bridge.refusesMode('yolo')).toBe(true);
+    expect(bridge.agentInfo).toEqual({ id: 'custom:fake', label: 'Fake', vendor: 'Fake Inc' });
+  });
+
+  test('no set_mode when the agent already sits in the pinned mode', async () => {
+    const { log } = await agentRun(enforcedAgent(), {
+      extraEnv: { MAUDE_TEST_MODES: JSON.stringify({ ...MODES, currentModeId: 'safe' }) },
+    });
+    expect(log.some((l) => l.m === 'set_mode')).toBe(false);
+  });
+
+  test('Claude has no pin: no set_mode, nothing refused', async () => {
+    const { log, bridge } = await agentRun(undefined, {
+      extraEnv: { MAUDE_TEST_MODES: JSON.stringify(MODES) },
+    });
+    expect(log.some((l) => l.m === 'set_mode')).toBe(false);
+    expect(bridge.refusesMode('yolo')).toBe(false);
   });
 });

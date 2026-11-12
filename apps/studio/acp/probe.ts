@@ -12,11 +12,13 @@ import { dirname, join, win32 } from 'node:path';
 
 import { DEV_SERVER_ROOT, IS_COMPILED_BINARY } from '../paths.ts';
 import { e2eSwitch, IS_RELEASE_BUILD } from '../release-build.ts';
+import { CLAUDE } from './agents/catalog.ts';
+import type { AgentDescriptor, AgentLaunch } from './agents/descriptor.ts';
 import { scrubAgentEnv } from './env.ts';
 
-/** Adapter npm package — the renamed continuation of `@zed-industries/claude-code-acp`. */
-const ADAPTER_PKG = '@agentclientprotocol/claude-agent-acp';
-const ADAPTER_BIN_NAME = 'claude-agent-acp';
+type AdapterLaunch = Extract<AgentLaunch, { kind: 'adapter-js' }>;
+/** Claude's adapter (`@agentclientprotocol/claude-agent-acp`, the continuation of `@zed-industries/claude-code-acp`). */
+const CLAUDE_ADAPTER = CLAUDE.launch as AdapterLaunch;
 
 export interface AcpAvailability {
   /** True when both the adapter entry and a `claude` CLI are resolvable. */
@@ -25,29 +27,47 @@ export interface AcpAvailability {
   reason?: string;
   /** Absolute path to the adapter entry JS, or null. */
   adapterEntry: string | null;
-  /** Absolute path to the `claude` CLI, or null. */
+  /** Absolute path to the `claude` CLI, or null (always null for another agent). */
   claudePath: string | null;
+  /** F3 — which agent this answers for (the `ready` frame names it). */
+  agent?: AgentInfo;
+}
+
+/** F3 — the agent as the panel names it (`ready` / `caps` frames). */
+export interface AgentInfo {
+  id: string;
+  label: string;
+  vendor: string;
+}
+
+export function agentInfoOf(d: AgentDescriptor): AgentInfo {
+  return { id: d.id, label: d.label, vendor: d.vendor };
 }
 
 /**
- * Resolve the adapter's spawnable entry script (its `bin`), trying:
- *   1. `MAUDE_ACP_ADAPTER_ENTRY` override (tests + escape hatch).
+ * Resolve an adapter's spawnable entry script (its `bin`), trying:
+ *   1. `MAUDE_ACP_ADAPTER_ENTRY` override (tests + escape hatch) — Claude's adapter only: no env
+ *      var can point another agent's launch at a script of its choosing.
  *   2. The package's own `package.json` `bin` field, joined to its dir.
  *   3. The pnpm `.bin/<name>` symlink, dereferenced to the real file.
- * Returns an absolute path or null.
+ * Returns an absolute path or null. Default: Claude's adapter (F3 — any `adapter-js` launch).
  */
-export function resolveAdapterEntry(): string | null {
+export function resolveAdapterEntry(launch: AdapterLaunch = CLAUDE_ADAPTER): string | null {
+  const pkgName = launch.adapterPkg;
+  const binName = launch.adapterBin;
   const override = process.env.MAUDE_ACP_ADAPTER_ENTRY;
-  if (override) return existsSync(override) ? override : null;
+  if (override && pkgName === CLAUDE_ADAPTER.adapterPkg) {
+    return existsSync(override) ? override : null;
+  }
 
   // (2) Locate the installed package via its package.json, read the bin map.
   try {
-    const pkgJsonPath = Bun.resolveSync(`${ADAPTER_PKG}/package.json`, DEV_SERVER_ROOT);
+    const pkgJsonPath = Bun.resolveSync(`${pkgName}/package.json`, DEV_SERVER_ROOT);
     const pkgDir = dirname(pkgJsonPath);
     const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf8')) as {
       bin?: string | Record<string, string>;
     };
-    const binRel = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.[ADAPTER_BIN_NAME];
+    const binRel = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.[binName];
     if (binRel) {
       const entry = join(pkgDir, binRel);
       if (existsSync(entry)) return entry;
@@ -58,7 +78,7 @@ export function resolveAdapterEntry(): string | null {
 
   // (3) The pnpm-linked bin symlink in the dev-server's own node_modules.
   try {
-    const sym = join(DEV_SERVER_ROOT, 'node_modules', '.bin', ADAPTER_BIN_NAME);
+    const sym = join(DEV_SERVER_ROOT, 'node_modules', '.bin', binName);
     if (existsSync(sym)) return realpathSync(sym);
   } catch {
     /* not present */
@@ -255,7 +275,13 @@ export function resolveAgentRuntime(): { bin: string; bunBeBun: boolean } {
  * `GET /_api/acp/status` and the WS `ready` frame. The actual ACP session spins
  * up lazily on the first prompt.
  */
-export function probeAcpAvailability(): AcpAvailability {
+export function probeAcpAvailability(
+  descriptor: AgentDescriptor = CLAUDE,
+  /** F3 — another agent's discovered real binary (discovery is acp/agents/discover.ts, F2). */
+  agentBin?: string | null
+): AcpAvailability {
+  if (descriptor.id !== CLAUDE.id) return probeOtherAgent(descriptor, agentBin ?? null);
+  const agent = agentInfoOf(descriptor);
   const adapterEntry = resolveAdapterEntry();
   const claudePath = resolveClaudePath();
   if (!adapterEntry) {
@@ -264,6 +290,7 @@ export function probeAcpAvailability(): AcpAvailability {
       reason: 'The Claude agent bridge is not installed in this build.',
       adapterEntry: null,
       claudePath,
+      agent,
     };
   }
   if (!claudePath) {
@@ -272,6 +299,7 @@ export function probeAcpAvailability(): AcpAvailability {
       reason: "Claude Code isn't connected — run `claude` in a terminal and `/login`.",
       adapterEntry,
       claudePath: null,
+      agent,
     };
   }
   if (!resolveAgentClaudeExecutable(claudePath)) {
@@ -281,9 +309,35 @@ export function probeAcpAvailability(): AcpAvailability {
         'Claude Code was found only as an npm `claude.cmd` shim the chat cannot start. Reinstall it with the native installer (`irm https://claude.ai/install.ps1 | iex`).',
       adapterEntry,
       claudePath,
+      agent,
     };
   }
-  return { available: true, adapterEntry, claudePath };
+  return { available: true, adapterEntry, claudePath, agent };
+}
+
+/** F3 — the same cheap check for an agent that is not Claude: its adapter (if any) and its binary. */
+function probeOtherAgent(d: AgentDescriptor, agentBin: string | null): AcpAvailability {
+  const agent = agentInfoOf(d);
+  const adapterEntry = d.launch.kind === 'adapter-js' ? resolveAdapterEntry(d.launch) : null;
+  if (d.launch.kind === 'adapter-js' && !adapterEntry) {
+    return {
+      available: false,
+      reason: `The ${d.label} agent bridge is not installed in this build.`,
+      adapterEntry: null,
+      claudePath: null,
+      agent,
+    };
+  }
+  if (!agentBin || !existsSync(agentBin)) {
+    return {
+      available: false,
+      reason: `${d.label} isn't installed on this Mac — install it, sign in, then connect it in Settings.`,
+      adapterEntry,
+      claudePath: null,
+      agent,
+    };
+  }
+  return { available: true, adapterEntry, claudePath: null, agent };
 }
 
 export interface ClaudeAuthStatus {
