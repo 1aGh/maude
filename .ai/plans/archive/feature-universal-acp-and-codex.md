@@ -340,14 +340,28 @@ AgentDescriptor {
 
 - [x] The homepage and `/docs` show a working copy-paste terminal quick start (Claude Code + Codex); the commands are verified live.
 - [x] `codex.mdx` reflects the published install; no stale "until published" text.
-- [ ] The Claude chat path is unchanged: every existing ACP test is green, the `_meta` payload is byte-identical, and Claude-only users see no UI change.
-- [ ] Codex runs in the Studio chat with bridge-enforced policy; the security review has no open blocker.
-- [ ] Detected agents appear only when installed locally; there are no network fetches or `npx` at runtime.
-- [ ] BYOK keys reach only their own agent and never a log or frame.
-- [ ] The DDR is recorded (agents contract + DDR-123 amendment); the What's New entry is pending; the roadmap is regenerated.
+- [x] The Claude chat path is unchanged: every existing ACP test is green, the `_meta` payload is byte-identical, and Claude-only users see no UI change. *(The snapshot changed only by intended narrowings: added credential deny rules for `~/.codex/auth.json`, opencode `auth.json` and `~/.gemini/`, and vendor keys scrubbed from Claude's env. The AI panel is unchanged; Settings gained the always-present AI agents card on purpose, so Claude's API-key opt-in is reachable.)*
+- [x] Codex runs in the Studio chat with bridge-enforced policy; the security review has no open blocker. *(Defender, attacker and verification reviews in `.ai/reviews/`; N1/S1 fixed in `bf3492c57`; S2/S3 open at low severity.)*
+- [x] Detected agents appear only when installed locally; there are no network fetches or `npx` at runtime.
+- [x] BYOK keys reach only their own agent and never a log or frame. *(Per profile. Gemini's key is not stripped from commands the person approves (review S2).)*
+- [x] The DDR is recorded (agents contract + DDR-123 amendment); the What's New entry is pending; the roadmap is regenerated.
 
 ## Progress
 
 - 2026-11-12, Part A done in `57dcbc453`. Quick start is in the homepage Advanced door, on the new `/docs/use-from-your-agent` page and in the docs index. The Codex guide now installs from the published marketplace. Install commands were verified in a scratch `CODEX_HOME` / `CLAUDE_CONFIG_DIR`.
 - Finding: `codex plugin marketplace upgrade maude` timed out cloning the repo (Codex's 30 s clone limit, "early EOF"). The first `add` worked.
 - A4: the hang reproduces. Each `codex plugin list --json` takes about 43 s with nine marketplaces, and `maude codex` runs several of them before every launch. Filed as https://github.com/1aGh/maude/issues/226 (not fixed here).
+- 2026-11-12, Part B done (`8465634f1..9d118c833`):
+  - Codex (0.154–0.166), opencode 1.18.30, Gemini 0.66 and Copilot 1.0.105 are bridge-enforced and offerable. Goose and Cursor stay unrestricted.
+  - Three security reviews; every blocker is fixed.
+  - Server e2e with real Codex and opencode: 35/35 PASS (`.ai/device/scenario-runs/universal-acp-agents-server/2026-11-12-1542/report.md`).
+  - Desktop lane `pnpm test:e2e:desktop:agents`: 6/6 PASS (`.ai/device/scenario-runs/universal-acp-agents-desktop/2026-11-12-1534/`).
+  - All quality gates and 990 `acp-*` tests are green.
+
+## Retro
+
+- **Good divergence: the spike measured first.** B0 measured five of the plan's security assumptions and found them wrong: bridge as read boundary, `fs:true`, `--sandbox`, the default Codex mode, bundling `@openai/codex`. Writing the spike from frame logs before any code saved a rewrite. **Change for `/plan`:** a security-heavy plan names its assumptions explicitly as "to be measured by the spike", not as decisions.
+- **Bad divergence: "bridge-enforced" was claimed before the probe could prove it.** Root cause: the plan defined the policy class but not its proof; nothing tied flipping a policy to a full probe pass with positive controls. Two probe checks (Codex hooks, opencode project config) looked green and proved nothing until a control ran. **Change:** every conformance check ships with a positive control, and a policy flips only on a full pass.
+- **Bad divergence: the person's own Mac leaked into the work.** A real `~/.opencode` plugin entered tests and probes. A `bun install` in the main checkout added pnpm links, which exposed that the link scan walked Maude's own folder. Root cause: the briefs said "scratch HOME" but not "scratch everything the agent resolves" (XDG data, `~/.opencode`, the git root above). **Change for `/execute` briefs:** list every config location an agent reads and require a scratch copy of each.
+- **Good: the debate settled the UX up front.** One proactive line, Settings as the reference list, Claude stays the gate. It held through implementation, with one exception (the Settings card for Claude-only Macs, needed to reach the opt-in).
+- **Worked: workers split by file ownership, the lead merges by cherry-pick.** About fifteen workers in total; only additive conflicts.

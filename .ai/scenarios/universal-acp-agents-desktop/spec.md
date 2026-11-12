@@ -2,7 +2,7 @@
 
 **native-desktop** E2E for the universal-ACP agents UI: the one-line offer in the AI panel's empty state, Settings › Connections › AI agents, the composer's agent picker, the vendor badge on a reply, the once-only permission card and "<label> reported: …". DOM-driven (`data-testid`), no computer-use.
 
-**Plan:** `.ai/plans/feature-universal-acp-and-codex.md` § Design Decisions (UI) 1–6.
+**Plan:** `.ai/plans/archive/feature-universal-acp-and-codex.md` § Design Decisions (UI) 1–6.
 **Harness:** `apps/desktop/e2e/wdio.agents.conf.ts` + `scenarios/agents.e2e.ts`. Skill: `desktop-e2e`.
 **Run:** `pnpm test:e2e:desktop:agents` (needs the e2e sidecar `bun run build.ts --release --e2e`, the debug app `pnpm test:e2e:desktop:build`, an awake unlocked screen).
 

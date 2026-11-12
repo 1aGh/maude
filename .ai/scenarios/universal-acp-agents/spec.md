@@ -3,7 +3,7 @@
 **server** E2E scenario — drives the universal-ACP chat (non-Claude agents in the Studio chat) through the REAL running studio server with the REAL agent binaries installed on this Mac: discovery and the offer, Connect (the real conformance probe), a chat over `/_ws/acp`, Maude's limits on the agent's tool calls, the refusals, and process cleanup. Local only, never CI: it needs `codex` / `opencode`.
 
 **Persona:** an advanced user who has Codex or opencode installed and connects it in Settings › AI agents.
-**Plan:** `.ai/plans/feature-universal-acp-and-codex.md` (Design Decisions, Acceptance Criteria) · contract `.ai/plans/notes/universal-acp-contract.md` (conformance probe, F6/F6b, S1, S3, "E2E findings").
+**Plan:** `.ai/plans/archive/feature-universal-acp-and-codex.md` (Design Decisions, Acceptance Criteria) · contract `.ai/plans/notes/universal-acp-contract.md` (conformance probe, F6/F6b, S1, S3, "E2E findings").
 **Harness:** `apps/studio/scripts/acp-e2e-local.ts`.
 **Offline:** each agent's model is a loopback scripted model, wired by the e2e-only switch `MAUDE_E2E_AGENT_MODEL_URL` (`apps/studio/acp/agents/e2e-model.ts`: `http://127.0.0.1:<port>` only, never Claude, ignored by a release build through `release-build.ts` `e2eSwitch`). One scratch world per agent under `/Users/Shared/.maude-e2e-<uid>/` (HOME, XDG_CONFIG/STATE/DATA/CACHE, CODEX_HOME; outside `~` because opencode walks up into `~/.opencode`), a stub `claude` (signed out), fake keys only. The server boots like the desktop app: a per-spawn `MAUDE_SHELL_API_KEY`, the person = the page's session cookie + same-origin; `NO_OPEN=1`, `MAUDE_NO_AUTOBUILD=1`, a free port.
 

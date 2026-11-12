@@ -4,7 +4,7 @@
 - **Status:** Proposed (B0 spike; accepted when B3's conformance probe is green for Codex)
 - **Tags:** acp, security, agents, codex, opencode, gemini, byok, least-privilege
 - **Related:**
-  - plan `.ai/plans/feature-universal-acp-and-codex.md`;
+  - plan `.ai/plans/archive/feature-universal-acp-and-codex.md`;
   - contract note `.ai/plans/notes/universal-acp-contract.md` (evidence: `.ai/plans/notes/universal-acp-frames/`);
   - DDR-123 (amended here);
   - DDR-054 (untrusted served project);

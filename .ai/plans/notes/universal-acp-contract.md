@@ -1,6 +1,6 @@
 # Universal ACP agents — the contract (B0 spike)
 
-- **Date:** 2026-11-12 · **Plan:** `.ai/plans/feature-universal-acp-and-codex.md` (Task B0) · **DDR:** DDR-252
+- **Date:** 2026-11-12 · **Plan:** `.ai/plans/archive/feature-universal-acp-and-codex.md` (Task B0) · **DDR:** DDR-252
 - **Evidence:** `universal-acp-frames/` (frame logs, sandbox matrix, model tool lists; its README says what each file shows)
 - **Agents probed:** `@agentclientprotocol/codex-acp` 2.6.0 (+ codex 0.166.0 bundled, and the user's 0.154.0 for the sandbox), `opencode` 1.18.30 (`opencode acp`), `@google/gemini-cli` 0.67.0 (`--acp`, initialize only).
 
