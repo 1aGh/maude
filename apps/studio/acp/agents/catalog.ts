@@ -4,19 +4,27 @@
 //
 // Policy status (DDR-252):
 //   claude    claude-meta      today's path, unchanged
-//   codex     'unrestricted'   until the conformance probe passes in full (F6b: runtime-state write
-//                              still allowed by its Seatbelt profile under codex-acp's mode)
+//   codex     bridge-enforced  probe passed in full on 0.154 / 0.165 / 0.166 (F6b)
 //   opencode  bridge-enforced  probe passed in full on 1.18.30 (F6b)
-//   gemini, copilot, goose, cursor: 'unrestricted' until their own probe passes (B8)
+//   gemini    bridge-enforced  probe passed in full on 0.66.0 (B8)
+//   copilot   bridge-enforced  probe passed in full on 1.0.105 (B8)
+//   goose, cursor: 'unrestricted' until their own probe passes
 
 import { ensureMaudeCodexHome, refuseProjectCodexConfig } from '../policy/codex-home.ts';
 import { codexLaunchPolicy, currentHost } from '../policy/launch-codex.ts';
+import { copilotLaunchPolicyFor } from '../policy/launch-copilot.ts';
+import { geminiLaunchPolicyFor } from '../policy/launch-gemini.ts';
 import {
   OPENCODE_EXTERNAL_DIRECTORY_MAP,
   opencodeLaunchPolicy,
 } from '../policy/launch-opencode.ts';
 import { readPersonOpencodeConfig } from '../policy/opencode-user-config.ts';
-import { type AgentDescriptor, type AgentId, assertDescriptor } from './descriptor.ts';
+import {
+  type AgentDescriptor,
+  type AgentId,
+  assertDescriptor,
+  type Enforcement,
+} from './descriptor.ts';
 
 const SEMVER = /(\d+\.\d+\.\d+)/;
 
@@ -170,16 +178,84 @@ function unprobed(
   });
 }
 
-/** B7 — the env a stored chat key is injected as, into this agent's env only (acp/agents/chat-key.ts). */
-function withApiKeyEnv(d: AgentDescriptor, apiKeyEnv: string[]): AgentDescriptor {
-  return { ...d, auth: { ...d.auth, apiKeyEnv } };
-}
+/**
+ * B8 — Gemini CLI under Maude's limits: a Maude-owned GEMINI_CLI_HOME + system settings (no MCP,
+ * extensions, skills, hooks or web tools), approval mode pinned to `default`, the project never
+ * trusted (acp/policy/launch-gemini.ts). Shell is judged by command text.
+ */
+export const GEMINI_ENFORCEMENT: Enforcement = {
+  launchPolicy: geminiLaunchPolicyFor,
+  readGate: 'agent-permission-engine',
+  shellGate: 'command-text',
+  pinMode: { modeId: 'default', refuse: ['yolo', 'autoEdit'] },
+  rejectEndsTurn: false,
+  targetKeys: TARGET_KEYS,
+};
 
-export const GEMINI = withApiKeyEnv(
-  unprobed('gemini', 'Gemini CLI', 'Google', 'gemini', ['--acp']),
-  ['GEMINI_API_KEY']
-);
-export const COPILOT = unprobed('copilot', 'GitHub Copilot CLI', 'GitHub', 'copilot', ['--acp']);
+/**
+ * B8 — Copilot CLI under Maude's limits: a Maude-owned COPILOT_HOME (no MCP, hooks, plugins or
+ * trusted folders), no web tool, every URL denied, project Copilot config refused
+ * (acp/policy/launch-copilot.ts). Shell is judged by command text.
+ */
+export const COPILOT_ENFORCEMENT: Enforcement = {
+  launchPolicy: copilotLaunchPolicyFor,
+  readGate: 'agent-permission-engine',
+  shellGate: 'command-text',
+  pinMode: {
+    modeId: 'https://agentclientprotocol.com/protocol/session-modes#agent',
+    refuse: ['https://agentclientprotocol.com/protocol/session-modes#autopilot'],
+  },
+  rejectEndsTurn: false,
+  targetKeys: TARGET_KEYS,
+};
+
+// B8 (2026-11-12): the conformance probe passed every check on 0.66.0, project outside git and its
+// own git repo, with a planted project `.gemini/` inert (contract note, "B8"). Shell: Gemini sends
+// no rawInput, so the gate refuses every shell command (fail closed) until enforce.ts reads its
+// title. Re-run the probe before raising testedMax.
+export const GEMINI: AgentDescriptor = assertDescriptor({
+  id: 'gemini',
+  label: 'Gemini CLI',
+  vendor: 'Google',
+  statusUrl: 'https://status.cloud.google.com',
+  detect: {
+    bins: ['gemini'],
+    versionArgs: ['--version'],
+    versionRe: SEMVER,
+    minVersion: '0.66.0',
+    testedMax: '0.66.99',
+  },
+  launch: { kind: 'native-acp', args: ['--acp'] },
+  // Sign-in is Google's own (ACP authenticate / the CLI); an API key comes from the chat key store.
+  auth: { gate: 'session-new', apiKeyEnv: ['GEMINI_API_KEY'] },
+  envAllow: [],
+  policy: 'bridge-enforced',
+  enforcement: GEMINI_ENFORCEMENT,
+  plugins: 'none',
+});
+
+// B8 (2026-11-12): the conformance probe passed every check on 1.0.105, project outside git and its
+// own git repo (contract note, "B8"). Copilot releases often and changes behaviour between patch
+// releases, so testedMax is the measured release itself.
+export const COPILOT: AgentDescriptor = assertDescriptor({
+  id: 'copilot',
+  label: 'GitHub Copilot CLI',
+  vendor: 'GitHub',
+  statusUrl: 'https://www.githubstatus.com',
+  detect: {
+    bins: ['copilot'],
+    versionArgs: ['--version'],
+    versionRe: SEMVER,
+    minVersion: '1.0.105',
+    testedMax: '1.0.105',
+  },
+  launch: { kind: 'native-acp', args: ['--acp'] },
+  auth: { gate: 'session-new', loginArgs: ['login'] },
+  envAllow: [],
+  policy: 'bridge-enforced',
+  enforcement: COPILOT_ENFORCEMENT,
+  plugins: 'none',
+});
 export const GOOSE = unprobed('goose', 'Goose', 'Block', 'goose', ['acp']);
 export const CURSOR = unprobed('cursor', 'Cursor agent', 'Cursor', 'cursor-agent', ['acp']);
 

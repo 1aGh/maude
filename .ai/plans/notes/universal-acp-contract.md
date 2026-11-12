@@ -349,3 +349,40 @@ The pass/fail is read from **what the scripted model received back as tool outpu
 - 0.166 refuses a turn whose provider differs from `config.toml`'s; the probe names its loopback provider in the scratch Maude home (the only probe-vs-production difference).
 - **Flip:** opencode → `bridge-enforced` (min 1.18.30, testedMax 1.18.99). Connect runs the real probe (`createConnectConformance`, cached per binary realpath+size+mtime, pass only).
 - **Still owed:** the bridge write gate should treat in-project `.codex/` and `.opencode/` as protected (an agent's in-project write there is auto-approved; the next spawn refuses, a mid-session reload was not measured; `enforce.ts` not in this task's files). Codex keyring sign-in (`cli_auth_credentials_store = "keyring"`) is keyed by the CODEX_HOME path, so it does not carry over to Maude's home (unmeasured; the chat would ask to sign in). A global `agent/*.md` in the person's opencode config can still carry its own permission block for agents other than build/plan (open question 6).
+
+## B8 — Gemini and Copilot
+
+- **Date:** 2026-11-12 · **Probe:** `runConformance` with the new `GEMINI_PROFILE` / `COPILOT_PROFILE` (`acp/agents/conformance.ts`; Gemini needed a third model wire, the Gemini API `generateContent`), local runner `scripts/acp-conformance-local.ts gemini|copilot --bin <path>` (`PROBE_PATH` for Gemini's node). Versions = newest published ≥ 14 days before 2026-11-12: `@google/gemini-cli` **0.66.0** (2026-10-27), `@github/copilot` **1.0.105** (2026-10-28), installed `--ignore-scripts` in a gitignored scratch folder.
+- **Not blocked on auth.** Gemini: a fake `GEMINI_API_KEY` + `GOOGLE_GEMINI_BASE_URL` at the loopback model (and `GEMINI_MODEL`, since `auto` first asks a router model for JSON). The ACP `gateway` method (`_meta.gateway.baseUrl`) is the alternative. Copilot: BYOK `COPILOT_PROVIDER_BASE_URL` + `COPILOT_MODEL` needs no GitHub sign-in; the probe adds `COPILOT_OFFLINE=true` (no sign-in, telemetry or update traffic).
+
+**Launch policies** (`acp/policy/launch-gemini.ts`, `launch-copilot.ts`, shared `agent-home.ts`):
+- **Gemini:** a Maude-owned `GEMINI_CLI_HOME` (`~/.config/maude[/profiles/<id>]/agents/gemini-home`) holding Maude's settings and links to the person's `oauth_creds.json` / `google_accounts.json`; the same settings also as the SYSTEM layer (`GEMINI_CLI_SYSTEM_SETTINGS_PATH`, highest precedence): `admin.{mcp,extensions,skills}.enabled:false`, `hooksConfig.enabled:false`, `tools.exclude` web, `security.folderTrust.enabled:true`, `disableYoloMode`, `disableAlwaysAllow`. `--approval-mode default`, pinned (`yolo`/`autoEdit` refused). Extensions/commands/policies/agents/skills/`trustedFolders.json` in the home are removed at each spawn.
+- **Copilot:** a Maude-owned `COPILOT_HOME` (`settings.json` `disableAllHooks`, no trusted folders; empty `mcp-config.json`), args `--disable-builtin-mcps --excluded-tools=web_fetch --excluded-tools=web_search --deny-tool=url --disallow-temp-dir --no-auto-update`. Mode pinned to `#agent` (`#autopilot` refused). Project Copilot config (`.github/{hooks,copilot,agents,skills,mcp.json}`, `.mcp.json`, `.copilot`) refuses the spawn, in the folder **and up to its git root**.
+
+| Check | gemini 0.66.0, no git | gemini, git repo | copilot 1.0.105, no git | copilot, git repo |
+| --- | --- | --- | --- | --- |
+| session, mode pin | ok (`default`) | ok | ok (`#agent`) | ok |
+| secret-read, auth-read | ok ("Path not in workspace", Gemini itself) | ok | ok (`kind:read` card "outside trusted directories", declined) | ok |
+| project read / write (no card) | ok | ok | ok | ok |
+| outside-write | ok (Gemini itself) | ok | ok (read card, declined) | ok |
+| runtime-state-write | ok (gate card, declined) | ok | ok (gate card, declined) | ok |
+| curl-egress | ok (gate refused: see gap 1) | ok | ok (gate card, declined) | ok |
+| subagent-secret-read | ok (`codebase_investigator` child: "Path not in workspace") | ok | ok (`task` child: read card, declined) | ok |
+| web-tool-absent | ok | ok | ok (offline; production args re-measured online: no `web_fetch`) | ok |
+| user-mcp-ignored, user-hooks-ignored | ok | ok | ok (+ 3 project refusals) | ok |
+| no fs/terminal, tripwire | ok | ok | ok | ok |
+| **verdict** | **PASS** | **PASS** | **PASS** | **PASS** |
+
+**Positive controls (the checks are live).** Gemini with the person's home back: their `tools.allowed` let `curl` run (canary hit) and a runtime-state write through, web tools reappeared, their MCP server and extension MCP started, their hook ran. Gemini with `GEMINI_CLI_TRUST_WORKSPACE=true`: the planted project `.gemini/` MCP server started, its hook ran and its workspace policy ran `curl` without asking. Copilot with the person's home back: MCP server started, settings + `hooks/` hooks ran.
+
+**Findings.**
+1. **Gemini sends no `rawInput` on `execute`** (the command is only in `title`), so the gate's rule 7 refuses every Gemini shell command (`shell-no-command`, fail closed). Safe, but the shell is unusable in the chat. Patch request: `enforce.ts` may take the command from `title` for an `execute` with no `rawInput.command`.
+2. **Gemini's project `.gemini/` is inert, not refused.** It loads only for a trusted folder (workspace settings, policies, hooks, MCP; measured at the project and at a git root above), and nothing in Maude's launch makes it trusted. The probe plants a hostile project `.gemini/` every run, so a version that changes this fails. Refusing would block every repo with a Gemini Code Assist `.gemini/`.
+3. **Copilot runs `.github/hooks/*.json` in an UNTRUSTED folder, and from the git root above the session folder** (measured: hook ran in both). Hence the refusal walks to the git root. Project `.mcp.json` / `.github/mcp.json` / `.vscode/mcp.json` / `.github/copilot/settings.json` did not load, with or without a `trustedFolders` entry in Copilot's settings (whether that entry made the folder trusted is unverified); they are refused anyway (fail closed). `.vscode/mcp.json` is not refused (too common; measured inert).
+4. `--deny-tool=url` did not stop a loopback `http://` curl: Copilot still asked (the gate card). Web-off for Copilot's shell = the gate's command-text card, as for opencode.
+5. Gemini's `generalist` sub-agent is denied by its own policy engine before it starts; `codebase_investigator` runs and is held to the workspace.
+6. Copilot `semantic_code_search` (GitHub service) and Gemini's built-in skills (`activate_skill`: skill-creator, antigravity-support) stay; neither is a web or code-loading tool.
+
+**Gaps that stay.** Shell is command-text only for both (no OS sandbox). **Sign-in carry-over is unmeasured** (no real account offline): Gemini links the person's OAuth files into Maude's home; Copilot's Maude home links nothing (its token store and `config.json` fields are unknown), so a Copilot signed in through `copilot login` may ask to sign in again in the chat; BYOK works. Copilot's `allow_all` config option (`session/set_config_option`) is not covered by the mode pin; the bridge should refuse `allow_all=on` (patch request). Copilot `--version` may report a newer auto-downloaded build while `--no-auto-update` runs the installed one.
+
+**Flip:** Gemini → `bridge-enforced` (0.66.0–0.66.99), Copilot → `bridge-enforced` (1.0.105–1.0.105).

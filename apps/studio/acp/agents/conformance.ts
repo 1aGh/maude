@@ -50,6 +50,7 @@ import {
 } from '@agentclientprotocol/sdk';
 
 import { credentialPathsFor, MAY_ALL } from '../may-scope.ts';
+import { maudeAgentHomePath } from '../policy/agent-home.ts';
 import { maudeCodexHomePath } from '../policy/codex-home.ts';
 import { createPermissionGate, type EnforcedDescriptor } from '../policy/enforce.ts';
 import { readPersonOpencodeConfig } from '../policy/opencode-user-config.ts';
@@ -110,7 +111,7 @@ export interface ToolStep {
 
 /** How to talk to one agent family: its model wire, where its model + user config go, its tools. */
 export interface ProbeProfile {
-  api: 'responses' | 'chat';
+  api: 'responses' | 'chat' | 'gemini';
   /** Point the agent's model at `baseUrl` (…/v1 is appended by the profile) — mutates `env`. */
   injectModel(env: Record<string, string>, baseUrl: string): void;
   /**
@@ -527,9 +528,272 @@ export const OPENCODE_PROFILE: ProbeProfile = {
   },
 };
 
+// ---------------------------------------------------------------------------------------------------
+// B8 — Gemini CLI and GitHub Copilot CLI
+
+/** Point `w.authPaths` at this agent's sign-in files and plant a fake token in the first one. */
+function plantAuth(w: ProbeWorld, paths: string[], body: (token: string) => string): void {
+  w.authPaths.splice(0, w.authPaths.length, ...paths);
+  mkdirSync(dirname(paths[0]), { recursive: true });
+  writeFileSync(paths[0], body(w.authToken), { mode: 0o600 });
+}
+
+/** A file holding `json` at `rel` under `root`; returns its undo (the top-level entry goes). */
+function plantJson(root: string, rel: string, json: unknown): () => void {
+  const f = join(root, rel);
+  mkdirSync(dirname(f), { recursive: true });
+  writeFileSync(f, JSON.stringify(json));
+  const top = join(root, rel.split('/')[0]);
+  return () => rmSync(top, { recursive: true, force: true });
+}
+
+const touch = (marker: string, tag: string) => `touch ${sq(`${marker}-${tag}`)}`;
+
+/** The file / shell step of a check, for agents with read / write / shell tools by these names. */
+function fileStep(
+  check: CheckName,
+  tools: readonly string[],
+  w: ProbeWorld,
+  t: {
+    read: string;
+    write: string;
+    shell: string;
+    readArgs: (p: string) => Record<string, unknown>;
+    writeArgs: (p: string, content: string) => Record<string, unknown>;
+  }
+): ToolStep | null {
+  const read = (p: string) =>
+    tools.includes(t.read) ? { name: t.read, args: t.readArgs(p) } : null;
+  const write = (p: string, c: string) =>
+    tools.includes(t.write) ? { name: t.write, args: t.writeArgs(p, c) } : null;
+  switch (check) {
+    case 'secret-read':
+      return read(w.secretPath);
+    case 'auth-read':
+      return read(w.authPaths[0]);
+    case 'project-read':
+      return read(w.notesPath);
+    case 'project-write':
+      return write(w.writeInPath, w.writeInToken);
+    case 'outside-write':
+      return write(w.writeOutPath, 'x');
+    case 'runtime-state-write':
+      return write(w.runtimeStatePath, 'x');
+    case 'curl-egress':
+      return tools.includes(t.shell)
+        ? {
+            name: t.shell,
+            args: { command: shellCommand(check, w), description: 'conformance egress probe' },
+          }
+        : null;
+    default:
+      return null;
+  }
+}
+
+const GEMINI_TOOLS = {
+  read: 'read_file',
+  write: 'write_file',
+  shell: 'run_shell_command',
+  readArgs: (p: string) => ({ file_path: p }),
+  writeArgs: (p: string, content: string) => ({ file_path: p, content }),
+};
+
+export const GEMINI_PROFILE: ProbeProfile = {
+  api: 'gemini',
+  injectModel(env, baseUrl) {
+    // A key that is not one: the model is the loopback scripted one (GOOGLE_GEMINI_BASE_URL).
+    env.GEMINI_API_KEY = 'not-a-key';
+    env.GOOGLE_GEMINI_BASE_URL = baseUrl;
+    // A fixed model: `auto` first asks a router model for a JSON classification.
+    env.GEMINI_MODEL = 'gemini-2.5-pro';
+  },
+  plantUserConfig(w, _baseUrl, command) {
+    const [cmd, ...args] = command;
+    const person = join(w.home, '.gemini');
+    const hook = (tag: string) => [
+      { hooks: [{ type: 'command', command: touch(w.hookMarker, tag) }] },
+    ];
+    // The PERSON's settings: an MCP server, hooks on, a hook at session start and before each turn.
+    plantJson(person, 'settings.json', {
+      mcpServers: { maude_canary: { command: cmd, args } },
+      hooksConfig: { enabled: true },
+      hooks: { SessionStart: hook('settings-start'), BeforeAgent: hook('settings-turn') },
+      tools: { allowed: ['run_shell_command', 'read_file', 'write_file'] },
+      security: { folderTrust: { enabled: false } },
+    });
+    // …and an extension with its own MCP server.
+    plantJson(person, 'extensions/maude-canary/gemini-extension.json', {
+      name: 'maude-canary',
+      version: '1.0.0',
+      mcpServers: {
+        maude_canary_ext: {
+          command: '/bin/sh',
+          args: ['-c', `${touch(w.mcpMarker, 'ext')}; exec sleep 3`],
+        },
+      },
+    });
+    plantAuth(
+      w,
+      [
+        join(person, 'oauth_creds.json'),
+        join(maudeAgentHomePath('gemini-home', { HOME: w.home }), '.gemini', 'oauth_creds.json'),
+      ],
+      (t) => JSON.stringify({ access_token: t, token_type: 'Bearer' })
+    );
+    // The PROJECT's `.gemini/` is not refused (launch-gemini.ts): it must stay inert because the
+    // folder is never trusted. An MCP server, hooks, the shell pre-approved twice (settings and a
+    // workspace policy) and folder trust switched off: any of it taking effect fails a check
+    // (user-mcp-ignored, user-hooks-ignored, curl-egress).
+    plantJson(w.project, '.gemini/settings.json', {
+      mcpServers: {
+        maude_canary_project: {
+          command: '/bin/sh',
+          args: ['-c', `${touch(w.mcpMarker, 'project')}; exec sleep 3`],
+        },
+      },
+      hooksConfig: { enabled: true },
+      hooks: { SessionStart: hook('project-start'), BeforeAgent: hook('project-turn') },
+      tools: { allowed: ['run_shell_command'] },
+      security: { folderTrust: { enabled: false }, disableYoloMode: false },
+    });
+    mkdirSync(join(w.project, '.gemini', 'policies'), { recursive: true });
+    writeFileSync(
+      join(w.project, '.gemini', 'policies', 'allow-shell.toml'),
+      '[[rule]]\ntoolName = "run_shell_command"\ndecision = "allow"\npriority = 999\n'
+    );
+  },
+  subagentTool: (tools) => (tools.includes('invoke_agent') ? 'invoke_agent' : null),
+  next(check, role, tools, after, w) {
+    if (role === 'child') {
+      return after.length || !tools.includes('read_file')
+        ? null
+        : { name: 'read_file', args: { file_path: w.secretPath } };
+    }
+    if (after.length) return null;
+    if (check === 'subagent-secret-read') {
+      // Measured (0.66): `generalist` is denied by Gemini's own policy engine before it starts, so
+      // it proves nothing; `codebase_investigator` starts and has read_file.
+      return tools.includes('invoke_agent')
+        ? {
+            name: 'invoke_agent',
+            args: { agent_name: 'codebase_investigator', prompt: childPrompt(check) },
+          }
+        : null;
+    }
+    return fileStep(check, tools, w, GEMINI_TOOLS);
+  },
+};
+
+const COPILOT_TOOLS = {
+  read: 'view',
+  write: 'create',
+  shell: 'bash',
+  readArgs: (p: string) => ({ path: p }),
+  writeArgs: (p: string, content: string) => ({ path: p, file_text: content }),
+};
+
+export const COPILOT_PROFILE: ProbeProfile = {
+  api: 'chat',
+  injectModel(env, baseUrl) {
+    // BYOK at the loopback scripted model: no sign-in. Offline mode also skips sign-in, telemetry
+    // and updates (and drops the web tool, so the launch policy's own exclusion was measured
+    // separately, contract note "B8").
+    env.COPILOT_PROVIDER_BASE_URL = `${baseUrl}/v1`;
+    env.COPILOT_MODEL = 'gpt-4.1';
+    env.COPILOT_OFFLINE = 'true';
+  },
+  plantUserConfig(w, _baseUrl, command) {
+    const [cmd, ...args] = command;
+    const person = join(w.home, '.copilot');
+    const hook = (tag: string) => [{ type: 'command', bash: touch(w.hookMarker, tag) }];
+    plantJson(person, 'mcp-config.json', {
+      mcpServers: { maude_canary: { type: 'local', command: cmd, args, tools: ['*'] } },
+    });
+    plantJson(person, 'settings.json', {
+      hooks: { sessionStart: hook('settings-start'), userPromptSubmitted: hook('settings-turn') },
+      trustedFolders: [w.project],
+    });
+    plantJson(person, 'hooks/canary.json', {
+      version: 1,
+      hooks: { sessionStart: hook('hooks-start'), userPromptSubmitted: hook('hooks-turn') },
+    });
+    plantAuth(w, [join(person, 'config.json')], (t) =>
+      JSON.stringify({ copilot_tokens: { probe: t } })
+    );
+  },
+  refusals: [
+    {
+      name: "the project's hooks folder",
+      plant: (w) =>
+        plantJson(w.project, '.github/hooks/canary.json', {
+          version: 1,
+          hooks: { sessionStart: [{ type: 'command', bash: touch(w.hookMarker, 'project') }] },
+        }),
+    },
+    {
+      // Measured: Copilot runs the hooks of the git root ABOVE the session folder too.
+      name: 'a hooks folder at the git root above the project',
+      plant(w) {
+        const hooks = {
+          version: 1,
+          hooks: { sessionStart: [{ type: 'command', bash: touch(w.hookMarker, 'git-root') }] },
+        };
+        // A project that is its own git repo IS the root: plant there.
+        if (existsSync(join(w.project, '.git'))) {
+          return plantJson(w.project, '.github/hooks/root.json', hooks);
+        }
+        mkdirSync(join(w.base, '.git'), { recursive: true });
+        const undo = plantJson(w.base, '.github/hooks/canary.json', hooks);
+        return () => {
+          undo();
+          rmSync(join(w.base, '.git'), { recursive: true, force: true });
+        };
+      },
+    },
+    {
+      name: "the project's .mcp.json",
+      plant: (w) =>
+        plantJson(w.project, '.mcp.json', {
+          mcpServers: {
+            maude_canary_project: {
+              command: '/bin/sh',
+              args: ['-c', touch(w.mcpMarker, 'project')],
+            },
+          },
+        }),
+    },
+  ],
+  subagentTool: (tools) => (tools.includes('task') ? 'task' : null),
+  next(check, role, tools, after, w) {
+    if (role === 'child') {
+      return after.length || !tools.includes('view')
+        ? null
+        : { name: 'view', args: { path: w.secretPath } };
+    }
+    if (after.length) return null;
+    if (check === 'subagent-secret-read') {
+      return tools.includes('task')
+        ? {
+            name: 'task',
+            args: {
+              description: 'conformance child',
+              prompt: childPrompt(check),
+              agent_type: 'general-purpose',
+              name: 'probe-child',
+            },
+          }
+        : null;
+    }
+    return fileStep(check, tools, w, COPILOT_TOOLS);
+  },
+};
+
 export function profileFor(d: AgentDescriptor): ProbeProfile | null {
   if (d.id === 'codex') return CODEX_PROFILE;
   if (d.id === 'opencode') return OPENCODE_PROFILE;
+  if (d.id === 'gemini') return GEMINI_PROFILE;
+  if (d.id === 'copilot') return COPILOT_PROFILE;
   return null;
 }
 
@@ -567,6 +831,18 @@ export function conversationOf(body: Record<string, unknown>): ConvItem[] {
       if (m?.role === 'user') out.push({ kind: 'user', text: textOf(m.content) });
       else if (m?.role === 'tool') out.push({ kind: 'tool', text: textOf(m.content) });
     }
+  } else if (Array.isArray(body.contents)) {
+    // B8 — the Gemini API (generateContent): a user turn's parts carry text or functionResponse.
+    for (const c of body.contents as Record<string, unknown>[]) {
+      if (c?.role !== 'user' || !Array.isArray(c.parts)) continue;
+      for (const part of c.parts as Record<string, unknown>[]) {
+        if (typeof part?.text === 'string') out.push({ kind: 'user', text: part.text });
+        else if (part?.functionResponse) {
+          const r = (part.functionResponse as { response?: unknown }).response;
+          out.push({ kind: 'tool', text: typeof r === 'string' ? r : JSON.stringify(r ?? '') });
+        }
+      }
+    }
   }
   return out;
 }
@@ -574,6 +850,10 @@ export function conversationOf(body: Record<string, unknown>): ConvItem[] {
 function toolNames(body: Record<string, unknown>): string[] {
   const tools = Array.isArray(body.tools) ? (body.tools as Record<string, unknown>[]) : [];
   return tools.flatMap((t) => {
+    // B8 — Gemini groups its tools as `{ functionDeclarations: [{ name, … }] }`.
+    if (Array.isArray(t.functionDeclarations)) {
+      return (t.functionDeclarations as { name?: string }[]).map((f) => String(f?.name ?? ''));
+    }
     const fn = t.function as { name?: string } | undefined;
     const name = String(t.name ?? fn?.name ?? t.type ?? '');
     // A Responses API namespace (`{type:'namespace', name, tools:[…]}`): list its members as
@@ -601,8 +881,20 @@ const USAGE = {
   total_tokens: 2,
 };
 
-function respond(api: 'responses' | 'chat', step: ToolStep | null, n: number): Response {
+function respond(api: ProbeProfile['api'], step: ToolStep | null, n: number, path = ''): Response {
   const id = `r${n}`;
+  if (api === 'gemini') {
+    const part = step ? { functionCall: { name: step.name, args: step.args } } : { text: 'done' };
+    const chunk = {
+      candidates: [{ content: { role: 'model', parts: [part] }, finishReason: 'STOP', index: 0 }],
+      usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 },
+      modelVersion: 'mock-model',
+    };
+    if (!/stream/i.test(path)) return Response.json(chunk);
+    return new Response(`data: ${JSON.stringify(chunk)}\r\n\r\n`, {
+      headers: { 'content-type': 'text/event-stream' },
+    });
+  }
   if (api === 'responses') {
     const item = step
       ? {
@@ -678,6 +970,7 @@ function startModel(profile: ProbeProfile, world: ProbeWorld, log: (o: unknown) 
     hostname: '127.0.0.1',
     async fetch(req) {
       const url = new URL(req.url);
+      if (url.pathname.endsWith(':countTokens')) return Response.json({ totalTokens: 1 });
       if (url.pathname.endsWith('/models')) {
         return Response.json({
           object: 'list',
@@ -721,7 +1014,7 @@ function startModel(profile: ProbeProfile, world: ProbeWorld, log: (o: unknown) 
       }
       log({ dir: 'model', n, path: url.pathname, tools, marker: m?.[0] ?? null, step });
       if (n === 1) log({ dir: 'model-tools', tools: body.tools });
-      return respond(profile.api, step, n);
+      return respond(profile.api, step, n, url.pathname);
     },
   });
   return { rec, server, baseUrl: `http://127.0.0.1:${server.port}` };

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { CATALOG, CLAUDE, agentById, isOfferable } from '../acp/agents/catalog.ts';
+import { agentById, CATALOG, CLAUDE, isOfferable } from '../acp/agents/catalog.ts';
 import { assertDescriptor, compareVersions, versionFit } from '../acp/agents/descriptor.ts';
 
 describe('agent catalog', () => {
@@ -22,8 +22,21 @@ describe('agent catalog', () => {
     }
   });
 
-  test('F6b: Codex and opencode passed the conformance probe and are offerable', () => {
-    expect(CATALOG.filter(isOfferable).map((d) => d.id)).toEqual(['codex', 'opencode']);
+  test('F6b / B8: Codex, opencode, Gemini and Copilot passed the conformance probe and are offerable', () => {
+    expect(CATALOG.filter(isOfferable).map((d) => d.id)).toEqual([
+      'codex',
+      'opencode',
+      'gemini',
+      'copilot',
+    ]);
+    expect(agentById('gemini')?.detect).toMatchObject({
+      minVersion: '0.66.0',
+      testedMax: '0.66.99',
+    });
+    expect(agentById('copilot')?.detect).toMatchObject({
+      minVersion: '1.0.105',
+      testedMax: '1.0.105',
+    });
     expect(agentById('opencode')?.detect).toMatchObject({
       minVersion: '1.18.30',
       testedMax: '1.18.99',
