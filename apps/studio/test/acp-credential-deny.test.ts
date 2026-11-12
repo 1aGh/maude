@@ -87,6 +87,23 @@ describe('credentialPathsFor — every credential store, for every profile', () 
       )
     ).toBe('credentials');
   });
+  // security review 2026-11-12 (defender M6) — the other agents' own sign-ins
+  test('opencode’s auth.json (default and XDG_DATA_HOME) and the Gemini folder', () => {
+    expect(p.files).toContain(`${HOME}/.local/share/opencode/auth.json`);
+    expect(p.dirs).toContain(`${HOME}/.gemini`);
+    const xd = credentialPathsFor({ ...ENV, XDG_DATA_HOME: '/x/data' }, HOME);
+    expect(xd.files).toContain('/x/data/opencode/auth.json');
+    expect(xd.files).toContain(`${HOME}/.local/share/opencode/auth.json`);
+    expect(
+      credentialRefusal(
+        { rawInput: { file_path: '/x/data/opencode/auth.json' } },
+        xd,
+        '/repo',
+        HOME
+      )
+    ).toBe('credentials');
+    expect(credentialDenyRules(p)).toContain(`Read(/${HOME}/.gemini/**)`);
+  });
   test('the deny rules are absolute Read rules', () => {
     const rules = credentialDenyRules(p);
     expect(rules).toContain(`Read(/${HOME}/.config/maude/**)`);

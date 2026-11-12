@@ -419,14 +419,21 @@ export function credentialPathsFor(
   // F6b — the person's Codex sign-in (`$CODEX_HOME/auth.json`, default ~/.codex). The Studio chat's
   // Codex reads it through a link in Maude's own Codex home (acp/policy/codex-home.ts, itself under
   // the `.config/maude` folder above), in its own process; no agent's tool call reads it.
-  const codexHome =
-    env.CODEX_HOME && isAbsolute(env.CODEX_HOME) ? resolve(env.CODEX_HOME) : join(home, '.codex');
-  {
-    const abs = join(codexHome, 'auth.json');
+  const addFile = (abs: string) => {
     files.add(abs);
     const real = resolveRealPath(abs, abs);
     if (real !== abs) files.add(real);
-  }
+  };
+  const codexHome =
+    env.CODEX_HOME && isAbsolute(env.CODEX_HOME) ? resolve(env.CODEX_HOME) : join(home, '.codex');
+  addFile(join(codexHome, 'auth.json'));
+  // Security review 2026-11-12 (defender M6) — opencode's sign-in (`$XDG_DATA_HOME/opencode/auth.json`,
+  // default ~/.local/share on every platform: opencode uses xdg-basedir) and the Gemini CLI's folder
+  // (~/.gemini: oauth_creds.json, settings with MCP env). Both XDG spellings, as for Maude's config.
+  addFile(join(home, '.local', 'share', 'opencode', 'auth.json'));
+  const xdgData = env.XDG_DATA_HOME;
+  if (xdgData && isAbsolute(xdgData)) addFile(resolve(xdgData, 'opencode', 'auth.json'));
+  addDir(join(home, '.gemini'));
   // B7 — a custom key-store path (generation/keys.ts) holds media AND chat keys: denied like the
   // profile's own credential files when it sits outside the folders above.
   for (const k of ['MAUDE_CLOUD_CONFIG', 'HUBS_CONFIG_PATH', 'MAUDE_GEN_KEYS_PATH']) {

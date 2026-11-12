@@ -63,9 +63,11 @@
             "Read(/<TMP>/home/Library/Application Support/com.maude.app/run/**)",
             "Read(/<TMP>/home/Library/Application Support/com.maude.app/shell-info/**)",
             "Read(/<TMP>/home/Library/Application Support/com.maude.app/home/**)",
+            "Read(/<TMP>/home/.gemini/**)",
             "Read(/<TMP>/home/Library/Application Support/com.maude.app/servers.json)",
             "Read(/<TMP>/home/Library/Application Support/com.maude.app/cli.sock)",
             "Read(/<TMP>/home/.codex/auth.json)",
+            "Read(/<TMP>/home/.local/share/opencode/auth.json)",
             "Read(/<TMP>/home/cloud.json)"
           ],
           "plugins": [
