@@ -17,11 +17,21 @@
 // (`UnsafeLinkError`, code `agent-unsafe-link`) while any root it is given holds a link out of the
 // read roots (acp/agents/link-scan.ts). A root that does not exist holds no link.
 
+import { resolve, sep } from 'node:path';
+
+import { DEV_SERVER_ROOT } from '../../paths.ts';
 import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from '../env.ts';
 import { mayEnv } from '../may-scope.ts';
 import { chatKeyEnvFor } from './chat-key.ts';
 import type { AgentDescriptor, PolicyCtx } from './descriptor.ts';
 import { assertNoUnsafeLinks } from './link-scan.ts';
+
+/** Maude's own studio folder (DEV_SERVER_ROOT) or inside it. */
+function isMaudeOwnRoot(r: string): boolean {
+  const own = resolve(DEV_SERVER_ROOT);
+  const abs = resolve(r);
+  return abs === own || abs.startsWith(own.endsWith(sep) ? own : own + sep);
+}
 
 export interface AgentSpawnInput {
   descriptor: AgentDescriptor;
@@ -72,7 +82,9 @@ export function agentSpawn(input: AgentSpawnInput): AgentSpawn {
   if (d.enforcement?.readGate === 'agent-permission-engine') {
     const c = input.policyCtx;
     assertNoUnsafeLinks({
-      roots: [...c.writeRoots, ...c.readRoots],
+      // Maude's own install folder (a read root for canvas-lib & co.) is app-owned, not the
+      // project's: its package-manager links (pnpm in a source checkout) are not an attacker's.
+      roots: [...c.writeRoots, ...c.readRoots].filter((r) => !isMaudeOwnRoot(r)),
       readRoots: c.readRoots,
       credentialPaths: c.credentialPaths,
       label: d.label,

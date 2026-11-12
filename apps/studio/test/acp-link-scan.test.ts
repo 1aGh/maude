@@ -20,6 +20,7 @@ import { CLAUDE, CODEX, COPILOT, GEMINI, OPENCODE } from '../acp/agents/catalog.
 import type { AgentDescriptor } from '../acp/agents/descriptor.ts';
 import { assertNoUnsafeLinks, scanLinks, UnsafeLinkError } from '../acp/agents/link-scan.ts';
 import { agentSpawn } from '../acp/agents/spawn.ts';
+import { DEV_SERVER_ROOT } from '../paths.ts';
 
 let tmp: string;
 let n = 0;
@@ -226,6 +227,42 @@ describe('agentSpawn refuses an agent-permission-engine agent in a project with 
       expect(spawnIn(noPolicy(d), w.project).cmd.length).toBeGreaterThan(0);
     });
   }
+
+  test("Maude's own install folder is not scanned (its package-manager links are not the project's)", () => {
+    const w = world();
+    // A read root inside DEV_SERVER_ROOT with a link out, like pnpm's node_modules in a source checkout.
+    const own = mkdtempSync(join(DEV_SERVER_ROOT, '.link-scan-test-'));
+    try {
+      symlinkSync(join(w.outside, 'secret.txt'), join(own, 'pkg-link'));
+      const d = noPolicy(OPENCODE);
+      const spawned = agentSpawn({
+        descriptor: d,
+        scrubbed: { PATH: '/bin' },
+        agentBin: '/opt/agent',
+        adapterEntry: '/adapter.js',
+        runtime: { bin: '/bun', bunBeBun: false },
+        policyCtx: {
+          scopeRoot: w.project,
+          readRoots: [w.project, own],
+          writeRoots: [w.project],
+          credentialPaths: NO_CRED,
+          may: { assets: true, web: true },
+          designRoots: [join(w.project, '.design')],
+          agentBin: '/opt/agent',
+        },
+        actor: { sessionRoot: w.project, readRoots: [w.project, own] },
+        teams: false,
+        delimiter: ':',
+        chatKeyEnv: {},
+      });
+      expect(spawned.cmd.length).toBeGreaterThan(0);
+      // …while the same link inside the project still refuses
+      symlinkSync(join(w.outside, 'secret.txt'), join(w.project, 'ref-link'));
+      expect(() => spawnIn(d, w.project)).toThrow(UnsafeLinkError);
+    } finally {
+      rmSync(own, { recursive: true, force: true });
+    }
+  });
 
   test('Codex (os-sandbox) and Claude are not checked', () => {
     const w = world();
