@@ -23,9 +23,9 @@ import { resolve, sep } from 'node:path';
 import { DEV_SERVER_ROOT } from '../../paths.ts';
 import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from '../env.ts';
 import { mayEnv } from '../may-scope.ts';
+import { upToGitRoot } from '../policy/agent-home.ts';
 import { chatKeyEnvFor } from './chat-key.ts';
 import type { AgentDescriptor, PolicyCtx } from './descriptor.ts';
-import { upToGitRoot } from '../policy/agent-home.ts';
 import { assertNoUnsafeLinks } from './link-scan.ts';
 
 /** realpath when it exists (a link must not pass for Maude's own folder), else the resolved path. */
