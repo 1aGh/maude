@@ -74,6 +74,9 @@ const ctx = (): PolicyCtx => ({
   may: { assets: true, web: false },
   designRoots: ['/p/.design'],
   agentBin: '/opt/agent',
+  // A scratch HOME: the person's real ~/.codex or ~/.opencode must never decide this test (an
+  // opencode plugin on the developer's Mac makes Maude refuse opencode, correctly).
+  hostEnv: { HOME: join(root, 'home'), XDG_CONFIG_HOME: join(root, 'home', '.config') },
 });
 
 function spawnOf(

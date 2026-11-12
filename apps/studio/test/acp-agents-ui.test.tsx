@@ -27,7 +27,9 @@ beforeAll(() => {
   GlobalRegistrator.register();
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
-afterAll(() => {
+afterAll(async () => {
+  // Let React's scheduled passive effects run while `window` still exists.
+  await new Promise((r) => setTimeout(r, 0));
   GlobalRegistrator.unregister();
 });
 
