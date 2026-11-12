@@ -138,7 +138,7 @@ const PINNED: AgentDescriptor = fakeCodex({
   label: 'opencode',
   enforcement: {
     ...(fakeCodex().enforcement as NonNullable<AgentDescriptor['enforcement']>),
-    pinMode: { modeId: 'workspace-write', refuse: ['agent'] },
+    pinMode: { modeId: 'workspace-write', allow: ['read-only', 'workspace-write'] },
   },
 });
 

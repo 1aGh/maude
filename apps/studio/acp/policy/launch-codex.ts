@@ -11,6 +11,10 @@
 //                       root `read` and the scope + chat scratch `write`, and denies every credential
 //                       store `none`. Seatbelt applies the most specific path, so a credential store
 //                       inside a root stays denied (measured on 0.154 and 0.166, profile B).
+//                       S1 (security review 2026-11-12): Codex's writes inside its workspace never
+//                       reach Maude's write gate, so what the gate protects in a project is in the
+//                       profile itself (`codexProtectedPaths` + `codexProtectedGlobs`), and the temp
+//                       folders other chats and sessions use are denied (`systemDenies`).
 //
 // Network: stays off through the `:workspace` base (`networkAccess:false`), and Codex's own web
 // search is removed with `web_search:"disabled"`. Both stay off when the person's "Search the web"
@@ -21,22 +25,37 @@
 //
 // Pure: no file system, no process. The host (platform + home) is a parameter so tests stay exact.
 
-import { homedir } from 'node:os';
+import { realpathSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
-import { RUNTIME_STATE_DIRS } from '../../sync/file-membership.ts';
-import { AGENT_RUNTIME_OUTPUTS } from '../write-scope.ts';
+import { RUNTIME_STATE_DIRS, RUNTIME_STATE_FILES } from '../../sync/file-membership.ts';
 import type { LaunchPolicy, PolicyCtx } from '../agents/descriptor.ts';
+import { AGENT_RUNTIME_OUTPUTS, PROTECTED_IN_PROJECT, PROTECTED_PREFIXES } from '../write-scope.ts';
 
 export type FsAccess = 'none' | 'read' | 'write';
 
 export interface LaunchHost {
   platform: NodeJS.Platform;
   home: string;
+  /**
+   * S1 (A3) — this server's own temp folder, canonical (macOS: `/private/var/folders/<…>/T`). Every
+   * chat's scratch lives under it (`chatScratchDir`), so it is denied and the chat's own scratch is
+   * re-allowed. Omitted → only the fixed temp folders are denied.
+   */
+  tmpdir?: string;
+}
+
+function realTmpdir(): string | undefined {
+  try {
+    return realpathSync(tmpdir());
+  } catch {
+    return undefined;
+  }
 }
 
 export function currentHost(): LaunchHost {
-  return { platform: process.platform, home: process.env.HOME || homedir() };
+  return { platform: process.platform, home: process.env.HOME || homedir(), tmpdir: realTmpdir() };
 }
 
 const DISK_ROOT = resolve(sep);
@@ -81,14 +100,130 @@ export function userTrees(host: LaunchHost): string[] {
 }
 
 /**
+ * S1 (attacker A3) — folders outside the user trees that `:workspace` would let Codex read: the
+ * temp folders other sessions and other chats write (`/private/tmp`: every Claude Code session's
+ * command output; this server's temp folder: every other chat's scratch) and the local databases a
+ * package manager keeps (`/opt/homebrew/var`, `/usr/local/var`). `none`; the chat's own scratch is a
+ * write root and so re-allowed (more specific). Codex itself runs outside the sandbox, and the
+ * commands it runs get the chat scratch as TMPDIR (spawn.ts), so they keep a writable temp folder
+ * (measured, S1: `scratch-write`).
+ */
+export function systemDenies(host: LaunchHost): string[] {
+  const out = new Set<string>();
+  if (host.platform === 'darwin') {
+    for (const p of ['/private/tmp', '/private/var/tmp', '/opt/homebrew/var', '/usr/local/var']) {
+      out.add(p);
+    }
+  } else if (host.platform === 'linux') {
+    for (const p of ['/tmp', '/var/tmp', '/usr/local/var']) out.add(p);
+  }
+  if (host.tmpdir && isAbsolute(host.tmpdir)) {
+    const t = resolve(host.tmpdir);
+    if (t !== DISK_ROOT && ![...out].some((o) => inside(t, o))) out.add(t);
+  }
+  return [...out];
+}
+
+/**
+ * macOS spells `/var`, `/tmp` and `/etc` through symlinks into `/private`; Seatbelt matches the real
+ * path. A root given in the short spelling (`tmpdir()` → `/var/folders/…`, how `chatScratchDir`
+ * names the chat scratch) is granted in both, so a deny on the `/private` form never out-ranks it.
+ */
+export function spellings(p: string, host: LaunchHost): string[] {
+  if (host.platform !== 'darwin') return [p];
+  return /^\/(var|tmp|etc)(\/|$)/.test(p) ? [p, `/private${p}`] : [p];
+}
+
+/**
+ * S1 (attacker A2) — in-project names that reach execution without a further agent action
+ * (write-scope.ts `PROTECTED_IN_PROJECT`, the bridge write gate's list). Codex's writes inside its
+ * workspace are never sent to that gate (`workspace-write` does not ask), so the profile itself
+ * denies them. The agent-config names S2 adds to `PROTECTED_IN_PROJECT` are named here as well, so
+ * the result does not depend on which change lands first.
+ *
+ * The root `.git` is NOT `none`: Codex's own `:workspace` protection keeps `.git` (and `.codex`,
+ * `.agents`) READ-ONLY at each workspace root (measured, S1, 0.154 / 0.165 / 0.166: a write to an
+ * existing `.git/config` and the creation of `.git/` both fail), and read-only is what Maude wants:
+ * `none` would stop `git status`. A NESTED `.git` (a submodule's) is `none` by glob
+ * (`codexProtectedGlobs`).
+ */
+export const CODEX_PROTECTED_NAMES: readonly string[] = [
+  ...new Set([
+    ...PROTECTED_IN_PROJECT.filter((n) => n !== '.git'),
+    '.claude',
+    '.mcp.json',
+    '.codex',
+    '.opencode',
+    '.gemini',
+    'AGENTS.md',
+    'opencode.json',
+    'opencode.jsonc',
+  ]),
+];
+
+/** Protected multi-segment paths, root-level only (write-scope.ts `PROTECTED_PREFIXES`). */
+export const CODEX_PROTECTED_PREFIXES: readonly string[] = [
+  ...new Set([...PROTECTED_PREFIXES.map((p) => p.join(sep)), join('.ai', 'workflows.config.json')]),
+];
+
+/**
+ * The absolute `none` entries for one root: each protected name and prefix right under it.
+ * Measured (S1): `none` stops a write to an existing file, a write into an existing folder and the
+ * creation of a missing one; `read` does NOT (codex-acp's `workspace-write` turn policy makes the cwd
+ * writable and out-ranks it, F6b). The cost: Codex cannot READ these either (no `package.json`, no
+ * `node_modules`, so no `npm` / `bun` scripts in the project; contract note "Security fixes S1").
+ */
+export function codexProtectedPaths(root: string): string[] {
+  return [...CODEX_PROTECTED_NAMES, ...CODEX_PROTECTED_PREFIXES].map((n) => join(root, n));
+}
+
+/**
+ * The same names at ANY depth, as `:workspace_roots` globs: the bridge gate matches a protected
+ * segment anywhere in a path (`sub/package.json`, `sub/.claude/…`). Both the name and its subtree:
+ * `**` + `/x` alone stops creating `x` but not a write into an existing `x/` (measured, S1). Seatbelt
+ * matches them when a file is created, not from a snapshot (measured on macOS: new nested files were
+ * refused). A nested `.git` is denied this way (at least one folder deep); the root one stays
+ * Codex's own read-only.
+ */
+export function codexProtectedGlobs(): Record<string, FsAccess> {
+  const out: Record<string, FsAccess> = {};
+  for (const n of CODEX_PROTECTED_NAMES) {
+    out[`**/${n}`] = 'none';
+    out[`**/${n}/**`] = 'none';
+  }
+  out['*/**/.git'] = 'none';
+  out['*/**/.git/**'] = 'none';
+  return out;
+}
+
+/**
+ * S1 (attacker A5) — each design root's root-level runtime FILES (`_server.json`, `_active.json`,
+ * `_sync.json`, … `RUNTIME_STATE_FILES`), named as exact files (Seatbelt takes a file path that does
+ * not exist yet: measured). `_active.json` steers the scope of the next `/design:edit`; `_server.json`
+ * tells the `maude design` verbs which server to talk to.
+ */
+export function runtimeStateFiles(
+  designRoots: readonly string[],
+  writeRoots: readonly string[]
+): string[] {
+  const out = new Set<string>();
+  for (const d of designRoots) {
+    const root = absPath(d, 'design root');
+    if (!writeRoots.some((w) => inside(root, w))) continue;
+    for (const name of RUNTIME_STATE_FILES) out.add(join(root, `_${name}.json`));
+  }
+  return [...out];
+}
+
+/**
  * B3 — each design root's runtime-state folders (the DDR-115 taxonomy, `RUNTIME_STATE_DIRS`:
  * `_canvas-state`, `_state`, `_chat`, `_comments`, `_untrusted`, `_history`, `_trash`, `_draw`,
  * `_smoke`, …). Those the agent does not own are `none` inside the writable scope (see
  * codexFilesystem): Codex never plants a chat transcript, a comment or a grant-adjacent state file.
- * Only the top-level folders of each design root are named; the bridge's write gate covers a
- * deeper runtime path and the root-level runtime FILES (`_server.json`, `_active.json`, `_sync.json`
- * …): a permission profile names paths, it cannot glob files, so those are not in the profile.
- * A design root outside every write root is skipped: naming it `read` would widen what Codex reads.
+ * Only the top-level folders of each design root are named here; the root-level runtime FILES are
+ * `runtimeStateFiles` (S1, A5: the bridge's write gate never sees a Codex write inside its
+ * workspace, so the profile names them). A design root outside every write root is skipped: naming
+ * it would widen what Codex reads.
  */
 export function runtimeStateDirs(
   designRoots: readonly string[],
@@ -103,11 +238,14 @@ export function runtimeStateDirs(
   return [...out];
 }
 
-/** The `permissions.maude.filesystem` map (path → access), most specific path wins in Seatbelt. */
+/**
+ * The `permissions.maude.filesystem` map (path → access), most specific path wins in Seatbelt. The
+ * `:workspace_roots` key holds the depth-independent protected-name globs (`codexProtectedGlobs`).
+ */
 export function codexFilesystem(
   ctx: PolicyCtx,
   host: LaunchHost = currentHost()
-): Record<string, FsAccess> {
+): Record<string, FsAccess | Record<string, FsAccess>> {
   const creds = [
     ...ctx.credentialPaths.dirs.map((d) => absPath(d, 'credential dir')),
     ...ctx.credentialPaths.files.map((f) => absPath(f, 'credential file')),
@@ -120,8 +258,9 @@ export function codexFilesystem(
 
   const fs = new Map<string, FsAccess>();
   for (const t of userTrees(host)) fs.set(t, 'none');
-  for (const r of reads) if (granted(r)) fs.set(r, 'read');
-  for (const w of writes) if (granted(w)) fs.set(w, 'write');
+  for (const t of systemDenies(host)) fs.set(t, 'none');
+  for (const r of reads) if (granted(r)) for (const p of spellings(r, host)) fs.set(p, 'read');
+  for (const w of writes) if (granted(w)) for (const p of spellings(w, host)) fs.set(p, 'write');
   // Runtime state the agent does not own is `none`. Measured (F6b, codex 0.154/0.165/0.166): a
   // `read` entry inside a `write` root does NOT stop a write in Seatbelt, `none` does. The folders the
   // agent may write for Claude too (`AGENT_RUNTIME_OUTPUTS`: _history, _draw, _smoke …) stay writable.
@@ -131,8 +270,21 @@ export function codexFilesystem(
     if (AGENT_RUNTIME_OUTPUTS.includes(basename(r))) continue;
     if (granted(r) && fs.get(r) !== 'write') fs.set(r, 'none');
   }
+  // S1 — the root-level runtime files (A5) and everything the bridge gate protects in a project
+  // (A2), under every write root and every design root inside one. A path that IS a write root keeps
+  // its `write` (none today).
+  const deny = (path: string) => {
+    for (const p of spellings(path, host)) if (fs.get(p) !== 'write') fs.set(p, 'none');
+  };
+  for (const f of runtimeStateFiles(ctx.designRoots, writes)) deny(f);
+  const designInside = ctx.designRoots
+    .map((d) => absPath(d, 'design root'))
+    .filter((d) => writes.some((w) => inside(d, w)));
+  for (const root of new Set([...writes, ...designInside])) {
+    for (const p of codexProtectedPaths(root)) deny(p);
+  }
   for (const c of creds) fs.set(c, 'none');
-  return Object.fromEntries(fs);
+  return { ...Object.fromEntries(fs), ':workspace_roots': codexProtectedGlobs() };
 }
 
 /**

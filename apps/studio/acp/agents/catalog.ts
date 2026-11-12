@@ -10,6 +10,7 @@
 //   copilot   bridge-enforced  probe passed in full on 1.0.105 (B8)
 //   goose, cursor: 'unrestricted' until their own probe passes
 
+import { getChatKey } from '../../generation/keys.ts';
 import { ensureMaudeCodexHome, refuseProjectCodexConfig } from '../policy/codex-home.ts';
 import { codexLaunchPolicy, currentHost } from '../policy/launch-codex.ts';
 import { copilotLaunchPolicyFor } from '../policy/launch-copilot.ts';
@@ -27,6 +28,18 @@ import {
 } from './descriptor.ts';
 
 const SEMVER = /(\d+\.\d+\.\d+)/;
+
+/**
+ * S1 (M2) — whether this spawn injects a Codex chat key (chat-key.ts reads the same store): then
+ * Maude's Codex home gets no auth.json link. An unreadable store is "no key", as at the spawn.
+ */
+function codexChatKeyStored(): boolean {
+  try {
+    return getChatKey('codex') !== null;
+  } catch {
+    return false;
+  }
+}
 
 /** rawInput keys a request may carry a path in (B0 frames: opencode filePath/filepath/path). */
 const TARGET_KEYS = ['filePath', 'filepath', 'file_path', 'path', 'abs_path', 'paths'];
@@ -102,12 +115,18 @@ export const CODEX: AgentDescriptor = assertDescriptor({
       return codexLaunchPolicy(
         ctx,
         currentHost(),
-        ensureMaudeCodexHome(ctx.hostEnv ?? process.env)
+        ensureMaudeCodexHome(ctx.hostEnv ?? process.env, {
+          // A caller with its own host env (the probe, a test) is not the server whose key store
+          // this is: no key unless it says so.
+          apiKey: ctx.chatKeyStored ?? (ctx.hostEnv ? false : codexChatKeyStored()),
+        })
       );
     },
     readGate: 'os-sandbox',
     shellGate: 'os-sandbox',
-    pinMode: { modeId: 'workspace-write', refuse: ['agent', 'agent-full-access'] },
+    // S1 (A6) — an allowlist: codex-acp 2.5.0's four modes are read-only, workspace-write, agent
+    // (Guardian auto-review) and agent-full-access; only the first two keep the person's card.
+    pinMode: { modeId: 'workspace-write', allow: ['read-only', 'workspace-write'] },
     rejectEndsTurn: true,
     targetKeys: TARGET_KEYS,
   },
@@ -187,7 +206,9 @@ export const GEMINI_ENFORCEMENT: Enforcement = {
   launchPolicy: geminiLaunchPolicyFor,
   readGate: 'agent-permission-engine',
   shellGate: 'command-text',
-  pinMode: { modeId: 'default', refuse: ['yolo', 'autoEdit'] },
+  // S1 (A6) — an allowlist: `yolo` and `autoEdit` (and any mode a newer Gemini adds) are refused;
+  // `plan` is Gemini's read-only planning mode.
+  pinMode: { modeId: 'default', allow: ['default', 'plan'] },
   rejectEndsTurn: false,
   targetKeys: TARGET_KEYS,
 };
@@ -201,10 +222,17 @@ export const COPILOT_ENFORCEMENT: Enforcement = {
   launchPolicy: copilotLaunchPolicyFor,
   readGate: 'agent-permission-engine',
   shellGate: 'command-text',
+  // S1 (A6) — an allowlist: `#autopilot` (and any mode a newer Copilot adds) is refused.
   pinMode: {
     modeId: 'https://agentclientprotocol.com/protocol/session-modes#agent',
-    refuse: ['https://agentclientprotocol.com/protocol/session-modes#autopilot'],
+    allow: [
+      'https://agentclientprotocol.com/protocol/session-modes#agent',
+      'https://agentclientprotocol.com/protocol/session-modes#plan',
+    ],
   },
+  // S1 — `allow_all` (session/set_config_option) approves every tool call without a card, which the
+  // mode pin does not cover: only `off` may be set or listed.
+  pinConfig: { allow_all: { allow: ['off', 'false'] } },
   rejectEndsTurn: false,
   targetKeys: TARGET_KEYS,
 };

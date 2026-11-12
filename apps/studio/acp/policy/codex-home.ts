@@ -15,6 +15,12 @@
 //     auth.ts) carries over, and a token refresh writes THROUGH the link into the person's file
 //     (measured on 0.154: `codex login --with-api-key` under the Maude home kept the link and
 //     rewrote the target). A missing target is fine: the link dangles until the person signs in.
+//     NOT when the person stored an API key for the chat (S1, defender M2): codex-acp then logs in
+//     with that key (`DEFAULT_AUTH_REQUEST`, chat-key.ts) and Codex writes the login to
+//     `$CODEX_HOME/auth.json`, which through the link would be the person's own `~/.codex/auth.json`
+//     (the key would leave Maude's 0600 store, and removing it in Settings would not sign Codex out).
+//     With a key, auth.json is Codex's own plain file inside this 0700 folder, made 0600 at every
+//     spawn, and deleted when the key is removed (`forgetCodexApiLogin`) or the next spawn has none.
 //   • config.toml — Maude's, rewritten at every spawn (no MCP servers, no hooks, no plugins,
 //     no profiles, no project trust).
 //   • whatever Codex itself writes there at runtime (sessions, logs, its own skills cache).
@@ -40,6 +46,7 @@
 
 import {
   chmodSync,
+  existsSync,
   lstatSync,
   mkdirSync,
   readlinkSync,
@@ -134,12 +141,55 @@ function mkdirsPrivate(p: string) {
   }
 }
 
+export interface CodexHomeOptions {
+  /**
+   * S1 (M2) — a chat API key will be injected for this spawn: no auth.json link (Codex keeps the
+   * key login in its own 0600 file here). Default false.
+   */
+  apiKey?: boolean;
+}
+
+/** auth.json in Maude's Codex home when it is Codex's own plain file (an API-key login), else null. */
+function ownLoginFile(home: string): string | null {
+  const f = join(home, 'auth.json');
+  try {
+    const st = lstatSync(f);
+    if (st.isDirectory()) throw new Error(`Maude's Codex home: auth.json is a folder (${f})`);
+    return st.isSymbolicLink() ? null : f;
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw e;
+  }
+}
+
+/**
+ * S1 (M2) — the person removed the chat's Codex API key: delete the login Codex kept for it in
+ * Maude's Codex home (a plain auth.json). A link to the person's own sign-in is never touched, and
+ * nothing outside Maude's folder is. Best effort: the next spawn without a key removes it as well.
+ */
+export function forgetCodexApiLogin(env: HostEnv = process.env): boolean {
+  try {
+    const home = maudeCodexHomePath(env);
+    if (!existsSync(home)) return false;
+    assertOwnedDir(home, 'the folder');
+    const f = ownLoginFile(home);
+    if (!f) return false;
+    unlinkSync(f);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Make (or repair) the Maude-owned Codex home and return its path. Idempotent; safe to run for
  * every spawn while other chats' Codex processes use the same folder (config.toml is replaced by
  * rename, the link only when it is wrong).
  */
-export function ensureMaudeCodexHome(env: HostEnv = process.env): string {
+export function ensureMaudeCodexHome(
+  env: HostEnv = process.env,
+  opts: CodexHomeOptions = {}
+): string {
   const home = maudeCodexHomePath(env);
   const target = personCodexAuthFile(env);
   if (home === personCodexHome(env) || resolve(target) === resolve(home, 'auth.json')) {
@@ -158,7 +208,12 @@ export function ensureMaudeCodexHome(env: HostEnv = process.env): string {
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
   }
-  if (current !== target) {
+  if (opts.apiKey) {
+    // S1 (M2) — never a link while a key is stored: Codex's key login must not write through it.
+    if (current !== null && current !== '') unlinkSync(link);
+    if (current === '') chmodSync(link, 0o600);
+  } else if (current !== target) {
+    // A plain file here is a key login left from a key that is gone: removed, then the link.
     if (current !== null) unlinkSync(link);
     symlinkSync(target, link);
   }

@@ -226,15 +226,16 @@ describe('Gemini launch policy', () => {
 describe('catalog (B8 flip)', () => {
   test('Gemini and Copilot are bridge-enforced with their dangerous modes refused', () => {
     expect(GEMINI.policy).toBe('bridge-enforced');
-    expect(GEMINI.enforcement?.pinMode).toEqual({
-      modeId: 'default',
-      refuse: ['yolo', 'autoEdit'],
-    });
+    // S1 (A6) — allowlists: yolo / autoEdit / #autopilot and any newer mode are refused
+    expect(GEMINI.enforcement?.pinMode).toEqual({ modeId: 'default', allow: ['default', 'plan'] });
     expect(GEMINI.auth.apiKeyEnv).toEqual(['GEMINI_API_KEY']);
     expect(COPILOT.policy).toBe('bridge-enforced');
-    expect(COPILOT.enforcement?.pinMode?.refuse).toEqual([
-      'https://agentclientprotocol.com/protocol/session-modes#autopilot',
+    expect(COPILOT.enforcement?.pinMode?.allow).toEqual([
+      'https://agentclientprotocol.com/protocol/session-modes#agent',
+      'https://agentclientprotocol.com/protocol/session-modes#plan',
     ]);
+    // S1 — `allow_all` (set_config_option) is pinned off
+    expect(COPILOT.enforcement?.pinConfig).toEqual({ allow_all: { allow: ['off', 'false'] } });
     expect(isOfferable(GEMINI) && isOfferable(COPILOT)).toBe(true);
   });
 });

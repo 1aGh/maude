@@ -423,9 +423,14 @@ export function answerCard(
 // ---------------------------------------------------------------------------------------------------
 // Rules 10, 11, 13
 
-/** Rule 10: a mode the bridge refuses to switch to (and the picker never lists). */
+/**
+ * Rule 10: a mode the bridge refuses to switch to (and the picker never lists). An allowlist (S1,
+ * attacker A6): for a pinned agent every mode outside `pinMode.allow` is refused, including one a
+ * newer adapter adds.
+ */
 export function isRefusedMode(d: AgentDescriptor, modeId: string): boolean {
-  return !!d.enforcement?.pinMode?.refuse.includes(modeId);
+  const pin = d.enforcement?.pinMode;
+  return !!pin && !pin.allow.includes(modeId);
 }
 
 /** Rule 11: a client method a bridge-enforced agent must never call (never advertised). */

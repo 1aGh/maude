@@ -231,8 +231,32 @@ const MODES = {
   availableModes: [
     { id: 'safe', name: 'Safe' },
     { id: 'yolo', name: 'Yolo' },
+    // S1 (A6) — a mode no descriptor names (a newer adapter's): the allowlist refuses it too
+    { id: 'turbo', name: 'Turbo' },
   ],
 };
+
+/** S1 — Copilot-shaped config: `allow_all` on at start, plus a boolean switch of the same kind. */
+const CONFIG = [
+  {
+    id: 'allow_all',
+    name: 'Allow all',
+    type: 'select',
+    currentValue: 'on',
+    options: [
+      { value: 'on', name: 'On' },
+      { value: 'off', name: 'Off' },
+    ],
+  },
+  { id: 'auto_approve', name: 'Auto approve', type: 'boolean', currentValue: false },
+  {
+    id: 'model',
+    name: 'Model',
+    type: 'select',
+    currentValue: 'm1',
+    options: [{ group: 'g', name: 'G', options: [{ value: 'm1', name: 'M1' }] }],
+  },
+];
 
 function enforcedAgent(seen: PolicyCtx[] = []): AgentDescriptor {
   return fakeAgent({
@@ -253,7 +277,8 @@ function enforcedAgent(seen: PolicyCtx[] = []): AgentDescriptor {
       },
       readGate: 'os-sandbox',
       shellGate: 'os-sandbox',
-      pinMode: { modeId: 'safe', refuse: ['yolo'] },
+      pinMode: { modeId: 'safe', allow: ['safe'] },
+      pinConfig: { allow_all: { allow: ['off'] }, auto_approve: { allow: ['false'] } },
       rejectEndsTurn: true,
       targetKeys: ['path'],
     },
@@ -502,13 +527,45 @@ describe('(e) the pinned mode: set after session/new, refused modes rejected and
       },
     });
     expect(current).toBe('safe');
+    // S1 (A6) — the allowlist hides `turbo`, which a refuse list naming `yolo` would have shown
     expect(shown).toEqual(['safe']);
     expect(log.filter((l) => l.m === 'set_mode').map((l) => l.params?.modeId)).toEqual(['safe']);
     expect(refusedMode).toBeInstanceOf(ModeRefusedError);
     expect(refusedConfig).toBeInstanceOf(ModeRefusedError);
     expect(log.some((l) => l.m === 'set_config_option')).toBe(false);
     expect(bridge.refusesMode('yolo')).toBe(true);
+    expect(bridge.refusesMode('turbo')).toBe(true);
+    expect(bridge.refusesMode('safe')).toBe(false);
     expect(bridge.agentInfo).toEqual({ id: 'custom:fake', label: 'Fake', vendor: 'Fake Inc' });
+  });
+
+  // S1 — Copilot exposes `allow_all` through set_config_option, which the mode pin never sees.
+  test('a pinned config option: moved off a refused start value, refused value hidden and refused', async () => {
+    let refused: unknown;
+    let options: Array<{ id: string; currentValue?: unknown; options?: unknown }> = [];
+    const { log, bridge } = await agentRun(enforcedAgent(), {
+      extraEnv: { MAUDE_TEST_CONFIG: JSON.stringify(CONFIG) },
+      during: async (b) => {
+        options = b.configOptions as typeof options;
+        refused = await b.setConfigOption('c1', 'allow_all', 'on').catch((e) => e);
+      },
+    });
+    const sets = log.filter((l) => l.m === 'set_config_option').map((l) => l.params);
+    // pinned once at session start, never set back to `on`
+    expect(sets).toEqual([expect.objectContaining({ configId: 'allow_all', value: 'off' })]);
+    expect(refused).toBeInstanceOf(ModeRefusedError);
+    const allowAll = options.find((o) => o.id === 'allow_all');
+    expect(allowAll?.currentValue).toBe('off');
+    expect(allowAll?.options).toEqual([{ value: 'off', name: 'Off' }]);
+    // a pinned boolean whose `true` is refused is not offered at all
+    expect(options.some((o) => o.id === 'auto_approve')).toBe(false);
+    // an option nobody pinned passes untouched (grouped options included)
+    expect(options.find((o) => o.id === 'model')).toEqual(CONFIG[2]);
+    expect(bridge.refusesConfig('allow_all', 'on')).toBe(true);
+    expect(bridge.refusesConfig('allow_all', 'off')).toBe(false);
+    expect(bridge.refusesConfig('auto_approve', true)).toBe(true);
+    expect(bridge.refusesConfig('mode', 'yolo')).toBe(true);
+    expect(bridge.refusesConfig('model', 'anything')).toBe(false);
   });
 
   test('no set_mode when the agent already sits in the pinned mode', async () => {

@@ -7,15 +7,24 @@ import { join } from 'node:path';
 
 import { CODEX, isOfferable, OPENCODE } from '../acp/agents/catalog.ts';
 import type { PolicyCtx } from '../acp/agents/descriptor.ts';
-import { codexLaunchPolicy, runtimeStateDirs, userTrees } from '../acp/policy/launch-codex.ts';
+import {
+  CODEX_PROTECTED_NAMES,
+  codexLaunchPolicy,
+  codexProtectedGlobs,
+  runtimeStateDirs,
+  runtimeStateFiles,
+  spellings,
+  systemDenies,
+  userTrees,
+} from '../acp/policy/launch-codex.ts';
 import {
   externalDirectory,
   OPENCODE_EXTERNAL_DIRECTORY_MAP,
   OPENCODE_FLAGS,
   opencodeLaunchPolicy,
 } from '../acp/policy/launch-opencode.ts';
-import { AGENT_RUNTIME_OUTPUTS } from '../acp/write-scope.ts';
-import { RUNTIME_STATE_DIRS } from '../sync/file-membership.ts';
+import { AGENT_RUNTIME_OUTPUTS, PROTECTED_IN_PROJECT } from '../acp/write-scope.ts';
+import { RUNTIME_STATE_DIRS, RUNTIME_STATE_FILES } from '../sync/file-membership.ts';
 
 const HOME = '/Users/u';
 const MAC = { platform: 'darwin' as const, home: HOME };
@@ -54,10 +63,11 @@ const RUNTIME_READ_ONLY: Record<string, string> = Object.fromEntries(
   ])
 );
 
+type CodexFs = Record<string, string> & { ':workspace_roots'?: Record<string, string> };
 type CodexCfg = {
   web_search: string;
   default_permissions: string;
-  permissions: { maude: { extends: string; filesystem: Record<string, string> } };
+  permissions: { maude: { extends: string; filesystem: CodexFs } };
   mcp_servers: Record<string, unknown>;
   hooks: Record<string, unknown>;
 };
@@ -89,7 +99,7 @@ describe('codex launch policy', () => {
 
   test('filesystem: user trees none, read roots read, write roots write, credentials none', () => {
     const fs = codexCfg(ctx()).permissions.maude.filesystem;
-    expect(fs).toEqual({
+    expect(fs).toMatchObject({
       '/Users': 'none',
       '/Volumes': 'none',
       '/Users/u/git/proj': 'write',
@@ -102,6 +112,136 @@ describe('codex launch policy', () => {
       '/Users/u/Library/Application Support/com.maude.app/servers.json': 'none',
       ...RUNTIME_READ_ONLY,
     });
+    // Everything else is one of S1's denies (or the `/private` spelling of a temp root).
+    const s1 = new Set([
+      ...systemDenies(MAC),
+      ...runtimeStateFiles(['/Users/u/git/proj/.design'], ['/Users/u/git/proj']),
+    ]);
+    for (const [k, v] of Object.entries(fs)) {
+      if (
+        k === ':workspace_roots' ||
+        k.startsWith('/Users/u/git/proj/') ||
+        k === '/Users/u/git/proj'
+      ) {
+        continue;
+      }
+      // the protected names under the scratch root, in both spellings (tested below)
+      if (/^(\/private)?\/var\/folders\/x\/T\/maude-chat-501\/abc\/default\//.test(k)) continue;
+      if (k === '/private/var/folders/x/T/maude-chat-501/abc/default') {
+        expect(v).toBe('write');
+        continue;
+      }
+      if (['/Users', '/Volumes', '/Applications/Maude.app/Contents/Resources'].includes(k))
+        continue;
+      if (k.startsWith('/Users/u/') || k === '/var/folders/x/T/maude-chat-501/abc/default')
+        continue;
+      expect([k, s1.has(k)]).toEqual([k, true]);
+    }
+  });
+
+  // S1 (attacker A2) — Codex's in-workspace writes never reach the bridge's write gate, so what the
+  // gate protects in a project is `none` in the profile (measured: `read` does not stop the write).
+  test('S1: every protected in-project name is none under each write root and design root', () => {
+    const fs = codexCfg(ctx()).permissions.maude.filesystem;
+    const names = [
+      ...PROTECTED_IN_PROJECT.filter((n) => n !== '.git'),
+      // named here too, whichever of S1 / S2 lands first
+      '.codex',
+      '.opencode',
+      '.gemini',
+      'AGENTS.md',
+      'opencode.json',
+      '.claude',
+      '.mcp.json',
+    ];
+    for (const root of [
+      '/Users/u/git/proj',
+      '/Users/u/git/proj/.design',
+      '/var/folders/x/T/maude-chat-501/abc/default',
+    ]) {
+      for (const n of names) expect([root, n, fs[`${root}/${n}`]]).toEqual([root, n, 'none']);
+      expect(fs[`${root}/.github/workflows`]).toBe('none');
+      expect(fs[`${root}/.ai/workflows.config.json`]).toBe('none');
+      expect(fs[`${root}/.config/lefthook.yml`]).toBe('none');
+    }
+    // `.ai/` and `.github/` themselves stay ordinary work
+    expect(fs['/Users/u/git/proj/.ai']).toBeUndefined();
+    expect(fs['/Users/u/git/proj/.github']).toBeUndefined();
+    // the root `.git` stays Codex's own read-only (measured): `none` would stop `git status`
+    expect(fs['/Users/u/git/proj/.git']).toBeUndefined();
+    expect(CODEX_PROTECTED_NAMES).not.toContain('.git');
+  });
+
+  test('S1: the protected names are denied at any depth by glob, a nested .git too', () => {
+    const globs = codexCfg(ctx()).permissions.maude.filesystem[':workspace_roots'] ?? {};
+    expect(globs).toEqual(codexProtectedGlobs());
+    for (const n of [
+      '.claude',
+      'package.json',
+      'node_modules',
+      '.husky',
+      '.opencode',
+      'AGENTS.md',
+    ]) {
+      // the name (stops its creation) AND its subtree (stops a write into an existing one)
+      expect(globs[`**/${n}`]).toBe('none');
+      expect(globs[`**/${n}/**`]).toBe('none');
+    }
+    expect(globs['*/**/.git']).toBe('none');
+    expect(globs['*/**/.git/**']).toBe('none');
+    expect(globs['**/.git']).toBeUndefined();
+  });
+
+  // S1 (attacker A5) — the root-level runtime FILES, as exact file paths.
+  test('S1: each design root runtime file is none; one outside the write roots is not named', () => {
+    const fs = codexCfg(
+      ctx({ designRoots: ['/Users/u/git/proj/.design', '/Users/u/elsewhere/.design'] })
+    ).permissions.maude.filesystem;
+    for (const n of RUNTIME_STATE_FILES) {
+      expect([n, fs[`/Users/u/git/proj/.design/_${n}.json`]]).toEqual([n, 'none']);
+      expect(fs[`/Users/u/elsewhere/.design/_${n}.json`]).toBeUndefined();
+    }
+    expect(fs['/Users/u/git/proj/.design/_active.json']).toBe('none');
+    expect(fs['/Users/u/git/proj/.design/_server.json']).toBe('none');
+    expect(runtimeStateFiles(['/a/p/.design'], ['/b'])).toEqual([]);
+  });
+
+  // S1 (attacker A3) — the temp folders other sessions and chats use, and package-manager data.
+  test('S1: temp folders and local databases are none; the chat scratch stays writable', () => {
+    const host = { ...MAC, tmpdir: '/private/var/folders/x/T' };
+    const fs = codexCfg(ctx(), host).permissions.maude.filesystem;
+    for (const p of [
+      '/private/tmp',
+      '/private/var/tmp',
+      '/private/var/folders/x/T',
+      '/opt/homebrew/var',
+      '/usr/local/var',
+    ]) {
+      expect([p, fs[p]]).toEqual([p, 'none']);
+    }
+    // the scratch, in both spellings (Seatbelt matches `/private/var/…`; more specific wins)
+    expect(fs['/var/folders/x/T/maude-chat-501/abc/default']).toBe('write');
+    expect(fs['/private/var/folders/x/T/maude-chat-501/abc/default']).toBe('write');
+    expect(systemDenies(LINUX)).toEqual(['/tmp', '/var/tmp', '/usr/local/var']);
+    expect(systemDenies({ ...LINUX, tmpdir: '/run/user/1/tmp' })).toContain('/run/user/1/tmp');
+    // a temp folder already under a denied one is not named twice; the disk root never
+    expect(systemDenies({ ...MAC, tmpdir: '/private/tmp/x' })).not.toContain('/private/tmp/x');
+    expect(systemDenies({ ...LINUX, tmpdir: '/' })).not.toContain('/');
+    expect(spellings('/var/folders/a', MAC)).toEqual(['/var/folders/a', '/private/var/folders/a']);
+    expect(spellings('/tmp/a', MAC)).toEqual(['/tmp/a', '/private/tmp/a']);
+    expect(spellings('/Users/u/p', MAC)).toEqual(['/Users/u/p']);
+    expect(spellings('/var/a', LINUX)).toEqual(['/var/a']);
+  });
+
+  test('S1: a project kept in /tmp is still writable (the root out-ranks the temp deny)', () => {
+    const fs = codexCfg(
+      ctx({ scopeRoot: '/tmp/p', readRoots: ['/tmp/p'], writeRoots: ['/tmp/p'], designRoots: [] })
+    ).permissions.maude.filesystem;
+    expect(fs['/private/tmp']).toBe('none');
+    expect(fs['/tmp/p']).toBe('write');
+    expect(fs['/private/tmp/p']).toBe('write');
+    expect(fs['/private/tmp/p/package.json']).toBe('none');
+    expect(fs['/tmp/p/package.json']).toBe('none');
   });
 
   test('B3: runtime state the agent does not own is denied; its own output folders stay writable', () => {
@@ -307,9 +447,10 @@ describe('catalog wiring', () => {
     if (!cx || !oc) throw new Error('enforcement missing');
     expect(cx.readGate).toBe('os-sandbox');
     expect(cx.shellGate).toBe('os-sandbox');
+    // S1 (A6) — an allowlist: any mode not named (agent, agent-full-access, a future one) is refused
     expect(cx.pinMode).toEqual({
       modeId: 'workspace-write',
-      refuse: ['agent', 'agent-full-access'],
+      allow: ['read-only', 'workspace-write'],
     });
     expect(cx.rejectEndsTurn).toBe(true);
     expect(oc.readGate).toBe('agent-permission-engine');

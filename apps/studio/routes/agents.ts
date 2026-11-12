@@ -63,6 +63,7 @@ import {
   isSigninInFlight,
   startSignin,
 } from '../acp/login-state.ts';
+import { forgetCodexApiLogin } from '../acp/policy/codex-home.ts';
 import { probeAcpAvailabilityAuthed } from '../acp/probe.ts';
 import {
   type ChatKeyStatus,
@@ -467,6 +468,7 @@ export function createAgentsRoutes(deps: AgentsRouteDeps = {}): RouteSpec[] {
         try {
           if (d.id === 'claude') keys.clearClaude();
           else keys.clear(d.id);
+          if (d.id === 'codex') forgetCodexApiLogin(); // S1 (M2): Codex's key login goes with the key
         } catch {
           return json({ ok: false, reason: 'store-failed' }, 500);
         }

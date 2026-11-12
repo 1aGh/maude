@@ -8,7 +8,7 @@
 // otherwise obeying agent start just that one. No network beyond the loopback model, no real binaries.
 
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { Readable, Writable } from 'node:stream';
 
@@ -19,9 +19,17 @@ const policy = JSON.parse(process.env.FAKE_POLICY ?? '{}');
 const modelUrl = process.env.FAKE_MODEL_URL;
 const readRoots = policy.readRoots ?? [];
 
+// Obeying = judged on the REAL path (a link inside the project to a file outside is outside).
+const real = (p) => {
+  try {
+    return realpathSync(p);
+  } catch {
+    return resolve(p);
+  }
+};
 const inside = (p, roots) =>
   roots.some((r) => {
-    const rel = relative(r, resolve(p));
+    const rel = relative(real(r), real(p));
     return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
   });
 

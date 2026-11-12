@@ -37,7 +37,7 @@ import { DEV_SERVER_ROOT } from '../paths.ts';
 import { readUiPrefs } from '../ui-prefs.ts';
 import { relayAdapterLine } from './adapter-stderr.ts';
 import { CLAUDE } from './agents/catalog.ts';
-import type { AgentDescriptor, PolicyCtx } from './agents/descriptor.ts';
+import { type AgentDescriptor, isRefusedConfigValue, type PolicyCtx } from './agents/descriptor.ts';
 import { agentSpawn } from './agents/spawn.ts';
 import {
   type AudienceLeak,
@@ -81,7 +81,7 @@ import {
   readVerdict,
 } from './may-scope.ts';
 import { type SdkPluginConfig, suppressionFor } from './plugin-bootstrap.ts';
-import { FORBIDDEN_METHOD_ERROR, type GateResult } from './policy/enforce.ts';
+import { FORBIDDEN_METHOD_ERROR, type GateResult, isRefusedMode } from './policy/enforce.ts';
 import type { PermissionGate } from './policy/gate-types.ts';
 import {
   type AgentInfo,
@@ -849,7 +849,7 @@ export function newSessionParamsFor(
   return { cwd: args[0], mcpServers: [] };
 }
 
-/** F3 (rule 10) — a mode the agent's descriptor refuses (`enforcement.pinMode.refuse`). */
+/** F3 (rule 10) — a mode outside the agent's `enforcement.pinMode.allow` (S1: an allowlist). */
 export class ModeRefusedError extends Error {
   constructor(
     readonly modeId: string,
@@ -1204,7 +1204,17 @@ export class AcpBridge {
 
   /** F3 (rule 10) — true when the descriptor refuses `modeId` (the panel says why). */
   refusesMode(modeId: string): boolean {
-    return this.agent.enforcement?.pinMode?.refuse.includes(modeId) ?? false;
+    return isRefusedMode(this.agent, modeId);
+  }
+
+  /**
+   * S1 — true when the descriptor refuses `value` for config option `configId`: a refused mode
+   * through the `mode` option (rule 10), or a value outside a `pinConfig` allowlist (Copilot's
+   * `allow_all`).
+   */
+  refusesConfig(configId: string, value: string | boolean): boolean {
+    if (configId === 'mode' && typeof value === 'string' && this.refusesMode(value)) return true;
+    return isRefusedConfigValue(this.agent, configId, value);
   }
 
   /** The roster the panel may offer: a refused mode is never listed (rule 10). */
@@ -1214,19 +1224,39 @@ export class AcpBridge {
     return { ...m, availableModes: m.availableModes.filter((x) => !this.refusesMode(x.id)) };
   }
 
-  /** The config options the panel may offer: a refused mode leaves the `mode` select too. */
+  /**
+   * The config options the panel may offer: a refused mode leaves the `mode` select too, a refused
+   * value leaves a pinned option's select (grouped or flat), and a pinned BOOLEAN option whose `true`
+   * is refused is not listed at all (S1: Copilot's `allow_all`).
+   */
   private visibleConfigOptions(): SessionConfigOption[] {
-    if (!this.agent.enforcement?.pinMode) return this.lastConfigOptions;
-    return this.lastConfigOptions.map((o) =>
-      o.id === 'mode' && o.type === 'select' && Array.isArray(o.options)
-        ? ({
-            ...o,
-            options: (o.options as Array<{ value?: unknown }>).filter(
-              (x) => typeof x.value !== 'string' || !this.refusesMode(x.value)
-            ),
-          } as SessionConfigOption)
-        : o
-    );
+    const e = this.agent.enforcement;
+    if (!e?.pinMode && !e?.pinConfig) return this.lastConfigOptions;
+    const keep = (id: string, x: { value?: unknown }) =>
+      typeof x.value !== 'string' || !this.refusesConfig(id, x.value);
+    const out: SessionConfigOption[] = [];
+    for (const o of this.lastConfigOptions) {
+      if (o.type === 'boolean') {
+        if (!this.refusesConfig(o.id, true)) out.push(o);
+        continue;
+      }
+      if (o.type !== 'select' || !Array.isArray(o.options)) {
+        out.push(o);
+        continue;
+      }
+      const options = (o.options as Array<{ value?: unknown; options?: unknown }>)
+        .map((x) =>
+          Array.isArray(x.options)
+            ? {
+                ...x,
+                options: (x.options as Array<{ value?: unknown }>).filter((y) => keep(o.id, y)),
+              }
+            : x
+        )
+        .filter((x) => (Array.isArray(x.options) ? x.options.length > 0 : keep(o.id, x)));
+      out.push({ ...o, options } as SessionConfigOption);
+    }
+    return out;
   }
 
   private emitCaps(): void {
@@ -1319,7 +1349,7 @@ export class AcpBridge {
    * every listener sees the side effects, not just the option that changed.
    */
   async setConfigOption(chatId: string, configId: string, value: string): Promise<void> {
-    if (configId === 'mode' && this.refusesMode(value)) {
+    if (this.refusesConfig(configId, value)) {
       throw new ModeRefusedError(value, this.agent.label);
     }
     await this.ensureStarted();
@@ -1360,6 +1390,34 @@ export class AcpBridge {
     this.lastModes = this.lastModes
       ? { ...this.lastModes, currentModeId: pin.modeId }
       : { currentModeId: pin.modeId, availableModes: [] };
+  }
+
+  /**
+   * S1 — the `pinConfig` counterpart of pinModeOnce: a session that starts on a refused value of a
+   * pinned option (Copilot `allow_all` on) is moved to the first allowed value. A move the agent
+   * refuses ends the session start, like a refused mode pin.
+   */
+  private async pinConfigOnce(sessionId: string): Promise<void> {
+    const pins = this.agent.enforcement?.pinConfig;
+    if (!pins || !this.conn) return;
+    for (const [configId, pin] of Object.entries(pins)) {
+      const o = this.lastConfigOptions.find((x) => x.id === configId);
+      if (!o || !this.refusesConfig(configId, o.currentValue)) continue;
+      const res =
+        o.type === 'boolean'
+          ? await this.conn.setSessionConfigOption({
+              sessionId,
+              configId,
+              type: 'boolean',
+              value: pin.allow[0] === 'true' || pin.allow[0] === 'on',
+            })
+          : await this.conn.setSessionConfigOption({ sessionId, configId, value: pin.allow[0] });
+      this.lastConfigOptions = res.configOptions;
+      const now = this.lastConfigOptions.find((x) => x.id === configId);
+      if (now && this.refusesConfig(configId, now.currentValue)) {
+        throw new ModeRefusedError(String(now.currentValue), this.agent.label);
+      }
+    }
   }
 
   private async applyDesiredConfigOnce(sessionId: string): Promise<void> {
@@ -1643,6 +1701,7 @@ export class AcpBridge {
     this.lastModes = modes ?? null;
     this.lastConfigOptions = configOptions ?? [];
     await this.pinModeOnce(sessionId);
+    await this.pinConfigOnce(sessionId);
     await this.applyDesiredConfigOnce(sessionId);
     this.emitCaps();
     return sessionId;

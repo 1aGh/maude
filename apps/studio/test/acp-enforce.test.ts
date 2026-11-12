@@ -14,7 +14,13 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import type { AgentDescriptor, PolicyCtx } from '../acp/agents/descriptor.ts';
+import { CODEX as CATALOG_CODEX, COPILOT, GEMINI } from '../acp/agents/catalog.ts';
+import {
+  type AgentDescriptor,
+  assertDescriptor,
+  isRefusedConfigValue,
+  type PolicyCtx,
+} from '../acp/agents/descriptor.ts';
 import {
   APPROVABLE_READ_BASH,
   credentialPathsFor,
@@ -57,7 +63,7 @@ const CODEX: EnforcedDescriptor = {
     launchPolicy,
     readGate: 'os-sandbox',
     shellGate: 'os-sandbox',
-    pinMode: { modeId: 'workspace-write', refuse: ['agent', 'agent-full-access'] },
+    pinMode: { modeId: 'workspace-write', allow: ['read-only', 'workspace-write'] },
     rejectEndsTurn: true,
     targetKeys: ['path', 'file_path'],
   },
@@ -653,7 +659,40 @@ describe('rules 10, 11, 13', () => {
     expect(isRefusedMode(CODEX, 'agent')).toBe(true);
     expect(isRefusedMode(CODEX, 'agent-full-access')).toBe(true);
     expect(isRefusedMode(CODEX, 'workspace-write')).toBe(false);
+    expect(isRefusedMode(CODEX, 'read-only')).toBe(false);
+    // S1 (A6) — an allowlist: a mode a newer adapter adds is refused until it is listed
+    expect(isRefusedMode(CODEX, 'agent-turbo')).toBe(true);
+    expect(isRefusedMode(CODEX, '')).toBe(true);
+    // no pin, nothing refused
     expect(isRefusedMode(OPENCODE, 'agent')).toBe(false);
+  });
+
+  test('the real catalog pins are allowlists that refuse every auto-approving mode', () => {
+    expect(isRefusedMode(CATALOG_CODEX, 'agent')).toBe(true);
+    expect(isRefusedMode(CATALOG_CODEX, 'agent-full-access')).toBe(true);
+    expect(isRefusedMode(CATALOG_CODEX, 'workspace-write')).toBe(false);
+    expect(isRefusedMode(GEMINI, 'yolo')).toBe(true);
+    expect(isRefusedMode(GEMINI, 'autoEdit')).toBe(true);
+    expect(isRefusedMode(GEMINI, 'default')).toBe(false);
+    const ap = 'https://agentclientprotocol.com/protocol/session-modes#';
+    expect(isRefusedMode(COPILOT, `${ap}autopilot`)).toBe(true);
+    expect(isRefusedMode(COPILOT, `${ap}agent`)).toBe(false);
+    expect(isRefusedConfigValue(COPILOT, 'allow_all', 'on')).toBe(true);
+    expect(isRefusedConfigValue(COPILOT, 'allow_all', true)).toBe(true);
+    expect(isRefusedConfigValue(COPILOT, 'allow_all', 'off')).toBe(false);
+    expect(isRefusedConfigValue(COPILOT, 'model', 'x')).toBe(false);
+  });
+
+  test('a pin whose own mode is not allowed fails at load', () => {
+    expect(() =>
+      assertDescriptor({
+        ...CODEX,
+        enforcement: {
+          ...(CODEX.enforcement as NonNullable<AgentDescriptor['enforcement']>),
+          pinMode: { modeId: 'workspace-write', allow: ['read-only'] },
+        },
+      })
+    ).toThrow(/not in its allow list/);
   });
 
   test('fs/* and terminal/* are forbidden for a bridge-enforced agent', () => {

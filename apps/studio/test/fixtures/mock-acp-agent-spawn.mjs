@@ -4,7 +4,8 @@
 //   • spawn: its argv (after the script) and its whole env;
 //   • initialize / session/new / session/load / session/set_mode / session/set_config_option: params.
 // Knobs (env): MAUDE_TEST_LOAD_SESSION=0 advertises no loadSession and never answers session/load;
-// MAUDE_TEST_MODES = the `modes` JSON session/new answers with.
+// MAUDE_TEST_MODES = the `modes` JSON session/new answers with; MAUDE_TEST_CONFIG = its
+// `configOptions` (set_config_option then moves that option's currentValue and echoes the list).
 
 import { appendFileSync } from 'node:fs';
 import { Readable, Writable } from 'node:stream';
@@ -14,6 +15,7 @@ import * as acp from '@agentclientprotocol/sdk';
 const LOG = process.env.MAUDE_TEST_SPAWN_LOG || '';
 const CAN_LOAD = process.env.MAUDE_TEST_LOAD_SESSION !== '0';
 const MODES = process.env.MAUDE_TEST_MODES ? JSON.parse(process.env.MAUDE_TEST_MODES) : undefined;
+let config = process.env.MAUDE_TEST_CONFIG ? JSON.parse(process.env.MAUDE_TEST_CONFIG) : undefined;
 let n = 0;
 
 function log(entry) {
@@ -35,7 +37,11 @@ acp
   })
   .onRequest('session/new', (ctx) => {
     log({ m: 'new', params: ctx.params });
-    return { sessionId: `spawn-session-${++n}`, ...(MODES ? { modes: MODES } : {}) };
+    return {
+      sessionId: `spawn-session-${++n}`,
+      ...(MODES ? { modes: MODES } : {}),
+      ...(config ? { configOptions: config } : {}),
+    };
   })
   .onRequest('session/load', (ctx) => {
     log({ m: 'load', params: ctx.params });
@@ -49,7 +55,11 @@ acp
   })
   .onRequest('session/set_config_option', (ctx) => {
     log({ m: 'set_config_option', params: ctx.params });
-    return { configOptions: [] };
+    if (!config) return { configOptions: [] };
+    config = config.map((o) =>
+      o.id === ctx.params.configId ? { ...o, currentValue: ctx.params.value } : o
+    );
+    return { configOptions: config };
   })
   .onRequest('session/prompt', () => ({ stopReason: 'end_turn' }))
   .onNotification('session/cancel', () => {})

@@ -25,6 +25,7 @@ import { credentialPathsFor, MAY_ALL } from '../acp/may-scope.ts';
 import {
   CODEX_HOME_FOREIGN,
   ensureMaudeCodexHome,
+  forgetCodexApiLogin,
   MAUDE_CODEX_CONFIG_TOML,
   maudeCodexHomePath,
   personCodexAuthFile,
@@ -166,6 +167,49 @@ describe('ensureMaudeCodexHome', () => {
     expect(readlinkSync(join(dir, 'auth.json'))).toBe(join(home, '.codex', 'auth.json'));
   });
 
+  // S1 (defender M2) — with a stored chat key, codex-acp logs in with it and Codex writes the login
+  // to $CODEX_HOME/auth.json: through the link that would be the person's own ~/.codex/auth.json.
+  test('with a chat key: no link, so a key login stays in Maude’s 0600 folder', () => {
+    const { home, env } = world();
+    const person = join(home, '.codex', 'auth.json');
+    const before = readFileSync(person, 'utf8');
+    const dir = ensureMaudeCodexHome(env); // signed in through the link first
+    expect(lstatSync(join(dir, 'auth.json')).isSymbolicLink()).toBe(true);
+    ensureMaudeCodexHome(env, { apiKey: true });
+    expect(existsSync(join(dir, 'auth.json'))).toBe(false);
+    // what Codex's key login does (measured on 0.154: `codex login --with-api-key`)
+    writeFileSync(join(dir, 'auth.json'), '{"OPENAI_API_KEY":"sk-chat-key"}', { mode: 0o644 });
+    ensureMaudeCodexHome(env, { apiKey: true });
+    const st = lstatSync(join(dir, 'auth.json'));
+    expect(st.isSymbolicLink()).toBe(false);
+    expect(st.mode & 0o777).toBe(0o600);
+    expect(readFileSync(person, 'utf8')).toBe(before);
+  });
+
+  test('removing the key forgets the key login; the next spawn links the person’s sign-in again', () => {
+    const { home, env } = world();
+    const dir = ensureMaudeCodexHome(env, { apiKey: true });
+    writeFileSync(join(dir, 'auth.json'), '{"OPENAI_API_KEY":"sk-chat-key"}', { mode: 0o600 });
+    expect(forgetCodexApiLogin(env)).toBe(true);
+    expect(existsSync(join(dir, 'auth.json'))).toBe(false);
+    expect(forgetCodexApiLogin(env)).toBe(false);
+    // a link is never removed by it, and the person's file never touched
+    ensureMaudeCodexHome(env);
+    expect(forgetCodexApiLogin(env)).toBe(false);
+    expect(readlinkSync(join(dir, 'auth.json'))).toBe(join(home, '.codex', 'auth.json'));
+    expect(readFileSync(join(home, '.codex', 'auth.json'), 'utf8')).toContain('sk-fake');
+    // a key login left behind (the key went while no spawn ran) goes at the next keyless spawn
+    ensureMaudeCodexHome(env, { apiKey: true });
+    writeFileSync(join(dir, 'auth.json'), '{"OPENAI_API_KEY":"sk-old"}', { mode: 0o600 });
+    ensureMaudeCodexHome(env);
+    expect(lstatSync(join(dir, 'auth.json')).isSymbolicLink()).toBe(true);
+  });
+
+  test('forgetCodexApiLogin never fails and never acts outside a home Maude made', () => {
+    const { env } = world();
+    expect(forgetCodexApiLogin(env)).toBe(false);
+  });
+
   test('fails closed: the folder is a symlink, auth.json is a folder, or CODEX_HOME is Maude’s own', () => {
     const a = world();
     const target = join(a.home, 'decoy');
@@ -222,6 +266,16 @@ describe('the launch policy', () => {
     const env = CODEX.enforcement?.launchPolicy(ctxFor(home, proj)).env ?? {};
     expect(env.CODEX_HOME).toBe(join(home, '.config', 'maude', 'agents', 'codex-home'));
     expect(existsSync(join(env.CODEX_HOME, 'config.toml'))).toBe(true);
+    expect(lstatSync(join(env.CODEX_HOME, 'auth.json')).isSymbolicLink()).toBe(true);
+  });
+
+  test("the catalog's Codex drops the auth.json link when the spawn carries a chat key (S1)", () => {
+    const { home } = world();
+    const proj = join(home, 'proj');
+    mkdirSync(proj);
+    const env =
+      CODEX.enforcement?.launchPolicy({ ...ctxFor(home, proj), chatKeyStored: true }).env ?? {};
+    expect(existsSync(join(env.CODEX_HOME, 'auth.json'))).toBe(false);
   });
 
   test("the catalog's Codex refuses a project with a .codex folder", () => {

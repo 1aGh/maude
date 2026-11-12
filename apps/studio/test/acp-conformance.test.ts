@@ -4,7 +4,7 @@
 // scripts/acp-conformance-local.ts).
 
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -19,6 +19,18 @@ import type { AgentDescriptor } from '../acp/agents/descriptor.ts';
 
 const FAKE = join(import.meta.dir, 'fixtures', 'acp-conformance', 'fake-agent.mjs');
 const base = mkdtempSync(join(tmpdir(), 'acp-conformance-test-'));
+const SLASH_TMP = process.platform === 'darwin' ? '/private/tmp' : '/tmp';
+/** The probe's temp-folder plants (S1) that exist right now. */
+const tmpPlants = () =>
+  new Set([
+    ...readdirSync(SLASH_TMP)
+      .filter((f) => f.startsWith('maude-conformance-'))
+      .map((f) => join(SLASH_TMP, f)),
+    ...readdirSync(tmpdir())
+      .filter((f) => /^maude-conformance-(chat|sibling)-/.test(f))
+      .map((f) => join(tmpdir(), f)),
+  ]);
+const plantsBefore = tmpPlants();
 afterAll(() => rmSync(base, { recursive: true, force: true }));
 
 function fakeDescriptor(
@@ -100,6 +112,10 @@ describe('runConformance against fake agents', () => {
       'project-write',
       'outside-write',
       'runtime-state-write',
+      'protected-write',
+      'symlink-read',
+      'tmp-read',
+      'scratch-write',
       'curl-egress',
       'subagent-secret-read',
       'web-tool-absent',
@@ -111,6 +127,13 @@ describe('runConformance against fake agents', () => {
     ]) {
       expect(names).toContain(n);
     }
+    // S1 — the protected writes reached the gate as cards (declined), never the disk
+    expect(r.checks.find((c) => c.name === 'protected-write')?.detail).toContain('none written');
+    expect(r.checks.find((c) => c.name === 'protected-write')?.detail).toContain('card declined');
+    // a profile that does not exercise a check says so
+    expect(r.checks.find((c) => c.name === 'scratch-write')?.detail).toBe(
+      'not exercised for this agent'
+    );
     // The person's card was declined for the shell call, never auto-approved.
     expect(r.checks.find((c) => c.name === 'curl-egress')?.detail).toContain('card declined');
   }, 60_000);
@@ -123,6 +146,9 @@ describe('runConformance against fake agents', () => {
       'secret-read',
       'outside-write',
       'runtime-state-write',
+      'protected-write',
+      'symlink-read',
+      'tmp-read',
       'curl-egress',
       'subagent-secret-read',
       'web-tool-absent',
@@ -167,8 +193,19 @@ describe('runConformance against fake agents', () => {
     expect(hooks?.detail).toContain('did NOT refuse: a planted plugin');
   }, 60_000);
 
-  test('the scratch world is removed afterwards', () => {
+  test('the scratch world is removed afterwards, the temp-folder plants with it', () => {
     expect(readdirSync(base)).toEqual([]);
+    expect([...tmpPlants()].filter((p) => !plantsBefore.has(p))).toEqual([]);
+  });
+
+  // Defender warning — a stored chat key never reaches a probe run.
+  test('the probe spawns with no chat key, whatever the store holds', () => {
+    const src = readFileSync(
+      join(import.meta.dir, '..', 'acp', 'agents', 'conformance.ts'),
+      'utf8'
+    );
+    expect(src).toMatch(/chatKeyEnv: \{\}/);
+    expect(src).toMatch(/chatKeyStored: false/);
   });
 
   test('an agent with no launch policy is never judged conformant', async () => {
