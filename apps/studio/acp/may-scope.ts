@@ -207,6 +207,25 @@ function verbsIn(command: string): string[] {
   return [...command.matchAll(VERB_RE)].map((m) => m[1] as string);
 }
 
+/** A shell command that reaches the web: a downloader as a command word, or a web `maude design` verb. */
+function commandIsWeb(command: string): boolean {
+  return (
+    !!command &&
+    (DOWNLOADER_RE.test(command) || verbsIn(command).some((v) => WEB_VERBS.includes(v)))
+  );
+}
+
+/** A shell command that runs an asset/footage verb or names the assets folder (either spelling). */
+function commandTouchesAssets(
+  command: string,
+  repoRoot: string,
+  assetsRoots: readonly string[]
+): boolean {
+  if (!command) return false;
+  if (verbsIn(command).some((v) => ASSET_VERBS.includes(v))) return true;
+  return spellings(repoRoot, assetsRoots).some((s) => command.includes(s));
+}
+
 /**
  * The live gate: which switch, if any, refuses this permission request. `toolName` is the name from the
  * streamed `tool_call` (AcpBridge.toolNames) — unknown is fine here: refusing is the safe direction, so a
@@ -226,18 +245,11 @@ export function mayRefusal(
   if (!may.web) {
     if (toolName && WEB_TOOL_NAMES.includes(toolName)) return 'web';
     if (!toolName && toolCall?.kind === 'fetch') return 'web';
-    if (
-      command &&
-      (DOWNLOADER_RE.test(command) || verbsIn(command).some((v) => WEB_VERBS.includes(v)))
-    )
-      return 'web';
+    if (commandIsWeb(command)) return 'web';
   }
 
   if (!may.assets) {
-    if (command) {
-      if (verbsIn(command).some((v) => ASSET_VERBS.includes(v))) return 'assets';
-      if (spellings(repoRoot, assetsRoots).some((s) => command.includes(s))) return 'assets';
-    }
+    if (commandTouchesAssets(command, repoRoot, assetsRoots)) return 'assets';
     const paths: string[] = [];
     for (const k of PATH_KEYS)
       if (typeof raw[k] === 'string' && raw[k]) paths.push(raw[k] as string);
@@ -256,6 +268,67 @@ export function mayRefusal(
         return 'assets';
       const prefix = joined.split(/[*?[{]/)[0] ?? '';
       if (prefix && insideAny(prefix, repoRoot, assetsRoots)) return 'assets';
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Kind-keyed entry points (universal ACP, B3/F5 — contract `.ai/plans/notes/universal-acp-contract.md`
+// rules 3–4). A non-Claude agent has no `_meta.claudeCode.toolName`: its request is judged by ACP
+// `kind` + the paths it names + its command, normalised by acp/policy/enforce.ts. Same checks as the
+// Claude-name-keyed functions (shared helpers), plus the command's path words resolved against the
+// request's cwd: these can only REFUSE, never approve.
+
+/** A permission request reduced to what the gates judge, whatever agent sent it. */
+export interface KindRequest {
+  /** ACP `kind` (read, edit, delete, move, search, execute, fetch, …); undefined when absent. */
+  kind: string | undefined;
+  /** Every path the request names, as spelled (locations, rawInput target keys, rawInput.cwd). */
+  paths: readonly string[];
+  /** The shell command (a string, or an argv joined with spaces); '' when none. */
+  command: string;
+  /** What relative paths resolve against: the request's own cwd, else the session's root. */
+  cwd: string;
+  /** The request names a web URL (rawInput.url) — web-shaped whatever its kind. */
+  webShaped?: boolean;
+}
+
+/**
+ * The path-like words of a shell command (`/x`, `~/x`, `$HOME/x`, `./x`, `../x`, `a/b`, `.env`), split
+ * at whitespace, operators, quotes and `=` (so `--file=~/.ssh/k` and `VAR=/x` count), a short option
+ * glued to its path (`-f/etc/x`) unglued. Generous on purpose: it feeds refusals only.
+ */
+export function commandPathTokens(command: string): string[] {
+  const out: string[] = [];
+  for (let w of command.split(/[\s;&|()<>`"'=]+/)) {
+    w = w.replace(/^-{1,2}[A-Za-z]+(?=[/~])/, '').replace(/^\$\{?HOME\}?(?=\/|$)/, '~');
+    if (!w || w.includes('://')) continue;
+    if (w.includes('/') || w.startsWith('~') || w.startsWith('.')) out.push(w);
+  }
+  return out;
+}
+
+/** A glob judged by its literal prefix (`~/.ssh/*` → `~/.ssh/`); a plain path as it is. */
+const globPrefix = (p: string) => p.split(/[*?[{]/)[0] ?? '';
+
+/** `mayRefusal` keyed on the request's ACP `kind` instead of a Claude tool name. */
+export function mayRefusalByKind(
+  req: KindRequest,
+  may: AiMay,
+  repoRoot: string,
+  assetsRoots: readonly string[],
+  home: string = process.env.HOME || homedir()
+): 'web' | 'assets' | null {
+  if (may.web && may.assets) return null;
+  if (!may.web && (req.kind === 'fetch' || req.webShaped || commandIsWeb(req.command)))
+    return 'web';
+  if (!may.assets) {
+    if (commandTouchesAssets(req.command, repoRoot, assetsRoots)) return 'assets';
+    for (const w of [...req.paths, ...commandPathTokens(req.command)]) {
+      const base = globPrefix(w);
+      const a = base ? agentPath(base, req.cwd, home) : null;
+      if (a && insideAny(a.abs, repoRoot, assetsRoots)) return 'assets';
     }
   }
   return null;
@@ -389,12 +462,8 @@ export function credentialRefusal(
   home: string = process.env.HOME || homedir()
 ): 'credentials' | null {
   const raw = (toolCall?.rawInput ?? {}) as Record<string, unknown>;
-  // V2-8.9 round 2 R2-L2 — case-folded: a case-insensitive volume (the macOS default) opens
-  // `~/.CONFIG/Maude/cloud.json` as the same file, and the deny rules are exact-case.
-  const command = typeof raw.command === 'string' ? raw.command.toLowerCase() : '';
-  if (command && credentialSpellings(paths, home).some((s) => command.includes(s.toLowerCase())))
+  if (commandNamesCredential(typeof raw.command === 'string' ? raw.command : '', paths, home))
     return 'credentials';
-  const roots = [...paths.dirs, ...paths.files];
   const candidates: string[] = [];
   for (const k of PATH_KEYS)
     if (typeof raw[k] === 'string' && raw[k]) candidates.push(raw[k] as string);
@@ -408,14 +477,45 @@ export function credentialRefusal(
     const t = g.trim();
     if (isAbsolute(t) || t.startsWith('~')) candidates.push(t.split(/[*?[{]/)[0] ?? '');
   }
+  return pathsHitCredential(candidates, paths, repoRoot, home) ? 'credentials' : null;
+}
+
+/** A shell command that spells a credential path (absolute, `~/…`, `$HOME/…`), case-folded. */
+function commandNamesCredential(command: string, paths: CredentialPaths, home: string): boolean {
+  // V2-8.9 round 2 R2-L2 — case-folded: a case-insensitive volume (the macOS default) opens
+  // `~/.CONFIG/Maude/cloud.json` as the same file, and the deny rules are exact-case.
+  const c = command.toLowerCase();
+  return !!c && credentialSpellings(paths, home).some((s) => c.includes(s.toLowerCase()));
+}
+
+/** Does any candidate path, resolved from `cwd`, lie in a credential store (case-folded)? */
+function pathsHitCredential(
+  candidates: readonly string[],
+  paths: CredentialPaths,
+  cwd: string,
+  home: string
+): boolean {
+  const roots = [...paths.dirs, ...paths.files];
   // V2-8.9 H1 — expanded exactly as Claude Code opens it (agent-path.ts: trimmed, `~` and `~/`), so
   // `' ~/.SSH/id_rsa'` is the key it is. Odd spellings are judged too: here they can only refuse.
   return candidates.some((p) => {
-    const a = p ? agentPath(p, repoRoot, home) : null;
-    return !!a && insideAnyFolded(a.abs, repoRoot, roots);
-  })
-    ? 'credentials'
-    : null;
+    const a = p ? agentPath(p, cwd, home) : null;
+    return !!a && insideAnyFolded(a.abs, cwd, roots);
+  });
+}
+
+/**
+ * `credentialRefusal` keyed on a normalised request: its paths, every path word of its command
+ * (resolved from the request's cwd, so `cat ../../.ssh/id_rsa` counts), and the command's spellings.
+ */
+export function credentialRefusalByKind(
+  req: KindRequest,
+  paths: CredentialPaths,
+  home: string = process.env.HOME || homedir()
+): 'credentials' | null {
+  if (commandNamesCredential(req.command, paths, home)) return 'credentials';
+  const candidates = [...req.paths, ...commandPathTokens(req.command)].map(globPrefix);
+  return pathsHitCredential(candidates, paths, req.cwd, home) ? 'credentials' : null;
 }
 
 /** `insideAny`, with the lexical and the real path compared case-folded (R2-L2). */
@@ -784,6 +884,98 @@ export function bashReadsOutside(
     }
   }
   return false;
+}
+
+/**
+ * Universal ACP (B3/F5, contract rule 7) — the readers a `shellGate:'command-text'` agent's shell
+ * request may be APPROVED once for. A strict subset of `READ_ONLY_BASH`: that list only ever takes
+ * "Always allow" off a card, so it carries writers (`cp`, `sed -i`, `tar`) and readers that run a
+ * program (`find -exec`, `rg --pre`) or write a file (`tree -o`, `sort -o`, `xxd in out`). None here
+ * does either, whatever its options.
+ */
+export const APPROVABLE_READ_BASH: ReadonlySet<string> = new Set([
+  'cat',
+  'head',
+  'tail',
+  'wc',
+  'ls',
+  'stat',
+  'grep',
+  'egrep',
+  'fgrep',
+  'nl',
+  'cmp',
+  'diff',
+  'strings',
+  'du',
+]);
+
+/**
+ * The words of a ONE-command shell line with no expansion anywhere, or null. Anything a word test
+ * cannot follow — an operator, a redirect, a variable, a substitution, an escape, a glob, `~`, a
+ * brace, history, a newline, an unterminated quote — is null, and every caller reads null as "ask".
+ */
+export function plainWords(command: string): string[] | null {
+  if (!command || /[;&|<>$`()\\{}\n\r*?[\]~!]/.test(command)) return null;
+  const words: string[] = [];
+  let word = '';
+  let inWord = false;
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i] as string;
+    if (c === "'" || c === '"') {
+      const j = command.indexOf(c, i + 1);
+      if (j === -1) return null;
+      word += command.slice(i + 1, j);
+      inWord = true;
+      i = j;
+    } else if (/\s/.test(c)) {
+      if (inWord) words.push(word);
+      word = '';
+      inWord = false;
+    } else {
+      word += c;
+      inWord = true;
+    }
+  }
+  if (inWord) words.push(word);
+  return words;
+}
+
+/**
+ * The command-text approval (contract rule 7): `command` is ONE plain call of an
+ * `APPROVABLE_READ_BASH` reader (by bare name), every argument that is not a flag — and every
+ * `--opt=value` — names a path that resolves, from `cwd`, inside `roots`, and `cwd` itself lies in
+ * them. A flag glued to a path (`-f/etc/x`) is not judged: it asks. Same word judgment as
+ * `bashReadsOutside` (agent-path.ts spelling, realpath against the roots), in the approve direction.
+ */
+export function bashReadOnlyInside(
+  command: string,
+  cwd: string,
+  roots: readonly string[],
+  home: string = homedir()
+): boolean {
+  const words = plainWords(command);
+  const head = words?.[0];
+  if (!words || !head || !APPROVABLE_READ_BASH.has(head)) return false;
+  const inside = (abs: string) => {
+    const real = resolveRealPath(abs, cwd);
+    return roots.some((r) => r === real || isInsideRoot(real, r));
+  };
+  if (!isAbsolute(cwd) || !inside(resolve(cwd))) return false;
+  for (let w of words.slice(1)) {
+    if (w.startsWith('-')) {
+      const eq = w.indexOf('=');
+      if (eq < 0) {
+        if (w.includes('/') || w.includes('.')) return false;
+        continue;
+      }
+      w = w.slice(eq + 1);
+    }
+    if (!w) continue;
+    const a = agentPath(w, cwd, home);
+    if (!a || a.odd || !inside(a.abs)) return false;
+  }
+  return true;
 }
 
 /**

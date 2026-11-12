@@ -544,6 +544,50 @@ export function resolveWriteTargets(
   }
 
   const resolved = [...new Set([...resolvedLocations, ...resolvedRawInput])];
+  return judgeResolvedWrites(resolved, odd, [scopeRoot], readOnlyRoots, onlyPaths, designRoots);
+}
+
+/**
+ * Universal ACP (B3/F5, contract rule 5) — the write gate keyed on a normalised request's paths
+ * instead of a Claude tool call: each path spelled from `cwd` through agent-path.ts and realpath'd,
+ * then the same rules as `resolveWriteTargets` (read-only grants, every target inside one of
+ * `writeRoots`, protected paths, runtime state, a run's own scope). No path, or one with a NUL →
+ * `no-target`. `writeRoots` are compared as they resolve on disk.
+ */
+export function writeVerdictForPaths(
+  paths: readonly string[],
+  cwd: string,
+  writeRoots: readonly string[],
+  readOnlyRoots: readonly string[] = [],
+  onlyPaths: readonly string[] | null = null,
+  designRoots: readonly string[] = []
+): WriteScopeVerdict {
+  const roots = writeRoots.filter((r) => isAbsolute(r)).map((r) => resolveRealPath(r, r));
+  const spelled = paths.map((p) => agentPath(p, cwd));
+  if (!spelled.length || !roots.length || spelled.some((a) => a === null))
+    return { inside: false, reason: 'no-target', resolved: [] };
+  const odd = spelled.some((a) => a?.odd);
+  const resolved = [
+    ...new Set(spelled.map((a) => resolveRealPath((a as { abs: string }).abs, cwd))),
+  ];
+  return judgeResolvedWrites(resolved, odd, roots, readOnlyRoots, onlyPaths, designRoots);
+}
+
+/**
+ * The rules after resolution, shared by both entry points. `roots[0]` (the pinned scope root) is
+ * what relative grants and run paths resolve against; a target must lie inside ONE of `roots`, and
+ * the protected-path test runs against that root.
+ */
+function judgeResolvedWrites(
+  resolved: string[],
+  odd: boolean,
+  roots: readonly string[],
+  readOnlyRoots: readonly string[],
+  onlyPaths: readonly string[] | null,
+  designRoots: readonly string[]
+): WriteScopeVerdict {
+  const scopeRoot = roots[0] as string;
+  const rootOf = (p: string) => roots.find((r) => isInsideRoot(p, r));
   // S5.10 — a folder the person allowed AI to READ stays read-only, inside the project or not.
   // Judged on the resolved target (symlinks followed by resolveRealPath) against each grant's real
   // path, and the root itself counts: a grant never turns into a write path.
@@ -559,12 +603,12 @@ export function resolveWriteTargets(
     return { inside: false, reason: 'read-only-grant', resolved };
   }
   // EVERY target must pass — a multi-location write with one escape is an escape.
-  const inside = !odd && resolved.every((p) => isInsideRoot(p, scopeRoot));
+  const inside = !odd && resolved.every((p) => rootOf(p) !== undefined);
   if (!inside) return { inside: false, reason: 'outside', resolved };
   // Inside is NECESSARY but not SUFFICIENT. A write under `.git/` or `.claude/`
   // is in-project and still reaches execution, so it goes to the prompt like any
   // out-of-project write would. See PROTECTED_IN_PROJECT.
-  if (resolved.some((p) => isProtectedInProject(p, scopeRoot))) {
+  if (resolved.some((p) => isProtectedInProject(p, rootOf(p) as string))) {
     return { inside: false, reason: 'in-project-denied', resolved };
   }
   // V2-8.9 B1 — the app's runtime state under the design root is not the agent's to write.
