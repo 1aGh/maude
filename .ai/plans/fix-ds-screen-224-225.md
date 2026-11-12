@@ -18,14 +18,14 @@
 
 - [x] **D1** (24a508e7a) #224: root cause and fix, with a fail-first regression test.
 - [x] **D2** (65a62bf39) #225: the DS bar uses the same placement as the canvas pill (and the same component or layout where possible). Fix with a fail-first test, plus a pin that the top bar sits at the same position on the DS canvas as on a canvas.
-- [ ] **D3** Gates, release bundle, mini suites. Affected desktop e2e lanes run only with the no-dialog env, and heavy lanes on the mini where possible.
+- [x] **D3** Gates, release bundle, mini suites. Affected desktop e2e lanes run only with the no-dialog env, and heavy lanes on the mini where possible.
 - [ ] **D4** Comment on each issue with its commit. Release only with Michal's OK.
 
 ## Acceptance Criteria
 
 - [x] #224 fixed with a fail-first test. — 24a508e7a: the pinned Design system strip (65 artboards on studyfi-v3) pushed the canvas list out of the clipped panel; .lp-pinned now scrolls, capped at 40 %.
 - [x] #225 fixed with a fail-first test and a position pin (DS vs canvas). — 65a62bf39: the DS bar renders the pill's CanvasTopIsland; board.css copy removed.
-- [ ] Gates + suites green; no dialogs; real config untouched; Michal's projects only read (repro on unlinked copies).
+- [x] Gates + suites green; no dialogs; real config untouched; Michal's projects only read (repro on unlinked copies). — e2e parity, tabs, ds-review, ds-edges, ds-reach, pages-view green (sidecar probed, config unchanged); mini studio 24427/1 (the known load-failure-slot flake) + the pre-existing happy-dom error.
 - [ ] Issues commented with their fix commit.
 
 ## Rules
