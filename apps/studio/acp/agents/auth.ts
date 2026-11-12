@@ -15,8 +15,18 @@
 //   claude        `auth status --json` always exits 0 and says `{"loggedIn":false}`: a JSON
 //                 document with a boolean `loggedIn` outranks the exit code.
 
+import { tmpdir } from 'node:os';
+
 import { scrubAgentEnv } from '../env.ts';
 import type { AgentDescriptor } from './descriptor.ts';
+
+/**
+ * Security review 2026-11-12 (defender H3): every vendor-CLI child here runs in the temp folder,
+ * never the server's cwd (the served project). A CLI started in a project loads that project's own
+ * config and plugins (`opencode auth login` boots `.opencode/plugins/*`), which the spawn policy
+ * refuses for a chat. Same rule as discovery's version probe.
+ */
+const vendorCwd = (): string => tmpdir();
 
 export type AgentAuthState = 'signed-in' | 'signed-out' | 'not-needed' | 'unknown';
 
@@ -77,6 +87,7 @@ export async function agentAuthStatus(
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
     proc = Bun.spawn([realBin, ...d.auth.statusArgs], {
+      cwd: vendorCwd(),
       env: scrubAgentEnv(opts.env ?? process.env, d.envAllow),
       windowsHide: true,
       stdin: 'ignore',
@@ -173,6 +184,7 @@ export function startAgentSignin(
   if (running && !running.done) return { ok: false, reason: 'in-progress' };
   try {
     const child = Bun.spawn([realBin, ...d.auth.loginArgs], {
+      cwd: vendorCwd(),
       env: scrubAgentEnv(opts.env ?? process.env, d.envAllow),
       windowsHide: true,
       stdin: 'ignore',

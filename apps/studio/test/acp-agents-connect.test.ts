@@ -10,6 +10,8 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -52,6 +54,8 @@ case "$1" in
   hang) sleep 10 ;;
   login-slow) sleep 30 ;;
   login) sleep 0.3; touch "${SIGNED}"; exit 0 ;;
+  pwd-status) pwd -P > "${root}/cwd-status"; exit 1 ;;
+  pwd-login) pwd -P > "${root}/cwd-login"; exit 0 ;;
 esac
 exit 2
 `
@@ -219,6 +223,32 @@ describe('startAgentSignin / poll / cancel', () => {
     expect(agentSigninState(slow.id).inFlight).toBe(false);
     expect(startAgentSignin(slow, FAKE)).toEqual({ ok: true }); // free again
     cancelAgentSignin(slow.id);
+  });
+
+  // Security review 2026-11-12 (defender H3): a vendor CLI run in the served project loads that
+  // project's own config/plugins (`opencode auth login` boots `.opencode/plugins/*`).
+  test('the status and sign-in children never run in the server cwd (the project)', async () => {
+    const proj = join(root, 'proj-cwd');
+    mkdirSync(proj, { recursive: true });
+    const was = process.cwd();
+    process.chdir(proj);
+    try {
+      const d = {
+        ...base,
+        id: 'custom:pwd',
+        auth: { ...base.auth, statusArgs: ['pwd-status'], loginArgs: ['pwd-login'] },
+      };
+      await agentAuthStatus(d, FAKE);
+      expect(startAgentSignin(d, FAKE)).toEqual({ ok: true });
+      for (let i = 0; i < 40 && agentSigninState(d.id).inFlight; i++) await Bun.sleep(50);
+    } finally {
+      process.chdir(was);
+    }
+    const tmp = realpathSync(tmpdir());
+    for (const f of ['cwd-status', 'cwd-login']) {
+      const cwd = readFileSync(join(root, f), 'utf8').trim();
+      expect({ f, cwd }).toEqual({ f, cwd: tmp });
+    }
   });
 
   test('an agent with no login command cannot start one', () => {
