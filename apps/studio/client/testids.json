@@ -47295,5 +47295,181 @@
       "apps/studio/test/acp-agents-ui.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "settings-agent-keyrow-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B7: one agent's own-API-key row under Advanced (Codex, Gemini; Claude's inside its opt-in).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentKeyRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-keys-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-keystate-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B7: the key row's state: \"Using your key ••••last4\" or \"Not set\" (the key itself never reaches the client).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentKeyRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-keys-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-key-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B7: the masked (`type=password`) key input; cleared after Save.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentKeyRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-keys-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-key-save-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B7: Save (`POST /_api/agents/:id/key {key}`; Claude adds `optIn:true`).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentKeyRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-keys-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-key-remove-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B7: Remove a stored key (`POST /_api/agents/:id/key-remove`); for Claude it turns the opt-in off.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentKeyRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-keys-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-agent-key-error-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "B7: why a key save or remove did not go through.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "AgentKeyRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-keys-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-claude-apikey",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B7 (DDR-252 amends DDR-123): Claude's Anthropic-API-key opt-in block under Advanced.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "ClaudeApiKeyOptIn"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-keys-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-claude-apikey-optin",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B7: the switch \"Use an Anthropic API key for Claude instead of your Claude account\"; off by default, on opens the billing confirm card.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "ClaudeApiKeyOptIn"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-keys-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-claude-apikey-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B7: the billing confirm card (billed per token to the API account, this profile only).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "ClaudeApiKeyOptIn"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-keys-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-claude-apikey-confirm-yes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B7: \"Bill my API account\" — reveals the key input.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "ClaudeApiKeyOptIn"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-keys-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-claude-apikey-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "B7: Cancel on the billing card; the opt-in stays off.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/agents-card.jsx",
+      "symbol": "ClaudeApiKeyOptIn"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/acp-agents-keys-ui.test.tsx"
+    ],
+    "v2": "new"
   }
 ]
