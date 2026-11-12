@@ -191,6 +191,33 @@ describe('probeAgentVersion', () => {
     expect(dt).toBeLessThanOrEqual(5500);
   }, 10_000);
 
+  // Security review 2026-11-12 (defender warning): the timeout killed only the direct child, so a
+  // wrapper's grandchild kept running.
+  test('a timed-out probe kills the whole process group, grandchildren included', async () => {
+    clearVersionCache();
+    const root = sandbox();
+    const pidFile = join(root, 'grandchild.pid');
+    const wrapper = exe(
+      join(root, 'wrapper'),
+      `#!/bin/sh\nsleep 30 &\necho $! > "${pidFile}"\nwait\n`
+    );
+    const v = await probeAgentVersion(codexDescriptor(), wrapper, { timeoutMs: 1500 });
+    expect(v).toBeNull();
+    const pid = Number(readFileSync(pidFile, 'utf8').trim());
+    expect(pid).toBeGreaterThan(0);
+    let alive = true;
+    for (let i = 0; i < 20 && alive; i++) {
+      try {
+        process.kill(pid, 0);
+        await Bun.sleep(50);
+      } catch {
+        alive = false;
+      }
+    }
+    if (alive) process.kill(pid, 'SIGKILL');
+    expect(alive).toBe(false);
+  }, 10_000);
+
   test('output that does not match versionRe is null; a crash is null', async () => {
     clearVersionCache();
     const root = sandbox();

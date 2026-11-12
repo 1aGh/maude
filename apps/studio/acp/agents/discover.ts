@@ -19,9 +19,8 @@
 import { closeSync, openSync, readSync, realpathSync, statSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { basename, delimiter, isAbsolute, join } from 'node:path';
-
-import { resolveClaudePath } from '../probe.ts';
 import { scrubAgentEnv } from '../env.ts';
+import { resolveClaudePath } from '../probe.ts';
 import { CATALOG, isOfferable } from './catalog.ts';
 import { type AgentDescriptor, type AgentId, type VersionFit, versionFit } from './descriptor.ts';
 
@@ -305,6 +304,23 @@ async function readCapped(stream: ReadableStream<Uint8Array> | null | undefined)
   return Buffer.concat(chunks).toString('utf8');
 }
 
+/** SIGKILL the probe's whole process group (it was spawned detached), else just the child. */
+function killGroup(proc: ReturnType<typeof Bun.spawn>): void {
+  if (process.platform !== 'win32' && proc.pid > 0) {
+    try {
+      process.kill(-proc.pid, 'SIGKILL');
+      return;
+    } catch {
+      /* the group is gone, or never formed: fall back to the child */
+    }
+  }
+  try {
+    proc.kill('SIGKILL');
+  } catch {
+    /* already gone */
+  }
+}
+
 async function runVersion(
   d: AgentDescriptor,
   realBin: string,
@@ -319,6 +335,9 @@ async function runVersion(
       stdin: 'ignore',
       stdout: 'pipe',
       stderr: 'pipe',
+      // Security review 2026-11-12 — its own process group, so the timeout reaches a wrapper's
+      // grandchildren too (POSIX; Windows has no groups and keeps the direct kill)
+      detached: process.platform !== 'win32',
     });
   } catch {
     return null;
@@ -326,11 +345,7 @@ async function runVersion(
   let timedOut = false;
   const killer = setTimeout(() => {
     timedOut = true;
-    try {
-      proc.kill('SIGKILL');
-    } catch {
-      /* already gone */
-    }
+    killGroup(proc);
   }, timeoutMs);
   let deadline: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -353,6 +368,8 @@ async function runVersion(
   } finally {
     clearTimeout(killer);
     if (deadline) clearTimeout(deadline);
+    // still running (the late path): nothing of the probe outlives it
+    if (proc.exitCode === null && proc.signalCode === null) killGroup(proc);
   }
 }
 
