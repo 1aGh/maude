@@ -17,14 +17,14 @@
 ## Tasks
 
 - [ ] **D1** #224: root cause and fix, with a fail-first regression test.
-- [ ] **D2** #225: the DS bar uses the same placement as the canvas pill (and the same component or layout where possible). Fix with a fail-first test, plus a pin that the top bar sits at the same position on the DS canvas as on a canvas.
+- [x] **D2** (65a62bf39) #225: the DS bar uses the same placement as the canvas pill (and the same component or layout where possible). Fix with a fail-first test, plus a pin that the top bar sits at the same position on the DS canvas as on a canvas.
 - [ ] **D3** Gates, release bundle, mini suites. Affected desktop e2e lanes run only with the no-dialog env, and heavy lanes on the mini where possible.
 - [ ] **D4** Comment on each issue with its commit. Release only with Michal's OK.
 
 ## Acceptance Criteria
 
 - [ ] #224 fixed with a fail-first test.
-- [ ] #225 fixed with a fail-first test and a position pin (DS vs canvas).
+- [x] #225 fixed with a fail-first test and a position pin (DS vs canvas). — 65a62bf39: the DS bar renders the pill's CanvasTopIsland; board.css copy removed.
 - [ ] Gates + suites green; no dialogs; real config untouched; Michal's projects only read (repro on unlinked copies).
 - [ ] Issues commented with their fix commit.
 
