@@ -306,6 +306,13 @@ export function agentErrorModel(error) {
     };
   if (error.code === 'agent-needs-consent')
     return { kind: 'consent', agent, text: consentWords(agent.label) };
+  // security review 2026-11-12 (M4) — Maude refused to start it: its own words, never "reported"
+  if (error.code === 'agent-not-connected')
+    return {
+      kind: 'not-connected',
+      agent,
+      text: `${agent.label} isn’t connected at the version on this Mac. Connect it in Settings › Connections › AI agents.`,
+    };
   if (agent.id === CLAUDE_ID) return null;
   const said = str(error.message).trim() || 'something went wrong.';
   return {

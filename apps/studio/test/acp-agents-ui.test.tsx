@@ -3,7 +3,7 @@
 // attribution of an agent's own words, generic modes. And the pin: a Claude-only person sees NOTHING new.
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
-
+import { modeBanner, modeOptions } from '../client/v2/ai/advanced-model.js';
 import {
   agentErrorModel,
   agentRows,
@@ -21,7 +21,6 @@ import {
   writeChatAgent,
   writeLastAgent,
 } from '../client/v2/ai/agents-model.js';
-import { modeBanner, modeOptions } from '../client/v2/ai/advanced-model.js';
 
 beforeAll(() => {
   GlobalRegistrator.register();
@@ -232,6 +231,13 @@ describe('attribution', () => {
     expect(agentErrorModel({ message: 'x', code: 'agent-needs-consent', agent })?.kind).toBe(
       'consent'
     );
+    // security review 2026-11-12 (M4): Maude's own refusal, never "Codex reported"
+    const nc = agentErrorModel({ message: 'x', code: 'agent-not-connected', agent });
+    expect(nc?.kind).toBe('not-connected');
+    expect(nc?.text).toBe(
+      'Codex isn’t connected at the version on this Mac. Connect it in Settings › Connections › AI agents.'
+    );
+    expect(nc?.statusUrl).toBeUndefined();
     expect(agentErrorModel({ message: 'x', agent: { id: 'claude', label: 'Claude' } })).toBeNull();
     expect(agentErrorModel({ message: 'x' })).toBeNull();
     // a status page that is not https is never linked

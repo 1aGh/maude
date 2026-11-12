@@ -40,9 +40,10 @@ import { getHubRecord } from '../sync/hubs-config.ts';
 import type { WsData } from '../ws.ts';
 import { agentById, CLAUDE } from './agents/catalog.ts';
 import { hasAgentConsent, recordAgentConsent } from './agents/consent.ts';
-import type { AgentDescriptor } from './agents/descriptor.ts';
-import { resolveAgentBin } from './agents/discover.ts';
+import { type AgentDescriptor, versionFit } from './agents/descriptor.ts';
+import { probeAgentVersion, resolveAgentBin } from './agents/discover.ts';
 import { agentHealth, markAgentUnavailable } from './agents/health.ts';
+import { type AgentStateStore, createAgentStateStore } from './agents/state.ts';
 import { type AskQueue, noteRateLimit, promptLabel } from './ask-queue.ts';
 import { createHubWriteAudience, type WriteAudienceSource } from './audience.ts';
 import { buildStudioBrief } from './bootstrap-brief.ts';
@@ -172,6 +173,10 @@ export interface AcpOptions {
     byId?: (id: string) => AgentDescriptor | undefined;
     resolveBin?: (d: AgentDescriptor) => string | null;
     consentFile?: string;
+    /** The profile's "connected" records (default: this profile's `agents.json`). */
+    store?: AgentStateStore;
+    /** The version `realBin` reports now (default: discovery's cached probe). */
+    version?: (d: AgentDescriptor, realBin: string) => Promise<string | null>;
   };
 }
 
@@ -865,6 +870,87 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     projectRoot: ctx.paths.repoRoot,
     ...(options.agents?.consentFile ? { file: options.agents.consentFile } : {}),
   });
+  const resolveBinFor = (d: AgentDescriptor) => (options.agents?.resolveBin ?? resolveAgentBin)(d);
+
+  // Security review 2026-11-12 (defender M4 / attacker C3) — a bridge-enforced agent other than
+  // Claude starts only when the person connected it (the profile's `agents.json`) at the version its
+  // binary reports NOW, and that version is a tested one. A chat's record (`_chat/<id>.meta.json`)
+  // is project data a clone can plant: it never starts an agent by itself.
+  let lazyAgentStore: AgentStateStore | null = null;
+  const agentStore = (): AgentStateStore => {
+    if (options.agents?.store) return options.agents.store;
+    lazyAgentStore ??= createAgentStateStore();
+    return lazyAgentStore;
+  };
+  const versionNow =
+    options.agents?.version ?? ((d: AgentDescriptor, bin: string) => probeAgentVersion(d, bin));
+  /** What the last `checkAgentVersions` found, per agent id: the binary and the version it reports. */
+  const foundVersion = new Map<string, { bin: string; version: string | null }>();
+
+  /**
+   * Probe the version of every agent this request could run (asked for, live, or recorded) so the
+   * synchronous `pickAgent` can compare it. Never throws; a failed probe reads as "no version".
+   * Null when no such agent is in play (a Claude chat): the caller stays synchronous, as before.
+   */
+  function checkAgentVersions(
+    chatId: string,
+    want: { agent?: unknown } = {}
+  ): Promise<void> | null {
+    const ids = new Set<string>();
+    if (typeof want.agent === 'string') ids.add(want.agent);
+    const live = bridges.get(chatId);
+    if (live) ids.add(live.agent.id);
+    else {
+      try {
+        const recorded = readChatMeta(ctx.paths.designRoot, chatId).agent;
+        if (recorded) ids.add(recorded);
+      } catch {
+        /* no record */
+      }
+    }
+    const enforced = [...ids]
+      .map((id) => lookupAgent(id))
+      .filter((d): d is AgentDescriptor => !!d && d.policy === 'bridge-enforced');
+    if (!enforced.length) return null;
+    return Promise.all(
+      enforced.map(async (d) => {
+        const id = d.id;
+        const bin = resolveBinFor(d);
+        if (!bin) {
+          foundVersion.delete(id);
+          return;
+        }
+        let version: string | null = null;
+        try {
+          version = await versionNow(d, bin);
+        } catch {
+          version = null;
+        }
+        foundVersion.set(id, { bin, version });
+      })
+    ).then(() => undefined);
+  }
+
+  /** True when this bridge-enforced agent may start now (see above). */
+  function connectedNow(d: AgentDescriptor): boolean {
+    let rec: { version: string | null } | undefined;
+    try {
+      rec = agentStore().read().connected[d.id];
+    } catch {
+      return false;
+    }
+    const found = foundVersion.get(d.id);
+    const bin = resolveBinFor(d);
+    return (
+      !!rec &&
+      !!found &&
+      !!bin &&
+      found.bin === bin &&
+      !!found.version &&
+      rec.version === found.version &&
+      versionFit(d, found.version) === 'ok'
+    );
+  }
 
   /**
    * B3 — the agent a chat runs, or the error frame that refuses the request. The chat's own record
@@ -939,6 +1025,13 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         'agent-unavailable',
         `${agent.label} is unavailable: Maude stopped it earlier because its policy did not hold.`,
         { agent: agentAttribution(agent), reason: health.reason }
+      );
+    }
+    if (agent.policy === 'bridge-enforced' && !connectedNow(agent)) {
+      return refuse(
+        'agent-not-connected',
+        `${agent.label} is not connected at the version installed on this Mac. Connect it in Settings › Connections › AI agents.`,
+        { agent: agentAttribution(agent) }
       );
     }
     if (agent.policy === 'unrestricted') {
@@ -1018,7 +1111,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         ? {}
         : {
             agent,
-            agentBin: (options.agents?.resolveBin ?? resolveAgentBin)(agent) ?? undefined,
+            agentBin: resolveBinFor(agent) ?? undefined,
             permissionGate: createBridgeGate(agent),
             onPolicyViolation: (reason: string) => {
               entry.violated = true;
@@ -1441,6 +1534,9 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       });
       return;
     }
+    // M4 — the agent's version, probed before the sync pick (null, no await, for a Claude chat)
+    const checking = checkAgentVersions(safeChat, want);
+    if (checking) await checking;
     const entry = attach(ws, safeChat, want);
     if (entry === 'refused') return;
     if (!entry) {
@@ -1513,6 +1609,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     };
     const runChat = sanitizeChatId(rec.chatId);
     // B3 — a registry turn runs on the chat's own agent (refused like any other frame would be).
+    const checking = bridges.has(runChat) ? null : checkAgentVersions(runChat);
+    if (checking) await checking;
     const pick = bridges.has(runChat) ? null : pickAgent(runChat);
     if (pick && !pick.ok) return fail();
     const entry = getOrCreateEntry(runChat, pick?.ok ? pick.agent : CLAUDE);
@@ -1564,6 +1662,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     may: AiMay | null = null,
     want: { agent?: unknown; consent?: unknown } = {}
   ): Promise<void> {
+    const checking = checkAgentVersions(sanitizeChatId(chatId), want); // M4, as handlePrompt
+    if (checking) await checking;
     const entry = attach(ws, sanitizeChatId(chatId), want);
     if (!entry || entry === 'refused') return; // at the ceiling — warm-up is best-effort
     const { bridge } = entry;
@@ -1762,31 +1862,37 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         // stretch. Replaying exactly that range is why a reload neither
         // duplicates the last few seconds nor leaves a hole in them.
         const safeChat = sanitizeChatId(chatId);
-        const entry = attach(ws, safeChat, want);
-        if (entry === 'refused') return;
-        if (!entry) {
-          send(ws, { t: 'error', message: 'Too many chats are open. Close one and try again.' });
-          return;
-        }
-        const from = typeof frame.seq === 'number' && frame.seq >= 0 ? Math.floor(frame.seq) : 0;
-        for (const line of readChatLinesAfter(ctx.paths.designRoot, safeChat, from)) {
-          if (line.entry.role === 'agent' && line.entry.update) {
-            send(ws, { t: 'update', update: line.entry.update, seq: line.seq });
+        const doAttach = () => {
+          const entry = attach(ws, safeChat, want);
+          if (entry === 'refused') return;
+          if (!entry) {
+            send(ws, { t: 'error', message: 'Too many chats are open. Close one and try again.' });
+            return;
           }
-        }
-        // Tells the client whether it re-joined a LIVE turn (so it can restore
-        // the busy state) rather than a finished one. Without this a reload
-        // mid-turn would look idle while the agent kept working.
-        send(ws, {
-          t: 'attached',
-          chat: safeChat,
-          running: entry.turnActive,
-          agent: entry.bridge.agentInfo,
-        });
-        // Issue #177 — what is still running in the background (a reload must not hide it).
-        send(ws, { t: 'background', tasks: entry.bridge.backgroundTasks });
-        entry.sentRuns.clear(); // a re-attached client gets the chat's live runs again
-        pushRunFrames(entry);
+          const from = typeof frame.seq === 'number' && frame.seq >= 0 ? Math.floor(frame.seq) : 0;
+          for (const line of readChatLinesAfter(ctx.paths.designRoot, safeChat, from)) {
+            if (line.entry.role === 'agent' && line.entry.update) {
+              send(ws, { t: 'update', update: line.entry.update, seq: line.seq });
+            }
+          }
+          // Tells the client whether it re-joined a LIVE turn (so it can restore
+          // the busy state) rather than a finished one. Without this a reload
+          // mid-turn would look idle while the agent kept working.
+          send(ws, {
+            t: 'attached',
+            chat: safeChat,
+            running: entry.turnActive,
+            agent: entry.bridge.agentInfo,
+          });
+          // Issue #177 — what is still running in the background (a reload must not hide it).
+          send(ws, { t: 'background', tasks: entry.bridge.backgroundTasks });
+          entry.sentRuns.clear(); // a re-attached client gets the chat's live runs again
+          pushRunFrames(entry);
+        };
+        // M4 — a bridge-enforced agent's version is probed first; a Claude chat attaches at once.
+        const checking = checkAgentVersions(safeChat, want);
+        if (checking) void checking.then(doAttach);
+        else doAttach();
       } else if (frame.t === 'prompt' && typeof frame.text === 'string') {
         void handlePrompt(
           ws,

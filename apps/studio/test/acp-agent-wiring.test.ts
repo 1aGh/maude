@@ -32,6 +32,7 @@ import { CLAUDE } from '../acp/agents/catalog.ts';
 import { hasAgentConsent } from '../acp/agents/consent.ts';
 import type { AgentDescriptor } from '../acp/agents/descriptor.ts';
 import { agentHealth, clearAgentHealth } from '../acp/agents/health.ts';
+import { type AgentStateStore, createAgentStateStore } from '../acp/agents/state.ts';
 import { createAcp } from '../acp/index.ts';
 import { FORBIDDEN_METHOD_ERROR } from '../acp/policy/enforce.ts';
 import type { Context } from '../context.ts';
@@ -175,7 +176,17 @@ const ctxFor = () =>
     paths: { repoRoot: repo, designRoot: join(repo, '.design'), designRel: '.design' },
   }) as unknown as Context;
 
-function makeAcp(readOnly = false) {
+/** An agents store where every test agent passed Connect at `at` (security review 2026-11-12, M4). */
+function connectedStore(at = '1.0.0', ids = ['codex', 'opencode', 'gemini']): AgentStateStore {
+  const s = createAgentStateStore(join(tmp, `agents-${++n}`, 'agents.json'));
+  for (const id of ids) s.markConnected(id, at);
+  return s;
+}
+
+function makeAcp(
+  readOnly = false,
+  over: { store?: AgentStateStore; version?: string | null } = {}
+) {
   return createAcp(ctxFor(), undefined, {
     permissionTimeoutMs: 4000,
     readOnly: () => readOnly,
@@ -183,6 +194,8 @@ function makeAcp(readOnly = false) {
       byId: (id) => AGENTS[id],
       resolveBin: () => process.execPath,
       consentFile,
+      store: over.store ?? connectedStore(),
+      version: async () => (over.version === undefined ? '1.0.0' : over.version),
     },
   });
 }
@@ -305,6 +318,47 @@ describe('the chat agent: picked once, recorded, never switched', () => {
       acp.stopAll();
     }
   });
+});
+
+// Security review 2026-11-12 (defender M4 / attacker C3): a planted `_chat/<id>.meta.json` naming
+// opencode must never start an agent the person never connected, nor one whose binary changed
+// version since, nor an untested version.
+describe('a bridge-enforced agent starts only when connected at the version found now', () => {
+  const planted = (chat: string, agent: string) => {
+    mkdirSync(join(repo, '.design', '_chat'), { recursive: true });
+    writeFileSync(join(repo, '.design', '_chat', `${chat}.meta.json`), JSON.stringify({ agent }));
+    writeFileSync(join(repo, '.design', '_chat', `${chat}.jsonl`), '{"role":"user","text":"x"}\n');
+  };
+  const cases: Array<[string, () => { store?: AgentStateStore; version?: string | null }]> = [
+    ['never connected', () => ({ store: connectedStore('1.0.0', []) })],
+    ['connected at another version', () => ({ store: connectedStore('0.9.0') })],
+    ['version unreadable now', () => ({ version: null })],
+    ['an untested version', () => ({ store: connectedStore('10.0.0'), version: '10.0.0' })],
+  ];
+  for (const [what, over] of cases) {
+    test(`${what} → agent-not-connected, nothing spawned`, async () => {
+      setScript();
+      const chat = `nc-${++n}`;
+      planted(chat, 'opencode');
+      const acp = makeAcp(false, over());
+      const a = fakeWs(`w-${chat}`);
+      try {
+        acp.onOpen(a.ws);
+        acp.onMessage(a.ws, JSON.stringify({ t: 'prompt', chat, text: 'hi' }));
+        const err = await until(() => errors(a.frames)[0]);
+        expect(err).toMatchObject({ code: 'agent-not-connected', chat });
+        expect(err.agent).toMatchObject({ id: 'opencode', label: 'opencode' });
+        acp.onMessage(a.ws, JSON.stringify({ t: 'warm', chat }));
+        acp.onMessage(a.ws, JSON.stringify({ t: 'attach', chat, seq: 0 }));
+        await until(() => errors(a.frames).length >= 3 || undefined);
+        await new Promise((r) => setTimeout(r, 200));
+        expect(readLog().filter((l) => l.m === 'spawn')).toEqual([]);
+        expect(a.frames.some((f) => f.t === 'attached')).toBe(false);
+      } finally {
+        acp.stopAll();
+      }
+    }, 20000);
+  }
 });
 
 describe('an unrestricted agent needs this project consent', () => {
