@@ -228,6 +228,20 @@ describe('agentSpawn refuses an agent-permission-engine agent in a project with 
     });
   }
 
+  test('a subfolder project: a link in a sibling folder of its git repository refuses too (review N1)', () => {
+    const w = world();
+    // repo/ is the git root; the served project is repo/app; repo/other holds a link out.
+    const repo = join(w.base, 'repo');
+    const app = join(repo, 'app');
+    mkdirSync(join(repo, '.git'), { recursive: true });
+    mkdirSync(join(repo, 'other'), { recursive: true });
+    mkdirSync(app, { recursive: true });
+    symlinkSync(join(w.outside, 'secret.txt'), join(repo, 'other', 'ref'));
+    expect(() => spawnIn(noPolicy(OPENCODE), app)).toThrow(UnsafeLinkError);
+    rmSync(join(repo, 'other', 'ref'));
+    expect(spawnIn(noPolicy(OPENCODE), app).cmd.length).toBeGreaterThan(0);
+  });
+
   test("Maude's own install folder is not scanned (its package-manager links are not the project's)", () => {
     const w = world();
     // A read root inside DEV_SERVER_ROOT with a link out, like pnpm's node_modules in a source checkout.

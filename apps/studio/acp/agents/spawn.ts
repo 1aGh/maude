@@ -17,6 +17,7 @@
 // (`UnsafeLinkError`, code `agent-unsafe-link`) while any root it is given holds a link out of the
 // read roots (acp/agents/link-scan.ts). A root that does not exist holds no link.
 
+import { realpathSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 
 import { DEV_SERVER_ROOT } from '../../paths.ts';
@@ -24,12 +25,29 @@ import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from '../env.ts';
 import { mayEnv } from '../may-scope.ts';
 import { chatKeyEnvFor } from './chat-key.ts';
 import type { AgentDescriptor, PolicyCtx } from './descriptor.ts';
+import { upToGitRoot } from '../policy/agent-home.ts';
 import { assertNoUnsafeLinks } from './link-scan.ts';
+
+/** realpath when it exists (a link must not pass for Maude's own folder), else the resolved path. */
+function realOr(p: string): string {
+  try {
+    return realpathSync(resolve(p));
+  } catch {
+    return resolve(p);
+  }
+}
+
+/** The git repository root above `scopeRoot` when it differs from it (none → []). */
+function gitRootAbove(scopeRoot: string): string[] {
+  const chain = upToGitRoot(scopeRoot);
+  const top = chain[chain.length - 1];
+  return top && top !== resolve(scopeRoot) ? [top] : [];
+}
 
 /** Maude's own studio folder (DEV_SERVER_ROOT) or inside it. */
 function isMaudeOwnRoot(r: string): boolean {
-  const own = resolve(DEV_SERVER_ROOT);
-  const abs = resolve(r);
+  const own = realOr(DEV_SERVER_ROOT);
+  const abs = realOr(r);
   return abs === own || abs.startsWith(own.endsWith(sep) ? own : own + sep);
 }
 
@@ -84,7 +102,11 @@ export function agentSpawn(input: AgentSpawnInput): AgentSpawn {
     assertNoUnsafeLinks({
       // Maude's own install folder (a read root for canvas-lib & co.) is app-owned, not the
       // project's: its package-manager links (pnpm in a source checkout) are not an attacker's.
-      roots: [...c.writeRoots, ...c.readRoots].filter((r) => !isMaudeOwnRoot(r)),
+      // Review N1 — these agents treat the whole git repository as the project (opencode's
+      // boundary is the git root), so a link in a sibling folder of a subfolder project counts.
+      roots: [...c.writeRoots, ...c.readRoots, ...gitRootAbove(c.scopeRoot)].filter(
+        (r) => !isMaudeOwnRoot(r)
+      ),
       readRoots: c.readRoots,
       credentialPaths: c.credentialPaths,
       label: d.label,

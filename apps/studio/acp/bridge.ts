@@ -1112,6 +1112,8 @@ export class AcpBridge {
   private turnRefusal: string | null = null;
   /** B3 rule 12 — the tripwire fired once; everything after is teardown. */
   private violated = false;
+  /** Review S1 — the mode/config pins ran for this session; an agent-side move to a refused value after this ends it. */
+  private pinsApplied = false;
 
   constructor(private readonly opts: AcpBridgeOptions) {
     this.agent = opts.agent ?? CLAUDE;
@@ -1698,10 +1700,12 @@ export class AcpBridge {
         }).dropped
       )
     );
+    this.pinsApplied = false; // a new or resumed session: its pins run again below
     this.lastModes = modes ?? null;
     this.lastConfigOptions = configOptions ?? [];
     await this.pinModeOnce(sessionId);
     await this.pinConfigOnce(sessionId);
+    this.pinsApplied = true;
     await this.applyDesiredConfigOnce(sessionId);
     this.emitCaps();
     return sessionId;
@@ -2059,11 +2063,37 @@ export class AcpBridge {
           this.lastModes = this.lastModes
             ? { ...this.lastModes, currentModeId: u.currentModeId }
             : { currentModeId: u.currentModeId, availableModes: [] };
+          // Review S1 — the AGENT moved itself to a refused mode (a slash command, a prompt):
+          // hiding it from the picker is not enough, end the session like any other breach.
+          if (
+            this.pinsApplied &&
+            this.agent.enforcement?.pinMode &&
+            this.refusesMode(u.currentModeId)
+          ) {
+            this.policyViolated(`switched itself to the refused mode ${u.currentModeId}`);
+            return;
+          }
           this.emitCaps();
           return;
         }
         if (u.sessionUpdate === 'config_option_update') {
           this.lastConfigOptions = u.configOptions ?? [];
+          // Review S1 — an agent-side move to a refused config value (Copilot `allow_all`, a refused
+          // mode in the `mode` option) ends the session; the pin is not a picker filter only.
+          if (
+            this.pinsApplied &&
+            (this.agent.enforcement?.pinMode || this.agent.enforcement?.pinConfig)
+          ) {
+            const bad = this.lastConfigOptions.find(
+              (o) =>
+                (typeof o.currentValue === 'string' || typeof o.currentValue === 'boolean') &&
+                this.refusesConfig(o.id, o.currentValue as string | boolean)
+            );
+            if (bad) {
+              this.policyViolated(`set ${bad.id} to a refused value (${String(bad.currentValue)})`);
+              return;
+            }
+          }
           // The adapter mirrors the current mode as a "mode"-id select option
           // inside configOptions (claude-agent-acp's MODE_CONFIG_ID) but doesn't
           // always pair that with a current_mode_update — e.g. `setSessionMode`

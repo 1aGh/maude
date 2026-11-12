@@ -294,6 +294,28 @@ describe('the chat agent: picked once, recorded, never switched', () => {
     }
   }, 20000);
 
+  test('review S1: the agent moving itself to a refused mode ends the session', async () => {
+    setScript([{ update: { sessionUpdate: 'current_mode_update', currentModeId: 'agent' } }], {
+      MAUDE_TEST_MODES: '1',
+    });
+    const acp = makeAcp();
+    const a = fakeWs('w-self-mode');
+    try {
+      acp.onOpen(a.ws);
+      acp.onMessage(
+        a.ws,
+        JSON.stringify({ t: 'prompt', chat: 'w-self-mode', text: 'go', agent: 'opencode' })
+      );
+      const err = await until(() =>
+        errors(a.frames).find((f) => f.code === 'agent-policy-violated')
+      );
+      expect(String(err.reason ?? err.message)).toContain('agent');
+    } finally {
+      acp.stopAll();
+      delete process.env.MAUDE_TEST_MODES;
+    }
+  }, 20000);
+
   test('a chat with history and no record is a Claude chat: codex is refused for it', async () => {
     mkdirSync(join(repo, '.design', '_chat'), { recursive: true });
     writeFileSync(join(repo, '.design', '_chat', 'legacy.jsonl'), '{"role":"user","text":"x"}\n');
