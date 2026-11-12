@@ -1,0 +1,48 @@
+# `codex sandbox -P <profile> -C <scratch>/proj -- <cmd>` (macOS Seatbelt), 2026-11-12
+# Scratch CODEX_HOME / HOME, env built from scratch. <scratch>/outside/secret.txt holds FAKE-SECRET-123.
+
+## Built-in profiles, codex-cli 0.166.0 (npm @openai/codex, the one codex-acp 2.6.0 depends on)
+[:read-only read-outside]      rc=0 :: FAKE-SECRET-123
+[:read-only write-inside]      rc=1 :: sh: <scratch>/proj/w.txt: Operation not permitted
+[:read-only write-outside]     rc=1 :: sh: <scratch>/outside/w.txt: Operation not permitted
+[:read-only network]           rc=6 :: curl: (6) Could not resolve host: example.com
+[:workspace read-outside]      rc=0 :: FAKE-SECRET-123
+[:workspace write-inside]      rc=0 :: wrote
+[:workspace write-outside]     rc=1 :: sh: <scratch>/outside/w.txt: Operation not permitted
+[:workspace network]           rc=6 :: curl: (6) Could not resolve host: example.com
+=> built-in profiles confine WRITES and NETWORK, never READS (a credential file is readable).
+
+## Wrong shape (rejected at config load — fail-closed, the command does not run)
+[permissions.maude.filesystem] deny_read = ["<scratch>/outside"]
+  -> Error: config.toml:1:2: data did not match any variant of untagged enum FilesystemPermissionToml
+
+## Custom profile A — credential-style deny on top of :workspace, codex-cli 0.166.0
+[permissions.maude]
+extends = ":workspace"
+[permissions.maude.filesystem]
+"<scratch>/outside" = "none"
+[cat outside/secret.txt]  rc=1 :: cat: <scratch>/outside/secret.txt: Operation not permitted
+[cat proj/notes.txt]      rc=0 :: hello from proj
+[write inside]            rc=0 :: wrote-in
+[write outside]           rc=1 :: Operation not permitted
+[curl example.com]        rc=6 :: Could not resolve host
+
+## Custom profile B — read ALLOW-LIST (deny /Users, re-allow the project; most specific path wins)
+[permissions.maude]
+extends = ":workspace"
+[permissions.maude.filesystem]
+"/Users" = "none"
+"<scratch>/proj" = "write"
+codex-cli 0.166.0 and codex-cli 0.154.0 (the user's installed binary) give the same result:
+[cat outside/secret.txt]  rc=1 :: Operation not permitted
+[cat proj/notes.txt]      rc=0 :: hello from proj
+[write inside]            rc=0 :: wrote-in
+[write outside]           rc=1 :: Operation not permitted
+[curl example.com]        rc=6 :: Could not resolve host
+
+## Through codex-acp (app-server), profile B passed as CODEX_CONFIG {default_permissions:"maude", permissions:{maude:{…}}}
+see codex-mock-maude*.ndjson / codex-mock-setmode.ndjson — the tool output the scripted model received:
+  call_1 cat ../outside/secret.txt -> "cat: ../outside/secret.txt: Operation not permitted" (no tool_call frame reached the client)
+  call_2 cat notes.txt             -> "hello from proj"
+  call_3 apply_patch inside        -> "Success. Updated the following files: A inside-patch.txt"
+  call_4 curl                      -> "curl: (6) Could not resolve host"

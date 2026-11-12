@@ -1,0 +1,19 @@
+# Tool lists the agents sent to the local scripted model (first request of a turn), 2026-11-12
+
+codex-acp 2.6.0 / codex 0.166.0, custom provider, no web_search setting:
+  exec_command, write_stdin, request_user_input, view_image, multi_agent_v1, get_goal, create_goal, update_goal, web_search
+codex-acp 2.6.0 / codex 0.166.0, CODEX_CONFIG web_search = "disabled":
+  exec_command, write_stdin, request_user_input, view_image, multi_agent_v1, get_goal, create_goal, update_goal
+  (web_search is a server-side Responses tool: it would never reach the sandbox or the bridge — it must be
+   turned off in config, not gated. Edits ride `apply_patch` inside exec_command, reported as kind:edit.)
+
+opencode 1.18.30, default permissions:
+  bash, edit, glob, grep, read, skill, task, todowrite, webfetch, write
+opencode 1.18.30, permission { webfetch: "deny", websearch: "deny", … }:
+  bash, edit, glob, grep, read, skill, task, todowrite, write
+  (a denied tool is removed from the model's list; a scripted call to it came back
+   "Model tried to call unavailable tool 'webfetch'")
+
+Codex's own approval reviewer ("Guardian", mode `agent` = the codex-acp default) runs as a second model
+session through the SAME provider — in codex-mock-maude.ndjson it replayed the scripted tool calls with a
+read-only sandbox and approval "never", then denied both escalations itself. The client was never asked.
