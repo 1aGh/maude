@@ -49,6 +49,9 @@ const NONE = [
   '/_api/agents/:id/signin-cancel',
   '/_api/agents/:id/disconnect',
   '/_api/agents/:id/dismiss-offer',
+  // B7 — own API key: the 0600 key store outside the project, never a canvas
+  '/_api/agents/:id/key',
+  '/_api/agents/:id/key-remove',
   '/_api/shell/status',
   '/_api/shell/attest', // #206: one MAC over a nonce
   '/_api/workspace/disclosure',

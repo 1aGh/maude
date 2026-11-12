@@ -497,6 +497,9 @@ function paramPair(path: string, name: string, cell: GateCell): Pair {
     return { b: 'ob_missing_b', m: 'ob_missing_m' };
   // S9.19 — a hub user / invitation id: the share routes judge the SESSION first, so any id will do
   if (name === 'id' && path.startsWith('/_api/share/')) return { b: 'u_probe_b', m: 'u_probe_m' };
+  // F7 / B7 — an ACP agent id (about this Mac, no canvas). Ids no catalog has, so a probe never
+  // starts a vendor CLI's sign-in or touches a stored key.
+  if (name === 'id' && path.startsWith('/_api/agents/')) return { b: 'probe-b', m: 'probe-m' };
   if (name === 'key') return { b: B_SLUG, m: M_SLUG };
   if (name === 'asset')
     return { b: B_ASSET.slice('assets/'.length), m: M_ASSET.slice('assets/'.length) };

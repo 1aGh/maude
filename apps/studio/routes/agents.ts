@@ -17,6 +17,16 @@
 //   POST /_api/agents/:id/signin        → { ok } · GET /signin-status → { auth, inFlight, … }
 //   POST /_api/agents/:id/signin-cancel
 //   POST /_api/agents/:id/disconnect · POST /_api/agents/:id/dismiss-offer
+//   POST /_api/agents/:id/key           body { key, optIn? } → { ok, keySet, keyLast4 }      (B7)
+//   POST /_api/agents/:id/key-remove    → { ok, keySet: false }
+//     Own API key (DDR-252 § BYOK), in the 0600 key store (generation/keys.ts, `chat` scope). The
+//     key is NEVER echoed: rows and answers carry only `keySet` + `keyLast4`. Rows also carry
+//     `acceptsKey` (the agent takes one: Codex, Gemini, and Claude behind the opt-in) and, for
+//     Claude, `billing: 'api-key' | null`. A stored key counts as signed in: a row whose CLI says
+//     `signed-out` reads `signed-in` once a key is stored (the agent will authenticate with it), so
+//     `auth` keeps its vocabulary and the list says Connected, not Sign in. Claude's key needs
+//     `optIn: true` (the Advanced confirm card: "billed to your API account"); removing it turns
+//     the opt-in off. POST, not PUT/DELETE: the route table speaks GET/POST/PATCH.
 //
 // Claude keeps its own `/_api/claude/*` routes untouched. Here Claude is reported from the same
 // readiness probe the chat panel uses (`probeAcpAvailabilityAuthed`), so the two cannot disagree, and
@@ -37,13 +47,14 @@ import {
   startAgentSignin,
 } from '../acp/agents/auth.ts';
 import { agentById, CATALOG } from '../acp/agents/catalog.ts';
+import { acceptsChatKey } from '../acp/agents/chat-key.ts';
 import type { AgentDescriptor, AgentId } from '../acp/agents/descriptor.ts';
-import { agentHealth } from '../acp/agents/health.ts';
 import {
   type DiscoveredAgent,
   type DiscoverOptions,
   discoverAgents,
 } from '../acp/agents/discover.ts';
+import { agentHealth } from '../acp/agents/health.ts';
 import { type AgentStateStore, createAgentStateStore } from '../acp/agents/state.ts';
 import {
   cancelSignin,
@@ -52,6 +63,14 @@ import {
   startSignin,
 } from '../acp/login-state.ts';
 import { probeAcpAvailabilityAuthed } from '../acp/probe.ts';
+import {
+  type ChatKeyStatus,
+  chatKeyStatus,
+  clearChatKey,
+  clearClaudeApiKey,
+  setChatKey,
+  setClaudeApiKey,
+} from '../generation/keys.ts';
 import type { RouteSpec } from './table.ts';
 
 export type { AgentAuthState };
@@ -81,9 +100,17 @@ export interface AgentsRouteDeps {
   cancelSignin?: typeof cancelAgentSignin;
   /** 'ok', or 'unavailable' when this run caught the agent breaking Maude's limits (acp/agents/health.ts). */
   health?: (id: string) => string;
+  /** B7 — the chat-key store; defaults to generation/keys.ts. Never returns a key. */
+  keys?: {
+    status(id: string): ChatKeyStatus;
+    set(id: string, key: unknown): ChatKeyStatus;
+    clear(id: string): void;
+    setClaude(key: unknown, optIn: unknown): ChatKeyStatus;
+    clearClaude(): void;
+  };
   /** Claude's side, from the same functions `/_api/claude/*` and `/_api/acp/status` use. */
   claude?: {
-    available(): Promise<{ available: boolean }>;
+    available(): Promise<{ available: boolean; billing?: 'api-key' }>;
     authLoggedIn(): Promise<boolean | null>;
     startSignin(): { ok: boolean; reason?: string };
     cancelSignin(): void;
@@ -101,6 +128,14 @@ const defaultClaude: NonNullable<AgentsRouteDeps['claude']> = {
   startSignin,
   cancelSignin,
   signinInFlight: isSigninInFlight,
+};
+
+const defaultKeys: NonNullable<AgentsRouteDeps['keys']> = {
+  status: chatKeyStatus,
+  set: setChatKey,
+  clear: clearChatKey,
+  setClaude: (key, optIn) => setClaudeApiKey(key, optIn),
+  clearClaude: () => clearClaudeApiKey(),
 };
 
 const defaultConformance = async (d: AgentDescriptor): Promise<ConformanceResult> => ({
@@ -152,6 +187,16 @@ export function createAgentsRoutes(deps: AgentsRouteDeps = {}): RouteSpec[] {
   const health =
     deps.health ?? ((id: string) => (agentHealth(id as AgentId).available ? 'ok' : 'unavailable'));
   const claude = deps.claude ?? defaultClaude;
+  const keys = deps.keys ?? defaultKeys;
+  /** A store that cannot be read is "no key" — never a 500 for the whole list. */
+  const keyOf = (d: AgentDescriptor | undefined): ChatKeyStatus => {
+    if (!d || !acceptsChatKey(d)) return { set: false, last4: null };
+    try {
+      return keys.status(d.id);
+    } catch {
+      return { set: false, last4: null };
+    }
+  };
 
   /** The discovered row of one agent (cached discovery), or null. */
   const rowOf = async (id: string): Promise<DiscoveredAgent | null> =>
@@ -207,6 +252,9 @@ export function createAgentsRoutes(deps: AgentsRouteDeps = {}): RouteSpec[] {
               } else if (d?.auth.gate === 'none') {
                 auth = 'not-needed';
               }
+              // B7 — a stored key signs the agent in (it authenticates with it at session start).
+              const key = keyOf(d);
+              if (key.set && row.id !== 'claude' && auth === 'signed-out') auth = 'signed-in';
               const connected = row.id === 'claude' ? claudeAvail.available : rec !== undefined;
               const offerDismissed = state.offerDismissed[row.id] === true;
               const healthy = health(row.id) === 'ok';
@@ -226,6 +274,17 @@ export function createAgentsRoutes(deps: AgentsRouteDeps = {}): RouteSpec[] {
                 offer,
                 health: healthy ? 'ok' : 'unavailable',
                 connectNote: d?.connectNote ?? null,
+                acceptsKey: d ? acceptsChatKey(d) : false,
+                keySet: key.set,
+                keyLast4: key.last4,
+                ...(row.id === 'claude'
+                  ? {
+                      billing:
+                        claudeAvail.available && claudeAvail.billing === 'api-key'
+                          ? 'api-key'
+                          : null,
+                    }
+                  : {}),
                 state: healthy
                   ? agentListState({ installed: row.installed, fit: row.fit, connected, auth })
                   : 'unavailable',
@@ -255,7 +314,7 @@ export function createAgentsRoutes(deps: AgentsRouteDeps = {}): RouteSpec[] {
         if (row.fit !== 'ok') return json({ ok: false, reason: 'untested-version' }, 409);
         if (d.policy === 'unrestricted' && (await readBody(req)).consent !== true)
           return json({ ok: false, reason: 'consent-required' }, 409);
-        if (d.auth.gate === 'session-new') {
+        if (d.auth.gate === 'session-new' && !keyOf(d).set) {
           const auth = await authOf(d, row.realBin);
           if (auth === 'signed-out') return json({ ok: false, needsSignin: true });
         }
@@ -349,6 +408,46 @@ export function createAgentsRoutes(deps: AgentsRouteDeps = {}): RouteSpec[] {
         if (d.id === 'claude') return json({ ok: false, reason: 'use-claude-routes' }, 409);
         store().dismissOffer(d.id);
         return json({ ok: true });
+      },
+    }),
+
+    // B7 — own API key. The answer carries presence + last four only; nothing here logs the body.
+    write({
+      path: '/_api/agents/:id/key',
+      handle: async (req, params) => {
+        const d = lookup(params.id ?? '');
+        if (!d) return json({ ok: false, reason: 'unknown-agent' }, 404);
+        if (!acceptsChatKey(d)) return json({ ok: false, reason: 'no-api-key' }, 409);
+        const body = await readBody(req);
+        if (d.id === 'claude' && body.optIn !== true)
+          return json({ ok: false, reason: 'opt-in-required' }, 409);
+        let status: ChatKeyStatus;
+        try {
+          status = d.id === 'claude' ? keys.setClaude(body.key, true) : keys.set(d.id, body.key);
+        } catch (err) {
+          const invalid = err instanceof Error && err.message === 'invalid key';
+          return json(
+            { ok: false, reason: invalid ? 'invalid-key' : 'store-failed' },
+            invalid ? 400 : 500
+          );
+        }
+        return json({ ok: true, keySet: status.set, keyLast4: status.last4 });
+      },
+    }),
+
+    write({
+      path: '/_api/agents/:id/key-remove',
+      handle: async (_req, params) => {
+        const d = lookup(params.id ?? '');
+        if (!d) return json({ ok: false, reason: 'unknown-agent' }, 404);
+        if (!acceptsChatKey(d)) return json({ ok: false, reason: 'no-api-key' }, 409);
+        try {
+          if (d.id === 'claude') keys.clearClaude();
+          else keys.clear(d.id);
+        } catch {
+          return json({ ok: false, reason: 'store-failed' }, 500);
+        }
+        return json({ ok: true, keySet: false, keyLast4: null });
       },
     }),
   ];

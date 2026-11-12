@@ -616,6 +616,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/agents/:id/signin-cancel': { class: 'local' },
   '/_api/agents/:id/disconnect': { class: 'local' },
   '/_api/agents/:id/dismiss-offer': { class: 'local' },
+  // B7 — own API key: writes the 0600 key store (~/.config/maude/keys.json), nothing under the design root
+  '/_api/agents/:id/key': { class: 'local' },
+  '/_api/agents/:id/key-remove': { class: 'local' },
   '/_api/sync/availability': { class: 'read' }, // routes/availability.ts (S11.4): listed minus on disk, no effect
   '/_api/sync/conflicts': { class: 'read' }, // routes/sync-conflicts.ts (S9.24): this Mac's _state/conflicts/, no effect
   // S9.24 — a conflict pick is the canvas's own op path: one batch, one annotations lane.replace.

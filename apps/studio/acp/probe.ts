@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, win32 } from 'node:path';
 
+import { claudeApiKeyOptedIn } from '../generation/keys.ts';
 import { DEV_SERVER_ROOT, IS_COMPILED_BINARY } from '../paths.ts';
 import { e2eSwitch, IS_RELEASE_BUILD } from '../release-build.ts';
 import { CLAUDE } from './agents/catalog.ts';
@@ -31,6 +32,11 @@ export interface AcpAvailability {
   claudePath: string | null;
   /** F3 — which agent this answers for (the `ready` frame names it). */
   agent?: AgentInfo;
+  /**
+   * B7 — 'api-key' when Claude runs on this profile's opted-in Anthropic API key (billed per token)
+   * instead of the Claude account; absent otherwise. The panel shows "API key" instead of the plan.
+   */
+  billing?: 'api-key';
 }
 
 /** F3 — the agent as the panel names it (`ready` / `caps` frames). */
@@ -646,6 +652,10 @@ async function readAuthStatusStdout(bin: string): Promise<string> {
 export async function probeAcpAvailabilityAuthed(): Promise<AcpAvailability> {
   const base = probeAcpAvailability();
   if (!base.available) return base;
+  // B7 (DDR-252 amends DDR-123) — this profile turned on the Advanced opt-in, so the adapter gets
+  // ANTHROPIC_API_KEY (acp/agents/chat-key.ts) and needs no Claude sign-in. Checked before the
+  // `claude auth status` subprocess: that one runs scrubbed and cannot see the key.
+  if (claudeApiKeyOptedIn()) return { ...base, billing: 'api-key' };
   const authStatus = await getClaudeAuthStatus();
   if (!authStatus?.loggedIn) {
     return {

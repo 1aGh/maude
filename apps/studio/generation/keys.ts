@@ -17,7 +17,16 @@
 // `{ configured: true }`, mirroring `github_is_signed_in`). `isConfigured` backs
 // the GET status probe — it reveals only presence, never the value.
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -34,6 +43,13 @@ export function keysConfigPath(): string {
 
 interface KeysFile {
   keys: Record<string, string>;
+  /** B7 (DDR-252) — the chat scope: one key per ACP agent id (`codex`, `gemini`, …), never Claude's. */
+  chat?: Record<string, string>;
+  /**
+   * B7 — Claude's Anthropic key, per profile (DDR-252 amends DDR-123): present only after the
+   * person turned on "Use an Anthropic API key for Claude" for that profile. `optIn` must be true.
+   */
+  claudeApiKey?: Record<string, { key: string; optIn: true; at: number }>;
 }
 
 let _modeWarnedFor: string | null = null;
@@ -66,19 +82,23 @@ function readKeysFile(): KeysFile {
   }
 }
 
-/** Write keys.json atomically-ish with a hard 0600 mode (create + chmod). */
+/**
+ * Write keys.json atomically with a hard 0600 mode: a 0600 temp file beside it, then rename (B7 —
+ * the file now holds chat keys too, so a torn write must never leave a half file or a wider mode).
+ */
 function writeKeysFile(data: KeysFile): void {
   const path = keysConfigPath();
   mkdirSync(dirname(path), { recursive: true });
-  // Write then chmod — writeFileSync's mode is masked by umask, so we assert
-  // 0600 explicitly afterwards (same guarantee cli/lib/hubs-config.mjs makes).
-  writeFileSync(path, `${JSON.stringify(data, null, 2)}\n`, { mode: 0o600 });
-  if (platform() !== 'win32') {
-    try {
-      chmodSync(path, 0o600);
-    } catch {
-      /* best-effort — the warn-on-read path is the backstop */
-    }
+  const tmp = `${path}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    // `wx`: never through a planted file. writeFileSync's mode is masked by umask, so chmod 0600
+    // explicitly before the rename (same guarantee cli/lib/hubs-config.mjs makes).
+    writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
+    if (platform() !== 'win32') chmodSync(tmp, 0o600);
+    renameSync(tmp, path);
+  } catch (err) {
+    rmSync(tmp, { force: true });
+    throw err;
   }
 }
 
@@ -159,4 +179,135 @@ export function configuredProviders(): string[] {
   return Object.entries(readKeysFile().keys)
     .filter(([, v]) => typeof v === 'string' && v.length > 0)
     .map(([id]) => id);
+}
+
+// ---------------------------------------------------------------- chat scope (B7, DDR-252)
+//
+// One key per ACP agent, injected by acp/agents/chat-key.ts into THAT agent's env only (after the
+// shared scrub, spawn.ts). Nothing here hands a key to a route: routes read `chatKeyStatus` —
+// presence and the last four characters — and only the spawn path reads the value (`getChatKey`).
+
+/** An agent id a chat key may be stored under: a catalog slug. `claude` has its own slot below. */
+const CHAT_AGENT_ID_RE = /^[a-z][a-z0-9-]{0,31}$/;
+/** sidecar::profile_env's id shape (profiles.rs); anything else is the default profile. */
+const PROFILE_ID_RE = /^[a-z0-9-]{1,32}$/;
+
+/** A key as typed: trimmed, non-empty, at most 512 characters, no whitespace or control chars. */
+export function normalizeChatKey(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const key = value.trim();
+  if (key.length === 0 || key.length > 512) return null;
+  if (/[\s\p{Cc}]/u.test(key)) return null;
+  return key;
+}
+
+function chatAgentId(agentId: string): string {
+  if (agentId === 'claude' || !CHAT_AGENT_ID_RE.test(agentId)) throw new Error('invalid agent id');
+  return agentId;
+}
+
+/** The profile this server runs as — the server learns it only from env (`sidecar::profile_env`). */
+export function currentProfileId(env: Record<string, string | undefined> = process.env): string {
+  const id = env.MAUDE_PROFILE_ID;
+  return id && PROFILE_ID_RE.test(id) ? id : 'default';
+}
+
+export interface ChatKeyStatus {
+  set: boolean;
+  /** The last four characters, only when set (Settings shows ••••last4). */
+  last4: string | null;
+}
+
+const statusOf = (key: string | null | undefined): ChatKeyStatus =>
+  typeof key === 'string' && key.length > 0
+    ? { set: true, last4: key.slice(-4) }
+    : { set: false, last4: null };
+
+/** Store an agent's chat key (Settings › AI agents › Advanced). Throws on a bad id or key. */
+export function setChatKey(agentId: string, value: unknown): ChatKeyStatus {
+  const id = chatAgentId(agentId);
+  const key = normalizeChatKey(value);
+  if (!key) throw new Error('invalid key');
+  const file = readKeysFile();
+  file.chat = { ...(file.chat ?? {}), [id]: key };
+  writeKeysFile(file);
+  return statusOf(key);
+}
+
+/** Remove an agent's chat key. No-op when absent. */
+export function clearChatKey(agentId: string): void {
+  const id = chatAgentId(agentId);
+  const file = readKeysFile();
+  if (file.chat && id in file.chat) {
+    delete file.chat[id];
+    writeKeysFile(file);
+  }
+}
+
+/** Presence + last four characters — never the key. Claude's reads this profile's opt-in slot. */
+export function chatKeyStatus(agentId: string): ChatKeyStatus {
+  if (agentId === 'claude') return claudeApiKeyStatus();
+  if (!CHAT_AGENT_ID_RE.test(agentId)) return statusOf(null);
+  return statusOf(normalizeChatKey(readKeysFile().chat?.[agentId]));
+}
+
+export function hasChatKey(agentId: string): boolean {
+  return chatKeyStatus(agentId).set;
+}
+
+/**
+ * The key itself — for the spawn path ONLY (acp/agents/chat-key.ts), into the owning agent's env.
+ * Never returned by a route. Claude's answers only when this profile opted in.
+ */
+export function getChatKey(agentId: string): string | null {
+  if (agentId === 'claude') return claudeApiKeyFor(currentProfileId());
+  if (!CHAT_AGENT_ID_RE.test(agentId)) return null;
+  return normalizeChatKey(readKeysFile().chat?.[agentId]);
+}
+
+/**
+ * Turn on "Use an Anthropic API key for Claude instead of your Claude account" for this profile
+ * (DDR-252 amends DDR-123). `optIn` must be literally `true`: the confirm card is the person's
+ * choice, and nothing stores a Claude key without it.
+ */
+export function setClaudeApiKey(
+  value: unknown,
+  optIn: unknown,
+  profileId: string = currentProfileId()
+): ChatKeyStatus {
+  if (optIn !== true) throw new Error('opt-in required');
+  if (!PROFILE_ID_RE.test(profileId)) throw new Error('invalid profile');
+  const key = normalizeChatKey(value);
+  if (!key) throw new Error('invalid key');
+  const file = readKeysFile();
+  file.claudeApiKey = {
+    ...(file.claudeApiKey ?? {}),
+    [profileId]: { key, optIn: true, at: Date.now() },
+  };
+  writeKeysFile(file);
+  return statusOf(key);
+}
+
+/** Turn the opt-in off for this profile: the key goes with it and Claude is back on the account. */
+export function clearClaudeApiKey(profileId: string = currentProfileId()): void {
+  const file = readKeysFile();
+  if (file.claudeApiKey && profileId in file.claudeApiKey) {
+    delete file.claudeApiKey[profileId];
+    writeKeysFile(file);
+  }
+}
+
+function claudeApiKeyFor(profileId: string): string | null {
+  const rec = readKeysFile().claudeApiKey?.[profileId];
+  if (!rec || typeof rec !== 'object' || rec.optIn !== true) return null;
+  return normalizeChatKey(rec.key);
+}
+
+export function claudeApiKeyStatus(profileId: string = currentProfileId()): ChatKeyStatus {
+  return statusOf(claudeApiKeyFor(profileId));
+}
+
+/** Whether this profile turned the Claude API-key opt-in on (with a key stored). */
+export function claudeApiKeyOptedIn(profileId: string = currentProfileId()): boolean {
+  return claudeApiKeyFor(profileId) !== null;
 }

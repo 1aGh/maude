@@ -146,7 +146,15 @@ function unprobed(
   });
 }
 
-export const GEMINI = unprobed('gemini', 'Gemini CLI', 'Google', 'gemini', ['--acp']);
+/** B7 — the env a stored chat key is injected as, into this agent's env only (acp/agents/chat-key.ts). */
+function withApiKeyEnv(d: AgentDescriptor, apiKeyEnv: string[]): AgentDescriptor {
+  return { ...d, auth: { ...d.auth, apiKeyEnv } };
+}
+
+export const GEMINI = withApiKeyEnv(
+  unprobed('gemini', 'Gemini CLI', 'Google', 'gemini', ['--acp']),
+  ['GEMINI_API_KEY']
+);
 export const COPILOT = unprobed('copilot', 'GitHub Copilot CLI', 'GitHub', 'copilot', ['--acp']);
 export const GOOSE = unprobed('goose', 'Goose', 'Block', 'goose', ['acp']);
 export const CURSOR = unprobed('cursor', 'Cursor agent', 'Cursor', 'cursor-agent', ['acp']);

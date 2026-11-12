@@ -130,6 +130,32 @@ export function codexFilesystem(
   return Object.fromEntries(fs);
 }
 
+/**
+ * B7 (DDR-252) — the env Codex hands the commands it runs. A BYOK key rides Codex's own env
+ * (OPENAI_API_KEY, acp/agents/chat-key.ts) and must never reach a shell command the model writes.
+ * Codex's built-in excludes (`*KEY*`, `*TOKEN*`, applied unless `ignore_default_excludes`) would
+ * already drop it, but the default of that switch has moved between releases, so both are stated:
+ * the built-in filter on, plus every vendor-credential pattern named (case-insensitive globs, read by
+ * codex 0.154's ShellEnvironmentPolicyToml: inherit / ignore_default_excludes / exclude / set /
+ * include_only). Unit-tested (test/acp-chat-keys.test.ts); a live run is the conformance probe's job.
+ */
+export const CODEX_SHELL_ENV_POLICY = Object.freeze({
+  inherit: 'all',
+  ignore_default_excludes: false,
+  exclude: [
+    'OPENAI_*',
+    'CODEX_API_KEY',
+    'DEFAULT_AUTH_REQUEST',
+    'ANTHROPIC_*',
+    'GEMINI_*',
+    'GOOGLE_API_KEY',
+    '*_API_KEY',
+    '*KEY*',
+    '*TOKEN*',
+    '*SECRET*',
+  ],
+});
+
 /** The CODEX_CONFIG object (serialised by the launch policy). */
 export function codexConfig(ctx: PolicyCtx, host: LaunchHost = currentHost()) {
   return {
@@ -146,6 +172,7 @@ export function codexConfig(ctx: PolicyCtx, host: LaunchHost = currentHost()) {
     // (contract note, "F6 conformance results"). Hooks were not probed.
     mcp_servers: {},
     hooks: {},
+    shell_environment_policy: CODEX_SHELL_ENV_POLICY,
   };
 }
 

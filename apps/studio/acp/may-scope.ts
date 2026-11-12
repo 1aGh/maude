@@ -416,7 +416,9 @@ export function credentialPathsFor(
       if (real !== abs) files.add(real);
     }
   }
-  for (const k of ['MAUDE_CLOUD_CONFIG', 'HUBS_CONFIG_PATH']) {
+  // B7 — a custom key-store path (generation/keys.ts) holds media AND chat keys: denied like the
+  // profile's own credential files when it sits outside the folders above.
+  for (const k of ['MAUDE_CLOUD_CONFIG', 'HUBS_CONFIG_PATH', 'MAUDE_GEN_KEYS_PATH']) {
     const f = env[k];
     if (!f || !isAbsolute(f)) continue;
     const abs = resolve(f);

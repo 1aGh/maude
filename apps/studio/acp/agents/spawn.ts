@@ -6,9 +6,15 @@
 // (test/acp-agent-spawn.test.ts pins it): its least-privilege policy rides `_meta.claudeCode`,
 // not the env. Every other agent gets its launch policy's env (and argv for native ACP) plus
 // MAUDE_NO_EGRESS when web is off — it has no `_meta` channel for either.
+//
+// B7 (DDR-252) — the agent's own stored chat key (acp/agents/chat-key.ts) is added AFTER the scrub
+// and the launch policy, for this descriptor only. The one read outside the inputs: when the caller
+// passes no `chatKeyEnv`, it comes from the 0600 key store (generation/keys.ts) at spawn time. A
+// Claude spawn without the Advanced opt-in adds nothing.
 
 import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from '../env.ts';
 import { mayEnv } from '../may-scope.ts';
+import { chatKeyEnvFor } from './chat-key.ts';
 import type { AgentDescriptor, PolicyCtx } from './descriptor.ts';
 
 export interface AgentSpawnInput {
@@ -40,6 +46,11 @@ export interface AgentSpawnInput {
   chatId?: string;
   /** path.delimiter (':' on POSIX) — a parameter so the function stays pure. */
   delimiter: string;
+  /**
+   * B7 — the env this agent's stored chat key becomes (`chatKeyEnvFor`). Absent → read from the key
+   * store now; `{}` → none (tests, and any caller that must not read the store).
+   */
+  chatKeyEnv?: Record<string, string>;
 }
 
 export interface AgentSpawn {
@@ -72,6 +83,9 @@ export function agentSpawn(input: AgentSpawnInput): AgentSpawn {
     // scrub drops (ANTHROPIC_*, MAUDE_SHELL_*, …): its keys go through the same scrub.
     Object.assign(env, scrubAgentEnv(policy.env, Object.keys(policy.env)));
   }
+  // B7 — this agent's own key, after the scrub and the policy (neither can drop or forge it), and
+  // only the names chatKeyEnvFor allows for THIS descriptor.
+  Object.assign(env, input.chatKeyEnv ?? chatKeyEnvFor(d));
   // Claude carries the egress switch in `_meta.claudeCode.options.env` (newSessionParams); an
   // agent without that channel carries it from spawn.
   if (d.policy !== 'claude-meta') Object.assign(env, mayEnv(input.policyCtx.may));

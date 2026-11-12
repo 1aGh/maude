@@ -8,6 +8,14 @@
 // equivalent auth-token override) from the child env before spawning. This is
 // the single load-bearing detail that makes the whole panel subscription-correct
 // — the guarantee lives here, at the bottom of the stack, independent of the UI.
+//
+// DDR-252 amends DDR-123: "never metered billing UNLESS the person turned it on in Maude". This
+// scrub is unchanged and still drops every ANTHROPIC_* the parent carries. The one way back is the
+// per-profile Advanced opt-in ("Use an Anthropic API key for Claude instead of your Claude
+// account"): acp/agents/chat-key.ts then re-adds ONLY `ANTHROPIC_API_KEY`, from the 0600 key store
+// (generation/keys.ts) — never from the inherited env — into the Claude adapter's env alone, after
+// this scrub (acp/agents/spawn.ts). Opt-in off → the Claude spawn is byte-identical to before
+// (test/acp-agent-spawn.test.ts, test/acp-chat-keys.test.ts).
 
 /**
  * Env var names that flip Claude Code off the subscription and onto metered API
