@@ -1,5 +1,12 @@
 # @1agh/maude
 
+## 2.2.1
+
+### Patch Changes
+
+- The left panel scrolls again while a Design system's artboard list is open (#224). The list of a large system (65 artboards) used to push the canvas list out of the panel. Now it scrolls on its own and takes at most 40 % of the panel.
+- The Design system screen's top bar sits where the canvas top bar sits and looks the same (#225): centred in the free space between the side bars, with the path on its own line above Light / Dark and Canvas / Pages. Both screens draw it from one component, so they can't drift apart again. The path also sits above the buttons on canvases, with a little more room under it.
+
 ## 2.2.0
 
 ### Minor Changes

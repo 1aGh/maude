@@ -3,6 +3,15 @@
   "version": "2.2.0",
   "entries": [
     {
+      "id": "ds-screen-fixes-2-2-1",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Design system screen fixes",
+      "summary": "The left panel scrolls again while a Design system is open, and its top bar now sits in the same place as on every canvas, with the path above the buttons.",
+      "surface": "design-ui"
+    },
+    {
       "id": "export-and-chat-fixes-2026-11",
       "version": "2.1.2",
       "date": "2026-11-10",
