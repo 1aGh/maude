@@ -87,13 +87,13 @@ Each ran with a scratch HOME. Prompt turns were driven by a **local scripted mod
      - the agent is not yet connected.
    - Several detected agents share one line. "Not now" is permanent per agent.
    - Connect only registers the agent and starts that vendor's own sign-in.
-   - Settings › Connections › **AI agents** is the reference list (states: Connected · Sign in · Untested version · Unavailable). Its folded Advanced holds Custom agent… and own API key, each behind a per-project consent card.
+   - Settings › Connections › **AI agents** is the reference list (states: Connected · Sign in · Untested version · Unavailable). Its folded Advanced holds Custom agent… and own API key. *(Amended 2026-11-12, security review M3: an own API key is per profile and has no per-project consent card — the person types it into Settings themselves, which is the consent; the key routes accept only the person's own page, `personRequest`. Custom agents keep the per-project consent card.)*
    - The Connect sheet stays Claude-only, with one quiet "Use another agent…" link to Settings, shown only when a bridge-enforced agent is detected.
    - The agent chip in the composer appears only with ≥ 2 connected agents. A chat keeps the agent it started with.
    - Replies carry a vendor badge; errors read "Codex reported: …".
    - `unrestricted` and custom agents are never offered.
 7. **BYOK (amends DDR-123).**
-   - Chat keys live in the existing BYOK store (`generation/keys.ts`) under a `chat` scope.
+   - Chat keys live in the existing BYOK store (`generation/keys.ts`), **per profile** (`chatByProfile.<profile>.<agent>`, amended 2026-11-12, security review M3), like the Claude opt-in key: a work profile's chat never runs on the personal profile's key. A key stored before the change (the global `chat` scope) stays readable for the `default` profile only and moves under it on the next key write.
    - A key is injected **only** into the env of the agent it belongs to: `OPENAI_API_KEY` → Codex, provider keys → opencode, `GEMINI_API_KEY` → Gemini.
    - Every other agent's env default-scrubs `OPENAI_*`, `GEMINI_*`/`GOOGLE_*` keys, `GITHUB_TOKEN`/`GH_TOKEN`, `COPILOT_*` and `OPENCODE_*` credentials.
    - **DDR-123 is amended:** an Anthropic API key for the Claude agent is allowed **only** as an explicit, per-profile Advanced opt-in ("Use my Anthropic API key instead of my Claude subscription — billed per token").

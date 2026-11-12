@@ -43,8 +43,14 @@ export function keysConfigPath(): string {
 
 interface KeysFile {
   keys: Record<string, string>;
-  /** B7 (DDR-252) — the chat scope: one key per ACP agent id (`codex`, `gemini`, …), never Claude's. */
+  /**
+   * B7 (DDR-252) — the LEGACY chat scope, before keys were per profile: one key per ACP agent id.
+   * Read as the `default` profile's only (security review 2026-11-12, M3); the first chat-key write
+   * moves it into `chatByProfile.default`.
+   */
   chat?: Record<string, string>;
+  /** The chat scope per profile: profile id → agent id (`codex`, `gemini`, …) → key, never Claude's. */
+  chatByProfile?: Record<string, Record<string, string>>;
   /**
    * B7 — Claude's Anthropic key, per profile (DDR-252 amends DDR-123): present only after the
    * person turned on "Use an Anthropic API key for Claude" for that profile. `optIn` must be true.
@@ -223,32 +229,61 @@ const statusOf = (key: string | null | undefined): ChatKeyStatus =>
     ? { set: true, last4: key.slice(-4) }
     : { set: false, last4: null };
 
-/** Store an agent's chat key (Settings › AI agents › Advanced). Throws on a bad id or key. */
-export function setChatKey(agentId: string, value: unknown): ChatKeyStatus {
+/**
+ * Security review 2026-11-12 (defender M3) — chat keys are per profile, like Claude's opt-in key:
+ * a work profile's chat never runs on the personal profile's key. The pre-profile `chat` map is the
+ * `default` profile's (the legacy install IS the default profile, profiles.rs) and no other's.
+ */
+function chatKeysOf(file: KeysFile, profileId: string): Record<string, string> {
+  const legacy = profileId === 'default' ? (file.chat ?? {}) : {};
+  return { ...legacy, ...(file.chatByProfile?.[profileId] ?? {}) };
+}
+
+/** Move the legacy `chat` map into `chatByProfile.default` (before any chat-key write). */
+function migrateLegacyChat(file: KeysFile): void {
+  if (!file.chat) return;
+  const byProfile = { ...(file.chatByProfile ?? {}) };
+  byProfile.default = { ...file.chat, ...(byProfile.default ?? {}) };
+  file.chatByProfile = byProfile;
+  delete file.chat;
+}
+
+/** Store an agent's chat key for this profile (Settings › AI agents). Throws on a bad id or key. */
+export function setChatKey(
+  agentId: string,
+  value: unknown,
+  profileId: string = currentProfileId()
+): ChatKeyStatus {
   const id = chatAgentId(agentId);
   const key = normalizeChatKey(value);
   if (!key) throw new Error('invalid key');
+  if (!PROFILE_ID_RE.test(profileId)) throw new Error('invalid profile');
   const file = readKeysFile();
-  file.chat = { ...(file.chat ?? {}), [id]: key };
+  migrateLegacyChat(file);
+  file.chatByProfile = {
+    ...(file.chatByProfile ?? {}),
+    [profileId]: { ...(file.chatByProfile?.[profileId] ?? {}), [id]: key },
+  };
   writeKeysFile(file);
   return statusOf(key);
 }
 
-/** Remove an agent's chat key. No-op when absent. */
-export function clearChatKey(agentId: string): void {
+/** Remove this profile's chat key for an agent. No-op when absent. */
+export function clearChatKey(agentId: string, profileId: string = currentProfileId()): void {
   const id = chatAgentId(agentId);
   const file = readKeysFile();
-  if (file.chat && id in file.chat) {
-    delete file.chat[id];
-    writeKeysFile(file);
-  }
+  if (!(id in chatKeysOf(file, profileId))) return;
+  migrateLegacyChat(file);
+  const mine = file.chatByProfile?.[profileId];
+  if (mine && id in mine) delete mine[id];
+  writeKeysFile(file);
 }
 
 /** Presence + last four characters — never the key. Claude's reads this profile's opt-in slot. */
 export function chatKeyStatus(agentId: string): ChatKeyStatus {
   if (agentId === 'claude') return claudeApiKeyStatus();
   if (!CHAT_AGENT_ID_RE.test(agentId)) return statusOf(null);
-  return statusOf(normalizeChatKey(readKeysFile().chat?.[agentId]));
+  return statusOf(normalizeChatKey(chatKeysOf(readKeysFile(), currentProfileId())[agentId]));
 }
 
 export function hasChatKey(agentId: string): boolean {
@@ -262,7 +297,7 @@ export function hasChatKey(agentId: string): boolean {
 export function getChatKey(agentId: string): string | null {
   if (agentId === 'claude') return claudeApiKeyFor(currentProfileId());
   if (!CHAT_AGENT_ID_RE.test(agentId)) return null;
-  return normalizeChatKey(readKeysFile().chat?.[agentId]);
+  return normalizeChatKey(chatKeysOf(readKeysFile(), currentProfileId())[agentId]);
 }
 
 /**

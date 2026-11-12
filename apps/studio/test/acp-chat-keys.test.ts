@@ -9,6 +9,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -163,6 +164,40 @@ describe('the chat scope of the 0600 key store', () => {
     clearClaudeApiKey();
     expect(claudeApiKeyOptedIn()).toBe(false);
     expect(readFileSync(keysPath, 'utf8')).not.toContain(FAKE_ANTHROPIC);
+  });
+
+  // Security review 2026-11-12 (defender M3): chat keys are per profile, like Claude's opt-in key.
+  // A key stored before (the global `chat` map) stays the default profile's only.
+  test('chat keys live per profile; a legacy global key is the default profile’s only', () => {
+    mkdirSync(dirname(keysPath), { recursive: true });
+    writeFileSync(keysPath, JSON.stringify({ keys: {}, chat: { codex: FAKE_OPENAI } }), {
+      mode: 0o600,
+    });
+    expect(chatKeyStatus('codex')).toEqual({ set: true, last4: 'ABCD' });
+    process.env.MAUDE_PROFILE_ID = 'work';
+    expect(chatKeyStatus('codex').set).toBe(false);
+    expect(getChatKey('codex')).toBeNull();
+    setChatKey('gemini', FAKE_GEMINI);
+    expect(getChatKey('gemini')).toBe(FAKE_GEMINI);
+    delete process.env.MAUDE_PROFILE_ID;
+    expect(getChatKey('gemini')).toBeNull();
+    expect(getChatKey('codex')).toBe(FAKE_OPENAI);
+    // a write migrates the legacy map into the default profile; it stays readable there only
+    setChatKey('gemini', 'AIza-default-0000-QQQQ');
+    const doc = JSON.parse(readFileSync(keysPath, 'utf8'));
+    expect(doc.chat).toBeUndefined();
+    expect(doc.chatByProfile.default).toEqual({
+      codex: FAKE_OPENAI,
+      gemini: 'AIza-default-0000-QQQQ',
+    });
+    expect(doc.chatByProfile.work).toEqual({ gemini: FAKE_GEMINI });
+    process.env.MAUDE_PROFILE_ID = 'work';
+    clearChatKey('gemini');
+    expect(getChatKey('gemini')).toBeNull();
+    delete process.env.MAUDE_PROFILE_ID;
+    expect(getChatKey('gemini')).toBe('AIza-default-0000-QQQQ');
+    clearChatKey('codex');
+    expect(getChatKey('codex')).toBeNull();
   });
 
   test('a garbage profile id falls back to default', () => {
