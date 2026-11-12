@@ -440,6 +440,8 @@ export function createAcpConnection() {
           // permission request, so PermissionPrompt's "outside the project"
           // copy can't fire on one.
           scope: frame.scope ?? null,
+          // Universal ACP (Design Decision 5) — the agent that asks (absent: Claude)
+          agent: frame.agent ?? null,
         },
       ];
       emitPermissions();

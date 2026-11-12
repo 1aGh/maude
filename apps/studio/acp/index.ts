@@ -1215,6 +1215,9 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
           // bridge validates a response against this SAME set, so the client
           // is being shown the real option set, not a cosmetic subset.
           options: req.options,
+          // Universal ACP (Design Decision 5) — who asks: a non-Claude agent's label for the card's words;
+          // absent for Claude (agentAttribution → undefined), whose card reads as before.
+          agent: agentAttribution(entry.agent),
           // Present ONLY when the write-path gate judged a write tool and
           // declined it — carries the RESOLVED absolute path(s) so the card
           // can name what will actually be written rather than echoing the

@@ -466,6 +466,8 @@ describe('the bridge gate on a non-Claude agent', () => {
       const card = await until(() => a.frames.find((f) => f.t === 'permission-request'));
       const options = card.options as Array<{ optionId: string; kind: string }>;
       expect(options.map((o) => o.kind).sort()).toEqual(['allow_once', 'reject_once']);
+      // Design Decision 5 — the card says WHO asks (the desktop agents lane caught "Claude wants…" on a Codex chat)
+      expect(card.agent).toMatchObject({ id: 'codex', label: 'Codex' });
       expect((card.scope as { resolvedPaths: string[] }).resolvedPaths).toContain(
         join(outside, 'x.txt')
       );

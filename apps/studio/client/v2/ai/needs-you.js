@@ -105,7 +105,7 @@ function canvasName(path) {
  */
 export function permissionModel(request, work = null) {
   const toolCall = request?.toolCall ?? {};
-  const outside = describeOutOfProject(request?.scope);
+  const outside = describeOutOfProject(request?.scope, request?.agent);
   const all = Array.isArray(request?.options) ? request.options.filter(Boolean) : [];
   // Decision D is enforced server-side; this second pass only keeps a stale frame from painting a
   // button the server would refuse.

@@ -63,6 +63,20 @@ const req = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('permission card model (D4)', () => {
+  test('an outside write says which agent asks (universal ACP, Design Decision 5)', () => {
+    const scope = {
+      outOfProjectWrite: true,
+      resolvedPaths: ['/Users/x/out.txt'],
+      scopeRoot: '/Users/x/p',
+      reason: 'outside',
+    };
+    const m = permissionModel(
+      req({ scope, agent: { id: 'opencode', label: 'opencode', vendor: 'opencode' } })
+    );
+    expect(m.outside?.lead).toBe('opencode wants to write a file outside this project.');
+    expect(permissionModel(req({ scope })).outside?.lead).toContain('Claude wants');
+  });
+
   test('the title verb IS the button verb, for every kind the card words', () => {
     const kinds: Array<[string, string]> = [
       ['edit', 'Edit'],

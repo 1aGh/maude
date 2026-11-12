@@ -95,16 +95,21 @@ export function sanitizePathForDisplay(p) {
   return String(p).replace(UNSAFE_DISPLAY, '�');
 }
 
-export function describeOutOfProject(scope) {
+export function describeOutOfProject(scope, agent = null) {
   if (!scope || scope.outOfProjectWrite !== true) return null;
+  // Universal ACP (Design Decision 5) — the agent that asks; Claude when the frame names none
+  const who =
+    typeof agent?.label === 'string' && agent.label.trim()
+      ? sanitizePathForDisplay(agent.label.trim())
+      : 'Claude';
   const paths = Array.isArray(scope.resolvedPaths)
     ? scope.resolvedPaths.filter(Boolean).map(sanitizePathForDisplay)
     : [];
   const lead =
     scope.reason === 'no-target'
-      ? 'Claude asked to write a file but did not say which one.'
+      ? `${who} asked to write a file but did not say which one.`
       : scope.reason === 'disagreement'
-        ? 'Claude named two different files for one write.'
+        ? `${who} named two different files for one write.`
         : // `in-project-denied` is INSIDE the project — saying "outside" would be
           // a plain lie, and the reason it's being asked about is different in
           // kind: not "where is this going" but "this file runs".
@@ -126,8 +131,8 @@ export function describeOutOfProject(scope) {
                   : scope.reason === 'audience-unknown'
                     ? 'Maude couldn’t check who can see this canvas, and AI read other files in this chat.'
                     : paths.length > 1
-                      ? 'Claude wants to write files outside this project.'
-                      : 'Claude wants to write a file outside this project.';
+                      ? `${who} wants to write files outside this project.`
+                      : `${who} wants to write a file outside this project.`;
   return {
     lead,
     paths,
@@ -193,7 +198,7 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
   const cardRef = useRef(null);
   const { toolCall } = request;
   const target = toolTarget(toolCall);
-  const outOfProject = describeOutOfProject(request.scope);
+  const outOfProject = describeOutOfProject(request.scope, request.agent);
   const options = visibleOptions(request.options, !!outOfProject);
   // See the header comment in the JSX below for why an out-of-project write
   // gets a substituted headline + target instead of the adapter's own.

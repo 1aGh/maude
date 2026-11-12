@@ -129,6 +129,26 @@ describe('describeOutOfProject', () => {
     );
   });
 
+  test('names the agent that asks; Claude when none is named (universal ACP, Design Decision 5)', () => {
+    const opencode = { id: 'opencode', label: 'opencode', vendor: 'opencode' };
+    expect(describeOutOfProject(OUT_OF_PROJECT, opencode)?.lead).toBe(
+      'opencode wants to write a file outside this project.'
+    );
+    expect(
+      describeOutOfProject({ ...OUT_OF_PROJECT, resolvedPaths: ['/a', '/b'] }, opencode)?.lead
+    ).toBe('opencode wants to write files outside this project.');
+    expect(describeOutOfProject({ ...OUT_OF_PROJECT, reason: 'no-target' }, opencode)?.lead).toBe(
+      'opencode asked to write a file but did not say which one.'
+    );
+    expect(
+      describeOutOfProject({ ...OUT_OF_PROJECT, reason: 'disagreement' }, opencode)?.lead
+    ).toBe('opencode named two different files for one write.');
+    expect(describeOutOfProject(OUT_OF_PROJECT)?.lead).toBe(
+      'Claude wants to write a file outside this project.'
+    );
+    expect(describeOutOfProject(OUT_OF_PROJECT, { id: 'x', label: '' })?.lead).toContain('Claude');
+  });
+
   test('tolerates a malformed resolvedPaths — never throws', () => {
     expect(describeOutOfProject({ outOfProjectWrite: true })?.paths).toEqual([]);
     expect(
