@@ -181,6 +181,13 @@ export interface WriteScopeVerdict {
  *    runs only executable hooks there, and `Write` creates 0644.
  *  • `.ai/workflows.config.json` (root only — a PREFIX rule below) — flow
  *    `eval`s its `quality` gates on the next /flow:validate or commit gate.
+ *  • Other agents' project config (security review 2026-11-12, defender M1 /
+ *    attacker C2) — `.codex`, `.agents`, `.opencode`, `opencode.json(c)`,
+ *    `.gemini`, `AGENTS.md`, `GEMINI.md` (and the already-listed `.claude`,
+ *    `CLAUDE.md`, `.mcp.json`). The person's terminal Codex / opencode / Gemini
+ *    loads them from the project on its next run: MCP servers and plugins start
+ *    unsandboxed, and the instruction files steer that agent. This narrows the
+ *    Claude chat too: those writes now reach the person's card.
  *
  * THE PREDICATE, recorded so this list is extended by RE-DERIVATION rather than
  * by pattern-matching the entries above: **an in-project path that reaches
@@ -203,6 +210,15 @@ export const PROTECTED_IN_PROJECT: readonly string[] = [
   '.claude',
   'CLAUDE.md',
   '.mcp.json',
+  // security review 2026-11-12 M1/C2 — other agents' project config (see the bullet above).
+  '.codex',
+  '.agents',
+  '.opencode',
+  'opencode.json',
+  'opencode.jsonc',
+  '.gemini',
+  'AGENTS.md',
+  'GEMINI.md',
   '.envrc',
   '.vscode',
   'node_modules',

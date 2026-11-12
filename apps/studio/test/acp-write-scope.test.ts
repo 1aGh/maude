@@ -584,6 +584,30 @@ describe('writeTargetsInsideProject — read-only grants (S5.10)', () => {
   });
 });
 
+describe('PROTECTED_IN_PROJECT — other agents’ project config (security review 2026-11-12, M1/C2)', () => {
+  // The person's terminal Codex / opencode / Gemini loads these from the project on its next run:
+  // MCP servers, plugins and instructions an injected chat planted run unsandboxed there.
+  const scope = () => pinScopeRoot(root);
+  for (const p of [
+    join('.codex', 'config.toml'),
+    join('.opencode', 'plugins', 'x.js'),
+    join('.gemini', 'settings.json'),
+    join('.agents', 'skills', 'x', 'SKILL.md'),
+    'AGENTS.md',
+    join('sub', 'AGENTS.md'),
+    'GEMINI.md',
+    'opencode.json',
+    'opencode.jsonc',
+    '.mcp.json',
+    join('.claude', 'settings.json'),
+  ]) {
+    test(`${p} is denied`, () => {
+      const v = writeTargetsInsideProject(writeCall(join(root, p)), scope(), 'Write');
+      expect(v).toMatchObject({ inside: false, reason: 'in-project-denied' });
+    });
+  }
+});
+
 describe('PROTECTED_IN_PROJECT — hook-runner configs (sec-a2 C7)', () => {
   // "Save version" commits WITHOUT --no-verify, so a hook runner's config is an
   // in-project path that reaches execution with no further agent action: write
