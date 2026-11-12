@@ -338,10 +338,16 @@ AgentDescriptor {
 
 ## Acceptance Criteria
 
-- [ ] The homepage and `/docs` show a working copy-paste terminal quick start (Claude Code + Codex); the commands are verified live.
-- [ ] `codex.mdx` reflects the published install; no stale "until published" text.
+- [x] The homepage and `/docs` show a working copy-paste terminal quick start (Claude Code + Codex); the commands are verified live.
+- [x] `codex.mdx` reflects the published install; no stale "until published" text.
 - [ ] The Claude chat path is unchanged: every existing ACP test is green, the `_meta` payload is byte-identical, and Claude-only users see no UI change.
 - [ ] Codex runs in the Studio chat with bridge-enforced policy; the security review has no open blocker.
 - [ ] Detected agents appear only when installed locally; there are no network fetches or `npx` at runtime.
 - [ ] BYOK keys reach only their own agent and never a log or frame.
 - [ ] The DDR is recorded (agents contract + DDR-123 amendment); the What's New entry is pending; the roadmap is regenerated.
+
+## Progress
+
+- 2026-11-12, Part A done in `57dcbc453`. Quick start is in the homepage Advanced door, on the new `/docs/use-from-your-agent` page and in the docs index. The Codex guide now installs from the published marketplace. Install commands were verified in a scratch `CODEX_HOME` / `CLAUDE_CONFIG_DIR`.
+- Finding: `codex plugin marketplace upgrade maude` timed out cloning the repo (Codex's 30 s clone limit, "early EOF"). The first `add` worked.
+- A4: the hang reproduces. Each `codex plugin list --json` takes about 43 s with nine marketplaces, and `maude codex` runs several of them before every launch. Filed as https://github.com/1aGh/maude/issues/226 (not fixed here).
