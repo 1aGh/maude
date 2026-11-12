@@ -38,6 +38,7 @@ import { readUiPrefs } from '../ui-prefs.ts';
 import { relayAdapterLine } from './adapter-stderr.ts';
 import { CLAUDE } from './agents/catalog.ts';
 import { type AgentDescriptor, isRefusedConfigValue, type PolicyCtx } from './agents/descriptor.ts';
+import { applyE2eAgentModel } from './agents/e2e-model.ts';
 import { agentSpawn } from './agents/spawn.ts';
 import {
   type AudienceLeak,
@@ -1800,7 +1801,7 @@ export class AcpBridge {
     } catch {
       ownPorts = [];
     }
-    return agentSpawn({
+    const plan = agentSpawn({
       descriptor: d,
       // DDR-123 guardrail #1 — strip ANTHROPIC_API_KEY (and every other vendor's key, rule 14) so
       // the child stays on the user's own sign-in. This is the whole compliance story; do not
@@ -1825,6 +1826,10 @@ export class AcpBridge {
       chatId: this.opts.chatId,
       delimiter,
     });
+    // E2E only (scripts/acp-e2e-local.ts) — a loopback scripted model for a non-Claude agent; a
+    // release build ignores the switch (acp/agents/e2e-model.ts).
+    applyE2eAgentModel(d, plan.env);
+    return plan;
   }
 
   /** A getter the caller passes in, read now; a throw is `fallback` (each call site picks the safe side). */

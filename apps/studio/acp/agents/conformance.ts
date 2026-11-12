@@ -959,7 +959,8 @@ export function conversationOf(body: Record<string, unknown>): ConvItem[] {
   return out;
 }
 
-function toolNames(body: Record<string, unknown>): string[] {
+/** The tool names a model request offers (Responses namespaces as `<ns>/<tool>`). */
+export function toolNames(body: Record<string, unknown>): string[] {
   const tools = Array.isArray(body.tools) ? (body.tools as Record<string, unknown>[]) : [];
   return tools.flatMap((t) => {
     // B8 — Gemini groups its tools as `{ functionDeclarations: [{ name, … }] }`.
@@ -993,10 +994,17 @@ const USAGE = {
   total_tokens: 2,
 };
 
-function respond(api: ProbeProfile['api'], step: ToolStep | null, n: number, path = ''): Response {
+/** One scripted model answer on `api`'s wire: the tool call `step`, or the text `text` when null. */
+export function respond(
+  api: ProbeProfile['api'],
+  step: ToolStep | null,
+  n: number,
+  path = '',
+  text = 'done'
+): Response {
   const id = `r${n}`;
   if (api === 'gemini') {
-    const part = step ? { functionCall: { name: step.name, args: step.args } } : { text: 'done' };
+    const part = step ? { functionCall: { name: step.name, args: step.args } } : { text };
     const chunk = {
       candidates: [{ content: { role: 'model', parts: [part] }, finishReason: 'STOP', index: 0 }],
       usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 },
@@ -1021,7 +1029,7 @@ function respond(api: ProbeProfile['api'], step: ToolStep | null, n: number, pat
           type: 'message',
           role: 'assistant',
           id: `m${n}`,
-          content: [{ type: 'output_text', text: 'done', annotations: [] }],
+          content: [{ type: 'output_text', text, annotations: [] }],
         };
     const events = [
       { type: 'response.created', response: { id } },
@@ -1046,7 +1054,7 @@ function respond(api: ProbeProfile['api'], step: ToolStep | null, n: number, pat
           },
         ],
       }
-    : { role: 'assistant', content: 'done' };
+    : { role: 'assistant', content: text };
   const chunk = (d: unknown, fin: string | null) => ({
     id,
     object: 'chat.completion.chunk',
