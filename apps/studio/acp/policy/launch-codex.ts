@@ -139,9 +139,11 @@ export function codexConfig(ctx: PolicyCtx, host: LaunchHost = currentHost()) {
       maude: { extends: ':workspace', filesystem: codexFilesystem(ctx, host) },
     },
     // B0 open question 3: the person's own MCP servers and hooks (~/.codex/config.toml) would start
-    // OUTSIDE the sandbox. Overridden to empty here. UNVERIFIED whether a CODEX_CONFIG table replaces
-    // or merges with config.toml's: the conformance probe (F6) must plant one in a scratch
-    // CODEX_HOME and check it does not start.
+    // OUTSIDE the sandbox. MEASURED by the F6 conformance probe (0.154 / 0.165 / 0.166): these empty
+    // tables MERGE with config.toml's, they do not replace it — an MCP server planted in a scratch
+    // CODEX_HOME still started, and so did it with `mcp_servers.<name>.enabled = false` here (the
+    // session config arrives after app-server startup). Kept as a no-op marker; the real fix is open
+    // (contract note, "F6 conformance results"). Hooks were not probed.
     mcp_servers: {},
     hooks: {},
   };

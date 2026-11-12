@@ -10,7 +10,7 @@
 
 import { codexLaunchPolicy } from '../policy/launch-codex.ts';
 import { opencodeLaunchPolicy } from '../policy/launch-opencode.ts';
-import { assertDescriptor, type AgentDescriptor, type AgentId } from './descriptor.ts';
+import { type AgentDescriptor, type AgentId, assertDescriptor } from './descriptor.ts';
 
 const SEMVER = /(\d+\.\d+\.\d+)/;
 
@@ -54,7 +54,10 @@ export const CODEX: AgentDescriptor = assertDescriptor({
     bins: ['codex'],
     versionArgs: ['--version'],
     versionRe: /codex-cli (\d+\.\d+\.\d+)/,
-    // codex-acp 2.6.0 depends on @openai/codex ^0.166; 0.154's app-server is unprobed (B0 open q. 1).
+    // The bundled codex-acp 2.5.0 depends on @openai/codex ^0.165. The F6 conformance probe ran it
+    // against 0.154 (the app-server too), 0.165 and 0.166 with identical results, but no version
+    // passed in full (contract note, "F6 conformance results"), so the range stays as B0 set it until
+    // one does: then minVersion 0.154.0, testedMax the highest passing version.
     minVersion: '0.166.0',
     testedMax: '0.166.99',
   },
@@ -71,8 +74,10 @@ export const CODEX: AgentDescriptor = assertDescriptor({
     apiKeyEnv: ['OPENAI_API_KEY'],
   },
   envAllow: [],
-  // Enforcement is wired (F4) but the policy stays 'unrestricted' until the conformance probe (F6)
-  // passes against it: nothing offers Codex before then.
+  // Enforcement is wired (F4) but the policy stays 'unrestricted' until the conformance probe (F6,
+  // acp/agents/conformance.ts) passes every check: nothing offers Codex before then. Failing on
+  // 2026-11-12: a write into `.design/_state/` is allowed by the Seatbelt profile, and the person's
+  // own MCP servers (~/.codex/config.toml) still start — `mcp_servers: {}` merges, it does not replace.
   policy: 'unrestricted',
   enforcement: {
     launchPolicy: (ctx) => codexLaunchPolicy(ctx),
@@ -99,7 +104,9 @@ export const OPENCODE: AgentDescriptor = assertDescriptor({
   launch: { kind: 'native-acp', args: ['acp'] },
   auth: { gate: 'none', loginArgs: ['auth', 'login'] },
   envAllow: [],
-  // As Codex: enforcement wired (F4), 'unrestricted' until the conformance probe (F6) passes.
+  // As Codex: enforcement wired (F4), 'unrestricted' until the conformance probe (F6) passes every
+  // check. Failing on 2026-11-12 (1.18.30, project outside git and its own git repo): the person's own
+  // MCP servers (global opencode.json) still start — `mcp: {}` merges, it does not replace.
   policy: 'unrestricted',
   enforcement: {
     launchPolicy: (ctx) => opencodeLaunchPolicy(ctx),

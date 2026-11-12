@@ -1,0 +1,61 @@
+#!/usr/bin/env bun
+// Run the ACP conformance probe (acp/agents/conformance.ts) against the agents installed on THIS
+// machine. Local only, never in CI: it needs the real codex / opencode binaries. Offline (loopback
+// scripted model), scratch HOME, no credentials.
+//
+//   bun apps/studio/scripts/acp-conformance-local.ts [codex|opencode ...]
+//       [--codex-bin <path>]     probe another codex binary (e.g. a scratch @openai/codex install)
+//       [--git none|project|both] opencode project outside git / its own git repo (default both)
+//       [--frames <dir>]          write every frame + model request per run
+//       [--keep]                  keep the scratch worlds
+//       [--json]                  print the raw results
+
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { agentById } from '../acp/agents/catalog.ts';
+import { type ConformanceResult, runConformance } from '../acp/agents/conformance.ts';
+import { discoverAgents } from '../acp/agents/discover.ts';
+
+const argv = process.argv.slice(2);
+const flag = (n: string) => {
+  const i = argv.indexOf(n);
+  return i >= 0 ? argv[i + 1] : undefined;
+};
+const valued = new Set(['--codex-bin', '--git', '--frames']);
+const ids = argv.filter((a, i) => !a.startsWith('--') && !valued.has(argv[i - 1] ?? ''));
+const wanted = ids.length ? ids : ['codex', 'opencode'];
+const gitModes =
+  (flag('--git') ?? 'both') === 'both' ? ['none', 'project'] : [flag('--git') as string];
+const frames = flag('--frames');
+if (frames) mkdirSync(frames, { recursive: true });
+
+const rows = await discoverAgents({ force: true });
+const results: { label: string; result: ConformanceResult }[] = [];
+for (const id of wanted) {
+  const d = agentById(id);
+  if (!d) throw new Error(`unknown agent ${id}`);
+  const row = rows.find((r) => r.id === id);
+  const bin = id === 'codex' ? (flag('--codex-bin') ?? row?.realBin) : row?.realBin;
+  if (!bin) {
+    console.log(`${id}: not installed`);
+    continue;
+  }
+  const modes = id === 'opencode' ? gitModes : ['none'];
+  for (const git of modes) {
+    const label = `${id} ${git === 'project' ? '(project is a git repo)' : '(no git)'}`;
+    const t = Date.now();
+    const result = await runConformance(d, bin, {
+      git: git as 'none' | 'project',
+      keepScratch: argv.includes('--keep'),
+      framesLog: frames ? join(frames, `${id}-${git}.ndjson`) : undefined,
+    });
+    results.push({ label, result });
+    console.log(
+      `\n${label} — ${bin} v${result.agentVersion ?? '?'} — ${result.pass ? 'PASS' : 'FAIL'} in ${Math.round((Date.now() - t) / 1000)} s`
+    );
+    for (const c of result.checks)
+      console.log(`  ${c.ok ? 'ok  ' : 'FAIL'} ${c.name}: ${c.detail}`);
+  }
+}
+if (argv.includes('--json')) console.log(JSON.stringify(results, null, 2));

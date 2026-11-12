@@ -14,8 +14,9 @@
 // - The block is repeated at `agent.build.permission` and `agent.plan.permission` (B0 open q. 6): an
 //   agent-level block in the person's global config may beat the global one.
 // - `mcp:{}` + `plugin:[]` (open q. 3): the person's own MCP servers and plugins would run outside
-//   every gate. UNVERIFIED whether OPENCODE_CONFIG_CONTENT replaces or merges these with the global
-//   config's: the conformance probe (F6) must plant one and check it does not start.
+//   every gate. MEASURED by the F6 conformance probe (1.18.30): `mcp:{}` MERGES with the global
+//   opencode.json, it does not replace it — a planted MCP server still started. Open (contract note,
+//   "F6 conformance results"); plugins were not probed.
 //
 // Pure: no file system, no process.
 

@@ -291,3 +291,35 @@ The pass/fail is read from **what the scripted model received back as tool outpu
 - A credential store inside the git root is not covered: `external_directory` never applies there, and `read` is `allow`.
 - The git-root boundary (B0 gap b) is unchanged.
 - `glob` can list file *names* under an allowed root.
+
+## F6 conformance results (B5 bundling + F6/F7)
+
+- **Date:** 2026-11-12 · **Probe:** `apps/studio/acp/agents/conformance.ts` (`runConformance`), local runner `apps/studio/scripts/acp-conformance-local.ts`, CI against fake agents `apps/studio/test/acp-conformance.test.ts`.
+- **Adapter:** `@agentclientprotocol/codex-acp` **2.5.0** (published 2026-10-29, pinned; one pre-bundled `dist/index.js`, node builtins only, 2.1 MB). `@openai/codex` is overridden away (bun: an empty stub; pnpm: `'-'`), so the 350 MB natives are never installed or staged.
+- **Method:** production spawn (`agentSpawn` + the descriptor's launch policy + mode pin), the bridge's own gate (`createPermissionGate`) answering every `request_permission`, the simulated person **declining** every card. Scratch HOME/XDG/CODEX_HOME under `~/.maude-conformance/<rand>` (inside the `/Users` tree the Codex profile denies), loopback scripted model, loopback curl canary, an MCP server planted in the scratch **user** config. Verdict = what the model received as tool output, plus the disk for writes. Every run took 4–11 s and removed its scratch world.
+- **Runtime-state target is `.design/_state/`, not `_history/`:** `write-scope.ts` `AGENT_RUNTIME_OUTPUTS` lets the agent write `_history/` (its research cache), so the gate auto-approves it by design.
+
+| Check | codex 0.154.0 | codex 0.165.0 | codex 0.166.0 | opencode 1.18.30, no git | opencode 1.18.30, project is a git repo |
+| --- | --- | --- | --- | --- | --- |
+| session + mode pin (`workspace-write`) | ok | ok | ok | ok (no modes) | ok |
+| read of a fake secret outside the roots | ok (Seatbelt: `cat … Operation not permitted`) | ok | ok | ok (refused by opencode) | ok |
+| in-project read | ok | ok | ok | ok | ok |
+| in-project write, no card | ok | ok | ok | ok (gate `allow_once`) | ok |
+| out-of-project write | ok (Seatbelt) | ok | ok | ok (refused by opencode) | ok |
+| write into `.design/_state/` | **FAIL** (the profile grants the scope `write`) | **FAIL** | **FAIL** | ok (gate card, declined) | ok |
+| `curl` to a loopback canary | ok (sandbox: connect refused, canary never hit) | ok | ok | ok (gate card, declined) | ok |
+| sub-agent reads the secret | ok (`multi_agent_v1/spawn_agent` child: denied, so the profile is inherited) | ok | ok | ok (`task` child: refused) | ok |
+| web tool absent from the tool list | ok | ok | ok | ok (`bash, edit, glob, grep, read, skill, task, todowrite, write`) | ok |
+| user MCP server does not start | **FAIL** | **FAIL** | **FAIL** | **FAIL** | **FAIL** |
+| no `fs/*`/`terminal/*` beyond a post-hoc write mirror | ok (never called) | ok | ok | ok (`fs/write_text_file` mirror of the approved in-project write, refused) | ok |
+| tripwire silent | ok | ok | ok | ok | ok |
+
+**Findings.**
+1. **Open question 3 answered: both overrides MERGE.** Codex `CODEX_CONFIG.mcp_servers = {}` does not stop a server in `CODEX_HOME/config.toml`; nor does `mcp_servers.<name>.enabled = false` (measured on 0.154 — the session config reaches app-server after it started its MCP servers). opencode `mcp: {}` does not stop a server in the global `opencode.json`. Fix options (not chosen here): a Maude-owned `CODEX_HOME` / `XDG_CONFIG_HOME` shadow holding only the auth file, or reading the person's config at spawn and disabling each server by name (works for opencode only if a per-name `enabled:false` is honoured — unmeasured).
+2. **Codex runtime state is writable** inside the scope: the profile's `write` on the scope root covers `.design/_state/`. Expected — another worker adds the runtime-state deny to the profile; this check is the gate for it.
+3. **Open question 5 answered: sub-agents inherit the boundary** (Codex `multi_agent_v1` children run under the same Seatbelt profile; opencode `task` children under the same permission engine).
+4. **Open question 1:** codex-acp 2.5.0 drives 0.154's app-server with the same results as 0.165/0.166. No version passed in full, so `minVersion` stays 0.166.0; on a full pass it can drop to 0.154.0.
+5. The Codex account check reads the **user** config, not `CODEX_CONFIG`: with no login, `session/new` answers "Authentication required" unless the scratch `config.toml` names a provider with `requires_openai_auth = false`. The probe writes one; production is unaffected.
+6. Under the Codex profile, `mkdir -p <absolute path>` fails (`mkdir: /Users: Operation not permitted`) because `/Users` is unreadable — an agent's absolute `mkdir -p` inside the project can fail for that reason alone.
+
+**Verdict:** both stay `unrestricted`. Codex needs (1) + (2); opencode needs (1).
