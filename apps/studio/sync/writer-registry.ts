@@ -607,6 +607,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   // S11.13 routes/settings.ts — Settings › Advanced reads (a count; plugin versions)
   '/_api/kg/summary': { class: 'read' },
   '/_api/settings/about': { class: 'read' },
+  '/_api/agents': { class: 'read' }, // routes/agents.ts (F2): ACP agents on this Mac, a bounded --version probe, no effect
   '/_api/sync/availability': { class: 'read' }, // routes/availability.ts (S11.4): listed minus on disk, no effect
   '/_api/sync/conflicts': { class: 'read' }, // routes/sync-conflicts.ts (S9.24): this Mac's _state/conflicts/, no effect
   // S9.24 — a conflict pick is the canvas's own op path: one batch, one annotations lane.replace.

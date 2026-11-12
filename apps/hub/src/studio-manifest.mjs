@@ -403,6 +403,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // S11.13 — a cell has no local decision graph and no desktop runtime to describe: refused there.
   '/_api/kg/summary': REFUSED,
   '/_api/settings/about': REFUSED,
+  // F2 — which ACP agents are installed is a fact about one Mac; a cell runs no local AI
+  '/_api/agents': REFUSED,
   // S8.19 — asset state merges THIS machine's disk + upload queue with its linked hub's
   // presence. A cell is the hub: its studio has no peer hub to ask, and a browser member's
   // client reads a refusal as the quiet "Not here yet" (contract §5.5, offline row).

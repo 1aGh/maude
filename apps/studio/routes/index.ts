@@ -17,6 +17,7 @@
 import { resolveAccess } from '../access/scope.ts';
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
+import { createAgentsRoutes } from './agents.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
 import { type AssetDetailsRouteDeps, createAssetDetailsRoutes } from './asset-details.ts';
@@ -232,6 +233,8 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.export ? createExportRoutes(deps.export) : []),
     // S7.4 — GET /_api/comp-media (routes/video.ts): the comp's words, speech and beats derived from
     // its cut. It needs only the design root and its name, which the present and ai deps already carry.
+    // F2 — GET /_api/agents (routes/agents.ts): which ACP agents this Mac has (privileged, main origin)
+    ...createAgentsRoutes(),
     ...createVideoRoutes({
       designRoot: deps.present.designRoot,
       designRel: deps.ai.designRel,

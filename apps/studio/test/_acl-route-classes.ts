@@ -40,6 +40,8 @@ const NONE = [
   // A6b-2 — S11.13 Settings › Advanced reads: a number, plugin versions
   '/_api/kg/summary',
   '/_api/settings/about',
+  // F2 — which ACP agents this Mac has: about the machine, no canvas in it
+  '/_api/agents',
   '/_api/shell/status',
   '/_api/shell/attest', // #206: one MAC over a nonce
   '/_api/workspace/disclosure',
