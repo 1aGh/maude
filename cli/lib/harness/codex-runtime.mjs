@@ -9,6 +9,7 @@ import {
   realpath,
   rename,
   rm,
+  stat,
   writeFile,
 } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
@@ -78,6 +79,36 @@ async function syncCodexRuntimeLocked({
     plugins: {},
   });
   if (prior.schemaVersion !== RUNTIME_SCHEMA_VERSION) prior.plugins = {};
+  const launchArguments = ['-c', 'skills.max_context_tokens=10000', ...permissionLaunch.args];
+  const permissionSummary = {
+    permissionMode: permissionLaunch.mode,
+    permissionProjection: permissionLaunch.reason,
+  };
+  // #226 — every input this sync projects, plus Codex's own config.toml (where the plugin CLI
+  // records marketplaces, plugins and MCP servers). Unchanged since the last completed sync →
+  // nothing to do, and no Codex plugin-CLI call (each one can take tens of seconds with many
+  // marketplaces). Any change, including one the person made in Codex, runs the full sync.
+  const fingerprintInput = {
+    codexExecutable,
+    codexHome,
+    projectRoot,
+    projectTrusted,
+    desiredPlugins,
+    home,
+  };
+  if (
+    prior.schemaVersion === RUNTIME_SCHEMA_VERSION &&
+    prior.summary &&
+    typeof prior.fingerprint === 'string' &&
+    prior.fingerprint === (await runtimeFingerprint(fingerprintInput))
+  ) {
+    return {
+      launchArguments,
+      launchEnvironment: {},
+      permissionMode: permissionLaunch.mode,
+      summary: { ...prior.summary, ...permissionSummary, upToDate: true },
+    };
+  }
   const marketplaceList = runCodexJson(
     codexExecutable,
     ['plugin', 'marketplace', 'list', '--json'],
@@ -173,21 +204,63 @@ async function syncCodexRuntimeLocked({
   prior.agents = agents.state;
   prior.mcps = mcp.state;
   prior.schemaVersion = RUNTIME_SCHEMA_VERSION;
+  const summary = {
+    marketplaces: [...marketplaceSources.keys()].sort(),
+    agents: [],
+    unsupportedAgents: 'Codex custom agents inherit the parent tool registry',
+    mcps: Object.keys(mcp.state).sort(),
+    plugins: [...desiredIds].sort(),
+  };
+  prior.summary = summary;
+  // Taken AFTER the sync: config.toml now holds what this sync wrote, so the next unchanged launch
+  // matches it.
+  prior.fingerprint = await runtimeFingerprint(fingerprintInput);
   await writeOwnedFile(statePath, `${JSON.stringify(prior, null, 2)}\n`, stateRoot);
   return {
-    launchArguments: ['-c', 'skills.max_context_tokens=10000', ...permissionLaunch.args],
+    launchArguments,
     launchEnvironment: {},
     permissionMode: permissionLaunch.mode,
-    summary: {
-      marketplaces: [...marketplaceSources.keys()].sort(),
-      agents: [],
-      unsupportedAgents: 'Codex custom agents inherit the parent tool registry',
-      mcps: Object.keys(mcp.state).sort(),
-      plugins: [...desiredIds].sort(),
-      permissionMode: permissionLaunch.mode,
-      permissionProjection: permissionLaunch.reason,
-    },
+    summary: { ...summary, ...permissionSummary },
   };
+}
+
+/**
+ * #226 — what a sync depends on: the Codex binary (path, size, mtime), Codex's config.toml as it
+ * is now, the project and its trust, each projected plugin's verified source hash, and the
+ * person's Claude MCP definitions. Only the hash is stored.
+ */
+async function runtimeFingerprint({
+  codexExecutable,
+  codexHome,
+  projectRoot,
+  projectTrusted,
+  desiredPlugins,
+  home,
+}) {
+  let exe = null;
+  try {
+    const st = await stat(codexExecutable);
+    exe = [codexExecutable, st.size, st.mtimeMs];
+  } catch {
+    exe = [codexExecutable, null, null];
+  }
+  let config = '';
+  try {
+    config = await readFile(join(codexHome, 'config.toml'), 'utf8');
+  } catch {
+    config = '';
+  }
+  return sha256(
+    JSON.stringify({
+      v: RUNTIME_SCHEMA_VERSION,
+      exe,
+      config: sha256(config),
+      projectRoot,
+      projectTrusted,
+      plugins: desiredPlugins.map((item) => [item.name, item.sourceHash]),
+      mcp: await readClaudeMcp(home),
+    })
+  );
 }
 
 export function buildCodexPermissionLaunch(items, projectRoot, projectTrusted) {
@@ -673,13 +746,27 @@ function runCodexJson(executable, args, cwd, codexHome, extraEnv = {}) {
   }
 }
 
+/** One Codex CLI call's limit: MAUDE_CODEX_SYNC_TIMEOUT_MS (1 s – 10 min), default 120 s. */
+function codexCallTimeoutMs() {
+  const n = Number.parseInt(process.env.MAUDE_CODEX_SYNC_TIMEOUT_MS ?? '', 10);
+  return Number.isFinite(n) ? Math.min(Math.max(n, 1000), 600_000) : 120_000;
+}
+
 function runCodex(executable, args, cwd, codexHome, extraEnv = {}) {
+  const timeout = codexCallTimeoutMs();
   const result = spawnSync(executable, args, {
     cwd,
     encoding: 'utf8',
     env: { ...process.env, ...extraEnv, CODEX_HOME: codexHome },
-    timeout: 120_000,
+    timeout,
   });
+  if (result.error?.code === 'ETIMEDOUT') {
+    throw new Error(
+      `codex ${args.slice(0, 3).join(' ')} did not answer within ${Math.round(timeout / 1000)} s ` +
+        'while maude synced your Claude setup into Codex. Run Codex directly ' +
+        `(MAUDE_CODEX_REAL=${executable}, or that binary itself), or try \`maude codex sync\` again.`
+    );
+  }
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(

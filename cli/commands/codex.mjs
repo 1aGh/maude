@@ -6,8 +6,42 @@ import { delimiter, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { parseArgs } from '../lib/argv.mjs';
 import { assertCodexPermissionAuthority, syncCodexRuntime } from '../lib/harness/codex-runtime.mjs';
 
-export async function run({ args, io = defaultIo() }) {
+/**
+ * #226 — Codex commands that read nothing Maude projects (version, help, sign-in, shell
+ * completion) go straight to the real binary: no Claude-state sync, no plugin-CLI calls.
+ */
+const PASS_THROUGH_FIRST = new Set([
+  '--version',
+  '-V',
+  '--help',
+  '-h',
+  'help',
+  'login',
+  'logout',
+  'completion',
+]);
+
+export function isPassThroughCodexCommand(args) {
+  return args.length > 0 && PASS_THROUGH_FIRST.has(args[0]);
+}
+
+export async function run({ args, io = defaultIo(), sync = syncCodexRuntime, stdio = 'inherit' }) {
   const syncOnly = args[0] === 'sync';
+  if (!syncOnly && isPassThroughCodexCommand(args)) {
+    if (process.env.MAUDE_CODEX_BRIDGE_ACTIVE === '1') {
+      throw new Error(
+        'refusing recursive maude codex launch; set MAUDE_CODEX_REAL to the real binary'
+      );
+    }
+    const executable = await resolveCodexExecutable(undefined);
+    const result = spawnSync(executable, args, {
+      env: { ...process.env, MAUDE_CODEX_BRIDGE_ACTIVE: '1' },
+      stdio,
+    });
+    if (result.error) throw result.error;
+    process.exitCode = result.status ?? 1;
+    return { passThrough: true, exitCode: process.exitCode };
+  }
   const { flags } = syncOnly ? parseArgs(args.slice(1), { booleans: ['json'] }) : { flags: {} };
   const launchArgs = [...args];
   if (!syncOnly) assertLocalCodexTarget(launchArgs);
@@ -36,7 +70,7 @@ export async function run({ args, io = defaultIo() }) {
     throw new Error('CODEX_HOME must resolve outside the current project for maude codex');
   }
   const executable = await resolveCodexExecutable(explicitExecutable);
-  const synced = await syncCodexRuntime({
+  const synced = await sync({
     codexExecutable: executable,
     codexHome,
     home,

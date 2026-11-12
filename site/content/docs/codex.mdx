@@ -43,7 +43,9 @@ To test unreleased plugin changes, register your checkout root instead:
 ### Existing `maude codex` installations
 
 Check `type -a codex`. If it resolves to a wrapper around `maude codex`, use the
-actual Codex binary for direct native installation. The updated Maude launcher
+actual Codex binary for direct native installation. The wrapper syncs your Claude setup into Codex
+only when something changed since the last launch; `codex --version`, `--help`, `login` and
+`completion` go straight to Codex with no sync. The updated Maude launcher
 preserves source-owned native packages; older launcher versions can rewrite
 mirrored command entries. Use one owner for each `design@maude` / `flow@maude`
 installation. Do not layer direct installation over a conflicting managed mirror
