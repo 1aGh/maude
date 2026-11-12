@@ -3,6 +3,17 @@
   "currentPhase": null,
   "phases": [
     {
+      "id": "fix-ds-screen-224-225",
+      "title": "Design system screen: #224 + #225",
+      "status": "done",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Owner: Michal (via keeper, 2026-11-12) · Lead: Maude v2 session · Target: next patch after 2.2.0. Push, tag and release need Michal's OK.",
+      "planPath": ".ai/plans/archive/fix-ds-screen-224-225.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
       "status": "done",
@@ -2478,6 +2489,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-universal-acp-and-codex",
+      "title": "Feature: Universal AI chat (Codex and any ACP agent) + the terminal quick start",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/feature-universal-acp-and-codex.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
       "id": "feature-video-tracking-and-stabilization",
       "title": "Feature: Video tracking & stabilization — a solve you can trust, as data",
       "status": "planned",
@@ -2485,17 +2507,6 @@
       "date": null,
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
       "planPath": ".ai/plans/feature-video-tracking-and-stabilization.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
-      "id": "fix-ds-screen-224-225",
-      "title": "Design system screen: #224 + #225",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Owner: Michal (via keeper, 2026-11-12) · Lead: Maude v2 session · Target: next patch after 2.2.0. Push, tag and release need Michal's OK.",
-      "planPath": ".ai/plans/fix-ds-screen-224-225.md",
       "archived": false,
       "phaseKey": null
     },
