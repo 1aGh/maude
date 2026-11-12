@@ -257,3 +257,37 @@ The pass/fail is read from **what the scripted model received back as tool outpu
 | F6 (B3) | Conformance probe harness (scripted loopback model + client) as a test fixture + a runtime check at connect | `test/fixtures/acp-conformance/*`, `acp/agents/conformance.ts` | runs offline against fake agents in CI; against real codex/opencode locally; fails on a planted policy regression |
 | F7 (B5) | Bundle codex-acp `dist/index.js` pinned (≥ 2 weeks old), staged without deps; `check-bundle-completeness --smoke` green | `apps/studio/package.json`, `apps/desktop/scripts/stage-resources.mjs`, `helper-deps.mjs` | the `.app` starts codex-acp under bundled bun with `CODEX_PATH` set; no `@openai/codex` in the bundle |
 | F8 (B8) | Gemini through `gateway` auth to the scripted model; verdict | `acp/agents/catalog.ts`, conformance test | verdict recorded; catalog entry enabled or left `unrestricted` |
+
+## F4 measurement: opencode `external_directory` as a path map (open question 2)
+
+- **Date:** 2026-11-12 · opencode 1.18.30 (`/opt/homebrew/bin/opencode acp`) · project **outside any git repo** · scratch `HOME`/`XDG_*`, env built from scratch, loopback scripted model (B0 harness), no account, no network. The config was the production builder's own output (`opencodeConfig(ctx, true)` from `apps/studio/acp/policy/launch-opencode.ts`) plus the mock provider. The client approved every `request_permission`, so opencode's engine was the only gate. Ground truth = the tool output the scripted model received.
+- Layout: `proj/` (cwd), `granted/` (a read root outside the project) holding `ok.txt` and a credential store `granted/creds/key.txt`, `granted2/` (a read root with no credential store), `outside/secret.txt` (not a root).
+
+| Scripted call | Map `{"*":"deny", "<root>/**":"allow", "<cred>":"deny", "<cred>/**":"deny"}` | Same map, credential denies written **first** |
+| --- | --- | --- |
+| `read granted/ok.txt` | content | content |
+| `read outside/secret.txt` | refused by opencode | refused |
+| `read granted/creds/key.txt` | **refused** | **content** (`FAKE-CRED-789`) |
+| `glob granted` | lists names, incl. `creds/key.txt` | same |
+| `glob outside` | refused | refused |
+| `bash cat outside/secret.txt` | refused (no card) | refused |
+| `bash cat granted/ok.txt` | `kind:execute` card, then content | same |
+| `write granted/w.txt` | `kind:edit` card with `locations`, then written | same |
+| `write outside/w.txt` | refused | refused |
+| `grep FAKE granted` | **`FAKE-CRED-789`**: grep is judged by its search root only | same |
+| `bash cat granted/creds/key.txt` | refused | content |
+| `read proj/notes.txt` | content | content |
+
+**Result.**
+1. The map works: re-allowed roots are readable (read, glob, grep, `bash cat`), everything else stays refused by opencode itself.
+2. **Last match wins.** Key order is load-bearing: `*` first, then the roots, then the credential denies. JSON key order survives `JSON.stringify` because every key is a path or `*`, never integer-like.
+3. **`grep`/`glob` ignore a deny under their search root.** A grep over an allowed root read the credential file inside it. So a root that contains (or sits in) a credential store must not be re-allowed. The builder drops it. Re-run with that rule: every call under `granted/` refused (grep included), `granted2/` read + grep allowed, project read allowed.
+4. An allowed root also opens **writes** there to `edit:"ask"`. The bridge then decides by `writeRoots` (a card for anything outside). With the string `"deny"`, opencode refused those writes itself.
+5. `plugin: []`, `mcp: {}` and the `agent.build`/`agent.plan` permission blocks load without error. The tool list the model received was `bash, edit, glob, grep, read, skill, task, todowrite, write`: no `webfetch`/`websearch`. `task` (sub-agents, open question 5) and `skill` are still there.
+
+**Decision.** `OPENCODE_EXTERNAL_DIRECTORY_MAP = true`. The map is built from `ctx.readRoots`, with credential-adjacent roots dropped, and credential denies last.
+
+**Gaps that stay.**
+- A credential store inside the git root is not covered: `external_directory` never applies there, and `read` is `allow`.
+- The git-root boundary (B0 gap b) is unchanged.
+- `glob` can list file *names* under an allowed root.

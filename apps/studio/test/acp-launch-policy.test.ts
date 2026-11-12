@@ -8,6 +8,7 @@ import { codexLaunchPolicy, userTrees } from '../acp/policy/launch-codex.ts';
 import {
   OPENCODE_EXTERNAL_DIRECTORY_MAP,
   OPENCODE_FLAGS,
+  externalDirectory,
   opencodeLaunchPolicy,
 } from '../acp/policy/launch-opencode.ts';
 
@@ -149,13 +150,50 @@ describe('opencode launch policy', () => {
     expect(p.bash).toBe('ask');
     expect(p.webfetch).toBe('deny');
     expect(p.websearch).toBe('deny');
-    if (OPENCODE_EXTERNAL_DIRECTORY_MAP) {
-      const ext = p.external_directory as Record<string, string>;
-      expect(Object.keys(ext)[0]).toBe('*');
-      expect(ext['*']).toBe('deny');
-    } else {
-      expect(p.external_directory).toBe('deny');
-    }
+    // F4 measured the map (contract note, "F4 measurement"): it is the default
+    expect(OPENCODE_EXTERNAL_DIRECTORY_MAP).toBe(true);
+    expect(typeof p.external_directory).toBe('object');
+  });
+
+  test('external_directory map: deny all, re-allow read roots, then deny credentials (last match wins)', () => {
+    const ext = externalDirectory(ctx(), true) as Record<string, string>;
+    expect(Object.entries(ext)).toEqual([
+      ['*', 'deny'],
+      // '/Users/u/git/proj' holds the credential store '.secrets': never re-allowed (grep would reach it)
+      ['/Users/u/git/proj/.design/**', 'allow'],
+      ['/Applications/Maude.app/Contents/Resources/**', 'allow'],
+      ['/var/folders/x/T/maude-chat-501/abc/default/**', 'allow'],
+      ['/Users/u/.config/maude', 'deny'],
+      ['/Users/u/.config/maude/**', 'deny'],
+      ['/Users/u/.ssh', 'deny'],
+      ['/Users/u/.ssh/**', 'deny'],
+      ['/Users/u/git/proj/.secrets', 'deny'],
+      ['/Users/u/git/proj/.secrets/**', 'deny'],
+      ['/Users/u/Library/Application Support/com.maude.app/servers.json', 'deny'],
+      ['/Users/u/Library/Application Support/com.maude.app/servers.json/**', 'deny'],
+    ]);
+  });
+
+  test('a read root around or inside a credential store is not re-allowed', () => {
+    const ext = externalDirectory(
+      ctx({ readRoots: ['/Users/u', '/Users/u/.ssh/keys', '/Users/u/git/lib'] }),
+      true
+    ) as Record<string, string>;
+    expect(ext['/Users/u/**']).toBeUndefined();
+    expect(ext['/Users/u/.ssh/keys/**']).toBeUndefined();
+    expect(ext['/Users/u/git/lib/**']).toBe('allow');
+  });
+
+  test('the string form when the map is off', () => {
+    expect(externalDirectory(ctx(), false)).toBe('deny');
+    expect(
+      JSON.parse(opencodeLaunchPolicy(ctx(), false).env.OPENCODE_CONFIG_CONTENT ?? '{}').permission
+        .external_directory
+    ).toBe('deny');
+  });
+
+  test('the disk root as a read root throws (it would re-allow everything)', () => {
+    expect(() => opencodeLaunchPolicy(ctx({ readRoots: ['/'] }))).toThrow(/disk root/);
   });
 
   test('the same block at the global, agent.build and agent.plan levels', () => {

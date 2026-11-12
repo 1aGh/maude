@@ -48,13 +48,13 @@ export function absPath(p: unknown, what: string): string {
 }
 
 /** A grant root: absolute, and never the disk root (a grant there would cancel every deny). */
-function rootPath(p: unknown, what: string): string {
+export function rootPath(p: unknown, what: string): string {
   const abs = absPath(p, what);
   if (abs === DISK_ROOT) throw new Error(`launch policy: ${what} may not be the disk root`);
   return abs;
 }
 
-const inside = (p: string, root: string) =>
+export const inside = (p: string, root: string) =>
   p === root || p.startsWith(root.endsWith(sep) ? root : `${root}${sep}`);
 
 /**

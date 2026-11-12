@@ -20,15 +20,22 @@
 // Pure: no file system, no process.
 
 import type { LaunchPolicy, PolicyCtx } from '../agents/descriptor.ts';
-import { absPath } from './launch-codex.ts';
+import { absPath, inside, rootPath } from './launch-codex.ts';
 
 /**
- * B0 open question 2 — `external_directory` as a path map that re-allows the read roots
- * (`{"*":"deny","<root>/**":"allow"}`). Default `false`: the string `"deny"` (measured in B0), so
- * folder grants stay unavailable for opencode. Set from the F4 measurement (contract note,
- * "F4 measurement").
+ * B0 open question 2: `external_directory` as a path map that re-allows the read roots.
+ *
+ * Measured in F4 (contract note, "F4 measurement"; opencode 1.18.30, project outside git): a map
+ * `{"*":"deny","<root>/**":"allow",…}` re-allows read / glob / `bash cat` under a root and keeps
+ * everything else refused. Rules are LAST MATCH WINS (a credential deny written before the allow
+ * was overridden), so the order in `externalDirectory` is load-bearing. `grep`/`glob` are judged by
+ * their SEARCH root only: a grep over an allowed root read a credential file inside it. Hence a
+ * root that contains (or sits in) a credential store is never re-allowed.
+ *
+ * `true` = the measured map; `false` = the string `"deny"` (B0), which leaves every read root
+ * outside the git root unreadable for opencode.
  */
-export const OPENCODE_EXTERNAL_DIRECTORY_MAP = false;
+export const OPENCODE_EXTERNAL_DIRECTORY_MAP = true;
 
 /** Env flags: never the served repo's own config, never ~/.claude, no updates/sharing/downloads. */
 export const OPENCODE_FLAGS: Readonly<Record<string, string>> = Object.freeze({
@@ -43,21 +50,23 @@ export const OPENCODE_FLAGS: Readonly<Record<string, string>> = Object.freeze({
 
 type Rule = 'allow' | 'ask' | 'deny';
 
-/** The `external_directory` value: the measured string, or the opt-in map built from the roots. */
+/** The `external_directory` value: the map built from the read roots, or the string `"deny"`. */
 export function externalDirectory(
   ctx: PolicyCtx,
   useMap: boolean = OPENCODE_EXTERNAL_DIRECTORY_MAP
 ): Rule | Record<string, Rule> {
-  const roots = ctx.readRoots.map((r) => absPath(r, 'read root'));
+  const roots = ctx.readRoots.map((r) => rootPath(r, 'read root'));
   const creds = [
     ...ctx.credentialPaths.dirs.map((d) => absPath(d, 'credential dir')),
     ...ctx.credentialPaths.files.map((f) => absPath(f, 'credential file')),
   ];
   if (!useMap) return 'deny';
-  // Later keys win in opencode's matcher (last match), so: deny all, re-allow the roots, then
-  // deny every credential store again in case one sits inside a root.
+  // A root on, in, or around a credential store is not re-allowed: grep/glob over it would reach
+  // the store's contents whatever the deny below says (measured).
+  const clear = (r: string) => !creds.some((c) => inside(r, c) || inside(c, r));
+  // Last match wins (measured): deny all, re-allow the roots, then deny the credential stores again.
   const map: Record<string, Rule> = { '*': 'deny' };
-  for (const r of roots) map[`${r}/**`] = 'allow';
+  for (const r of roots) if (clear(r)) map[`${r}/**`] = 'allow';
   for (const c of creds) {
     map[c] = 'deny';
     map[`${c}/**`] = 'deny';
