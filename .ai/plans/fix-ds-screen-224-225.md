@@ -19,14 +19,14 @@
 - [x] **D1** (24a508e7a) #224: root cause and fix, with a fail-first regression test.
 - [x] **D2** (65a62bf39) #225: the DS bar uses the same placement as the canvas pill (and the same component or layout where possible). Fix with a fail-first test, plus a pin that the top bar sits at the same position on the DS canvas as on a canvas.
 - [x] **D3** Gates, release bundle, mini suites. Affected desktop e2e lanes run only with the no-dialog env, and heavy lanes on the mini where possible.
-- [ ] **D4** Comment on each issue with its commit. Release only with Michal's OK.
+- [x] **D4** Comment on each issue with its commit. Release only with Michal's OK.
 
 ## Acceptance Criteria
 
 - [x] #224 fixed with a fail-first test. — 24a508e7a: the pinned Design system strip (65 artboards on studyfi-v3) pushed the canvas list out of the clipped panel; .lp-pinned now scrolls, capped at 40 %.
 - [x] #225 fixed with a fail-first test and a position pin (DS vs canvas). — 65a62bf39: the DS bar renders the pill's CanvasTopIsland; board.css copy removed.
 - [x] Gates + suites green; no dialogs; real config untouched; Michal's projects only read (repro on unlinked copies). — e2e parity, tabs, ds-review, ds-edges, ds-reach, pages-view green (sidecar probed, config unchanged); mini studio 24427/1 (the known load-failure-slot flake) + the pre-existing happy-dom error.
-- [ ] Issues commented with their fix commit.
+- [x] Issues commented with their fix commit. — v2.2.1 tagged on e39742b9a; #224 and #225 commented and closed.
 
 ## Rules
 
@@ -36,3 +36,5 @@ Same as `.ai/scenarios/fix-bulk-2026-11-10/brief.md`.
 
 - 2026-11-12: Opened from the keeper's message. main = v2.2.0 (a9e53d05a).
 - 2026-11-12: #224 and #225 merged; the pill's canvas-theme-row testid mapped (7c492d2a7). Fast gates, bundle, boot check and smoke pass. Running: the mini studio suite and the desktop e2e lanes parity, tabs, ds-review, ds-edges, ds-reach and pages-view.
+- 2026-11-12: Released v2.2.1 (Michal's OK). #224 and #225 closed with their commits.
+- 2026-11-12: v2.2.1 is out: npm latest 2.2.1, cell 2.2.1, the GitHub release has 15 assets. Quality on main went red again on the off-screen export test: the booted server's shim had no Chromium in its sandbox. The test now returns early on the shim's 'isn't installed' answer.
