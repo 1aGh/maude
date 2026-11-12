@@ -4,7 +4,8 @@ import { describe, expect, test } from 'bun:test';
 
 import { CODEX, OPENCODE, isOfferable } from '../acp/agents/catalog.ts';
 import type { PolicyCtx } from '../acp/agents/descriptor.ts';
-import { codexLaunchPolicy, userTrees } from '../acp/policy/launch-codex.ts';
+import { RUNTIME_STATE_DIRS } from '../sync/file-membership.ts';
+import { codexLaunchPolicy, runtimeStateDirs, userTrees } from '../acp/policy/launch-codex.ts';
 import {
   OPENCODE_EXTERNAL_DIRECTORY_MAP,
   OPENCODE_FLAGS,
@@ -36,6 +37,11 @@ function ctx(over: Partial<PolicyCtx> = {}): PolicyCtx {
     ...over,
   };
 }
+
+/** The runtime-state folders of the fixture's design root (DDR-115 list), read-only (B3). */
+const RUNTIME_READ_ONLY: Record<string, string> = Object.fromEntries(
+  RUNTIME_STATE_DIRS.map((d) => [`/Users/u/git/proj/.design/_${d}`, 'read'])
+);
 
 type CodexCfg = {
   web_search: string;
@@ -83,7 +89,40 @@ describe('codex launch policy', () => {
       '/Users/u/.ssh': 'none',
       '/Users/u/git/proj/.secrets': 'none',
       '/Users/u/Library/Application Support/com.maude.app/servers.json': 'none',
+      ...RUNTIME_READ_ONLY,
     });
+  });
+
+  test('B3: each design root runtime-state folder is read-only inside the writable scope', () => {
+    const fs = codexCfg(ctx()).permissions.maude.filesystem;
+    for (const d of ['_canvas-state', '_state', '_chat', '_comments', '_untrusted', '_history']) {
+      expect([d, fs[`/Users/u/git/proj/.design/${d}`]]).toEqual([d, 'read']);
+    }
+    for (const d of ['_trash', '_draw', '_smoke', '_runs']) {
+      expect([d, fs[`/Users/u/git/proj/.design/${d}`]]).toEqual([d, 'read']);
+    }
+    // the design root itself keeps what its roots gave it; the scope stays writable
+    expect(fs['/Users/u/git/proj']).toBe('write');
+  });
+
+  test('B3: every design-root spelling is covered; one outside the write roots is not named', () => {
+    const fs = codexCfg(
+      ctx({ designRoots: ['/Users/u/git/proj/.design', '/Users/u/elsewhere/.design'] })
+    ).permissions.maude.filesystem;
+    expect(fs['/Users/u/git/proj/.design/_chat']).toBe('read');
+    // naming it `read` would widen what Codex may read outside its roots
+    expect(fs['/Users/u/elsewhere/.design/_chat']).toBeUndefined();
+    expect(runtimeStateDirs(['/a/p/.design'], ['/a/p'])).toContain('/a/p/.design/_chat');
+    expect(runtimeStateDirs(['/a/p/.design'], ['/b'])).toEqual([]);
+  });
+
+  test('B3: a runtime folder inside a credential store stays denied', () => {
+    const fs = codexCfg(
+      ctx({
+        credentialPaths: { dirs: ['/Users/u/git/proj/.design/_state'], files: [] },
+      })
+    ).permissions.maude.filesystem;
+    expect(fs['/Users/u/git/proj/.design/_state']).toBe('none');
   });
 
   test('the scope root is writable even when writeRoots omits it', () => {
