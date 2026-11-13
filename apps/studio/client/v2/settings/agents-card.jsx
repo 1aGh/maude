@@ -250,6 +250,7 @@ export function AgentRow({ row, c, onAskConsent, onDisconnect }) {
         type="button"
         className={btn}
         disabled={other}
+        {...reasonProps(other, 'Another agent is connecting.')}
         onClick={() => onDisconnect(row)}
         data-testid={`settings-agent-disconnect-${row.id}`}
       >
