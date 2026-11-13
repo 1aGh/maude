@@ -3,7 +3,7 @@
 // server.ts owns the process (boot assert, env, Bun.serve, SIGTERM); this module owns what a
 // request does. It is kept free of the studio's exporters on purpose: server.ts hands it the
 // adapter runner and the format check, so these rules are testable with only the Worker's own
-// deps installed (render-deploy.yml runs `bun test apps/render/test` that way).
+// deps installed (render-image.yml runs `bun test apps/render/test` that way).
 //
 // #128 cloud comments 2–3 (T3.7, decision maude/burndown-d7-cloud-render-budget):
 //   - a cloud video renders at scale 1 with JPEG intermediate frames (`cloudRenderOptions`) — a

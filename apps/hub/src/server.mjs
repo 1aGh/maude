@@ -1417,7 +1417,7 @@ export function createHub(config = {}) {
         // roles, scopes, links, requests): the Share sheet's posture. A
         // protocol marker, not customer data, so it rides the public half.
         health.access = accessService.posture();
-        // The boot conversion's counts (v2-convert.mjs) — collected by cells-deploy.yml.
+        // The boot conversion's counts (v2-convert.mjs) — collected by the deploy repo (1aGh/maude-deploy).
         const converted = v2Conversion?.health();
         if (converted) health.v2Convert = converted;
         // 503, not 200-with-ok-false. A router reads the STATUS; a payload it

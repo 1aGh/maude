@@ -3,7 +3,7 @@
 // time with a queue of one behind it, reports progress, and lets the job's own cell cancel it.
 //
 // The service is driven with a fake adapter runner and a fake canvas proxy: it must stay importable
-// without the studio's exporters (render-deploy.yml runs `bun test apps/render/test` with only the
+// without the studio's exporters (render-image.yml runs `bun test apps/render/test` with only the
 // Worker's own deps installed).
 
 import { describe, expect, test } from 'bun:test';

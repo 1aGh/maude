@@ -47,7 +47,7 @@ test('GET /health returns JSON with expected fields', async () => {
 
 test('/health names the RELEASE, beside the bytes', async () => {
   const body = await (await fetch(`http://127.0.0.1:${PORT}/health`)).json();
-  // The field the post-deploy gate in cells-deploy.yml compares to the tag it
+  // The field the post-deploy gate in 1aGh/maude-deploy compares to the tag it
   // just deployed. It must never be absent: a gate that reads `undefined` and
   // keeps polling looks like a cold start, not like a stale image.
   assert.equal(typeof body.releaseVersion, 'string');
@@ -60,7 +60,7 @@ test('/health names the RELEASE, beside the bytes', async () => {
 test('the client identity is a TOP-LEVEL field, not nested under studio', () => {
   // THE SHAPE IS A CONTRACT, because a CI gate reads it with `jq`.
   //
-  // `cells-deploy.yml`'s post-deploy gate shipped reading
+  // the deploy repo's (1aGh/maude-deploy) post-deploy gate shipped reading
   // `.studio.client.artifacts[…]`, which is always absent — the payload builder
   // spreads `{ client: identity }` as a SIBLING of `studio`. The gate could
   // only ever time out, and it went green in review because the unit test's

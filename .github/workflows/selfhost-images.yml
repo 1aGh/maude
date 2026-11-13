@@ -3,7 +3,7 @@ name: Self-hostable images are multi-arch
 # THE RELEASE GATE FOR THE HALF NOBODY WAS WATCHING (M10).
 #
 # Two different workflows publish the two images a self-hoster runs:
-# `hub-image.yml` builds `maude-hub` for amd64 + arm64, `render-deploy.yml`
+# `hub-image.yml` builds `maude-hub` for amd64 + arm64, `render-image.yml`
 # built `maude-render` for amd64 alone. Both were green for every release after
 # DDR-230, because neither workflow reads the other and no check read the SET.
 # The result: our own AWS runbook recommends `t4g.small` (arm64), and the
@@ -67,7 +67,7 @@ jobs:
           echo "Checking $TAG"
 
       - name: Wait for both publishers to land the tag
-        # `hub-image.yml` and `render-deploy.yml` start from the same tag push
+        # `hub-image.yml` and `render-image.yml` start from the same tag push
         # and both build multi-arch under QEMU. The render image is the slow one
         # — it carries Chromium, and the arm64 half is emulated. The budget is
         # generous on purpose: waiting costs runner minutes, giving up early

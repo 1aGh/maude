@@ -29,7 +29,7 @@
 // left as it was (a format flip whose switch failed is flipped back).
 //
 // THE REPORT: one parseable line per run, `[v2-convert] converted=N skipped=N failed=N`, and the
-// same counts on `/health` as `v2Convert` (`cells-deploy.yml` collects them after the rollout).
+// same counts on `/health` as `v2Convert` (the deploy repo, 1aGh/maude-deploy, collects them after the rollout).
 
 import { asFormat } from './project-transactions/store-core.mjs';
 

@@ -149,7 +149,7 @@ check first.
 
 ## Operator: rolling the fleet onto a new cell image
 
-`cells-deploy.yml` builds, pushes and deploys. Two things about it are worth
+The `cells` lane of the private `1aGh/maude-deploy` (dispatched with the release tag) builds, pushes and deploys. Two things about it are worth
 knowing before you trust a green run.
 
 **The image tag in `apps/cells/wrangler.toml` IS the instruction.** The

@@ -29,7 +29,7 @@
 //   version — "which RELEASE are these bytes from?"
 //             catches derivation: the layer underneath is the previous release.
 //
-// Neither subsumes the other. `cells-deploy.yml`'s post-deploy gate asserts
+// Neither subsumes the other. the deploy repo's (1aGh/maude-deploy) post-deploy gate asserts
 // both against the tag it just deployed, which is what makes "green" mean "the
 // fleet answers on the released version" rather than "an upload returned 0".
 //

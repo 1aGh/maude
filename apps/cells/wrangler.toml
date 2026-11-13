@@ -37,7 +37,7 @@ workers_dev = true
 class_name = "MaudeCellB"
 # v12 (Cloud Phase 25): the first image carrying the canvas build sandbox.
 #
-# THIS LINE IS THE ROLLOUT INSTRUCTION — `cells-deploy.yml` reads the tag from
+# THIS LINE IS THE ROLLOUT INSTRUCTION — the `cells` lane of 1aGh/maude-deploy reads the tag from
 # here, builds THAT tag and deploys it. Leaving it unchanged is not a no-op
 # with a new image behind it: pushing new content to an existing tag leaves the
 # container configuration byte-identical, so the deploy prints

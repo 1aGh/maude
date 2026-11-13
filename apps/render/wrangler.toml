@@ -6,7 +6,7 @@
 # rollout here degrades exports, never a tenant's workspace.
 #
 # THE TAG IN THIS FILE IS THE ROLLOUT INSTRUCTION — same contract as
-# apps/cells/wrangler.toml: `render-deploy.yml` reads the tag, builds THAT
+# apps/cells/wrangler.toml: `render-image.yml` builds THAT tag to ghcr and the `render` lane of 1aGh/maude-deploy deploys it; it reads the tag, builds THAT
 # tag, and deploys. Pushing new bytes under an unchanged tag deploys nobody
 # (`no changes` — the container config is byte-identical). Bump the tag
 # (scripts/bump-version.sh writes it at release time).

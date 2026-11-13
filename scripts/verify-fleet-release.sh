@@ -2,7 +2,7 @@
 # Poll a live cell's /health until it answers with the release that was just
 # deployed AND the client bytes this release built.
 #
-# Called by `.github/workflows/cells-deploy.yml` after `wrangler deploy` on a
+# Called by the `cells` lane of 1aGh/maude-deploy (deploy.yml) after `wrangler deploy` on a
 # release tag. WHY it asserts both — and why neither one subsumes the other —
 # is written where a maintainer reading the pipeline will find it: the workflow
 # step's comment, and the header of apps/hub/src/bundle-identity.mjs. This file

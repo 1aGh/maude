@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Collect the cloud's v1 → v2 conversion counts after a rollout (cells-deploy.yml, p8-v1-drop-cloud).
+// Collect the cloud's v1 → v2 conversion counts after a rollout (1aGh/maude-deploy `cells` lane, p8-v1-drop-cloud).
 //
 //   node scripts/collect-v2-convert.mjs <health-url> [<health-url>…]
 //

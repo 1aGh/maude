@@ -34,7 +34,7 @@ SUBPACKAGE_PATHS=(
 # The app manifests a RUNNING process reads its own version from — the hub's
 # `readOwnVersion()` and the studio's `/_config`. They ship inside the release
 # image, so a drift here is a fleet that misreports which release it is, which
-# is exactly what the post-deploy gate in cells-deploy.yml asserts against.
+# is exactly what the post-deploy gate in the deploy repo (1aGh/maude-deploy, `cells` lane) asserts against.
 APP_MANIFEST_PATHS=(
   "$ROOT/apps/studio/package.json"
   "$ROOT/apps/hub/package.json"
@@ -157,7 +157,7 @@ if [ -f "$WRANGLER_TOML_PATH" ]; then
 fi
 
 # Render service (DDR-230) — same contract as the cell tag: the maude-render
-# image tag in apps/render/wrangler.toml IS render-deploy.yml's instruction,
+# image tag in apps/render/wrangler.toml IS the instruction render-image.yml and the deploy repo read,
 # so it rides the release line too. May be absent on older branches.
 RENDER_TOML_PATH="$ROOT/apps/render/wrangler.toml"
 if [ -f "$RENDER_TOML_PATH" ]; then
