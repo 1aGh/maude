@@ -133,6 +133,19 @@ function normalize(value: unknown, scratch: string): unknown {
   return JSON.parse(s);
 }
 
+/**
+ * The scratch dir's `/private` alias is added only where the temp folder sits under `/var` or
+ * `/tmp` (this Mac's TMPDIR); on another machine (the CI runner, the mini's slot) it is absent.
+ * It is the same folder either way, so the compare ignores it.
+ */
+function dropPrivateAlias(value: unknown): unknown {
+  let s = JSON.stringify(value);
+  s = s.split(':/private<SCRATCH>').join('');
+  s = s.split('"Read(//private<SCRATCH>/**)",').join('');
+  s = s.split(',"Read(//private<SCRATCH>/**)"').join('');
+  return JSON.parse(s);
+}
+
 async function claudeRun(): Promise<{ log: LogLine[]; scratch: string }> {
   const logPath = join(tmp, `claude-${++logN}.ndjson`);
   let scratch = '';
@@ -183,7 +196,9 @@ describe('(a) Claude spawns byte-identical to before the descriptor refactor', (
       console.warn(`no Claude spawn snapshot for ${process.platform}; skipping the byte compare`);
       return;
     }
-    expect(got).toEqual(JSON.parse(readFileSync(SNAPSHOT, 'utf8')));
+    expect(dropPrivateAlias(got)).toEqual(
+      dropPrivateAlias(JSON.parse(readFileSync(SNAPSHOT, 'utf8')))
+    );
   });
 });
 
