@@ -118,3 +118,18 @@ test('the pinned codex-acp release is self-contained and @openai/codex is overri
   if (!existsSync(entry)) return t.skip('apps/studio deps not installed');
   assert.deepEqual(nonBuiltinImports(readFileSync(entry, 'utf8')), []);
 });
+
+test('the Codex adapter smoke reads stderr too (the adapter reports a failed spawn there, exit 0)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(
+    new URL('../../apps/desktop/scripts/check-bundle-completeness.mjs', import.meta.url),
+    'utf8'
+  );
+  const smoke = src.slice(
+    src.indexOf("const sentinel = '/nonexistent/maude-smoke-codex'"),
+    src.indexOf("fail('Codex adapter smoke'")
+  );
+  assert.match(smoke, /spawnSync\(runtimeFound/);
+  assert.match(smoke, /r\.stderr/);
+  assert.doesNotMatch(smoke, /execFileSync\(runtimeFound/);
+});

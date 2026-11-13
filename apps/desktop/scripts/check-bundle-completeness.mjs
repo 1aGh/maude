@@ -23,7 +23,7 @@
 // Exit 0 = complete. Exit 1 = at least one gap. Exit 2 = bad invocation / target
 // not found (so CI can distinguish "bundle incomplete" from "ran wrong").
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -191,23 +191,21 @@ console.log('\n[2b] Codex ACP adapter (entry only, no @openai/codex)');
       method: 'initialize',
       params: { protocolVersion: 1, clientCapabilities: { fs: {}, terminal: false } },
     });
-    let out = '';
-    try {
-      out = execFileSync(runtimeFound, [entry], {
-        input: `${init}\n`,
-        timeout: 20_000,
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: {
-          PATH: '/usr/bin:/bin:/usr/sbin:/sbin',
-          HOME: mkdtempSync(join(tmpdir(), 'maude-codex-smoke-')),
-          CODEX_PATH: sentinel,
-          ...(/maude(-server)?$/.test(runtimeFound) ? { BUN_BE_BUN: '1' } : {}),
-        },
-      });
-    } catch (e) {
-      out = `${e.stdout ?? ''}${e.stderr ?? ''}${e.message ?? ''}`;
-    }
+    // The adapter reports a failed codex spawn on STDERR and exits 0, so both streams are read: an
+    // execFileSync success returns stdout alone, which made this smoke fail on every real .app (v2.3.0).
+    const r = spawnSync(runtimeFound, [entry], {
+      input: `${init}\n`,
+      timeout: 20_000,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: {
+        PATH: '/usr/bin:/bin:/usr/sbin:/sbin',
+        HOME: mkdtempSync(join(tmpdir(), 'maude-codex-smoke-')),
+        CODEX_PATH: sentinel,
+        ...(/maude(-server)?$/.test(runtimeFound) ? { BUN_BE_BUN: '1' } : {}),
+      },
+    });
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}${r.error?.message ?? ''}`;
     if (/Cannot find (module|package)|ERR_MODULE_NOT_FOUND|SyntaxError/i.test(out)) {
       fail('Codex adapter smoke', out.slice(0, 400));
     } else if (!out.includes(sentinel)) {
