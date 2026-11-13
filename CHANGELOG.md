@@ -1,5 +1,35 @@
 # @1agh/maude
 
+## 2.3.0
+
+### Minor Changes
+
+- **The AI chat can run Codex, opencode, Gemini CLI and GitHub Copilot CLI.**
+  - **How it finds them:** Maude looks only at what is already installed on this Mac. When it finds one of these agents, the empty AI chat shows one quiet line: "Codex is on this Mac. Use it in Maude too? · Connect · Not now".
+  - **Not now** hides the line for good. A Mac with only Claude sees nothing new in the chat.
+  - **Settings › Connections › AI agents** lists every agent Maude found, with its state.
+  - **Picking an agent:** with two or more agents connected, a chip in the composer picks the agent for a new chat. A chat keeps the agent it started with.
+  - **Claude stays the main sign-in:** the Connect sheet still asks for Claude. A small "Use another agent…" link there opens Settings.
+- **Other agents work under the same limits as Claude.**
+  - **What Maude sets for each chat:** the agent may read the project and the folders you granted, and write only inside the project. It can't reach your passwords, keys or Maude's own settings, and it stays off the web.
+  - **How this is set:** through the agent's own sandbox or permission rules, plus Maude's permission check.
+  - **Checked before the first chat:** Maude runs a short offline check against the agent on this Mac and connects it only if the check passes. An agent that steps outside the limits is stopped and marked Unavailable.
+  - **Labels:** replies and errors carry the agent's name ("Codex reported: …").
+  - **What does not load:** your own Codex, opencode, Gemini and Copilot config (MCP servers, hooks, plugins) is not loaded in the Studio chat.
+  - **When Maude refuses to start an agent:** a project that holds that agent's own config (`.codex/`, `.opencode/`), or a link that leads outside it, is refused for the agents that would follow it.
+- **Codex runs through Maude's bundled adapter and your own `codex` install** (0.154 or newer). Maude does not install a second Codex.
+- **Your own API key per agent:** Settings › Connections › AI agents › Advanced. An OpenAI key for Codex and a Gemini key for Gemini CLI reach only that agent. Claude can use an Anthropic API key too: that bills the API account, so it is off until you turn it on.
+- **Terminal quick start is back** on the homepage and in the docs, in a new page, "Use Maude from your own agent". It covers the CLI plus the `design` plugin in Claude Code or Codex. The Codex guide now installs from the published marketplace.
+
+### Patch Changes
+
+- **`maude codex` starts fast** (#226). It syncs your Claude setup into Codex only when something changed since the last launch. `codex --version`, `--help`, `login` and `completion` go straight to Codex. Before, every launch made several slow Codex plugin calls and could time out.
+- **Stricter limits that also apply to the Claude chat:**
+  - With "Search the web" off, a downloader called by its full path (`/usr/bin/curl`) is refused too.
+  - Recursive or link-following readers (`grep -r`, `diff -r`) need your OK.
+  - Writes to other agents' project config (`.codex/`, `.opencode/`, `.gemini/`, `AGENTS.md`, `GEMINI.md`, `opencode.json`) need your OK.
+  - Vendor keys such as `OPENAI_API_KEY` and `GH_TOKEN` are no longer passed into the chat's agent.
+
 ## 2.2.1
 
 ### Patch Changes

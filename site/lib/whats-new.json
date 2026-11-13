@@ -1,11 +1,11 @@
 {
-  "generated": "2026-11-12T00:00:00.000Z",
-  "version": "2.2.1",
+  "generated": "2026-11-13T00:00:00.000Z",
+  "version": "2.3.0",
   "entries": [
     {
       "id": "codex-and-other-agents-in-chat",
-      "version": null,
-      "date": null,
+      "version": "2.3.0",
+      "date": "2026-11-13",
       "kind": "feature",
       "title": "Codex and other agents in the AI chat",
       "summary": "When Codex, opencode, Gemini CLI or GitHub Copilot CLI is installed on this Mac, the AI chat can run it under the same limits as Claude. Connect it from the chat or from Settings › Connections › AI agents, where you can also add your own API key.",
