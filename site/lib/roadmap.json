@@ -3,17 +3,6 @@
   "currentPhase": null,
   "phases": [
     {
-      "id": "feature-universal-acp-and-codex",
-      "title": "Feature: Universal AI chat (Codex and any ACP agent) + the terminal quick start",
-      "status": "done",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
-      "planPath": ".ai/plans/archive/feature-universal-acp-and-codex.md",
-      "archived": true,
-      "phaseKey": null
-    },
-    {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
       "status": "done",
@@ -2430,6 +2419,17 @@
       "date": "2026-11-10",
       "summary": "Owner: Maude v2 lead · source: Michal (via the alligators export session + the keeper) · target: 2.1.x patch",
       "planPath": ".ai/plans/archive/fix-bulk-2026-11-10.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-universal-acp-and-codex",
+      "title": "Feature: Universal AI chat (Codex and any ACP agent) + the terminal quick start",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-11-12",
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/archive/feature-universal-acp-and-codex.md",
       "archived": true,
       "phaseKey": null
     },
