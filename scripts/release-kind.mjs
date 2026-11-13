@@ -121,8 +121,8 @@ export function describePlan(r) {
   if (r.msiVersion) lines.push(`  Windows MSI:    ProductVersion ${r.msiVersion}`);
   lines.push(
     r.kind === 'rc'
-      ? '  NOT touched:    hub-image (:latest / :vX), cells-deploy (fleet), render-deploy, selfhost-images — their tag filters exclude prereleases'
-      : '  also fired:     hub-image → cells-deploy (fleet), render-deploy, selfhost-images'
+      ? '  NOT touched:    hub-image (:latest / :vX), render-image, selfhost-images — their tag filters exclude prereleases; 1aGh/maude-deploy refuses an rc tag'
+      : '  also fired:     hub-image, render-image, selfhost-images — then dispatch 1aGh/maude-deploy (fleet, render, cloud) by hand'
   );
   return lines.join('\n');
 }

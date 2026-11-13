@@ -105,9 +105,9 @@ jobs:
       - name: Data-plane tests (apps/cells)
         # Cloud Phase 24 B1. `cellEnv` is where a mistake means one tenant
         # reading another's data, and it had no tests and no CI at all — the
-        # control plane's suite runs in cloud-deploy.yml, but nothing ever ran
-        # the cells half. It runs here rather than there because a cells change
-        # must not trigger a control-plane deploy.
+        # control plane's suite ran in the (now gone) cloud-deploy.yml, but
+        # nothing ever ran the cells half. The deploy repo (1aGh/maude-deploy)
+        # runs them again right before it deploys.
         working-directory: apps/cells
         run: node --test --test-force-exit "*.test.mjs"
 
@@ -497,3 +497,25 @@ jobs:
           path: studio-test-timings.json
           if-no-files-found: ignore
           retention-days: 30
+
+  control-plane:
+    name: Control-plane tests (apps/cloud)
+    # Until 2026-11 these ran only in cloud-deploy.yml, i.e. only on a push to
+    # main that touched apps/cloud — and that push WAS a production deploy (a
+    # Dependabot auto-merge deployed the billing Worker, security review
+    # 2026-11-03, X8). The deploy moved to the private 1aGh/maude-deploy and is
+    # dispatched by release tag; the tests run here on every push so a broken
+    # control plane is red at review time, with no credential in reach. Its own
+    # job because node:sqlite (the tests' stand-in for the D1 binding) needs
+    # Node 24 — 32 of them fail on the quality job's Node 22 — and the deploy
+    # repo reruns them against the exact commit it deploys.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Test (node:test)
+        working-directory: apps/cloud
+        run: node --test "*.test.mjs"

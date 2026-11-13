@@ -90,7 +90,7 @@ Not addressed here (still Tier 0/1 in the audit): hardware 2FA on `1aGh`, tag ru
 
 Execute in order. Each task is atomic and testable.
 
-### Task 1: CREATE the private repo and its secrets
+### ✅ Task 1: CREATE the private repo and its secrets — completed 2026-11-13 (repo + environment `production` + Actions restrictions; required reviewer refused by GitHub on the Free plan, 422; the three secrets are entered by the owner)
 
 - **Do**: `gh repo create 1aGh/maude-deploy --private --description "Cloudflare deploys for Maude Cloud (private: logs + tokens)"`; create environment `production` with a required reviewer (`1aGh`); add `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `MAUDE_CONTAINERS_TOKEN` as **environment** secrets (values re-entered by the owner — never copied from the public repo by a tool). Enable Actions, default workflow permissions `read`, `allowed_actions` restricted to `actions/*`, `docker/*`.
 - **Files**: none in this repo
@@ -99,7 +99,7 @@ Execute in order. Each task is atomic and testable.
 - **Validate**: `gh repo view 1aGh/maude-deploy --json visibility` → `PRIVATE`; `gh api repos/1aGh/maude-deploy/environments/production` lists the reviewer; `gh secret list -R 1aGh/maude-deploy -e production` shows the three names.
 - **Risk**: secrets
 
-### Task 2: CREATE `maude-deploy/.github/workflows/deploy.yml`
+### ✅ Task 2: CREATE `maude-deploy/.github/workflows/deploy.yml` — completed 2026-11-13 (dry run against v2.2.1: https://github.com/1aGh/maude-deploy/actions/runs/43387288204, all four jobs green)
 
 - **Do**: One `workflow_dispatch` workflow. Job `resolve`: `actions/checkout` of `1aGh/maude` (`repository:`, `ref: refs/tags/${{ inputs.tag }}`, `fetch-depth: 0`), assert the tag is annotated (`git cat-file -t` → `tag`), `SHA=$(git rev-parse "${tag}^{commit}")`, `node scripts/release-kind.mjs` must say stable and equal `package.json`, both `apps/{cells,render}/wrangler.toml` image tags equal the release, read the live `releaseVersion` from the cells `/health` and refuse a lower version unless `allow_rollback`; outputs `sha`, `version`. Jobs `cells` / `render` / `cloud` (`if: contains(inputs.components, '<name>')`, `needs: resolve`, `environment: production`, `concurrency: deploy-<name>`): checkout `1aGh/maude` at `ref: ${{ needs.resolve.outputs.sha }}`, then the steps carried verbatim from the public workflows — cells: hub wait → build FROM `ghcr.io/1agh/maude-hub:<tag>` → seal → `wrangler containers push` → `wrangler deploy` → `verify-fleet-release.sh` → `collect-v2-convert.mjs`; render: wait for `ghcr.io/1agh/maude-render:<tag>` (public, anonymous pull), resolve its digest, `wrangler containers push` from the digest → `wrangler deploy --var MAUDE_RENDER_VERSION` → roll instances → `/_health` poll; cloud: `node --test` → `wrangler deploy --dry-run` → `wrangler deploy` → `/health` poll. `dry_run=true` stops every lane before its first write (`containers push` / `deploy`). Secrets only via `env:`; `${{ inputs.* }}` and `${{ needs.* }}` go through `env:` too, never spliced into `run:` (audit X7). Drop the `MAUDE_CONTAINERS_TOKEN || CLOUDFLARE_API_TOKEN` fallback (audit W5): cells + render use `MAUDE_CONTAINERS_TOKEN`, cloud uses `CLOUDFLARE_API_TOKEN`. Pin `wrangler` to an exact version (audit X1).
 - **Files**: `maude-deploy/.github/workflows/deploy.yml`
@@ -108,7 +108,7 @@ Execute in order. Each task is atomic and testable.
 - **Validate**: `actionlint maude-deploy/.github/workflows/deploy.yml`; `gh workflow run deploy.yml -R 1aGh/maude-deploy -f tag=<current stable tag> -f dry_run=true` → every lane green up to its write gate; the run summary shows the resolved SHA and version.
 - **Risk**: deploy
 
-### Task 3: CREATE the private repo's test lane
+### ✅ Task 3: CREATE the private repo's test lane — completed 2026-11-13 (11 assertions, red on six mutations, `Tests` run green)
 
 - **Do**: `maude-deploy/test/deploy-invariants.test.mjs` with `node:test`: (a) `containers push` / `wrangler deploy` steps are reachable only under `needs: resolve` and never in a job without the `environment`; (b) no `maude-hub:latest` / `maude-render:latest` anywhere under `jobs:`; (c) hub and render images are pinned to `${{ inputs.tag }}`; (d) every `run:` is free of `${{ inputs.` / `${{ needs.` / `${{ secrets.` splices; (e) `dry_run` guards every write step. Copy `parseJobs` from the public `workflow-invariants.test.mjs`. `maude-deploy/.github/workflows/test.yml`: `node --test test/` on push and PR.
 - **Files**: `maude-deploy/test/deploy-invariants.test.mjs`, `maude-deploy/.github/workflows/test.yml`, `maude-deploy/package.json` (`"type": "module"`, no deps)
@@ -116,7 +116,7 @@ Execute in order. Each task is atomic and testable.
 - **Gotcha**: the tests must fail first — temporarily add a `:latest` reference and watch (b) go red before committing (memory `maude-verify-regression-tests-fail-first`).
 - **Validate**: `node --test test/` in `maude-deploy` green; the private `test.yml` run green.
 
-### Task 4: CREATE public `.github/workflows/render-image.yml` and REMOVE the three deploy workflows
+### ✅ Task 4: CREATE public `.github/workflows/render-image.yml` and REMOVE the three deploy workflows — completed 2026-11-13 (also removed `cloud-d1-precheck.yml`, which used the fleet token; it lives in `maude-deploy/d1-precheck.yml`; the control-plane tests got their own Node 24 job in `quality.yml` because 32 of them fail on the quality job's Node 22)
 
 - **Do**: `render-image.yml` = `render-deploy.yml` lines 1–172 (prerelease refusal, parse-check, service tests, tag read + assertion, QEMU, ghcr login, multi-arch build + push, manifest-list check), triggered on stable tags only, `permissions: packages: write, contents: read`; keep `workflow_dispatch` with `push: false`. Delete `cells-deploy.yml`, `render-deploy.yml`, `cloud-deploy.yml`. Move `apps/cloud` `node --test "*.test.mjs"` into `quality.yml` next to the data-plane tests (same "a cells change must not trigger a control-plane deploy" comment style). In `render-canary.yml` mask the echoed health body (`::add-mask::` or print only `ok`/`version` fields).
 - **Files**: `.github/workflows/render-image.yml` (new), `.github/workflows/{cells-deploy,render-deploy,cloud-deploy}.yml` (deleted), `.github/workflows/quality.yml`, `.github/workflows/render-canary.yml`
@@ -124,7 +124,7 @@ Execute in order. Each task is atomic and testable.
 - **Gotcha**: this commit must land **after** Task 2's dry run is green and **before** the next release tag — never let both pipelines see one tag. `scripts/test/release-channel.test.mjs` and `workflow-invariants.test.mjs` go red on this commit until Task 5 lands; do Tasks 4 + 5 in one commit.
 - **Validate**: `actionlint .github/workflows/*.yml`; `node --test scripts/test/*.test.mjs` (after Task 5).
 
-### Task 5: UPDATE the public tests that pinned the moved workflows
+### ✅ Task 5: UPDATE the public tests that pinned the moved workflows — completed 2026-11-13 (test (d) is scoped to the two fleet token names: `site-deploy.yml` keeps its own zone-scoped `CLOUDFLARE_SITE_API_TOKEN` by design)
 
 - **Do**: `scripts/test/release-channel.test.mjs` — replace `cells-deploy.yml` / `render-deploy.yml` in the stable-only list with `render-image.yml`; keep `hub-image.yml`. `scripts/test/workflow-invariants.test.mjs` — remove tests (a) ×3 and (b) `cell image never derives from :latest` / `hub image pinned` (they now live in `maude-deploy/test`); keep `(b) hub-image.yml publishes the tag the cell build pins to` re-worded to "the tag `maude-deploy` pins to", and add one test that no public workflow references `secrets.CLOUDFLARE_` / `secrets.MAUDE_CONTAINERS_` (the regression that would re-introduce a fleet credential here). `scripts/test/verify-fleet-release.test.mjs` and `collect-v2-convert.test.mjs` only mention the workflow in comments — update the comment to name `maude-deploy`.
 - **Files**: `scripts/test/release-channel.test.mjs`, `scripts/test/workflow-invariants.test.mjs`, `scripts/test/verify-fleet-release.test.mjs`, `scripts/test/collect-v2-convert.test.mjs`
@@ -132,7 +132,7 @@ Execute in order. Each task is atomic and testable.
 - **Gotcha**: the new "no Cloudflare secret in a public workflow" test must fail first against the pre-Task-4 tree.
 - **Validate**: `node --test scripts/test/*.test.mjs`; `scripts/v2-test-lane.sh -- node --test scripts/test/*.test.mjs` if run while other suites may be active.
 
-### Task 6: UPDATE the release runbook and CLAUDE.md
+### ✅ Task 6: UPDATE the release runbook and CLAUDE.md — completed 2026-11-13
 
 - **Do**: `.ai/release-guide.md` § Push: after `git push --follow-tags` add the step `GH_TOKEN=$(gh auth token --user 1aGh) gh workflow run deploy.yml -R 1aGh/maude-deploy -f tag=vX.Y.Z` and `gh run watch -R 1aGh/maude-deploy`; § "Verify the fleet actually rolled" and the rc section: `cells-deploy`/`render-deploy` → the `maude-deploy` run; "a stable tag fires SIX workflows" → the new count (build-binaries, build-desktop, hub-image, render-image, selfhost-images) + the manual dispatch; hotfix of the control plane = `-f components=cloud -f ref=<sha>`. `CLAUDE.md` § "Release flow" step 4 and the rc paragraph: same chain rewrite, plus one line that the three Cloudflare secrets no longer exist in this repo. Add the private repo to the root `~/git/CLAUDE.md` `personal/` table (one row). Append a pending What's New entry? **No** — not user-visible.
 - **Files**: `.ai/release-guide.md`, `CLAUDE.md`, `/Users/iagh/git/CLAUDE.md`
@@ -140,7 +140,7 @@ Execute in order. Each task is atomic and testable.
 - **Gotcha**: `scripts/test/workflow-invariants.test.mjs` test `(c) the release guide still documents the annotated form` reads the guide — keep the annotated-tag sentence intact.
 - **Validate**: `node --test scripts/test/workflow-invariants.test.mjs`; `grep -n "cells-deploy\|render-deploy\|cloud-deploy" CLAUDE.md .ai/release-guide.md` returns only historical mentions.
 
-### Task 7: Cutover on the next stable release, then revoke
+### Task 7: Cutover on the next stable release, then revoke (OPEN — waits for the next stable tag)
 
 - **Do**: Release per the updated runbook; dispatch `maude-deploy` with the tag; confirm `verify-fleet-release.sh`, the render `/_health` version and the cloud `/health` all report the new version from the **private** run. Then `gh secret delete CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID|MAUDE_CONTAINERS_TOKEN -R 1aGh/maude`, rotate both tokens in the Cloudflare dashboard (new values into the private environment secrets only), re-run `maude-deploy` with `dry_run=true` to prove the rotated tokens work. Record the cutover in `maude-deploy/README.md` and as a kg decision (`/flow:record-ddr`: the deploy plane moved to a private repo, manual dispatch, ghcr publishes stay public).
 - **Files**: `maude-deploy/README.md`; kg decision

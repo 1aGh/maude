@@ -14,8 +14,7 @@
 > - **GitHub Release** — created empty by `build-binaries.yml > create-release` (so matrix `gh release upload` has a target), then `publish-main` populates the body from `CHANGELOG.md` (auto-generated notes if the section is missing).
 > - **Claude Code marketplace** — both plugins (`design`, `flow`) ship via `marketplace.json` read directly from `main`. The moment the release commit is on `main`, end users can `/plugin marketplace update maude`. No separate publish step.
 > - **Release candidates (`vX.Y.Z-rc.N`)** — a separate, narrower channel: npm dist-tag `next` + a prerelease GitHub release + the rc desktop feed, and nothing in the cloud. See [§ Release candidates](#release-candidates-prerelease-channel). Every bullet below is about a STABLE `vX.Y.Z` tag.
-> - **Maude Cloud fleet** — the same `v*` tag triggers `hub-image.yml` (multi-arch `ghcr.io/1agh/maude-hub:vX.Y.Z` + `:latest`) and `cells-deploy.yml`, which waits for that hub image, builds the cell image at the tag `apps/cells/wrangler.toml` declares (`maude-cell:vX.Y.Z`, written by the bump), pushes it to the Cloudflare registry, and `wrangler deploy`s the data plane. **The tag change is what restarts every cell** — env is applied at container START and Cloudflare only rolls instances on a config change; a re-pushed image under an unchanged tag deploys nothing anywhere (the v30/v31 lesson). Rollout verification is part of the Push step below.
-> - **Render service (DDR-230)** — the same tag also triggers `render-deploy.yml`: it builds `maude-render` at the tag `apps/render/wrangler.toml` declares (written by the bump, asserted by parity), publishes it BOTH to ghcr (`ghcr.io/1agh/maude-render:vX.Y.Z` — the self-host sidecar) and the Cloudflare registry, deploys the `maude-render` Worker, and polls `https://render.cloud.maude.sh/_health` until it reports the release version. Same tag-is-the-instruction contract as the cells.
+> - **Maude Cloud fleet, render service, control plane** — since 2026-11 the Cloudflare deploys run from the **private** repo `1aGh/maude-deploy`, dispatched BY HAND with the release tag right after the push (step in § Push). Its `resolve` job refuses anything but an annotated stable tag whose `package.json` and both `wrangler.toml` image tags (`maude-cell:vX.Y.Z`, `maude-render:vX.Y.Z`, written by the bump) name the release, then its `cells` lane waits for the public `maude-hub:vX.Y.Z` image (`hub-image.yml`), builds the cell image, pushes it to the Cloudflare registry and `wrangler deploy`s the data plane; the `render` lane pulls the amd64 child of the public `maude-render:vX.Y.Z` digest (`render-image.yml`) and deploys the `maude-render` Worker; the `cloud` lane deploys the control plane. **The tag change is what restarts every cell** — env is applied at container START and Cloudflare only rolls instances on a config change; a re-pushed image under an unchanged tag deploys nothing anywhere (the v30/v31 lesson). Rollout verification is part of the Push step below. The public repo holds NO Cloudflare credential (`scripts/test/workflow-invariants.test.mjs` (d)).
 
 ## Pre-flight
 
@@ -26,7 +25,7 @@
 - [ ] You have npm publish permission for `@1agh/maude` + all 7 `@1agh/maude-<slug>` packages, and push access to `main`
 - [ ] `NPM_TOKEN` repo secret is set (one-time, only after rotation)
 - [ ] 1Password is unlocked AND the SSH key is approved for the session (signing failures mid-tag-move leave the repo in a partial state — see "When things break")
-- [ ] **No stray local annotated tags** — `git push --follow-tags --dry-run` must show only the tag you are about to create. A stale local tag from an interrupted release rides along with `--follow-tags` and fires a SECOND release pipeline, whose concurrency group can cancel the real one's `cells-deploy` (the v1.0.12-vs-v1.2.0 incident, 2026-09-04: stray tag pushed, its create-release grabbed "Latest", and the real release's cell run was auto-cancelled). Note `git tag -l <name>` exits 0 even when nothing matches — don't gate on its exit code. If you DO have to cancel a stray tag's runs, a stable tag fires SIX workflows — build-binaries, build-desktop, hub-image, cells-deploy, render-deploy, self-host images (an rc tag fires only the first two) — cancel ALL of them; a missed `build-desktop` run later re-created the deleted release record (its `gh release upload` re-creates the tag too) with partial Windows assets.
+- [ ] **No stray local annotated tags** — `git push --follow-tags --dry-run` must show only the tag you are about to create. A stale local tag from an interrupted release rides along with `--follow-tags` and fires a SECOND release pipeline, whose concurrency group can cancel the real one's `hub-image` / `render-image` (the v1.0.12-vs-v1.2.0 incident, 2026-09-04: stray tag pushed, its create-release grabbed "Latest", and the real release's cell run was auto-cancelled). Note `git tag -l <name>` exits 0 even when nothing matches — don't gate on its exit code. If you DO have to cancel a stray tag's runs, a stable tag fires FIVE workflows — build-binaries, build-desktop, hub-image, render-image, self-host images (an rc tag fires only the first two) — cancel ALL of them (the fleet deploy is not among them: it is the manual `maude-deploy` dispatch, so simply do not dispatch it for the stray tag); a missed `build-desktop` run later re-created the deleted release record (its `gh release upload` re-creates the tag too) with partial Windows assets.
 
 ```bash
 git switch main && git pull --ff-only
@@ -188,15 +187,25 @@ The `v*.*.*` tag triggers `.github/workflows/build-binaries.yml`, which:
 >
 > **Known, accepted gap:** the per-platform `@1agh/maude-<slug>` sub-packages are published by the matrix *before* `desktop-gate` runs. A refused release therefore leaves the sub-packages on npm with no matching root tarball. That is inert — `npm i -g @1agh/maude` resolves the ROOT, which is what the gate protects — and the next tag's matrix republishes them idempotently.
 
-The same tag also fires the **cloud rollout chain**: `hub-image.yml` (ghcr hub image) → `cells-deploy.yml` (cell image at the wrangler.toml tag, data-plane deploy, instance restart) → and, independently, `render-deploy.yml` (maude-render image to ghcr + Cloudflare, Worker deploy, `/_health` version poll). And `build-desktop.yml` for the native app.
+The same tag also fires the two **public image publishes** the cloud needs: `hub-image.yml` (`ghcr.io/1agh/maude-hub:vX.Y.Z` + `:latest`) and `render-image.yml` (`ghcr.io/1agh/maude-render:vX.Y.Z`, multi-arch, boot-and-render smoke). And `build-desktop.yml` for the native app.
+
+**Then deploy the cloud — by hand, from the private repo.** Nothing in this repo touches Cloudflare any more (the tokens and the deploy logs live in `1aGh/maude-deploy`, security review 2026-11-03). Dispatch it with the tag you just pushed; it waits for the two images itself:
+
+```bash
+GH_TOKEN=$(gh auth token --user 1aGh) gh workflow run deploy.yml -R 1aGh/maude-deploy -f tag="v$(node -p "require('./package.json').version")"
+GH_TOKEN=$(gh auth token --user 1aGh) gh run watch -R 1aGh/maude-deploy
+```
+
+Its `resolve` job refuses a lightweight, prerelease or moved tag, a `package.json` or `wrangler.toml` that does not name the release, and a version below the one the fleet reports (`allow_rollback=true` is the explicit override). Lanes: `cells` (cell image → Cloudflare registry → `wrangler deploy` → `verify-fleet-release.sh` → conversion report), `render` (ghcr digest → Cloudflare → Worker → instance roll → `/_health` poll), `cloud` (tests → `wrangler deploy` → `/health` poll). A control-plane hotfix alone: `-f components=cloud -f ref=<40-hex sha>`. `-f dry_run=true` runs every lane up to its first write.
 
 Watch all of them — a release is not done while any is red or running:
 
 ```bash
 gh run list --workflow=build-binaries.yml --limit 1
 gh run list --workflow=hub-image.yml --limit 1
-gh run list --workflow=cells-deploy.yml --limit 1
+gh run list --workflow=render-image.yml --limit 1
 gh run list --workflow=build-desktop.yml --limit 1
+GH_TOKEN=$(gh auth token --user 1aGh) gh run list -R 1aGh/maude-deploy --workflow=deploy.yml --limit 1
 gh run view --web                                    # or open https://github.com/1aGh/maude/actions
 ```
 
@@ -209,7 +218,7 @@ npm view @1agh/maude version                     # confirm npm sees the new root
 
 ### Verify the fleet actually rolled
 
-**Since v0.57.0, `cells-deploy` green means "a live cell answered with THIS release".** The workflow's last step polls a real tenant cell's `/health` until `releaseVersion` equals the tag it just deployed **and** the reported `client.bundle.js` hash equals the seal it read out of the image it pushed (`scripts/verify-fleet-release.sh`). The two are not redundant: the hash catches "same tag, different bytes", and only the version catches "the layer underneath was built from the previous release" — the v0.57.0 failure, whose image was internally self-consistent. Also since then, **only a release tag touches the fleet** — a push to `main` runs the data-plane tests and stops. That includes `wrangler deploy`: `wrangler.toml` names the container image, so a deploy reconciles the container config, and on the release commit it fails with `IMAGE_REGISTRY_DOESNT_CONTAIN_IMAGE` because only the tag run builds that image (learned in v0.58.0). Use `workflow_dispatch` for an urgent fleet change between releases.
+**Since v0.57.0, a green `cells` lane in `maude-deploy` means "a live cell answered with THIS release".** The lane's last step polls a real tenant cell's `/health` until `releaseVersion` equals the tag it just deployed **and** the reported `client.bundle.js` hash equals the seal it read out of the image it pushed (`scripts/verify-fleet-release.sh`). The two are not redundant: the hash catches "same tag, different bytes", and only the version catches "the layer underneath was built from the previous release" — the v0.57.0 failure, whose image was internally self-consistent. Also since then, **only a release touches the fleet** — a push to `main` runs the data-plane and control-plane tests (`quality.yml`) and stops; the deploy repo deploys nothing but a resolved stable tag. That includes `wrangler deploy`: `wrangler.toml` names the container image, so a deploy reconciles the container config, and on a commit whose image was never built it fails with `IMAGE_REGISTRY_DOESNT_CONTAIN_IMAGE` (learned in v0.58.0). An urgent fleet change between releases is a patch release.
 
 That covers what used to be manual curl-ing. What it still cannot cover is the browser: a botched env derivation once produced a fleet that was green in CI and unusable in a browser (v30, `frame-ancestors` from the waking request's Host). So finish with the live checks — the first two are now belt-and-braces, the third is the one that matters:
 
@@ -257,8 +266,8 @@ scripts/bump-version.sh promote        # 2.0.0-rc.2 → 2.0.0 — the STABLE rel
 | `build-binaries.yml` | npm `latest` + GitHub release (becomes Latest) | npm **`next`** (root + 7 sub-packages) + **prerelease** GitHub release |
 | `build-desktop.yml` | installers + updater artifacts on the release | same, on the prerelease; Windows MSI ProductVersion `X.Y.Z.N` (WiX refuses `-rc.N`) |
 | `hub-image.yml` | `maude-hub:vX.Y.Z` + `:latest` | **does not run** |
-| `cells-deploy.yml` | rolls the cloud fleet | **does not run** |
-| `render-deploy.yml` | deploys render | **does not run** |
+| `render-image.yml` | `maude-render:vX.Y.Z` to ghcr | **does not run** |
+| `1aGh/maude-deploy` (manual dispatch) | rolls the fleet, deploys render + the control plane | **refuses the tag** (`resolve` requires a stable release) |
 | `selfhost-images.yml` | multi-arch gate | **does not run** |
 
 The split is the tag filters (stable workflows: `['v*.*.*', '!v*.*.*-*']`; the two rc-capable ones add `'v*.*.*-rc.*'` — GitHub applies the patterns in order and the last match decides), a step in each stable-only workflow that refuses a prerelease tag anyway, and the `classify` answer (`scripts/release-kind.mjs`: from the tag, which must equal package.json) that every publish step reads. `scripts/test/release-channel.test.mjs` asserts all three; `workflow_dispatch` on `build-binaries.yml` with `dry-run: true` from a branch whose package.json is on an rc prints the plan and runs `npm publish --dry-run --tag next` without publishing anything.
@@ -270,7 +279,7 @@ The split is the tag filters (stable workflows: `['v*.*.*', '!v*.*.*-*']`; the t
 - **Claude Code marketplace:** the plugins ship from `main` — **an rc bump committed to `main` IS what marketplace users get.** That is the one surface this channel does not split. Cut the rc only once the plugins on `main` are fit for every user (V2-8.12 does it after the merge, which is the point at which they already are).
 - **The site:** `site/lib/stats.json` (home-page version label) regenerates from package.json, so it shows the rc while `main` is on one. Cosmetic; known.
 
-**Verify an rc:** `gh release view vX.Y.Z-rc.N --json isPrerelease` → `true`; `npm view @1agh/maude dist-tags` → `next` is the rc, `latest` unchanged; no `hub-image` / `cells-deploy` / `render-deploy` / `selfhost-images` run exists for the tag's SHA (`gh run list --workflow cells-deploy.yml --limit 3`). Nothing to verify in the fleet — it was not touched.
+**Verify an rc:** `gh release view vX.Y.Z-rc.N --json isPrerelease` → `true`; `npm view @1agh/maude dist-tags` → `next` is the rc, `latest` unchanged; no `hub-image` / `render-image` / `selfhost-images` run exists for the tag's SHA (`gh run list --workflow render-image.yml --limit 3`), and you dispatched nothing in `1aGh/maude-deploy`. Nothing to verify in the fleet — it was not touched.
 
 **Promote:** `scripts/bump-version.sh promote` → the stable release, through every step above as an ordinary release (it rolls the fleet, moves `latest`, stamps What's New). rc installs pick it up through the feed; `next` can stay where it is (`npm dist-tag add @1agh/maude@X.Y.Z next` if you want `@next` to stop lagging). **The 2.0.0 promote also converts every cloud project, and every self-hosted workspace hub converts its project when it first starts on the 2.0.0 image** — verify it with the section below.
 
@@ -283,7 +292,7 @@ Before you promote, keep `CELL_PROJECT_STORE` and `CELL_LIVE_PAIRING` at `"*"` i
 What to look at:
 
 ```bash
-# 1. The cells-deploy run: its last step "Report the Maude 2 cloud conversion" (log + run summary):
+# 1. The maude-deploy run (`cells` lane): its last step "Report the Maude 2 cloud conversion" (log + run summary):
 #      [v2-convert] fleet converted=N skipped=N failed=N cells=M unreported=K disabled=D
 #    It reads /health of the probe cell (CELL_CONVERT_HEALTH_URLS, space-separated, for more).
 # 2. Any cell, any time after its first 2.0.0 start:
@@ -304,7 +313,7 @@ curl -s https://<tenant>.cloud.maude.sh/health | jq .v2Convert
 
 **The kill switch: `CELL_V2_CONVERT=0`** — one variable name for both. On by default (unset or `1` converts); `0`, or any other value, converts nothing, and the hub logs `[v2-convert] disabled by CELL_V2_CONVERT=0` and reports `{"state":"disabled","by":"CELL_V2_CONVERT=0"}` on `/health` (no count line; the deploy summary names that cell `disabled (CELL_V2_CONVERT=0) — the kill switch was honoured` and counts it under `disabled=`, never as `unreported`). The switch is read at hub start, like every env var.
 
-- **Cloud:** set `CELL_V2_CONVERT = "0"` under `[vars]` in `apps/cells/wrangler.toml` BEFORE the promote tag (or `workflow_dispatch` `cells-deploy.yml` with it) — `cellEnv` (`apps/cells/cell-config.mjs`) projects it into every cell as `CELL_V2_CONVERT` (`1` when unset). It reaches a cell at its next container start, so a cell already converted stays converted; the switch stops further conversions, it does not undo one. To release it, remove the var and roll (or restart the cells you want converted).
+- **Cloud:** set `CELL_V2_CONVERT = "0"` under `[vars]` in `apps/cells/wrangler.toml` BEFORE the promote tag (then release — the deploy repo deploys only a tagged release, so the var reaches the fleet with the next tag) — `cellEnv` (`apps/cells/cell-config.mjs`) projects it into every cell as `CELL_V2_CONVERT` (`1` when unset). It reaches a cell at its next container start, so a cell already converted stays converted; the switch stops further conversions, it does not undo one. To release it, remove the var and roll (or restart the cells you want converted).
 - **Self-hosted:** `CELL_V2_CONVERT=0` in the workspace's `.env`, then restart the hub container.
 - **Verify it is off:** `curl -s <hub>/health | jq .v2Convert` → `{"state":"disabled",…}`, and the store still reads format 1 (`/health` `formatVersion`).
 
@@ -334,10 +343,10 @@ Common failures + recovery:
 - **Alpine container fails "JavaScript Actions in Alpine containers only supported on x64 Linux runners"** — JS actions can't run inside alpine on arm64. Already fixed by cross-compiling musl from regular ubuntu runners. Should not recur.
 - **Network flake on `npm publish`** — re-run the failed job from the Actions UI; the matrix step is idempotent (409 conflict treated as success).
 
-### `hub-image.yml` or `cells-deploy.yml` failed — the fleet stayed on the previous release
+### `hub-image.yml`, `render-image.yml` or the `maude-deploy` run failed — the fleet stayed on the previous release
 
-This is the FAIL-SAFE shape: `cells-deploy` waits for the hub image and asserts the
-wrangler.toml tag matches the release, so a broken half never rolls anything — the
+This is the FAIL-SAFE shape: the deploy repo's `resolve` job asserts the wrangler.toml tags
+match the release and its lanes wait for the public images, so a broken half never rolls anything — the
 fleet keeps serving the previous image. npm/marketplace users are unaffected (their
 channels published independently). Recovery:
 
@@ -345,7 +354,9 @@ channels published independently). Recovery:
 gh run view <RUN_ID> --log-failed | tail -60         # find the real error
 # land the fix on main, then force-move the tag (see below) — the re-fired
 # chain absorbs the already-published npm halves via 409-idempotence and
-# rebuilds the images from the fixed commit.
+# rebuilds the images from the fixed commit. Then dispatch maude-deploy again
+# with the same tag (its resolve job re-reads the moved tag's SHA).
+GH_TOKEN=$(gh auth token --user 1aGh) gh run view -R 1aGh/maude-deploy <RUN_ID> --log-failed | tail -60
 ```
 
 Known instances of this class: the v0.54.0 hub image failed on a studio file the

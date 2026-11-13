@@ -196,7 +196,7 @@ if [ -f "$CARGO_LOCK_PATH" ]; then
 fi
 
 # The cloud fleet ships the same release line. The cell image tag in
-# apps/cells/wrangler.toml IS the fleet instruction (cells-deploy builds and
+# apps/cells/wrangler.toml IS the fleet instruction (the deploy repo, 1aGh/maude-deploy, builds and
 # deploys exactly what it names, deriving from ghcr maude-hub:vX.Y.Z on a tag),
 # so the bump rewrites it to maude-cell:v$NEW. The release tag then carries the
 # WHOLE rollout — and because env is applied at container START and Cloudflare
@@ -205,9 +205,9 @@ fi
 # under an unchanged tag looks deployed and isn't running anywhere).
 #
 # A RELEASE CANDIDATE LEAVES BOTH IMAGE TAGS ALONE (V2-2.0). An rc tag never
-# triggers cells-deploy / render-deploy, so an rc-named tag here would be an
-# instruction nothing executes — until the next manual `workflow_dispatch`,
-# which would build and roll the fleet onto rc code. The tags stay on the last
+# is deployed (1aGh/maude-deploy refuses it), so an rc-named tag here would be an
+# instruction nothing executes — until the next manual dispatch of the deploy repo
+# run with allow_rollback, which would roll the fleet onto rc code. The tags stay on the last
 # stable release; `check-version-parity.sh` refuses an rc in them, and
 # `promote` (the stable X.Y.Z) rewrites them as usual.
 WRANGLER_TOML_PATH="$ROOT/apps/cells/wrangler.toml"
@@ -230,7 +230,7 @@ if [ "$IS_RC" = 0 ] && [ -f "$WRANGLER_TOML_PATH" ]; then
 fi
 
 # Same contract for the render service (DDR-230): the tag in
-# apps/render/wrangler.toml is the rollout instruction render-deploy.yml reads.
+# apps/render/wrangler.toml is the rollout instruction the deploy repo (and render-image.yml) reads.
 if [ "$IS_RC" = 0 ] && [ -f "$RENDER_TOML_PATH" ]; then
   NEW="$NEW" node -e "
     const fs = require('fs');

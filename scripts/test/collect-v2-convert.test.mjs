@@ -1,4 +1,4 @@
-// The post-rollout conversion report (`cells-deploy.yml` → scripts/collect-v2-convert.mjs).
+// The post-rollout conversion report (the `cells` lane of 1aGh/maude-deploy → scripts/collect-v2-convert.mjs).
 //
 // After the stable 2.0.0 fleet deploys, each cell converts its project on start and reports the
 // counts on `/health` as `v2Convert` — the shape pinned at the producer by

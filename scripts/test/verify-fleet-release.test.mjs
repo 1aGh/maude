@@ -1,6 +1,6 @@
 // The post-deploy gate, against a stubbed responder.
 //
-// `cells-deploy.yml` runs this loop against a live tenant cell after a release
+// The `cells` lane of 1aGh/maude-deploy (deploy.yml) runs this loop against a live tenant cell after a release
 // tag deploys, and until it existed "green" meant "an image was pushed and a
 // Worker was deployed" — both true on the release that put a six-day-old hub
 // layer into production. The properties below are the ones that make green

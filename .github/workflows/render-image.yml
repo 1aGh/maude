@@ -1,0 +1,215 @@
+name: Publish render image
+
+# maude-render → ghcr.io/1agh/maude-render:<tag> (DDR-230), on every stable
+# release tag. This is the self-host sidecar (`workspace-up --render` pulls it
+# by MAUDE_IMAGE_TAG) AND the build Cloudflare runs: the private deploy repo
+# (1aGh/maude-deploy) pulls the amd64 child of the digest published here and
+# pushes it to the Cloudflare registry. ONE build, two consumers, shared as a
+# REGISTRY DIGEST — never two builds under one version (the bundle-identity
+# hazard, apps/hub/src/bundle-identity.mjs).
+#
+# Until 2026-11 this and the Cloudflare half were one workflow,
+# render-deploy.yml. The Cloudflare half moved to the private repo so that
+# the account tokens and the deploy logs leave the public one; the ghcr
+# publish STAYS here because a ghcr package is linked to the repo that first
+# published it and another repo's GITHUB_TOKEN is denied (the v0.59.0 lesson).
+# No Cloudflare secret is read anywhere in this file —
+# scripts/test/workflow-invariants.test.mjs asserts that of every public
+# workflow.
+#
+# THE TAG IN apps/render/wrangler.toml IS THE INSTRUCTION. `scripts/bump-version.sh`
+# rewrites it at release time; this workflow asserts it equals the release
+# before building, so the image the deploy repo later pulls is the one the
+# config names.
+
+on:
+  push:
+    # Stable releases only (V2-2.0): `v*.*.*` alone also matches
+    # `v2.0.0-rc.1`; the negation keeps every prerelease away from the
+    # self-host sidecar. scripts/test/release-channel.test.mjs holds the split.
+    tags: ['v*.*.*', '!v*.*.*-*']
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: render-image
+  cancel-in-progress: false
+
+jobs:
+  image:
+    name: Build maude-render + publish to ghcr
+    runs-on: ubuntu-latest
+    steps:
+      - name: A prerelease tag never publishes the render image
+        # V2-2.0 (T21'). The tag filter above already excludes prereleases;
+        # this is the same rule read at the step, so widening the filter later
+        # cannot quietly publish rc code under a release tag.
+        if: github.ref_type == 'tag' && contains(github.ref_name, '-')
+        env:
+          REF: ${{ github.ref_name }}
+        run: |
+          echo "::error::$REF is a prerelease tag — the render image is a stable release only"
+          exit 1
+
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+
+      - name: Parse-check the service
+        # The service's export logic is the studio's exporters (tested there);
+        # this catches a syntax/import break before the expensive image build.
+        run: bun build apps/render/server.ts --target=bun --no-bundle > /dev/null
+
+      - name: Install the Worker's own deps (the idle-policy seam test reads them)
+        # apps/render/test/idle-policy.test.ts pins the @cloudflare/containers
+        # methods worker.mjs overrides — a library bump that renames them would
+        # silently stop the render container from ever sleeping again (the
+        # ~$23/month September bug). Without this install the guard cannot see
+        # the library and the job fails; v1.6.0 shipped exactly that.
+        working-directory: apps/render
+        run: npm install --no-audit --no-fund
+
+      - name: Render service tests (token proxy + idle policy)
+        # Pins the header-normalization contract (hybrid-export T1): the proxy
+        # must never replay Bun-fetch's decompressed-body-with-stale-headers
+        # Response — the bug that made every v1.0.x export die as goto:Timeout.
+        # Deliberately tests apps/render/proxy.ts standalone: server.ts's boot
+        # assert exits under credential-shaped env (GITHUB_TOKEN on runners).
+        run: bun test apps/render/test
+
+      - name: Read the image tag from wrangler.toml
+        id: image
+        run: |
+          IMAGE=$(grep -m1 '^image = ' apps/render/wrangler.toml | sed 's/.*"\(.*\)".*/\1/')
+          if [ -z "$IMAGE" ]; then
+            echo "::error::no image line in apps/render/wrangler.toml"
+            exit 1
+          fi
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "Declared render image: $IMAGE"
+
+      - name: On a release tag, the declared image must BE the release
+        if: github.ref_type == 'tag'
+        run: |
+          IMAGE="${{ steps.image.outputs.image }}"
+          case "$IMAGE" in
+            *:"${{ github.ref_name }}") echo "render tag matches release ${{ github.ref_name }}";;
+            *) echo "::error::apps/render/wrangler.toml declares '$IMAGE' but the release is '${{ github.ref_name }}' — run scripts/bump-version.sh and re-tag"; exit 1;;
+          esac
+
+      - name: Set up QEMU (arm64 emulation)
+        # The arm64 half of the release build runs emulated. It is slow — the
+        # Playwright/Chromium layer especially — and that is the price of the
+        # self-hoster on a t4g box getting an image that starts at all.
+        if: ${{ github.ref_type == 'tag' }}
+        uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v3
+        if: ${{ github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
+
+      - name: Log in to ghcr
+        if: ${{ github.ref_type == 'tag' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ONE `docker build` per release, still — but now the REGISTRY is where
+      # the two consumers meet, not the local daemon.
+      #
+      # The old shape built amd64 with `load: true` and retagged that local
+      # image to ghcr. The invariant it protected was right ("two builds, one
+      # version" is the same-tag-different-bytes hazard across registries), but
+      # `load:` can only take a SINGLE platform into the daemon, so the shape
+      # also pinned the self-host sidecar to amd64 — on the arm64 instance our
+      # own AWS runbook recommends, `--render` could not start (M10).
+      #
+      # Inverted, the invariant holds MORE strictly: buildx publishes the
+      # manifest list, and Cloudflare is handed the amd64 bytes FROM THAT
+      # DIGEST. Both consumers now share a registry digest rather than a local
+      # daemon tag.
+      - name: Build the render image (multi-arch) and publish the self-host sidecar
+        id: build
+        if: ${{ github.ref_type == 'tag' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/render/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/1agh/maude-render:${{ github.ref_name }}
+
+      - name: The published sidecar must be a manifest list covering both architectures
+        # The half that had no gate for a long time: the Cloudflare consumer
+        # was probed after its deploy, but nothing verified the image a
+        # self-hoster pulls, so it shipped amd64-only through every release
+        # since DDR-230 without a red check anywhere. The deploy repo also
+        # refuses an index with no linux/amd64 child before it pushes.
+        if: ${{ github.ref_type == 'tag' }}
+        run: |
+          GHCR="ghcr.io/1agh/maude-render:${{ github.ref_name }}"
+          PLATFORMS=$(docker buildx imagetools inspect --raw "$GHCR" \
+            | jq -r '.manifests[]?.platform | select(.architecture != "unknown") | "\(.os)/\(.architecture)"')
+          echo "$GHCR publishes: ${PLATFORMS:-<not a manifest list>}"
+          for want in linux/amd64 linux/arm64; do
+            echo "$PLATFORMS" | grep -qx "$want" || {
+              echo "::error::$GHCR does not publish $want — a self-hoster on that architecture gets 'exec format error'"
+              exit 1
+            }
+          done
+
+      - name: The release image boots and renders a PNG before Cloudflare gets it
+        # 2.0.0 published an image that exited at boot (a studio import of cli/lib the Dockerfile
+        # did not copy), and "Verify the service answers" still went green: /_health's version is
+        # the env var, not the running image. The daily canary (render-canary.yml) runs this same
+        # job against the SHIPPED image — here it runs against the amd64 child of the digest just
+        # built, so a broken image stops before the fleet rolls to it.
+        if: ${{ github.ref_type == 'tag' }}
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p /tmp/fixture
+          cat > /tmp/fixture/_canvas-shell.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8"><title>release smoke</title></head>
+          <body style="margin:0">
+            <div class="dc-world">
+              <div data-dc-screen="smoke" style="position:absolute;left:0;top:0;width:320px;height:200px;
+                   background:linear-gradient(120deg,#123,#345);color:#fff;font:16px sans-serif">
+                <div style="padding:24px">maude-render release smoke</div>
+              </div>
+            </div>
+          </body></html>
+          HTML
+          (cd /tmp/fixture && python3 -m http.server 8080 &) && sleep 1
+          SRC="ghcr.io/1agh/maude-render@${DIGEST}"
+          docker pull --platform linux/amd64 "$SRC"
+          docker run -d --name render-smoke --network host \
+            -e MAUDE_RENDER_SECRET=smoke-secret \
+            -e MAUDE_RENDER_CANVAS_ORIGINS=http://127.0.0.1:8080 \
+            -e PORT=8790 \
+            "$SRC"
+          up=0
+          for i in $(seq 1 30); do
+            BODY=$(curl -s http://127.0.0.1:8790/_health || true)
+            if echo "$BODY" | jq -e '.ok and .configured' >/dev/null 2>&1; then up=1; echo "image up: $BODY"; break; fi
+            sleep 2
+          done
+          [ "$up" = 1 ] || { echo "::error::the release image never came healthy"; docker logs render-smoke | tail -50; exit 1; }
+          JOB='{"format":"png","targets":[{"kind":"element","cssPath":"[data-dc-screen]","canvasSlug":"smoke","file":"smoke.tsx"}],"options":{},"canvas":{"origin":"http://127.0.0.1:8080"}}'
+          CODE=$(curl -s -o /tmp/out.png -w '%{http_code}' --max-time 300 \
+            -X POST -H 'content-type: application/json' \
+            -H 'authorization: Bearer smoke-secret' \
+            -d "$JOB" http://127.0.0.1:8790/render)
+          if [ "$CODE" != "200" ]; then
+            echo "::error::render returned $CODE: $(head -c 500 /tmp/out.png)"; docker logs render-smoke | tail -80; exit 1
+          fi
+          MAGIC=$(head -c 8 /tmp/out.png | xxd -p)
+          [ "$MAGIC" = "89504e470d0a1a0a" ] || { echo "::error::the release image's artifact is not a PNG"; exit 1; }
+          [ "$(wc -c < /tmp/out.png)" -gt 1000 ] || { echo "::error::the release image's PNG is suspiciously small"; exit 1; }
+          docker rm -f render-smoke >/dev/null

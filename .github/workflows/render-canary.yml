@@ -47,9 +47,12 @@ jobs:
       - name: Health, config and version
         run: |
           BODY=$(curl -sf --max-time 30 https://render.cloud.maude.sh/_health)
-          echo "health: $BODY"
+          # Only the fields the check reads. This log is public; the full
+          # health body (queue depth, instance counts) is reconnaissance
+          # nobody outside needs (security review 2026-11-03, W2).
+          echo "health: $(echo "$BODY" | jq -c '{ok, configured, version}' 2>/dev/null || echo '<not JSON>')"
           echo "$BODY" | jq -e '.ok and .configured' >/dev/null || {
-            echo "::error::render service unhealthy or unconfigured: $BODY"; exit 1; }
+            echo "::error::render service unhealthy or unconfigured (ok=$(echo "$BODY" | jq -r .ok 2>/dev/null) configured=$(echo "$BODY" | jq -r .configured 2>/dev/null))"; exit 1; }
           WANT=$(grep -m1 '^image = ' apps/render/wrangler.toml | sed 's/.*:\(v[^"]*\)".*/\1/')
           GOT=$(echo "$BODY" | jq -r '.version')
           [ "$GOT" = "$WANT" ] || {

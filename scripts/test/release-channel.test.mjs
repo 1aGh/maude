@@ -8,7 +8,7 @@
 //
 //   - every tag-triggered workflow is EITHER stable-only or rc-capable — a new
 //     one has to be put in one of the two lists, deliberately
-//   - stable-only workflows (fleet, render, hub image, self-host check) fire on
+//   - stable-only workflows (hub image, render image, self-host check — the fleet and render DEPLOYS run from the private 1aGh/maude-deploy, dispatched by tag) fire on
 //     vX.Y.Z and on NO prerelease, and refuse one even if a later edit widens
 //     the filter
 //   - rc-capable workflows (npm binaries + desktop) fire on vX.Y.Z and
@@ -117,12 +117,7 @@ export function pushTagPatterns(text) {
 // ── The split ───────────────────────────────────────────────────────────────
 
 /** Never for a prerelease: the fleet, render, the hub's `:latest`, the self-host set. */
-const STABLE_ONLY = [
-  'cells-deploy.yml',
-  'hub-image.yml',
-  'render-deploy.yml',
-  'selfhost-images.yml',
-];
+const STABLE_ONLY = ['hub-image.yml', 'render-image.yml', 'selfhost-images.yml'];
 /** Build for an rc too, routed to the prerelease channel. */
 const RC_CAPABLE = ['build-binaries.yml', 'build-desktop.yml'];
 
