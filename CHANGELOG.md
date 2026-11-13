@@ -1,5 +1,11 @@
 # @1agh/maude
 
+## 2.3.1
+
+### Patch Changes
+
+- **Ships everything in 2.3.0.** The 2.3.0 tag never reached npm or the desktop updater: its desktop build failed on a smoke-test bug and its render image build on a test that read a workflow the same release had removed. 2.3.1 is the same release with the two pipeline fixes — the Codex adapter smoke reads stderr, and the render verify test lives with the deploy workflow it exercises (the private `maude-deploy` repo, which deploys Maude Cloud since this release).
+
 ## 2.3.0
 
 ### Minor Changes
