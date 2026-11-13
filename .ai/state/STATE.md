@@ -24,6 +24,8 @@ Phase A of the gate set found six silent bugs by pointing a typechecker at 52 fi
 **Active plan:** —
 **Active task:** —
 
+_2026-11-13:_ **done — archived** | plan `feature-private-deploy-repo` → `.ai/plans/archive/`. The Cloudflare deploy lanes (cells, render, cloud) and the fleet tokens left the public repo for private `1aGh/maude-deploy` (`workflow_dispatch` by release tag, resolve-by-SHA, dry-run gate, invariant tests ported). Cutover with v2.3.1 (run 43401962551, all lanes green; v2.3.0 failed on a test in `apps/render/test` that read the removed workflow). `CLOUDFLARE_API_TOKEN` + `MAUDE_CONTAINERS_TOKEN` deleted from the public repo. **Open:** the owner revokes `maude-cloud github-actions` in Cloudflare. Report: `.ai/logs/execution-reports/feature-private-deploy-repo.md`.
+
 _2026-11-03:_ **done — post-merge close-out** | plan `feature-maude-v2-redesign` (archived). Everything merged into main after the v2 merge:
 - **Issue triage:** #147 verified with a new desktop e2e step and closed. #154 closed. #153 fixed in PR #161. #157 closed by design.
 - **Follow-up issues:** #162–#172 filed. #162 is the rc-soak checklist.

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-12T00:00:00.000Z",
+  "generated": "2026-11-13T00:00:00.000Z",
   "currentPhase": null,
   "phases": [
     {
@@ -2445,6 +2445,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-private-deploy-repo",
+      "title": "Feature: Private `maude-deploy` repo for the Cloudflare pipeline",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-11-13",
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/archive/feature-private-deploy-repo.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "cloud-live-payments-rollout",
       "title": "Cloud live payments — rollout plan",
       "status": "planned",
@@ -2485,17 +2496,6 @@
       "date": null,
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. This is the extracted Phase 5 of feature-ai-media-generation (closed at Phase 4, 2026-...",
       "planPath": ".ai/plans/feature-local-media-generation.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
-      "id": "feature-private-deploy-repo",
-      "title": "Feature: Private `maude-deploy` repo for the Cloudflare pipeline",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
-      "planPath": ".ai/plans/feature-private-deploy-repo.md",
       "archived": false,
       "phaseKey": null
     },

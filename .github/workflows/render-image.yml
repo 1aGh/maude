@@ -72,7 +72,9 @@ jobs:
         # ~$23/month September bug). Without this install the guard cannot see
         # the library and the job fails; v1.6.0 shipped exactly that.
         working-directory: apps/render
-        run: npm install --no-audit --no-fund
+        # From the committed lockfile, lifecycle scripts off: this runner holds
+        # the ghcr packages:write token a few steps later.
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Render service tests (token proxy + idle policy)
         # Pins the header-normalization contract (hybrid-export T1): the proxy
@@ -95,11 +97,13 @@ jobs:
 
       - name: On a release tag, the declared image must BE the release
         if: github.ref_type == 'tag'
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          TAG: ${{ github.ref_name }}
         run: |
-          IMAGE="${{ steps.image.outputs.image }}"
           case "$IMAGE" in
-            *:"${{ github.ref_name }}") echo "render tag matches release ${{ github.ref_name }}";;
-            *) echo "::error::apps/render/wrangler.toml declares '$IMAGE' but the release is '${{ github.ref_name }}' — run scripts/bump-version.sh and re-tag"; exit 1;;
+            *:"$TAG") echo "render tag matches release $TAG";;
+            *) echo "::error::apps/render/wrangler.toml declares '$IMAGE' but the release is '$TAG' — run scripts/bump-version.sh and re-tag"; exit 1;;
           esac
 
       - name: Set up QEMU (arm64 emulation)
@@ -152,8 +156,10 @@ jobs:
         # since DDR-230 without a red check anywhere. The deploy repo also
         # refuses an index with no linux/amd64 child before it pushes.
         if: ${{ github.ref_type == 'tag' }}
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
-          GHCR="ghcr.io/1agh/maude-render:${{ github.ref_name }}"
+          GHCR="ghcr.io/1agh/maude-render:$TAG"
           PLATFORMS=$(docker buildx imagetools inspect --raw "$GHCR" \
             | jq -r '.manifests[]?.platform | select(.architecture != "unknown") | "\(.os)/\(.architecture)"')
           echo "$GHCR publishes: ${PLATFORMS:-<not a manifest list>}"

@@ -161,11 +161,23 @@ Execute in order. Each task is atomic and testable.
 
 ## Acceptance Criteria
 
-- [ ] All tasks completed
-- [ ] `/flow:validate --fast` passes after each task (Edit-Verify Loop, max 3 iterations)
-- [ ] `/flow:validate` passes overall: static (types, lint, format), full tests, build
-- [ ] A stable release rolled the fleet, render and cloud from `1aGh/maude-deploy`; `verify-fleet-release.sh` green there
-- [ ] `gh secret list -R 1aGh/maude` holds no Cloudflare credential; the three tokens were rotated after the cutover
-- [ ] Public tests guard "no Cloudflare secret in a public workflow"; private tests guard tag-only / never-`:latest` / pinned-tag / no-splice / dry-run gates
-- [ ] `.ai/release-guide.md` + `CLAUDE.md` describe the new chain; `site/lib/roadmap.json` regenerated
-- [ ] No DDR-worthy decision left unrecorded (Task 7 records the move)
+- [x] All tasks completed (1–7, 2026-11-13)
+- [x] `/flow:validate --fast` passes after each task (the two repos' `node --test` lanes + actionlint; no TS touched)
+- [x] `/flow:validate` passes overall — CI `Quality` green on main `853b87009`; local `node --test` 40/40 public + 18/18 private, parity ✓
+- [x] v2.3.1 rolled cells, render and cloud from `1aGh/maude-deploy` (run 43401962551); `verify-fleet-release.sh` green in the cells lane
+- [x] `gh secret list -R 1aGh/maude` holds no fleet credential (`CLOUDFLARE_ACCOUNT_ID` + zone-scoped `CLOUDFLARE_SITE_API_TOKEN` stay for `site-deploy.yml`); `MAUDE_CONTAINERS_TOKEN` rolled — **open: the owner revokes `maude-cloud github-actions (2026-07-29)` in Cloudflare**
+- [x] Public `workflow-invariants.test.mjs` (d) guards the two fleet token names; private `deploy-invariants.test.mjs` guards dispatch-only / resolve / SHA checkout / never-`:latest` / `$TAG` pin / no-splice / dry-run / secret scope / pinned wrangler, `render-verify.test.mjs` the verify step
+- [x] `.ai/release-guide.md` + `CLAUDE.md` § Release flow describe the dispatch; `site/lib/roadmap.json` regenerated at close
+- [x] Graph-native decisions `maude/private-deploy-repo` (plan, move, cutover) recorded; no numbered DDR needed
+
+---
+
+## Retro
+
+- **Worked:** the dry run against the previous stable tag before any public file moved — every lane proved its gate with no secret and no write, so the cutover commit carried no unknowns about the private side. Same for red-first on the ported invariants: six mutations, six reds, one parser bug found.
+- **Worked:** one public cutover commit and the very next release through the new path only; the "no tag deployable by both pipelines" rule from the debate held without effort.
+- **Didn't:** the removal sweep grepped `.github` and `scripts/test` for readers of the deleted workflows and missed `apps/render/test/deploy-verification.test.ts`. Root cause: the plan's Task 4 named the directories to check instead of a `git grep -l` over the tree; v2.3.0 failed on render for it and a second release was needed. **Change in `/flow:plan`:** a REMOVE task's validate line is `git grep -l '<name>'` over the whole tree, with each hit either moved or deleted in the same task.
+- **Didn't:** the first real release was also the first real test of the ghcr half. **Change in `/flow:execute`:** on a cutover release, dispatch the private workflow with `dry_run=true` on the NEW tag before the real dispatch; it costs two minutes and would have shown the missing `maude-render:v2.3.0` while the public job was still red.
+- **Process (Good divergence):** `cloud-d1-precheck.yml` was not in the plan; the new test (d) found it holding the fleet token, so it moved too. The gate did its job before the cutover, which is what it is for.
+- **Process (external constraint):** the planned required reviewer is unavailable on GitHub Free; recorded, not worked around.
+
