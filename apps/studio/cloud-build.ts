@@ -46,6 +46,10 @@ export const CLOUD_ELIMINATED = Object.freeze([
   'acp/login-state.ts', // the `bash -c` native installer
   'acp/probe.ts', // resolves + trusts a `claude` binary path
   'acp/plugin-bootstrap.ts',
+  // Other ACP agents (DDR-252): discovery runs vendor binaries, connect runs the conformance probe and
+  // vendor sign-in, the key routes hold BYOK chat keys. All of it is `/_api/agents`; stubbing the
+  // route module takes acp/agents/* and acp/policy/* out of the graph with it.
+  'routes/agents.ts',
   // Shell probes — `$SHELL -ilc "command -v …"`. A login shell on a server is
   // an execution surface with a tenant-shaped input near it.
   'readiness.ts',
@@ -80,6 +84,7 @@ export const CLOUD_ELIMINATED = Object.freeze([
  */
 export const CLOUD_FORBIDDEN_STRINGS = Object.freeze([
   'claude-agent-acp', // the ACP adapter package
+  '@agentclientprotocol/codex-acp', // the Codex ACP adapter (DDR-252)
   '-ilc', // the login-shell probe
   'application/vnd.github+json', // the REST client that speaks for a user's account
   'generativelanguage.googleapis.com', // BYOK image generation
