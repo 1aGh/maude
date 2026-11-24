@@ -19,7 +19,7 @@ import { execFile, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-
+import { stubClaudeEnv } from '../../lib/stub-claude.mjs';
 import { Client, hiddenFields, textOf } from './cloud-http.mjs';
 import { freePort, killAll, killTree, REPO, startStack, track } from './cloud-stack.mjs';
 import { CARD_DECLINED, CARD_OK } from './cloud-stripe-standin.mjs';
@@ -373,10 +373,12 @@ async function startDesk(name, projectName) {
       ['run', join(REPO, 'apps/studio/server.ts'), '--root', proj, '--port', String(port)],
       {
         env: {
-          PATH: process.env.PATH,
           TMPDIR: process.env.TMPDIR ?? '/tmp',
           HOME: join(dir, 'home'),
           XDG_CONFIG_HOME: join(dir, 'home/.config'),
+          // never the person's real claude (keychain) nor the real machine index
+          ...stubClaudeEnv(join(dir, 'home')),
+          MAUDE_INDEX_DIR: join(dir, 'index'),
           NO_OPEN: '1',
           MAUDE_NO_AUTOBUILD: '1',
           MAUDE_CLOUD_URL: C(),

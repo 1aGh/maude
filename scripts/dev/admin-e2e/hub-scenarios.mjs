@@ -33,7 +33,7 @@ import http from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
+import { writeStubClaude } from '../../lib/stub-claude.mjs';
 import { v2Config } from '../v2-config.mjs';
 import {
   Browser,
@@ -97,12 +97,7 @@ const FIXTURE = join(REPO_ROOT, 'apps/hub/test/fixtures/serve-team-server.mjs');
 
 /** A `claude` that is not there: a scratch HOME plus the real one raises a keychain dialog. */
 function stubBin() {
-  const dir = join(root, 'stub-bin');
-  mkdirSync(dir, { recursive: true });
-  const f = join(dir, 'claude');
-  writeFileSync(f, '#!/bin/sh\nexit 1\n');
-  chmodSync(f, 0o755);
-  return dir;
+  return writeStubClaude(join(root, 'stub-bin'));
 }
 const STUB_BIN = stubBin();
 const scratchHome = (name) => {

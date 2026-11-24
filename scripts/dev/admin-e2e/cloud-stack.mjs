@@ -41,6 +41,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { stubClaudeEnv } from '../../lib/stub-claude.mjs';
 import { createStripeStandin } from './cloud-stripe-standin.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -323,6 +324,9 @@ export async function startStack({ log = () => {}, verbose = false } = {}) {
       NODE_ENV: 'development',
       HOME: join(dir, 'home'),
       XDG_CONFIG_HOME: join(dir, 'home/.config'),
+      // the supervised studio must never reach the person's real claude or machine index
+      ...stubClaudeEnv(join(dir, 'home')),
+      MAUDE_INDEX_DIR: join(dir, 'index'),
       DATA_DIR: join(dir, 'data'),
       MAUDE_REPO_DIR: repoDir,
       MAUDE_DESIGN_ROOT: '.design',
