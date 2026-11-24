@@ -19,7 +19,7 @@
  * Needs the e2e sidecar (`bun run build.ts --release --e2e`) and the debug app; an unlocked, awake screen.
  * Run: `pnpm test:e2e:desktop:agents`.
  */
-import { mkdtempSync } from 'node:fs';
+import { cpSync, mkdtempSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,6 +32,17 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 
 useFakeAi();
 useAgentDropDir();
+// The project lives OUTSIDE this repository. An agent that judges its own reads (opencode) is refused in a
+// project whose git repository holds a link leading out of the folders AI may read (acp/agents/link-scan.ts
+// scans up to the git root), and a source checkout is full of them (pnpm's node_modules links). The fixture
+// inside the repo therefore answered every opencode chat with that refusal. A copy with no repository above it
+// is what a person's own project looks like.
+const projectRoot = realpathSync(mkdtempSync(join(tmpdir(), 'maude-e2e-agents-project-')));
+cpSync(resolve(HERE, 'fixtures/project'), projectRoot, {
+  recursive: true,
+  filter: (src) => !/[/\\]_[^/\\]*$/.test(src),
+});
+process.env.MAUDE_PROJECT_ROOT = projectRoot;
 process.env.MAUDE_E2E_OPENCODE_HOME ??= mkdtempSync(join(tmpdir(), 'maude-e2e-opencode-home-'));
 
 const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');

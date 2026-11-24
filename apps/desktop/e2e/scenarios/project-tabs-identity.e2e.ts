@@ -4,6 +4,7 @@ import { clearComposer, openAssistant, requireAi } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri } from '../helpers/native';
 import { readServerInfo, waitForSidecar } from '../helpers/sidecar';
+import { sidecarHeaders } from '../helpers/sidecar-key';
 import {
   closeTab,
   focusTab,
@@ -106,7 +107,10 @@ async function waitForRun(origin: string, ok: (mine: MineRun[]) => boolean, what
   await browser.waitUntil(
     async () => {
       try {
-        const v = (await fetch(`${origin}/_api/ai/runs`).then((r) => r.json())) as {
+        // the runner is not the page: an app sidecar answers it only with its key (sec-loopback-bearer §7)
+        const v = (await fetch(`${origin}/_api/ai/runs`, { headers: sidecarHeaders(origin) }).then(
+          (r) => r.json()
+        )) as {
           mine?: MineRun[];
         };
         return ok(v.mine ?? []);
