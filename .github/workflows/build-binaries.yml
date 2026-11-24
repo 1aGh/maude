@@ -216,6 +216,23 @@ jobs:
           # enough to prove the binary executes.
           ./${{ env.BIN }} --root /tmp/nonexistent || echo "expected fail-loud exit code"
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: npm new enough for trusted publishing
+        # npm publishes through GitHub's OIDC identity (trusted publishing), not a stored token:
+        # tokens that skip 2FA are being withdrawn (direct publish ends around January 2027) and a
+        # token that asks for a one-time code cannot publish from CI at all (v2.3.2, EOTP). Trusted
+        # publishing needs npm >= 11.5.1 on Node >= 22.14; each package names this workflow file
+        # (build-binaries.yml) as its trusted publisher on npmjs.com.
+        shell: bash
+        run: |
+          npm install -g npm@^11.5.1
+          npm --version
+          node --version
+
       - name: Stage sub-package contents
         shell: bash
         run: |
@@ -228,14 +245,13 @@ jobs:
         if: github.event_name == 'push' || inputs.dry-run != true
         shell: bash
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TAG: ${{ needs.classify.outputs.npm_tag }}
         run: |
           # No dist-tag, no publish: npm's default is `latest`, which is exactly
           # what a release candidate must never get.
           : "${NPM_TAG:?classify produced no npm dist-tag — refusing to publish}"
           cd packages/maude-${{ matrix.slug }}
-          npm config set //registry.npmjs.org/:_authToken "$NODE_AUTH_TOKEN"
+          # No token: the job's `id-token: write` is the credential (trusted publishing).
           # Idempotent: if the version is already published (e.g. a retry of
           # a partial release run), treat 409 as success. Any other error
           # still fails the matrix cell.
@@ -439,10 +455,17 @@ jobs:
       - name: Verify tarball shape
         run: bash scripts/check-tarball-shape.sh
 
+      - name: npm new enough for trusted publishing
+        # see the same step in build-binaries: no token, GitHub's OIDC identity publishes
+        shell: bash
+        run: |
+          npm install -g npm@^11.5.1
+          npm --version
+          node --version
+
       - name: Publish main tarball
         if: github.event_name == 'push' || inputs.dry-run != true
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TAG: ${{ needs.classify.outputs.npm_tag }}
         # Idempotent: see sub-package publish above for rationale.
         run: |
