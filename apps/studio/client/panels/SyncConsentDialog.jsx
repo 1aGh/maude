@@ -62,7 +62,10 @@ export default function SyncConsentDialog({ status, cloud }) {
 
   // Never on a cell (a member browsing someone's hosted project is not the
   // machine whose files sync), never for loopback, never before sync speaks.
-  const due = !cloud && url && !isLoopback(url) && !answered && !readConsent(url);
+  // #228 — never in a capture helper's own browser (bin/_capture-init.js): it has no history, so the sheet
+  // would rise over every "Maude window" shot a bug report attaches. Nothing is answered for the person.
+  const capture = typeof window !== 'undefined' && window.__MAUDE_CAPTURE__ === true;
+  const due = !capture && !cloud && url && !isLoopback(url) && !answered && !readConsent(url);
 
   // The dialog steals the screen, so say so to assistive tech the same way
   // the other modals do — but only while actually shown.

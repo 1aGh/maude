@@ -40,13 +40,15 @@ export function hubAway(syncStatus) {
 /**
  * Which empty-canvas situation applies — or null (nothing to show).
  *
- * @param {{ count: number|null|undefined, mode: string, canEdit: boolean, online: boolean,
+ * @param {{ count: number|null|undefined, annotations?: number|null, mode: string, canEdit: boolean, online: boolean,
  *   claude: 'present'|'absent'|'unknown', canAsk: boolean, loading?: boolean }} f
  *   `count` is what the CANVAS reported (null until it has: no flash while it loads). `canEdit` false =
  *   Can view / Can comment: no create affordance at all. `canAsk`: the AI chat exists here (desktop app).
  */
 export function emptyCanvasModel(f) {
   if (f.count !== 0) return null;
+  // #227 — no artboards, but somebody has drawn on it (stickies, arrows, a board template): not empty.
+  if (f.annotations > 0) return null;
   // #204 — only for a canvas KNOWN to be empty once its load has finished: a 0 said while the canvas is
   // still loading (before its artboards mount) put the invitation over artboards drawn a moment later.
   if (f.loading) return null;
@@ -117,7 +119,8 @@ export function hintPlacement(frame, rect, viewport, size) {
  */
 export function createEmptyLane(deps) {
   const counts = new Map();
-  let state = { count: null, hint: null };
+  const annots = new Map(); // #227 — path → how many annotations its board holds
+  let state = { count: null, annotations: null, hint: null };
   const subs = new Set();
   const set = (next) => {
     state = next;
@@ -130,6 +133,10 @@ export function createEmptyLane(deps) {
   const countOf = () => {
     const p = deps.activePath();
     return p && counts.has(p) ? counts.get(p) : null;
+  };
+  const annotsOf = () => {
+    const p = deps.activePath();
+    return p && annots.has(p) ? annots.get(p) : null;
   };
   return {
     get: () => state,
@@ -147,7 +154,9 @@ export function createEmptyLane(deps) {
       if (m.dgn === 'artboards') {
         if (!path) return;
         counts.set(path, Math.max(0, Math.round(m.count)));
-        set({ ...state, count: countOf() });
+        if (typeof m.annotations === 'number')
+          annots.set(path, Math.max(0, Math.round(m.annotations)));
+        set({ ...state, count: countOf(), annotations: annotsOf() });
       } else if (m.dgn === 'artboard-empty') {
         if (!m.rect || !m.artboardId) {
           if (state.hint) set({ ...state, hint: null });
@@ -171,18 +180,24 @@ export function createEmptyLane(deps) {
     },
     /** The active canvas changed: what was said about the last one is not about this one. */
     switched() {
-      set({ count: countOf(), hint: null });
+      set({ count: countOf(), annotations: annotsOf(), hint: null });
     },
     /** #204 — a canvas started (re)loading: what its last document said about it is not about the next. */
     loadStarted(path) {
       if (!path || !counts.has(path)) return;
       counts.delete(path);
-      set({ ...state, count: countOf() });
+      annots.delete(path);
+      set({ ...state, count: countOf(), annotations: annotsOf() });
     },
     /** A canvas left the project / was closed. */
     forget(path) {
       counts.delete(path);
-      set({ count: countOf(), hint: state.hint?.path === path ? null : state.hint });
+      annots.delete(path);
+      set({
+        count: countOf(),
+        annotations: annotsOf(),
+        hint: state.hint?.path === path ? null : state.hint,
+      });
     },
   };
 }
@@ -234,7 +249,7 @@ export function useClaudeState(enabled) {
 
 /**
  * The lane for the active canvas, bound to the window. One lane per shell; the returned snapshot is
- * `{ count, hint }`.
+ * `{ count, annotations, hint }`.
  */
 export function useEmptyLane({ activePath, iframesRef, canvasOrigin }) {
   const live = useRef({});

@@ -7,7 +7,8 @@
 //
 // Undo and Redo run the same verbs as ⌘Z / ⇧⌘Z (`edit.undo` / `edit.redo` through the menu runner), so
 // the stack that takes back an AI edit, a timeline cut and a move is the one these buttons use. The
-// percentage is a button: it fits the canvas (⌘0), which is what a person asks of the number.
+// percentage is a button: it fits the canvas (⌘0), which is what a person asks of the number. Last, behind
+// a hairline, Report a bug (#228) — Help › Report a bug… (`help.report-bug`) from where the person already is.
 
 import { modeCell } from '../../../bridge/mode-shows.ts';
 import { StIcon } from '../../shell/icons.jsx';
@@ -29,7 +30,7 @@ export function zoomPctLabel(zoom, fit) {
   return fit ? `Zoom to fit · ${zoomLabel(zoom)}` : zoomLabel(zoom);
 }
 
-export function ZoomUndo({ zoom, fit = false, form = 'full', onUndo, onRedo, onFit }) {
+export function ZoomUndo({ zoom, fit = false, form = 'full', onUndo, onRedo, onFit, onReportBug }) {
   const full = form === 'full';
   return (
     <div
@@ -74,6 +75,22 @@ export function ZoomUndo({ zoom, fit = false, form = 'full', onUndo, onRedo, onF
       >
         {zoomPctLabel(zoom, fit)}
       </button>
+      {/* #228 — Report a bug, one press away in every form of the island (it was three menus deep, in Help). */}
+      {onReportBug ? (
+        <>
+          <span className="sh-zoomundo-div" aria-hidden="true" />
+          <button
+            type="button"
+            className="icon-btn"
+            data-testid="zoom-undo-report-bug"
+            aria-label="Report a bug"
+            title="Report a bug"
+            onClick={onReportBug}
+          >
+            <StIcon name="bug" size={16} />
+          </button>
+        </>
+      ) : null}
     </div>
   );
 }

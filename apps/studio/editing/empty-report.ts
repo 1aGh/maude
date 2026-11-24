@@ -23,7 +23,7 @@ export interface EmptyRect {
 }
 
 export type EmptyPost =
-  | { dgn: 'artboards'; count: number }
+  | { dgn: 'artboards'; count: number; annotations?: number }
   | {
       dgn: 'artboard-empty';
       artboardId: string | null;
@@ -112,6 +112,8 @@ export interface EmptyReporterDeps {
   doc: Document;
   /** The artboard id when exactly one WHOLE artboard is selected, else null. */
   selectedArtboard: () => string | null;
+  /** #227 — how many annotations the board holds (annotation-count.ts). Absent = not told, nothing sent. */
+  annotations?: () => number;
   post: (m: EmptyPost) => void;
   raf?: (fn: () => void) => number;
   caf?: (id: number) => void;
@@ -136,14 +138,17 @@ export function createEmptyReporter(deps: EmptyReporterDeps): EmptyReporter {
       typeof cancelAnimationFrame === 'function' ? frameCaf(id) : clearTimeout(id));
   let pending: number | null = null;
   let lastCount = -1;
+  let lastAnnotations = -1;
   let lastKey: string | null = null;
   let lastId: string | null = null;
 
   function pass(): void {
     const count = deps.doc.querySelectorAll('[data-dc-screen]').length;
-    if (count !== lastCount) {
+    const annotations = deps.annotations ? deps.annotations() : undefined;
+    if (count !== lastCount || (annotations !== undefined && annotations !== lastAnnotations)) {
       lastCount = count;
-      deps.post({ dgn: 'artboards', count });
+      if (annotations !== undefined) lastAnnotations = annotations;
+      deps.post({ dgn: 'artboards', count, ...(annotations !== undefined ? { annotations } : {}) });
     }
     const id = deps.selectedArtboard();
     const m = id ? measureEmptyArtboard(deps.doc, id) : null;

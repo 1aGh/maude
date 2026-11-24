@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
 
 import { postToShell } from '../bridge/dgn-protocol.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
+import { annotationCount, onAnnotationCount } from './annotation-count.ts';
 import { createEmptyReporter, EMPTY_CHROME_SEL } from './empty-report.ts';
 
 /** A whole-artboard selection (no element id) → that artboard's id; anything else → null. */
@@ -29,8 +30,13 @@ export function EmptyArtboardReporter(): null {
     const reporter = createEmptyReporter({
       doc: document,
       selectedArtboard: () => selectedRef.current,
+      annotations: annotationCount,
       post: (m) => {
-        if (m.dgn === 'artboards') postToShell(window, 'artboards', { count: m.count });
+        if (m.dgn === 'artboards')
+          postToShell(window, 'artboards', {
+            count: m.count,
+            ...(m.annotations !== undefined ? { annotations: m.annotations } : {}),
+          });
         else
           postToShell(window, 'artboard-empty', {
             artboardId: m.artboardId,
@@ -42,6 +48,8 @@ export function EmptyArtboardReporter(): null {
     });
     requestRef.current = reporter.request;
     reporter.request();
+    // #227 — the first sticky on an empty canvas (or the last one gone) is a new answer
+    const offAnnotations = onAnnotationCount(reporter.request);
     let obs: MutationObserver | null = null;
     if (typeof MutationObserver !== 'undefined') {
       obs = new MutationObserver((records) => {
@@ -59,6 +67,7 @@ export function EmptyArtboardReporter(): null {
     }
     return () => {
       obs?.disconnect();
+      offAnnotations();
       reporter.cancel();
       requestRef.current = null;
     };

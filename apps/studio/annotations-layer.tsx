@@ -147,6 +147,7 @@ import { VoteDots } from './annotations/ui/vote-dots.tsx';
 import { projectStrokes, type StrokeCache } from './annotations/ui/world.ts';
 import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
 import { reasonProps } from './client/v2/access/disabled-reason.js';
+import { setAnnotationCount } from './editing/annotation-count.ts';
 import { frameCaf, frameRaf } from './frame-clock.ts';
 import { setStickerSelected } from './toolbars/shell-panels.ts';
 /**
@@ -1270,6 +1271,13 @@ export function AnnotationsLayer() {
     () => preview ?? (uploading.length ? [...boardStrokes, ...uploading] : boardStrokes),
     [preview, uploading, boardStrokes]
   );
+  // #227 — the empty canvas ("Your canvas is ready.") must not sit over a canvas that has been drawn on:
+  // the reporter sends this with the artboard count. The board's own count — hidden or far-zoom still counts.
+  const annotationTotal = boardStrokes.length + uploading.length;
+  useEffect(() => {
+    setAnnotationCount(annotationTotal);
+  }, [annotationTotal]);
+  useEffect(() => () => setAnnotationCount(0), []);
   const [drawing, setDrawing] = useState<Stroke | null>(null);
   // S4.8 — colour, ink, thickness, Marker tip and the Highlighter's hue / nib are the tool state
   // (annotations/ui/tool-state.ts): the toolbar's popovers set them, and they are the person's own,

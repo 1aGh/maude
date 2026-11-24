@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "reports-227-230-fixes",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Comments, folders and bug reports fixed",
+      "summary": "Clicking a comment in the Comments panel now moves the canvas to it. Creating a folder no longer waits on a slow workspace. Report a bug is a button at the bottom left, and its window screenshot is no longer covered by the sync question. A canvas that holds only annotations no longer shows “Your canvas is ready.”",
+      "surface": "design-ui"
+    },
+    {
       "id": "codex-and-other-agents-in-chat",
       "version": "2.3.0",
       "date": "2026-11-13",

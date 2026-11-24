@@ -216,6 +216,7 @@ export function ShellPreviewChrome() {
       onUndo={() => menuRunner.run('edit.undo')}
       onRedo={() => menuRunner.run('edit.redo')}
       onFit={() => menuRunner.run('view.zoom-fit')}
+      onReportBug={() => menuRunner.run('help.report-bug')}
     />
   ) : null;
   if (!canvasOpen) return null;

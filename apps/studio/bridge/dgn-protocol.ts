@@ -315,7 +315,8 @@ export interface CanvasToShell {
   // legacy, no in-tree sender (accepted today; removal needs a characterization proof)
   select: { selection: Selection };
   'clear-select': Empty;
-  artboards: { count: number };
+  /** `annotations` (#227): how many annotations the canvas's board holds; absent from an older canvas. */
+  artboards: { count: number; annotations?: number };
   /** S11.2 — the ONE selected artboard has nothing on it (the shell draws the hint at `rect`, iframe viewport px);
    *  `rect: null` = it is not empty now / something else is selected. `label` / `from` are untrusted text. */
   'artboard-empty': {
@@ -1853,7 +1854,7 @@ const c2s: C2S = {
     gate: 'active',
     status: 'live',
     owner: 'v2/empty (S11.2); the shell bridge keeps the Layers count',
-    parse: p({ count: num }),
+    parse: p({ count: num, annotations: opt(num) }),
   },
   // S11.2 — the shell draws the empty-artboard hint (Q5 of S11-slices): the copy lives in one table.
   'artboard-empty': {

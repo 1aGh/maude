@@ -78,6 +78,7 @@ import {
 import { handleOfName } from './comments/mentions.ts';
 import { mineIdsOf, restampMine, viewerFor } from './comments/mine-stamp.ts';
 import { committerRows, type MentionRow } from './comments/people.ts';
+import { COMMENT_REVEAL_EVENT, type CommentRevealDetail } from './comments/reveal.ts';
 import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';
 import { resolveByDomPath } from './dom-selection.ts';
 import { frameCaf, frameRaf } from './frame-clock.ts';
@@ -698,9 +699,24 @@ export function CommentsOverlay(): React.ReactNode {
   // Keep the latest comments list reachable from the message handler without
   // re-attaching the listener on every comments mutation.
   const commentsRef = useRef<OverlayComment[]>(comments);
+  // #229 — the thread the shell asked to see, until its comment is known and its place has been asked for
+  const revealWantRef = useRef<string | null>(null);
+  const revealWanted = useCallback(() => {
+    const id = revealWantRef.current;
+    if (!id || typeof document === 'undefined') return;
+    const c = commentsRef.current.find((x) => x.id === id);
+    if (!c) return;
+    revealWantRef.current = null;
+    // next frame: the pin and the selection this focus made are laid out by then
+    frameRaf(() => requestCommentReveal(c));
+  }, []);
   /** the comment / reply ids the shell's last `comments-set` marked as the viewer's */
   const mineIdsRef = useRef<ReadonlySet<string>>(new Set());
   commentsRef.current = comments;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `comments` arriving is the trigger
+  useEffect(() => {
+    revealWanted();
+  }, [comments, revealWanted]);
 
   // Phase 8 Task 3 — when a collab room is connected, the Y.Array of comments
   // is the live source of truth. observe() fires on every remote mutation
@@ -762,6 +778,10 @@ export function CommentsOverlay(): React.ReactNode {
         else setReplyFocus(0);
         const target = id ? commentsRef.current.find((c) => c.id === id) : undefined;
         mirrorSelection(target);
+        // #229 — and bring its place into view (a newly opened tab has no comments yet: asked again
+        // when they arrive, below)
+        revealWantRef.current = id;
+        revealWanted();
       }
     };
     window.addEventListener('message', onMessage);
@@ -1448,6 +1468,22 @@ export function locateComment(comment: OverlayComment): {
   const at = isWorldPoint(comment.world) ? worldToClient(comment.world) : null;
   const pos = at ? pointBox(at) : (comment.bounds ?? null);
   return { pos, missing: anchored };
+}
+
+/** #229 — the overlay asks the canvas (canvas-shell.tsx, which holds the camera) to bring a comment into view. */
+/** The artboard a comment is on: its v2 anchor, else the `data-dc-screen` in its element selector. */
+export function commentArtboard(c: OverlayComment): string | null {
+  const own = c.artboard;
+  if (typeof own === 'string' && own) return own;
+  return c.selector?.match(/data-dc-screen="([^"]+)"/)?.[1] ?? null;
+}
+export function requestCommentReveal(comment: OverlayComment): void {
+  if (typeof document === 'undefined') return;
+  const detail: CommentRevealDetail = {
+    artboard: commentArtboard(comment),
+    locate: () => locateComment(comment).pos,
+  };
+  document.dispatchEvent(new CustomEvent(COMMENT_REVEAL_EVENT, { detail }));
 }
 
 /** The one letter a pin wears: the author's initial — the letter the Comments list's avatar wears too. */

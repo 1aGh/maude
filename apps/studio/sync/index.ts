@@ -2916,6 +2916,14 @@ export function createSyncRuntime(
       });
   }
 
+  /**
+   * #230 — how long "Create folder" waits for the project's answer before the folder is made here and the
+   * proposal keeps going on its own. A new folder only adds, so nothing is lost by not waiting: with the
+   * project slow or asking this machine to slow down, the old 8 s wait was 8 s of "Creating…" per folder.
+   * A healthy project answers well inside this, so a refusal (a taken name on a peer) is still said in
+   * the dialog. Deleting and moving keep the long wait — those change what other people have.
+   */
+  const FOLDER_CREATE_WAIT_MS = 1_200;
   function proposeFolder(
     op:
       | { op: 'dir.create'; path: string }
@@ -2938,7 +2946,7 @@ export function createSyncRuntime(
     }
     const answer =
       op.op === 'dir.create'
-        ? acceptedLink.dirCreate(op.path)
+        ? acceptedLink.dirCreate(op.path, FOLDER_CREATE_WAIT_MS)
         : op.op === 'dir.delete'
           ? acceptedLink.dirDelete(op.path)
           : acceptedLink.dirMove(op.from, op.to);

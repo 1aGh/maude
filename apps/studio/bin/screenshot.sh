@@ -479,7 +479,13 @@ navigate_once() {
     # screenshot" — which for the Report-a-Bug shell shot means a blank image
     # labelled "Maude window" lands in someone's bug report.
     # its own output can echo the URL (an opening link, a frame capability): never to stderr
-    if ! "$AB" open "$URL" >/dev/null 2>&1; then
+    # #228 — a shell capture says so to the studio (bin/_capture-init.js), which then holds back the
+    # ask-once sheets a browser with no history would raise over the window being captured.
+    local open_extra=()
+    if [ "$MODE" = "shell" ] && [ -f "$(dirname "$0")/_capture-init.js" ]; then
+      open_extra=(--init-script "$(dirname "$0")/_capture-init.js")
+    fi
+    if ! "$AB" open "$URL" ${open_extra[@]+"${open_extra[@]}"} >/dev/null 2>&1; then
       echo "✗ navigation failed: $(shown_url "$URL")" >&2
       return 1
     fi

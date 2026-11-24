@@ -53,7 +53,7 @@ export function EmptyHost() {
   const native = isNativeApp();
   const canAsk = native && canEdit;
   const [claude] = useClaudeState(canAsk && canvasOpen);
-  const { lane, count, hint } = useEmptyLane({
+  const { lane, count, annotations, hint } = useEmptyLane({
     activePath,
     iframesRef,
     canvasOrigin: cfg?.canvasOrigin,
@@ -66,7 +66,16 @@ export function EmptyHost() {
     if (loadingPath) lane.loadStarted(loadingPath);
   }, [lane, loadingPath]);
   const model = canvasOpen
-    ? emptyCanvasModel({ count, mode, canEdit, online, claude, canAsk, loading: canvasLoading })
+    ? emptyCanvasModel({
+        count,
+        annotations,
+        mode,
+        canEdit,
+        online,
+        claude,
+        canAsk,
+        loading: canvasLoading,
+      })
     : null;
   // rc3-h (#182): a run of yours on this empty canvas — the ghost where the first artboard lands, not the invitation
   const { view: runsView } = useAiRuns();

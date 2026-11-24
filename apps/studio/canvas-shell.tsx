@@ -51,12 +51,14 @@ import { HUD_TOKENS_CSS } from './canvas-hud-tokens.gen.ts';
 import {
   type ArtboardRect,
   fitRectIntoHost,
+  getLiveViewport,
   PhotoPreviewBridge,
   SnapGuideOverlay,
   useArtboardsContext,
   useDragStateContext,
   useViewportControllerContext,
   type ViewportControllerHandle,
+  type ViewportState,
 } from './canvas-lib.tsx';
 import {
   CanvasPagesSwitch,
@@ -78,6 +80,7 @@ import {
 } from './commands/edit-source-command.ts';
 import { type AlignMode, alignLabel, equalSpacingLabel } from './commands/equal-spacing-command.ts';
 import { buildReorderRecord, type ReorderRevertFn } from './commands/reorder-command.ts';
+import { COMMENT_REVEAL_EVENT, type CommentRevealDetail } from './comments/reveal.ts';
 import {
   ContextMenuProvider,
   type ContextRegistry,
@@ -2534,6 +2537,33 @@ export function revealElementViaCamera(
   if (dx !== 0 || dy !== 0) controller.panBy(dx, dy);
 }
 
+/** Room (screen px) a comment's thread card needs beside its pin — it opens to the pin's right or left. */
+export const COMMENT_REVEAL_ROOM_PX = 120;
+
+/**
+ * #229 — where the camera goes so a comment's place (`pos`, client px) is in view: null when it already is
+ * (the pin and room for its thread card inside the view box), else the camera that puts it in the middle
+ * of the view box. A jump from the Comments panel is a "take me there", so it centres rather than nudging.
+ */
+export function commentRevealTarget(
+  view: { left: number; top: number; right: number; bottom: number },
+  pos: { x: number; y: number; w: number; h: number },
+  vp: ViewportState,
+  room = COMMENT_REVEAL_ROOM_PX
+): ViewportState | null {
+  const cx = pos.x + pos.w / 2;
+  const cy = pos.y + pos.h / 2;
+  const mx = Math.min(room, Math.max(0, (view.right - view.left) / 2 - 1));
+  const my = Math.min(room, Math.max(0, (view.bottom - view.top) / 2 - 1));
+  const inside =
+    cx >= view.left + mx && cx <= view.right - mx && cy >= view.top + my && cy <= view.bottom - my;
+  if (inside) return null;
+  const dx = (view.left + view.right) / 2 - cx;
+  const dy = (view.top + view.bottom) / 2 - cy;
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return null;
+  return { x: vp.x + dx, y: vp.y + dy, zoom: vp.zoom };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // feature-4 T7b — locked-layer enforcement. The shell owns the padlock UI +
 // view.json persistence; the canvas only needs the LIVE set to refuse
@@ -2742,6 +2772,30 @@ function CanvasRouter({
 
   // Shell View-menu zoom bridge (dgn:'zoom') — same controller the zoom pill uses.
   const zoomController = useViewportControllerContext();
+  // #229 — a thread opened from the Comments panel: the overlay (which knows the comment) asks for its place
+  // to be brought into view. A comment on another page turns to that page first; the place is measured after.
+  useEffect(() => {
+    if (typeof document === 'undefined' || !zoomController) return;
+    const onReveal = (e: Event) => {
+      const d = (e as CustomEvent<CommentRevealDetail>).detail;
+      if (typeof d?.locate !== 'function') return;
+      const go = () => {
+        const host = hostRef.current;
+        const pos = d.locate();
+        if (!host || !pos) return;
+        const next = commentRevealTarget(
+          revealViewBox(host.getBoundingClientRect(), canvasInsets()),
+          pos,
+          getLiveViewport() ?? zoomController.viewport
+        );
+        if (next) zoomController.animateTo(next, 220);
+      };
+      if (d.artboard && turnToPage(d.artboard)) frameRaf(() => frameRaf(go));
+      else go();
+    };
+    document.addEventListener(COMMENT_REVEAL_EVENT, onReveal);
+    return () => document.removeEventListener(COMMENT_REVEAL_EVENT, onReveal);
+  }, [zoomController, hostRef]);
   // Shell View-menu chrome-visibility bridge (dgn:'view-chrome') — minimap /
   // zoom-controls toggles + Presentation Mode. Drives the shared chrome store
   // the floating chrome (DCMiniMap, DCZoomToolbar, ToolPalette, AnnotationsLayer)
