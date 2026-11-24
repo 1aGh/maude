@@ -17,7 +17,8 @@ const vars = [...sandbox.matchAll(/"?([A-Za-z_][A-Za-z0-9_]*)=/g)].map((m) => m[
 test('the slot command and the dep install run under the env -i allowlist', () => {
   assert.ok(sandbox, 'a SANDBOX=(env -i …) array');
   assert.match(remote, /nice -n 10 "\$\{SANDBOX\[@\]\}" bash -c "\$CMD"/);
-  assert.match(remote, /sb pnpm install/);
+  // CI=true only tells pnpm there is no TTY to ask on; the install still runs under the allowlist (`sb`)
+  assert.match(remote, /sb env CI=true pnpm install/);
   assert.match(remote, /sb bun install/);
 });
 
