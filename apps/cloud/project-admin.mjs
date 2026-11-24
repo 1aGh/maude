@@ -27,6 +27,7 @@ import {
   modeConsequence,
   validateDesignSync,
 } from './design-sync.mjs';
+import { pageCsp } from './edge.mjs';
 import { validateTarget } from './mirror.mjs';
 import { ACCESS_MESSAGES, can, decideAccess } from './project-access.mjs';
 import { removeCellDomain } from './provision.mjs';
@@ -80,8 +81,7 @@ function html(body, status = 200) {
       'content-type': 'text/html; charset=utf-8',
       'cache-control': 'no-store',
       'x-content-type-options': 'nosniff',
-      'content-security-policy':
-        "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
+      'content-security-policy': pageCsp(),
       'referrer-policy': 'no-referrer',
     },
   });
@@ -355,6 +355,9 @@ export const AUDIT_COPY = {
   'grant-minted': 'Opened the project from a new device',
   reconcile: 'Routine platform check',
   'reconcile-failed': 'A platform check hit a problem',
+  'reconcile.adverse-noted':
+    'The subscription read as ended. Nothing is paused yet — it is checked again each hour',
+  'reconcile.adverse-cleared': 'The subscription reads as active again',
   'export.prepared': 'A full copy was prepared',
   'project.deleted': 'The project was deleted',
   'mirror.configured': 'GitHub copy connected',
@@ -368,7 +371,53 @@ export const AUDIT_COPY = {
   'operator.events.viewed': 'Maude looked at platform-wide usage figures',
   'operator.project.viewed': 'Maude opened this project’s record',
   'operator.reconcile.nudged': 'Maude asked the platform to re-check this project',
+  // What an operator can DO to a project or its owner's account (D1 v21,
+  // operator-actions.mjs). Each row carries the reason the operator gave.
+  'operator.free-time.given': 'Maude gave this project free time',
+  'operator.free-time.refused': 'Maude tried to give this project free time; nothing changed',
+  'operator.promo.set': 'Maude marked this project as Promo',
+  'operator.promo.refused': 'Maude tried to mark this project as Promo; nothing changed',
+  'operator.promo.ended': 'Maude set the date Promo ends',
+  'promo.ended': 'Promo ended — a paid plan started',
+  'do.promo-ending': 'The owner was told Promo is ending',
+  'operator.project.paused': 'Maude paused this project',
+  'operator.project.woken': 'Maude woke this project',
+  'operator.project.created': 'Maude made this project',
+  'operator.project.refused': 'Maude tried to make a project for this account; nothing was made',
+  'operator.invite.sent': 'Maude invited someone to this project',
+  'checkout.started': 'Payment was started',
+  'operator.project.moved': 'Maude moved this project to another owner',
+  'operator.account.viewed': 'Maude opened the owner’s account record',
+  'operator.account.signed-out': 'Maude signed this account out everywhere',
 };
+
+/**
+ * The operator's reads that span EVERY customer (no project, no one account):
+ * each is shown on every project's Activity page, because it touched every
+ * project. Anything else an operator records names ONE project or ONE account
+ * and is shown only there.
+ */
+export const FLEET_WIDE_READS = Object.freeze([
+  'operator.board.viewed',
+  'operator.projects.viewed',
+  'operator.accounts.viewed',
+  'operator.events.viewed',
+]);
+
+/**
+ * Activity that is the OWNER's alone: what the project's plan is and what was
+ * done to it. A member sees that Maude paused or woke the project — that
+ * changes their day — and nothing about free time, Promo or money.
+ */
+export const OWNER_ONLY_ACTIVITY = Object.freeze([
+  'operator.free-time.given',
+  'operator.free-time.refused',
+  'operator.promo.set',
+  'operator.promo.refused',
+  'operator.promo.ended',
+  'promo.ended',
+  'do.promo-ending',
+]);
 
 export function auditPage({ account, project, isOwner, entries }) {
   const rows = entries
@@ -876,14 +925,56 @@ export async function handleProjectAdminRoutes(request, env, { account, ctx = nu
     // inverting the promise (attacker review, 2026-08-04). They are unioned in
     // here: a cross-tenant read is a read of this project, whatever column it
     // happened to be filed under.
+    //
+    // ONLY THE FLEET-WIDE ONES, BY NAME (D1 v21). The union used to take every
+    // operator row with no project — fine while every such row was a list
+    // view. An operator action on ONE ACCOUNT also has no project ("signed out
+    // everywhere — laptop stolen"), and under the old filter it would have
+    // appeared, reason and all, on every other customer's Activity page. So:
+    // the named fleet-wide reads for everyone; rows about ONE account for that
+    // account's own owner only.
+    //
+    // AND CUT AT A MOVE. When an operator moves a project to another owner,
+    // the operator and plan rows written BEFORE the move are about the
+    // previous owner ("behind on invoices", "abuse report") and are not the
+    // new owner's to read. From the move on — the move itself included — they
+    // are. Ordinary project history (who was added, what was exported) is the
+    // project's and stays.
+    const quoted = (list) => list.map((a) => `'${a}'`).join(', ');
+    const viewerOwns = project.account_id === account.id;
+    const moved = viewerOwns
+      ? await env.DB.prepare(
+          `SELECT MAX(at) AS at FROM audit_log
+            WHERE project_id = ? AND action = 'operator.project.moved'`
+        )
+          .bind(projectId)
+          .first()
+          .catch(() => null)
+      : null;
+    const cut = Number(moved?.at ?? 0);
     const rows = await env.DB.prepare(
-      `SELECT at, actor, action, reason FROM audit_log WHERE project_id = ?
+      `SELECT at, actor, action, reason FROM audit_log
+        WHERE project_id = ?1
+          ${
+            viewerOwns
+              ? `AND NOT (at < ?3 AND (action LIKE 'operator.%' OR action IN (${quoted(OWNER_ONLY_ACTIVITY)})))`
+              : `AND action NOT IN (${quoted(OWNER_ONLY_ACTIVITY)})`
+          }
        UNION ALL
        SELECT at, actor, action, reason FROM audit_log
         WHERE project_id IS NULL AND actor LIKE 'operator:%'
+          AND action IN (${quoted(FLEET_WIDE_READS)})
+       ${
+         viewerOwns
+           ? `UNION ALL
+       SELECT at, actor, action, reason FROM audit_log
+        WHERE project_id IS NULL AND actor LIKE 'operator:%' AND account_id = ?2
+          AND action NOT IN (${quoted(FLEET_WIDE_READS)})`
+           : ''
+}
        ORDER BY at DESC LIMIT 200`
     )
-      .bind(projectId)
+      .bind(...(viewerOwns ? [projectId, account.id, cut] : [projectId]))
       .all();
     return html(auditPage({ account, project, isOwner, entries: rows?.results ?? [] }));
   }

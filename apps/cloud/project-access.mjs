@@ -73,7 +73,9 @@ export function decideAccess({ accountId, project, members = [], now = Date.now(
  *
  *  - `paid`   — a subscription is on the row (Checkout, or Choose a plan);
  *  - `trial`  — provisioned under the account's trial, still inside it;
- *  - `paused` — that trial is over and no plan was chosen;
+ *  - `promo`  — free by an operator's decision (promo.mjs), still running;
+ *  - `paused` — that trial (or a Promo with an end date) is over and no plan
+ *    was chosen;
  *  - `none`   — not a trial project and no subscription: a pending checkout,
  *    a hand-provisioned pilot, a legacy row. NEVER paused by this — the trial
  *    clock is not a way to stop a project that was never on it.
@@ -85,9 +87,44 @@ export function decideAccess({ accountId, project, members = [], now = Date.now(
 export function planState(project, { now = Date.now() } = {}) {
   if (!project) return 'none';
   if (project.subscription_id) return 'paid';
+  // Promo (D1 v21): set by an operator. Read BEFORE the trial clock, so a
+  // Promo project is never a trial and an old trial date underneath cannot
+  // pause it; read AFTER the subscription, so a paid plan replaces it. A Promo
+  // with an end date that has passed is `paused` — a plan is due.
+  if (project.promo_since != null) {
+    const promoEnds = project.promo_ends_at ?? null;
+    return promoEnds !== null && now >= promoEnds ? 'paused' : 'promo';
+  }
   const endsAt = project.trial_ends_at ?? null;
   if (endsAt === null) return 'none';
   return now >= endsAt ? 'paused' : 'trial';
+}
+
+/**
+ * The instant this project pauses (or paused) with no plan, or null when
+ * nothing is counting: a paid project, a Promo with no end, a row with no
+ * trial. The clock `planState` reads, as one number — free time moves it, and
+ * the sweep's "already told the cell" guard is measured from it.
+ */
+export function planPausedAt(project) {
+  if (!project || project.subscription_id) return null;
+  if (project.promo_since != null) return project.promo_ends_at ?? null;
+  return project.trial_ends_at ?? null;
+}
+
+/**
+ * Does this project's workspace hold a capability (e.g. `roles-v2`)? Read from
+ * what the workspace last reported (`projects.capabilities`, D1 v22, written
+ * by the sweep). Never reported, unreadable, or absent from the list → no:
+ * offering a thing the workspace then refuses is worse than not offering it.
+ */
+export function cellHolds(project, capability) {
+  try {
+    const list = JSON.parse(project?.capabilities ?? 'null');
+    return Array.isArray(list) && list.includes(capability);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -112,6 +149,8 @@ export const ACCESS_MESSAGES = {
   'no-access': 'This project is not available to your account.',
   purged: 'This project was deleted. If you exported it, that copy is still yours.',
   suspended: 'This project is paused. Its owner can restart it from the dashboard.',
+  // An operator paused it by hand (D1 v21). Nothing to restart or pay for.
+  held: 'This project is paused by Maude. Nothing is deleted. Its Activity page says why.',
   // A3 (S9.15) — the owner's sentence is the contract's; the hub's
   // access-gate.mjs carries the same two strings (a test pins each side).
   plan: 'Choose a plan to keep editing.',

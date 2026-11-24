@@ -65,8 +65,10 @@ export async function mintHandoffCode(
   // The CLAIM, not only the project role (V2-1.7 §5.3): a canvas-only person
   // holds no membership row but does hold grants, and the browser lane is
   // exactly where they open their canvas.
-  const { verdict } = await loadClaim(env.DB, projectId, account?.id ?? null);
+  const { verdict, project } = await loadClaim(env.DB, projectId, account?.id ?? null);
   if (!verdict.ok) return { ok: false, reason: verdict.reason };
+  // Paused by an operator: no code, as `/projects/open` mints no token.
+  if (project?.hold_since != null) return { ok: false, reason: 'held' };
   // The APP lane still refuses viewers — a desktop session is an editing
   // credential, and handing one to a viewer would be the silent escalation the
   // debate ruled out. The BROWSER lane (Cloud Phase 25 B1) does not: looking,
@@ -310,7 +312,14 @@ export async function handleHandoff(request, env, { account }) {
     // Re-decide access at exchange time: a code must not outlive a removal
     // that happened in its two-minute window. The CLAIM (role + grants) is
     // read again; the one captured at mint is a record, not a ticket.
-    const { verdict } = await loadClaim(env.DB, row.project_id, row.account_id);
+    const { verdict: decided, project: heldCheck } = await loadClaim(
+      env.DB,
+      row.project_id,
+      row.account_id
+    );
+    // A pause that landed inside the code's two minutes ends it too.
+    const verdict =
+      decided.ok && heldCheck?.hold_since != null ? { ok: false, reason: 'held' } : decided;
     // Re-decided at exchange, and the surface decides the viewer rule (Phase
     // 25 B1) — the same asymmetry as the mint, applied to a code that may have
     // been minted two minutes ago and to a membership that may have changed

@@ -110,11 +110,13 @@ describe('who gets in', () => {
     assert.equal((await call(get('/operator'), env, OPERATOR)).status, 404);
   });
 
-  it('a caller with no session is sent to sign in', async () => {
+  it('a caller with no session gets the 404 an unknown URL gets — no redirect', async () => {
+    // It used to be sent to /login?next=…, which told a stranger the path was
+    // real (security review, 2026-11-24). An operator signs in at /login.
     const { env } = fresh();
     const res = await call(get('/operator/projects'), env, null);
-    assert.equal(res.status, 303);
-    assert.equal(res.headers.get('location'), '/login?next=%2Foperator%2Fprojects');
+    assert.equal(res.status, 404);
+    assert.equal(res.headers.get('location'), null);
   });
 
   it('a BEARER-carrying caller with no cookie gets 404, not a login redirect', async () => {
@@ -381,9 +383,10 @@ describe('the one write', () => {
     assert.match(bad, /A reason is required/);
   });
 
-  it('the surface offers no other write at all', async () => {
-    // Read-mostly is the design, not an accident of what was implemented
-    // first. Suspend/comp/refund stay in Stripe.
+  it('the list pages take no write at all', async () => {
+    // Every write is on ONE target's page and goes through the gate
+    // (operator-actions.test.mjs). A POST to a list is not a route. Comp and
+    // refund stay in Stripe.
     const { env } = fresh();
     for (const path of ['/operator', '/operator/projects', '/operator/accounts']) {
       assert.equal((await call(post(path, {}), env, OPERATOR)).status, 404, path);

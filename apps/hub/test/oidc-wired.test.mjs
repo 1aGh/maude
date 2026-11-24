@@ -39,11 +39,12 @@ test('the sign-in button points at a route that now exists', () => {
 
 test('the admin console reaches the pending queue and can link', () => {
   assert.match(ADMIN_HTML, /id="card-oidc-pending"/);
-  assert.ok(ADMIN_JS.includes("'/oidc/pending'"), 'the console loads the queue');
+  // The queue is rows of the ONE People list now ("Asks to join").
+  assert.ok(ADMIN_JS.includes("'/people'"), 'the console loads the list the queue is part of');
   assert.ok(ADMIN_JS.includes("'/oidc/link'"), 'and can link a subject');
-  // 2026-08-21 — the third verb: create the account AND link, for the invited
-  // person who signed in through the provider and has nothing to link TO.
-  assert.ok(ADMIN_JS.includes("'/oidc/approve'"), 'and can approve (create + link) a subject');
+  // 2026-08-21 — the third verb: create the account AND link, for the person
+  // who signed in through the provider and has nothing to link TO. "Let in".
+  assert.ok(ADMIN_JS.includes("'/people/let-in'"), 'and can let in (create + link) a subject');
   assert.match(ADMIN_JS, /data-approve="\$\{sub\}"/);
 });
 

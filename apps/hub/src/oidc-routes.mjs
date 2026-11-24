@@ -28,12 +28,36 @@
 //
 // Linking is therefore an explicit admin act in the People view
 // (`linkOidcSub`), and this module never calls it.
+//
+// ── WHAT ELSE MAY LET A SUBJECT IN (`resolveVerified`) ─────────────────────
+//
+// Two things besides an admin's click, and neither is a match on the address:
+//
+//   • AN INVITATION the person holds. The raw invite rides the signed,
+//     HttpOnly transaction cookie from the join page to the callback; a
+//     still-valid invite plus a VERIFIED, allow-listed address creates a NEW
+//     account for that address with the invite's role and links the subject
+//     to it (`createOidcUser`). The invite is the approval, spent exactly once.
+//   • THE "who can join" RULE (`settings.json`), when the admin chose
+//     `domain`: the same new-account-and-link, as a member.
+//
+// Both go through `createOidcUser`, which throws when the address already has
+// an account — so an EXISTING account is still never reached by its address.
+// That case falls to `pending` exactly as before, and the invite is not spent.
 
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { peekInvite, redeemInvite } from './invites.mjs';
 import { createVerifier, usableEmailClaim } from './oidc.mjs';
 import { assertSameOrigin, fetchGuarded } from './oidc-egress.mjs';
 import { isRevoked } from './revocations.mjs';
-import { getUserByOidcSub, recordPendingOidc } from './users.mjs';
+import {
+  createOidcUser,
+  getUser,
+  getUserByOidcSub,
+  isTurnedOut,
+  recordPendingOidc,
+  removeUser,
+} from './users.mjs';
 
 /** The cookie carrying state/PKCE/nonce between /start and /callback. */
 export const OIDC_TXN_COOKIE = 'maude_oidc_txn';
@@ -147,7 +171,7 @@ export function createTransaction({ random = randomBytes } = {}) {
   };
 }
 
-export function authorizeUrl(cfg, txn, redirectUri, authorizationEndpoint) {
+export function authorizeUrl(cfg, txn, redirectUri, authorizationEndpoint, { prompt = null } = {}) {
   // ORIGIN-CHECKED like the JWKS and token endpoints (B6). This is the one
   // discovery field the browser is REDIRECTED to, so a discovery document that
   // names an attacker origin here is an open redirect carrying client_id,
@@ -163,6 +187,8 @@ export function authorizeUrl(cfg, txn, redirectUri, authorizationEndpoint) {
   u.searchParams.set('nonce', txn.nonce);
   u.searchParams.set('code_challenge', txn.codeChallenge);
   u.searchParams.set('code_challenge_method', 'S256');
+  // "Use another account" — a fixed word, never a caller's string.
+  if (prompt === 'select_account') u.searchParams.set('prompt', 'select_account');
   return u.toString();
 }
 
@@ -231,6 +257,124 @@ export function resolveSubject(dataDir, verified, cfg) {
     }
   }
   return outcome;
+}
+
+/** "Only people you invite" — one sentence, the same whoever asks (no account-existence signal). */
+function turnedAway() {
+  return {
+    action: 'refuse',
+    code: 'invite-only',
+    reason:
+      'You need an invitation to join. Ask whoever runs this team server to invite you. Already have an account here? Sign in with its password and choose Link my sign-in.',
+  };
+}
+
+function queuePending(dataDir, sub, email) {
+  try {
+    recordPendingOidc(dataDir, { sub, email });
+  } catch (err) {
+    if (err.code !== 'PENDING_FULL') throw err;
+  }
+}
+
+/**
+ * The whole decision for a verified subject: linked, invited, admitted by the
+ * "who can join" rule, queued, or turned away.
+ *
+ * @param {string} dataDir
+ * @param {{ sub: string, email?: string, emailVerified?: boolean }} verified
+ * @param {{ allowedDomains?: string[] }} cfg
+ * @param {object} [opts]
+ * @param {string|null} [opts.invite]  the raw invite the transaction carried
+ * @param {'invite-only'|'ask'|'domain'} [opts.policy]
+ * @returns {{action:'sign-in', user: object, via: 'linked'|'invite'|'domain', invite?: object}
+ *   | {action:'pending', reason: string}
+ *   | {action:'refuse', reason: string, code?: string}
+ *   | {action:'invite-mismatch', inviteEmail: string, email: string}}
+ */
+export function resolveVerified(dataDir, verified, cfg, { invite = null, policy = 'ask' } = {}) {
+  const linkedUser = verified?.sub ? getUserByOidcSub(dataDir, verified.sub) : null;
+  // A linked subject, or no subject at all: the decision that has always held.
+  if (linkedUser || !verified?.sub) {
+    const outcome = resolveSubject(dataDir, verified, cfg);
+    return outcome.action === 'sign-in' ? { ...outcome, via: 'linked' } : outcome;
+  }
+  // From here: a verified subject with NO account. Only a verified address on
+  // the allowlist can be invited in or admitted by rule; anything else gets
+  // exactly what it got before (pending, with no row).
+  const email = usableEmailClaim(verified, cfg.allowedDomains ?? []);
+  if (!email) {
+    // Never queued (resolveSubject records only a usable address). Under
+    // invite-only say so plainly rather than "waiting for access".
+    if (policy === 'invite-only') return turnedAway();
+    return resolveSubject(dataDir, verified, cfg);
+  }
+
+  // The address already has an account that is NOT this subject's. Matching on
+  // it is the takeover — pending, whatever invite or rule is in play, and the
+  // invite is left unspent.
+  const taken = Boolean(getUser(dataDir, email));
+
+  // REMOVED AND DISMISSED PEOPLE STAY OUT. An admin took this subject or this
+  // address out (users.mjs `markTurnedOut`); neither the domain rule nor a
+  // link for anyone creates them an account again. They can ASK — queued in
+  // every mode, invite-only included, so an admin sees it and decides — and
+  // "Let in" or an invitation that NAMES the address clears it.
+  const turnedOut = isTurnedOut(dataDir, { sub: verified.sub, email });
+
+  const look = invite && !taken ? peekInvite(dataDir, invite) : null;
+  const named =
+    look?.ok &&
+    String(look.invite.email ?? '')
+      .trim()
+      .toLowerCase() === email;
+  if (look?.ok && (!turnedOut || named)) {
+    const bound = String(look.invite.email ?? '')
+      .trim()
+      .toLowerCase();
+    if (bound && bound !== email) {
+      return { action: 'invite-mismatch', inviteEmail: bound, email };
+    }
+    const redeemed = redeemInvite(dataDir, {
+      value: invite,
+      email,
+      // The sessions this door mints go through the mint door with the
+      // account's own claim (browser-auth.mjs), so a canvas invite is honoured.
+      honoursAccess: true,
+      createAccount: ({ email: address, role, access }) =>
+        createOidcUser(dataDir, { sub: verified.sub, email: address, role, access }),
+    });
+    if (redeemed.ok) {
+      return { action: 'sign-in', user: redeemed.user, via: 'invite', invite: redeemed.invite };
+    }
+    // Lost a race for the invite AFTER the account was made: an account with
+    // no invitation behind it must not survive.
+    if (redeemed.reason === 'already-used' && redeemed.user) removeUser(dataDir, email);
+    // Otherwise the account could not be made (the address was taken a moment
+    // ago, the subject linked meanwhile): the uninvited path below decides.
+  }
+
+  if (turnedOut) {
+    queuePending(dataDir, verified.sub, email);
+    return {
+      action: 'pending',
+      reason: 'this person was removed or dismissed — an admin must let them in again',
+    };
+  }
+  if (!taken && policy === 'domain') {
+    try {
+      const user = createOidcUser(dataDir, { sub: verified.sub, email, role: 'member' });
+      return { action: 'sign-in', user, via: 'domain' };
+    } catch {
+      /* raced into existence — queue below, never link */
+    }
+  }
+  if (policy === 'invite-only') return turnedAway();
+  queuePending(dataDir, verified.sub, email);
+  return {
+    action: 'pending',
+    reason: 'this identity has no account here yet — an admin must link or create one',
+  };
 }
 
 /**

@@ -22,8 +22,15 @@
 // The raw token appears here exactly once — as the form's hidden field, so
 // the redeem is a POST body and never a URL the browser navigates away from
 // (Referer headers, proxy logs). The page is `no-store`.
+//
+// THE PROVIDER BUTTON CARRIES THE INVITE. It used to be the shared sign-in
+// link (`<a href="/auth/oidc/start">`), which dropped the invitation: the
+// person signed in, had no account, and waited in the pending queue for an
+// admin. It is a second FORM now — a POST with the same hidden field — so the
+// invite reaches the callback inside the signed transaction cookie and is the
+// approval (oidc-routes.mjs `resolveVerified`). Still never a URL.
 
-import { escapeHtml as esc, oidcButton } from './studio-door.mjs';
+import { escapeHtml as esc, oidcLabel } from './studio-door.mjs';
 import { MIN_PASSWORD_LENGTH } from './users.mjs';
 
 /** A hostname for the heading — `https://design.acme.com/` → `design.acme.com`. */
@@ -54,7 +61,38 @@ const STYLE = `
   .button { display:block; margin-top:16px; padding:10px; border-radius:9px; text-align:center;
             border:1px solid #262c38; background:#14171d; color:inherit; text-decoration:none; font-weight:600; }
   .or { margin:18px 0 0; text-align:center; font-size:12px; color:#828b9e; }
+  button.button { width:100%; font:inherit; font-weight:600; cursor:pointer; }
 `;
+
+/** The provider button for an invite: a POST that carries the invite, never a link. */
+function providerForm(token, env, { switchAccount = false, label = null } = {}) {
+  const name = oidcLabel(env);
+  if (!name) return '';
+  return `<form method="post" action="/auth/oidc/start">
+  <input type="hidden" name="invite" value="${esc(token)}">${
+    switchAccount ? '<input type="hidden" name="switch" value="1">' : ''
+  }
+  <button type="submit" class="button" data-testid="join-provider">${esc(label ?? `Continue with ${name}`)}</button>
+</form>`;
+}
+
+/**
+ * "This invitation is for someone else" — the provider said who is signed in,
+ * and it is not the address the invitation names. Nothing was used up: the
+ * button signs in again and asks the provider to choose the account.
+ */
+export function inviteMismatchPage({ token, inviteEmail, email, env = process.env }) {
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
+<title>This invitation is for another address</title>
+<style>${STYLE}</style></head>
+<body><main data-testid="join-mismatch">
+  <h1>This invitation is for ${esc(inviteEmail)}</h1>
+  <p>You signed in as <strong>${esc(email)}</strong>. The invitation still works — sign in with <strong>${esc(inviteEmail)}</strong> to use it.</p>
+  ${providerForm(token, env, { switchAccount: true, label: 'Use another account' })}
+</main></body></html>`;
+}
 
 /**
  * The welcome + redeem form.
@@ -77,7 +115,7 @@ export function joinPage({
   desktop = false,
 }) {
   const name = workspaceName(workspace);
-  const oidc = oidcButton(env);
+  const oidc = providerForm(token, env);
   const passwordsRefused = env.HUB_OIDC_MODE === 'strict';
 
   // Under `strict` the hub refuses passwords outright (`cloud-identity`), so an
@@ -88,7 +126,7 @@ export function joinPage({
     ? `<h1>You're invited to ${esc(name)}</h1>
   <p>${workspace ? esc(name) : 'This project'} signs people in through its own sign-in page. Sign in there${
     email ? ` with <strong>${esc(email)}</strong>` : ''
-  } and whoever invited you will see you arrive.</p>
+  } and you're in — the invitation is all you need.</p>
   ${oidc}`
     : `<form method="post" action="/join" autocomplete="on">
   <h1>You're invited to ${esc(name)}</h1>
@@ -115,15 +153,15 @@ export function joinPage({
   }</p>
   ${error ? `<p class="err">${esc(error)}</p>` : ''}
   <button type="submit">Join ${esc(name)}</button>
-  ${oidc ? `<p class="or">or</p>${oidc}` : ''}
-  ${
-    desktop
-      ? '<p class="hint" data-desktop>After you join, you go back to the Maude app.</p>'
-      : workspace
-        ? `<p class="hint" data-desktop>Using the Maude app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
-        : ''
-  }
-</form>`;
+</form>
+${oidc ? `<p class="or">or</p>${oidc}` : ''}
+${
+  desktop
+    ? '<p class="hint" data-desktop>After you join, you go back to the Maude app.</p>'
+    : workspace
+      ? `<p class="hint" data-desktop>Using the Maude app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
+      : ''
+}`;
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

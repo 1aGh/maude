@@ -403,11 +403,40 @@ export async function handleAccessForward(request, env, { ctx = null, now = Date
   if (!PROJECT_ID.test(projectId) || !(await cellAuthorized(request, env, projectId))) {
     return json({ error: 'unauthorized' }, 401);
   }
-  const db = env.DB;
-
   // The vouched actor: an email the cell took from a VERIFIED session. Its
-  // role is decided below from D1 and nowhere else.
-  const actorEmail = normalizeEmail(request.headers.get('x-maude-actor') ?? '');
+  // role is decided in `accessCall` from D1 and nowhere else.
+  return accessCall(request, env, {
+    projectId,
+    path: m[2],
+    actorEmail: normalizeEmail(request.headers.get('x-maude-actor') ?? ''),
+    ctx,
+    now,
+  });
+}
+
+/**
+ * The access authority itself: one call, already attributed to an actor.
+ *
+ * Two callers, one set of checks. The cell reaches it through
+ * `handleAccessForward` (its derived secret vouches for the actor's e-mail);
+ * the control plane's OWN pages reach it directly with the signed-in account's
+ * e-mail (account-pages.mjs, project-routes.mjs) — so an owner changing a role
+ * from cloud.maude.sh and from the app runs the same code, with the same
+ * refusals, the same audit rows and the same notice to the cell. Whoever
+ * calls, the actor's role is re-decided here from D1: a caller that is not the
+ * project's owner is refused below exactly as a cell's forwarded request is.
+ *
+ * `request` supplies the method, the body and the origin invitation links are
+ * built on; `path` is what follows `/access/`.
+ */
+export async function accessCall(
+  request,
+  env,
+  { projectId, path, actorEmail, ctx = null, now = Date.now() }
+) {
+  const url = new URL(request.url);
+  if (!PROJECT_ID.test(String(projectId))) return json({ error: 'unauthorized' }, 401);
+  const db = env.DB;
   const actor = actorEmail ? await getAccountByEmail(db, actorEmail) : null;
   const facts = await projectFacts(db, projectId);
   if (!facts.project) return refuse(404, 'no-access', 'This project is not available.');
@@ -416,7 +445,7 @@ export async function handleAccessForward(request, env, { ctx = null, now = Date
   const project = facts.project;
   let rest;
   try {
-    rest = m[2].split('/').map(decodeURIComponent);
+    rest = String(path).split('/').map(decodeURIComponent);
   } catch {
     return refuse(400, 'path', 'That is not an access route.');
   }
@@ -887,3 +916,58 @@ async function peopleFor(db, facts, { canvas, isOwner, now }) {
   }
   return people;
 }
+
+/**
+ * One call to the access authority from a control-plane PAGE, as the signed-in
+ * account. Returns `{ status, body }`.
+ *
+ * The page does not decide anything: it names the project, the actor and the
+ * route, and `accessCall` answers exactly as it answers a cell — `403
+ * not-allowed` for someone who is not the project's owner, `404 no-access` for
+ * a project that is not theirs to see (or does not exist), the same refusals
+ * for an owner trying to remove themselves. `origin` is the page's own origin,
+ * so an invitation mailed from here carries the same link as one from the app.
+ */
+export async function pageAccessCall(
+  env,
+  {
+    origin,
+    projectId,
+    actorEmail,
+    method,
+    path,
+    query = '',
+    body = null,
+    ctx = null,
+    now = Date.now(),
+  }
+) {
+  if (!PROJECT_ID.test(String(projectId ?? ''))) {
+    return { status: 404, body: { reason: 'no-access' } };
+  }
+  const request = new Request(
+    `${origin}/internal/projects/${projectId}/access/${path}${query ? `?${query}` : ''}`,
+    {
+      method,
+      ...(body
+        ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }
+        : {}),
+    }
+  );
+  const res = await accessCall(request, env, { projectId, path, actorEmail, ctx, now });
+  if (!res) return { status: 404, body: { reason: 'no-route' } };
+  let parsed = null;
+  try {
+    parsed = await res.json();
+  } catch {
+    /* 204 and friends carry no body */
+  }
+  return { status: res.status, body: parsed };
+}
+
+/** Was that refusal "this project is not yours to change" (or not there at all)? */
+export const notYours = (answer) =>
+  answer.status === 401 ||
+  answer.body?.reason === 'no-access' ||
+  answer.body?.reason === 'not-allowed' ||
+  answer.body?.reason === 'no-route';

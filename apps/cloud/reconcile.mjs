@@ -126,8 +126,56 @@ export function reconcile(tenant, subscription, { now = Date.now() } = {}) {
   // attaches a subscription, the ordinary machine owns it again — including a
   // converted project whose subscription then VANISHED at Stripe (null with a
   // subscription id on the row), which must still alert and hold.
-  if (!subscription && tenant.trialEndsAt != null && !tenant.subscriptionId) {
-    return { desiredState: tenant.state, actions: [], notes: ['trial project (A3)'] };
+  //
+  // PAUSED BY AN OPERATOR (D1 v21, `hold_since`). An input like the
+  // subscription is, and it wins over it: whatever Stripe says, a held project
+  // does not serve. It walks the ORDINARY transitions (`→ suspended`,
+  // `suspend-cell`) so the executor stops the container and detaches the
+  // address exactly as it does for a lapsed subscription — but it returns
+  // before the export and the retention ladder below. A pause somebody made by
+  // hand is not "stopped paying": it must never mail "your subscription
+  // ended", and it must never start the 30 days that end in a deletion.
+  // `pending` (nothing to stop), `exported` and `purged` (already past the
+  // point a pause means anything) are left to the machine.
+  if (
+    tenant.holdSince != null &&
+    (tenant.state === 'active' || tenant.state === 'past_due' || tenant.state === 'suspended')
+  ) {
+    const held = [];
+    if (tenant.state !== 'suspended') {
+      held.push({ kind: 'set-state', from: tenant.state, to: 'suspended' });
+    }
+    if (tenant.cellRunning) held.push({ kind: 'suspend-cell' });
+    return {
+      desiredState: 'suspended',
+      actions: held,
+      notes: ['paused by an operator — no export, no retention clock'],
+    };
+  }
+
+  // A project with no subscription BY DESIGN: a trial (A3) or a Promo (v21).
+  // Neither is ever torn down from here — the trial's expiry pauses the cell
+  // (worker.mjs `applyPlanPause`), a Promo never pauses while it runs. The one
+  // thing to do is undo a hold that was lifted: with no subscription to imply
+  // `active`, a `suspended` row of this kind can only have come from a hold,
+  // and nothing else would ever wake it.
+  const planless = tenant.trialEndsAt != null || tenant.promo === true;
+  if (!subscription && planless && !tenant.subscriptionId) {
+    if (tenant.state === 'suspended') {
+      return {
+        desiredState: 'active',
+        actions: [
+          { kind: 'set-state', from: 'suspended', to: 'active' },
+          ...(tenant.cellRunning ? [] : [{ kind: 'resume-cell' }]),
+        ],
+        notes: ['the operator’s pause was lifted — a project with no subscription wakes here'],
+      };
+    }
+    return {
+      desiredState: tenant.state,
+      actions: [],
+      notes: [tenant.promo ? 'promo project (v21)' : 'trial project (A3)'],
+    };
   }
 
   const implied = stateForSubscription(subscription);
@@ -375,7 +423,22 @@ export function settle(tenant, subscription, { now = Date.now(), maxRounds = 5 }
   const all = [];
   for (let round = 0; round < maxRounds; round++) {
     const result = reconcile(current, subscription, { now });
-    if (result.actions.length === 0) return { tenant: current, rounds: round, actions: all };
+    if (result.actions.length === 0) {
+      // A round with nothing to DO can still have something to REMEMBER: the
+      // adverse-reading debounce. `reconcile()` reports when a non-active
+      // reading was first seen on the result, and it is exactly the debounce
+      // round — "hold, do nothing yet" — that has no action. Returning the row
+      // as it came in dropped that instant every hour, so the six hours never
+      // elapsed and a subscription that ended while its project ran never
+      // suspended it (found 2026-11-24). `undefined` still means "this branch
+      // did not speak to it" (a trial, a Promo, an operator's hold) and leaves
+      // the row alone.
+      const settled =
+        result.adverseSince === undefined || (current.adverseSince ?? null) === result.adverseSince
+          ? current
+          : { ...current, adverseSince: result.adverseSince };
+      return { tenant: settled, rounds: round, actions: all };
+    }
     all.push(...result.actions);
     const next = applyActions(current, result, { now });
     if (JSON.stringify(next) === JSON.stringify(current)) {

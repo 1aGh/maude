@@ -32,6 +32,9 @@ import {
   readDesktopTxn,
   returnUrl,
 } from './desktop-signin.mjs';
+import { peekInvite } from './invites.mjs';
+import { inviteMismatchPage } from './join-page.mjs';
+import { usableEmailClaim } from './oidc.mjs';
 import {
   authorizeUrl,
   createTransaction,
@@ -41,14 +44,14 @@ import {
   OIDC_TXN_COOKIE,
   oidcConfig,
   readTransaction,
-  resolveSubject,
+  resolveVerified,
   TXN_TTL_MS,
 } from './oidc-routes.mjs';
-import { takeReturnTo } from './return-to.mjs';
+import { setReturnToAdmin, takeReturnTo } from './return-to.mjs';
 import { isRevoked } from './revocations.mjs';
 import { escapeHtml, oidcButton, servicePage } from './studio-door.mjs';
-import { addToken, removeToken, verifyToken } from './tokens.mjs';
-import { authenticate as localAuthenticate } from './users.mjs';
+import { addToken, removeToken, revokeTokensForOwner, verifyToken } from './tokens.mjs';
+import { authenticate as localAuthenticate, normalizeEmail, selfLinkOidcSub } from './users.mjs';
 
 export const BROWSER_SESSION_COOKIE = 'maude_studio';
 
@@ -233,6 +236,21 @@ export function handOffToDesktop(
  *                         revocation, expiry and the read-only capability are
  *                         decided in one place for both.
  *
+ * `/auth/oidc/start` also takes a POST, from this hub's own pages only:
+ *   • `invite=<value>` — the join page's provider button. The invite rides
+ *     the signed, HttpOnly transaction cookie to the callback (never a URL)
+ *     and is the approval there (`resolveVerified`).
+ *   • `link=1` — "Link my sign-in": the person is ALREADY signed in to an
+ *     account here, and the callback links the returned subject to THAT
+ *     account — only while the same session is still signed in, and only when
+ *     the provider's verified address is that account's own address.
+ * A POST answers with a 200 hand-off page, not a 302: these pages' CSP says
+ * `form-action 'self'`, which the browser applies to a form's redirect chain.
+ *
+ * @param {object} args
+ * @param {(event: object) => void} [args.audit]         record one activity event
+ * @param {() => string} [args.joinPolicy]               `whoCanJoin` (settings.mjs); default 'ask'
+ * @param {(request: object) => object|null} [args.sessionOf]  the browser session a request carries
  * @returns {Promise<boolean>} true when handled.
  */
 export async function handleOidc({
@@ -247,6 +265,10 @@ export async function handleOidc({
   fetchImpl,
   checkRateLimit,
   respondRateLimited,
+  audit = () => {},
+  joinPolicy = () => 'ask',
+  sessionOf = () => null,
+  kickLabel = () => 0,
 }) {
   const cfg = oidcConfig(env);
   if (!cfg.enabled) {
@@ -259,7 +281,8 @@ export async function handleOidc({
     page(response, 500, 'Misconfigured', `OIDC is not usable yet: ${cfg.errors[0]}`);
     return true;
   }
-  if (method !== 'GET') {
+  const posted = method === 'POST' && path === '/auth/oidc/start';
+  if (method !== 'GET' && !posted) {
     page(response, 405, 'Not here', 'Start sign-in from the project page.');
     return true;
   }
@@ -269,6 +292,54 @@ export async function handleOidc({
   const url = new URL(request.url, 'http://cell.invalid');
 
   if (path === '/auth/oidc/start') {
+    // What a POST from this hub's own page asks to carry to the callback.
+    const carry = {};
+    let prompt = null;
+    if (posted) {
+      // NOT rate-limited here, on purpose: this step contacts nobody new (the
+      // discovery document is cached) and guesses nothing (an invite is 192
+      // random bits). The callback below is the throttled step — and the
+      // sign-in doors share one small per-address budget, so charging the
+      // start too would halve how many colleagues behind one office address
+      // can accept their invitations in the same minute.
+      // Same gate as the two cookie-setting forms: a page elsewhere must not be
+      // able to start a sign-in that ends by redeeming ITS invite in this
+      // browser, or by linking an identity to the account signed in here.
+      if (!formOriginAllowed(request, publicUrl)) {
+        page(response, 403, 'Not from here', 'Open the invitation link directly.');
+        return true;
+      }
+      let form;
+      try {
+        form = await readForm(request);
+      } catch {
+        page(response, 400, 'Something went wrong', 'Open the page and try again.');
+        return true;
+      }
+      if (form.get('link') === '1') {
+        const session = sessionOf(request);
+        if (!session?.email) {
+          page(response, 401, 'Sign in first', 'Sign in to your account, then link your sign-in.');
+          return true;
+        }
+        carry.linkFor = normalizeEmail(session.email);
+      } else if (form.get('invite')) {
+        const value = String(form.get('invite'));
+        // A dead invite does not start a sign-in: the person learns it here,
+        // not after a round trip to the provider.
+        if (!peekInvite(dataDir, value).ok) {
+          page(
+            response,
+            410,
+            'This invitation no longer works',
+            'Ask whoever invited you for a new link, or sign in if you already have an account.'
+          );
+          return true;
+        }
+        carry.invite = value;
+        if (form.get('switch') === '1') prompt = 'select_account';
+      }
+    }
     let doc;
     try {
       doc = await verifier.discovery.document();
@@ -281,15 +352,28 @@ export async function handleOidc({
       );
       return true;
     }
-    const txn = createTransaction();
+    const txn = { ...createTransaction(), ...carry };
     let dest;
     try {
-      dest = authorizeUrl(cfg, txn, redirectUri, doc.authorization_endpoint);
+      dest = authorizeUrl(cfg, txn, redirectUri, doc.authorization_endpoint, { prompt });
     } catch (err) {
       page(response, 502, 'Provider misconfigured', err.message);
       return true;
     }
     setTxnCookie(response, encodeTransaction(txn, secret), TXN_TTL_MS / 1000);
+    if (posted) {
+      respondHtml(
+        response,
+        200,
+        desktopHandoffPage({
+          href: dest,
+          title: 'Taking you to sign in',
+          message: `Continue with ${cfg.label}. If nothing happens, use the button below.`,
+          linkLabel: `Continue with ${cfg.label}`,
+        })
+      );
+      return true;
+    }
     redirect(response, dest);
     return true;
   }
@@ -347,7 +431,95 @@ export async function handleOidc({
       return true;
     }
 
-    const outcome = resolveSubject(dataDir, verified, cfg);
+    // ---- "Link my sign-in" ------------------------------------------------
+    //
+    // Three things must ALL hold, and none of them is the provider's word
+    // alone: the transaction was started by a signed-in session (signed
+    // cookie), that same account is still signed in on this request, and the
+    // provider's VERIFIED address is that account's own address. The last one
+    // is what stops a browser that is signed in to somebody else's provider
+    // account from attaching that identity here.
+    if (txn.linkFor) {
+      clearTxnCookie(response);
+      const session = sessionOf(request);
+      const mine = normalizeEmail(session?.email);
+      const claimed = usableEmailClaim(verified, cfg.allowedDomains ?? []);
+      if (!mine || mine !== txn.linkFor) {
+        page(response, 403, 'Not linked', 'Sign in to your account again, then link your sign-in.');
+        return true;
+      }
+      if (!claimed || claimed !== mine) {
+        audit({
+          kind: 'oidc-refused',
+          actor: mine,
+          detail: 'link my sign-in: a different address',
+        });
+        page(
+          response,
+          403,
+          'Not linked',
+          `Your account here is ${mine}. Sign in at ${cfg.label} with that same address to link it.`
+        );
+        return true;
+      }
+      try {
+        selfLinkOidcSub(dataDir, mine, verified.sub);
+      } catch (err) {
+        page(response, 403, 'Not linked', err.message);
+        return true;
+      }
+      // The link retired the password this account was made with (users.mjs).
+      // Whatever that password already signed in goes too — every session of
+      // this account except the one that just proved both halves.
+      const ended = revokeTokensForOwner(dataDir, mine, {
+        keep: (t) => Boolean(session.label) && t.label === session.label,
+      });
+      for (const label of ended) kickLabel(label);
+      audit({
+        kind: 'oidc-self-link',
+        actor: mine,
+        target: mine,
+        detail: `linked ${cfg.label} · password sign-in off · ${ended.length} other session${ended.length === 1 ? '' : 's'} ended`,
+      });
+      redirect(response, '/admin');
+      return true;
+    }
+
+    const outcome = resolveVerified(dataDir, verified, cfg, {
+      invite: typeof txn.invite === 'string' ? txn.invite : null,
+      policy: joinPolicy(),
+    });
+    const who = usableEmailClaim(verified, cfg.allowedDomains ?? []) ?? '';
+    if (outcome.action === 'sign-in') {
+      if (outcome.via === 'invite') {
+        audit({
+          kind: 'invite-redeem',
+          actor: outcome.user.email,
+          target: outcome.user.email,
+          detail: `through ${cfg.label}`,
+        });
+      } else if (outcome.via === 'domain') {
+        audit({
+          kind: 'oidc-domain-join',
+          actor: outcome.user.email,
+          target: outcome.user.email,
+          detail: `through ${cfg.label}`,
+        });
+      } else {
+        audit({ kind: 'oidc-signin', actor: outcome.user.email, detail: `through ${cfg.label}` });
+      }
+    } else if (outcome.action === 'pending') {
+      audit({ kind: 'oidc-pending', actor: who, detail: `through ${cfg.label}` });
+    } else {
+      audit({
+        kind: 'oidc-refused',
+        actor: who,
+        detail:
+          outcome.action === 'invite-mismatch'
+            ? `the invitation is for ${outcome.inviteEmail}`
+            : (outcome.code ?? 'no access'),
+      });
+    }
     // Started by the Maude app (issue #204): hand the outcome back to it. The
     // app's exchange mints through the /auth/login door, so the browser-lane
     // door below is not this path's to apply.
@@ -388,6 +560,20 @@ export async function handleOidc({
       return true;
     }
     clearTxnCookie(response);
+    if (outcome.action === 'invite-mismatch') {
+      // Nothing was spent. The page carries the invite on, in a POST.
+      respondHtml(
+        response,
+        403,
+        inviteMismatchPage({
+          token: txn.invite,
+          inviteEmail: outcome.inviteEmail,
+          email: outcome.email,
+          env,
+        })
+      );
+      return true;
+    }
     if (outcome.action === 'pending') {
       page(
         response,
@@ -426,6 +612,7 @@ export async function handleBrowserAuth({
   fetchImpl = fetch,
   checkRateLimit,
   respondRateLimited,
+  audit = () => {},
 }) {
   if (path === '/auth/browser/signout') {
     // POST ONLY. This is not a cookie clear — it calls `removeToken`, which
@@ -498,7 +685,14 @@ export async function handleBrowserAuth({
       if (cookieValue(request, DESKTOP_TXN_COOKIE)) {
         response.setHeader('set-cookie', [clearDesktopTxnCookie()]);
       }
-      respondHtml(response, 200, signInPage());
+      // `?return=admin` — the admin page's Sign in button. Exactly that word:
+      // the return address is one of two fixed places, never a caller's URL.
+      if (
+        new URL(request.url ?? path, 'http://cell.invalid').searchParams.get('return') === 'admin'
+      ) {
+        setReturnToAdmin(response);
+      }
+      respondHtml(response, 200, signInPage(null, env));
       return true;
     }
     if (method === 'POST') {
@@ -571,6 +765,7 @@ export async function handleBrowserAuth({
         ...peerSessionFields(door, { scope: user.scope ?? '*' }),
       });
       setSessionCookie(response, minted.value, ttlMs / 1000);
+      audit({ kind: 'signin-browser', actor: user.email, detail: 'with a password' });
       // THE STUDIO IS `/`. It used to be `/studio`, a page this hub rendered
       // itself; DDR-209 deleted that and the cell now proxies the real studio at
       // the root. Signing in still sent people to `/studio`, which the proxy

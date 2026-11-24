@@ -37,7 +37,7 @@ test('GET /admin returns the admin HTML shell', async () => {
   assert.match(body, /id="bootstrap-form"/);
 });
 
-test('GET /admin shell carries the maude sidebar-nav app-shell + every JS-referenced ID', async () => {
+test('GET /admin shell carries the team-server admin + every JS-referenced ID', async () => {
   const res = await fetch(`http://127.0.0.1:${PORT}/admin`);
   const body = await res.text();
   // Pre-auth + auth IDs the app.js state machine reads.
@@ -49,14 +49,19 @@ test('GET /admin shell carries the maude sidebar-nav app-shell + every JS-refere
     'auth-state',
     'forget',
     'dash',
-    // status KV
+    // the member's page and the sign-in door
+    'member',
+    'signin-link',
+    // server facts (Settings › Advanced)
     's-uptime',
     's-version',
     's-port',
     's-data',
     's-tokens',
     's-peers',
-    // existing tables + modal
+    // Advanced: tokens, connected sessions, the "shown once" modal
+    'advanced',
+    'adv-key-form',
     'peers-rows',
     'tokens-rows',
     'token-modal',
@@ -64,26 +69,56 @@ test('GET /admin shell carries the maude sidebar-nav app-shell + every JS-refere
     'token-raw',
     'token-copy',
     'token-scope',
-    // NEW maude app-shell surfaces (Tasks 3–6)
+    // the five pages
     'view-overview',
-    'view-peers',
-    'view-tokens',
-    'view-canvases',
+    'view-people',
+    'view-projects',
     'view-activity',
     'view-settings',
+    'ov-needs-rows',
+    'ov-health',
+    'ov-activity-feed',
+    'people-rows',
     'canvases-rows',
-    'activity-feed',
+    'activity-rows',
+    'activity-csv',
+    'join-form',
     'settings-form',
     'set-name',
     'set-desc',
     'rotate-admin',
+    // the sheets
+    'invite-sheet',
+    'person-sheet',
   ]) {
     assert.match(body, new RegExp(`id="${id}"`), `missing #${id} in admin shell`);
   }
-  // The sidebar nav must offer all six panes.
-  for (const view of ['overview', 'peers', 'tokens', 'canvases', 'activity', 'settings']) {
+  // The nav island offers the five pages — Tokens and connected sessions are
+  // folded into Settings › Advanced, Canvases is Projects.
+  for (const view of ['overview', 'people', 'projects', 'activity', 'settings']) {
     assert.match(body, new RegExp(`data-view="${view}"`), `missing nav item ${view}`);
   }
+  for (const gone of ['peers', 'tokens', 'canvases']) {
+    assert.doesNotMatch(body, new RegExp(`data-view="${gone}"`), `${gone} is no longer a page`);
+  }
+  // Every page, sheet and primary action carries a test hook.
+  for (const hook of [
+    'view-overview',
+    'view-people',
+    'view-projects',
+    'view-activity',
+    'view-settings',
+    'member-view',
+    'invite-sheet',
+    'person-sheet',
+    'people-invite',
+    'admin-signin',
+  ]) {
+    assert.match(body, new RegExp(`data-testid="${hook}"`), `missing data-testid ${hook}`);
+  }
+  // Words: a self-hosted hub is a team server here, and never "Maude Cloud".
+  assert.match(body, /Team server/);
+  assert.doesNotMatch(body, /Maude Cloud/);
 });
 
 test('GET /admin?key=... still returns the shell (key is consumed client-side)', async () => {

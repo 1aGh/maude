@@ -1,42 +1,71 @@
 ---
 title: People
-description: Accounts, invite links, and what "removed" actually means — measured in hours, not in clicks.
+description: One list of everyone on your team server, invites that need no approval, who can join, and what "removed" actually means.
 ---
 
-A workspace has accounts. **People → Add someone**, or send an invite link.
+A team server has accounts. Everyone is in one list under **People**, and the status says where each person is: invited, asking to join, here, or turned off.
 
-## Adding someone
+## Who runs it
 
-Two ways, both in the console's People view:
+An account with the **Admin** role opens `/admin` with its own sign-in. There is no shared key to pass around: make a second person Admin and they see the same pages.
 
-- **Add someone** — you set the address, an initial password and a role. They sign in immediately.
-- **Invite by link** — you set the address and a role, and the hub gives you a single-use link that expires. They pick their own password.
+The **admin key** (`HUB_SECRET`) still exists, under **Settings › Advanced**. It is the only way to set or reset a password, link a sign-in to an existing account by hand, manage peer tokens and rotate the key itself. A signed-in Admin cannot do those, on purpose: a stolen browser session must not be able to mint a credential that outlives it.
 
-**The hub does not send email.** There is no SMTP configuration to find: it hands you the link and you deliver it however you already talk to that person. That is a deliberate omission — mail is a dependency, a deliverability problem and a new failure mode, in an image every self-hoster pulls. A link you can see is more honest than a "sent!" you cannot verify.
+## Inviting someone
+
+**People → Invite people.** Type one or more addresses, pick what they can do, and the server gives you one link per person. Each link works once and expires.
+
+**The server does not send email.** There is no SMTP configuration to find: it hands you the link and you deliver it however you already talk to that person. Mail is a dependency, a deliverability problem and a new failure mode, in an image every self-hoster pulls. A link you can see is more honest than a "sent!" you cannot verify.
+
+### With your own sign-in (OIDC)
+
+When the server uses your identity provider ([Identity](/docs/hub/identity)), **the invite is the approval**. The person opens the link, signs in at your provider, and is in. Nobody approves anything and nobody mints a token.
+
+Three rules keep that safe:
+
+- The provider must say the address is verified and from an allowed domain.
+- An invite that names an address works only for that address. Someone signed in as another person sees which address the invite is for and can switch account; the invite is not used up.
+- A sign-in is never attached to an account that already exists because the addresses match. That person lands in **Asks to join** and an Admin decides.
+
+### Who can join without an invite
+
+**Settings › Who can join** decides what happens to someone from an allowed domain who signs in with no invite:
+
+| Setting | What happens |
+| --- | --- |
+| Only people you invite | They are turned away. |
+| Colleagues ask, you let them in (default) | They appear under **Asks to join**. **Let in** makes the account. |
+| Colleagues come straight in | They join as a member at once. |
+
+Someone you removed or dismissed never walks back in by themselves, whatever the setting: they ask to join again, and **Let in** or a new invite in their name clears it.
 
 ## Roles
 
-`admin` and `member`. Admins manage people; members work on the project. There is no third role, and adding one is a bigger change than it looks — the role vocabulary is shared with the session layer, and a role the matrix does not recognise gets nothing.
+`admin` and `member`, shown as **Admin** and **Can edit**. Admins manage people; members work on the project. There is no third account role on a team server, and adding one is a bigger change than it looks — the role vocabulary is shared with the session layer, and a role the matrix does not recognise gets nothing.
 
-Read-only access is a property of a session, not a role.
+Changing a role takes effect at once: that person's sessions end and they sign in again with the new rights. The last Admin cannot be demoted, turned off or removed.
 
-## Peer tokens are a different thing
+## Connecting the Maude app
 
-The Tokens view mints **peer tokens** — a credential for a teammate with a git clone, pasted into their terminal by `maude design link`. It is not an account and it does not belong to a person.
+A person with an account signs in to the team server from the Maude app in the browser, the same way they sign in on the web. Peer tokens are not needed for people.
 
-If you want someone to sign in and work in the browser, you want People.
+The **Tokens** list under Advanced mints **peer tokens** for scripts and CI: a credential pasted into a terminal by `maude design link`. It is not an account.
 
-## Offboarding, and what it actually does
+## Turning off and removing
 
-Disabling an account:
+**Turn off** keeps the person's work and:
 
-- revokes every credential it holds
-- **kicks live sessions immediately** — "disabled" means out now, not "cannot log in again"
+- revokes every credential the account holds
+- **ends live sessions immediately** — "turned off" means out now, not "cannot sign in again"
 
-The Sessions column shows how many live credentials an account holds, which is the number that answers *did the offboard take effect*.
+**Turn back on** restores the account. **Remove** deletes it. **Sign out** on a person's sheet ends their sessions without changing the account.
 
-One caveat worth knowing before you rely on it: a session token is verified offline, so a hub that is up keeps honouring an already-issued token until it expires. Disable revokes and kicks, which closes it in practice — but if you are removing someone under pressure, rotate `HUB_SECRET` too.
+One caveat worth knowing before you rely on it: a session token is verified offline, so a server that is up keeps honouring an already-issued token until it expires. Turning off revokes and kicks, which closes it in practice — but if you are removing someone under pressure, rotate the admin key too.
+
+## Activity
+
+**Activity** keeps who did what and when for 90 days: sign-ins, invites, people let in, role changes, turning off and removing, settings, tokens and backups. It survives a restart, is part of the backup, filters by kind and person, and downloads as CSV. It never holds a password, a token or an invite link.
 
 ## When People is not there
 
-If the console shows no People view, this project takes its members from Maude Cloud and the dashboard owns them. That is the hosted product; nothing here applies.
+If the console shows no People page, this project takes its members from Maude Cloud and the dashboard owns them. That is the hosted product; nothing here applies.

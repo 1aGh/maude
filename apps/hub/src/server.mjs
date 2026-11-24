@@ -78,9 +78,15 @@ import {
   generateAdminSecret,
   readAdminSecret,
   rotateAdminSecret,
-  verifyAdminAuth,
   writeAdminSecret,
 } from './admin-auth.mjs';
+import {
+  adminActorFor,
+  describeMe,
+  handleTeamAdminRoutes,
+  selfServicePeople,
+  sessionAdminAllowed,
+} from './admin-people.mjs';
 import { assetPrefixFromEnv } from './asset-key.mjs';
 import {
   createHydrateBudget,
@@ -98,6 +104,7 @@ import {
   parseAssetPath,
   parseCheckoutAssetPath,
 } from './assets.mjs';
+import { recordAudit } from './audit-log.mjs';
 import {
   handleAuthRoutes,
   handleUserAdminRoutes,
@@ -437,6 +444,30 @@ export function createHub(config = {}) {
   // Issue #204 — authenticated file-plane read ceiling (per label per minute).
   const fileReadRateLimitMax = config.fileReadRateLimit ?? FILE_READ_RATE_LIMIT_MAX;
   const startedAt = Date.now();
+  // The sign-in doors' environment and the provider transport. Config only —
+  // never read from env themselves: a test or the local smoke hands the hub an
+  // in-memory issuer here, because the real transport refuses loopback and
+  // plain http by design (oidc-egress.mjs) and that guard is not to be loosened.
+  const doorEnv = config.env ?? process.env;
+  const oidcFetch = config.oidcFetch ?? undefined;
+  /** One event into the kept activity log (audit-log.mjs). Never throws. */
+  const audit = (event) => recordAudit(dataDir, event);
+  /**
+   * The in-memory feed AND the kept log, from the event shape the feed has
+   * always had. `join` / `leave` stay in memory only: one per document per
+   * connection is presence, not history.
+   */
+  const note = (evt) => {
+    pushActivity(activity, evt);
+    if (evt.type === 'join' || evt.type === 'leave') return;
+    const self = evt.type === 'login' || evt.type === 'logout' || evt.type === 'invite-redeem';
+    audit({
+      kind: evt.kind ?? evt.type,
+      actor: evt.actor ?? (self ? evt.user : ''),
+      target: evt.user,
+      detail: evt.doc,
+    });
+  };
 
   // DDR-053 §5: refuse to boot if publicUrl can be weaponized into shell
   // injection on operators who copy-paste from the admin UI.
@@ -468,7 +499,7 @@ export function createHub(config = {}) {
   // linked — which locks the operator out of their own box with no way back but
   // editing env on the host.
   {
-    const oidc = oidcConfig(process.env);
+    const oidc = oidcConfig(doorEnv);
     if (oidc.enabled && oidc.errors.length) {
       throw new Error(`refusing to start: HUB_OIDC_MODE is set but ${oidc.errors[0]}`);
     }
@@ -561,6 +592,12 @@ export function createHub(config = {}) {
     target: backupTarget,
     intervalMs: backupTarget ? backupIntervalMs : 0,
     onStatus: (s) => {
+      // Into the kept log: every backup made, and a failure once per change of
+      // state (a failing target retries; the log is not a retry counter).
+      if (s.state === 'ok') audit({ kind: 'backup', actor: 'Server', detail: 'Backup made' });
+      else if (s.state !== durability.state && s.state !== 'pending') {
+        audit({ kind: 'backup', actor: 'Server', detail: `Backup ${s.state}: ${s.message ?? ''}` });
+      }
       durability.state = s.state;
       durability.at = s.at;
       durability.message = s.message ?? null;
@@ -1578,6 +1615,8 @@ export function createHub(config = {}) {
           dataDir,
           secret,
           publicUrl,
+          env: doorEnv,
+          audit,
           // OIDC AppSec pass — the self-hosted /studio/signin POST is a real
           // password check and must ride the same throttle /auth/login does.
           checkRateLimit: rateLimit
@@ -1602,6 +1641,15 @@ export function createHub(config = {}) {
           dataDir,
           secret,
           publicUrl,
+          env: doorEnv,
+          fetchImpl: oidcFetch,
+          audit,
+          // What happens to a verified subject nobody invited (settings.json).
+          joinPolicy: () => readSettings(dataDir).whoCanJoin,
+          // "Link my sign-in" needs to know who is signed in on this request,
+          // and ends that account's OTHER sessions when it links.
+          sessionOf: (req) => browserSession(dataDir, secret, req),
+          kickLabel,
           // OIDC AppSec pass — the callback drives outbound egress + a verify;
           // throttle it on the same bucket as the password doors.
           checkRateLimit: rateLimit
@@ -2205,6 +2253,7 @@ export function createHub(config = {}) {
             dataDir,
             secret,
             publicUrl,
+            env: doorEnv,
             checkRateLimit: rateLimit
               ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
               : undefined,
@@ -2212,7 +2261,7 @@ export function createHub(config = {}) {
             respondJson: (status, payload) => respondAdminJson(response, status, payload),
             readJsonBody,
             kickLabel,
-            pushActivity: (evt) => pushActivity(activity, evt),
+            pushActivity: note,
           });
         } catch (err) {
           console.error(`[hub] auth route ${authPath} failed: ${err?.message ?? err}`);
@@ -2267,6 +2316,9 @@ export function createHub(config = {}) {
           insecureHttp,
           durability,
           accepted,
+          env: doorEnv,
+          note,
+          audit,
         });
         bailFromOnRequest();
       }
@@ -3090,6 +3142,9 @@ async function handleAdminApi(ctx) {
   const { rateStore, clientIp } = ctx;
   const rateOpts = { store: rateStore, ip: clientIp?.(request) };
   const { activity, sqlitePath } = ctx;
+  const env = ctx.env ?? process.env;
+  /** The feed and the kept log (createHub's `note`); a bare ctx falls back to the feed alone. */
+  const note = ctx.note ?? ((evt) => pushActivity(activity, evt));
   const url = new URL(request.url, 'http://x');
   const path = url.pathname.slice('/admin/api'.length); // '/status', '/tokens', …
   const method = request.method ?? 'GET';
@@ -3116,17 +3171,97 @@ async function handleAdminApi(ctx) {
     return handleBootstrap({ request, response, dataDir });
   }
 
-  if (!verifyAdminAuth(request, { hubSecret: secret, dataDir })) {
+  // WHO IS ASKING (admin-people.mjs): the admin key, a signed-in admin
+  // ACCOUNT (same-origin only), a signed-in member, or nobody.
+  const actor = adminActorFor({
+    request,
+    dataDir,
+    secret,
+    publicUrl,
+    env,
+    sessionOf: (req) => browserSession(dataDir, secret, req),
+  });
+
+  // `/me` is what the page asks first: "who am I here". With NO credential it
+  // answers `signedIn: false` (the hub's name is already on its landing page);
+  // a presented-and-wrong credential gets the same 401 as everywhere else.
+  // ON A CLOUD CELL NOTHING CHANGED: there is no session way in there, so an
+  // unauthenticated `/me` is the 401 every unauthenticated admin route always
+  // was — no new answer, no name.
+  if (
+    method === 'GET' &&
+    path === '/me' &&
+    (actor.kind !== 'none' || (!actor.credential && selfServicePeople(env)))
+  ) {
+    respondAdminJson(response, 200, describeMe(dataDir, actor, { env, peers }));
+    return;
+  }
+
+  if (actor.kind === 'none') {
     // Consume budget on 401s — burst of wrong-auth → 429 (limits brute force).
     if (rateLimit && !checkRateLimit(rateBuckets, request, rateOpts)) {
       respondRateLimited(response);
       return;
     }
-    respondAdminJson(response, 401, { error: 'unauthorized' });
+    respondAdminJson(response, actor.status, { error: actor.error });
+    return;
+  }
+  // A signed-in MEMBER gets their own page (`/me`) and nothing of the admin's.
+  if (actor.kind === 'member') {
+    respondAdminJson(response, 403, { error: 'Only an admin can do this.', reason: 'not-admin' });
+    return;
+  }
+  // A signed-in ADMIN ACCOUNT gets the day-to-day routes. The admin key, peer
+  // tokens and connected sessions stay key-only.
+  if (actor.kind === 'session' && !sessionAdminAllowed(method, path)) {
+    respondAdminJson(response, 403, {
+      error: 'This needs the admin key. Open Settings › Advanced and enter it.',
+      reason: 'admin-key-required',
+    });
     return;
   }
 
-  // ---- everything below is ADMIN-BEARER-AUTHENTICATED ----
+  // ---- everything below is the ADMIN KEY or a SIGNED-IN ADMIN ACCOUNT ----
+
+  if (
+    path === '/overview' ||
+    path === '/people' ||
+    path.startsWith('/people/') ||
+    path === '/activity' ||
+    path === '/activity.csv'
+  ) {
+    const repoDir = process.env.MAUDE_REPO_DIR || null;
+    const handled = await handleTeamAdminRoutes({
+      request,
+      path,
+      method,
+      query: url.searchParams,
+      dataDir,
+      publicUrl,
+      env,
+      actor,
+      peers,
+      activity,
+      kickLabel,
+      audit: ctx.audit,
+      readJsonBody,
+      respondJson: (status, payload) => respondAdminJson(response, status, payload),
+      respondCsv: (text, filename) =>
+        respondAsset(response, text, 'text/csv; charset=utf-8', {
+          hardenAdminOrigin: true,
+          extraHeaders: { 'Content-Disposition': `attachment; filename="${filename}"` },
+        }),
+      version: releaseVersion(),
+      durability: ctx.durability ?? null,
+      repoDir,
+      gitLock: repoDir ? gitLockState(repoDir) : null,
+      canvasCount: () =>
+        listCanvases(sqlitePath, peers, { liveHasContent: ctx.liveHasContent }).length,
+    });
+    if (handled) return;
+    respondAdminJson(response, 404, { error: 'not found' });
+    return;
+  }
 
   // Cloud Phase 2 — user administration. Reached only past the Bearer gate
   // above; there is deliberately no path from a user password to this surface.
@@ -3142,6 +3277,7 @@ async function handleAdminApi(ctx) {
     path === '/oidc/pending' ||
     path === '/oidc/link' ||
     path === '/oidc/approve' ||
+    path === '/oidc/unlink' ||
     path === '/oidc/pending/dismiss'
   ) {
     const handled = await handleUserAdminRoutes({
@@ -3151,10 +3287,13 @@ async function handleAdminApi(ctx) {
       method,
       dataDir,
       publicUrl,
+      env,
+      actor,
       respondJson: (status, payload) => respondAdminJson(response, status, payload),
       readJsonBody,
       kickLabel,
-      pushActivity: (evt) => pushActivity(activity, evt),
+      // Who did it rides every event from here: the admin key, or the admin's address.
+      pushActivity: (evt) => note({ actor: actor.name, ...evt }),
     });
     if (handled) return;
     respondAdminJson(response, 404, { error: 'not found' });
@@ -3212,8 +3351,10 @@ async function handleAdminApi(ctx) {
         /* best-effort */
       }
       peers.delete(socketId);
-      pushActivity(activity, {
+      note({
         type: 'warn',
+        kind: 'kick',
+        actor: actor.name,
         user: peer.user,
         doc: `kicked from ${peer.documentName}`,
       });
@@ -3243,9 +3384,15 @@ async function handleAdminApi(ctx) {
   if (method === 'GET' && path === '/settings') {
     const stored = readSettings(dataDir);
     const { tokens } = readTokens(dataDir);
+    const oidc = oidcConfig(env);
     respondAdminJson(response, 200, {
       name: stored.name,
       description: stored.description,
+      // Who may come in without an invitation, and what the choices mean here.
+      whoCanJoin: stored.whoCanJoin,
+      signIn: oidc.enabled
+        ? { provider: oidc.label, domains: oidc.allowedDomains, passwords: oidc.mode !== 'strict' }
+        : { provider: null, domains: [], passwords: true },
       publicUrl,
       transport: ctx.insecureHttp ? 'plaintext HTTP (dev)' : 'TLS upstream',
       dataDir,
@@ -3266,7 +3413,32 @@ async function handleAdminApi(ctx) {
   if (method === 'POST' && path === '/settings') {
     try {
       const body = await readJsonBody(request);
-      const saved = writeSettings(dataDir, { name: body?.name, description: body?.description });
+      // "Who can join" is a team server's rule about its OWN people. On a
+      // cloud cell people come from the control plane, so it is not this hub's
+      // to set — refused whole (nothing in the request is saved), never
+      // silently dropped. Name and description are untouched by this.
+      if (body?.whoCanJoin !== undefined && body.whoCanJoin !== null && !selfServicePeople(env)) {
+        respondAdminJson(response, 409, {
+          error:
+            'This project takes its people from Maude Cloud. Who can join is set on the project’s People page there.',
+        });
+        return;
+      }
+      const before = readSettings(dataDir);
+      const saved = writeSettings(dataDir, {
+        name: body?.name,
+        description: body?.description,
+        whoCanJoin: body?.whoCanJoin,
+      });
+      const changed = [];
+      if (saved.name !== before.name) changed.push(`name: ${saved.name}`);
+      if (saved.description !== before.description) changed.push('description');
+      if (saved.whoCanJoin !== before.whoCanJoin) {
+        changed.push(`who can join: ${before.whoCanJoin} → ${saved.whoCanJoin}`);
+      }
+      if (changed.length) {
+        ctx.audit?.({ kind: 'settings', actor: actor.name, detail: changed.join(' · ') });
+      }
       respondAdminJson(response, 200, { ok: true, ...saved });
     } catch (err) {
       respondAdminJson(response, 400, { error: err.message });
@@ -3287,7 +3459,13 @@ async function handleAdminApi(ctx) {
       return;
     }
     rotateAdminSecret(dataDir);
-    pushActivity(activity, { type: 'warn', user: 'admin', doc: 'admin secret rotated' });
+    note({
+      type: 'warn',
+      kind: 'secret-rotate',
+      actor: actor.name,
+      user: 'admin',
+      doc: 'admin key changed',
+    });
     respondAdminJson(response, 200, { ok: true, reauth: true });
     return;
   }
@@ -3299,8 +3477,9 @@ async function handleAdminApi(ctx) {
       // scope optional; default = label (DDR-053 §3). '*' = wildcard opt-in.
       const scope = body?.scope === undefined ? undefined : String(body.scope).trim();
       const record = addToken(dataDir, { label, scope });
-      pushActivity(activity, {
+      note({
         type: 'token',
+        actor: actor.name,
         user: label,
         doc: `invite issued · scope ${record.scope ?? '*'}`,
       });
@@ -3320,8 +3499,10 @@ async function handleAdminApi(ctx) {
       // time on a compromised token is bounded by rotate latency, not by the
       // attacker's choice to never disconnect.
       const disconnected = kickLabel(label);
-      pushActivity(activity, {
+      note({
         type: 'warn',
+        kind: 'token-rotate',
+        actor: actor.name,
         user: label,
         doc: `token rotated — ${disconnected} session${disconnected === 1 ? '' : 's'} kicked`,
       });
@@ -3340,8 +3521,10 @@ async function handleAdminApi(ctx) {
       removeToken(dataDir, label);
       // Kick live sessions that authenticated with the deleted token (DDR-053 §4).
       const disconnected = kickLabel(label);
-      pushActivity(activity, {
+      note({
         type: 'warn',
+        kind: 'token-delete',
+        actor: actor.name,
         user: label,
         doc: `token deleted — ${disconnected} session${disconnected === 1 ? '' : 's'} kicked`,
       });
@@ -4209,12 +4392,18 @@ function respondJson(response, status, payload, { hardenAdminOrigin = false } = 
   response.end(body);
 }
 
-function respondAsset(response, body, contentType, { hardenAdminOrigin = false } = {}) {
+function respondAsset(
+  response,
+  body,
+  contentType,
+  { hardenAdminOrigin = false, extraHeaders = null } = {}
+) {
   const headers = {
     'Content-Type': contentType,
     'Cache-Control': 'no-store',
     'Content-Length': Buffer.byteLength(body),
     ...(hardenAdminOrigin ? ADMIN_HARDENED_HEADERS : {}),
+    ...(extraHeaders ?? {}),
   };
   // Avoid duplicate Content-Type from spread above
   headers['Content-Type'] = contentType;
@@ -4291,8 +4480,17 @@ function bailFromOnRequest() {
 
 // ------------------------------------------------------------------- main
 
-/** Run the hub as a CLI process. */
-async function runAsMain() {
+/**
+ * Run the hub as a CLI process.
+ *
+ * Exported for ONE caller besides the entry point: the local smoke fixture
+ * (`test/fixtures/serve-team-server.mjs`), which needs the real boot sequence
+ * — the seeded first user, the workspace agent, backups — with an in-memory
+ * identity provider. `oidcFetch` is the only thing it can hand over, and it is
+ * not readable from env: the provider transport refuses loopback and plain
+ * http by design (oidc-egress.mjs), and no variable switches that off.
+ */
+export async function runAsMain({ oidcFetch } = {}) {
   // Before anything can reject: a disk error escaping a fire-and-forget promise
   // used to exit the process, which on a cell is a cold start into the same
   // full disk (the 2026-10-01 Alligators restart loop). See disk.mjs.
@@ -4334,6 +4532,7 @@ async function runAsMain() {
       connRateLimit,
       assetWriteRateLimit,
       ...(fileReadRateLimit !== undefined ? { fileReadRateLimit } : {}),
+      ...(oidcFetch ? { oidcFetch } : {}),
     });
   } catch (err) {
     console.error('[hub] config error:', err.message);

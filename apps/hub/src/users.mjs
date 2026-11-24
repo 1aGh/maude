@@ -93,6 +93,17 @@ function db(dataDir) {
     .map((c) => c.name);
   if (!columns.includes('oidc_sub')) handle.exec('ALTER TABLE users ADD COLUMN oidc_sub TEXT');
   handle.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_oidc_sub ON users(oidc_sub)');
+  // People an admin REMOVED or DISMISSED. A subject or an address in here is
+  // never created by a rule or by an open link again — it can only ask (see
+  // `isTurnedOut`). Rows, not a flag on `users`: the account is gone.
+  handle.exec(
+    `CREATE TABLE IF NOT EXISTS oidc_turned_out (
+       sub   TEXT NOT NULL DEFAULT '',
+       email TEXT NOT NULL DEFAULT '',
+       at    INTEGER NOT NULL,
+       PRIMARY KEY (sub, email)
+     )`
+  );
   // V2-1.7 §5.8 (S9.6) — the self-hosted authority's two additions, the
   // existing ADD COLUMN way:
   //   access     the account's AccessClaim JSON when it is narrower than its
@@ -570,12 +581,108 @@ export function linkOidcSub(dataDir, email, sub) {
   if (owner && owner.email !== normalized) {
     throw new Error(`that identity is already linked to ${owner.email}`);
   }
-  const changed = handle
-    .prepare('UPDATE users SET oidc_sub = ? WHERE email = ?')
-    .run(subject, normalized).changes;
-  if (!changed) throw new Error(`no such user "${normalized}"`);
+  // NEVER OVERWRITE A LINK. An account that already signs in with one identity
+  // does not silently start signing in with another: that swap is a takeover
+  // with an audit line. Changing it is two explicit acts — `unlinkOidcSub`
+  // (admin key), then link.
+  const row = handle.prepare('SELECT oidc_sub FROM users WHERE email = ?').get(normalized);
+  if (!row) throw new Error(`no such user "${normalized}"`);
+  if (row.oidc_sub && row.oidc_sub !== subject) {
+    throw new Error('this account already has a different sign-in linked — unlink it first');
+  }
+  linkAndRetirePassword(handle, normalized, subject);
   removePendingOidc(dataDir, subject);
+  clearTurnedOut(dataDir, { sub: subject, email: normalized });
   return getUserByOidcSub(dataDir, subject);
+}
+
+/**
+ * Set the link AND replace the password hash with one nobody knows.
+ *
+ * Whoever made this account first chose its password — and on an open invite
+ * that can be someone who typed an address that is not theirs. Once the real
+ * owner (or an admin) links the provider identity, that older password must
+ * not remain a second way in. Password sign-in is dead for this account until
+ * an admin-key reset. Ending the SESSIONS that password already minted is the
+ * caller's job (it knows which one, if any, to keep).
+ */
+function linkAndRetirePassword(handle, email, subject) {
+  handle
+    .prepare('UPDATE users SET oidc_sub = ?, hash = ? WHERE email = ?')
+    .run(subject, hashPassword(randomBytes(32).toString('base64url')), email);
+}
+
+/**
+ * Remove an account's provider link — an explicit ADMIN-KEY act, and the only
+ * way a linked account can be linked to a different identity afterwards.
+ * Returns the subject that was linked, or null.
+ */
+export function unlinkOidcSub(dataDir, email) {
+  const normalized = normalizeEmail(email);
+  const handle = db(dataDir);
+  const row = handle.prepare('SELECT oidc_sub FROM users WHERE email = ?').get(normalized);
+  if (!row?.oidc_sub) return null;
+  handle.prepare('UPDATE users SET oidc_sub = NULL WHERE email = ?').run(normalized);
+  return row.oidc_sub;
+}
+
+// ------------------------------------------------ removed / dismissed people
+
+/**
+ * Remember that an admin turned this identity out (Remove, Dismiss).
+ * `sub` and `email` are each optional; whichever is known is remembered.
+ */
+export function markTurnedOut(dataDir, { sub = '', email = '' } = {}) {
+  const subject = typeof sub === 'string' ? sub.trim() : '';
+  const address = normalizeEmail(email);
+  if (!subject && !address) return;
+  db(dataDir)
+    .prepare('INSERT OR REPLACE INTO oidc_turned_out (sub, email, at) VALUES (?, ?, ?)')
+    .run(subject, address, Date.now());
+}
+
+/** Was this subject OR this address turned out by an admin? */
+export function isTurnedOut(dataDir, { sub = '', email = '' } = {}) {
+  const subject = typeof sub === 'string' ? sub.trim() : '';
+  const address = normalizeEmail(email);
+  try {
+    return Boolean(
+      db(dataDir)
+        .prepare(
+          `SELECT 1 FROM oidc_turned_out
+            WHERE (? != '' AND sub = ?) OR (? != '' AND email = ?) LIMIT 1`
+        )
+        .get(subject, subject, address, address)
+    );
+  } catch {
+    // Unreadable is "turned out": the safe side of an auto-admit decision.
+    return true;
+  }
+}
+
+/** An admin said yes again (Let in, a link, an invitation that names the address). */
+export function clearTurnedOut(dataDir, { sub = '', email = '' } = {}) {
+  const subject = typeof sub === 'string' ? sub.trim() : '';
+  const address = normalizeEmail(email);
+  db(dataDir)
+    .prepare(
+      `DELETE FROM oidc_turned_out
+        WHERE (? != '' AND sub = ?) OR (? != '' AND email = ?)`
+    )
+    .run(subject, subject, address, address);
+}
+
+/**
+ * Remove an account AND remember its identity as turned out, so "Remove"
+ * sticks whatever "who can join" says. Token revocation stays the caller's.
+ */
+export function removeUserForGood(dataDir, email) {
+  const normalized = normalizeEmail(email);
+  const handle = db(dataDir);
+  const row = handle.prepare('SELECT oidc_sub FROM users WHERE email = ?').get(normalized);
+  if (!row) return false;
+  markTurnedOut(dataDir, { sub: row.oidc_sub ?? '', email: normalized });
+  return removeUser(dataDir, normalized);
 }
 
 /**
@@ -622,5 +729,133 @@ export function approveOidcSub(dataDir, { sub, email, role } = {}) {
     return user.email;
   });
   const address = run();
+  // "Let in" is the admin saying yes: a person once removed or dismissed is welcome again.
+  clearTurnedOut(dataDir, { sub: subject, email: address });
   return getUserByOidcSub(dataDir, subject) ?? getUser(dataDir, address);
+}
+
+// ------------------------------------- the invite / the rule as the approval
+
+/**
+ * Create an account FOR a verified subject and link it, in one transaction.
+ *
+ * The callers are the two places where something other than an admin's click
+ * is the approval: an invitation the person holds (browser-auth.mjs → the
+ * invite rides through the provider sign-in), and the "colleagues come
+ * straight in" rule (settings.mjs `whoCanJoin: 'domain'`).
+ *
+ * What makes it safe is what it REFUSES: an address that already has an
+ * account (that is `linkOidcSub`'s explicit act — never a match on the
+ * provider's claim), and a subject that is already somebody. `email` must be
+ * the provider's VERIFIED, allow-listed address (`usableEmailClaim`); the
+ * caller checks that, this function cannot.
+ *
+ * The password is 32 random bytes nobody ever sees, exactly as in
+ * `approveOidcSub`: this is a provider-only account until an admin resets it.
+ */
+export function createOidcUser(dataDir, { sub, email, role, access } = {}) {
+  const subject = typeof sub === 'string' ? sub.trim() : '';
+  if (!subject) throw new Error('createOidcUser: a subject is required');
+  const handle = db(dataDir);
+  const owner = handle.prepare('SELECT email FROM users WHERE oidc_sub = ?').get(subject);
+  if (owner) throw new Error(`that identity is already linked to ${owner.email}`);
+  const run = handle.transaction(() => {
+    const user = createUser(dataDir, {
+      email,
+      password: randomBytes(32).toString('base64url'),
+      role,
+      ...(access ? { access } : {}),
+    });
+    handle.prepare('UPDATE users SET oidc_sub = ? WHERE email = ?').run(subject, user.email);
+    removePendingOidc(dataDir, subject);
+    return user;
+  });
+  return run();
+}
+
+/**
+ * "Link my sign-in" — the account holder links their OWN provider identity.
+ *
+ * `email` is the account of the session that started the flow (never a claim);
+ * the caller has already required the provider's verified address to be that
+ * same address. Refuses a subject that is someone else's, and an account that
+ * already has a different identity (changing one is an admin's `linkOidcSub`).
+ */
+export function selfLinkOidcSub(dataDir, email, sub) {
+  const normalized = assertValidEmail(email);
+  const subject = typeof sub === 'string' ? sub.trim() : '';
+  if (!subject) throw new Error('selfLinkOidcSub: a subject is required');
+  const handle = db(dataDir);
+  const row = handle
+    .prepare('SELECT oidc_sub, disabled FROM users WHERE email = ?')
+    .get(normalized);
+  if (!row) throw new Error('no such account');
+  if (row.disabled) throw new Error('this account is turned off');
+  if (row.oidc_sub && row.oidc_sub !== subject) {
+    throw new Error('this account already has a different sign-in linked');
+  }
+  const owner = handle.prepare('SELECT email FROM users WHERE oidc_sub = ?').get(subject);
+  if (owner && owner.email !== normalized) {
+    throw new Error('that sign-in belongs to another account');
+  }
+  // Same as an admin's link: the password this account was made with stops
+  // working. The caller ends every session but the one doing the linking.
+  linkAndRetirePassword(handle, normalized, subject);
+  removePendingOidc(dataDir, subject);
+  clearTurnedOut(dataDir, { sub: subject, email: normalized });
+  return getUser(dataDir, normalized);
+}
+
+/** The addresses whose account has a provider identity linked. */
+export function oidcLinkedEmails(dataDir) {
+  try {
+    return new Set(
+      db(dataDir)
+        .prepare('SELECT email FROM users WHERE oidc_sub IS NOT NULL')
+        .all()
+        .map((r) => r.email)
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+/** One pending identity by subject, or null. */
+export function getPendingOidc(dataDir, sub) {
+  const r = db(dataDir)
+    .prepare('SELECT sub, email, first_seen, last_attempt FROM oidc_pending WHERE sub = ?')
+    .get(String(sub ?? ''));
+  return r
+    ? { sub: r.sub, email: r.email, firstSeen: r.first_seen, lastAttempt: r.last_attempt }
+    : null;
+}
+
+/**
+ * Change an account's role (admin ⇄ member). Returns the updated record, or
+ * null when there is no such account. A canvas-only account is never an admin
+ * (the same rule `createUser` and `setUserAccess` keep). Ending the sessions
+ * minted under the old role is the CALLER's job.
+ */
+export function setUserRole(dataDir, email, role) {
+  const normalized = normalizeEmail(email);
+  if (role !== 'admin' && role !== 'member') throw new Error('role must be one of: admin, member');
+  const handle = db(dataDir);
+  const row = handle.prepare('SELECT access FROM users WHERE email = ?').get(normalized);
+  if (!row) return null;
+  if (role === 'admin' && row.access) {
+    throw new Error('this person only has some canvases — give them the whole project first');
+  }
+  handle.prepare('UPDATE users SET role = ? WHERE email = ?').run(role, normalized);
+  return getUser(dataDir, normalized);
+}
+
+/** How many accounts are admins that can sign in. */
+export function activeAdminCount(dataDir) {
+  try {
+    return db(dataDir)
+      .prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND disabled = 0")
+      .get().n;
+  } catch {
+    return 0;
+  }
 }

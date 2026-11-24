@@ -10,6 +10,23 @@ const MAX_ADDRESS_LENGTH = '/?open='.length + 512 * 9 + FOLLOW_SUFFIX.length;
 /** The follow form rides the cookie as this prefix (outside the base64url alphabet). */
 const FOLLOW_COOKIE_PREFIX = 'f.';
 
+/**
+ * The admin page (`/admin`) — the one return address that is not a shell file
+ * address. It rides the cookie as this exact value ('.' is outside the
+ * base64url alphabet, so it can never be read as a file address) and comes
+ * back as the fixed path below; nothing a caller sends is ever echoed.
+ */
+const ADMIN_COOKIE_VALUE = 'a.';
+export const ADMIN_RETURN = '/admin';
+
+/** Remember "go back to the admin page" for the sign-in in flight. */
+export function setReturnToAdmin(response) {
+  appendCookie(
+    response,
+    `${RETURN_COOKIE}=${ADMIN_COOKIE_VALUE}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`
+  );
+}
+
 export function validateReturnTo(value) {
   if (typeof value !== 'string' || value.length > MAX_ADDRESS_LENGTH) return null;
   const match = /^\/\?open=([^&#]+)(&present=follow)?$/.exec(value);
@@ -72,6 +89,7 @@ export function takeReturnTo(request, response) {
   if (values.length === 1) {
     try {
       const raw = values[0].slice(RETURN_COOKIE.length + 1);
+      if (raw === ADMIN_COOKIE_VALUE) target = ADMIN_RETURN;
       const follow = raw.startsWith(FOLLOW_COOKIE_PREFIX);
       const encoded = follow ? raw.slice(FOLLOW_COOKIE_PREFIX.length) : raw;
       if (/^[A-Za-z0-9_-]{1,2048}$/.test(encoded)) {

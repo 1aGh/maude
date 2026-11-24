@@ -26,7 +26,7 @@
 //   2. `track` NEVER blocks a request. The write goes into `ctx.waitUntil`, so
 //      the response is already on its way.
 
-import { EVENTS, toDataPoint, validateEvent } from './events.mjs';
+import { BLOB, EVENTS, toDataPoint, validateEvent } from './events.mjs';
 
 /**
  * Record one thing that happened.
@@ -250,4 +250,135 @@ export function totalContent(stats) {
     }
   }
   return total;
+}
+
+// ------------------------------------------------- one owner's own projects
+//
+// The same dataset the operator board reads, narrowed to the projects ONE
+// account owns (canvas 16, cl-account: "numbers you already have, finally
+// shown"). Nothing new is recorded for this: `project_opened` (who, which
+// project, which surface), `export_downloaded` and the cell-reported
+// `tenant_stats` have been written since Cloud Phase 26 and were only ever
+// shown to the operator.
+//
+// THE NARROWING IS THE SECURITY PROPERTY. Every query below carries
+// `blob2 IN (<this owner's project ids>)`, built from ids the caller read out
+// of D1 for the signed-in account and re-checked against the tenant id shape
+// here, so nothing a person can type reaches the SQL text.
+
+const OWNED_PROJECT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** `'a', 'b'` for an IN list, or null when no usable id is left. */
+function projectList(projectIds) {
+  const ids = [...new Set(projectIds ?? [])]
+    .filter((id) => typeof id === 'string' && id.length <= 63 && OWNED_PROJECT_ID.test(id))
+    .slice(0, 200);
+  return ids.length ? ids.map((id) => `'${id}'`).join(', ') : null;
+}
+
+/**
+ * How one owner's projects are used. Every figure is `null` when it could not
+ * be read — the page OMITS a tile rather than print a zero that means "we do
+ * not know". `ok: false` when analytics is not connected at all.
+ *
+ * @returns {Promise<{ok: false, reason: string} | {
+ *   ok: true, sampled: boolean, activeThisWeek: number|null,
+ *   opens: Record<string, number>|null, exports: number|null,
+ *   canvases: number|null, storageBytes: number|null }>}
+ */
+export async function ownerMetrics(env, projectIds, { fetchImpl = fetch } = {}) {
+  const list = projectList(projectIds);
+  if (!list) return { ok: false, reason: 'no-projects' };
+  const mine = `${BLOB.projectId} IN (${list})`;
+  const active = await queryEvents(
+    env,
+    `SELECT COUNT(DISTINCT blob1) AS active
+       FROM ${DATASET}
+      WHERE index1 = 'project_opened' AND ${mine} AND blob1 != ''
+        AND timestamp > NOW() - INTERVAL '7' DAY`,
+    { fetchImpl }
+  );
+  if (!active.ok) return { ok: false, reason: active.reason };
+
+  const statKeys = EVENTS.tenant_stats.doubles;
+  const [surfaces, exported, stats] = await Promise.all([
+    queryEvents(
+      env,
+      `SELECT blob3 AS surface, SUM(_sample_interval) AS opens
+         FROM ${DATASET}
+        WHERE index1 = 'project_opened' AND ${mine}
+          AND timestamp > NOW() - INTERVAL '30' DAY
+        GROUP BY surface`,
+      { fetchImpl }
+    ),
+    queryEvents(
+      env,
+      `SELECT SUM(_sample_interval) AS exports
+         FROM ${DATASET}
+        WHERE index1 = 'export_downloaded' AND ${mine}
+          AND timestamp > NOW() - INTERVAL '30' DAY`,
+      { fetchImpl }
+    ),
+    queryEvents(
+      env,
+      `SELECT blob2 AS project,
+            ${statKeys.map((k, i) => `argMax(double${i + 1}, timestamp) AS ${k}`).join(',\n            ')}
+         FROM ${DATASET}
+        WHERE index1 = 'tenant_stats' AND ${mine}
+          AND timestamp > NOW() - INTERVAL '2' DAY
+        GROUP BY project`,
+      { fetchImpl }
+    ),
+  ]);
+
+  // A sum over the projects that reported — a real lower bound. `null` when
+  // none did, never 0.
+  const sumOf = (key) => {
+    if (!stats.ok) return null;
+    const known = stats.rows.map((r) => num(r[key])).filter((v) => v !== null && !Number.isNaN(v));
+    return known.length ? known.reduce((a, b) => a + b, 0) : null;
+  };
+  let opens = null;
+  if (surfaces.ok) {
+    opens = {};
+    for (const r of surfaces.rows) {
+      const surface = String(r.surface ?? '');
+      // The declared surfaces only — an unknown blob is not a place people open work.
+      if (EVENTS.project_opened.props.surface.includes(surface)) opens[surface] = num(r.opens);
+    }
+  }
+  return {
+    ok: true,
+    sampled: isSampled(active.rows) || isSampled(surfaces.rows ?? []),
+    activeThisWeek: num(active.rows[0]?.active),
+    opens,
+    exports: exported.ok ? (num(exported.rows[0]?.exports) ?? 0) : null,
+    canvases: sumOf('canvases'),
+    storageBytes: sumOf('assetsBytes'),
+  };
+}
+
+/**
+ * When each account last opened one of these projects, in the last 30 days:
+ * `Map<accountId, ms>`, or null when analytics could not answer.
+ */
+export async function lastOpens(env, projectIds, { fetchImpl = fetch } = {}) {
+  const list = projectList(projectIds);
+  if (!list) return null;
+  const res = await queryEvents(
+    env,
+    `SELECT blob1 AS account, MAX(timestamp) AS last
+       FROM ${DATASET}
+      WHERE index1 = 'project_opened' AND ${BLOB.projectId} IN (${list}) AND blob1 != ''
+        AND timestamp > NOW() - INTERVAL '30' DAY
+      GROUP BY account`,
+    { fetchImpl }
+  );
+  if (!res.ok) return null;
+  const out = new Map();
+  for (const r of res.rows) {
+    const at = Date.parse(`${String(r.last).replace(' ', 'T')}Z`);
+    if (r.account && Number.isFinite(at)) out.set(String(r.account), at);
+  }
+  return out;
 }

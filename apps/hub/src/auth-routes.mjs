@@ -24,6 +24,7 @@ import {
   declaredAccessOf,
   peerTokenDoor,
 } from '../../studio/access/scope.ts';
+import { personChangeRefusal } from './admin-people.mjs';
 import {
   cookieValue,
   desktopTxnOf,
@@ -72,15 +73,18 @@ import {
   approveOidcSub,
   authenticate,
   createUser,
+  getPendingOidc,
   getUser,
   linkOidcSub,
   listPendingOidc,
   listUsers,
+  markTurnedOut,
   removePendingOidc,
-  removeUser,
+  removeUserForGood,
   setUserAccess,
   setUserDisabled,
   setUserPassword,
+  unlinkOidcSub,
   userCount,
 } from './users.mjs';
 
@@ -729,11 +733,40 @@ export async function handleUserAdminRoutes(ctx) {
     }
     try {
       const user = linkOidcSub(dataDir, body?.email, body?.sub);
+      // The link retired the account's password (users.mjs); the sessions that
+      // password minted go with it. All of them — nobody here is "the one linking".
+      const revoked = revokeTokensForOwner(dataDir, user.email);
+      let kicked = 0;
+      for (const label of revoked) kicked += ctx.kickLabel?.(label) ?? 0;
       ctx.pushActivity?.({ type: 'oidc-link', user: user.email, doc: String(body?.sub ?? '') });
-      respondJson(200, { user });
+      respondJson(200, { user, revoked: revoked.length, kicked });
     } catch (err) {
       respondJson(400, { error: err.message });
     }
+    return true;
+  }
+  // POST /oidc/unlink {email} — take an account's provider link away. The only
+  // way a linked account can later be linked to a DIFFERENT identity
+  // (`linkOidcSub` refuses to overwrite), and admin-key only.
+  if (method === 'POST' && path === '/oidc/unlink') {
+    let body;
+    try {
+      body = await readJsonBody(ctx.request);
+    } catch (err) {
+      respondJson(400, { error: err.message });
+      return true;
+    }
+    const was = unlinkOidcSub(dataDir, body?.email);
+    if (!was) {
+      respondJson(404, { error: 'no such linked account' });
+      return true;
+    }
+    const email = String(body.email).trim().toLowerCase();
+    const revoked = revokeTokensForOwner(dataDir, email);
+    let kicked = 0;
+    for (const label of revoked) kicked += ctx.kickLabel?.(label) ?? 0;
+    ctx.pushActivity?.({ type: 'oidc-unlink', user: email, doc: `revoked ${revoked.length}` });
+    respondJson(200, { ok: true, revoked: revoked.length, kicked });
     return true;
   }
   // POST /oidc/approve — the THIRD verb (2026-08-21). "Link" attaches a
@@ -773,7 +806,9 @@ export async function handleUserAdminRoutes(ctx) {
       respondJson(400, { error: err.message });
       return true;
     }
+    const waiting = getPendingOidc(dataDir, body?.sub);
     const removed = removePendingOidc(dataDir, body?.sub);
+    if (waiting) markTurnedOut(dataDir, { sub: waiting.sub, email: waiting.email ?? '' });
     ctx.pushActivity?.({ type: 'oidc-dismiss', doc: String(body?.sub ?? '') });
     respondJson(200, { ok: true, removed });
     return true;
@@ -791,6 +826,18 @@ export async function handleUserAdminRoutes(ctx) {
   }
 
   if (method === 'POST' && path === '/users') {
+    // Same gate as POST /invites below (B6): under STRICT cloud identity the
+    // control plane is the only place people are added, and a local password
+    // could not sign anyone in anyway. Nothing provisions a cell through this
+    // route (the first user is seeded with `createUser` directly), and hybrid
+    // (`MAUDE_CLOUD_IDENTITY=1`) keeps it, as it keeps local passwords.
+    if (cloudIdentityStrict(ctx.env ?? process.env)) {
+      respondJson(409, {
+        error:
+          'This workspace takes its members from Maude Cloud. Add people on the project’s People page instead.',
+      });
+      return true;
+    }
     let body;
     try {
       body = await readJsonBody(ctx.request);
@@ -821,6 +868,20 @@ export async function handleUserAdminRoutes(ctx) {
     } catch (err) {
       respondJson(400, { error: err.message });
       return true;
+    }
+    // A signed-in admin is held to the People rules here too (the last admin,
+    // yourself); the admin key keeps this route exactly as it was.
+    if (disable && ctx.actor?.kind === 'session') {
+      const why = personChangeRefusal(
+        dataDir,
+        ctx.actor,
+        getUser(dataDir, body?.email),
+        'turn-off'
+      );
+      if (why) {
+        respondJson(409, { error: why });
+        return true;
+      }
     }
     const user = setUserDisabled(dataDir, body?.email, disable);
     if (!user) {
@@ -906,7 +967,7 @@ export async function handleUserAdminRoutes(ctx) {
           email: body?.email,
           role: body?.role ?? undefined,
           ttlHours: body?.ttlHours,
-          createdBy: body?.createdBy,
+          createdBy: ctx.actor?.kind === 'session' ? ctx.actor.email : body?.createdBy,
         });
       } catch (err) {
         respondJson(400, { error: err.message });
@@ -959,10 +1020,17 @@ export async function handleUserAdminRoutes(ctx) {
     const email = String(body?.email ?? '')
       .trim()
       .toLowerCase();
+    if (ctx.actor?.kind === 'session') {
+      const why = personChangeRefusal(dataDir, ctx.actor, getUser(dataDir, email), 'remove');
+      if (why) {
+        respondJson(409, { error: why });
+        return true;
+      }
+    }
     const revoked = revokeTokensForOwner(dataDir, email);
     let kicked = 0;
     for (const label of revoked) kicked += ctx.kickLabel?.(label) ?? 0;
-    const removed = removeUser(dataDir, email);
+    const removed = removeUserForGood(dataDir, email);
     if (!removed && revoked.length === 0) {
       respondJson(404, { error: 'no such user' });
       return true;

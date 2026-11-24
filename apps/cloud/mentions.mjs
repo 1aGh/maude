@@ -39,6 +39,7 @@ import { SESSION_COOKIE } from './auth-routes.mjs';
 import { appShell, publicPage, publicResponse } from './brand.mjs';
 import { deriveCellSecret, secretsMatch } from './cell-token.mjs';
 import { audit } from './db.mjs';
+import { pageCsp } from './edge.mjs';
 import { MENTION_EXCERPT_MAX, mentionEmail, oneLine, sendEmail } from './email.mjs';
 import { consumeEmailToken, mintEmailToken, peekEmailToken } from './email-tokens.mjs';
 import { canvasName } from './people-page.mjs';
@@ -279,8 +280,7 @@ const PAGE_HEADERS = {
   'content-type': 'text/html; charset=utf-8',
   'cache-control': 'no-store',
   'x-content-type-options': 'nosniff',
-  'content-security-policy':
-    "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+  'content-security-policy': pageCsp(),
   'referrer-policy': 'no-referrer',
 };
 

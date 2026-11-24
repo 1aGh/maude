@@ -6,7 +6,7 @@
  * @stack       React 19 · TSX · Bun.build
  * @history     .design/_history/ui-v2-16_team_server_and_cloud_admin
  * @artboards   ts-overview | ts-people | ts-invitee | ts-settings |
- *              cl-account | cl-people | cl-operator
+ *              ts-person | ts-activity | cl-account | cl-people | cl-operator | cl-op-account
  * @brief       "udelej redesign hub admin cell ale i hub cloud.maude dashboard … zvani uzivatelu je celkem komplikovane
  *              a matouci. Musi se tam prihlasit, pak ja to musim potvrdit a pak stejne potrebuji vygenerovany token aby si
  *              napojili repo … V cloud maude dashboard bych zase rad videl vic statistik a taky moznost masaz members a
@@ -83,7 +83,7 @@ function Nav({ name, place, tabs, current, me, tag, op = false, ini, tone }: { i
   );
 }
 
-const TS_TABS: NavTab[] = [{ label: "Overview" }, { label: "People", count: 2 }, { label: "Projects" }, { label: "Settings" }];
+const TS_TABS: NavTab[] = [{ label: "Overview" }, { label: "People", count: 2 }, { label: "Projects" }, { label: "Activity" }, { label: "Settings" }];
 const TS = { name: "StudyFi Design", place: "Team server", me: "Michal · Admin" };
 
 function Stat({ label, icon, value, unit, foot, spark }: { label: string; icon: string; value: string; unit?: string; foot?: ReactNode; spark?: number[] }) {
@@ -231,7 +231,7 @@ export default function TeamServerAndCloudAdmin() {
                 </section>
 
                 <div className="ad-stats" style={{ "--n": 4 } as CSSProperties}>
-                  <Stat label="People" icon="people" value="14" foot={<><span>2 invited · 1 asks to join</span></>} />
+                  <Stat label="People" icon="people" value="14" foot={<><span>1 invited · 1 asks to join</span></>} />
                   <Stat label="Here now" icon="pulse" value="3" foot={<span>Tereza, Jonas, you</span>} />
                   <Stat label="Projects" icon="folder" value="2" unit="186 canvases" foot={<span>+7 canvases this week</span>} />
                   <Stat label="Changes this week" icon="history" value="1 240" spark={[30, 42, 38, 55, 61, 20, 12, 48, 66, 52, 70, 58, 74, 81]} />
@@ -302,6 +302,7 @@ export default function TeamServerAndCloudAdmin() {
                   <span className="ad-pick" role="radiogroup">
                     <PickOpt on title="Can edit" sub="Change canvases, draw, use AI, move things to the trash" />
                     <PickOpt title="Can comment" sub="Look, comment and download" />
+                    <PickOpt title="Can view" sub="Look and download, nothing else" />
                     <PickOpt title="Admin" sub="Also invites people and runs this team server · asks you to confirm" />
                   </span>
                 </span>
@@ -467,6 +468,107 @@ export default function TeamServerAndCloudAdmin() {
             </Browser>
           </Stage>
         </DCArtboard>
+
+        <DCArtboard id="ts-person" label="13 · One person — everything about them, changed in place" width={W} height={H} fixed>
+          <Stage note={<Note n={13} title="A row opens one sheet, and the sheet is the whole job.">What Jonas can do, where, from which Macs, and what Jonas did lately — on one sheet. Changing the role is one click and takes effect at once; Turn off keeps the work and ends every session. Nothing here needs a token or a second page.</Note>}>
+            <Browser host="design.studyfi.com" path="/people/jonas">
+              <Nav {...TS} tabs={TS_TABS} current="People" />
+              <div className="ad-main">
+                <div className="ad-head">
+                  <div><h1 className="ad-h1">People</h1><p className="ad-sub">14 people · who can come in is set in Settings › Who can join</p></div>
+                  <div className="ad-head-a"><span className="btn btn--primary"><Icon name="plus" size={14} />Invite people</span></div>
+                </div>
+                <div className="ad-card ad-people-card">
+                  <div className="ad-tabs">
+                    <span className="ad-tab" aria-pressed="true">Everyone <span className="ad-count">14</span></span>
+                    <span className="ad-tab">Asks to join <span className="ad-count ad-count--hot">1</span></span>
+                    <span className="ad-tab">Invited <span className="ad-count">1</span></span>
+                    <span className="ad-tab">Turned off <span className="ad-count">1</span></span>
+                    <span className="ad-tabs-sp" />
+                    <span className="ad-filter"><Icon name="search" size={13} />Find someone</span>
+                  </div>
+                  <PeopleTable rows={PEOPLE_ROWS} picked="jonas@studyfi.com" />
+                </div>
+              </div>
+              <div className="ad-veil" />
+              <section className="ad-sheet" style={{ right: 28, top: 108, width: 440 }} aria-label="Jonas Berger">
+                <Who name="Jonas Berger" email="jonas@studyfi.com" tone="green" />
+                <span className="field">
+                  <span className="field-label">Jonas can</span>
+                  <span className="seg ad-seg"><span className="ad-seg-b">Can view</span><span className="ad-seg-b">Can comment</span><span className="ad-seg-b" aria-pressed="true">Can edit</span><span className="ad-seg-b">Admin</span></span>
+                  <span className="field-hint">Changes at once, on every Mac and in the browser.</span>
+                </span>
+                <span className="field">
+                  <span className="field-label">In</span>
+                  <span className="ad-sel">All projects — now and new ones<Icon name="chevron" size={12} /></span>
+                </span>
+                <div>
+                  <h4 className="ad-sheet-h4">Signed in on</h4>
+                  <div className="ad-adv-row"><span>Jonas's MacBook Pro <span className="ad-quiet">· Maude app · now</span></span><span className="btn btn--ghost btn--sm">Sign out</span></div>
+                  <div className="ad-adv-row"><span>Chrome on Mac <span className="ad-quiet">· browser · 2 days ago</span></span><span className="btn btn--ghost btn--sm">Sign out</span></div>
+                </div>
+                <div>
+                  <h4 className="ad-sheet-h4">Lately <span className="ad-link">See all in Activity</span></h4>
+                  <div className="ad-adv-row"><span>Exported Paywall · 4 images</span><span className="ad-quiet">9 min</span></div>
+                  <div className="ad-adv-row"><span>Changed Paywall, Pricing hero</span><span className="ad-quiet">Today</span></div>
+                  <div className="ad-adv-row"><span>Joined from Tereza's invite</span><span className="ad-quiet">12 Sep</span></div>
+                </div>
+                <p className="ad-sub" style={{ margin: 0 }}>Turn off keeps Jonas's work and ends every session; you can turn Jonas back on. Remove asks first. The last Admin can't be turned off or removed.</p>
+                <div className="ad-sheet-a"><span className="btn btn--sm">Turn off</span><span className="btn btn--sm k-btn-danger">Remove…</span><span className="ad-sp" /><span className="btn btn--ghost">Close</span></div>
+              </section>
+            </Browser>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="ts-activity" label="14 · Activity — what happened, kept and searchable" width={W} height={H} fixed>
+          <Stage note={<Note n={14} title="The admin can always answer “who did that, and when”.">Today the list lives in memory and is gone after a restart. Now every sign-in, invite, role change, setting and save is kept, with who did it. Filter by kind or person; the same list, narrowed, is what a person's sheet shows.</Note>}>
+            <Browser host="design.studyfi.com" path="/activity">
+              <Nav {...TS} tabs={TS_TABS} current="Activity" />
+              <div className="ad-main">
+                <div className="ad-head">
+                  <div><h1 className="ad-h1">Activity</h1><p className="ad-sub">Kept for 90 days · 1 240 changes this week</p></div>
+                  <div className="ad-head-a"><span className="btn"><Icon name="export" size={14} />Download as CSV</span></div>
+                </div>
+                <div className="ad-card">
+                  <div className="ad-tabs">
+                    <span className="ad-tab" aria-pressed="true">Everything</span>
+                    <span className="ad-tab">People and access <span className="ad-count">6</span></span>
+                    <span className="ad-tab">Sign-ins</span>
+                    <span className="ad-tab">Work</span>
+                    <span className="ad-tab">Server</span>
+                    <span className="ad-tabs-sp" />
+                    <span className="ad-filter"><Icon name="search" size={13} />Person or canvas</span>
+                  </div>
+                  <table className="ad-table">
+                    <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What happened</th><th scope="col">Where</th></tr></thead>
+                    <tbody>
+                      {([
+                        ["Today, 21:04", "Tereza Nováková", "sky", "Changed Onboarding v3", "StudyFi app"],
+                        ["Today, 20:57", "Jonas Berger", "green", "Exported Paywall · 4 images", "StudyFi app"],
+                        ["Today, 20:54", "Lukáš Dvořák", "grey", "Signed in with Google and asks to join", "Sign-in"],
+                        ["Today, 20:52", "Server", "grey", "Saved to Git — 12 changes", "studyfi/design"],
+                        ["Today, 20:06", "Anna Králová", "yellow", "Joined from Michal's invite · Can comment", "People"],
+                        ["Today, 19:40", "Michal", "yellow", "Changed Jonas from Can comment to Can edit", "People"],
+                        ["Today, 19:38", "Michal", "yellow", "Invited petra@studyfi.com and anna.kralova@studyfi.com", "People"],
+                        ["Today, 14:12", "Tereza Nováková", "sky", "Signed out Ondřej's old MacBook", "People"],
+                        ["Today, 03:00", "Server", "grey", "Backup made · 182 MB", "Backups"],
+                        ["Yesterday, 17:40", "Michal", "yellow", "Changed Who can join to Colleagues ask, you let them in", "Settings"],
+                        ["Yesterday, 11:02", "Filip Horák", "grey", "Was turned off by Michal", "People"],
+                      ] as [string, string, Tone, string, string][]).map(([when, who, tone, what, where]) => (
+                        <tr key={when + what}>
+                          <td className="ad-quiet">{when}</td>
+                          <td><span className="ad-who">{who === "Server" ? <span className="ad-ev-ic"><Icon name="server" size={13} /></span> : <Avatar ini={who.slice(0, 1)} tone={tone} />}<span className="ad-who-t"><strong>{who}</strong></span></span></td>
+                          <td>{what}</td>
+                          <td className="ad-quiet">{where}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Browser>
+          </Stage>
+        </DCArtboard>
       </DCSection>
 
       {/* ── 2 · Maude Cloud ──────────────────────────────────────────────────────────────── */}
@@ -596,7 +698,7 @@ export default function TeamServerAndCloudAdmin() {
                       <thead><tr><th scope="col">Account</th><th scope="col">Plan</th><th scope="col" className="ad-num">Projects</th><th scope="col" className="ad-num">People</th><th scope="col">Last here</th><th scope="col"><span className="ad-sr">Action</span></th></tr></thead>
                       <tbody>
                         <tr><td><Who name="Alligators Brno" email="tomas@alligators.cz" tone="green" /></td><td>Team</td><td className="ad-num">3</td><td className="ad-num">9</td><td className="ad-quiet">Now</td><td><span className="btn btn--ghost btn--sm">Open</span></td></tr>
-                        <tr className="is-hl"><td><Who name="Ateliér Kolář" email="jan@kolar.studio" tone="lilac" /></td><td><StatusWord state="warn">Trial · 2 days left</StatusWord></td><td className="ad-num">1</td><td className="ad-num">2</td><td className="ad-quiet">1 h ago</td><td><span className="btn btn--ghost btn--sm">Open</span></td></tr>
+                        <tr className="is-hl"><td><Who name="Ateliér Kolář" email="jan@kolar.studio" tone="lilac" /></td><td><StatusWord state="warn">Trial · 2 days left</StatusWord></td><td className="ad-num">3</td><td className="ad-num">6</td><td className="ad-quiet">1 h ago</td><td><span className="btn btn--ghost btn--sm">Open</span></td></tr>
                         <tr><td><Who name="StudyFi" email="team@studyfi.com" tone="yellow" ini="S" /></td><td><span className="ad-promo">Promo · Dedicated 250 GB</span></td><td className="ad-num">5</td><td className="ad-num">12</td><td className="ad-quiet">Now</td><td><span className="btn btn--ghost btn--sm">Open</span></td></tr>
                         <tr><td><Who name="Open studio Brno" email="hello@openstudio.cz" tone="sky" ini="O" /></td><td>Solo</td><td className="ad-num">2</td><td className="ad-num">1</td><td className="ad-quiet">Yesterday</td><td><span className="btn btn--ghost btn--sm">Open</span></td></tr>
                       </tbody>
@@ -687,6 +789,72 @@ export default function TeamServerAndCloudAdmin() {
                 </span>
                 <span className="field"><span className="field-label">Ends</span><span className="ad-sel">Never<Icon name="chevron" size={12} /></span><span className="field-hint">With a date, the owner hears 30 days before.</span></span>
                 <div className="ad-sheet-a"><span className="ad-quiet" style={{ fontSize: "var(--type-xs)" }}>Logged as yours</span><span className="ad-sp" /><span className="btn">Cancel</span><span className="btn btn--primary">Mark as Promo</span></div>
+              </section>
+            </Browser>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="cl-op-account" label="15 · Operator — one account: its projects, its people, and free time" width={W} height={H} fixed>
+          <Stage note={<Note n={15} title="Open an account and do the whole job there.">Every project of the account is one row with its plan, people and storage, and the row's menu does what support needs: free time, pause, wake, move to another owner, open as the owner sees it. Free time is days added to the plan with a reason — no card, no Stripe page, and the owner gets one email.</Note>}>
+            <Browser host="cloud.maude.sh" path="/operator/accounts/jan@kolar.studio">
+              <div className="ad-op-band"><Icon name="server" size={13} />Operator — you are looking at every account on Maude Cloud. Changes here are logged as yours.</div>
+              <Nav op name="Maude Cloud" place="Whole service" tag={<span className="ad-op-tag" style={{ marginLeft: "var(--space-2)" }}>Operator</span>} tabs={[{ label: "Overview" }, { label: "Accounts" }, { label: "Projects" }, { label: "Fleet", count: 1 }, { label: "Events" }]} current="Accounts" me="Michal" />
+              <div className="ad-main">
+                <div className="ad-head">
+                  <div><h1 className="ad-h1">Ateliér Kolář</h1><p className="ad-sub">jan@kolar.studio · signed up 28 Oct with Google · last here 1 h ago · 2 Macs</p></div>
+                  <div className="ad-head-a"><span className="btn">Sign out everywhere</span><span className="btn"><Icon name="plus" size={14} />New project for Jan</span><span className="btn btn--primary"><Icon name="clock" size={14} />Give free time</span></div>
+                </div>
+                <div className="ad-stats" style={{ "--n": 4 } as CSSProperties}>
+                  <Stat label="Projects" icon="folder" value="3" foot={<span>1 trial · 1 paid · 1 paused</span>} />
+                  <Stat label="People" icon="people" value="6" foot={<span>one is in two projects · 2 invited</span>} />
+                  <Stat label="Pays" icon="export" value="€29" unit="a month" foot={<span>since 14 Nov · card ok</span>} />
+                  <Stat label="Storage" icon="server" value="4.8" unit="GB" foot={<span>of 25 GB on the paid project</span>} />
+                </div>
+                <div className="ad-cols ad-cols--2-1">
+                  <div className="ad-card">
+                    <h2 className="ad-card-h">Projects <small>3</small></h2>
+                    <table className="ad-table">
+                      <thead><tr><th scope="col">Project</th><th scope="col">Plan</th><th scope="col" className="ad-num">People</th><th scope="col" className="ad-num">Storage</th><th scope="col">Last change</th><th scope="col"><span className="ad-sr">Action</span></th></tr></thead>
+                      <tbody>
+                        <tr className="is-hl"><td><span className="ad-who"><Thumb art="home" w={48} h={32} /><span className="ad-who-t"><strong>Kolář web</strong><span>18 canvases</span></span></span></td><td><StatusWord state="warn">Trial · 2 days left</StatusWord></td><td className="ad-num">2</td><td className="ad-num">0.6 GB</td><td className="ad-quiet">1 h ago</td><td><span className="ad-row-a"><span className="btn btn--sm">Give free time</span><span className="btn btn--ghost btn--sm"><Icon name="more" size={14} /></span></span></td></tr>
+                        <tr><td><span className="ad-who"><Thumb art="gator-poster" w={48} h={32} /><span className="ad-who-t"><strong>Plakáty 2027</strong><span>41 canvases</span></span></span></td><td>Project · €29</td><td className="ad-num">4</td><td className="ad-num">4.1 GB</td><td className="ad-quiet">Yesterday</td><td><span className="ad-row-a"><span className="btn btn--ghost btn--sm">Open</span><span className="btn btn--ghost btn--sm"><Icon name="more" size={14} /></span></span></td></tr>
+                        <tr className="is-dim"><td><span className="ad-who"><Thumb art="price" w={48} h={32} /><span className="ad-who-t"><strong>Ceník — pokus</strong><span>3 canvases</span></span></span></td><td><StatusWord state="off">Paused · trial ended 20 Nov</StatusWord></td><td className="ad-num">1</td><td className="ad-num">0.1 GB</td><td className="ad-quiet">18 Nov</td><td><span className="ad-row-a"><span className="btn btn--sm">Wake with free time</span><span className="btn btn--ghost btn--sm"><Icon name="more" size={14} /></span></span></td></tr>
+                      </tbody>
+                    </table>
+                    <div className="ad-menu-key"><span>In each row's menu:</span><span className="chip">People in this project</span><span className="chip">Mark as Promo</span><span className="chip">Pause</span><span className="chip">Move to another owner</span><span className="chip">See it as Jan does</span><span className="chip">Delete</span></div>
+                  </div>
+                  <div className="ad-card">
+                    <h2 className="ad-card-h">Log <span className="ad-link">All events</span></h2>
+                    <div className="ad-feed">
+                      <Ev icon="clock" when="20 Nov"><span>Ceník — pokus paused, its trial ended</span></Ev>
+                      <Ev icon="export" when="14 Nov"><strong>Jan</strong> <span>started Project · €29 on Plakáty 2027</span></Ev>
+                      <Ev icon="people" when="13 Nov"><strong>Jan</strong> <span>invited 3 people to Plakáty 2027</span></Ev>
+                      <Ev icon="folder" when="12 Nov"><strong>Jan</strong> <span>started Kolář web · trial to 26 Nov</span></Ev>
+                      <Ev icon="folder" when="6 Nov"><strong>Jan</strong> <span>started Ceník — pokus</span></Ev>
+                      <Ev icon="folder" when="28 Oct"><strong>Jan</strong> <span>signed up and started Plakáty 2027</span></Ev>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="ad-veil" />
+              <section className="ad-sheet" style={{ right: 28, top: 140, width: 420 }} aria-label="Give free time">
+                <h2 className="ad-sheet-t">Give Kolář web free time</h2>
+                <p className="ad-sheet-s">The trial ends on 26 Nov. Free time is added on top, with no card.</p>
+                <span className="field">
+                  <span className="field-label">How long</span>
+                  <span className="seg ad-seg"><span className="ad-seg-b">14 days</span><span className="ad-seg-b" aria-pressed="true">30 days</span><span className="ad-seg-b">3 months</span><span className="ad-seg-b">Until…</span></span>
+                  <span className="field-hint">Free until <b>26 Dec</b>. Then Jan picks a plan; nothing is deleted.</span>
+                </span>
+                <span className="field">
+                  <span className="field-label">For</span>
+                  <span className="ad-pick" role="radiogroup">
+                    <PickOpt on title="This project" sub="Kolář web" />
+                    <PickOpt title="Every project of this account" sub="3 projects · also wakes the paused one" />
+                  </span>
+                </span>
+                <span className="field"><span className="field-label">Why · needed</span><span className="ad-in ad-in--focus">Studio is deciding after the pilot<i className="ad-caret" style={{ marginLeft: 2 }} /></span><span className="field-hint">Only operators see this.</span></span>
+                <div className="ad-promise"><Icon name="check" size={14} /><span>Jan gets one email: "Kolář web is free until 26 Dec."</span></div>
+                <div className="ad-sheet-a"><span className="ad-quiet" style={{ fontSize: "var(--type-xs)" }}>Logged as yours</span><span className="ad-sp" /><span className="btn">Cancel</span><span className="btn btn--primary">Give 30 days</span></div>
               </section>
             </Browser>
           </Stage>
@@ -829,7 +997,7 @@ export default function TeamServerAndCloudAdmin() {
               <p className="ad-sub" style={{ marginBottom: "var(--space-5)" }}>One set of tab names and addresses for every role; the role only narrows what's on them. Your Macs lives in the avatar menu.</p>
               <div className="ad-navs">
                 {([
-                  ["Team server · Admin", TS.name, TS.place, ["Overview", "People", "Projects", "Settings"], "Michal · Admin"],
+                  ["Team server · Admin", TS.name, TS.place, ["Overview", "People", "Projects", "Activity", "Settings"], "Michal · Admin"],
                   ["Team server · Member", TS.name, TS.place, ["Overview", "Projects", "People"], "Marek · Can edit"],
                   ["Maude Cloud · Owner", "Maude Cloud", "StudyFi", ["Overview", "Projects", "People", "Settings"], "Michal · Owner"],
                   ["Maude Cloud · Member", "Maude Cloud", "Anna Králová", ["Overview", "Projects"], "Anna"],

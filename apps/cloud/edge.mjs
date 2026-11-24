@@ -228,6 +228,55 @@ export function formActionPermits(location) {
   return FORM_ACTION.split(/\s+/).includes(origin);
 }
 
+/**
+ * The CSP of a page that sets its own — ONE builder, so no page can state
+ * `form-action` by hand and forget Stripe.
+ *
+ * That is exactly what happened: seven modules each wrote
+ * `form-action 'self'` into their own header, `harden()` below only fills a
+ * CSP a route did NOT set, and so the Stripe allowance in FORM_ACTION applied
+ * to nothing. Browsers apply `form-action` to the whole redirect chain; the
+ * wizard, Choose a plan and the billing portal each answered a correct 303 and
+ * Chromium stayed on the page (end-to-end run, 2026-11-24).
+ *
+ * `stripe: true` is for a page that RENDERS a form whose POST can answer a 303
+ * to Stripe (checkout, billing, plan change). Every other page keeps `'self'`:
+ * the directive is only worth what the list is narrow.
+ */
+export function pageCsp({ stripe = false } = {}) {
+  return `default-src 'none'; style-src 'unsafe-inline'; form-action ${stripe ? FORM_ACTION : "'self'"}; frame-ancestors 'none'; base-uri 'none'`;
+}
+
+/**
+ * Did this POST come from one of OUR pages, as far as `Origin` can say?
+ *
+ * Every page here is served `referrer-policy: no-referrer`, and under that
+ * policy a browser sends `Origin: null` on a same-origin form POST — so "the
+ * Origin must equal ours" refused every real browser (Chromium, Firefox and
+ * Safari alike) while passing every test, which send no Origin at all.
+ *
+ * `null` is also what a sandboxed iframe or a cross-site redirect chain sends,
+ * so it cannot simply be waved through. What tells the two apart is Fetch
+ * Metadata, which the page cannot forge: `Sec-Fetch-Site: same-origin`. So:
+ *
+ *   - no Origin            → not stated (the desktop app, curl): allowed here,
+ *                            the CSRF token decides;
+ *   - Origin = ours        → allowed;
+ *   - Origin: null         → allowed ONLY beside `Sec-Fetch-Site: same-origin`;
+ *   - anything else        → refused.
+ *
+ * This is the Origin half only. The caller still checks its session-derived
+ * token, and `sameSiteGate` has already refused cross-site and same-site
+ * browser posts before any route ran.
+ */
+export function sameOriginPost(request, url) {
+  const origin = request.headers.get('origin');
+  if (!origin) return true;
+  if (origin === url.origin) return true;
+  if (origin === 'null') return request.headers.get('sec-fetch-site') === 'same-origin';
+  return false;
+}
+
 export function harden(response, { url, html = false } = {}) {
   const h = new Headers(response.headers);
   const floor = {

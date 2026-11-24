@@ -2,6 +2,16 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "team-server-people-and-invites",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "Team servers: invites that need no approval",
+      "summary": "On a team server an invite now lets the person straight in through your own sign-in, with no approval and no token. People is one list with a status for everyone, an Admin signs in with their own account, and Activity keeps who did what for 90 days.",
+      "learnMore": "https://maude.sh/docs/hub/people",
+      "surface": "design-ui"
+    },
+    {
       "id": "reports-227-230-fixes",
       "version": "2.3.2",
       "date": "2026-11-24",

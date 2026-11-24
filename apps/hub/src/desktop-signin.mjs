@@ -218,7 +218,7 @@ export function returnUrl(request, params) {
  * plus a plain link (see the header for why not a 302). `no-store` and
  * `no-referrer` come from `respondHtml`; the code inside is single use.
  */
-export function desktopHandoffPage({ href, title, message }) {
+export function desktopHandoffPage({ href, title, message, linkLabel = 'Go back to Maude' }) {
   const esc = escapeHtml;
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -236,6 +236,6 @@ export function desktopHandoffPage({ href, title, message }) {
 <body><main>
   <h1>${esc(title)}</h1>
   <p>${esc(message)}</p>
-  <a href="${esc(href)}">Go back to Maude</a>
+  <a href="${esc(href)}">${esc(linkLabel)}</a>
 </main></body></html>`;
 }

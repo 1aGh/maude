@@ -98,11 +98,19 @@ const ROLE_OPTION = Object.freeze({
   observer: 'Can view — look only',
 });
 
-function roleSelect(name, current, { label = 'What they can do' } = {}) {
-  return `<select name="${name}" aria-label="${esc(label)}">${ASSIGNABLE.map(
-    (r) =>
-      `<option value="${r}"${r === current ? ' selected' : ''}>${esc(ROLE_OPTION[r] ?? roleWord(r))}</option>`
-  ).join('')}</select>`;
+export function roleSelect(name, current, { label = 'What they can do', canView = true } = {}) {
+  // Can view needs a workspace that holds v2 credentials (`roles-v2`). Where
+  // it does not, the option is not offered — an invitation to a role the
+  // workspace refuses at its door reads to the invitee as "That link has
+  // expired". Someone who already IS Can view keeps the option, so the form
+  // shows what is true and saving it changes nothing.
+  const offered = ASSIGNABLE.filter((r) => canView || r !== 'observer' || r === current);
+  return `<select name="${name}" aria-label="${esc(label)}">${offered
+    .map(
+      (r) =>
+        `<option value="${r}"${r === current ? ' selected' : ''}>${esc(ROLE_OPTION[r] ?? roleWord(r))}</option>`
+    )
+    .join('')}</select>`;
 }
 
 /** `ui/Poster.tsx` → `Poster` — the name a person sees for a canvas. */
@@ -142,7 +150,11 @@ export function personLabel(person, { isOwner, selfId = null }) {
   return name ? esc(name) : '<span class="quiet">No name yet</span>';
 }
 
-function personRow(person, { projectId, isOwner, selfId, withControls = true }) {
+/** The one line that says why a role is missing from the list. */
+export const CAN_VIEW_UNAVAILABLE =
+  'Can view is not available for this project yet. Use Can comment to let someone look without changing anything.';
+
+function personRow(person, { projectId, isOwner, selfId, withControls = true, canView = true }) {
   const label = personLabel(person, { isOwner, selfId });
   const word = `<strong>${esc(roleWord(person.role))}</strong>`;
   if (person.role === 'owner') {
@@ -154,7 +166,7 @@ function personRow(person, { projectId, isOwner, selfId, withControls = true }) 
     isOwner && withControls
       ? `<form class="inline" method="post" action="/projects/${esc(projectId)}/people">
          <input type="hidden" name="account" value="${esc(person.account_id)}">
-         ${roleSelect('role', person.role)}
+         ${roleSelect('role', person.role, { canView })}
          <button type="submit" name="do" value="role">Save</button>
        </form>
        <form class="inline" method="get" action="/projects/${esc(projectId)}/people/remove">
@@ -171,9 +183,20 @@ function grantRow(grant, { isOwner, selfId }) {
 }
 
 /** An invitation nobody has followed yet. Owner-only: it carries an address. */
-function inviteRow(invite) {
+function inviteRow(invite, { projectId = null, withControls = false, csrf = null } = {}) {
   const where = invite.canvas_path ? ` on ${esc(canvasName(invite.canvas_path))}` : '';
-  return `<tr><td>${esc(invite.email)}</td><td><strong>${esc(roleWord(invite.role))}</strong>${where} <span class="quiet">· not joined yet · the link works until ${esc(day(invite.expires_at))}</span></td><td></td></tr>`;
+  // Send again mails the SAME link and renews it; Cancel ends it. Only where
+  // the page can act on it: the project's own page, for a row that has an id.
+  const controls =
+    withControls && projectId && invite.id
+      ? `<form class="inline" method="post" action="/projects/${esc(projectId)}/people">
+           <input type="hidden" name="csrf" value="${esc(csrf ?? '')}">
+           <input type="hidden" name="invite" value="${esc(invite.id)}">
+           <button type="submit" name="do" value="invite-resend">Send again</button>
+           <button type="submit" name="do" value="invite-cancel" class="ghost">Cancel invite</button>
+         </form>`
+      : '';
+  return `<tr><td>${esc(invite.email)}</td><td><strong>${esc(roleWord(invite.role))}</strong>${where} <span class="quiet">· not joined yet · the link works until ${esc(day(invite.expires_at))}</span></td><td class="right">${controls}</td></tr>`;
 }
 
 /**
@@ -189,9 +212,11 @@ export function peopleRowsTable({
   selfId = null,
   projectId = null,
   withControls = false,
+  csrf = null,
+  canView = true,
 }) {
   const rows = [
-    ...people.map((p) => personRow(p, { projectId, isOwner, selfId, withControls })),
+    ...people.map((p) => personRow(p, { projectId, isOwner, selfId, withControls, canView })),
     ...grants.map((g) => grantRow(g, { isOwner, selfId })),
   ];
   const pending =
@@ -199,7 +224,7 @@ export function peopleRowsTable({
       ? `<h3>Invited</h3>
          <table>
            <thead><tr><th>Address</th><th>What they can do</th><th></th></tr></thead>
-           <tbody>${invites.map(inviteRow).join('\n')}</tbody>
+           <tbody>${invites.map((i) => inviteRow(i, { projectId, withControls, csrf })).join('\n')}</tbody>
          </table>`
       : '';
   return `<table>
@@ -230,6 +255,8 @@ export function peoplePage({
   isOwner,
   error = null,
   notice = null,
+  csrf = null,
+  canView = true,
 }) {
   const selfId = account?.id ?? null;
   const invite = isOwner
@@ -238,13 +265,14 @@ export function peoplePage({
          <form method="post" action="/projects/${esc(project.id)}/people">
            <input type="email" name="email" placeholder="their email" aria-label="Their email"
                   required>
-           ${roleSelect('role', 'member')}
+           ${roleSelect('role', 'member', { canView })}
            <button type="submit" name="do" value="invite">Send invitation</button>
          </form>
          <p class="quiet" style="font-size:.87rem;margin:.6rem 0 0">
            They get an email with a link. If they do not have a Maude account yet,
            the link makes one — they never have to find this project themselves.
          </p>
+         ${canView ? '' : `<p class="quiet" style="font-size:.87rem;margin:.4rem 0 0">${esc(CAN_VIEW_UNAVAILABLE)}</p>`}
        </div>`
     : '';
   return page(
@@ -252,7 +280,7 @@ export function peoplePage({
     `${error ? `<p class="error">${esc(error)}</p>` : ''}
      ${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
      ${invite}
-     ${peopleRowsTable({ people, grants, invites, isOwner, selfId, projectId: project.id, withControls: true })}
+     ${peopleRowsTable({ people, grants, invites, isOwner, selfId, projectId: project.id, withControls: true, csrf, canView })}
      ${isOwner ? '' : '<p class="quiet">Only the project’s owner can add or remove people.</p>'}`,
     {
       account,

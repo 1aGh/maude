@@ -22,6 +22,8 @@
 // of tokens into every response to use fifteen of them would be waste. The
 // drift test is what makes a subset safe.
 
+import { pageCsp } from './edge.mjs';
+
 /**
  * The ONE address every "get the app" link in the product points at
  * (Cloud Phase 24 A7).
@@ -281,8 +283,7 @@ export const PUBLIC_PAGE_HEADERS = Object.freeze({
   'content-type': 'text/html; charset=utf-8',
   'cache-control': 'no-store',
   'x-content-type-options': 'nosniff',
-  'content-security-policy':
-    "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+  'content-security-policy': pageCsp(),
   'referrer-policy': 'no-referrer',
 });
 

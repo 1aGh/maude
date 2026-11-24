@@ -35,6 +35,7 @@ import {
   validateCallback,
 } from './oauth-google.mjs';
 import { isOperator } from './operator.mjs';
+import { ownerOverview, ownerPlans } from './owner-overview.mjs';
 import {
   checkInboxPage,
   forgotPage,
@@ -220,12 +221,23 @@ export async function handleAuth(request, env, { ctx = null, account: given } = 
     // The Fleet nav is gated at the shell as well as at the route, so an
     // allowlisted operator needs ONE page that offers the way in. This is it —
     // for anyone else `isOperator` is false and the shell is what it was.
+    // The overview and the plan lines are for projects this account OWNS
+    // (owner-overview.mjs) — both read apart from the list, and both optional:
+    // the dashboard is the page somebody opens because something is wrong, so
+    // a failed figure costs a tile, never the page.
+    const [projects, overview, plans] = await Promise.all([
+      projectsFor(env, account.id),
+      ownerOverview(env, account.id).catch(() => null),
+      ownerPlans(env, account.id).catch(() => null),
+    ]);
     return html(
       dashboardPage({
         account,
-        projects: await projectsFor(env, account.id),
+        projects,
         can,
         isOperator: isOperator(env, account),
+        overview,
+        plans,
       })
     );
   }

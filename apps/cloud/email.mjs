@@ -195,6 +195,102 @@ export function deletionWarningEmail({ projectName: raw, downloadUrl, deletesAt 
 }
 
 /**
+ * "<project> is free until <date>" — the one e-mail an operator's free time
+ * sends (canvas 16, cl-op-account).
+ *
+ * `projects` is every project the gift touched, each with ITS date: free time
+ * is added on top of what a project already had, so two projects of one
+ * account can end on different days. One project is one sentence; several are
+ * a short list — still one e-mail. No reason is quoted: the operator's reason
+ * is on the project's Activity page.
+ */
+export function freeTimeEmail({ projects = [], billingUrl }) {
+  const rows = projects.map((p) => ({
+    name: oneLine(p.name, 80) || 'Your project',
+    until: day(p.until),
+  }));
+  const one = rows.length === 1 ? rows[0] : null;
+  return {
+    subject: one ? `${one.name} is free until ${one.until}` : 'Your projects have more free time',
+    text: [
+      ...(one
+        ? [`“${one.name}” is free until ${one.until}.`]
+        : [
+            'These projects are free for longer:',
+            '',
+            ...rows.map((r) => `  ${r.name} — until ${r.until}`),
+          ]),
+      '',
+      'No card is needed and nothing changes for the people on them.',
+      'After that date you pick a plan to keep editing; nothing is deleted,',
+      'and everyone can still open and download everything.',
+      '',
+      'Plans are here whenever you want one:',
+      '',
+      `  ${billingUrl}`,
+    ].join('\n'),
+  };
+}
+
+/** "Promo ends on <date>" — sent once, PROMO_NOTICE_DAYS before the end (canvas 16, cl-promo-owner). */
+export function promoEndingEmail({ projectName: raw, endsAt, billingUrl }) {
+  const projectName = oneLine(raw, 80) || 'Your project';
+  return {
+    subject: `Promo for ${projectName} ends on ${day(endsAt)}`,
+    text: [
+      `“${projectName}” is on Promo until ${day(endsAt)}.`,
+      '',
+      'Pick a plan to keep editing after that:',
+      '',
+      `  ${billingUrl}`,
+      '',
+      'Nothing is deleted, and until you choose, everyone can still open and',
+      'download everything.',
+    ].join('\n'),
+  };
+}
+
+/**
+ * "A project was made for you" — the one e-mail the owner of an operator-made
+ * project gets (canvas 16, cl-operator).
+ *
+ * `setPasswordUrl` is present only for an address that had no account: nobody
+ * chose a password for it, so the mail carries the ordinary single-use
+ * password link (email-tokens.mjs `reset`) and says how to get another once it
+ * has expired. An existing account just gets the way in.
+ */
+export function projectMadeEmail({
+  projectName: raw,
+  dashboardUrl,
+  setPasswordUrl = null,
+  forgotUrl,
+}) {
+  const projectName = oneLine(raw, 80) || 'A project';
+  return {
+    subject: `${projectName} is ready for you on Maude Cloud`,
+    text: [
+      `Maude made the project “${projectName}” for you. It is yours: you decide`,
+      'who is on it, and you can download everything in it at any time.',
+      '',
+      ...(setPasswordUrl
+        ? [
+            'An account was made for this address, with no password. Choose one here:',
+            '',
+            `  ${setPasswordUrl}`,
+            '',
+            'That link works once and stops working after an hour. After that, ask',
+            'for a new one — or sign in with Google using this same address:',
+            '',
+            `  ${forgotUrl}`,
+          ]
+        : ['Sign in to open it:', '', `  ${dashboardUrl}`]),
+      '',
+      'If you were not expecting this, reply to this e-mail.',
+    ].join('\n'),
+  };
+}
+
+/**
  * One line of untrusted text, safe for a subject or a quote: control
  * characters and line breaks become spaces (no header can be smuggled into a
  * subject, no fake paragraph into the body), runs collapse, and anything past

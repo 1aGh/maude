@@ -46,6 +46,8 @@ import {
 import { STATE_COPY } from './dashboard.mjs';
 import { audit } from './db.mjs';
 import { personalTokenAccount } from './device-auth.mjs';
+import { pageCsp } from './edge.mjs';
+import { isHeld, ownerPlan, promoFacts } from './plan-copy.mjs';
 import pricingCatalog from './pricing.json' with { type: 'json' };
 import { priceIdFor, publicPricing, stripeMode } from './pricing-core.mjs';
 import { ACCESS_MESSAGES, can, decideAccess, planState } from './project-access.mjs';
@@ -66,8 +68,7 @@ function html(body, status = 200) {
       'content-type': 'text/html; charset=utf-8',
       'cache-control': 'no-store',
       'x-content-type-options': 'nosniff',
-      'content-security-policy':
-        "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
+      'content-security-policy': pageCsp({ stripe: true }),
       'referrer-policy': 'no-referrer',
     },
   });
@@ -645,7 +646,7 @@ function trialProjectBody(env, project) {
  * alone. There is no charge to void, so a route that fails stays `pending` and
  * says so; the client polls.
  */
-async function settleTrialProject(env, project) {
+export async function settleTrialProject(env, project) {
   if (project.state !== 'pending') return project;
   const routed = await ensureCellDomain(env, project.id);
   if (!routed.ok) {
@@ -772,8 +773,9 @@ async function createTrialProject(request, env, { ctx }) {
 
 /** Choose a plan: open Checkout for a trial project, with no second trial. */
 async function choosePlan(env, { request, url, account, project, pricing, ctx }) {
-  // Only a trial project converts; one with a plan already has one.
-  if (project.subscription_id || project.trial_ends_at === null) {
+  // Only a project with no plan converts — a trial, or a Promo (D1 v21: the
+  // paid plan takes over from Promo). One with a plan already has one.
+  if (project.subscription_id || (project.trial_ends_at === null && project.promo_since == null)) {
     return html('<p>This project already has a plan.</p>', 409);
   }
   const form = await request.formData();
@@ -815,6 +817,16 @@ async function choosePlan(env, { request, url, account, project, pricing, ctx })
       console.error(`[plan] session create: ${session.status}`);
       return html('<p>Payment could not be started. Nothing changed — try again.</p>', 502);
     }
+    // On the record that a payment is on its way to THIS row for THIS owner:
+    // an operator's move or pause is refused while it is (operator-actions.mjs
+    // `checkoutOpen`), because the return below attaches by account.
+    await audit(env.DB, {
+      accountId: account.id,
+      projectId: project.id,
+      actor: `customer:${account.email}`,
+      action: 'checkout.started',
+      detail: JSON.stringify({ session: session.body.id ?? null }),
+    }).catch(() => {});
     track(env, ctx, {
       name: 'checkout_started',
       accountId: account.id,
@@ -834,18 +846,49 @@ async function convertTrialProject(env, { account, projectId, session, sessionId
   // Read BEFORE the update: whether the cell is running paused right now
   // (S9.15b). Only a paused → paid flip needs a restart; a plan chosen inside
   // the trial changes nothing the cell was started with.
-  const before = await env.DB.prepare(
-    'SELECT subscription_id, trial_ends_at, state FROM projects WHERE id = ? AND account_id = ?'
-  )
+  const before = await env.DB.prepare('SELECT * FROM projects WHERE id = ? AND account_id = ?')
     .bind(projectId, account.id)
     .first();
   const wasPaused = before?.state === 'active' && planState(before, { now }) === 'paused';
-  const updated = await env.DB.prepare(
-    `UPDATE projects SET subscription_id = ?, plan = ?
-      WHERE id = ? AND account_id = ? AND subscription_id IS NULL AND trial_ends_at IS NOT NULL`
-  )
-    .bind(subscriptionId, session.metadata.plan || 'project', projectId, account.id)
-    .run();
+  const wasPromo = before?.promo_since != null;
+  // A PAID PLAN ENDS PROMO, in the statement that attaches it (D1 v21): never
+  // both at once. The Promo columns are cleared with the subscription's
+  // arrival, and the audit row below keeps that it was Promo until now. A D1
+  // that has not met v21 yet has no Promo to end and takes the v19 statement —
+  // a paid Checkout return must never fail on a column the cron adds an hour
+  // later.
+  const plan = session.metadata.plan || 'project';
+  let updated;
+  try {
+    updated = await env.DB.prepare(
+      `UPDATE projects SET subscription_id = ?, plan = ?,
+              promo_since = NULL, promo_tier = NULL, promo_ends_at = NULL
+        WHERE id = ? AND account_id = ? AND subscription_id IS NULL
+          AND (trial_ends_at IS NOT NULL OR promo_since IS NOT NULL)`
+    )
+      .bind(subscriptionId, plan, projectId, account.id)
+      .run();
+  } catch (err) {
+    // ONLY a database that has not met v21 takes the older statement: it has
+    // no Promo columns, so there is no Promo to leave behind. Any other
+    // failure attaches NOTHING — a subscription beside a Promo that was not
+    // cleared is the one state this function exists to prevent. The page says
+    // so and a reload runs the same idempotent attach again.
+    if (!/no such column/i.test(String(err?.message ?? err))) {
+      console.error(`[plan] ${projectId}: attach failed — ${err?.message ?? err}`);
+      return html(
+        '<p>Your payment went through, but the plan could not be attached to the project just now. Reload this page in a moment — nothing is charged twice.</p>',
+        503
+      );
+    }
+    updated = await env.DB.prepare(
+      `UPDATE projects SET subscription_id = ?, plan = ?
+        WHERE id = ? AND account_id = ? AND subscription_id IS NULL AND trial_ends_at IS NOT NULL`
+    )
+      .bind(subscriptionId, plan, projectId, account.id)
+      .run();
+  }
+
   if (!updated?.meta?.changes) {
     const row = await env.DB.prepare('SELECT subscription_id FROM projects WHERE id = ?')
       .bind(projectId)
@@ -878,6 +921,19 @@ async function convertTrialProject(env, { account, projectId, session, sessionId
     action: 'checkout.converted',
     detail: JSON.stringify({ session: sessionId }),
   });
+  if (wasPromo) {
+    await audit(env.DB, {
+      accountId: account.id,
+      projectId,
+      actor: 'system',
+      action: 'promo.ended',
+      detail: JSON.stringify({
+        why: 'a paid plan started',
+        since: before.promo_since,
+        tier: before.promo_tier ?? null,
+      }),
+    });
+  }
   track(env, ctx, {
     name: 'checkout_completed',
     accountId: account.id,
@@ -925,9 +981,27 @@ async function renderBilling(
 ) {
   const stateCopy = STATE_COPY[project.state] ?? { label: project.state, note: null };
   const canPortal = Boolean(account.stripe_customer_id && project.subscription_id);
-  const pausedUntil = pauseClock({ state: project.state, stateSince: project.state_since });
+  const pausedUntil = pauseClock({
+    state: project.state,
+    stateSince: project.state_since,
+    held: isHeld(project),
+  });
+  // What the plan reads as for its owner (plan-copy.mjs): a trial's date, a
+  // Promo, or an operator's pause — each replaces the bare state card.
+  const plan = ownerPlan(project);
+  const promo = promoFacts(project);
   if (!canPortal) {
-    return billingPage({ account, project, stateCopy, canPortal, pausedUntil, error, notice });
+    return billingPage({
+      account,
+      project,
+      stateCopy,
+      canPortal,
+      pausedUntil,
+      plan,
+      promo,
+      error,
+      notice,
+    });
   }
 
   const subscription = subscriptionView(await readSubscription(env, project.subscription_id));
@@ -971,6 +1045,8 @@ async function renderBilling(
     details: onFile,
     detailsUnavailable,
     pausedUntil,
+    plan,
+    promo,
     error,
     notice,
   });

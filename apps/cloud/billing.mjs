@@ -45,6 +45,9 @@ export const RETENTION_DAYS = SUSPEND_RETENTION_DAYS;
  */
 export const TRIAL_DAYS = 14;
 
+/** The day counts an operator's free time is offered in (canvas 16: 14 days · 30 days · 3 months). */
+export const FREE_TIME_DAYS = Object.freeze([14, 30, 90]);
+
 /**
  * How many trial WORKSPACES one verified e-mail address may start.
  *
@@ -228,9 +231,13 @@ export function cancelSchedule({
 export function pauseClock({
   state,
   stateSince,
+  held = false,
   now = Date.now(),
   retentionDays = RETENTION_DAYS,
 }) {
+  // A project an operator paused by hand (D1 v21 `hold_since`) is on no clock:
+  // the reconciler never walks it to a deletion, so no countdown may be shown.
+  if (held) return null;
   if (state !== 'suspended' || !stateSince) return null;
   const pausedOn = Number(stateSince);
   const deletedOn = pausedOn + retentionDays * DAY_MS;

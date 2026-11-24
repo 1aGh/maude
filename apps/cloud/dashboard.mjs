@@ -87,6 +87,19 @@ const CSS = `
   .menu-list a.danger { color: var(--status-error); }
   .menu-list .menu-sep { height: 1px; background: var(--border-subtle); margin: var(--space-2) var(--space-2); }
 
+  .overview { margin: 0 0 var(--space-7); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-4); }
+  .tile { background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: var(--space-4) var(--space-5); margin: 0; }
+  .tile dt { font-family: var(--font-mono); font-size: var(--type-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); margin: 0 0 var(--space-2); }
+  .tile dd { margin: 0; font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl); color: var(--fg-0); font-variant-numeric: tabular-nums; }
+  .tile .sub { font-family: var(--font-sans); font-size: var(--type-sm); color: var(--fg-2); }
+  .where { background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-4) var(--space-5); }
+  .where h2 { margin: 0 0 var(--space-2); font-size: var(--type-md); }
+  .where ul { list-style: none; margin: 0; padding: 0; }
+  .where li { display: flex; gap: var(--space-4); justify-content: space-between; padding: var(--space-2) 0; border-top: 1px solid var(--border-subtle); }
+  .where li:first-child { border-top: 0; }
+  .where li span { color: var(--fg-2); font-variant-numeric: tabular-nums; }
+  .plan-line { color: var(--fg-1); }
   .empty {
     border: 1px dashed var(--border-default); border-radius: var(--radius-lg);
     padding: var(--space-8) var(--space-6); text-align: center; background: var(--bg-1);
@@ -147,7 +160,7 @@ export const STATE_COPY = {
  * everything and then refuses is worse than a shorter menu, because it teaches
  * people that the interface lies.
  */
-function projectCard(project, { can }) {
+function projectCard(project, { can, plan = null }) {
   const copy = STATE_COPY[project.state] ?? { tone: 'warn', label: project.state, note: null };
   const p = `/projects/${esc(project.id)}`;
 
@@ -188,6 +201,12 @@ function projectCard(project, { can }) {
         <span class="state ${copy.tone}">${esc(copy.label)}</span>
       </div>
       ${copy.note ? `<p class="note">${esc(copy.note)}</p>` : ''}
+      ${
+        // The plan, for the OWNER only (plan-copy.mjs): a trial with the date
+        // it is free until, Promo, or that a plan is due. A member's card has
+        // no such line — a plan is the owner's business (canvas 16).
+        plan?.line ? `<p class="note plan-line">${esc(plan.line)}</p>` : ''
+      }
       <div class="pfoot">
         ${primary}
         <details class="menu">
@@ -197,6 +216,80 @@ function projectCard(project, { can }) {
       </div>
     </div>
   </article>`;
+}
+
+function bytesWord(n) {
+  const units = ['B', 'kB', 'MB', 'GB', 'TB'];
+  let v = Number(n);
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
+  return `${v < 10 && i > 0 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
+}
+
+/** Where people open their work: the two places a person recognises. */
+const SURFACE_WORD = { desktop: 'Mac app', browser: 'Browser', cli: 'Command line' };
+
+/**
+ * How the owner's projects are used (canvas 16, cl-account).
+ *
+ * EVERY TILE IS OPTIONAL, AND ABSENT RATHER THAN EMPTY. A figure the platform
+ * could not read is `null` and its tile is not rendered: a "0" under Exports
+ * that means "the read failed" is a number somebody will repeat. For the same
+ * reason there is no Edits tile at all — nothing counts edits.
+ */
+function overviewSection(overview) {
+  if (!overview) return '';
+  const tiles = [];
+  const tile = (label, value, sub = '') =>
+    tiles.push(
+      `<dl class="tile"><dt>${esc(label)}</dt><dd>${esc(value)}${sub ? ` <span class="sub">${esc(sub)}</span>` : ''}</dd></dl>`
+    );
+  const approx = overview.sampled ? '~' : '';
+  if (overview.activeThisWeek !== null) {
+    tile(
+      'Active this week',
+      `${approx}${overview.activeThisWeek}`,
+      overview.people !== null ? `of ${overview.people}` : ''
+    );
+  }
+  if (overview.people !== null) {
+    tile(
+      'People',
+      String(overview.people),
+      `in ${overview.projects} ${overview.projects === 1 ? 'project' : 'projects'}`
+    );
+  }
+  if (overview.canvases !== null) tile('Canvases', String(overview.canvases));
+  if (overview.exports !== null) tile('Exports', `${approx}${overview.exports}`, 'last 30 days');
+  if (overview.storageBytes !== null) tile('Storage', bytesWord(overview.storageBytes));
+
+  const rows = [];
+  const opens = overview.opens ? Object.entries(overview.opens).filter(([, n]) => n > 0) : [];
+  const total = opens.reduce((sum, [, n]) => sum + n, 0);
+  for (const [surface, n] of opens.sort((a, b) => b[1] - a[1])) {
+    rows.push(
+      `<li><strong>${esc(SURFACE_WORD[surface] ?? surface)}</strong> <span>${approx}${n} opens · ${Math.round((n / total) * 100)} %</span></li>`
+    );
+  }
+  if (overview.invites) {
+    const i = overview.invites;
+    rows.push(
+      `<li><strong>Invites</strong> <span>${i.sent} sent · ${i.joined} joined · ${i.waiting} waiting</span></li>`
+    );
+  }
+  if (!tiles.length && !rows.length) return '';
+  return `<section class="overview" aria-label="How your projects are used">
+    ${tiles.length ? `<div class="tiles">${tiles.join('\n')}</div>` : ''}
+    ${
+      rows.length
+        ? `<div class="where"><h2>${opens.length ? 'Where people open their work' : 'Invitations'}</h2><ul>${rows.join('\n')}</ul>
+             <p class="note">Opens and invitations are for the last 30 days. <a href="/account/people">People across your projects</a></p></div>`
+        : ''
+    }
+  </section>`;
 }
 
 /**
@@ -212,8 +305,15 @@ function projectCard(project, { can }) {
  *   only customer-facing page that gets one: the dashboard is where a signed-in
  *   person starts. Default false keeps every other caller's shell unchanged.
  */
-export function dashboardPage({ account, projects = [], can, isOperator = false }) {
-  const body =
+export function dashboardPage({
+  account,
+  projects = [],
+  can,
+  isOperator = false,
+  overview = null,
+  plans = null,
+}) {
+  const cards =
     projects.length === 0
       ? `<div class="empty">
            <p><strong>No projects yet.</strong></p>
@@ -222,8 +322,14 @@ export function dashboardPage({ account, projects = [], can, isOperator = false 
            <form method="get" action="/projects/new"><button type="submit">Start a project</button></form>
          </div>`
       : `<div class="projects">${projects
-          .map((p) => projectCard(p, { can: (capability) => can(p.role, capability) }))
+          .map((p) =>
+            projectCard(p, {
+              can: (capability) => can(p.role, capability),
+              plan: p.role === 'owner' ? (plans?.get(p.id) ?? null) : null,
+            })
+          )
           .join('\n')}</div>`;
+  const body = `${overviewSection(overview)}${cards}`;
 
   return appShell({
     account,
@@ -247,5 +353,27 @@ export function allDashboardHtml() {
   return [
     dashboardPage({ account: { email: 'a@example.com' }, projects: [], can }),
     dashboardPage({ account: { email: 'a@example.com' }, projects, can }),
+    dashboardPage({
+      account: { email: 'a@example.com' },
+      projects,
+      can,
+      overview: {
+        projects: 2,
+        people: 12,
+        invites: { sent: 7, joined: 5, waiting: 2 },
+        activeThisWeek: 9,
+        canvases: 208,
+        exports: 48,
+        storageBytes: 3.2 * 1024 ** 3,
+        opens: { desktop: 1104, browser: 214 },
+        sampled: false,
+      },
+      plans: new Map([
+        ['p0', { line: 'Promo from Maude · free' }],
+        ['p1', { line: 'Free trial · 12 days left · free until 6 October 2026' }],
+        ['p2', { line: 'Paused · Choose a plan to keep editing.' }],
+        ['p3', { line: 'Paused by Maude · nothing is deleted' }],
+      ]),
+    }),
   ].join('\n');
 }

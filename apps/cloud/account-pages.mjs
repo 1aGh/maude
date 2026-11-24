@@ -2,10 +2,17 @@
 // cloud.maude.sh" opens these, signed in).
 //
 //   /account                     the overview: plan line + the five doors
-//   /account/people              People and invites — every project you own
-//                                (people, canvas grants, pending invites) and
+//   /account/people              People and invites — one table of every
+//                                person × every project you own, with what
+//                                each can do there; the requests to edit and
+//                                the invitations nobody opened on top; and
 //                                every project shared with you (your access
-//                                only; nobody else's address)
+//                                only; nobody else's address). Its POSTs
+//                                change a role, remove someone from one
+//                                project or from all of yours, answer a
+//                                request, send an invitation again or cancel
+//                                it — each through the access authority
+//                                (access-forward.mjs), which decides
 //   /account/billing             Billing and plan — the trial's days left, each
 //                                owned project's plan, and the S9.15 plan
 //                                picker (it POSTs to /projects/<id>/billing/plan)
@@ -34,21 +41,26 @@
 // deletion: it is keyed by the address's hash so a re-signup on the same
 // address gets no second trial.
 
+import { notYours, pageAccessCall } from './access-forward.mjs';
+import { lastOpens } from './analytics.mjs';
 import { SESSION_COOKIE } from './auth-routes.mjs';
 import { formatDay, TRIAL_DAYS, trialView } from './billing.mjs';
 import { appShell } from './brand.mjs';
 import { STATE_COPY } from './dashboard.mjs';
 import { audit } from './db.mjs';
-import { spend } from './edge.mjs';
+import { pageCsp, sameOriginPost, spend } from './edge.mjs';
 import { verifyCsrf } from './operator.mjs';
 import {
+  CAN_VIEW_UNAVAILABLE,
   canvasName,
-  peopleRowsTable,
+  personLabel,
   ROLE_MEANING,
+  roleSelect,
   roleWord as roleWordFor,
 } from './people-page.mjs';
+import { ownerPlan } from './plan-copy.mjs';
 import pricingCatalog from './pricing.json' with { type: 'json' };
-import { planState } from './project-access.mjs';
+import { cellHolds, planState } from './project-access.mjs';
 import { listExports as exportGenerationsFor } from './project-admin.mjs';
 import { nudgeCellRevocations } from './provision.mjs';
 
@@ -97,6 +109,17 @@ const CSS = `
   .picker label { display: flex; gap: var(--space-2); align-items: baseline; font-size: var(--type-base); }
   ul.what { margin: var(--space-2) 0 0; padding-left: var(--space-6); line-height: var(--lh-base); }
   input[name=confirm] { max-width: 26rem; }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: var(--space-5); margin-bottom: var(--space-2); }
+  ul.needs { list-style: none; margin: 0; padding: 0; }
+  ul.needs li { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: baseline; justify-content: space-between; padding: var(--space-3) 0; border-top: 1px solid var(--border-subtle); }
+  ul.needs li:first-child { border-top: 0; }
+  ul.needs .acts { display: flex; gap: var(--space-2); }
+  table.matrix td { vertical-align: top; }
+  table.matrix details { margin-top: var(--space-1); }
+  table.matrix summary { cursor: pointer; color: var(--fg-2); font-size: var(--type-sm); }
+  table.matrix details form { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
+  .bulk { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; margin: 0 0 var(--space-6); }
+  .bulk label { font-size: var(--type-sm); color: var(--fg-1); }
 `;
 
 function esc(s) {
@@ -183,24 +206,175 @@ export function overviewPage({ account, trial }) {
 
 // -------------------------------------------------------------------- people
 
+const dayCount = (ms) => Math.max(0, Math.floor(ms / DAY_MS));
+
 /**
- * People and invites.
+ * People and invites (canvas 16, cl-people).
+ *
+ * A row is a person, a column is a project THIS ACCOUNT OWNS, a cell is what
+ * they can do there. The requests to edit and the invitations nobody opened
+ * sit on top, because those are the two things waiting on the owner. Projects
+ * merely shared with the account are a separate list below and carry no
+ * control: nobody manages a project they do not own.
+ *
+ * No script: a cell's change is a <details> holding one small form; the
+ * checkboxes belong to the one bulk form through the `form` attribute.
  *
  * @param {object} args
- * @param {{project: object, people: object[], grants: object[], invites: object[]}[]} args.owned
+ * @param {{project: object, people: object[], grants: object[], invites: object[], requests: object[]}[]} args.owned
  * @param {{project: object, ownerName: string|null, role: string|null, grants: object[]}[]} args.shared
+ * @param {Map<string, number>|null} [args.lastOpen]  account id → last time they opened one of these projects
  */
-export function accountPeoplePage({ account, owned = [], shared = [] }) {
-  const ownedHtml = owned.length
-    ? owned
-        .map(
-          ({ project, people, grants, invites }) => `<div class="card">
-          <h2>${esc(project.name || project.id)}</h2>
-          ${peopleRowsTable({ people, grants, invites, isOwner: true, selfId: account.id })}
-          <p><a href="/projects/${esc(project.id)}/people">Add or remove people on ${esc(project.name || project.id)}</a></p>
-        </div>`
-        )
-        .join('\n')
+export function accountPeoplePage({
+  account,
+  owned = [],
+  shared = [],
+  csrf = null,
+  lastOpen = null,
+  error = null,
+  notice = null,
+  now = Date.now(),
+}) {
+  const projectName = (p) => p.name || p.id;
+  const post = (fields, button, { ghost = false } = {}) =>
+    `<form class="inline" method="post" action="/account/people">${csrfField(csrf)}${Object.entries(
+      fields
+    )
+      .map(([k, v]) => `<input type="hidden" name="${esc(k)}" value="${esc(v)}">`)
+      .join(
+        ''
+      )}<button type="submit"${ghost ? ' class="ghost"' : ''}>${esc(button)}</button></form>`;
+
+  // ---- everyone, once
+  const persons = new Map();
+  for (const { people, grants } of owned) {
+    for (const p of [...people, ...grants]) {
+      if (!persons.has(p.account_id)) {
+        persons.set(p.account_id, { account_id: p.account_id, email: p.email, name: p.name });
+      }
+    }
+  }
+  const everyone = [...persons.values()].sort((a, b) => {
+    if (a.account_id === account.id) return -1;
+    if (b.account_id === account.id) return 1;
+    return String(a.email).localeCompare(String(b.email));
+  });
+
+  // ---- what is waiting on the owner
+  const requests = owned.flatMap(({ project, requests: list = [] }) =>
+    list.map((r) => ({ ...r, project }))
+  );
+  const invites = owned.flatMap(({ project, invites: list = [] }) =>
+    list.map((i) => ({ ...i, project }))
+  );
+  const requestRows = requests
+    .map(
+      (r) => `<li>
+        <span><strong>${esc(String(r.name ?? '').trim() || r.email)} · ${esc(projectName(r.project))}</strong>
+          <span class="quiet">${r.canvas_path ? `on ${esc(canvasName(r.canvas_path))} · ` : ''}asked ${esc(when(r.created_at, { now }))}</span></span>
+        <span class="acts">
+          ${post({ do: 'request-decline', project: r.project.id, request: r.id }, 'Not now', { ghost: true })}
+          ${post({ do: 'request-allow', project: r.project.id, request: r.id }, 'Allow editing')}
+        </span>
+      </li>`
+    )
+    .join('\n');
+  const inviteRows = invites
+    .map((i) => {
+      const sent = dayCount(now - Number(i.created_at ?? now));
+      const left = Math.max(1, Math.ceil((Number(i.expires_at) - now) / DAY_MS));
+      const where = i.canvas_path ? ` on ${esc(canvasName(i.canvas_path))}` : '';
+      return `<li>
+        <span><strong>${esc(i.email)} · ${esc(projectName(i.project))}</strong>
+          <span class="quiet"><strong>${esc(roleWordFor(i.role))}</strong>${where} · sent ${sent === 0 ? 'today' : `${plural(sent, 'day', 'days')} ago`}, works ${plural(left, 'more day', 'more days')}</span></span>
+        ${
+          i.id
+            ? `<span class="acts">
+                 ${post({ do: 'invite-cancel', project: i.project.id, invite: i.id }, 'Cancel invite', { ghost: true })}
+                 ${post({ do: 'invite-resend', project: i.project.id, invite: i.id }, 'Send again')}
+               </span>`
+            : ''
+        }
+      </li>`;
+    })
+    .join('\n');
+  const waiting =
+    requests.length || invites.length
+      ? `<div class="two">
+           ${requests.length ? `<div class="card"><h2>Asks to edit</h2><ul class="needs">${requestRows}</ul></div>` : ''}
+           ${invites.length ? `<div class="card"><h2>Invites not opened</h2><ul class="needs">${inviteRows}</ul></div>` : ''}
+         </div>`
+      : '';
+
+  // ---- the matrix
+  const cell = (person, { project, people, grants, canView = true }) => {
+    const member = people.find((p) => p.account_id === person.account_id);
+    const theirs = grants.filter((g) => g.account_id === person.account_id);
+    const parts = [];
+    if (member?.role === 'owner') {
+      parts.push(`<strong>${esc(roleWordFor('owner'))}</strong>`);
+    } else if (member) {
+      parts.push(`<strong>${esc(roleWordFor(member.role))}</strong>
+        <details><summary>Change</summary>
+          <form method="post" action="/account/people">
+            ${csrfField(csrf)}
+            <input type="hidden" name="project" value="${esc(project.id)}">
+            <input type="hidden" name="account" value="${esc(person.account_id)}">
+            ${roleSelect('role', member.role, { label: `What ${person.email} can do on ${projectName(project)}`, canView })}
+            <span><button type="submit" name="do" value="role">Save</button>
+              <button type="submit" name="do" value="remove" class="ghost">Remove from ${esc(projectName(project))}</button></span>
+          </form>
+        </details>`);
+    }
+    for (const g of theirs) {
+      parts.push(
+        `<strong>${esc(roleWordFor(g.role))}</strong> <span class="quiet">on ${esc(canvasName(g.canvas_path))} only</span>`
+      );
+    }
+    return `<td>${parts.length ? parts.join('<br>') : '<span class="quiet">—</span>'}</td>`;
+  };
+  const rows = everyone
+    .map((person) => {
+      const self = person.account_id === account.id;
+      const seen = lastOpen ? lastOpen.get(person.account_id) : null;
+      return `<tr>
+        <td>${
+          self
+            ? ''
+            : `<input type="checkbox" name="people" value="${esc(person.account_id)}" form="bulk" aria-label="Select ${esc(person.email)}"> `
+        }${personLabel(person, { isOwner: true, selfId: account.id })}</td>
+        ${owned.map((o) => cell(person, o)).join('')}
+        ${lastOpen ? `<td class="right quiet">${seen ? esc(when(seen, { now })) : '—'}</td>` : ''}
+      </tr>`;
+    })
+    .join('\n');
+  const matrix = owned.length
+    ? `<table class="matrix">
+         <thead><tr><th>Person</th>${owned
+           .map(
+             ({ project }) =>
+               `<th><a href="/projects/${esc(project.id)}/people">${esc(projectName(project))}</a></th>`
+           )
+           .join('')}${lastOpen ? '<th class="right">Last here</th>' : ''}</tr></thead>
+         <tbody>${rows}</tbody>
+       </table>
+       ${
+         everyone.length > 1
+           ? `<form id="bulk" class="bulk" method="post" action="/account/people">
+                ${csrfField(csrf)}
+                <label><input type="checkbox" name="sure" value="yes" required> Remove the selected people from every project I own, and cancel their open invitations</label>
+                <button type="submit" name="do" value="remove-all" class="ghost">Remove from account</button>
+              </form>
+              <p class="quiet">Removing takes effect at once for opening a project. Someone already in a project is
+                disconnected within minutes, and at the latest ${Math.round(ACCESS_TOKEN_TTL_MS / 3_600_000)} hours later.
+                To add someone, invite them from a project’s own People page — they join when they accept.</p>
+              ${
+                owned.some((o) => o.canView === false)
+                  ? `<p class="quiet">${esc(CAN_VIEW_UNAVAILABLE.replace('this project', 'some of these projects'))}</p>`
+                  : ''
+              }`
+           : ''
+}`
     : '<p class="quiet">You own no projects yet.</p>';
 
   const sharedRows = shared
@@ -220,32 +394,40 @@ export function accountPeoplePage({ account, owned = [], shared = [] }) {
     ? `<table><thead><tr><th>Project</th><th>What you can do</th></tr></thead><tbody>${sharedRows}</tbody></table>`
     : '<p class="quiet">Nothing is shared with you yet.</p>';
 
+  const summary = owned.length
+    ? [
+        `${plural(everyone.length, 'person', 'people')} in ${plural(owned.length, 'project', 'projects')}`,
+        ...(requests.length
+          ? [`${requests.length} ${requests.length === 1 ? 'asks' : 'ask'} to edit`]
+          : []),
+        ...(invites.length ? [`${plural(invites.length, 'invite', 'invites')} not opened`] : []),
+      ].join(' · ')
+    : null;
+
   return page(
     'People and invites',
-    `<h2>Projects you own</h2>${ownedHtml}
+    `${notices({ error, notice })}
+     ${summary ? `<p class="plan-line">${esc(summary)}</p>` : ''}
+     ${waiting}
+     <h2>Projects you own</h2>${matrix}
      <h2>Shared with you</h2>${sharedHtml}`,
     {
       account,
       active: 'people',
-      lede: 'Who can open what. Only a project’s owner sees addresses and invitations.',
+      lede: 'Who can open what, across every project you own. Only a project’s owner sees addresses and invitations.',
     }
   );
 }
 
 // ------------------------------------------------------------------- billing
 
+/** One project's plan as its owner reads it (plan-copy.mjs) — a row with no plan shows its state. */
 function projectPlanLine(project, { now }) {
-  const state = planState(project, { now });
-  if (state === 'paid') {
-    const plan = pricingCatalog.plans.find((p) => p.id === project.plan);
-    return { state, line: `${plan?.name ?? 'A plan'} · plan chosen` };
-  }
-  if (state === 'trial') {
-    const days = Math.max(1, Math.ceil((Number(project.trial_ends_at) - now) / DAY_MS));
-    return { state, line: `Free trial · ${plural(days, 'day left', 'days left')}` };
-  }
-  if (state === 'paused') return { state, line: 'Paused · Choose a plan to keep editing.' };
-  return { state, line: (STATE_COPY[project.state] ?? { label: project.state }).label };
+  const plan = ownerPlan(project, { now });
+  return {
+    ...plan,
+    line: plan.line ?? (STATE_COPY[project.state] ?? { label: project.state }).label,
+  };
 }
 
 /** The S9.15 plan picker: today's Checkout, converting THIS trial project. */
@@ -268,8 +450,11 @@ function planPicker(project, csrf) {
 export function accountBillingPage({ account, trial, projects = [], csrf, now = Date.now() }) {
   const rows = projects
     .map((project) => {
-      const { state, line } = projectPlanLine(project, { now });
-      const picker = state === 'trial' || state === 'paused' ? planPicker(project, csrf) : '';
+      // The picker wherever a plan can be chosen: a trial, a project whose free
+      // time ended, a Promo whose end date is near. A Promo with no end near
+      // says Promo and offers nothing to choose (canvas 16, cl-promo-owner).
+      const { line, canChoose } = projectPlanLine(project, { now });
+      const picker = canChoose ? planPicker(project, csrf) : '';
       return `<div class="card">
         <h2>${esc(project.name || project.id)}</h2>
         <p class="plan-line">${esc(line)}</p>
@@ -525,11 +710,19 @@ async function ownerView(env, project, { now }) {
   ).catch(() => []);
   const invites = await all(
     env.DB,
-    `SELECT email, role, canvas_path, expires_at FROM project_invites
+    `SELECT id, email, role, canvas_path, created_at, expires_at FROM project_invites
       WHERE project_id = ? AND redeemed_at IS NULL AND revoked_at IS NULL AND expires_at > ?
       ORDER BY created_at DESC`,
     project.id,
     now
+  ).catch(() => []);
+  // Ask to edit: the open requests, with the asker's name (V2-1.7 §5.6).
+  const requests = await all(
+    env.DB,
+    `SELECT r.id, r.canvas_path, r.created_at, a.email, a.name
+       FROM access_requests r JOIN accounts a ON a.id = r.account_id
+      WHERE r.project_id = ? AND r.decided_at IS NULL ORDER BY r.created_at`,
+    project.id
   ).catch(() => []);
   return {
     project,
@@ -541,7 +734,133 @@ async function ownerView(env, project, { now }) {
     ],
     grants,
     invites,
+    requests,
   };
+}
+
+/** What a finished People action says, by code — never text from the URL. */
+const PEOPLE_DONE = {
+  role: 'Saved.',
+  removed: 'Removed from that project.',
+  'removed-all': 'Removed from every project you own.',
+  allowed: 'They can edit now.',
+  declined: 'The request is closed. Nothing changed for them.',
+  resent: 'The invitation was sent again.',
+  cancelled: 'The invitation is cancelled.',
+};
+
+const PROJECT_ID_SHAPE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+const NOT_YOURS = '<p>This project is not available to your account.</p>';
+
+/**
+ * One People action, through the access authority. Returns `{ ok, done }`,
+ * `{ notYours: true }`, or `{ ok: false, error }` in the authority's own words.
+ */
+async function peopleAction(env, { account, origin, form, ctx, now }) {
+  const verb = String(form.get('do') ?? '');
+  const projectId = String(form.get('project') ?? '');
+  const call = (method, path, extra = {}) =>
+    pageAccessCall(env, {
+      origin,
+      projectId,
+      actorEmail: account.email,
+      method,
+      path,
+      ctx,
+      now,
+      ...extra,
+    });
+  const id = (name) => encodeURIComponent(String(form.get(name) ?? ''));
+  const ROUTES = {
+    role: () =>
+      call('PATCH', `people/${id('account')}`, { body: { role: String(form.get('role') ?? '') } }),
+    remove: () => call('DELETE', `people/${id('account')}`),
+    'request-allow': () => call('POST', `requests/${id('request')}/approve`),
+    'request-decline': () => call('POST', `requests/${id('request')}/decline`),
+    'invite-resend': () => call('POST', `invites/${id('invite')}/resend`),
+    'invite-cancel': () => call('DELETE', `invites/${id('invite')}`),
+  };
+  const DONE = {
+    role: 'role',
+    remove: 'removed',
+    'request-allow': 'allowed',
+    'request-decline': 'declined',
+    'invite-resend': 'resent',
+    'invite-cancel': 'cancelled',
+  };
+  if (!Object.hasOwn(ROUTES, verb))
+    return { ok: false, error: 'That is not something this page does.' };
+  // A role the project's workspace does not hold is refused here as it is on
+  // the project's own page — the list did not offer it. (A project that is
+  // not this account's reads as not holding it, and the authority below then
+  // says the rest.)
+  if (verb === 'role' && String(form.get('role') ?? '') === 'observer') {
+    const row = PROJECT_ID_SHAPE.test(projectId)
+      ? await env.DB.prepare('SELECT capabilities FROM projects WHERE id = ? AND account_id = ?')
+          .bind(projectId, account.id)
+          .first()
+          .catch(() => null)
+      : null;
+    if (row && !cellHolds(row, 'roles-v2')) return { ok: false, error: CAN_VIEW_UNAVAILABLE };
+  }
+  const answer = await ROUTES[verb]();
+  if (notYours(answer)) return { notYours: true };
+  if (answer.status >= 400) {
+    return { ok: false, error: answer.body?.error ?? 'That could not be done. Nothing changed.' };
+  }
+  return { ok: true, done: DONE[verb] };
+}
+
+/**
+ * Remove several people from EVERY project this account owns: the membership,
+ * each single-canvas access, and any invitation still open for their address.
+ * Walks only `ownerView`s — projects read as owned by this account — and each
+ * removal is the authority's own (so its checks run again per project).
+ */
+async function removeFromAccount(env, { account, origin, owned, accountIds, ctx, now }) {
+  let removed = 0;
+  // Each person's address, from wherever on these projects they appear: an
+  // invitation can be open on a project they are not on yet.
+  const emailOf = new Map();
+  for (const view of owned) {
+    for (const p of [...view.people, ...view.grants]) emailOf.set(p.account_id, p.email);
+  }
+  for (const view of owned) {
+    const call = (method, path, query = '') =>
+      pageAccessCall(env, {
+        origin,
+        projectId: view.project.id,
+        actorEmail: account.email,
+        method,
+        path,
+        query,
+        ctx,
+        now,
+      });
+    for (const accountId of accountIds) {
+      if (accountId === account.id) continue;
+      // Only people who are on one of THESE projects: an id that is not is
+      // nobody this account can remove.
+      const email = emailOf.get(accountId);
+      if (!email) continue;
+      if (view.people.some((p) => p.account_id === accountId)) {
+        const out = await call('DELETE', `people/${encodeURIComponent(accountId)}`);
+        if (out.status < 400) removed += 1;
+      }
+      for (const g of view.grants.filter((x) => x.account_id === accountId)) {
+        await call(
+          'DELETE',
+          `people/${encodeURIComponent(accountId)}`,
+          `canvas=${encodeURIComponent(g.canvas_path)}`
+        );
+      }
+      for (const i of view.invites.filter((x) => x.email === email)) {
+        await call('DELETE', `invites/${encodeURIComponent(i.id)}`);
+      }
+    }
+  }
+  return removed;
 }
 
 async function liveMacs(env, accountId) {
@@ -668,14 +987,15 @@ export async function accountCsrf(sessionToken, secret) {
     .slice(0, 32);
 }
 
-function csrfFor(request, env) {
+export function csrfFor(request, env) {
   return accountCsrf(cookieValue(request, SESSION_COOKIE), env.CELL_SECRET_MASTER ?? '');
 }
 
 /** Same-origin, and the CSRF field matches. Fails closed. */
 export async function postAllowed(request, env, url, form) {
-  const origin = request.headers.get('origin');
-  if (origin && origin !== url.origin) return false;
+  // `Origin: null` is what every browser sends from these no-referrer pages;
+  // edge.mjs `sameOriginPost` says when that still means "from us".
+  if (!sameOriginPost(request, url)) return false;
   const expected = await csrfFor(request, env);
   return Boolean(expected) && verifyCsrf(expected, String(form.get('csrf') ?? ''));
 }
@@ -686,8 +1006,7 @@ const PAGE_HEADERS = {
   'content-type': 'text/html; charset=utf-8',
   'cache-control': 'no-store',
   'x-content-type-options': 'nosniff',
-  'content-security-policy':
-    "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+  'content-security-policy': pageCsp(),
   'referrer-policy': 'no-referrer',
 };
 
@@ -734,17 +1053,67 @@ export async function handleAccountPages(request, env, { account, ctx = null } =
 
   // ---- people
   if (section === 'people') {
-    if (method === 'POST') return html('<p>Not allowed.</p>', 405);
-    const owned = await Promise.all(
-      (await ownedProjects(env, account.id)).map((p) => ownerView(env, p, { now }))
-    );
-    const shared = await sharedProjects(env, account.id);
-    return html(accountPeoplePage({ account: me, owned, shared }));
+    const csrf = await csrfFor(request, env);
+    const view = async (extra = {}, status = 200) => {
+      const owned = await Promise.all(
+        (await ownedProjects(env, account.id)).map((p) => ownerView(env, p, { now }))
+      );
+      const shared = await sharedProjects(env, account.id);
+      // Which of these workspaces hold Can view (`roles-v2`), from what each
+      // last reported — no workspace is asked, or woken, to draw this page.
+      for (const o of owned) o.canView = cellHolds(o.project, 'roles-v2');
+      // "Last here" comes from recorded opens; without analytics the column is
+      // simply not there.
+      const lastOpen = owned.length
+        ? await lastOpens(
+            env,
+            owned.map((o) => o.project.id)
+          ).catch(() => null)
+        : null;
+      return html(
+        accountPeoplePage({ account: me, owned, shared, csrf, lastOpen, now, ...extra }),
+        status
+      );
+    };
+    if (method !== 'POST') {
+      return view({ notice: PEOPLE_DONE[url.searchParams.get('done')] ?? null });
+    }
+    const form = await request.formData();
+    if (!(await postAllowed(request, env, url, form))) return html(REFUSED, 403);
+    if (String(form.get('do') ?? '') === 'remove-all') {
+      const accountIds = form.getAll('people').map(String).filter(Boolean).slice(0, 100);
+      if (form.get('sure') !== 'yes' || accountIds.length === 0) {
+        return view(
+          { error: 'Select the people, and tick the box to confirm. Nothing was removed.' },
+          400
+        );
+      }
+      const owned = await Promise.all(
+        (await ownedProjects(env, account.id)).map((p) => ownerView(env, p, { now }))
+      );
+      await removeFromAccount(env, {
+        account: me,
+        origin: url.origin,
+        owned,
+        accountIds,
+        ctx,
+        now,
+      });
+      return redirect('/account/people?done=removed-all');
+    }
+    const out = await peopleAction(env, { account: me, origin: url.origin, form, ctx, now });
+    // One answer for "not yours" and "no such project", and it is the same
+    // sentence a wrong project URL gets — nothing here confirms a project exists.
+    if (out.notYours) return html(NOT_YOURS, 404);
+    if (!out.ok) return view({ error: out.error }, 400);
+    return redirect(`/account/people?done=${out.done}`);
   }
 
   // ---- billing
   if (section === 'billing') {
     if (method === 'POST') return html('<p>Not allowed.</p>', 405);
+    // The plan picker on this page POSTs to /projects/<id>/billing/plan, which
+    // answers a 303 to Stripe Checkout — so THIS page's form-action names it.
     return html(
       accountBillingPage({
         account: me,
@@ -752,7 +1121,9 @@ export async function handleAccountPages(request, env, { account, ctx = null } =
         projects: await ownedProjects(env, account.id),
         csrf: await csrfFor(request, env),
         now,
-      })
+      }),
+      200,
+      { 'content-security-policy': pageCsp({ stripe: true }) }
     );
   }
 
@@ -1017,14 +1388,29 @@ export function allAccountHtml() {
           ],
           invites: [
             {
+              id: 'inv-1',
               email: 'new@example.com',
               role: 'observer',
               canvas_path: null,
+              created_at: now - 3 * DAY_MS,
               expires_at: now + 7 * DAY_MS,
+            },
+          ],
+          requests: [
+            {
+              id: 'req_1',
+              email: 'jonas@example.com',
+              name: 'Jonas',
+              canvas_path: 'ui/Pricing.tsx',
+              created_at: now - DAY_MS,
             },
           ],
         },
       ],
+      csrf: 'x'.repeat(32),
+      lastOpen: new Map([['a2', now - 3_600_000]]),
+      notice: Object.values(PEOPLE_DONE).join(' '),
+      now,
       shared: [
         {
           project: { id: 'alligators', name: 'Alligators brand' },

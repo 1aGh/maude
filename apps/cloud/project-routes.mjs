@@ -6,11 +6,13 @@
 // is left here is reading rows, writing rows, and turning a verdict into a
 // response — which is the whole point of the split (DDR-196 §1).
 
-import { createProjectInvite } from './access-forward.mjs';
+import { createProjectInvite, notYours, pageAccessCall } from './access-forward.mjs';
+import { csrfFor, postAllowed } from './account-pages.mjs';
 import { track } from './analytics.mjs';
+import { pageCsp } from './edge.mjs';
 import { decideMembershipChange } from './membership.mjs';
-import { peoplePage, removeConfirmPage } from './people-page.mjs';
-import { ACCESS_MESSAGES, can, decideAccess } from './project-access.mjs';
+import { CAN_VIEW_UNAVAILABLE, peoplePage, removeConfirmPage } from './people-page.mjs';
+import { ACCESS_MESSAGES, can, cellHolds, decideAccess } from './project-access.mjs';
 import { nudgeCellRevocations } from './provision.mjs';
 
 /** Must match the cell's ACCESS_TOKEN_TTL_MS — the page quotes it in hours. */
@@ -27,8 +29,7 @@ function html(body, status = 200) {
       'x-content-type-options': 'nosniff',
       // No script anywhere on these pages, and the header says so — a CSP that
       // matches the markup is a claim a reviewer can check without reading it.
-      'content-security-policy':
-        "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
+      'content-security-policy': pageCsp(),
       'referrer-policy': 'no-referrer',
     },
   });
@@ -71,7 +72,7 @@ async function load(env, projectId, accountId) {
   const invites =
     (
       await env.DB.prepare(
-        `SELECT email, role, canvas_path, expires_at FROM project_invites
+        `SELECT id, email, role, canvas_path, expires_at FROM project_invites
           WHERE project_id = ? AND redeemed_at IS NULL AND revoked_at IS NULL AND expires_at > ?
           ORDER BY created_at DESC`
       )
@@ -123,6 +124,13 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
   }
   const people = await peopleList(env, project, members);
   const isOwner = can(verdict.role, 'invite');
+  // Rendered into the owner's invitation forms; null when no key is configured,
+  // which every POST that needs it reads as a refusal.
+  const csrf = isOwner ? await csrfFor(request, env) : null;
+  // Does this project's workspace hold Can view (`roles-v2`)? Read from what
+  // it last reported (project-access.mjs `cellHolds`) — never asked live, so
+  // opening this page cannot wake a sleeping workspace.
+  const canView = cellHolds(project, 'roles-v2');
 
   if (request.method === 'GET' && isRemoveConfirm) {
     const target = people.find((p) => p.account_id === url.searchParams.get('account'));
@@ -133,7 +141,7 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
   }
 
   if (request.method === 'GET') {
-    return html(peoplePage({ account, project, people, grants, invites, isOwner }));
+    return html(peoplePage({ csrf, canView, account, project, people, grants, invites, isOwner }));
   }
 
   if (request.method !== 'POST') return html('<p>Not allowed.</p>', 405);
@@ -147,6 +155,7 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
     if (!isOwner)
       return html(
         peoplePage({
+          csrf,
           account,
           project,
           people,
@@ -166,6 +175,7 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
     if (!email.includes('@') || email.length > 254) {
       return html(
         peoplePage({
+          csrf,
           account,
           project,
           people,
@@ -178,6 +188,22 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
       );
     }
     const role = String(form.get('role') ?? 'member');
+    if (role === 'observer' && !canView) {
+      return html(
+        peoplePage({
+          csrf,
+          canView,
+          account,
+          project,
+          people,
+          grants,
+          invites,
+          isOwner,
+          error: CAN_VIEW_UNAVAILABLE,
+        }),
+        400
+      );
+    }
     const decision = decideMembershipChange({
       actorId: account.id,
       actorRole: verdict.role,
@@ -188,7 +214,16 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
     });
     if (!decision.ok)
       return html(
-        peoplePage({ account, project, people, grants, invites, isOwner, error: decision.message }),
+        peoplePage({
+          csrf,
+          account,
+          project,
+          people,
+          grants,
+          invites,
+          isOwner,
+          error: decision.message,
+        }),
         400
       );
 
@@ -215,7 +250,88 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
     const notice = sent.ok
       ? `Invitation sent to ${email}.`
       : `The invitation is ready, but the email could not be sent. Share this link with them yourself: ${inviteUrl}`;
-    return html(peoplePage({ account, project, people, grants, invites, isOwner, notice }));
+    return html(
+      peoplePage({ csrf, canView, account, project, people, grants, invites, isOwner, notice })
+    );
+  }
+
+  // ---- an invitation nobody followed yet: send it again, or cancel it ------
+  //
+  // Both are the access authority's own routes (access-forward.mjs
+  // `accessCall`), called as the signed-in person — so the owner check, the
+  // daily cap, the audit row and "this invitation is THIS project's" are the
+  // same ones the app's People panel gets, not a second copy here.
+  if (action === 'invite-resend' || action === 'invite-cancel') {
+    // The session-derived token, as on /account/people (account-pages.mjs
+    // `postAllowed`): the edge's Fetch-Metadata gate fails open for a client
+    // that sends no such header, and these two mail an address and end a link.
+    if (!(await postAllowed(request, env, url, form))) {
+      return html('<p>That request could not be verified. Reload the page and try again.</p>', 403);
+    }
+    const inviteId = String(form.get('invite') ?? '');
+    const answer = await pageAccessCall(env, {
+      origin: url.origin,
+      projectId,
+      actorEmail: account.email,
+      method: action === 'invite-resend' ? 'POST' : 'DELETE',
+      path:
+        action === 'invite-resend'
+          ? `invites/${encodeURIComponent(inviteId)}/resend`
+          : `invites/${encodeURIComponent(inviteId)}`,
+      ctx,
+    });
+    const again = async (extra, status) => {
+      const fresh = await load(env, projectId, account.id);
+      return html(
+        peoplePage({
+          csrf,
+          account,
+          project,
+          people,
+          grants: fresh.grants,
+          invites: fresh.invites,
+          isOwner,
+          ...extra,
+        }),
+        status
+      );
+    };
+    if (notYours(answer)) return again({ error: ACCESS_MESSAGES['no-access'] }, 403);
+    if (answer.status >= 400) {
+      return again(
+        { error: answer.body?.error ?? 'That could not be done. Nothing changed.' },
+        answer.status === 429 ? 429 : 404
+      );
+    }
+    const sentTo = invites.find((i) => i.id === inviteId)?.email ?? 'them';
+    return again(
+      {
+        notice:
+          action === 'invite-resend'
+            ? `Sent again to ${sentTo}. The same link, and it works for another 14 days.`
+            : `The invitation to ${sentTo} is cancelled. The link no longer works.`,
+      },
+      200
+    );
+  }
+
+  // The same refusal on a role change: the server does not take what the
+  // page does not offer.
+  if (action !== 'remove' && String(form.get('role') ?? '') === 'observer' && !canView) {
+    return html(
+      peoplePage({
+        csrf,
+        canView,
+        account,
+        project,
+        people,
+        grants,
+        invites,
+        isOwner,
+        error: CAN_VIEW_UNAVAILABLE,
+      }),
+      400
+    );
   }
 
   const decision = decideMembershipChange({
@@ -228,7 +344,16 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
   });
   if (!decision.ok) {
     return html(
-      peoplePage({ account, project, people, grants, invites, isOwner, error: decision.message }),
+      peoplePage({
+        csrf,
+        account,
+        project,
+        people,
+        grants,
+        invites,
+        isOwner,
+        error: decision.message,
+      }),
       400
     );
   }

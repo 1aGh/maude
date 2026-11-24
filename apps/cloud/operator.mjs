@@ -263,6 +263,10 @@ export function deriveMrr(projects = [], pricing = { plans: [], currency: 'eur' 
 
   for (const row of projects) {
     if (!BILLED_STATES.has(row.state)) continue;
+    // A Promo project is free by an operator's decision (D1 v21) and carries a
+    // plan word all the same. With no subscription it earns nothing, and a
+    // "believed" figure that includes it would be believing something false.
+    if (row.promo_since != null && !row.subscription_id) continue;
     const plan = row.plan ?? 'project';
     const monthlyMinor = priceOf.get(plan) ?? null;
     if (monthlyMinor === null) {

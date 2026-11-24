@@ -304,13 +304,34 @@ describe('the project detail page', () => {
     assert.match(html, /id="reason"/);
   });
 
-  it('offers exactly one write, and says what it is not', () => {
-    const html = operatorProjectPage({ account, project: project(), csrf: mintCsrf() });
-    const posts = [...html.matchAll(/<form method="post"/g)];
-    // One nudge form + the shell's own sign-out.
-    assert.equal(posts.length, 2);
-    assert.match(html, /action="\/operator\/projects\/alligators\/reconcile"/);
-    assert.match(html, /stay in Stripe/);
+  it('every write is a known action with the token and a required reason — and none is money', () => {
+    // The surface used to offer exactly one write. It now offers the operator
+    // actions too (canvas 16), so the pin is what each form must carry rather
+    // than how many there are: a form that posts somewhere unlisted, or with
+    // no token, or with no reason, is the regression.
+    const KNOWN =
+      /^\/operator\/projects\/alligators\/(reconcile|free-time|promo|promo\/end|pause|wake|move)$/;
+    for (const p of [
+      project(),
+      { ...project(), subscription_id: null, trial_ends_at: Date.now() + 86_400_000 },
+      { ...project(), subscription_id: null, promo_since: 1, promo_tier: 'project' },
+      { ...project(), subscription_id: null, state: 'suspended', hold_since: 1 },
+    ]) {
+      const html = operatorProjectPage({ account, project: p, csrf: mintCsrf() });
+      const forms = [...html.matchAll(/<form method="post" action="([^"]+)">([\s\S]*?)<\/form>/g)];
+      const actions = forms.filter(([, action]) => action !== '/auth/logout');
+      assert.ok(actions.length >= 1);
+      for (const [, action, body] of actions) {
+        assert.match(action, KNOWN, action);
+        assert.match(body, /name="csrf"/, `${action} carries the token`);
+        assert.match(body, /<textarea[^>]*name="reason"[^>]*required/, `${action} needs a reason`);
+      }
+      assert.match(html, /action="\/operator\/projects\/alligators\/reconcile"/);
+      assert.match(html, /stay in Stripe/);
+    }
+    // A project with a paid plan is offered nothing that would disagree with it.
+    const paid = operatorProjectPage({ account, project: project(), csrf: mintCsrf() });
+    assert.doesNotMatch(paid, /\/free-time"|\/promo"|\/move"/);
   });
 
   it('distinguishes a quiet build window from a cell that just rebooted', () => {

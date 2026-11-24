@@ -497,6 +497,62 @@ export const MIGRATIONS = [
       'CREATE INDEX IF NOT EXISTS mention_emails_thread ON mention_emails (project_id, account_id, thread, sent_at);',
     ],
   },
+  {
+    version: 21, // Operator actions — Promo, the operator's pause, and the request ledger
+    // ATOMIC, like v18: four ADD COLUMNs, and ADD COLUMN is not idempotent — a
+    // run that stopped half-way would fail every later attempt on a duplicate
+    // column, and the cron would stop sweeping. Nothing is rewritten: every
+    // existing project keeps NULL in all four, which reads as "not Promo, not
+    // held" — exactly what it was.
+    atomic: true,
+    statements: [
+      // Promo: free by an operator's decision. `promo_since` set = Promo;
+      // `promo_tier` is one of promo.mjs PROMO_TIERS; `promo_ends_at` NULL =
+      // never ends. The reason is in audit_log, not here.
+      'ALTER TABLE projects ADD COLUMN promo_since INTEGER;',
+      'ALTER TABLE projects ADD COLUMN promo_tier TEXT;',
+      'ALTER TABLE projects ADD COLUMN promo_ends_at INTEGER;',
+      // Paused by an operator. An INPUT to the reconciler (which then walks
+      // the ordinary transitions), never a state of its own.
+      'ALTER TABLE projects ADD COLUMN hold_since INTEGER;',
+      // One row per operator form post that must not apply twice (free time:
+      // "add 30 days" retried is 60). `plan` is what the first attempt decided
+      // — absolute dates — so a retry re-applies the same values and sends no
+      // second e-mail. `done_at` is set once the e-mail went out.
+      `CREATE TABLE IF NOT EXISTS operator_actions (
+        request_id  TEXT PRIMARY KEY,
+        kind        TEXT NOT NULL,
+        operator_id TEXT NOT NULL,
+        plan        TEXT NOT NULL,
+        created_at  INTEGER NOT NULL,
+        done_at     INTEGER
+      );`,
+    ],
+  },
+  {
+    version: 22, // The adverse-reading debounce starts AFTER this deploy, never before it
+    // Until this release `settle()` never saved the start of the debounce
+    // (reconcile.mjs), so a subscription that ended while its project ran
+    // never suspended it. The same release that fixes that must not let a
+    // clock written long ago decide anything: `adverse_since` was only ever
+    // saved on a round that also had an action, and never cleared on a quiet
+    // good reading, so a running project can carry an instant from months
+    // back. Read by the fixed code, that would mean "ended six hours ago" on
+    // the first sweep. Cleared here, once, before that sweep (the cron runs
+    // migrations first): every running project's wait starts at its first
+    // adverse reading after the deploy. Rows that are not running are not
+    // touched — their ladders are measured from `state_since`.
+    atomic: true,
+    statements: [
+      "UPDATE projects SET adverse_since = NULL WHERE state IN ('active', 'pending') AND adverse_since IS NOT NULL;",
+      // What the project's workspace last said it can do — the `capabilities`
+      // list of its own `/health`, as JSON, written by the hourly sweep that
+      // already reads that answer. NULL = never said. The People pages offer a
+      // role only when the workspace holds it (`roles-v2` for Can view), and
+      // read it from here so that showing a page never wakes a sleeping cell.
+      'ALTER TABLE projects ADD COLUMN capabilities TEXT;',
+    ],
+  },
 ];
 
 /** Run one migration's statements plus its schema_migrations row. */

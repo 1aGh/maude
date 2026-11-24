@@ -71,6 +71,9 @@ export const BACKUP_DATABASES = [
   // S10.18a-2: team-library grants (hashed tokens only) — without it every rollout would
   // 401 the projects that linked this design system until the owner mints again.
   'ds-grants.db',
+  // The kept activity log (audit-log.mjs): "who did that, and when" has to
+  // outlive the disk it was written on, like the accounts it is about.
+  'audit.db',
 ];
 
 /** Default retention: keep this many snapshot generations. */

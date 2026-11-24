@@ -172,10 +172,54 @@ export function billingPage({
   details = null,
   detailsUnavailable = false,
   pausedUntil = null,
+  plan = null,
+  promo = null,
   error = null,
   notice = null,
 }) {
   const p = `/projects/${esc(project.id)}`;
+
+  // The plan card (plan-copy.mjs `ownerPlan`), where the bare state card would
+  // be. Promo says Promo where another owner sees a trial or Choose a plan
+  // (canvas 16, cl-promo-owner); a trial shows the DATE it is free until, so
+  // free time an operator gave is visible here; an operator's pause says so,
+  // with no countdown — nothing is scheduled to be deleted.
+  const choose = `<p style="margin:var(--space-3) 0 0"><a class="btn" href="/account/billing">Choose a plan</a></p>`;
+  const planCard = promo
+    ? `<div class="card">
+         <h2><span class="state ok">Promo</span> ${esc(project.name)}</h2>
+         <table><tbody>
+           <tr><td class="quiet">Plan</td><td>${esc(promo.plan)}</td></tr>
+           ${promo.storage ? `<tr><td class="quiet">Storage</td><td>${esc(promo.storage)}</td></tr>` : ''}
+           <tr><td class="quiet">Ends</td><td>${esc(promo.ends)}</td></tr>
+         </tbody></table>
+         ${
+           promo.endingSoon
+             ? `<p class="quiet" style="margin:0">Pick a plan to keep editing after ${esc(promo.ends)}.
+                  Nothing is deleted, and until you choose, everyone can still open and download
+                  everything.</p>${choose}`
+             : `<p class="quiet" style="margin:0">No trial, no card, nothing to choose.</p>`
+}
+       </div>`
+    : plan?.state === 'held'
+      ? `<div class="card warn">
+           <h2>Paused by Maude</h2>
+           <p class="quiet" style="margin:0">Nothing has been deleted and no deletion is scheduled.
+             The reason is on this project’s Activity page. You can still download everything.</p>
+         </div>`
+      : plan?.state === 'trial'
+        ? `<div class="card">
+             <h2>Free until ${esc(formatDay(plan.freeUntil))}</h2>
+             <p class="quiet" style="margin:0">${esc(plan.line)}. No card is needed. After that date
+               you pick a plan to keep editing; nothing is deleted.</p>${choose}
+           </div>`
+        : plan?.state === 'paused'
+          ? `<div class="card warn">
+               <h2>Choose a plan to keep editing</h2>
+               <p class="quiet" style="margin:0">The free time has ended. Nothing is deleted, and
+                 everyone can still open and download everything.</p>${choose}
+             </div>`
+          : null;
   const d = details ?? {
     company: '',
     line1: '',
@@ -254,13 +298,15 @@ export function billingPage({
     isOwner: true,
     active: 'billing',
     extraCss: EXTRA_CSS,
-    pill: pausedUntil
-      ? { tone: 'stop', label: 'Paused' }
-      : subscription.cancelling
-        ? { tone: 'warn', label: `Ending ${formatDay(subscription.periodEndMs ?? Date.now())}` }
-        : stateCopy.tone
-          ? { tone: stateCopy.tone, label: stateCopy.label }
-          : null,
+    pill: promo
+      ? { tone: 'ok', label: 'Promo' }
+      : pausedUntil || plan?.state === 'held'
+        ? { tone: 'stop', label: 'Paused' }
+        : subscription.cancelling
+          ? { tone: 'warn', label: `Ending ${formatDay(subscription.periodEndMs ?? Date.now())}` }
+          : stateCopy.tone
+            ? { tone: stateCopy.tone, label: stateCopy.label }
+            : null,
     body: `${error ? `<p class="error">${esc(error)}</p>` : ''}
      ${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
      ${cancelBanner}
@@ -282,10 +328,11 @@ export function billingPage({
                 </form>
               </div>
             </div>`
-         : `<div class="card">
+         : (planCard ??
+           `<div class="card">
               <h2>${esc(stateCopy.label)}</h2>
               ${stateCopy.note ? `<p class="quiet" style="margin:0">${esc(stateCopy.note)}</p>` : ''}
-            </div>`
+            </div>`)
 }
      ${
        canPortal
@@ -402,5 +449,32 @@ export function allCheckoutHtml({ pricing }) {
       stateCopy: { label: 'Setting up', note: 'This usually takes a minute or two.' },
       canPortal: false,
     }),
+    // The four plan cards an owner can meet (plan-copy.mjs).
+    ...[
+      {
+        promo: { plan: 'Promo from Maude · free', storage: '250 GB', ends: 'Never' },
+        plan: { state: 'promo' },
+      },
+      {
+        promo: {
+          plan: 'Promo from Maude · free',
+          storage: 'No storage limit',
+          ends: '31 December 2026',
+          endingSoon: true,
+        },
+        plan: { state: 'promo' },
+      },
+      { plan: { state: 'held' } },
+      { plan: { state: 'trial', freeUntil: 0, line: 'Free trial · 12 days left' } },
+      { plan: { state: 'paused' } },
+    ].map((extra) =>
+      billingPage({
+        account,
+        project,
+        stateCopy: { label: 'Ready', note: null },
+        canPortal: false,
+        ...extra,
+      })
+    ),
   ].join('\n');
 }

@@ -60,6 +60,10 @@ export function tenantFromRow(row) {
     // `saveTenant` never writes either of these.
     trialEndsAt: row.trial_ends_at ?? null,
     subscriptionId: row.subscription_id ?? null,
+    // D1 v21 — two more inputs, both an operator's and both read-only here:
+    // Promo (free, runs with no subscription) and the hold (paused by hand).
+    promo: row.promo_since != null,
+    holdSince: typeof row.hold_since === 'number' ? row.hold_since : null,
   };
 }
 

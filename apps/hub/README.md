@@ -68,7 +68,7 @@ the raw token value is never written to disk).
 | `MAUDE_SEED_REPO` | _(unset)_ | Cloned on FIRST boot only. Remove it once the workspace has real history — see [Durability](https://maude.sh/docs/hub/durability). |
 | `HUB_OIDC_MODE` | _(unset)_ | `hybrid` (password + OIDC) or `strict` (OIDC only). Explicit — naming an issuer is not consent to a mode. |
 | `HUB_OIDC_ISSUER` / `HUB_OIDC_CLIENT_ID` / `HUB_OIDC_CLIENT_SECRET` | — | Required once a mode is set. |
-| `HUB_OIDC_ALLOWED_DOMAINS` | — | Required once a mode is set. A filter, never a grant: a permitted domain with no account still waits for an admin. |
+| `HUB_OIDC_ALLOWED_DOMAINS` | — | Required once a mode is set. A filter, never a grant on its own: an address outside it is never let in or queued. Inside it, a person with an invitation is in at once (the invitation is the approval); anyone else follows Settings › Who can join in `/admin` — turned away, queued for an admin (the default), or admitted as a member. |
 | `HUB_OIDC_LABEL` | issuer hostname | What the sign-in button says.
 | `MAUDE_EMBED_ORIGINS` | _(unset)_ | Apps allowed to **frame** the studio read-only (`/?open=<file>&embed=1`), space- or comma-separated origins (`https://orbit.acme.com`). Invalid entries and wildcards are dropped. Framing only — an embed origin is **never** a cross-origin writer, unlike `MAUDE_EXTRA_SHELL_ORIGINS`. See [Embedding the hub](https://maude.sh/docs/hub/embedding). |
 

@@ -239,7 +239,12 @@ ${refresh}<title>${esc(title)}</title>
  * file is not in that bundle, which is why the plan's "the People view plus an
  * OIDC button will blow the budget" framing was wrong on both halves.
  */
-export function oidcButton(env = process.env) {
+/**
+ * What the provider is called on a button — `HUB_OIDC_LABEL`, else the issuer's
+ * host. Never a hard-coded brand: the issuer is whatever the operator set.
+ * `''` when no provider sign-in is configured.
+ */
+export function oidcLabel(env = process.env) {
   const mode = env.HUB_OIDC_MODE;
   if (mode !== 'hybrid' && mode !== 'strict') return '';
   let label = String(env.HUB_OIDC_LABEL ?? '').trim();
@@ -250,5 +255,11 @@ export function oidcButton(env = process.env) {
       label = "your company's sign-in";
     }
   }
+  return label;
+}
+
+export function oidcButton(env = process.env) {
+  const label = oidcLabel(env);
+  if (!label) return '';
   return `<p><a class="button" href="/auth/oidc/start">Sign in with ${escapeHtml(label)}</a></p>`;
 }

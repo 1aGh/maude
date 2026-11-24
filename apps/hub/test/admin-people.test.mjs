@@ -20,28 +20,40 @@ test('the nav offers People', () => {
   assert.match(ADMIN_HTML, /id="view-people"/);
 });
 
-test('every user + invite route the view needs is actually called', () => {
-  // The regression this whole track exists to fix. Each of these was dead.
+test('every people route the view needs is actually called', () => {
+  // The regression this whole track exists to fix: routes that existed and
+  // nothing called. The view now reads ONE list and acts through /people/*.
   for (const route of [
-    '/users',
-    '/users/disable',
-    '/users/enable',
+    '/people',
+    '/people/invite',
+    '/people/invite/reissue',
+    '/people/invite/revoke',
+    '/people/let-in',
+    '/people/dismiss',
+    '/people/role',
+    '/people/turn-on',
+    '/people/signout',
     '/users/password',
-    '/invites',
   ]) {
     assert.ok(ADMIN_JS.includes(`'${route}'`), `the console never calls ${route}`);
   }
+  // Turn off and Remove share one call, keyed by the button.
+  assert.match(ADMIN_JS, /post\(`\/people\/\$\{x\}`/);
+  assert.match(ADMIN_JS, /data-x="turn-off"/);
+  assert.match(ADMIN_JS, /data-x="remove"/);
 });
 
-test('accounts render the live token count the route already returns', () => {
-  // GET /users returns `tokenCount` per account — the number that answers "did
-  // the offboard take effect". Adding a route to recompute it would be adding
-  // a route to recompute something we are already given.
-  assert.match(ADMIN_JS, /tokenCount/);
+test('a person shows where they are signed in — the answer to "did the offboard take effect"', () => {
+  // GET /people returns each account's live sessions; the row counts them and
+  // the sheet lists them, each with its own Sign out.
+  assert.match(ADMIN_JS, /p\.sessions/);
+  assert.match(ADMIN_JS, /data-signout-label=/);
 });
 
-test('an invite is created for an EMAIL, not a label', () => {
-  assert.match(ADMIN_HTML, /id="person-invite-email"[^>]*type="email"/);
+test('an invite is created for EMAILS — several at once — not a label', () => {
+  assert.match(ADMIN_HTML, /<label[^>]*for="person-invite-email">Emails<\/label>/);
+  assert.match(ADMIN_HTML, /<textarea id="person-invite-email"/);
+  assert.match(ADMIN_JS, /post\('\/people\/invite', \{\s*emails,/);
 });
 
 test('the invite link is shown, never claimed to be sent', () => {
@@ -70,9 +82,11 @@ test('People hides under CLOUD strict identity — and only that one', () => {
 });
 
 test('the one-time reveal is reused, not reimplemented', () => {
-  // A second "shown once" surface is a second place for that promise to drift.
-  const invite = ADMIN_JS.slice(ADMIN_JS.indexOf('person-invite-form'));
-  assert.match(invite.slice(0, 1500), /showInvite\(/);
+  // A second "shown once" MODAL is a second place for that promise to drift:
+  // a link that cannot be copied straight to the clipboard goes through the
+  // same modal a peer token does.
+  assert.match(ADMIN_JS, /const showSecret = \(url, label\) =>\s*showInvite\(/);
+  assert.equal(ADMIN_JS.match(/\$\('token-modal'\)\.showModal\(\)/g)?.length, 1);
 });
 
 // The bug this pin exists for: the nav item, the panel, `loadPeople()` and the
@@ -89,7 +103,7 @@ test('every nav item is reachable — setView has a title for it', () => {
   assert.ok(titles, 'VIEW_TITLES not found in app.js');
   const known = new Set([...titles[1].matchAll(/^\s*([A-Za-z0-9_]+)\s*:/gm)].map((m) => m[1]));
   const navItems = [...ADMIN_HTML.matchAll(/data-view="([a-z-]+)"/g)].map((m) => m[1]);
-  assert.ok(navItems.length >= 6, 'expected the sidebar nav to be parsed');
+  assert.ok(navItems.length >= 5, 'expected the nav island to be parsed');
   for (const view of new Set(navItems)) {
     assert.ok(
       known.has(view),
@@ -109,12 +123,16 @@ test('Revoke calls the route the hub actually routes', () => {
     !/\/invites\/\$\{encodeURIComponent\(id\)\}`, \{ method: 'DELETE' \}/.test(ADMIN_JS),
     'the console still tries DELETE /invites/<id>, which the hub does not route'
   );
-  assert.match(ADMIN_JS, /'\/invites\/revoke'/);
+  assert.match(ADMIN_JS, /'\/people\/invite\/revoke'/);
 });
 
-test('only redeemable invites are listed as outstanding', () => {
-  // GET /invites returns every invite ever issued, each with a `status`.
-  assert.match(ADMIN_JS, /status === 'open'/);
+test('only redeemable invites are listed as people', async () => {
+  // The store returns every invite ever issued, each with a `status`; the one
+  // list (admin-people.mjs `listPeople`) keeps the open ones. The behaviour is
+  // asserted in people-api.test.mjs ("a cancelled invite is not a person").
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/admin-people.mjs', import.meta.url), 'utf8');
+  assert.match(src, /if \(i\.status !== 'open'\) continue;/);
 });
 
 test('the icon-only Revoke button carries an accessible name', () => {
@@ -126,5 +144,5 @@ test('an expiry is rendered as time REMAINING, not as an age', () => {
   // out has a negative age, so it fell into the "< 60s" arm and every invite
   // read "just now".
   assert.match(ADMIN_JS, /function formatUntil/);
-  assert.match(ADMIN_JS, /formatUntil\(i\.expiresAt\)/);
+  assert.match(ADMIN_JS, /formatUntil\(p\.expiresAt\)/);
 });

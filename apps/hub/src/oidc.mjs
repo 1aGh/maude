@@ -178,7 +178,12 @@ export function createVerifier({
  * must never reach a matching decision — see oidc-routes.mjs, where matching
  * on an address is precisely the thing that is forbidden.
  */
-export function usableEmailClaim({ email, emailVerified }, allowedDomains = []) {
+export function usableEmailClaim({ email: claimed, emailVerified }, allowedDomains = []) {
+  // ONE spelling, before anything looks at it: accounts are keyed by the
+  // trimmed, lowercased address (users.mjs `normalizeEmail`), so a claim
+  // compared or stored in any other spelling is a second identity for the
+  // same mailbox — `Marek@…` beside `marek@…`.
+  const email = typeof claimed === 'string' ? claimed.trim().toLowerCase() : '';
   if (!email || !emailVerified) return null;
   if (allowedDomains.length === 0) return email;
   const domain = email.slice(email.lastIndexOf('@') + 1);

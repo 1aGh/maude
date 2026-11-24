@@ -283,3 +283,7 @@
 .seg.ad-seg { display: flex; }
 .ad-seg-b { flex: 1; display: grid; place-items: center; height: 30px; border-radius: var(--radius-sm); font-size: var(--type-xs); color: var(--fg-1); }
 .ad-seg-b[aria-pressed="true"] { background: var(--bg-2); color: var(--fg-0); font-weight: var(--weight-semibold); box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--accent); }
+
+/* 13–15 · person sheet, activity, operator account */
+.ad-sheet-h4 { margin: 0 0 var(--space-1); font-size: var(--type-xs); font-weight: var(--weight-semibold); color: var(--fg-1); }
+.ad-menu-key { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-5) var(--space-4); font-size: var(--type-xs); color: var(--fg-2); }

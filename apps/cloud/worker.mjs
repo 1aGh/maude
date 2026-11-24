@@ -40,7 +40,7 @@ import {
 } from './db.mjs';
 import { handleDeviceAuth, personalTokenAccount } from './device-auth.mjs';
 import { costOf, harden, isHtml, sameSiteGate, spend } from './edge.mjs';
-import { deletionWarningEmail, projectPausedEmail, sendEmail } from './email.mjs';
+import { deletionWarningEmail, projectPausedEmail, promoEndingEmail, sendEmail } from './email.mjs';
 import { normalizeRoute } from './events.mjs';
 import { mintInstallationToken } from './github-app.mjs';
 import { handleHandoff } from './handoff.mjs';
@@ -51,9 +51,10 @@ import { handleMentionRoutes } from './mentions.mjs';
 import { applySchema } from './migrate.mjs';
 import { statsDatapoints } from './operator.mjs';
 import { handleOperatorRoutes } from './operator-routes.mjs';
-import { ACCESS_MESSAGES, planState } from './project-access.mjs';
+import { ACCESS_MESSAGES, planPausedAt, planState } from './project-access.mjs';
 import { handleProjectAdminRoutes } from './project-admin.mjs';
 import { handleProjectRoutes } from './project-routes.mjs';
+import { promoView } from './promo.mjs';
 import {
   ensureCanvasDomain,
   ensureCellDomain,
@@ -102,12 +103,20 @@ async function openProject(request, env, ctx) {
   const account =
     (await personalTokenAccount(env, request)) ?? (await currentAccount(request, env));
   // The claim (role + canvas grants), from D1 — an unreadable row is no access.
-  const { verdict } = await loadClaim(env.DB, projectId, account?.id ?? null);
+  const { verdict, project } = await loadClaim(env.DB, projectId, account?.id ?? null);
   if (!verdict.ok) {
     // 404 for everything that is not "sign in", so the response never
     // distinguishes a project that exists from one that does not.
     const status = verdict.reason === 'not-signed-in' ? 401 : 404;
     return json({ error: ACCESS_MESSAGES[verdict.reason] }, status);
+  }
+  // PAUSED BY AN OPERATOR (D1 v21): no credential is minted, for the owner or
+  // anyone. The workspace is stopped and its address is down, so a token
+  // would open nothing — and handing one out says "go ahead" about a project
+  // somebody deliberately stopped. Said in words, not as a missing project:
+  // this caller is already known to be allowed to see it.
+  if (project?.hold_since != null) {
+    return json({ error: ACCESS_MESSAGES.held, reason: 'paused' }, 409);
   }
   // The mint door (V2-1.7 §5.4): owner / member / viewer without grants get
   // today's v1 token, declared or not. Can view or a canvas grant needs a
@@ -331,7 +340,14 @@ export default {
     // `personalTokenAccount(...) ?? currentAccount(...)` shape openProject
     // uses, because a leaked device token must not become a fleet key. The
     // module itself does not import device-auth, and a test asserts it.
-    const operatorSurface = await handleOperatorRoutes(request, env, { account, ctx });
+    // `reconcileNow` is handed in rather than imported by the operator module:
+    // a pause or a wake goes through the SAME `runOne` the hourly sweep runs
+    // (settle → save → effects), now instead of within the hour.
+    const operatorSurface = await handleOperatorRoutes(request, env, {
+      account,
+      ctx,
+      reconcileNow: (projectId) => runOne(env, projectId, { now: Date.now() }),
+    });
     if (operatorSurface) return operatorSurface;
 
     // Accepting an invitation (Cloud Phase 22). The invite is the account:
@@ -419,13 +435,23 @@ export default {
       let plan = null;
       if (row && row.state !== 'purged') {
         try {
+          // v21 adds Promo to the same question; a D1 that has not met v21 yet
+          // answers the v19 shape below, where nothing is Promo.
           plan = await env.DB.prepare(
-            'SELECT subscription_id, trial_ends_at FROM projects WHERE id = ?'
+            'SELECT subscription_id, trial_ends_at, promo_since, promo_ends_at FROM projects WHERE id = ?'
           )
             .bind(tenant)
             .first();
         } catch {
-          /* pre-v19: no trial column, so no trial — and nothing to pause */
+          try {
+            plan = await env.DB.prepare(
+              'SELECT subscription_id, trial_ends_at FROM projects WHERE id = ?'
+            )
+              .bind(tenant)
+              .first();
+          } catch {
+            /* pre-v19: no trial column, so no trial — and nothing to pause */
+          }
         }
       }
       // Absent is a real answer, and the cell's fail-closed default. It must
@@ -748,6 +774,18 @@ export async function reconcileSweep(env, { now = Date.now() } = {}) {
             wake: false,
           });
           for (const event of statsDatapoints(row.id, probed.body)) track(env, null, event);
+          // What the workspace says it can do, kept on its row (D1 v22) so the
+          // People pages can offer only roles it holds without asking it. A
+          // sleeping cell answers no list and the last known one stays.
+          const said = probed.body?.capabilities;
+          if (Array.isArray(said)) {
+            const next = JSON.stringify(said.filter((c) => typeof c === 'string').slice(0, 32));
+            if (next !== (row.capabilities ?? null)) {
+              await env.DB.prepare('UPDATE projects SET capabilities = ? WHERE id = ?')
+                .bind(next, row.id)
+                .run();
+            }
+          }
         } catch (err) {
           console.warn(`[stats] ${row.id}: ${err.message}`);
         }
@@ -778,8 +816,31 @@ async function runOne(env, projectId, { jobId = null, now }) {
   }
 
   try {
-    const { tenant, actions } = settle(tenantFromRow(row), subscription, { now });
+    const before = tenantFromRow(row);
+    const { tenant, actions } = settle(before, subscription, { now });
     await saveTenant(env.DB, tenant, { now });
+    // The debounce clock starting or stopping is not an action, so the
+    // `reconcile` row below would not record it — and "we started counting
+    // toward a pause" is exactly what an owner (and an operator) should be
+    // able to read BEFORE anything is paused. One row when a non-active
+    // reading is first seen on a running project, one when it clears.
+    if (
+      before.state === 'active' &&
+      tenant.state === 'active' &&
+      (before.adverseSince === null) !== (tenant.adverseSince === null)
+    ) {
+      await audit(
+        env.DB,
+        {
+          projectId,
+          actor: 'system',
+          action:
+            tenant.adverseSince === null ? 'reconcile.adverse-cleared' : 'reconcile.adverse-noted',
+          detail: JSON.stringify({ status: subscription?.status ?? null }),
+        },
+        { now }
+      ).catch(() => {});
+    }
     // Cloud Phase 24 B3. Until this line the settled actions were RECORDED and
     // nothing else — "become real in Phase 15" said the comment, through Phase
     // 23. So a tenant who stopped paying kept a serving cell, and the
@@ -790,6 +851,7 @@ async function runOne(env, projectId, { jobId = null, now }) {
     // never wrote down.
     const performed = await performActions(env, projectId, row, actions, { now });
     await applyPlanPause(env, projectId, row, { now });
+    await applyPromoNotice(env, projectId, row, { now });
     const detail = actions.length ? JSON.stringify({ actions, performed }) : null;
     if (jobId) await finishJob(env.DB, jobId, 'ok', detail, { now });
     if (actions.length) {
@@ -1088,7 +1150,10 @@ async function applyPlanPause(env, projectId, row, { now }) {
       `SELECT 1 AS x FROM audit_log
         WHERE project_id = ? AND action = 'do.plan-paused' AND at >= ?`
     )
-      .bind(projectId, Number(row.trial_ends_at))
+      // Measured from the clock that ran out — the trial's end, or a Promo's.
+      // Free time moves `trial_ends_at` LATER, so a pause recorded for the old
+      // date no longer matches and the new expiry is applied in its turn.
+      .bind(projectId, Number(planPausedAt(row)))
       .first();
     if (already) return;
     const restarted = await restartCell(env, projectId);
@@ -1100,11 +1165,59 @@ async function applyPlanPause(env, projectId, row, { now }) {
     }
     await audit(
       env.DB,
-      { projectId, actor: 'system', action: 'do.plan-paused', detail: 'trial ended' },
+      {
+        projectId,
+        actor: 'system',
+        action: 'do.plan-paused',
+        detail: row.promo_since != null ? 'promo ended' : 'trial ended',
+      },
       { now }
     );
   } catch (err) {
     console.error(`[plan] ${projectId}: ${err.message}`);
+  }
+}
+
+/**
+ * "Promo ends on <date>" — once, PROMO_NOTICE_DAYS before a Promo's end date
+ * (canvas 16, cl-promo-owner: "the owner hears 30 days before").
+ *
+ * The audit log is the idempotence, keyed by the END DATE itself: a row
+ * `do.promo-ending` carrying this date means this date was announced. An
+ * operator who moves the date gets a new announcement for the new one. Sent
+ * only when the mail went out, so a provider outage is retried next hour.
+ * Best-effort — never fails the sweep.
+ */
+async function applyPromoNotice(env, projectId, row, { now }) {
+  const promo = promoView(row, { now });
+  if (!promo?.endingSoon || row.state !== 'active') return;
+  try {
+    const already = await env.DB.prepare(
+      `SELECT 1 AS x FROM audit_log
+        WHERE project_id = ? AND action = 'do.promo-ending' AND detail = ?`
+    )
+      .bind(projectId, String(promo.endsAt))
+      .first();
+    if (already) return;
+    const to = await ownerEmail(env, row);
+    if (!to) return;
+    const dashboard = env.DASHBOARD_URL ?? 'https://cloud.maude.sh';
+    const told = await sendEmail(env, {
+      to,
+      ...promoEndingEmail({
+        projectName: row.name || projectId,
+        endsAt: promo.endsAt,
+        billingUrl: `${dashboard}/account/billing`,
+      }),
+    });
+    if (!told.ok) return;
+    await audit(
+      env.DB,
+      { projectId, actor: 'system', action: 'do.promo-ending', detail: String(promo.endsAt) },
+      { now }
+    );
+  } catch (err) {
+    console.error(`[promo] ${projectId}: ${err.message}`);
   }
 }
 

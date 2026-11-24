@@ -11,6 +11,11 @@
 //     (~4× a typical above-the-fold chunk) is still trivially small for a
 //     console that now does six jobs instead of four. Stays a HARD ceiling so
 //     future growth is a conscious decision, not drift.
+//   - 32 KB gz — the team-server admin (2026-11): five pages (Overview with
+//     "needs you" · People as one list · Projects · kept Activity with filters
+//     and CSV · Settings with who-can-join), the invite and person sheets, the
+//     member's page and the sign-in door grew it to ~29.5 KB gz, after the old
+//     app-shell CSS was removed. Raised deliberately, with ~8% headroom.
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -18,9 +23,9 @@ import { gzipSync } from 'node:zlib';
 
 import { ADMIN_CSS, ADMIN_HTML, ADMIN_JS } from '../src/admin-assets.mjs';
 
-const BUDGET_BYTES = 28 * 1024; // 28 KB gz, hard ceiling (DDR-097).
+const BUDGET_BYTES = 32 * 1024; // 32 KB gz, hard ceiling (see the history above).
 
-test('combined gzipped admin bundle is under 28 KB', () => {
+test('combined gzipped admin bundle is under 32 KB', () => {
   const combined = `${ADMIN_HTML}\n${ADMIN_CSS}\n${ADMIN_JS}`;
   const gz = gzipSync(Buffer.from(combined, 'utf8'), { level: 9 });
   assert.ok(
