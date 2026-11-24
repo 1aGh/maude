@@ -178,6 +178,31 @@ export function reconcile(tenant, subscription, { now = Date.now() } = {}) {
     };
   }
 
+  // A PILOT: running, and nothing on the row says how it is paid for — no
+  // subscription now or ever, no trial clock, no Promo. Made by hand before
+  // trials existed. It is free until an operator gives it a plan state (the
+  // operator page shows it as "No plan"), so there is nothing to derive.
+  //
+  // Read through the machine below, "no subscription" means `pending`, and
+  // `active → pending` is unreachable — so this row raised an
+  // `illegal-transition` alert into the customer-visible log on every hourly
+  // sweep, and was counted as an adverse reading each time (that is where its
+  // stale `adverse_since` came from). It was never suspended, but only because
+  // `pending` is not `suspended`; nothing said it must not be. Now something
+  // does: no action, and no adverse clock.
+  //
+  // NARROW ON PURPOSE. `subscriptionId` on the row with nothing at Stripe is a
+  // subscription that vanished — that still alerts below. A row that is not
+  // running (`pending`, `suspended`, …) is not a pilot and takes the machine.
+  if (!subscription && !tenant.subscriptionId && tenant.state === 'active') {
+    return {
+      desiredState: 'active',
+      actions: [],
+      notes: ['no plan on the row (a hand-made pilot) — left running'],
+      adverseSince: null,
+    };
+  }
+
   const implied = stateForSubscription(subscription);
 
   if (implied === 'unknown') {

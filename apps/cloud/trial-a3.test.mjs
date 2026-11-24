@@ -678,11 +678,18 @@ describe('S9.15b: the cell is told, and restarted only on a flip', () => {
     assert.equal(sqlite.prepare('SELECT state FROM projects').get().state, 'active');
   });
 
-  test('a non-trial row with no subscription keeps today’s reconcile answer', () => {
+  test('a running row with no plan at all (a hand-made pilot) is left running, silently', () => {
+    // It used to alert `illegal-transition` here every hour — into the
+    // customer-visible log — and count as an adverse reading each time
+    // (2026-11-25: production's own pilot project). A pilot is free until an
+    // operator gives it a plan state; the vanished subscription below is the
+    // case that must keep alerting.
     const tenant = tenantFromRow({ id: 'p', state: 'active', state_since: 0 });
     assert.equal(tenant.trialEndsAt, null);
     const result = reconcile(tenant, null);
-    assert.ok(result.actions.some((a) => a.reason === 'illegal-transition'));
+    assert.deepEqual(result.actions, []);
+    assert.equal(result.desiredState, 'active');
+    assert.equal(result.adverseSince, null);
     // A converted trial whose subscription vanished at Stripe still alerts.
     const converted = tenantFromRow({
       id: 'p',

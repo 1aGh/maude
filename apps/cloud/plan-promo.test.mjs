@@ -163,10 +163,16 @@ describe('reconcile with Promo and the operator hold', () => {
     assert.deepEqual(old.actions, []);
   });
 
-  test('WITHOUT Promo the same row is the legacy "no plan" row that alerts every hour', () => {
-    // The control: this is what the Promo branch exists to stop.
-    const out = reconcile(tenant(), null, { now: NOW });
-    assert.ok(out.actions.some((a) => a.kind === 'alert'));
+  test('the Promo branch is what protects a row that is NOT running: the control', () => {
+    // A running no-plan row is a pilot and is left alone too (reconcile.mjs);
+    // the difference Promo makes shows on a paused one — Promo wakes it, a
+    // bare row is left to the machine.
+    const paused = { state: 'suspended', cellRunning: false };
+    assert.equal(
+      settle(tenant({ ...paused, promo: true }), null, { now: NOW }).tenant.state,
+      'active'
+    );
+    assert.notEqual(settle(tenant(paused), null, { now: NOW }).tenant.state, 'active');
   });
 
   test('a Promo row that gained a subscription is the ordinary machine’s again', () => {

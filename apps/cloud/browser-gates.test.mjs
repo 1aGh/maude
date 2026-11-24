@@ -563,3 +563,78 @@ describe('4 · only what the project’s workspace can hold is offered', () => {
     assert.equal((await open(jan)).status, 200, 'after the wake it opens again');
   });
 });
+
+// --------------------------------------- the hand-made pilot row (production)
+
+describe('a legacy pilot — active, no subscription, no trial, no Promo, no hold — is never adverse', () => {
+  test('exactly production’s row, stale clock and all: 48 hourly sweeps change nothing and say nothing', async (t) => {
+    const { net, env, sqlite, jan } = await world(t);
+    const now = Date.now();
+    seedProject(sqlite, { id: 'pilot', owner: jan.id, name: 'Pilot', stateSince: now - 200 * DAY });
+    // As the pre-deploy check found it: a clock the old code left behind.
+    sqlite.prepare("UPDATE projects SET adverse_since = ? WHERE id = 'pilot'").run(now - 120 * DAY);
+    assert.equal(planState(project(sqlite, 'pilot')), 'none');
+    // What the deploy does first: v22, before any sweep.
+    const { MIGRATIONS } = await import('./migrate.mjs');
+    sqlite.exec(MIGRATIONS.find((m) => m.version === 22).statements[0]);
+    const before = JSON.stringify(project(sqlite, 'pilot'));
+    const auditBefore = sqlite.prepare('SELECT COUNT(*) AS n FROM audit_log').get().n;
+
+    for (let h = 0; h < 48; h++) {
+      const outcomes = await reconcileSweep(env, { now: now + h * 3_600_000 });
+      const mine = outcomes.find((o) => o.projectId === 'pilot');
+      assert.equal(mine.outcome, 'ok');
+      assert.deepEqual(mine.actions, [], `hour ${h}: nothing to do`);
+    }
+    assert.equal(
+      JSON.stringify(project(sqlite, 'pilot')),
+      before,
+      'the row is byte-for-byte what it was'
+    );
+    assert.equal(project(sqlite, 'pilot').state, 'active');
+    assert.equal(
+      project(sqlite, 'pilot').adverse_since,
+      null,
+      'and it is never counted toward a pause'
+    );
+    assert.equal(
+      sqlite.prepare('SELECT COUNT(*) AS n FROM audit_log').get().n,
+      auditBefore,
+      'no log row, any hour'
+    );
+    assert.equal(net.mails.length, 0);
+    assert.equal(net.stripe.length, 0, 'nothing to ask Stripe about');
+  });
+
+  test('the hole stays shut: a subscription on the row that Stripe no longer has still alerts, and a cancelled one still suspends', () => {
+    const T0 = Date.UTC(2026, 10, 1);
+    const row = {
+      id: 'p',
+      state: 'active',
+      stateSince: T0 - 30 * DAY,
+      cellRunning: true,
+      exportSent: false,
+      adverseSince: null,
+      trialEndsAt: null,
+      subscriptionId: 'sub_1',
+      promo: false,
+      holdSince: null,
+    };
+    const vanished = settle(row, null, { now: T0 });
+    assert.ok(
+      vanished.actions.some((a) => a.kind === 'alert'),
+      'a vanished subscription is not a pilot'
+    );
+    let t = row;
+    for (let h = 0; h <= 7; h++)
+      t = settle(t, { status: 'canceled' }, { now: T0 + h * 3_600_000 }).tenant;
+    assert.equal(t.state, 'suspended');
+    // And a pilot that is NOT running is not swept back to life by this rule.
+    const pending = settle(
+      { ...row, subscriptionId: null, state: 'pending', cellRunning: false },
+      null,
+      { now: T0 }
+    );
+    assert.equal(pending.tenant.state, 'pending');
+  });
+});
