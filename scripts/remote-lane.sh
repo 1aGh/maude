@@ -178,9 +178,12 @@ native_for_node24() {
 h="$( (echo deps-v2; cat pnpm-lock.yaml apps/studio/bun.lock apps/hub/bun.lock 2>/dev/null) | shasum | cut -d' ' -f1)"
 if [[ "$(cat .runner-deps 2>/dev/null)" != "$h" ]]; then
   echo "remote-lane: lockfiles changed — reinstalling deps in slot$got" >&2
-  sb pnpm install --frozen-lockfile </dev/null >/dev/null 2>&1 && (cd apps/studio && sb bun install --frozen-lockfile </dev/null >/dev/null 2>&1) \
+  # CI=true: with no TTY pnpm 11 refuses to replace a modules directory ("Aborted removal … no TTY"),
+  # and the failure was silent — the slot then ran the suite on the previous install.
+  sb env CI=true pnpm install --frozen-lockfile </dev/null >/dev/null 2>&1 && (cd apps/studio && sb bun install --frozen-lockfile </dev/null >/dev/null 2>&1) \
     && (cd apps/hub && sb bun install --frozen-lockfile </dev/null >/dev/null 2>&1) \
-    && native_for_node24 && echo "$h" >.runner-deps
+    && native_for_node24 && echo "$h" >.runner-deps \
+    || echo "remote-lane: WARNING — the dependency install failed in slot$got; this run uses the slot's previous install" >&2
 fi
 
 # Run in its own process group (so --max can stop the whole tree), stdin closed: the remote

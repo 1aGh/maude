@@ -101,7 +101,18 @@ describe(`shell parity (${target()})`, () => {
 
     const frame = await $('[data-testid="canvas-frame"]');
     await frame.waitForExist({ timeout: 30_000 });
-    expect(await frame.getAttribute('data-path')).toBe('.design/ui/Smoke.tsx');
+    // the active frame can still be the last-open canvas when the click returns: wait for the clicked one
+    await browser
+      .waitUntil(
+        async () =>
+          (await $('[data-testid="canvas-frame"]').getAttribute('data-path')) ===
+          '.design/ui/Smoke.tsx',
+        { timeout: 15_000, interval: 200 }
+      )
+      .catch(() => {});
+    expect(await $('[data-testid="canvas-frame"]').getAttribute('data-path')).toBe(
+      '.design/ui/Smoke.tsx'
+    );
     await capture('canvas-open');
 
     // The canvas iframe's own DOM is reachable only on the desktop: a cell serves canvases from a

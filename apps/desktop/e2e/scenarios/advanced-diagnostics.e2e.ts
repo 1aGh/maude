@@ -136,13 +136,17 @@ describe('advanced-diagnostics', () => {
     await (await $(tid('project-pill'))).click();
     await (await $(tid('project-menu-row-settings.open'))).click();
     await (await $(tid('settings-tab-advanced'))).click();
-    for (const id of [
-      'settings-server-port',
-      'settings-runtime',
-      'settings-own-plugin-copy',
-      'settings-decision-memory',
-      'settings-reset-folds',
-    ]) {
+    // Settings is one column of cards, one open at a time (2.1 T6): each row is looked for in its own card.
+    for (const [cardId, id] of [
+      ['this-mac', 'settings-server-port'],
+      ['this-mac', 'settings-runtime'],
+      ['claude-code', 'settings-own-plugin-copy'],
+      ['decision-memory', 'settings-decision-memory'],
+      ['reset', 'settings-reset-folds'],
+    ] as const) {
+      const toggle = await $(tid(`settings-card-${cardId}-toggle`));
+      await toggle.waitForDisplayed({ timeout: 5_000 });
+      if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
       // rows draw a beat after the click that opened them: wait for each; the red still names the missing one
       const shown = await (await $(tid(id))).waitForDisplayed({ timeout: 5_000 }).then(
         () => true,
