@@ -676,6 +676,32 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(readdirSync(bob.file('ui/Empty'))).toEqual(['.gitkeep']);
   }, 30_000);
 
+  // #230 — "Create folder" took as long as the project took to answer (up to 8 s per folder while the
+  // workspace was slow or asking this machine to slow down). A new folder only adds, so the wait is short:
+  // the folder is made here and the proposal carries on. A hub that does not answer at all is the worst case.
+  test('#230: a hub that does not answer holds Create folder for about a second, and the folder still arrives', async () => {
+    hub.proc.kill('SIGSTOP');
+    let r: Awaited<ReturnType<NonNullable<typeof alice.runtime.proposeFolder>>> | undefined;
+    const t0 = Date.now();
+    try {
+      r = await alice.runtime.proposeFolder?.({ op: 'dir.create', path: 'ui/Slow' });
+    } finally {
+      hub.proc.kill('SIGCONT');
+    }
+    const waited = Date.now() - t0;
+    expect(r?.status).toBe('accepted');
+    expect(r?.queued).toBe(true); // not answered yet: made here, proposed in the background
+    expect(waited).toBeGreaterThanOrEqual(1_000);
+    expect(waited).toBeLessThan(3_000); // was 8 s
+    mkdirSync(alice.file('ui/Slow'));
+    writeFileSync(alice.file('ui/Slow/.gitkeep'), '');
+    // the hub is back: the proposal it never answered goes through, and the peer gets the folder
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return existsSync(bob.file('ui/Slow'));
+    }, "bob's ui/Slow folder");
+  }, 60_000);
+
   // Plan T31/L19 — a person CLOSING a canvas leaves it for everyone. Their
   // canvas iframe's socket to the local room closes; the room evicts their
   // awareness, and that removal has to cross the hub to every other room.
