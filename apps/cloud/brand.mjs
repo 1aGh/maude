@@ -365,11 +365,18 @@ export function subTabs(label, items) {
 /** The project's own strip, for the pages that are about ONE project. */
 function projectTabs({ project, isOwner, active }) {
   const p = `/projects/${project.id}`;
-  const t = (key, label, danger = false) => ({ href: `${p}/${key}`, label, current: active === key, danger });
+  const t = (key, label, danger = false) => ({
+    href: `${p}/${key}`,
+    label,
+    current: active === key,
+    danger,
+  });
   return subTabs(project.name || project.id, [
     t('connect', 'Open'),
     t('people', 'People'),
-    ...(isOwner ? [t('billing', 'Billing'), t('mirror', 'GitHub copy'), t('saving', 'Saving')] : []),
+    ...(isOwner
+      ? [t('billing', 'Billing'), t('mirror', 'GitHub copy'), t('saving', 'Saving')]
+      : []),
     t('audit', 'Activity'),
     t('download', 'Download everything'),
     ...(isOwner ? [t('delete', 'Delete project…', true)] : []),

@@ -125,13 +125,17 @@ class Shooter {
       try {
         info = JSON.parse(JSON.parse(probe.out.trim()));
       } catch {
-        try { info = JSON.parse(probe.out.trim()); } catch { info = { error: probe.out.slice(0, 200) }; }
+        try {
+          info = JSON.parse(probe.out.trim());
+        } catch {
+          info = { error: probe.out.slice(0, 200) };
+        }
       }
       const file = `${String(rows.length).padStart(3, '0')}.png`;
       await this.run('screenshot', '--full', join(dir, file));
       const { links = [], ...rest } = info ?? {};
       rows.push({ path, file, ...rest });
-      say(`[${label}] ${rows.length} ${path} ${rest.notFound ? 'NOT FOUND' : rest.h1 ?? ''}`);
+      say(`[${label}] ${rows.length} ${path} ${rest.notFound ? 'NOT FOUND' : (rest.h1 ?? '')}`);
       for (const l of links) {
         const u = l.split('#')[0];
         const q = u.includes('?') ? u.slice(u.indexOf('?')) : '';
@@ -338,39 +342,39 @@ try {
     await anonC.crawl('anon', ['/login', '/signup', '/activate', '/forgot']);
     process.exitCode = 0;
   } else {
-  // ---- the shots
-  const owner = new Shooter('owner');
-  shooters.push(owner);
-  await owner.signIn(michal.email);
-  await owner.shot('/', 'cl-account-real.png');
-  await owner.shot('/account/people', 'cl-people-real.png');
-  await owner.shot('/account/people?sheet=invite', 'cl-people-invite-real.png');
-  await owner.shot(`/projects/${ids.onb}/billing`, 'cl-promo-owner-real.png');
-  await owner.shot('/projects', 'cl-projects-real.png');
+    // ---- the shots
+    const owner = new Shooter('owner');
+    shooters.push(owner);
+    await owner.signIn(michal.email);
+    await owner.shot('/', 'cl-account-real.png');
+    await owner.shot('/account/people', 'cl-people-real.png');
+    await owner.shot('/account/people?sheet=invite', 'cl-people-invite-real.png');
+    await owner.shot(`/projects/${ids.onb}/billing`, 'cl-promo-owner-real.png');
+    await owner.shot('/projects', 'cl-projects-real.png');
 
-  const anna = new Shooter('anna');
-  shooters.push(anna);
-  await anna.signIn(p.anna.email);
-  await anna.shot('/', 'un-member-cl-real.png');
+    const anna = new Shooter('anna');
+    shooters.push(anna);
+    await anna.signIn(p.anna.email);
+    await anna.shot('/', 'un-member-cl-real.png');
 
-  const ops = new Shooter('operator');
-  shooters.push(ops);
-  await ops.signIn(op.email);
-  await ops.shot('/operator/new-project', 'cl-operator-real.png');
-  await ops.shot(
-    `/operator/accounts/${kolar.id}?sheet=free&project=kolar-web-${RUN}`,
-    'cl-op-account-real.png'
-  );
-  await ops.shot(`/operator/projects/gator-club-${RUN}?sheet=promo`, 'cl-op-promo-real.png');
+    const ops = new Shooter('operator');
+    shooters.push(ops);
+    await ops.signIn(op.email);
+    await ops.shot('/operator/new-project', 'cl-operator-real.png');
+    await ops.shot(
+      `/operator/accounts/${kolar.id}?sheet=free&project=kolar-web-${RUN}`,
+      'cl-op-account-real.png'
+    );
+    await ops.shot(`/operator/projects/gator-club-${RUN}?sheet=promo`, 'cl-op-promo-real.png');
 
-  const anon = new Shooter('anon');
-  shooters.push(anon);
-  await anon.run('open', `${C}/login`);
-  await anon.run('set', 'viewport', '1440', '980');
-  await anon.run('set', 'media', 'light');
-  await anon.shot('/login', 'public-login-real.png');
-  await anon.shot('/signup', 'public-signup-real.png');
-  await anon.shot('/activate', 'public-activate-real.png');
+    const anon = new Shooter('anon');
+    shooters.push(anon);
+    await anon.run('open', `${C}/login`);
+    await anon.run('set', 'viewport', '1440', '980');
+    await anon.run('set', 'media', 'light');
+    await anon.shot('/login', 'public-login-real.png');
+    await anon.shot('/signup', 'public-signup-real.png');
+    await anon.shot('/activate', 'public-activate-real.png');
   }
 } finally {
   for (const s of shooters) await s.close();

@@ -33,10 +33,9 @@
 
 import { resolveMentions } from '../studio/comments/mentions.ts';
 import { accessOf, decideClaim, projectFacts, validCanvasPath } from './access-forward.mjs';
-import { accountCsrf, DELETED_EMAIL_DOMAIN, postAllowed } from './account-pages.mjs';
+import { accountCsrf, DELETED_EMAIL_DOMAIN, postAllowed, settingsTabs } from './account-pages.mjs';
 import { getAccountByEmail, normalizeEmail } from './accounts.mjs';
 import { SESSION_COOKIE } from './auth-routes.mjs';
-import { settingsTabs } from './account-pages.mjs';
 import { appShell, publicPage, publicResponse } from './brand.mjs';
 import { deriveCellSecret, secretsMatch } from './cell-token.mjs';
 import { audit } from './db.mjs';

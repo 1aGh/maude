@@ -260,12 +260,23 @@ describe('every account page: a session, no-store, no script', () => {
       const res = await get(env, path, ana.session);
       assert.equal(res.status, 200, path);
       const html = await res.text();
-      const strip = /<nav class="ma-ptabs" aria-label="Settings">([\s\S]*?)<\/nav>/.exec(html)?.[1] ?? '';
-      for (const tab of ['Account', 'Billing and plan', 'Your Macs', 'E-mails', 'Download everything', 'Delete the account']) {
+      const strip =
+        /<nav class="ma-ptabs" aria-label="Settings">([\s\S]*?)<\/nav>/.exec(html)?.[1] ?? '';
+      for (const tab of [
+        'Account',
+        'Billing and plan',
+        'Your Macs',
+        'E-mails',
+        'Download everything',
+        'Delete the account',
+      ]) {
         assert.ok(strip.includes(`>${tab}<`), `${path}: ${tab}`);
       }
       // Ana owns a project: People is her top-level tab, not a Settings one.
-      assert.ok(!strip.includes('People and invites'), `${path}: no People in Settings for an owner`);
+      assert.ok(
+        !strip.includes('People and invites'),
+        `${path}: no People in Settings for an owner`
+      );
       assert.match(strip, /aria-current="page"/, `${path}: one tab is lit`);
     }
   });

@@ -31,8 +31,8 @@ import { pageCsp } from './edge.mjs';
 import { validateTarget } from './mirror.mjs';
 import { ACCESS_MESSAGES, can, decideAccess } from './project-access.mjs';
 import { removeCellDomain } from './provision.mjs';
-import { NOT_ROUTINE, routineCount, withRoutineCheck } from './routine-log.mjs';
 import { purgeTenantObjects } from './purge.mjs';
+import { NOT_ROUTINE, routineCount, withRoutineCheck } from './routine-log.mjs';
 
 const CSS = `
   .card h2 { margin: 0 0 var(--space-3); font-family: var(--font-body); font-size: var(--type-base); line-height: var(--lh-base); }
