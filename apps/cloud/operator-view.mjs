@@ -79,7 +79,7 @@ export function readOnlyView(html, { email, base }) {
         '</style>',
         '.ro-banner{margin:0 0 var(--space-5);padding:var(--space-2) var(--space-4);border-radius:var(--radius-md);background:var(--fg-0);color:var(--bg-1);font-size:var(--type-sm);font-weight:var(--weight-semibold)}.ro-form{display:contents}</style>'
       )
-      .replace('<main class="ad-main">', `<main class="ad-main">${banner}`)
+      .replace('<main class="ma-main">', `<main class="ma-main">${banner}`)
   );
 }
 

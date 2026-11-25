@@ -130,7 +130,7 @@ describe('the page is the design’s (canvas 16)', () => {
   it('a light page on --bg-0 with one floating nav island, and no sidebar', () => {
     assert.match(PAGE_CSS, /body \{[^}]*background: var\(--bg-0\)/s);
     const html = appShell({ account: { email: 'a@example.com' }, title: 'Overview', body: '' });
-    assert.match(html, /<nav class="island ad-nav"/);
+    assert.match(html, /<nav class="island ma-nav"/);
     assert.doesNotMatch(html, /class="shell"|class="nav-item"|nav-hd/);
   });
 });

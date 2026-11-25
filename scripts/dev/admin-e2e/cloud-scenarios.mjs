@@ -507,7 +507,7 @@ scenarios.C1 = {
     // Sign out, then in again through the form.
     await b.open(`${C()}/`);
     // Sign out lives in the avatar menu (canvas 16): open it, then click.
-    await b.click('details.ad-me > summary');
+    await b.click('details.ma-me > summary');
     await b.click('form[action="/auth/logout"] button');
     const out = await b.until((s) => !s.text.includes(owner.email));
     check('sign out ends the browser session', out.ok, out.url);
@@ -1301,8 +1301,8 @@ scenarios.C4 = {
     );
     // Find someone sits in the table's tab strip (canvas 16, cl-people).
     // Enter in the field submits it; the Find button is there for screen readers only.
-    await b.fill('form.ad-filter input[name=q]', asker.email.slice(0, 6));
-    await b.eval(`(document.querySelector('form.ad-filter').requestSubmit(),'ok')`);
+    await b.fill('form.ma-filter input[name=q]', asker.email.slice(0, 6));
+    await b.eval(`(document.querySelector('form.ma-filter').requestSubmit(),'ok')`);
     const found = await b.until((x) => /[?&]q=/.test(x.url));
     const matrixText = found.text.split('Projects you own')[1]?.split('Shared with you')[0] ?? '';
     check(

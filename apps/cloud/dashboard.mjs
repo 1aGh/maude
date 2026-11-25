@@ -84,7 +84,7 @@ function projectMenu(project, { can }) {
     menu.push('<div class="menu-sep"></div>');
     menu.push(`<a class="danger" href="${p}/delete">Delete project…</a>`);
   }
-  return `<details class="menu ad-hover-menu">
+  return `<details class="menu ma-hover-menu">
     <summary aria-label="More for ${esc(project.name || project.id)}">${icon('more', 14)}</summary>
     <div class="menu-list">${menu.join('\n')}</div>
   </details>`;
@@ -109,7 +109,7 @@ const ROLE_WORD = {
 
 function faces(people) {
   if (!people?.length) return '';
-  return `<span class="ad-faces">${people
+  return `<span class="ma-faces">${people
     .slice(0, 3)
     .map((who) => avatar(who.name || who.email, { size: 'sm', seed: who.email }))
     .join('')}</span>`;
@@ -132,18 +132,18 @@ function projectCard(project, { can, plan = null, week = null, people = null }) 
       : project.role === 'owner'
         ? ''
         : (ROLE_WORD[project.role] ?? '');
-  return `<article class="ad-proj">
+  return `<article class="ma-proj">
     ${thumb()}
-    <span class="ad-proj-b">
+    <span class="ma-proj-b">
       <strong><a href="${primaryHref(project)}">${esc(project.name || project.id)}</a></strong>
-      <span class="ad-proj-m"><span>${esc(meta)}</span>${faces(people)}</span>
+      <span class="ma-proj-m"><span>${esc(meta)}</span>${faces(people)}</span>
       ${statusWord(SW[copy.tone] ?? 'warn', copy.label)}
-      ${copy.note ? `<span class="ad-proj-n">${esc(copy.note)}</span>` : ''}
+      ${copy.note ? `<span class="ma-proj-n">${esc(copy.note)}</span>` : ''}
       ${
         // The plan, for the OWNER only (plan-copy.mjs): a trial with the date
         // it is free until, Promo, or that a plan is due. A member's card has
         // no such line — a plan is the owner's business (canvas 16).
-        plan?.line ? `<span class="ad-proj-n plan-line">${esc(plan.line)}</span>` : ''
+        plan?.line ? `<span class="ma-proj-n plan-line">${esc(plan.line)}</span>` : ''
       }
     </span>
     ${projectMenu(project, { can })}
@@ -191,11 +191,11 @@ function changesChart(changes) {
       return `<i style="height:100%"><b style="height:${pct}%"></b></i>`;
     })
     .join('');
-  return `<div class="ad-card chart">
-    <h2 class="ad-card-h">Changes per day <span class="ad-legend" aria-hidden="true"><span><i></i>Earlier days</span><span><i class="ad-lg-a"></i>Today</span></span></h2>
-    <div class="ad-bars" role="img" aria-label="${esc(summary)}">${bars}</div>
-    <div class="ad-bars-x" aria-hidden="true"><span>${esc(shortDay(days[0].day))}</span><span>${esc(shortDay(days[Math.floor(days.length / 2)].day))}</span><span>Today</span></div>
-    ${changes.reporting < changes.of ? `<p class="ad-card-p">From the ${changes.reporting} of your ${changes.of} projects that report it.</p>` : ''}
+  return `<div class="ma-card chart">
+    <h2 class="ma-card-h">Changes per day <span class="ma-legend" aria-hidden="true"><span><i></i>Earlier days</span><span><i class="ma-lg-a"></i>Today</span></span></h2>
+    <div class="ma-bars" role="img" aria-label="${esc(summary)}">${bars}</div>
+    <div class="ma-bars-x" aria-hidden="true"><span>${esc(shortDay(days[0].day))}</span><span>${esc(shortDay(days[Math.floor(days.length / 2)].day))}</span><span>Today</span></div>
+    ${changes.reporting < changes.of ? `<p class="ma-card-p">From the ${changes.reporting} of your ${changes.of} projects that report it.</p>` : ''}
   </div>`;
 }
 
@@ -284,7 +284,7 @@ function overviewSection(overview) {
   const total = opens.reduce((sum, [, n]) => sum + n, 0);
   const row = (glyph, name, line) =>
     rows.push(
-      `<div class="ad-need${rows.length ? '' : ' ad-need--first'}">${icon(glyph)}<span class="ad-need-t"><strong>${esc(name)}</strong><span>${esc(line)}</span></span></div>`
+      `<div class="ma-need${rows.length ? '' : ' ma-need--first'}">${icon(glyph)}<span class="ma-need-t"><strong>${esc(name)}</strong><span>${esc(line)}</span></span></div>`
     );
   for (const [surface, n] of opens.sort((a, b) => b[1] - a[1])) {
     row(
@@ -299,22 +299,22 @@ function overviewSection(overview) {
   }
   if (!tiles.length && !rows.length) return '';
   const where = rows.length
-    ? `<div class="ad-card where">
-         <h2 class="ad-card-h">${opens.length ? 'Where people open their work' : 'Invitations'} <small>last 30 days</small></h2>
-         <div class="ad-feed">${rows.join('\n')}</div>
+    ? `<div class="ma-card where">
+         <h2 class="ma-card-h">${opens.length ? 'Where people open their work' : 'Invitations'} <small>last 30 days</small></h2>
+         <div class="ma-feed">${rows.join('\n')}</div>
        </div>`
     : '';
   const chart = changes ? changesChart(changes) : '';
   return `<section class="overview" aria-label="How your projects are used">
-    ${tiles.length ? `<div class="ad-stats" style="--n:${tiles.length}">${tiles.join('\n')}</div>` : ''}
-    ${chart && where ? `<div class="ad-cols ad-cols--2-1">${chart}${where}</div>` : `${chart}${where}`}
+    ${tiles.length ? `<div class="ma-stats" style="--n:${tiles.length}">${tiles.join('\n')}</div>` : ''}
+    ${chart && where ? `<div class="ma-cols ma-cols--2-1">${chart}${where}</div>` : `${chart}${where}`}
   </section>`;
 }
 
 /** How many project cards the Overview's strip shows before "All N" takes over. */
 const STRIP = 5;
 
-const newProjectTile = `<a class="ad-proj ad-proj--new" href="/projects/new"><span class="ad-plus">${icon('plus', 16)}</span>New project</a>`;
+const newProjectTile = `<a class="ma-proj ma-proj--new" href="/projects/new"><span class="ma-plus">${icon('plus', 16)}</span>New project</a>`;
 
 /** The strip of project cards, with the "New project" tile at its end. */
 function projectStrip(projects, { can, plans, overview, limit = STRIP }) {
@@ -328,7 +328,7 @@ function projectStrip(projects, { can, plans, overview, limit = STRIP }) {
       people: p.role === 'owner' ? (overview?.faces?.get(p.id) ?? null) : null,
     })
   );
-  return `<div class="ad-projects" style="--n:${limit ? STRIP + 1 : 4}">${cards.join('\n')}${newProjectTile}</div>`;
+  return `<div class="ma-projects" style="--n:${limit ? STRIP + 1 : 4}">${cards.join('\n')}${newProjectTile}</div>`;
 }
 
 /**
@@ -344,38 +344,38 @@ function memberOverview({ projects, can }) {
     .map((p) => {
       const copy = STATE_COPY[p.state] ?? { tone: 'warn', label: p.state, note: null };
       return `<tr>
-        <td><a class="ad-who" href="${primaryHref(p)}">${thumb('ad-thumb--row')}<span class="ad-who-t"><strong>${esc(p.name || p.id)}</strong><span>${esc(owners.length === 1 ? copy.label : p.ownerName ? `${p.ownerName} · ${copy.label}` : copy.label)}</span></span></a></td>
-        <td><span class="ad-mrole">${esc(ROLE_WORD[p.role] ?? 'Can view')}</span></td>
-        <td><span class="ad-row-a">${projectMenu(p, { can: (capability) => can(p.role, capability) })}${p.state === 'purged' ? '' : `<a class="btn btn--ghost btn--sm" href="${primaryHref(p)}">${p.state === 'pending' ? 'Setup progress' : 'Open'}</a>`}</span></td>
-      </tr>${copy.note ? `<tr class="is-dim"><td colspan="3" class="ad-wrap">${esc(copy.note)}</td></tr>` : ''}`;
+        <td><a class="ma-who" href="${primaryHref(p)}">${thumb('ma-thumb--row')}<span class="ma-who-t"><strong>${esc(p.name || p.id)}</strong><span>${esc(owners.length === 1 ? copy.label : p.ownerName ? `${p.ownerName} · ${copy.label}` : copy.label)}</span></span></a></td>
+        <td><span class="ma-mrole">${esc(ROLE_WORD[p.role] ?? 'Can view')}</span></td>
+        <td><span class="ma-row-a">${projectMenu(p, { can: (capability) => can(p.role, capability) })}${p.state === 'purged' ? '' : `<a class="btn btn--ghost btn--sm" href="${primaryHref(p)}">${p.state === 'pending' ? 'Setup progress' : 'Open'}</a>`}</span></td>
+      </tr>${copy.note ? `<tr class="is-dim"><td colspan="3" class="ma-wrap">${esc(copy.note)}</td></tr>` : ''}`;
     })
     .join('\n');
-  return `<div class="ad-cols ad-cols--2-1">
-    <div class="ad-card ad-card--clip">
-      <h2 class="ad-card-h">Shared with you${owners.length === 1 ? ` by ${esc(owners[0])}` : ''}</h2>
-      <div class="ad-scroll"><table class="ad-table">
-        <thead><tr><th scope="col">Project</th><th scope="col">You can</th><th scope="col"><span class="ad-sr">Action</span></th></tr></thead>
+  return `<div class="ma-cols ma-cols--2-1">
+    <div class="ma-card ma-card--clip">
+      <h2 class="ma-card-h">Shared with you${owners.length === 1 ? ` by ${esc(owners[0])}` : ''}</h2>
+      <div class="ma-scroll"><table class="ma-table">
+        <thead><tr><th scope="col">Project</th><th scope="col">You can</th><th scope="col"><span class="ma-sr">Action</span></th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
     </div>
-    <div class="ad-stack">
-      <div class="ad-card">
-        <h2 class="ad-card-h">Your own account</h2>
-        <div class="ad-need ad-need--first">${icon('folder')}<span class="ad-need-t"><strong>No projects of your own yet</strong><span>${pricing.trialDays} days free, no card. Only you pay for what you start.</span></span><span class="ad-need-a"><a class="btn btn--sm" href="/projects/new">Start a project</a></span></div>
+    <div class="ma-stack">
+      <div class="ma-card">
+        <h2 class="ma-card-h">Your own account</h2>
+        <div class="ma-need ma-need--first">${icon('folder')}<span class="ma-need-t"><strong>No projects of your own yet</strong><span>${pricing.trialDays} days free, no card. Only you pay for what you start.</span></span><span class="ma-need-a"><a class="btn btn--sm" href="/projects/new">Start a project</a></span></div>
       </div>
-      <div class="ad-card">
-        <h2 class="ad-card-h">Your Macs</h2>
-        <div class="ad-need ad-need--first">${icon('laptop')}<span class="ad-need-t"><strong>The Macs signed in to your account</strong><span>See them, and sign one out.</span></span><span class="ad-need-a"><a class="btn btn--ghost btn--sm" href="/account/macs">Manage</a></span></div>
+      <div class="ma-card">
+        <h2 class="ma-card-h">Your Macs</h2>
+        <div class="ma-need ma-need--first">${icon('laptop')}<span class="ma-need-t"><strong>The Macs signed in to your account</strong><span>See them, and sign one out.</span></span><span class="ma-need-a"><a class="btn btn--ghost btn--sm" href="/account/macs">Manage</a></span></div>
       </div>
-      <div class="ad-card">
-        <h2 class="ad-card-h">Emails</h2>
-        <div class="ad-need ad-need--first"><span class="ad-need-t"><strong>Mentions and invites</strong><span>Which e-mails Maude Cloud sends you.</span></span><span class="ad-need-a"><a class="btn btn--ghost btn--sm" href="/account/emails">Change</a></span></div>
+      <div class="ma-card">
+        <h2 class="ma-card-h">Emails</h2>
+        <div class="ma-need ma-need--first"><span class="ma-need-t"><strong>Mentions and invites</strong><span>Which e-mails Maude Cloud sends you.</span></span><span class="ma-need-a"><a class="btn btn--ghost btn--sm" href="/account/emails">Change</a></span></div>
       </div>
     </div>
   </div>`;
 }
 
-const EMPTY = `<div class="ad-card ad-empty empty">
+const EMPTY = `<div class="ma-card ma-empty empty">
   <p><strong>No projects yet.</strong></p>
   <p class="note">A project is one design system and the work around it.
     You can invite people to it once it exists.</p>
@@ -430,8 +430,8 @@ export function dashboardPage({
   }
   const body = projects.length
     ? `${overviewSection(overview)}
-       <div class="ad-card ad-gap">
-         <h2 class="ad-card-h">Projects <a class="ad-link" href="/projects">All ${projects.length}</a></h2>
+       <div class="ma-card ma-gap">
+         <h2 class="ma-card-h">Projects <a class="ma-link" href="/projects">All ${projects.length}</a></h2>
          ${projectStrip(projects, { can, plans, overview })}
        </div>`
     : EMPTY;
@@ -464,7 +464,7 @@ export function projectsPage({ account, projects = [], can, overview = null, pla
     active: 'projects',
     wide: true,
     body: projects.length
-      ? `<div class="ad-card"><h2 class="ad-card-h">All projects <small>${projects.length}</small></h2>${projectStrip(projects, { can, plans, overview, limit: 0 })}</div>`
+      ? `<div class="ma-card"><h2 class="ma-card-h">All projects <small>${projects.length}</small></h2>${projectStrip(projects, { can, plans, overview, limit: 0 })}</div>`
       : EMPTY,
   });
 }

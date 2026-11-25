@@ -387,7 +387,7 @@ describe('the one write', () => {
     // Live finding 2026-11-25: the nav linked /operator/fleet and it 404ed.
     const { env } = fresh();
     const board = await (await call(get('/operator'), env, OPERATOR)).text();
-    const hrefs = [...board.matchAll(/<a class="ad-nav-tab" href="(\/operator[^"]*)"/g)].map(
+    const hrefs = [...board.matchAll(/<a class="ma-nav-tab" href="(\/operator[^"]*)"/g)].map(
       (m) => m[1]
     );
     assert.ok(hrefs.includes('/operator/fleet'), `nav: ${hrefs.join(', ')}`);

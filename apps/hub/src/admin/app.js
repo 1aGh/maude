@@ -230,12 +230,12 @@ function tone(name) {
 }
 const avatar = (name, lg = false) =>
   `<span class="k-av k-av--${tone(name)}${lg ? ' k-av--lg' : ''}" aria-hidden="true">${esc(String(name || '?')[0])}</span>`;
-const serverIcon = () => `<span class="ad-ev-ic">${ic('server', 13)}</span>`;
+const serverIcon = () => `<span class="ma-ev-ic">${ic('server', 13)}</span>`;
 /** Who did it: a person's initial, or a glyph for the server and for the admin key (not a person). */
 const actorMark = (actor) =>
-  actor === 'Admin key' ? `<span class="ad-ev-ic">${ic('lock', 13)}</span>` : avatar(actor);
+  actor === 'Admin key' ? `<span class="ma-ev-ic">${ic('lock', 13)}</span>` : avatar(actor);
 const who = (title, sub, lg = true) =>
-  `<span class="ad-who">${avatar(title, lg)}<span class="ad-who-t"><strong>${esc(title)}</strong>${sub ? `<span>${esc(sub)}</span>` : ''}</span></span>`;
+  `<span class="ma-who">${avatar(title, lg)}<span class="ma-who-t"><strong>${esc(title)}</strong>${sub ? `<span>${esc(sub)}</span>` : ''}</span></span>`;
 /** Status is always a word with a dot. */
 const sw = (kind, word) => `<span class="k-sw k-sw--${kind}"><i></i>${esc(word)}</span>`;
 const btn = (label, attrs, cls = '') =>
@@ -269,7 +269,7 @@ async function copyText(text, el) {
 let retryAction = null;
 function showNote(text, { bad = false, retry = null } = {}) {
   $('page-note-text').textContent = text;
-  $('page-note').classList.toggle('ad-note--bad', bad);
+  $('page-note').classList.toggle('ma-note--bad', bad);
   $('page-note-retry').hidden = !retry;
   retryAction = retry;
   $('page-note').hidden = false;
@@ -411,15 +411,15 @@ function showMember(m) {
     ? `You can edit everything on ${hub}${runs}`
     : `You can edit ${plural(m.access?.canvases?.length ?? 0, 'canvas', 'canvases')} on ${hub}${runs}`;
   const row = (icon, strong, sub, action = '') =>
-    `<div class="ad-need ad-need--flat">${ic(icon, 16)}<span class="ad-need-t"><strong>${esc(strong)}</strong><span>${esc(sub)}</span></span>${action ? `<span class="ad-need-a">${action}</span>` : ''}</div>`;
+    `<div class="ma-need ma-need--flat">${ic(icon, 16)}<span class="ma-need-t"><strong>${esc(strong)}</strong><span>${esc(sub)}</span></span>${action ? `<span class="ma-need-a">${action}</span>` : ''}</div>`;
   $('member-access').innerHTML = m.access?.everything
-    ? `<div class="ad-ev"><span class="ad-ev-ic">${ic('folder', 13)}</span><span class="ad-ev-t"><strong>All projects</strong> <span>· now and new ones</span></span>${sw('ok', 'Can edit')}</div>`
+    ? `<div class="ma-ev"><span class="ma-ev-ic">${ic('folder', 13)}</span><span class="ma-ev-t"><strong>All projects</strong> <span>· now and new ones</span></span>${sw('ok', 'Can edit')}</div>`
     : (m.access?.canvases ?? [])
         .map(
           (c) =>
-            `<div class="ad-ev"><span class="ad-ev-ic">${ic('folder', 13)}</span><span class="ad-ev-t"><strong>${esc(c)}</strong></span>${sw('ok', 'Can edit')}</div>`
+            `<div class="ma-ev"><span class="ma-ev-ic">${ic('folder', 13)}</span><span class="ma-ev-t"><strong>${esc(c)}</strong></span>${sw('ok', 'Can edit')}</div>`
         )
-        .join('') || '<p class="ad-empty">Nothing yet.</p>';
+        .join('') || '<p class="ma-empty">Nothing yet.</p>';
   $('member-sessions').innerHTML =
     (m.sessions ?? [])
       .map((s) =>
@@ -429,7 +429,7 @@ function showMember(m) {
           `${s.current ? 'This one · ' : ''}${formatTime(s.lastUsedAt ?? s.createdAt).toLowerCase()}`
         )
       )
-      .join('') || '<p class="ad-empty">Nowhere else.</p>';
+      .join('') || '<p class="ma-empty">Nowhere else.</p>';
   $('member-admins').innerHTML = m.runBy?.length
     ? row('people', m.runBy.join(', '), 'Ask them for access or to invite someone.')
     : row(
@@ -674,7 +674,7 @@ function spark(days) {
       return `<rect x="${(i * w).toFixed(2)}" y="${28 - h}" width="${(w - 1.4).toFixed(2)}" height="${h}" rx="1.2"${i === days.length - 1 ? ' class="is-today"' : ''}><title>${esc(d.day)}: ${d.count}</title></rect>`;
     })
     .join('');
-  return `<svg class="ad-spark" viewBox="0 0 100 28" preserveAspectRatio="none">${bars}</svg>`;
+  return `<svg class="ma-spark" viewBox="0 0 100 28" preserveAspectRatio="none">${bars}</svg>`;
 }
 
 function renderOverview(o) {
@@ -705,7 +705,7 @@ function renderOverview(o) {
   // ---- what needs you: the biggest thing on the page, acted on in place
   const needs = state.platform ? o.needs.filter((x) => x.type === 'backup') : o.needs;
   const n = needs.length;
-  $('ov-hero').classList.toggle('ad-hero--quiet', n === 0);
+  $('ov-hero').classList.toggle('ma-hero--quiet', n === 0);
   $('ov-needs-n').textContent = n;
   $('ov-needs-n').hidden = n === 0;
   $('ov-needs-t').textContent =
@@ -715,12 +715,12 @@ function renderOverview(o) {
   $('ov-needs-rows').innerHTML = needs
     .map((x) => {
       if (x.type === 'backup') {
-        return `<div class="ad-need" data-testid="need-backup"><span class="ad-ev-ic">${ic('server', 13)}</span><span class="ad-need-t"><strong>${x.since ? `The last backup is from ${esc(formatTime(x.since).toLowerCase())}` : 'There is no backup yet'}</strong><span>${x.failing ? 'The last attempt failed — see Health below' : 'Backups are set up, but none has been made for a while'}</span></span><span class="ad-need-a">${btn(x.running ? 'Backing up…' : 'Back up now', `data-backup="1" data-testid="need-backup-now"${x.running ? ' disabled' : ''}`, 'btn--primary')}</span></div>`;
+        return `<div class="ma-need" data-testid="need-backup"><span class="ma-ev-ic">${ic('server', 13)}</span><span class="ma-need-t"><strong>${x.since ? `The last backup is from ${esc(formatTime(x.since).toLowerCase())}` : 'There is no backup yet'}</strong><span>${x.failing ? 'The last attempt failed — see Health below' : 'Backups are set up, but none has been made for a while'}</span></span><span class="ma-need-a">${btn(x.running ? 'Backing up…' : 'Back up now', `data-backup="1" data-testid="need-backup-now"${x.running ? ' disabled' : ''}`, 'btn--primary')}</span></div>`;
       }
       if (x.type === 'request') {
-        return `<div class="ad-need" data-testid="need-request">${avatar(x.email, true)}<span class="ad-need-t"><strong>${esc(x.email ?? 'Someone')} asks to join</strong><span>Signed in${provider ? ` with ${esc(provider)}` : ''} ${esc(formatTime(x.since).toLowerCase())} — nobody has invited them yet</span></span><span class="ad-need-a">${btn('Dismiss', `data-dismiss="${esc(x.sub)}"`)}${btn('Let in · Can edit', `data-letin="${esc(x.sub)}" data-testid="need-letin"`, 'btn--primary')}</span></div>`;
+        return `<div class="ma-need" data-testid="need-request">${avatar(x.email, true)}<span class="ma-need-t"><strong>${esc(x.email ?? 'Someone')} asks to join</strong><span>Signed in${provider ? ` with ${esc(provider)}` : ''} ${esc(formatTime(x.since).toLowerCase())} — nobody has invited them yet</span></span><span class="ma-need-a">${btn('Dismiss', `data-dismiss="${esc(x.sub)}"`)}${btn('Let in · Can edit', `data-letin="${esc(x.sub)}" data-testid="need-letin"`, 'btn--primary')}</span></div>`;
       }
-      return `<div class="ad-need" data-testid="need-invite">${avatar(x.email ?? '?', true)}<span class="ad-need-t"><strong>${esc(x.email ?? 'A link for anyone')}'s invite hasn't been opened</strong><span>Made ${esc(formatTime(x.since).toLowerCase())} · the link works for ${esc(formatUntil(x.expiresAt))}</span></span><span class="ad-need-a">${btn('Copy a new link', `data-reissue="${esc(x.id)}"`)}</span></div>`;
+      return `<div class="ma-need" data-testid="need-invite">${avatar(x.email ?? '?', true)}<span class="ma-need-t"><strong>${esc(x.email ?? 'A link for anyone')}'s invite hasn't been opened</strong><span>Made ${esc(formatTime(x.since).toLowerCase())} · the link works for ${esc(formatUntil(x.expiresAt))}</span></span><span class="ma-need-a">${btn('Copy a new link', `data-reissue="${esc(x.id)}"`)}</span></div>`;
     })
     .join('');
   wirePeopleActions($('ov-needs-rows'));
@@ -767,7 +767,7 @@ function renderOverview(o) {
       const fact = h.at ? formatTime(h.at) : h.value;
       const kind = h.state === 'bad' ? 'error' : h.state;
       const offer = h.canRunNow && !h.running && (h.stale || h.state !== 'ok');
-      return `<span class="ad-hl" data-testid="health-${esc(h.key)}"><span>${esc(h.label)}</span><strong>${esc(fact)}</strong>${sw(kind, h.running ? 'Backing up…' : h.word)}${offer ? btn('Back up now', 'data-backup="1" data-testid="health-backup-now"') : ''}</span>`;
+      return `<span class="ma-hl" data-testid="health-${esc(h.key)}"><span>${esc(h.label)}</span><strong>${esc(fact)}</strong>${sw(kind, h.running ? 'Backing up…' : h.word)}${offer ? btn('Back up now', 'data-backup="1" data-testid="health-backup-now"') : ''}</span>`;
     })
     .join('');
   wirePeopleActions($('ov-health'));
@@ -776,9 +776,9 @@ function renderOverview(o) {
     o.recent
       .map((e) => {
         const server = !e.actor || e.actor === 'Server';
-        return `<div class="ad-ev">${server ? serverIcon() : actorMark(e.actor)}<span class="ad-ev-t">${server ? '' : `<strong>${esc(firstName(e.actor) || e.actor)}</strong> `}<span>${eventText(e, { lower: !server })}</span></span><time>${esc(formatShort(e.at))}</time></div>`;
+        return `<div class="ma-ev">${server ? serverIcon() : actorMark(e.actor)}<span class="ma-ev-t">${server ? '' : `<strong>${esc(firstName(e.actor) || e.actor)}</strong> `}<span>${eventText(e, { lower: !server })}</span></span><time>${esc(formatShort(e.at))}</time></div>`;
       })
-      .join('') || '<p class="ad-empty">Nothing yet.</p>';
+      .join('') || '<p class="ma-empty">Nothing yet.</p>';
   $('activity-sub').textContent =
     `Kept for ${plural(o.retentionDays, 'day')} · ${plural(c.eventsThisWeek, 'event')} this week`;
 }
@@ -790,7 +790,7 @@ function renderOverview(o) {
 
 function statusCell(p) {
   if (p.status === 'asks') {
-    return `<span class="chip ad-chip ad-chip--warn">${ic('people', 12)}${esc(p.statusLabel)}</span>`;
+    return `<span class="chip ma-chip ma-chip--warn">${ic('people', 12)}${esc(p.statusLabel)}</span>`;
   }
   const kind = { online: 'ok', away: 'off', off: 'off', invited: 'busy' }[p.status] ?? 'off';
   return sw(kind, p.statusLabel);
@@ -801,13 +801,13 @@ function roleCell(p) {
   const opt = (v, label, cur) =>
     `<option value="${v}"${cur === v ? ' selected' : ''}>${label}</option>`;
   if (p.kind === 'invite' || p.status === 'off' || p.canvases) {
-    return `<span class="ad-role ad-role--fixed">${esc(p.roleLabel)}</span>`;
+    return `<span class="ma-role ma-role--fixed">${esc(p.roleLabel)}</span>`;
   }
   const attr =
     p.kind === 'request'
       ? `data-role-for="${esc(p.sub)}" aria-label="Let in as"`
       : `data-role-of="${esc(p.id)}" aria-label="What ${esc(p.email)} can do"`;
-  return `<span class="ad-role"><select ${attr} data-testid="person-role">${opt('member', 'Can edit', p.role)}${opt('admin', 'Admin', p.role)}</select>${ic('chevron', 12)}</span>`;
+  return `<span class="ma-role"><select ${attr} data-testid="person-role">${opt('member', 'Can edit', p.role)}${opt('admin', 'Admin', p.role)}</select>${ic('chevron', 12)}</span>`;
 }
 
 function rowActions(p) {
@@ -875,8 +875,8 @@ function renderPeople() {
             `<tr class="${cls}" data-key="${esc(p.key)}" data-testid="person-row">` +
             `<td>${who(p.email ?? 'Anyone with the link', under)}</td>` +
             `<td>${roleCell(p)}</td><td data-testid="person-status">${statusCell(p)}</td>` +
-            `<td class="ad-quiet">${esc(seen)}</td>` +
-            `<td><span class="ad-row-a">${rowActions(p)}</span></td></tr>`
+            `<td class="ma-quiet">${esc(seen)}</td>` +
+            `<td><span class="ma-row-a">${rowActions(p)}</span></td></tr>`
           );
         })
         .join('')
@@ -899,7 +899,7 @@ function renderPeople() {
   }
   for (const tr of all('tr[data-key]', tbody)) {
     tr.addEventListener('click', (e) => {
-      if (!e.target.closest('button, select, .ad-role')) openPerson(tr.dataset.key);
+      if (!e.target.closest('button, select, .ma-role')) openPerson(tr.dataset.key);
     });
   }
 }
@@ -944,13 +944,13 @@ function wirePeopleActions(root) {
   });
 }
 
-// ---- sheets: a veil over the page, the sheet at the right (canvas `ad-sheet`)
+// ---- sheets: a veil over the page, the sheet at the right (canvas `ma-sheet`)
 
 function openSheet(dialog) {
   if (!dialog.open) dialog.showModal();
   document.body.classList.add('has-sheet');
 }
-for (const d of all('dialog.ad-sheet')) {
+for (const d of all('dialog.ma-sheet')) {
   d.addEventListener('close', () => {
     document.body.classList.remove('has-sheet');
     delete d.dataset.key;
@@ -974,8 +974,8 @@ async function openPerson(key) {
   const actions = $('person-actions');
   const head = who(p.email ?? 'Anyone with the link', p.statusLabel);
   const close =
-    '<span class="ad-sp"></span><button type="button" class="btn btn--ghost" data-close>Close</button>';
-  const inAll = `<span class="field"><span class="field-label">In</span><span class="ad-sel">All projects — now and new ones${ic('chevron', 12)}</span></span>`;
+    '<span class="ma-sp"></span><button type="button" class="btn btn--ghost" data-close>Close</button>';
+  const inAll = `<span class="field"><span class="field-label">In</span><span class="ma-sel">All projects — now and new ones${ic('chevron', 12)}</span></span>`;
 
   if (p.kind === 'request') {
     // The link action keys on the SUBJECT and the admin types the address:
@@ -983,18 +983,18 @@ async function openPerson(key) {
     // guess the sign-in path refuses to make.
     const sub = esc(p.sub);
     body.innerHTML = `${head}
-      <span class="field"><span class="field-label">Let in as</span><span class="seg ad-seg" id="letin-role"><button type="button" class="ad-seg-b" data-role="member" aria-pressed="true">Can edit</button><button type="button" class="ad-seg-b" data-role="admin" aria-pressed="false">Admin</button></span>
+      <span class="field"><span class="field-label">Let in as</span><span class="seg ma-seg" id="letin-role"><button type="button" class="ma-seg-b" data-role="member" aria-pressed="true">Can edit</button><button type="button" class="ma-seg-b" data-role="admin" aria-pressed="false">Admin</button></span>
       <span class="field-hint">Signed in ${esc(formatTime(p.createdAt).toLowerCase())} and has no account here. Nobody invited this address.</span></span>
       ${inAll}
-      <p class="ad-sub ad-sub--flat">Already has an account here? ${
+      <p class="ma-sub ma-sub--flat">Already has an account here? ${
         hasKey()
-          ? `<button type="button" class="ad-link" data-link="${sub}">Link to an existing account</button> — its password stops working and its sessions end.`
+          ? `<button type="button" class="ma-link" data-link="${sub}">Link to an existing account</button> — its password stops working and its sessions end.`
           : 'They sign in with its password and choose Link my sign-in. Linking for someone else needs the admin key.'
       }</p>`;
-    actions.innerHTML = `${btn('Dismiss', 'data-x="dismiss"')}<span class="ad-sp"></span><button type="button" class="btn btn--ghost" data-close>Close</button><button type="button" class="btn btn--primary" data-approve="${sub}" data-testid="sheet-letin">Let in</button>`;
-    for (const b of all('#letin-role .ad-seg-b', body)) {
+    actions.innerHTML = `${btn('Dismiss', 'data-x="dismiss"')}<span class="ma-sp"></span><button type="button" class="btn btn--ghost" data-close>Close</button><button type="button" class="btn btn--primary" data-approve="${sub}" data-testid="sheet-letin">Let in</button>`;
+    for (const b of all('#letin-role .ma-seg-b', body)) {
       b.addEventListener('click', () => {
-        for (const o of all('#letin-role .ad-seg-b', body))
+        for (const o of all('#letin-role .ma-seg-b', body))
           o.setAttribute('aria-pressed', String(o === b));
       });
     }
@@ -1014,10 +1014,10 @@ async function openPerson(key) {
     const id = esc(p.id);
     const label = esc(p.email ?? 'a link for anyone');
     body.innerHTML = `${head}
-      <span class="field"><span class="field-label">They can</span><span class="seg ad-seg"><span class="ad-seg-b" aria-pressed="true">${esc(p.roleLabel)}</span></span></span>
+      <span class="field"><span class="field-label">They can</span><span class="seg ma-seg"><span class="ma-seg-b" aria-pressed="true">${esc(p.roleLabel)}</span></span></span>
       ${inAll}
-      <div><div class="ad-adv-row"><span>The link works for</span><span class="ad-quiet">${esc(formatUntil(p.expiresAt))}</span></div><div class="ad-adv-row"><span>Made</span><span class="ad-quiet">${esc(formatTime(p.createdAt))}</span></div></div>
-      <p class="ad-sub ad-sub--flat">The link was shown once, when the invite was made. Copy a new link makes a fresh one; the old one stops working.</p>`;
+      <div><div class="ma-adv-row"><span>The link works for</span><span class="ma-quiet">${esc(formatUntil(p.expiresAt))}</span></div><div class="ma-adv-row"><span>Made</span><span class="ma-quiet">${esc(formatTime(p.createdAt))}</span></div></div>
+      <p class="ma-sub ma-sub--flat">The link was shown once, when the invite was made. Copy a new link makes a fresh one; the old one stops working.</p>`;
     actions.innerHTML = `<button type="button" class="btn btn--sm k-btn-danger" data-revoke="${id}" data-testid="invite-revoke" aria-label="Revoke the invitation for ${label}">Cancel invite</button>${btn('Copy a new link', 'data-x="reissue"')}${close}`;
     actions
       .querySelector('[data-revoke]')
@@ -1031,24 +1031,24 @@ async function openPerson(key) {
   } else {
     const off = p.status === 'off';
     const seg = (role, label) =>
-      `<button type="button" class="ad-seg-b" data-role="${role}" aria-pressed="${p.role === role}" data-testid="role-${role}">${label}</button>`;
+      `<button type="button" class="ma-seg-b" data-role="${role}" aria-pressed="${p.role === role}" data-testid="role-${role}">${label}</button>`;
     const kinds = { browser: 'A browser', app: 'The Maude app', token: 'A token' };
     const short = firstName(p.email) || p.email;
     body.innerHTML = `${head}
-      <span class="field"><span class="field-label">${esc(short)} can</span><span class="seg ad-seg" id="person-role">${seg('member', 'Can edit')}${seg('admin', 'Admin')}</span>
+      <span class="field"><span class="field-label">${esc(short)} can</span><span class="seg ma-seg" id="person-role">${seg('member', 'Can edit')}${seg('admin', 'Admin')}</span>
       <span class="field-hint">Changes at once: ${esc(short)} is signed out everywhere and signs in again with the new role.${p.canvases ? ` Has ${plural(p.canvases, 'canvas', 'canvases')} only.` : ''}</span></span>
       ${inAll}
-      <div><h4 class="ad-sheet-h4">Signed in on</h4>${
+      <div><h4 class="ma-sheet-h4">Signed in on</h4>${
         p.sessions
           .map(
             (s) =>
-              `<div class="ad-adv-row"><span>${kinds[s.kind]} <span class="ad-quiet">· ${s.live ? 'now' : esc(formatTime(s.lastUsedAt ?? s.createdAt).toLowerCase())}</span></span>${btn('Sign out', `data-signout-label="${esc(s.label)}"`, 'btn--ghost')}</div>`
+              `<div class="ma-adv-row"><span>${kinds[s.kind]} <span class="ma-quiet">· ${s.live ? 'now' : esc(formatTime(s.lastUsedAt ?? s.createdAt).toLowerCase())}</span></span>${btn('Sign out', `data-signout-label="${esc(s.label)}"`, 'btn--ghost')}</div>`
           )
           .join('') ||
-        '<div class="ad-adv-row"><span class="ad-quiet">Nowhere right now</span></div>'
+        '<div class="ma-adv-row"><span class="ma-quiet">Nowhere right now</span></div>'
       }</div>
-      <div><h4 class="ad-sheet-h4">Lately <button type="button" class="ad-link" data-see-all>See all in Activity</button></h4><div id="person-lately" data-testid="person-lately"><div class="ad-adv-row"><span class="ad-quiet">…</span></div></div></div>
-      <p class="ad-sub ad-sub--flat">Turn off keeps ${esc(short)}'s work and ends every session; you can turn ${esc(short)} back on. Remove asks first. The last Admin can't be turned off or removed. ${p.linked ? `Signs in with ${esc(state.people.signIn.provider ?? 'the provider')}.` : 'Signs in with a password.'}</p>`;
+      <div><h4 class="ma-sheet-h4">Lately <button type="button" class="ma-link" data-see-all>See all in Activity</button></h4><div id="person-lately" data-testid="person-lately"><div class="ma-adv-row"><span class="ma-quiet">…</span></div></div></div>
+      <p class="ma-sub ma-sub--flat">Turn off keeps ${esc(short)}'s work and ends every session; you can turn ${esc(short)} back on. Remove asks first. The last Admin can't be turned off or removed. ${p.linked ? `Signs in with ${esc(state.people.signIn.provider ?? 'the provider')}.` : 'Signs in with a password.'}</p>`;
     actions.innerHTML =
       (off
         ? btn('Turn back on', 'data-x="turn-on" data-testid="sheet-turnon"')
@@ -1102,13 +1102,13 @@ async function openPerson(key) {
           a.events
             .map(
               (e) =>
-                `<div class="ad-adv-row"><span>${e.actor === p.email ? '' : `${esc(firstName(e.actor) || e.actor || 'Server')}: `}${eventText({ ...e, target: e.target === p.email ? '' : e.target }, { lower: e.actor !== p.email })}</span><span class="ad-quiet">${esc(formatShort(e.at))}</span></div>`
+                `<div class="ma-adv-row"><span>${e.actor === p.email ? '' : `${esc(firstName(e.actor) || e.actor || 'Server')}: `}${eventText({ ...e, target: e.target === p.email ? '' : e.target }, { lower: e.actor !== p.email })}</span><span class="ma-quiet">${esc(formatShort(e.at))}</span></div>`
             )
-            .join('') || '<div class="ad-adv-row"><span class="ad-quiet">Nothing yet</span></div>';
+            .join('') || '<div class="ma-adv-row"><span class="ma-quiet">Nothing yet</span></div>';
       })
       .catch((err) => {
         $('person-lately').innerHTML =
-          `<div class="ad-adv-row"><span class="ad-quiet">Could not be loaded. ${esc(err.message)}</span></div>`;
+          `<div class="ma-adv-row"><span class="ma-quiet">Could not be loaded. ${esc(err.message)}</span></div>`;
       });
   }
   openSheet(sheet);
@@ -1185,8 +1185,8 @@ async function makeInvites(emails) {
     $('invite-results').innerHTML = r.invites
       .map((i, n) =>
         i.ok
-          ? `<div class="ad-adv-row" data-testid="invite-result"><span><strong>${esc(i.email ?? 'Anyone with the link')}</strong><span class="ad-url">${esc(i.url)}</span></span>${btn('Copy link', `data-copy="${n}"`)}</div>`
-          : `<div class="ad-adv-row" data-testid="invite-result-error"><span><strong>${esc(i.email)}</strong></span>${sw('error', i.error)}</div>`
+          ? `<div class="ma-adv-row" data-testid="invite-result"><span><strong>${esc(i.email ?? 'Anyone with the link')}</strong><span class="ma-url">${esc(i.url)}</span></span>${btn('Copy link', `data-copy="${n}"`)}</div>`
+          : `<div class="ma-adv-row" data-testid="invite-result-error"><span><strong>${esc(i.email)}</strong></span>${sw('error', i.error)}</div>`
       )
       .join('');
     for (const b of all('[data-copy]', $('invite-results'))) {
@@ -1217,7 +1217,7 @@ function renderCanvases(c) {
     ? rows
         .map(
           (r) =>
-            `<tr><td><span class="ad-who"><span class="ad-ev-ic">${ic('folder', 13)}</span><span class="ad-who-t"><strong>${esc(r.name)}</strong></span></span></td><td class="ad-quiet">${esc(formatBytes(r.bytes))}</td><td>${sw(r.peers ? 'ok' : 'off', r.peers ? `${r.peers} open` : 'Nobody')}</td></tr>`
+            `<tr><td><span class="ma-who"><span class="ma-ev-ic">${ic('folder', 13)}</span><span class="ma-who-t"><strong>${esc(r.name)}</strong></span></span></td><td class="ma-quiet">${esc(formatBytes(r.bytes))}</td><td>${sw(r.peers ? 'ok' : 'off', r.peers ? `${r.peers} open` : 'Nobody')}</td></tr>`
         )
         .join('')
     : '<tr class="empty"><td colspan="3">No canvases yet.</td></tr>';
@@ -1246,7 +1246,7 @@ function drawActivity({ data, older }) {
     ? a.rows
         .map((e) => {
           const server = !e.actor || e.actor === 'Server';
-          return `<tr data-testid="activity-row"><td class="ad-quiet">${esc(formatWhen(e.at))}</td><td><span class="ad-who">${server ? serverIcon() : actorMark(e.actor)}<span class="ad-who-t"><strong>${esc(server ? 'Server' : e.actor)}</strong></span></span></td><td class="ad-wrap">${eventText(e)}</td><td class="ad-quiet">${esc(AREA_WORDS[e.area] ?? e.area)}</td></tr>`;
+          return `<tr data-testid="activity-row"><td class="ma-quiet">${esc(formatWhen(e.at))}</td><td><span class="ma-who">${server ? serverIcon() : actorMark(e.actor)}<span class="ma-who-t"><strong>${esc(server ? 'Server' : e.actor)}</strong></span></span></td><td class="ma-wrap">${eventText(e)}</td><td class="ma-quiet">${esc(AREA_WORDS[e.area] ?? e.area)}</td></tr>`;
         })
         .join('')
     : '<tr class="empty"><td colspan="4">Nothing here.</td></tr>';
@@ -1379,7 +1379,7 @@ async function loadAdvanced() {
   $('rotate-admin').hidden = !key;
   if (!key) {
     const need =
-      '<div class="ad-adv-row"><span class="ad-quiet">Needs the admin key — enter it on the right</span></div>';
+      '<div class="ma-adv-row"><span class="ma-quiet">Needs the admin key — enter it on the right</span></div>';
     $('tokens-rows').innerHTML = need;
     $('peers-rows').innerHTML = need;
     $('invite-form').hidden = true;
@@ -1394,7 +1394,7 @@ async function loadAdvanced() {
     renderPeers(peers);
   } catch (err) {
     if (err.status === 401) return;
-    const failed = `<div class="ad-adv-row"><span class="ad-quiet">Could not be loaded. ${esc(err.message)}</span>${btn('Retry', 'data-adv-retry="1"')}</div>`;
+    const failed = `<div class="ma-adv-row"><span class="ma-quiet">Could not be loaded. ${esc(err.message)}</span>${btn('Retry', 'data-adv-retry="1"')}</div>`;
     $('tokens-rows').innerHTML = failed;
     $('peers-rows').innerHTML = '';
     $('tokens-rows')
@@ -1421,13 +1421,13 @@ function renderTokens(t, peers) {
             ? `used ${formatTime(r.lastUsedAt).toLowerCase()}`
             : 'not used yet';
         return (
-          `<div class="ad-adv-row"><span>${lbl} <span class="ad-quiet">· ${!r.scope || r.scope === '*' ? 'every canvas' : esc(r.scope)} · ${esc(used)}</span></span>` +
-          `<span class="ad-row-a"><button type="button" class="btn btn--ghost btn--sm" data-rotate="${lbl}">Replace</button>` +
+          `<div class="ma-adv-row"><span>${lbl} <span class="ma-quiet">· ${!r.scope || r.scope === '*' ? 'every canvas' : esc(r.scope)} · ${esc(used)}</span></span>` +
+          `<span class="ma-row-a"><button type="button" class="btn btn--ghost btn--sm" data-rotate="${lbl}">Replace</button>` +
           `<button type="button" class="btn btn--ghost btn--sm" data-delete="${lbl}" aria-label="Delete token ${lbl}">${ic('trash', 13)}</button></span></div>`
         );
       })
       .join('') +
-    `<div class="ad-adv-row"><button type="button" class="ad-link" data-new-token>+ New token</button><span class="ad-quiet">shown once</span></div>`;
+    `<div class="ma-adv-row"><button type="button" class="ma-link" data-new-token>+ New token</button><span class="ma-quiet">shown once</span></div>`;
   for (const b of all('button[data-rotate]', box))
     b.addEventListener('click', () => rotate(b.dataset.rotate));
   for (const b of all('button[data-delete]', box))
@@ -1444,11 +1444,11 @@ function renderPeers(p) {
     ? p.peers
         .map(
           (peer) =>
-            `<div class="ad-adv-row"><span>${esc(peer.user || 'anon')} · ${esc(peer.documentName)}</span>` +
+            `<div class="ma-adv-row"><span>${esc(peer.user || 'anon')} · ${esc(peer.documentName)}</span>` +
             `<button type="button" class="btn btn--ghost btn--sm" data-kick="${esc(peer.socketId)}">Disconnect</button></div>`
         )
         .join('')
-    : '<div class="ad-adv-row"><span class="ad-quiet">Nobody is connected</span></div>';
+    : '<div class="ma-adv-row"><span class="ma-quiet">Nobody is connected</span></div>';
   for (const b of all('button[data-kick]', box))
     b.addEventListener('click', () => kickPeer(b.dataset.kick));
 }
@@ -1515,7 +1515,7 @@ function setView(name) {
 }
 
 function pressTab(group, button) {
-  for (const b of all('.ad-tab', group)) b.setAttribute('aria-pressed', String(b === button));
+  for (const b of all('.ma-tab', group)) b.setAttribute('aria-pressed', String(b === button));
 }
 
 // -------------------------------- wire -------------------------------------
@@ -1693,10 +1693,10 @@ const closeMenus = () => {
   }
 };
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.ad-menu')) closeMenus();
+  if (!e.target.closest('.ma-menu')) closeMenus();
 });
 
-for (const b of all('#people-tabs .ad-tab')) {
+for (const b of all('#people-tabs .ma-tab')) {
   b.addEventListener('click', () => {
     state.peopleFilter = b.dataset.filter;
     pressTab($('people-tabs'), b);
@@ -1705,7 +1705,7 @@ for (const b of all('#people-tabs .ad-tab')) {
 }
 $('people-find').addEventListener('input', renderPeople);
 
-for (const b of all('#activity-tabs .ad-tab')) {
+for (const b of all('#activity-tabs .ma-tab')) {
   b.addEventListener('click', () => {
     state.act.kind = b.dataset.kind;
     pressTab($('activity-tabs'), b);

@@ -953,7 +953,7 @@ export function signInPage(error = null, env = process.env, { desktop = false } 
   // The light one-column page of design canvas 16 (ts-invitee), on /admin/style.css.
   const form = passwordsRefused
     ? ''
-    : `<form class="ad-web-form" method="post" action="/studio/signin">
+    : `<form class="ma-web-form" method="post" action="/studio/signin">
     <label class="field" for="email"><span class="field-label">Email</span><input class="input" id="email" name="email" type="email" autocomplete="username" required autofocus></label>
     <label class="field" for="password"><span class="field-label">Password</span><input class="input" id="password" name="password" type="password" autocomplete="current-password" required></label>
     <button type="submit" class="btn btn--primary btn--lg">Sign in</button>
@@ -966,8 +966,8 @@ export function signInPage(error = null, env = process.env, { desktop = false } 
       : 'With your account on this server.',
     testid: 'signin-page',
     body: `${form}
-  ${error ? `<p class="ad-web-err" role="alert">${esc(error)}</p>` : ''}
-  ${oidc && !passwordsRefused ? '<p class="ad-web-or">or</p>' : ''}
+  ${error ? `<p class="ma-web-err" role="alert">${esc(error)}</p>` : ''}
+  ${oidc && !passwordsRefused ? '<p class="ma-web-or">or</p>' : ''}
   ${oidc}`,
   });
 }

@@ -51,8 +51,8 @@ const CSS = `
   details.sheet > form { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; padding: 0 var(--space-5) var(--space-4); }
   details.sheet label, .op-form label { margin: 0; }
   textarea[name=reason] { min-height: 52px; height: 52px; }
-  .ad-sheet .field-hint, details.sheet .field-hint { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
-  .ad-seg-b { white-space: nowrap; padding: 0 var(--space-2); }
+  .ma-sheet .field-hint, details.sheet .field-hint { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+  .ma-seg-b { white-space: nowrap; padding: 0 var(--space-2); }
   form:not(:has(input[name=days][value=until]:checked)) .field:has(input[name=until]) { display: none; }
   .hint { margin: 0; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
   .err { margin: 0 0 var(--space-4); color: var(--status-error-text); font-size: var(--type-sm); font-weight: var(--weight-semibold); }
@@ -61,7 +61,7 @@ const CSS = `
   .op-nudge form { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; }
   .op-nudge button { align-self: flex-start; }
   .op-ev-r { color: var(--fg-2); }
-  .ad-table td.mono, .mono { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-1); }
+  .ma-table td.mono, .mono { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-1); }
 `;
 
 function esc(s) {
@@ -171,19 +171,19 @@ function tile(label, glyph, value, { unit = null, sub = null, alarm = false, hre
 
 /** The row of tiles, re-dividing itself over the tiles that are there. */
 const tiles = (list) =>
-  list.length ? `<div class="ad-stats" style="--n:${list.length}">${list.join('\n')}</div>` : '';
+  list.length ? `<div class="ma-stats" style="--n:${list.length}">${list.join('\n')}</div>` : '';
 
 /** A card with a heading. `title` is plain text; `inner` and `aside` are trusted markup. */
 const card = (title, inner, { aside = '', cls = '' } = {}) =>
-  `<div class="ad-card ad-card--clip${cls ? ` ${cls}` : ''}"><h2 class="ad-card-h">${esc(title)}${aside ? ` ${aside}` : ''}</h2>${inner}</div>`;
+  `<div class="ma-card ma-card--clip${cls ? ` ${cls}` : ''}"><h2 class="ma-card-h">${esc(title)}${aside ? ` ${aside}` : ''}</h2>${inner}</div>`;
 
 /** A quiet paragraph inside a card. `text` is trusted markup. */
-const note = (text) => `<p class="ad-card-p">${text}</p>`;
+const note = (text) => `<p class="ma-card-p">${text}</p>`;
 
 /** A plan said with its tone, as a word with a dot. */
 const PLAN_SW = { ok: 'ok', warn: 'warn', stop: 'error', off: 'off' };
 function planWord(plan) {
-  if (plan.state === 'promo') return `<span class="ad-promo">${esc(plan.line)}</span>`;
+  if (plan.state === 'promo') return `<span class="ma-promo">${esc(plan.line)}</span>`;
   return statusWord(PLAN_SW[plan.tone] ?? 'ok', plan.line);
 }
 
@@ -325,11 +325,11 @@ export function operatorOverviewPage({
   const alarmRows = [
     ...board.alarms.alarms.map(
       (a) =>
-        `<div class="ad-alarm">${statusWord('error', 'Cost alarm')}<span>${esc(a.kind)} — ${esc(a.detail)}</span><span></span></div>`
+        `<div class="ma-alarm">${statusWord('error', 'Cost alarm')}<span>${esc(a.kind)} — ${esc(a.detail)}</span><span></span></div>`
     ),
     ...board.problems.map(
       (p) =>
-        `<div class="ad-alarm">${statusWord('warn', `${p.count} ${p.kind}`)}<span>${esc(p.detail ?? '')}${
+        `<div class="ma-alarm">${statusWord('warn', `${p.count} ${p.kind}`)}<span>${esc(p.detail ?? '')}${
           p.ids.length ? ` — ${esc(p.ids.join(', '))}${p.count > p.ids.length ? ', …' : ''}` : ''
         }</span><span></span></div>`
     ),
@@ -337,7 +337,7 @@ export function operatorOverviewPage({
   const needs = card(
     'Needs a look',
     alarmRows.length
-      ? `<div class="ad-feed">${alarmRows.join('\n')}</div>`
+      ? `<div class="ma-feed">${alarmRows.join('\n')}</div>`
       : note(
           'Nothing to interpret. Every serving cell is drilled, checkpointed and on one version.'
         ),
@@ -348,7 +348,7 @@ export function operatorOverviewPage({
     ? card(
         'Projects on a plan with no price',
         `${note('Counted as nothing, which is why they are listed rather than summed.')}${note(`<span class="mono">${mrr.unpriced.map((u) => esc(`${u.id} (${u.plan})`)).join(', ')}</span>`)}`,
-        { cls: 'ad-gap' }
+        { cls: 'ma-gap' }
       )
     : '';
 
@@ -367,7 +367,7 @@ export function operatorOverviewPage({
     sheet,
     counts: { fleet: fleetCount(board) },
     body: `${tiles(list)}
-      <div class="ad-cols ad-cols--2-1">
+      <div class="ma-cols ma-cols--2-1">
         ${accountLists(lists, tab)}
         ${needs}
       </div>
@@ -416,12 +416,12 @@ export function operatorFleetPage({ account, board, projects = [], now = Date.no
       const p = byId.get(r.id) ?? {};
       const wrong = problemsOf.get(r.id) ?? [];
       return `<tr>
-        <td><a class="ad-who" href="/operator/projects/${esc(r.id)}">${thumb('ad-thumb--row')}<span class="ad-who-t"><strong>${esc(p.name || r.id)}</strong><span class="mono">${esc(r.id)}</span></span></a></td>
-        <td class="ad-quiet">${ownerLink(p)}</td>
+        <td><a class="ma-who" href="/operator/projects/${esc(r.id)}">${thumb('ma-thumb--row')}<span class="ma-who-t"><strong>${esc(p.name || r.id)}</strong><span class="mono">${esc(r.id)}</span></span></a></td>
+        <td class="ma-quiet">${ownerLink(p)}</td>
         <td>${r.health === 'healthy' ? statusWord('ok', 'Healthy') : statusWord('error', String(r.health))}</td>
         <td class="mono">${esc(r.version ?? '—')}${r.canary ? ' <small>canary</small>' : ''}</td>
-        <td class="ad-quiet">${esc(age(r.checkpointAgeMinutes, 'min'))}</td>
-        <td class="ad-quiet">${esc(age(r.drillAgeDays, 'days'))}</td>
+        <td class="ma-quiet">${esc(age(r.checkpointAgeMinutes, 'min'))}</td>
+        <td class="ma-quiet">${esc(age(r.drillAgeDays, 'days'))}</td>
         <td>${
           wrong.length
             ? wrong.map((w) => statusWord('warn', KIND_WORD[w.kind] ?? w.kind)).join(' ')
@@ -434,13 +434,13 @@ export function operatorFleetPage({ account, board, projects = [], now = Date.no
   const fleetWide = [
     ...board.alarms.alarms.map(
       (a) =>
-        `<div class="ad-alarm">${statusWord('error', 'Cost alarm')}<span>${esc(a.kind)} — ${esc(a.detail)}</span><span></span></div>`
+        `<div class="ma-alarm">${statusWord('error', 'Cost alarm')}<span>${esc(a.kind)} — ${esc(a.detail)}</span><span></span></div>`
     ),
     ...board.board.problems
       .filter((p) => p.id === '(fleet)')
       .map(
         (p) =>
-          `<div class="ad-alarm">${statusWord('warn', KIND_WORD[p.kind] ?? p.kind)}<span>${esc(p.detail ?? '')}</span><span></span></div>`
+          `<div class="ma-alarm">${statusWord('warn', KIND_WORD[p.kind] ?? p.kind)}<span>${esc(p.detail ?? '')}</span><span></span></div>`
       ),
   ];
 
@@ -460,18 +460,18 @@ export function operatorFleetPage({ account, board, projects = [], now = Date.no
     counts: { fleet: count },
     body: `${
       fleetWide.length
-        ? card('The whole fleet', `<div class="ad-feed">${fleetWide.join('\n')}</div>`)
+        ? card('The whole fleet', `<div class="ma-feed">${fleetWide.join('\n')}</div>`)
         : ''
     }${
       board.board.rows.length
-        ? `<div class="ad-card ad-card--clip"><div class="ad-scroll"><table class="ad-table">
+        ? `<div class="ma-card ma-card--clip"><div class="ma-scroll"><table class="ma-table">
           <thead><tr>
             <th scope="col">Project</th><th scope="col">Owner</th><th scope="col">Health</th><th scope="col">Version</th>
             <th scope="col">Replicated</th><th scope="col">Restore drill</th><th scope="col">Needs a look</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table></div></div>`
-        : `<div class="ad-card">${note('No cell is serving right now.')}</div>`
+        : `<div class="ma-card">${note('No cell is serving right now.')}</div>`
     }`,
   });
 }
@@ -486,13 +486,13 @@ const LIST_WORD = {
 
 /** One account row: who, their plan, their counts, when last here. */
 function accountRow(a, { now = Date.now() } = {}) {
-  const plan = a.plan ? planWord(a.plan) : '<span class="ad-quiet">No project</span>';
+  const plan = a.plan ? planWord(a.plan) : '<span class="ma-quiet">No project</span>';
   return `<tr${a.plan?.tone === 'warn' ? ' class="is-hl"' : ''}>
     <td>${who({ name: String(a.name ?? '').trim() || a.email, sub: a.email, seed: a.email, href: `/operator/accounts/${a.id}` })}</td>
-    <td>${plan}${a.note ? ` <span class="ad-quiet">· ${esc(a.note)}</span>` : ''}</td>
-    <td class="ad-num">${num(a.projects ?? null)}</td>
-    <td class="ad-num">${num(a.people ?? null)}</td>
-    <td class="ad-quiet">${a.last_seen ? esc(ago(a.last_seen, now)) : 'never'}</td>
+    <td>${plan}${a.note ? ` <span class="ma-quiet">· ${esc(a.note)}</span>` : ''}</td>
+    <td class="ma-num">${num(a.projects ?? null)}</td>
+    <td class="ma-num">${num(a.people ?? null)}</td>
+    <td class="ma-quiet">${a.last_seen ? esc(ago(a.last_seen, now)) : 'never'}</td>
     <td><a class="btn btn--ghost btn--sm" href="/operator/accounts/${esc(a.id)}">Open</a></td>
   </tr>`;
 }
@@ -508,19 +508,19 @@ function accountLists(lists, tab) {
   const tabsHtml = Object.keys(LIST_WORD)
     .map((key) => {
       const n = lists.counts?.[key];
-      return `<a class="ad-tab" href="/operator${key === 'newest' ? '' : `?tab=${key}`}"${key === active ? ' aria-current="page"' : ''}>${esc(LIST_WORD[key])}${n === null || n === undefined ? '' : ` <span class="ad-count${key === 'trial' && n > 0 ? ' ad-count--hot' : ''}">${n}</span>`}</a>`;
+      return `<a class="ma-tab" href="/operator${key === 'newest' ? '' : `?tab=${key}`}"${key === active ? ' aria-current="page"' : ''}>${esc(LIST_WORD[key])}${n === null || n === undefined ? '' : ` <span class="ma-count${key === 'trial' && n > 0 ? ' ma-count--hot' : ''}">${n}</span>`}</a>`;
     })
     .join('');
   const rows = (lists.rows ?? []).map((a) => accountRow(a)).join('\n');
-  return `<div class="ad-card ad-card--clip">
-    <nav class="ad-tabs" aria-label="Lists of accounts">${tabsHtml}<span class="ad-tabs-sp"></span>
-      <form class="ad-filter" role="search" method="get" action="/operator/accounts">${icon('search', 13)}<input type="search" name="q" maxlength="120" placeholder="Email, project or id" aria-label="Email, project name or id"></form>
+  return `<div class="ma-card ma-card--clip">
+    <nav class="ma-tabs" aria-label="Lists of accounts">${tabsHtml}<span class="ma-tabs-sp"></span>
+      <form class="ma-filter" role="search" method="get" action="/operator/accounts">${icon('search', 13)}<input type="search" name="q" maxlength="120" placeholder="Email, project or id" aria-label="Email, project name or id"></form>
     </nav>
     ${
       lists.rows === null
         ? note(esc(lists.note ?? 'This list could not be read.'))
         : rows
-          ? `<div class="ad-scroll"><table class="ad-table"><thead><tr><th scope="col">Account</th><th scope="col">Plan</th><th scope="col" class="ad-num">Projects</th><th scope="col" class="ad-num">People</th><th scope="col">Last here</th><th scope="col"><span class="ad-sr">Action</span></th></tr></thead><tbody>${rows}</tbody></table></div>`
+          ? `<div class="ma-scroll"><table class="ma-table"><thead><tr><th scope="col">Account</th><th scope="col">Plan</th><th scope="col" class="ma-num">Projects</th><th scope="col" class="ma-num">People</th><th scope="col">Last here</th><th scope="col"><span class="ma-sr">Action</span></th></tr></thead><tbody>${rows}</tbody></table></div>`
           : note('Nobody on this list.')
     }
   </div>`;
@@ -570,26 +570,26 @@ export function operatorProjectsPage({ account, projects = [], stats = null, ren
       const s = stats?.get(p.id) ?? null;
       const r = render?.get(p.id) ?? null;
       return `<tr${p.state === 'purged' ? ' class="is-dim"' : ''}>
-        <td><a class="ad-who" href="/operator/projects/${esc(p.id)}">${thumb('ad-thumb--row')}<span class="ad-who-t"><strong>${esc(p.name || p.id)}</strong><span class="mono">${esc(p.id)}</span></span></a></td>
+        <td><a class="ma-who" href="/operator/projects/${esc(p.id)}">${thumb('ma-thumb--row')}<span class="ma-who-t"><strong>${esc(p.name || p.id)}</strong><span class="mono">${esc(p.id)}</span></span></a></td>
         <td>${esc(p.state)}</td>
         <td>${planCell(p)}</td>
-        <td class="ad-quiet">${ownerLink(p)}</td>
+        <td class="ma-quiet">${ownerLink(p)}</td>
         <td class="mono">${esc(p.version ?? '—')}</td>
-        <td class="ad-quiet"><time>${when(p.last_checkpoint)}</time></td>
+        <td class="ma-quiet"><time>${when(p.last_checkpoint)}</time></td>
         <td>${p.cell_running ? statusWord('ok', 'up') : statusWord('off', 'asleep')}</td>
         ${
           withStats
-            ? `<td class="ad-num">${num(s?.canvases ?? null)}</td>
-               <td class="ad-num">${num(s?.artboards ?? null)}</td>
-               <td class="ad-num">${bytes(s?.assetsBytes ?? null)}</td>`
+            ? `<td class="ma-num">${num(s?.canvases ?? null)}</td>
+               <td class="ma-num">${num(s?.artboards ?? null)}</td>
+               <td class="ma-num">${bytes(s?.assetsBytes ?? null)}</td>`
             : ''
         }
         ${
           withRender
-            ? `<td class="ad-num">${num(r?.builds ?? null)}</td>
-               <td class="ad-num">${cachePct(r)}</td>
-               <td class="ad-num">${ms(r?.durationMsP95)}</td>
-               <td class="ad-num">${num(ceilingHits(r))}</td>`
+            ? `<td class="ma-num">${num(r?.builds ?? null)}</td>
+               <td class="ma-num">${cachePct(r)}</td>
+               <td class="ma-num">${ms(r?.durationMsP95)}</td>
+               <td class="ma-num">${num(ceilingHits(r))}</td>`
             : ''
         }
       </tr>`;
@@ -602,16 +602,16 @@ export function operatorProjectsPage({ account, projects = [], stats = null, ren
     active: 'operator-projects',
     lede: 'Every project on the platform, whatever state it is in. An em-dash means the plane has no answer — never that the answer is zero.',
     body: projects.length
-      ? `<div class="ad-card ad-card--clip"><div class="ad-scroll"><table class="ad-table">
+      ? `<div class="ma-card ma-card--clip"><div class="ma-scroll"><table class="ma-table">
           <thead><tr>
             <th scope="col">Project</th><th scope="col">State</th><th scope="col">Plan</th><th scope="col">Owner</th><th scope="col">Version</th>
             <th scope="col">Last checkpoint</th><th scope="col">Cell</th>
-            ${withStats ? '<th scope="col" class="ad-num">Canvases</th><th scope="col" class="ad-num">Artboards</th><th scope="col" class="ad-num">Assets</th>' : ''}
-            ${withRender ? '<th scope="col" class="ad-num">Builds</th><th scope="col" class="ad-num">Cache hit</th><th scope="col" class="ad-num">Build p95</th><th scope="col" class="ad-num">Ceiling hits</th>' : ''}
+            ${withStats ? '<th scope="col" class="ma-num">Canvases</th><th scope="col" class="ma-num">Artboards</th><th scope="col" class="ma-num">Assets</th>' : ''}
+            ${withRender ? '<th scope="col" class="ma-num">Builds</th><th scope="col" class="ma-num">Cache hit</th><th scope="col" class="ma-num">Build p95</th><th scope="col" class="ma-num">Ceiling hits</th>' : ''}
           </tr></thead>
           <tbody>${rows}</tbody>
         </table></div></div>`
-      : `<div class="ad-card">${note('No projects yet.')}</div>`,
+      : `<div class="ma-card">${note('No projects yet.')}</div>`,
   });
 }
 
@@ -636,9 +636,9 @@ export function operatorAccountsPage({ account, accounts = [], q = '' }) {
       (a) => `<tr>
         <td>${who({ name: String(a.name ?? '').trim() || a.email, sub: a.id, seed: a.email, href: `/operator/accounts/${a.id}` })}</td>
         <td>${esc(a.email)}</td>
-        <td class="ad-num">${num(a.projects ?? null)}</td>
+        <td class="ma-num">${num(a.projects ?? null)}</td>
         <td>${a.stripe_customer_id ? 'yes' : 'no'}</td>
-        <td class="ad-quiet"><time>${when(a.created_at)}</time></td>
+        <td class="ma-quiet"><time>${when(a.created_at)}</time></td>
         <td><a class="btn btn--ghost btn--sm" href="/operator/accounts/${esc(a.id)}">Open</a></td>
       </tr>`
     )
@@ -650,18 +650,18 @@ export function operatorAccountsPage({ account, accounts = [], q = '' }) {
     active: 'operator-accounts',
     lede: 'Who exists on the platform. Reading this list is itself recorded — a fleet-wide view of who our customers are is the break-glass, whatever it is called.',
     actions: `<a class="btn btn--primary" href="/operator/new-project">${icon('plus', 14)}New project for an account</a>`,
-    body: `<div class="ad-card ad-card--clip">
-      <nav class="ad-tabs" aria-label="Accounts">
-        <a class="ad-tab" href="/operator/accounts"${q ? '' : ' aria-current="page"'}>All accounts</a>
-        ${q ? `<span class="ad-tab" aria-current="page">Matching “${esc(q)}” <span class="ad-count">${accounts.length}</span></span>` : ''}
-        <span class="ad-tabs-sp"></span>
-        <form class="ad-filter" role="search" method="get" action="/operator/accounts">${icon('search', 13)}<input type="search" name="q" value="${esc(q)}" maxlength="120"
+    body: `<div class="ma-card ma-card--clip">
+      <nav class="ma-tabs" aria-label="Accounts">
+        <a class="ma-tab" href="/operator/accounts"${q ? '' : ' aria-current="page"'}>All accounts</a>
+        ${q ? `<span class="ma-tab" aria-current="page">Matching “${esc(q)}” <span class="ma-count">${accounts.length}</span></span>` : ''}
+        <span class="ma-tabs-sp"></span>
+        <form class="ma-filter" role="search" method="get" action="/operator/accounts">${icon('search', 13)}<input type="search" name="q" value="${esc(q)}" maxlength="120"
                placeholder="Email, project name or id" aria-label="Email, project name or id"></form>
       </nav>
       ${
         accounts.length
-          ? `<div class="ad-scroll"><table class="ad-table">
-          <thead><tr><th scope="col">Account</th><th scope="col">Email</th><th scope="col" class="ad-num">Projects</th><th scope="col">Stripe</th><th scope="col">Created</th><th scope="col"><span class="ad-sr">Action</span></th></tr></thead>
+          ? `<div class="ma-scroll"><table class="ma-table">
+          <thead><tr><th scope="col">Account</th><th scope="col">Email</th><th scope="col" class="ma-num">Projects</th><th scope="col">Stripe</th><th scope="col">Created</th><th scope="col"><span class="ma-sr">Action</span></th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>`
           : note(q ? `No account matches “${esc(q)}”.` : 'No accounts yet.')
@@ -712,7 +712,7 @@ function sheet({
       ${hint ? `<p class="hint">${hint}</p>` : ''}
       ${fields}
       ${reasonField(id)}
-      <div class="ad-sheet-a"><span class="ad-quiet">Logged as yours</span><span class="ad-sp"></span><button type="submit" class="btn btn--sm${danger ? ' k-btn-danger' : ' btn--primary'}">${esc(submit)}</button></div>
+      <div class="ma-sheet-a"><span class="ma-quiet">Logged as yours</span><span class="ma-sp"></span><button type="submit" class="btn btn--sm${danger ? ' k-btn-danger' : ' btn--primary'}">${esc(submit)}</button></div>
     </form>
   </details>`;
 }
@@ -723,10 +723,10 @@ const dateInput = (name, label, id, value = '') =>
 /** A segmented control of radios: `options` is [[value, word]]. */
 function segmented(name, label, options, current) {
   return `<span class="field"><span class="field-label" id="seg-${esc(name)}">${esc(label)}</span>
-    <span class="seg ad-seg" role="radiogroup" aria-labelledby="seg-${esc(name)}">${options
+    <span class="seg ma-seg" role="radiogroup" aria-labelledby="seg-${esc(name)}">${options
       .map(
         ([value, word]) =>
-          `<label class="ad-seg-b"><input type="radio" name="${esc(name)}" value="${esc(value)}"${String(value) === String(current) ? ' checked' : ''}>${esc(word)}</label>`
+          `<label class="ma-seg-b"><input type="radio" name="${esc(name)}" value="${esc(value)}"${String(value) === String(current) ? ' checked' : ''}>${esc(word)}</label>`
       )
       .join('')}</span></span>`;
 }
@@ -734,10 +734,10 @@ function segmented(name, label, options, current) {
 /** A pick list of radios: `options` is [[value, title, sub]]. */
 function pickList(name, label, options, current) {
   return `<span class="field"><span class="field-label" id="pick-${esc(name)}">${esc(label)}</span>
-    <span class="ad-pick" role="radiogroup" aria-labelledby="pick-${esc(name)}">${options
+    <span class="ma-pick" role="radiogroup" aria-labelledby="pick-${esc(name)}">${options
       .map(
         ([value, title, sub]) =>
-          `<label class="ad-pick-o"><input type="radio" name="${esc(name)}" value="${esc(value)}"${value === current ? ' checked' : ''}><span><strong>${esc(title)}</strong>${sub ? `<span>${esc(sub)}</span>` : ''}</span></label>`
+          `<label class="ma-pick-o"><input type="radio" name="${esc(name)}" value="${esc(value)}"${value === current ? ' checked' : ''}><span><strong>${esc(title)}</strong>${sub ? `<span>${esc(sub)}</span>` : ''}</span></label>`
       )
       .join('')}</span></span>`;
 }
@@ -804,7 +804,7 @@ function actionSheet({
       <input type="hidden" name="csrf" value="${esc(csrf)}">${extra}
       ${reasonFirst ? reason : fields}
       ${reasonFirst ? fields : reason}
-      ${promise ? `<div class="ad-promise">${icon('check', 14)}<span>${esc(promise)}</span></div>` : ''}
+      ${promise ? `<div class="ma-promise">${icon('check', 14)}<span>${esc(promise)}</span></div>` : ''}
       ${sheetActions({ back, submit, note: 'Logged as yours' })}
     </form>`,
   };
@@ -961,12 +961,12 @@ export function operatorAccountPage({
           <a href="${esc(base)}/view/projects/${esc(p.id)}/people">See it as ${esc(first)} does</a>
         </div></details>`;
       return `<tr class="${plan.tone === 'warn' ? 'is-hl' : plan.tone === 'off' || p.state === 'purged' ? 'is-dim' : ''}">
-        <td><a class="ad-who" href="/operator/projects/${esc(p.id)}">${thumb('ad-thumb--row')}<span class="ad-who-t"><strong>${esc(p.name || p.id)}</strong><span>${esc(sub)}</span></span></a></td>
+        <td><a class="ma-who" href="/operator/projects/${esc(p.id)}">${thumb('ma-thumb--row')}<span class="ma-who-t"><strong>${esc(p.name || p.id)}</strong><span>${esc(sub)}</span></span></a></td>
         <td>${planWord(plan)}</td>
-        <td class="ad-num">${num(p.people ?? null)}</td>
-        <td class="ad-num">${bytes(p.stats?.assetsBytes ?? null)}</td>
-        <td class="ad-quiet"><time>${p.last_checkpoint ? esc(ago(p.last_checkpoint, now)) : '—'}</time></td>
-        <td><span class="ad-row-a">${
+        <td class="ma-num">${num(p.people ?? null)}</td>
+        <td class="ma-num">${bytes(p.stats?.assetsBytes ?? null)}</td>
+        <td class="ma-quiet"><time>${p.last_checkpoint ? esc(ago(p.last_checkpoint, now)) : '—'}</time></td>
+        <td><span class="ma-row-a">${
           canFree
             ? `<a class="btn btn--sm" href="${esc(base)}?sheet=free&amp;project=${encodeURIComponent(p.id)}">${plan.state === 'paused' ? 'Wake with free time' : 'Give free time'}</a>`
             : `<a class="btn btn--ghost btn--sm" href="/operator/projects/${esc(p.id)}">Open</a>`
@@ -1035,22 +1035,22 @@ export function operatorAccountPage({
       ${error ? `<p class="err">${esc(error)}</p>` : ''}
       ${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
       ${tiles(list)}
-      <div class="ad-cols ad-cols--2-1">
+      <div class="ma-cols ma-cols--2-1">
         ${card(
           'Projects',
           projects.length
-            ? `<div class="ad-scroll"><table class="ad-table"><thead><tr><th scope="col">Project</th><th scope="col">Plan</th><th scope="col" class="ad-num">People</th><th scope="col" class="ad-num">Storage</th><th scope="col">Last change</th><th scope="col"><span class="ad-sr">Action</span></th></tr></thead><tbody>${rows}</tbody></table></div>
-               <div class="ad-menu-key"><span>In each row’s menu:</span><span class="chip">People in this project</span><span class="chip">Mark as Promo</span><span class="chip">Pause</span><span class="chip">Move to another owner</span><span class="chip">See it as ${esc(first)} does</span><span class="chip">Delete</span></div>`
+            ? `<div class="ma-scroll"><table class="ma-table"><thead><tr><th scope="col">Project</th><th scope="col">Plan</th><th scope="col" class="ma-num">People</th><th scope="col" class="ma-num">Storage</th><th scope="col">Last change</th><th scope="col"><span class="ma-sr">Action</span></th></tr></thead><tbody>${rows}</tbody></table></div>
+               <div class="ma-menu-key"><span>In each row’s menu:</span><span class="chip">People in this project</span><span class="chip">Mark as Promo</span><span class="chip">Pause</span><span class="chip">Move to another owner</span><span class="chip">See it as ${esc(first)} does</span><span class="chip">Delete</span></div>`
             : note('This account owns no project.'),
           { aside: `<small>${projects.length}</small>` }
         )}
         ${card(
           'Log',
-          entries.length ? `<div class="ad-feed">${feed}</div>` : note('Nothing recorded.'),
-          { aside: `<a class="ad-link" href="${esc(base)}/view">See it as ${esc(first)} does</a>` }
+          entries.length ? `<div class="ma-feed">${feed}</div>` : note('Nothing recorded.'),
+          { aside: `<a class="ma-link" href="${esc(base)}/view">See it as ${esc(first)} does</a>` }
         )}
       </div>
-      <p class="ad-foot" style="margin-top:var(--space-4)">The designs themselves are in each project’s workspace and are not reachable from here. Last change is the last checkpoint the platform recorded.</p>`,
+      <p class="ma-foot" style="margin-top:var(--space-4)">The designs themselves are in each project’s workspace and are not reachable from here. Last change is the last checkpoint the platform recorded.</p>`,
   });
 }
 
@@ -1091,8 +1091,8 @@ export function operatorProjectPeoplePage({
     .map((p) => {
       const who = personCell(p);
       if (p.role === 'owner')
-        return `<tr><td>${who}</td><td><span class="ad-mrole ad-mrole--own">Owner</span></td><td></td></tr>`;
-      return `<tr><td>${who}</td><td><span class="ad-mrole">${esc(word(p.role))}</span></td><td class="op-acts-cell"><div class="op-acts op-acts--row">
+        return `<tr><td>${who}</td><td><span class="ma-mrole ma-mrole--own">Owner</span></td><td></td></tr>`;
+      return `<tr><td>${who}</td><td><span class="ma-mrole">${esc(word(p.role))}</span></td><td class="op-acts-cell"><div class="op-acts op-acts--row">
         ${act(
           'Change role',
           { do: 'role', account: p.account_id },
@@ -1109,14 +1109,14 @@ export function operatorProjectPeoplePage({
   const grantRows = grants
     .map(
       (g) =>
-        `<tr><td>${personCell(g)}</td><td><span class="ad-mrole">${esc(word(g.role))}</span> <span class="ad-quiet">on one canvas only</span></td><td></td></tr>`
+        `<tr><td>${personCell(g)}</td><td><span class="ma-mrole">${esc(word(g.role))}</span> <span class="ma-quiet">on one canvas only</span></td><td></td></tr>`
     )
     .join('\n');
   const inviteRows = invites
     .map(
       (
         i
-      ) => `<tr><td>${personCell({ email: i.email })}</td><td><span class="ad-mrole">${esc(word(i.role))}</span> <span class="ad-quiet">not joined yet · until ${when(i.expires_at)}</span></td><td class="op-acts-cell"><div class="op-acts op-acts--row">
+      ) => `<tr><td>${personCell({ email: i.email })}</td><td><span class="ma-mrole">${esc(word(i.role))}</span> <span class="ma-quiet">not joined yet · until ${when(i.expires_at)}</span></td><td class="op-acts-cell"><div class="op-acts op-acts--row">
         ${act('Send again', { do: 'invite-resend', invite: i.id }, { id: `rs-${i.id}`, submit: 'Send again' })}
         ${act('Cancel invite', { do: 'invite-cancel', invite: i.id }, { id: `cx-${i.id}`, submit: 'Cancel invite' })}
       </div></td></tr>`
@@ -1126,7 +1126,7 @@ export function operatorProjectPeoplePage({
     .map(
       (
         r
-      ) => `<tr><td>${personCell(r)}</td><td class="ad-quiet">asked ${when(r.created_at)}</td><td class="op-acts-cell"><div class="op-acts op-acts--row">
+      ) => `<tr><td>${personCell(r)}</td><td class="ma-quiet">asked ${when(r.created_at)}</td><td class="op-acts-cell"><div class="op-acts op-acts--row">
         ${act('Allow editing', { do: 'request-allow', request: r.id }, { id: `ok-${r.id}`, submit: 'Allow editing' })}
         ${act('Not now', { do: 'request-decline', request: r.id }, { id: `no-${r.id}`, submit: 'Not now' })}
       </div></td></tr>`
@@ -1142,12 +1142,12 @@ export function operatorProjectPeoplePage({
     body: `
       ${error ? `<p class="err">${esc(error)}</p>` : ''}
       ${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
-      <div class="ad-cols ad-cols--2-1"><div class="ad-stack">
-      ${card('People', `<div class="ad-scroll"><table class="ad-table"><thead><tr><th scope="col">Person</th><th scope="col">What they can do</th><th scope="col"><span class="ad-sr">Action</span></th></tr></thead><tbody>${personRows}${grantRows}</tbody></table></div>`)}
-      ${requests.length ? card('Asks to edit', `<table class="ad-table"><tbody>${requestRows}</tbody></table>`) : ''}
-      ${invites.length ? card('Invited', `<table class="ad-table"><tbody>${inviteRows}</tbody></table>`) : ''}
+      <div class="ma-cols ma-cols--2-1"><div class="ma-stack">
+      ${card('People', `<div class="ma-scroll"><table class="ma-table"><thead><tr><th scope="col">Person</th><th scope="col">What they can do</th><th scope="col"><span class="ma-sr">Action</span></th></tr></thead><tbody>${personRows}${grantRows}</tbody></table></div>`)}
+      ${requests.length ? card('Asks to edit', `<table class="ma-table"><tbody>${requestRows}</tbody></table>`) : ''}
+      ${invites.length ? card('Invited', `<table class="ma-table"><tbody>${inviteRows}</tbody></table>`) : ''}
       </div>
-      <div class="ad-card ad-card--clip"><h2 class="ad-card-h">Invite someone</h2><div class="op-acts">
+      <div class="ma-card ma-card--clip"><h2 class="ma-card-h">Invite someone</h2><div class="op-acts">
         ${act(
           'Invite by e-mail',
           { do: 'invite' },
@@ -1272,7 +1272,7 @@ export function operatorProjectPage({
     ['plan state', planWord(plan)],
     [
       'state',
-      `${esc(project.state)} <span class="ad-quiet">since ${when(project.state_since)}</span>`,
+      `${esc(project.state)} <span class="ma-quiet">since ${when(project.state_since)}</span>`,
     ],
     ['plan', esc(project.plan ?? '')],
     [
@@ -1303,7 +1303,7 @@ export function operatorProjectPage({
       `${num(render.builds)} builds · ${cachePct(render, ' cached')} · p95 ${ms(render.durationMsP95)} · ${num(ceilingHits(render))} ceiling hits` +
         // Without the window start, a row of zeroes is ambiguous between "a
         // quiet hour" and "this cell rebooted a minute ago".
-        ` <span class="ad-quiet">(window from ${when(render.windowStartedAt ?? null)})</span>`,
+        ` <span class="ma-quiet">(window from ${when(render.windowStartedAt ?? null)})</span>`,
     ]);
   }
 
@@ -1381,8 +1381,8 @@ export function operatorProjectPage({
     body: `
       ${error ? `<p class="err">${esc(error)}</p>` : ''}
       ${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
-      <div class="ad-cols ad-cols--2-1">
-        <div class="ad-stack">
+      <div class="ma-cols ma-cols--2-1">
+        <div class="ma-stack">
           ${card(
             'Plan',
             `<dl class="op-kv">
@@ -1393,22 +1393,22 @@ export function operatorProjectPage({
             </dl>`,
             { aside: planWord(plan) }
           )}
-          ${card('Log', entries.length ? `<div class="ad-feed">${logFeed}</div>` : note('Nothing recorded.'))}
+          ${card('Log', entries.length ? `<div class="ma-feed">${logFeed}</div>` : note('Nothing recorded.'))}
           ${card(
             'Everything the control plane knows',
             `<dl class="op-kv">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join('')}</dl>
              ${note('What it holds, what it earns and what state it is in — the designs themselves are in the cell and are not reachable from here.')}`
           )}
         </div>
-        <div class="ad-stack">
-          ${card('Recent jobs', jobs.length ? `<div class="ad-feed">${jobFeed}</div>` : note('No jobs recorded.'))}
-          <div class="ad-card ad-card--clip">
-            <h2 class="ad-card-h">More actions</h2>
+        <div class="ma-stack">
+          ${card('Recent jobs', jobs.length ? `<div class="ma-feed">${jobFeed}</div>` : note('No jobs recorded.'))}
+          <div class="ma-card ma-card--clip">
+            <h2 class="ma-card-h">More actions</h2>
             ${note('None of these touches a subscription at Stripe. A project with a paid plan is refused by the ones that would disagree with it, and the refusal is logged.')}
             <div class="op-acts">
             ${
               project.account_id
-                ? `<a class="ad-need" href="/operator/accounts/${esc(project.account_id)}/view/projects/${esc(project.id)}/people"><span class="ad-need-t"><strong>See it as the owner does</strong><span>Read only, and recorded</span></span>${icon('chevron-r', 14)}</a>`
+                ? `<a class="ma-need" href="/operator/accounts/${esc(project.account_id)}/view/projects/${esc(project.id)}/people"><span class="ma-need-t"><strong>See it as the owner does</strong><span>Read only, and recorded</span></span>${icon('chevron-r', 14)}</a>`
                 : ''
             }
             ${
@@ -1488,8 +1488,8 @@ export function operatorProjectPage({
             }
             </div>
           </div>
-          <div class="ad-card" id="reconcile">
-            <h2 class="ad-card-h">Ask the reconciler to run</h2>
+          <div class="ma-card" id="reconcile">
+            <h2 class="ma-card-h">Ask the reconciler to run</h2>
             <div class="op-nudge">
               <p class="hint">It enqueues a job; the reconciler re-derives everything from Stripe and the cell,
                 exactly as the hourly sweep does. Comping and refunding stay in Stripe — the sweep picks those up on its own.</p>
@@ -1537,7 +1537,7 @@ export function operatorEventsPage({ account, metrics = null, sampled = false })
   const byName = (metrics.byName ?? [])
     .map(
       (r) =>
-        `<tr><td class="mono">${esc(r.name)}</td><td class="ad-num">${approx(r.count)}</td></tr>`
+        `<tr><td class="mono">${esc(r.name)}</td><td class="ma-num">${approx(r.count)}</td></tr>`
     )
     .join('\n');
 
@@ -1562,7 +1562,7 @@ export function operatorEventsPage({ account, metrics = null, sampled = false })
       ${card(
         'Events, last 7 days',
         byName
-          ? `<table class="ad-table"><thead><tr><th scope="col">Event</th><th scope="col" class="ad-num">Count</th></tr></thead><tbody>${byName}</tbody></table>`
+          ? `<table class="ma-table"><thead><tr><th scope="col">Event</th><th scope="col" class="ma-num">Count</th></tr></thead><tbody>${byName}</tbody></table>`
           : note('No events in the window.')
       )}`,
   });

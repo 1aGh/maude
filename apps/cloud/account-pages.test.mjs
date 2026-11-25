@@ -240,7 +240,7 @@ describe('every account page: a session, no-store, no script', () => {
     const { env, ana } = await world();
     for (const path of PATHS) {
       const html = await (await get(env, path, ana.session)).text();
-      const nav = /<nav class="island ad-nav"[\s\S]*?<\/nav>/.exec(html)?.[0] ?? '';
+      const nav = /<nav class="island ma-nav"[\s\S]*?<\/nav>/.exec(html)?.[0] ?? '';
       assert.match(nav, /href="\/account\/people"/, `${path}: People tab`);
       assert.match(nav, />Settings</, `${path}: Settings tab`);
     }
@@ -298,10 +298,10 @@ describe('People and invites', () => {
     assert.match(html, /tereza@example\.com/);
     // A role is a chip in its cell (canvas 16, cl-people), an invitation says
     // its role in words.
-    assert.match(html, /<span class="ad-mrole">Can edit<\/span>/);
+    assert.match(html, /<span class="ma-mrole">Can edit<\/span>/);
     assert.match(
       html,
-      /Jonas[\s\S]*?<span class="ad-mrole">Can comment<\/span>[\s\S]*?on Pricing only/
+      /Jonas[\s\S]*?<span class="ma-mrole">Can comment<\/span>[\s\S]*?on Pricing only/
     );
     assert.match(html, /pending@example\.com/);
     assert.match(html, /pending@example\.com[\s\S]*?Can view/);
@@ -315,7 +315,7 @@ describe('People and invites', () => {
     const { env, ana } = await world();
     const html = await (await get(env, '/account/people', ana.session)).text();
     assert.match(html, /<strong>Alligators brand<\/strong><span>Tereza’s project/);
-    assert.match(html, /Alligators brand[\s\S]*?<span class="ad-mrole">Can comment<\/span>/);
+    assert.match(html, /Alligators brand[\s\S]*?<span class="ma-mrole">Can comment<\/span>/);
     // Tereza's address appears only where Ana is the owner (Studio site), and
     // Jonas's only as his Studio site grant — never as Alligators' people.
     const shared = html.slice(html.indexOf('Shared with you'));

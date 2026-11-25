@@ -105,13 +105,13 @@ export function joinPage({
     ? `<span class="k-av k-av--${tone(inviter)}" aria-hidden="true">${esc(inviter.charAt(0))}</span>`
     : '';
   const roleChip = role
-    ? `<span class="ad-web-role" data-testid="join-role">${role === 'admin' ? 'You will be an Admin' : 'You can edit'}</span>`
+    ? `<span class="ma-web-role" data-testid="join-role">${role === 'admin' ? 'You will be an Admin' : 'You can edit'}</span>`
     : '';
-  const err = error ? `<p class="ad-web-err" role="alert">${esc(error)}</p>` : '';
+  const err = error ? `<p class="ma-web-err" role="alert">${esc(error)}</p>` : '';
   const app = desktop
-    ? '<p class="ad-web-fine" data-desktop>After you join, you go back to the Maude app.</p>'
+    ? '<p class="ma-web-fine" data-desktop>After you join, you go back to the Maude app.</p>'
     : workspace
-      ? `<p class="ad-web-fine" data-desktop>Using the Maude app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
+      ? `<p class="ma-web-fine" data-desktop>Using the Maude app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
       : '';
 
   // Under `strict` the hub refuses passwords outright (`cloud-identity`), so an
@@ -134,7 +134,7 @@ export function joinPage({
     : `Choose a password and you're in — no download, no setup.`;
   // The provider, when there is one, is the way in (the invite rides through it — design canvas 16,
   // ts-invitee step 1); a password is the other way, under "or".
-  const form = `<form class="ad-web-form" method="post" action="/join" autocomplete="on">
+  const form = `<form class="ma-web-form" method="post" action="/join" autocomplete="on">
   <input type="hidden" name="token" value="${esc(token)}">
   <label class="field" for="email"><span class="field-label">Email</span>${
     email
@@ -160,7 +160,7 @@ export function joinPage({
     sub: oidc ? esc(description || workspaceName(workspace)) : passwordLine,
     body: `${roleChip}${
       oidc
-        ? `${oidc}${email ? `<p class="ad-web-fine">Use ${esc(email)} — that's who the invitation is for.</p>` : ''}<p class="ad-web-or">or</p><p class="ad-web-fine">${passwordLine}</p>`
+        ? `${oidc}${email ? `<p class="ma-web-fine">Use ${esc(email)} — that's who the invitation is for.</p>` : ''}<p class="ma-web-or">or</p><p class="ma-web-fine">${passwordLine}</p>`
         : ''
     }${form}${app}`,
   });

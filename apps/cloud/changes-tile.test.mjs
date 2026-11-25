@@ -210,7 +210,7 @@ describe('the dashboard', () => {
     const { jan } = await world(t);
     const html = await (await get('/', jan)).text();
     assert.doesNotMatch(text(html), /Changes/);
-    assert.doesNotMatch(html, /class="ad-bars"/);
+    assert.doesNotMatch(html, /class="ma-bars"/);
   });
 
   test('the tile (this week, most in …) and the 30-day chart, summed across the owner’s projects', async (t) => {

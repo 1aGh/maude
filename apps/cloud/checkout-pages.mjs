@@ -31,8 +31,8 @@ const EXTRA_CSS = `
   .steps li.done { color: var(--fg-1); }
   .steps li.done::before { background: var(--status-success); }
   .card.reassure { box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--status-success); }
-  .ad-plan.warn { box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--status-warn); }
-  .ad-plan { margin-bottom: var(--space-4); }
+  .ma-plan.warn { box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--status-warn); }
+  .ma-plan { margin-bottom: var(--space-4); }
   .card ul { margin: var(--space-3) 0 var(--space-4); padding-left: var(--space-6); line-height: 1.9; color: var(--fg-2); }
   .card ul strong { color: var(--fg-0); }
   .actions { display: flex; gap: var(--space-4); flex-wrap: wrap; margin: var(--space-5) 0 var(--space-4); }
@@ -181,35 +181,35 @@ export function billingPage({
   // (canvas 16, cl-promo-owner); a trial shows the DATE it is free until, so
   // free time an operator gave is visible here; an operator's pause says so,
   // with no countdown — nothing is scheduled to be deleted.
-  const choose = `<span class="ad-head-a"><a class="btn btn--primary" href="/account/billing">Choose a plan</a></span>`;
+  const choose = `<span class="ma-head-a"><a class="btn btn--primary" href="/account/billing">Choose a plan</a></span>`;
   const planBox = (kicker, title, body, { tone = '' } = {}) =>
-    `<div class="ad-card ad-card--pad ad-plan${tone ? ` ${tone}` : ''}">
-       <span class="ad-promo-l">${esc(kicker)}</span>
-       <h2 class="ad-sheet-t">${title}</h2>
+    `<div class="ma-card ma-card--pad ma-plan${tone ? ` ${tone}` : ''}">
+       <span class="ma-promo-l">${esc(kicker)}</span>
+       <h2 class="ma-sheet-t">${title}</h2>
        ${body}
      </div>`;
   const planCard = promo
     ? planBox(
         promo.endingSoon ? `Plan · ends ${promo.ends}` : 'Plan',
-        `<span class="ad-promo">Promo</span> ${esc(project.name)}`,
-        `<dl class="ad-kv">
+        `<span class="ma-promo">Promo</span> ${esc(project.name)}`,
+        `<dl class="ma-kv">
            <dt>Plan</dt><dd>${esc(promo.plan)}</dd>
            ${promo.storage ? `<dt>Storage</dt><dd>${esc(promo.storage)}</dd>` : ''}
            <dt>Ends</dt><dd>${esc(promo.ends)}</dd>
          </dl>
          ${
            promo.endingSoon
-             ? `<p class="ad-sub">Pick a plan to keep editing after ${esc(promo.ends)}.
+             ? `<p class="ma-sub">Pick a plan to keep editing after ${esc(promo.ends)}.
                   Nothing is deleted, and until you choose, everyone can still open and download
                   everything.</p>${choose}`
-             : `<p class="ad-sub">No trial, no card, nothing to choose.</p>`
+             : `<p class="ma-sub">No trial, no card, nothing to choose.</p>`
 }`
       )
     : plan?.state === 'deleting'
       ? planBox(
           'Plan',
           `This project will be deleted on ${esc(plan.deletesOn)}`,
-          `<p class="ad-sub">Maude support scheduled it, and the reason is on this
+          `<p class="ma-sub">Maude support scheduled it, and the reason is on this
              project’s Activity page. Nothing has been deleted yet. If this is a mistake, reply to
              the e-mail about it before that date and the project comes back as it was.</p>
            <form method="post" action="${p}/download" style="margin:0">
@@ -221,7 +221,7 @@ export function billingPage({
         ? planBox(
             'Plan',
             'Paused by Maude',
-            `<p class="ad-sub">Nothing has been deleted and no deletion is scheduled.
+            `<p class="ma-sub">Nothing has been deleted and no deletion is scheduled.
              The reason is on this project’s Activity page. You can still download everything.</p>`,
             { tone: 'warn' }
           )
@@ -229,14 +229,14 @@ export function billingPage({
           ? planBox(
               'Free trial',
               `Free until ${esc(formatDay(plan.freeUntil))}`,
-              `<p class="ad-sub">${esc(plan.line)}. No card is needed. After that date
+              `<p class="ma-sub">${esc(plan.line)}. No card is needed. After that date
                you pick a plan to keep editing; nothing is deleted.</p>${choose}`
             )
           : plan?.state === 'paused'
             ? planBox(
                 'Plan',
                 'Choose a plan to keep editing',
-                `<p class="ad-sub">The free time has ended. Nothing is deleted, and
+                `<p class="ma-sub">The free time has ended. Nothing is deleted, and
                  everyone can still open and download everything.</p>${choose}`,
                 { tone: 'warn' }
               )

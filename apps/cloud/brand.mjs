@@ -143,10 +143,10 @@ export function avatar(label, { size = 'md', seed = label, tone = null } = {}) {
 
 /** A face with a name and one quiet line under it. `name` and `sub` are plain text. */
 export function who({ name, sub = null, seed = null, href = null, lead = null }) {
-  const inner = `${lead ?? avatar(name, { size: 'lg', seed: seed ?? sub ?? name })}<span class="ad-who-t"><strong>${esc(name)}</strong>${sub ? `<span>${esc(sub)}</span>` : ''}</span>`;
+  const inner = `${lead ?? avatar(name, { size: 'lg', seed: seed ?? sub ?? name })}<span class="ma-who-t"><strong>${esc(name)}</strong>${sub ? `<span>${esc(sub)}</span>` : ''}</span>`;
   return href
-    ? `<a class="ad-who" href="${esc(href)}">${inner}</a>`
-    : `<span class="ad-who">${inner}</span>`;
+    ? `<a class="ma-who" href="${esc(href)}">${inner}</a>`
+    : `<span class="ma-who">${inner}</span>`;
 }
 
 /** A state said in a word, with a dot — never by colour alone. `text` is plain text. */
@@ -160,24 +160,24 @@ export function statusWord(state, text) {
  * With `href` the whole tile is the link to the list behind the number.
  */
 export function stat({ label, glyph, value, unit = null, foot = null, spark = null, href = null }) {
-  const inner = `${href ? `<span class="ad-stat-go">${icon('chevron-r', 14)}</span>` : ''}<span class="ad-stat-l">${icon(glyph, 14)}${esc(label)}</span><span class="ad-stat-v">${esc(value)}${unit ? `<small> ${esc(unit)}</small>` : ''}</span>${
+  const inner = `${href ? `<span class="ma-stat-go">${icon('chevron-r', 14)}</span>` : ''}<span class="ma-stat-l">${icon(glyph, 14)}${esc(label)}</span><span class="ma-stat-v">${esc(value)}${unit ? `<small> ${esc(unit)}</small>` : ''}</span>${
     spark?.length
-      ? `<span class="ad-spark" aria-hidden="true">${spark.map((v) => `<i style="height:${Math.max(0, Math.min(100, Math.round(v)))}%"></i>`).join('')}</span>`
+      ? `<span class="ma-spark" aria-hidden="true">${spark.map((v) => `<i style="height:${Math.max(0, Math.min(100, Math.round(v)))}%"></i>`).join('')}</span>`
       : ''
-  }${foot ? `<span class="ad-stat-f">${foot}</span>` : ''}`;
+  }${foot ? `<span class="ma-stat-f">${foot}</span>` : ''}`;
   return href
-    ? `<a class="ad-card ad-stat" href="${esc(href)}">${inner}</a>`
-    : `<div class="ad-card ad-stat">${inner}</div>`;
+    ? `<a class="ma-card ma-stat" href="${esc(href)}">${inner}</a>`
+    : `<div class="ma-card ma-stat">${inner}</div>`;
 }
 
 /** One line of a log. `body` is trusted markup; `when` is plain text. */
 export function logLine({ glyph = 'pulse', body, when = '' }) {
-  return `<div class="ad-ev"><span class="ad-ev-ic">${icon(glyph, 13)}</span><span class="ad-ev-t">${body}</span>${when ? `<time>${esc(when)}</time>` : ''}</div>`;
+  return `<div class="ma-ev"><span class="ma-ev-ic">${icon(glyph, 13)}</span><span class="ma-ev-t">${body}</span>${when ? `<time>${esc(when)}</time>` : ''}</div>`;
 }
 
 /** The neutral picture a project wears: three artboards on a canvas. Nothing here knows what is in a project. */
 export function thumb(cls = '') {
-  return `<span class="ad-thumb${cls ? ` ${cls}` : ''}" aria-hidden="true"><i></i><i></i><i></i></span>`;
+  return `<span class="ma-thumb${cls ? ` ${cls}` : ''}" aria-hidden="true"><i></i><i></i><i></i></span>`;
 }
 
 // ───────────────────────────── Google's button ─────────────────────────────
@@ -243,7 +243,7 @@ export const PUBLIC_CSS = `
   .public-top h1 { font-size: var(--type-lg); line-height: var(--lh-lg); letter-spacing: 0; }
   .public-who { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
   .public-who .lockup { margin: 0; }
-  .ad-web-role { display: inline-flex; align-items: center; gap: var(--space-1); height: 26px; margin-top: var(--space-1); padding: 0 var(--space-3); border-radius: var(--radius-pill); background: var(--bg-3); font-size: var(--type-xs); color: var(--fg-1); }
+  .ma-web-role { display: inline-flex; align-items: center; gap: var(--space-1); height: 26px; margin-top: var(--space-1); padding: 0 var(--space-3); border-radius: var(--radius-pill); background: var(--bg-3); font-size: var(--type-xs); color: var(--fg-1); }
   main.public details > summary { cursor: pointer; text-align: center; }
   main.public .card { margin-top: var(--space-3); }
   .public-top .sub { margin: 0; color: var(--fg-1); font-size: var(--type-sm); line-height: var(--lh-sm); }
@@ -282,7 +282,7 @@ export function publicPage({
   const top = lead
     ? `<span class="public-who">${lockup({ size: 48 })}${lead}</span>`
     : lockup({ size: 44 });
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">${extraHead}<title>${esc(tab ?? title)} — Maude</title><style>${PAGE_CSS}${GOOGLE_BUTTON_CSS}${PUBLIC_CSS}${css}</style></head><body><main class="public"><div class="public-col"><div class="public-top">${top}<h1>${esc(title)}</h1>${sub ? `<p class="sub">${esc(sub)}</p>` : ''}${pill ? `<span class="ad-web-role">${icon('edit', 12)}${esc(pill)}</span>` : ''}</div>${body}</div></main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">${extraHead}<title>${esc(tab ?? title)} — Maude</title><style>${PAGE_CSS}${GOOGLE_BUTTON_CSS}${PUBLIC_CSS}${css}</style></head><body><main class="public"><div class="public-col"><div class="public-top">${top}<h1>${esc(title)}</h1>${sub ? `<p class="sub">${esc(sub)}</p>` : ''}${pill ? `<span class="ma-web-role">${icon('edit', 12)}${esc(pill)}</span>` : ''}</div>${body}</div></main></body></html>`;
 }
 
 /** A public page as a Response. */
@@ -331,7 +331,7 @@ export function displayName(account) {
 const firstName = (account) => displayName(account).split(/\s+/)[0];
 
 function navTab({ href, label, current, count = null, quiet = false }) {
-  return `<a class="ad-nav-tab" href="${esc(href)}"${current ? ' aria-current="page"' : ''}>${esc(label)}${count ? `<span class="ad-count${quiet ? ' ad-count--quiet' : ''}">${esc(count)}</span>` : ''}</a>`;
+  return `<a class="ma-nav-tab" href="${esc(href)}"${current ? ' aria-current="page"' : ''}>${esc(label)}${count ? `<span class="ma-count${quiet ? ' ma-count--quiet' : ''}">${esc(count)}</span>` : ''}</a>`;
 }
 
 /** Which tab a page's `active` key lights, on the island a customer sees. */
@@ -348,8 +348,8 @@ const TAB_OF = {
 function projectTabs({ project, isOwner, active }) {
   const p = `/projects/${esc(project.id)}`;
   const tab = (key, label, { danger = false } = {}) =>
-    `<a class="ad-tab${danger ? ' danger' : ''}" href="${p}/${key}"${active === key ? ' aria-current="page"' : ''}>${label}</a>`;
-  return `<nav class="ad-ptabs" aria-label="${esc(project.name || project.id)}">
+    `<a class="ma-tab${danger ? ' danger' : ''}" href="${p}/${key}"${active === key ? ' aria-current="page"' : ''}>${label}</a>`;
+  return `<nav class="ma-ptabs" aria-label="${esc(project.name || project.id)}">
     ${tab('connect', 'Open')}
     ${tab('people', 'People')}
     ${isOwner ? tab('billing', 'Billing') : ''}
@@ -376,17 +376,17 @@ function projectTabs({ project, isOwner, active }) {
  */
 function sheetMarkup(sheet, { op }) {
   const back = esc(sheet.back);
-  return `<a class="ad-veil" href="${back}" aria-label="Close" tabindex="-1"></a>
-<section class="ad-sheet ad-sheet--side${op ? ' ad-sheet--op' : ''}" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-  <h2 class="ad-sheet-t" id="sheet-title">${esc(sheet.title)}</h2>
-  ${sheet.sub ? `<p class="ad-sheet-s">${esc(sheet.sub)}</p>` : ''}
+  return `<a class="ma-veil" href="${back}" aria-label="Close" tabindex="-1"></a>
+<section class="ma-sheet ma-sheet--side${op ? ' ma-sheet--op' : ''}" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <h2 class="ma-sheet-t" id="sheet-title">${esc(sheet.title)}</h2>
+  ${sheet.sub ? `<p class="ma-sheet-s">${esc(sheet.sub)}</p>` : ''}
   ${sheet.body}
 </section>`;
 }
 
 /** The foot of a sheet: who it is logged as, Cancel, and the one action. `submit` is plain text. */
 export function sheetActions({ back, submit, note = null }) {
-  return `<div class="ad-sheet-a">${note ? `<span class="ad-quiet">${esc(note)}</span>` : ''}<span class="ad-sp"></span><a class="btn" href="${esc(back)}">Cancel</a><button type="submit" class="btn btn--primary">${esc(submit)}</button></div>`;
+  return `<div class="ma-sheet-a">${note ? `<span class="ma-quiet">${esc(note)}</span>` : ''}<span class="ma-sp"></span><a class="btn" href="${esc(back)}">Cancel</a><button type="submit" class="btn btn--primary">${esc(submit)}</button></div>`;
 }
 
 /**
@@ -450,8 +450,8 @@ export function appShell({
       }),
       navTab({ href: '/operator/events', label: 'Events', current: on('operator-events') }),
     ];
-    place = '<small>Whole service</small><span class="ad-op-tag">Operator</span>';
-    search = `<form class="ad-nav-search" role="search" method="get" action="/operator/accounts">${icon('search', 14)}<input type="search" name="q" placeholder="Search" aria-label="Search accounts"><span class="kbd" aria-hidden="true">⌘K</span></form>`;
+    place = '<small>Whole service</small><span class="ma-op-tag">Operator</span>';
+    search = `<form class="ma-nav-search" role="search" method="get" action="/operator/accounts">${icon('search', 14)}<input type="search" name="q" placeholder="Search" aria-label="Search accounts"><span class="kbd" aria-hidden="true">⌘K</span></form>`;
   } else {
     const lit = project ? 'projects' : (TAB_OF[active] ?? '');
     tabs = [
@@ -468,7 +468,7 @@ export function appShell({
         }),
         navTab({ href: '/account', label: 'Settings', current: lit === 'settings' })
       );
-      search = `<form class="ad-nav-search" role="search" method="get" action="/account/people">${icon('search', 14)}<input type="search" name="q" placeholder="Search" aria-label="Search people"><span class="kbd" aria-hidden="true">⌘K</span></form>`;
+      search = `<form class="ma-nav-search" role="search" method="get" action="/account/people">${icon('search', 14)}<input type="search" name="q" placeholder="Search" aria-label="Search people"><span class="kbd" aria-hidden="true">⌘K</span></form>`;
     }
     place = `<small>${esc(name)}</small>`;
   }
@@ -489,30 +489,30 @@ export function appShell({
   ].join('');
   const me = `${esc(firstName(account))}${!op && owns ? ' · Owner' : ''}`;
 
-  const head = `<div class="ad-head"><div>${
+  const head = `<div class="ma-head"><div>${
     project
-      ? `<p class="ad-crumb"><a href="/projects">Projects</a> › ${esc(project.name || project.id)}</p>`
+      ? `<p class="ma-crumb"><a href="/projects">Projects</a> › ${esc(project.name || project.id)}</p>`
       : ''
-  }<div class="ad-h1-row"><h1 class="ad-h1">${esc(heading ?? title)}</h1>${
+  }<div class="ma-h1-row"><h1 class="ma-h1">${esc(heading ?? title)}</h1>${
     pill ? `<span class="state">${statusWord(PILL_TONE[pill.tone] ?? 'ok', pill.label)}</span>` : ''
-  }</div>${lede ? `<p class="ad-sub">${esc(lede)}</p>` : ''}</div>${
-    actions ? `<div class="ad-head-a">${actions}</div>` : ''
+  }</div>${lede ? `<p class="ma-sub">${esc(lede)}</p>` : ''}</div>${
+    actions ? `<div class="ma-head-a">${actions}</div>` : ''
   }</div>`;
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)} — Maude</title><style>${PAGE_CSS}${extraCss}</style></head><body>
-${op ? `<div class="ad-band" role="note">${icon('server', 13)}<span>${OPERATOR_BAND}</span></div>` : ''}
-<div class="ad-nav-wrap"><nav class="island ad-nav${op ? ' ad-nav--op' : ''}" aria-label="Maude Cloud">
-  <a class="ad-nav-id" href="${op ? '/operator' : '/'}">${mark(24)}Maude Cloud${place}</a>
-  <span class="ad-nav-tabs">${tabs.join('')}</span>
-  <span class="ad-nav-sp"></span>
+${op ? `<div class="ma-band" role="note">${icon('server', 13)}<span>${OPERATOR_BAND}</span></div>` : ''}
+<div class="ma-nav-wrap"><nav class="island ma-nav${op ? ' ma-nav--op' : ''}" aria-label="Maude Cloud">
+  <a class="ma-nav-id" href="${op ? '/operator' : '/'}">${mark(24)}Maude Cloud${place}</a>
+  <span class="ma-nav-tabs">${tabs.join('')}</span>
+  <span class="ma-nav-sp"></span>
   ${search}
-  <details class="menu ad-me"><summary class="ad-nav-me">${avatar(name, { seed: account?.email ?? name })}${me}<span class="ad-sr"> — signed in as ${esc(account?.email ?? '')}, account menu</span></summary><div class="menu-list"><div class="menu-hd">${esc(account?.email ?? '')}</div>${menu}</div></details>
+  <details class="menu ma-me"><summary class="ma-nav-me">${avatar(name, { seed: account?.email ?? name })}${me}<span class="ma-sr"> — signed in as ${esc(account?.email ?? '')}, account menu</span></summary><div class="menu-list"><div class="menu-hd">${esc(account?.email ?? '')}</div>${menu}</div></details>
 </nav></div>
-<main class="ad-main">
+<main class="ma-main">
   ${head}
   ${project ? projectTabs({ project, isOwner, active }) : ''}
-  ${wide ? body : `<div class="ad-col">${body}</div>`}
-  <p class="ad-foot">${PROMISE}</p>
+  ${wide ? body : `<div class="ma-col">${body}</div>`}
+  <p class="ma-foot">${PROMISE}</p>
 </main>
 ${sheet ? sheetMarkup(sheet, { op }) : ''}
 </body></html>`;
