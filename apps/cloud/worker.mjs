@@ -40,7 +40,13 @@ import {
 } from './db.mjs';
 import { handleDeviceAuth, personalTokenAccount } from './device-auth.mjs';
 import { costOf, harden, isHtml, sameSiteGate, spend } from './edge.mjs';
-import { deletionWarningEmail, projectPausedEmail, promoEndingEmail, sendEmail } from './email.mjs';
+import {
+  deletionScheduledEmail,
+  deletionWarningEmail,
+  projectPausedEmail,
+  promoEndingEmail,
+  sendEmail,
+} from './email.mjs';
 import { normalizeRoute } from './events.mjs';
 import { mintInstallationToken } from './github-app.mjs';
 import { handleHandoff } from './handoff.mjs';
@@ -819,6 +825,23 @@ async function runOne(env, projectId, { jobId = null, now }) {
     const before = tenantFromRow(row);
     const { tenant, actions } = settle(before, subscription, { now });
     await saveTenant(env.DB, tenant, { now });
+    // A scheduled deletion that the reconciler cancelled because the project is
+    // being paid for: the column goes, and the log says why (never silently).
+    if (before.deleteSince != null && tenant.deleteSince == null) {
+      await env.DB.prepare('UPDATE projects SET delete_since = NULL WHERE id = ?')
+        .bind(projectId)
+        .run();
+      await audit(
+        env.DB,
+        {
+          projectId,
+          actor: 'system',
+          action: 'reconcile.delete-cancelled',
+          detail: 'a live subscription is on the project',
+        },
+        { now }
+      ).catch(() => {});
+    }
     // The debounce clock starting or stopping is not an action, so the
     // `reconcile` row below would not record it — and "we started counting
     // toward a pause" is exactly what an owner (and an operator) should be
@@ -1109,7 +1132,14 @@ async function notifyOwner(env, projectId, row, which, { deletesAt }) {
     downloadUrl: `${dashboard}/projects/${projectId}/download`,
     deletesAt,
   };
-  const message = which === 'paused' ? projectPausedEmail(body) : deletionWarningEmail(body);
+  // A deletion an operator scheduled (D1 v23) walks the same ladder but is
+  // not "your subscription ended" — it says who decided and how to stop it.
+  const message =
+    which === 'paused'
+      ? row.delete_since != null
+        ? deletionScheduledEmail({ ...body, copyReady: true })
+        : projectPausedEmail(body)
+      : deletionWarningEmail(body);
   return sendEmail(env, { to, ...message });
 }
 

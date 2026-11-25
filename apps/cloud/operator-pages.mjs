@@ -76,6 +76,11 @@ const CSS = `
   details.sheet .hint { margin: var(--space-1) 0 0; font-size: var(--type-sm); color: var(--fg-2); }
   details.sheet .foot { display: flex; gap: var(--space-4); align-items: center; margin-top: var(--space-4); }
   td form.inline { display: inline; }
+  .otabs { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-3); padding: 0; list-style: none; }
+  .otabs a { display: inline-block; padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); border: 1px solid var(--border-subtle); color: var(--fg-1); font-size: var(--type-sm); text-decoration: none; }
+  .otabs a[aria-current="page"] { background: var(--bg-4); color: var(--fg-0); font-weight: 600; }
+  .btn.ghost { background: var(--bg-2); color: var(--fg-1); border-color: var(--border-default); }
+  .card h3 { margin: var(--space-3) 0 var(--space-1); font-size: var(--type-sm); color: var(--fg-2); }
 `;
 
 function esc(s) {
@@ -204,6 +209,8 @@ export function operatorOverviewPage({
   metrics = null,
   totals = null,
   stripeUrl = 'https://dashboard.stripe.com/subscriptions',
+  lists = null,
+  tab = 'newest',
 }) {
   const states = Object.entries(board.byState ?? {}).sort((a, b) => b[1] - a[1]);
   const totalProjects = states.reduce((sum, [, n]) => sum + n, 0);
@@ -328,10 +335,57 @@ export function operatorOverviewPage({
     lede: 'Every project and account on the platform, what the plane believes it earns, and what is wrong right now. Actions live on an account’s page and a project’s page; each needs a reason and is logged.',
     body: `<p class="head-actions"><a class="btn" href="/operator/new-project">New project for an account</a></p>
       <div class="tiles">${tiles.join('\n')}</div>
-      ${alarms ? `<div class="card"><h2>Cost alarms</h2>${alarms}</div>` : ''}
-      <div class="card"><h2>Fleet problems</h2>${problems}</div>
+      ${accountLists(lists, tab)}
+      <div class="card"><h2>Needs a look</h2>
+        ${alarms ? `<h3>Cost alarms</h3>${alarms}` : ''}
+        <h3>Fleet problems</h3>${problems}
+      </div>
       ${unpriced}`,
   });
+}
+
+/** The four account lists of the overview (canvas 16, cl-operator), with counts. */
+const LIST_WORD = {
+  newest: 'Newest accounts',
+  active: 'Most active',
+  trial: 'Trial ends soon',
+  promo: 'Promo',
+};
+
+/**
+ * @param {{counts: object, rows: object[]|null, note?: string}|null} lists
+ *   `rows: null` means the list could not be read (Most active without
+ *   analytics) — said in words, never drawn as an empty table.
+ */
+function accountLists(lists, tab) {
+  if (!lists) return '';
+  const active = Object.hasOwn(LIST_WORD, tab) ? tab : 'newest';
+  const tabs = Object.keys(LIST_WORD)
+    .map((key) => {
+      const n = lists.counts?.[key];
+      return `<li><a href="/operator${key === 'newest' ? '' : `?tab=${key}`}"${key === active ? ' aria-current="page"' : ''}>${esc(LIST_WORD[key])}${n === null || n === undefined ? '' : ` <span class="mono">${n}</span>`}</a></li>`;
+    })
+    .join('');
+  const rows = (lists.rows ?? [])
+    .map(
+      (a) => `<tr>
+        <td><a href="/operator/accounts/${esc(a.id)}">${esc(a.email)}</a></td>
+        <td class="right mono">${num(a.projects ?? null)}</td>
+        <td class="quiet">${esc(a.note ?? '')}</td>
+        <td class="right"><time>${when(a.created_at)}</time></td>
+      </tr>`
+    )
+    .join('\n');
+  return `<div class="card">
+    <ul class="otabs">${tabs}</ul>
+    ${
+      lists.rows === null
+        ? `<p class="quiet">${esc(lists.note ?? 'This list could not be read.')}</p>`
+        : rows
+          ? `<table><thead><tr><th>Account</th><th class="right">Projects</th><th></th><th class="right">Created</th></tr></thead><tbody>${rows}</tbody></table>`
+          : '<p class="quiet">Nobody on this list.</p>'
+    }
+  </div>`;
 }
 
 // ---------------------------------------------------------------- projects
@@ -658,6 +712,7 @@ export function operatorAccountPage({
       <p class="quiet">${header}</p>
       <p class="head-actions">
         <a class="btn" href="/operator/new-project?owner=${encodeURIComponent(target.email)}">New project for this account</a>
+        <a class="btn ghost" href="/operator/accounts/${esc(target.id)}/view">See it as ${esc(target.email)} does</a>
       </p>
       <div class="tiles">${tiles.join('\n')}</div>
 
@@ -665,7 +720,7 @@ export function operatorAccountPage({
         ${
           projects.length
             ? `<table><thead><tr><th>Project</th><th>Plan</th><th class="right">People</th><th class="right">Storage</th><th class="right">Last change</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-               <p class="quiet">Last change is the last checkpoint the platform recorded. Mark as Promo, Pause, Wake and Move are on each project’s own page.</p>`
+               <p class="quiet">Last change is the last checkpoint the platform recorded. People in this project, Mark as Promo, Pause, Wake, Move to another owner and Delete are on each project’s own page.</p>`
             : '<p class="quiet">This account owns no project.</p>'
         }
       </div>
@@ -698,6 +753,122 @@ export function operatorAccountPage({
       </div>`,
   });
 }
+
+// ------------------------------------------------- people in one project
+
+/**
+ * People in this project (canvas 16, cl-op-account row menu) — the owner's
+ * People page, for support: the same list and the same actions, each needing
+ * a reason and each recorded as the operator's.
+ */
+export function operatorProjectPeoplePage({
+  account,
+  project,
+  people = [],
+  grants = [],
+  invites = [],
+  requests = [],
+  csrf,
+  canView = false,
+  notice = null,
+  error = null,
+}) {
+  const action = `/operator/projects/${project.id}/people`;
+  const word = (role) => PEOPLE_ROLE_WORD[role] ?? 'Can view';
+  const roles = ['member', 'viewer', ...(canView ? ['observer'] : [])];
+  const roleOptions = (current) =>
+    roles
+      .concat(current && !roles.includes(current) && current !== 'owner' ? [current] : [])
+      .map(
+        (r) =>
+          `<option value="${esc(r)}"${r === current ? ' selected' : ''}>${esc(word(r))}</option>`
+      )
+      .join('');
+  const act = (title, hidden, { fields = '', submit, id }) =>
+    sheet({ title, action, csrf, id, hidden, fields, submit });
+
+  const personRows = people
+    .map((p) => {
+      const who = `${esc(String(p.name ?? '').trim() || p.email)} <span class="quiet">${esc(p.email)}</span>`;
+      if (p.role === 'owner')
+        return `<tr><td>${who}</td><td><strong>Owner</strong></td><td></td></tr>`;
+      return `<tr><td>${who}</td><td><strong>${esc(word(p.role))}</strong></td><td>
+        ${act(
+          'Change role',
+          { do: 'role', account: p.account_id },
+          {
+            id: `role-${p.account_id}`,
+            fields: `<label for="role-${esc(p.account_id)}-r">What they can do</label><select id="role-${esc(p.account_id)}-r" name="role">${roleOptions(p.role)}</select>`,
+            submit: 'Save',
+          }
+        )}
+        ${act('Remove', { do: 'remove', account: p.account_id }, { id: `rm-${p.account_id}`, submit: 'Remove from this project' })}
+      </td></tr>`;
+    })
+    .join('\n');
+  const grantRows = grants
+    .map(
+      (g) =>
+        `<tr><td>${esc(String(g.name ?? '').trim() || g.email)} <span class="quiet">${esc(g.email)}</span></td><td><strong>${esc(word(g.role))}</strong> <span class="quiet">on one canvas only</span></td><td></td></tr>`
+    )
+    .join('\n');
+  const inviteRows = invites
+    .map(
+      (
+        i
+      ) => `<tr><td>${esc(i.email)}</td><td><strong>${esc(word(i.role))}</strong> <span class="quiet">not joined yet · until ${when(i.expires_at)}</span></td><td>
+        ${act('Send again', { do: 'invite-resend', invite: i.id }, { id: `rs-${i.id}`, submit: 'Send again' })}
+        ${act('Cancel invite', { do: 'invite-cancel', invite: i.id }, { id: `cx-${i.id}`, submit: 'Cancel invite' })}
+      </td></tr>`
+    )
+    .join('\n');
+  const requestRows = requests
+    .map(
+      (
+        r
+      ) => `<tr><td>${esc(String(r.name ?? '').trim() || r.email)} <span class="quiet">${esc(r.email)}</span></td><td class="quiet">asked ${when(r.created_at)}</td><td>
+        ${act('Allow editing', { do: 'request-allow', request: r.id }, { id: `ok-${r.id}`, submit: 'Allow editing' })}
+        ${act('Not now', { do: 'request-decline', request: r.id }, { id: `no-${r.id}`, submit: 'Not now' })}
+      </td></tr>`
+    )
+    .join('\n');
+
+  return shell({
+    account,
+    title: `People in ${project.name || project.id}`,
+    active: 'operator-projects',
+    lede: 'Who is on this project and what each can do. Every change here is recorded as Maude support’s, with your reason, on the project’s own Activity page.',
+    body: `
+      ${error ? `<p class="err">${esc(error)}</p>` : ''}
+      ${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
+      <p class="head-actions"><a class="btn ghost" href="/operator/projects/${esc(project.id)}">Back to the project</a></p>
+      <div class="card"><h2>People</h2>
+        <table><thead><tr><th>Person</th><th>What they can do</th><th></th></tr></thead><tbody>${personRows}${grantRows}</tbody></table>
+      </div>
+      ${requests.length ? `<div class="card"><h2>Asks to edit</h2><table><tbody>${requestRows}</tbody></table></div>` : ''}
+      ${invites.length ? `<div class="card"><h2>Invited</h2><table><tbody>${inviteRows}</tbody></table></div>` : ''}
+      <div class="card"><h2>Invite someone</h2>
+        ${act(
+          'Invite by e-mail',
+          { do: 'invite' },
+          {
+            id: 'invite',
+            fields: `<label for="invite-email">Their email</label><input type="email" id="invite-email" name="email" required maxlength="254">
+            <label for="invite-role">What they can do</label><select id="invite-role" name="role">${roleOptions('member')}</select>
+            ${canView ? '' : '<p class="hint">Can view is not available for this project yet.</p>'}`,
+            submit: 'Send invitation',
+          }
+        )}
+      </div>`,
+  });
+}
+
+const PEOPLE_ROLE_WORD = {
+  owner: 'Owner',
+  member: 'Can edit',
+  viewer: 'Can comment',
+  observer: 'Can view',
+};
 
 // --------------------------------------------------------- new project sheet
 
@@ -861,6 +1032,10 @@ export function operatorProjectPage({
         }
       </div>
 
+      <p class="head-actions">
+        <a class="btn" href="/operator/projects/${esc(project.id)}/people">People in this project</a>
+        ${project.account_id ? `<a class="btn ghost" href="/operator/accounts/${esc(project.account_id)}/view/projects/${esc(project.id)}/people">See it as the owner does</a>` : ''}
+      </p>
       <div class="card"><h2>Actions</h2>
         <p class="quiet">None of these touches a subscription at Stripe. A project with a paid plan
           is refused by the ones that would disagree with it, and the refusal is logged.</p>
@@ -936,6 +1111,30 @@ export function operatorProjectPage({
                   '<label for="move-to">New owner’s email</label><input type="email" id="move-to" name="to" required maxlength="254">',
                 submit: 'Move',
               })
+        }
+        ${
+          project.delete_since != null
+            ? plan.state === 'deleting' && project.state === 'suspended'
+              ? sheet({
+                  title: 'Undo the scheduled deletion',
+                  action: `${base}/delete/undo`,
+                  csrf,
+                  id: 'undelete',
+                  note: 'Nothing has been deleted yet. The project comes back as its plan says, and the owner reads this on Activity.',
+                  submit: 'Undo',
+                })
+              : ''
+            : project.state === 'purged' || project.state === 'exported' || project.subscription_id
+              ? ''
+              : sheet({
+                  title: 'Delete…',
+                  action: `${base}/delete`,
+                  csrf,
+                  id: 'delete',
+                  note: 'Never at once. The project is paused, a complete copy is prepared and mailed to its owner, they are warned two days before, and it is deleted after 30 days. Until then this can be undone here.',
+                  fields: `<label for="delete-confirm">Type the project’s name or id to confirm</label><input type="text" id="delete-confirm" name="confirm" required autocomplete="off">`,
+                  submit: 'Schedule the deletion',
+                })
         }
       </div>
 

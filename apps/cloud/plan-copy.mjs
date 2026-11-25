@@ -6,7 +6,7 @@
 // detail support needs. Both are derived from `planState`, so the page and the
 // cell can never disagree about whether a project is paused.
 
-import { formatDay } from './billing.mjs';
+import { formatDay, RETENTION_DAYS } from './billing.mjs';
 import pricingCatalog from './pricing.json' with { type: 'json' };
 import { planState } from './project-access.mjs';
 import { promoStorageLabel, promoTierLabel, promoView } from './promo.mjs';
@@ -18,6 +18,11 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const daysLeft = (endsAt, now) => Math.max(1, Math.ceil((Number(endsAt) - now) / DAY_MS));
 
 const planName = (id) => pricingCatalog.plans.find((p) => p.id === id)?.name ?? null;
+
+/** Did an operator schedule this project's deletion, and has it not happened yet (D1 v23)? */
+export const isDeleting = (project) =>
+  project?.delete_since != null &&
+  (project?.state === 'suspended' || project?.state === 'exported');
 
 /** Is this project paused by an operator right now (D1 v21 `hold_since`)? */
 export const isHeld = (project) => project?.hold_since != null && project?.state === 'suspended';
@@ -34,6 +39,20 @@ export const isHeld = (project) => project?.hold_since != null && project?.state
 export function ownerPlan(project, { now = Date.now() } = {}) {
   const state = planState(project, { now });
   const promo = promoView(project, { now });
+  // Scheduled for deletion by an operator (D1 v23): says the date, and offers
+  // nothing that would charge — the way back is a reply, not a plan.
+  if (isDeleting(project)) {
+    const on = formatDay(Number(project.state_since) + RETENTION_DAYS * DAY_MS);
+    return {
+      state: 'deleting',
+      line: `Paused by Maude · will be deleted on ${on}`,
+      tone: 'stop',
+      canChoose: false,
+      promo: null,
+      freeUntil: null,
+      deletesOn: on,
+    };
+  }
   if (isHeld(project)) {
     return {
       state: 'held',
@@ -114,6 +133,13 @@ export function promoFacts(project, { now = Date.now(), usedBytes = null } = {})
 export function operatorPlan(project, { now = Date.now() } = {}) {
   const state = planState(project, { now });
   if (project.state === 'purged') return { state: 'gone', line: 'Deleted', tone: 'off' };
+  if (isDeleting(project)) {
+    return {
+      state: 'deleting',
+      line: `Deletion scheduled · deleted on ${formatDay(Number(project.state_since) + RETENTION_DAYS * DAY_MS)}`,
+      tone: 'stop',
+    };
+  }
   if (isHeld(project)) {
     return {
       state: 'held',

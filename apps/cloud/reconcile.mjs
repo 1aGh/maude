@@ -139,6 +139,7 @@ export function reconcile(tenant, subscription, { now = Date.now() } = {}) {
   // point a pause means anything) are left to the machine.
   if (
     tenant.holdSince != null &&
+    tenant.deleteSince == null &&
     (tenant.state === 'active' || tenant.state === 'past_due' || tenant.state === 'suspended')
   ) {
     const held = [];
@@ -150,6 +151,56 @@ export function reconcile(tenant, subscription, { now = Date.now() } = {}) {
       desiredState: 'suspended',
       actions: held,
       notes: ['paused by an operator — no export, no retention clock'],
+    };
+  }
+
+  // DELETION SCHEDULED BY AN OPERATOR (D1 v23, `delete_since`). Never a purge:
+  // the row walks the SAME ladder a lapsed subscription walks — pause, the
+  // copy prepared and mailed, the warning two days before, deletion at thirty
+  // days, and only with a copy in storage (DDR-193 §3). It is expressed as
+  // exactly that: the ordinary machine, asked about a subscription that has
+  // ended and has stayed ended (so no debounce — somebody decided this, it is
+  // not a wobble). Whatever plan the row had (trial, Promo, none) no longer
+  // exempts it; an operator's hold does not stall it either, because the
+  // branch above is skipped — a deletion that a pause could silently freeze
+  // would be a date on the owner's screen that nothing performs.
+  // Undo clears the column, and the branches below bring the project back.
+  //
+  // IT YIELDS TO MONEY. If a live subscription is on the row — somebody paid
+  // while the deletion was pending — the deletion is OFF: the row is handed to
+  // the ordinary machine as if it had never been scheduled, and the result
+  // says so (`cancelDelete`), which the caller turns into a cleared column and
+  // a log row. A project that is being paid for is never walked to a purge.
+  if (tenant.deleteSince != null) {
+    const paying = stateForSubscription(subscription);
+    if (subscription && (paying === 'active' || paying === 'past_due')) {
+      const kept = reconcile({ ...tenant, deleteSince: null }, subscription, { now });
+      return {
+        ...kept,
+        cancelDelete: true,
+        notes: [
+          'deletion was scheduled, but the project has a live subscription — cancelled',
+          ...kept.notes,
+        ],
+      };
+    }
+    const ladder = reconcile(
+      {
+        ...tenant,
+        deleteSince: null,
+        holdSince: null,
+        trialEndsAt: null,
+        promo: false,
+        subscriptionId: tenant.subscriptionId ?? 'deletion-scheduled',
+        adverseSince: 0,
+      },
+      { status: 'canceled' },
+      { now }
+    );
+    return {
+      desiredState: ladder.desiredState,
+      actions: ladder.actions,
+      notes: ['deletion scheduled by an operator — the ordinary ladder', ...ladder.notes],
     };
   }
 
@@ -194,6 +245,20 @@ export function reconcile(tenant, subscription, { now = Date.now() } = {}) {
   // NARROW ON PURPOSE. `subscriptionId` on the row with nothing at Stripe is a
   // subscription that vanished — that still alerts below. A row that is not
   // running (`pending`, `suspended`, …) is not a pilot and takes the machine.
+  if (!subscription && !tenant.subscriptionId && tenant.state === 'suspended') {
+    // …and a pilot that is `suspended` can only have been stopped by an
+    // operator (a pause, or a deletion that was undone): nothing else ever
+    // suspends a row with no subscription. With the hold lifted, it wakes.
+    return {
+      desiredState: 'active',
+      actions: [
+        { kind: 'set-state', from: 'suspended', to: 'active' },
+        ...(tenant.cellRunning ? [] : [{ kind: 'resume-cell' }]),
+      ],
+      notes: ['no plan on the row, and the operator’s stop was lifted — woken'],
+      adverseSince: null,
+    };
+  }
   if (!subscription && !tenant.subscriptionId && tenant.state === 'active') {
     return {
       desiredState: 'active',
@@ -448,6 +513,11 @@ export function settle(tenant, subscription, { now = Date.now(), maxRounds = 5 }
   const all = [];
   for (let round = 0; round < maxRounds; round++) {
     const result = reconcile(current, subscription, { now });
+    // A scheduled deletion that yielded to a live subscription is over for the
+    // rest of this settle, too — the next round reads a row with none.
+    if (result.cancelDelete && current.deleteSince != null) {
+      current = { ...current, deleteSince: null };
+    }
     if (result.actions.length === 0) {
       // A round with nothing to DO can still have something to REMEMBER: the
       // adverse-reading debounce. `reconcile()` reports when a non-active

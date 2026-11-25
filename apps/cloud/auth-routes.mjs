@@ -161,7 +161,7 @@ export async function currentAccount(request, env) {
  * cannot list projects should still let somebody sign out, reach their
  * account, and read that something is wrong.
  */
-async function projectsFor(env, accountId) {
+export async function projectsFor(env, accountId) {
   try {
     const rows = await env.DB.prepare(
       `SELECT p.id, p.name, p.state,

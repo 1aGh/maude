@@ -310,7 +310,7 @@ describe('the project detail page', () => {
     // than how many there are: a form that posts somewhere unlisted, or with
     // no token, or with no reason, is the regression.
     const KNOWN =
-      /^\/operator\/projects\/alligators\/(reconcile|free-time|promo|promo\/end|pause|wake|move)$/;
+      /^\/operator\/projects\/alligators\/(reconcile|free-time|promo|promo\/end|pause|wake|move|delete|delete\/undo)$/;
     for (const p of [
       project(),
       { ...project(), subscription_id: null, trial_ends_at: Date.now() + 86_400_000 },

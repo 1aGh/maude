@@ -41,13 +41,14 @@
 // deletion: it is keyed by the address's hash so a re-signup on the same
 // address gets no second trial.
 
-import { notYours, pageAccessCall } from './access-forward.mjs';
+import { rankOf } from '../studio/access/roles.ts';
+import { notYours, pageAccessCall, transferOwnership } from './access-forward.mjs';
 import { lastOpens } from './analytics.mjs';
 import { SESSION_COOKIE } from './auth-routes.mjs';
 import { formatDay, TRIAL_DAYS, trialView } from './billing.mjs';
 import { appShell } from './brand.mjs';
 import { STATE_COPY } from './dashboard.mjs';
-import { audit } from './db.mjs';
+import { audit, checkoutOpen } from './db.mjs';
 import { pageCsp, sameOriginPost, spend } from './edge.mjs';
 import { verifyCsrf } from './operator.mjs';
 import {
@@ -119,7 +120,11 @@ const CSS = `
   table.matrix summary { cursor: pointer; color: var(--fg-2); font-size: var(--type-sm); }
   table.matrix details form { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
   .bulk { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; margin: 0 0 var(--space-6); }
-  .bulk label { font-size: var(--type-sm); color: var(--fg-1); }
+  .bulk label { font-size: var(--type-sm); color: var(--fg-1); margin: 0; }
+  .bulk select { width: auto; }
+  .ptabs { margin-bottom: var(--space-3); }
+  form.find { display: flex; gap: var(--space-2); margin: 0 0 var(--space-3); }
+  form.find input { max-width: 20rem; }
 `;
 
 function esc(s) {
@@ -231,6 +236,9 @@ export function accountPeoplePage({
   shared = [],
   csrf = null,
   lastOpen = null,
+  transfers = { incoming: [], outgoing: [] },
+  tab = 'everyone',
+  q = '',
   error = null,
   notice = null,
   now = Date.now(),
@@ -259,6 +267,78 @@ export function accountPeoplePage({
     if (b.account_id === account.id) return 1;
     return String(a.email).localeCompare(String(b.email));
   });
+
+  // ---- the three lists (canvas 16, cl-people) and Find someone. Filtering is
+  // done here, on rows this account may already see; `tab` and `q` only ever
+  // narrow that set. "Not here in 30 days" exists only when opens are
+  // recorded — without them nobody can be said to have stayed away.
+  const isOwnerSomewhere = (p) =>
+    owned.some((o) => o.people.some((x) => x.account_id === p.account_id && x.role === 'owner'));
+  const lists = {
+    everyone,
+    owners: everyone.filter(isOwnerSomewhere),
+    ...(lastOpen ? { quiet: everyone.filter((p) => !lastOpen.has(p.account_id)) } : {}),
+  };
+  const activeTab = Object.hasOwn(lists, tab) ? tab : 'everyone';
+  const needle = String(q ?? '')
+    .trim()
+    .toLowerCase();
+  const shown = lists[activeTab].filter(
+    (p) =>
+      !needle ||
+      String(p.email ?? '')
+        .toLowerCase()
+        .includes(needle) ||
+      String(p.name ?? '')
+        .toLowerCase()
+        .includes(needle)
+  );
+  const TAB_WORD = { everyone: 'Everyone', owners: 'Owners', quiet: 'Not here in 30 days' };
+  const tabHref = (key) => {
+    const params = new URLSearchParams({
+      ...(key === 'everyone' ? {} : { tab: key }),
+      ...(needle ? { q: needle } : {}),
+    });
+    const qs = params.toString();
+    return `/account/people${qs ? `?${qs}` : ''}`;
+  };
+  const finder = owned.length
+    ? `<ul class="tabs ptabs">${Object.keys(lists)
+        .map(
+          (key) =>
+            `<li><a href="${esc(tabHref(key))}"${key === activeTab ? ' aria-current="page"' : ''}>${esc(TAB_WORD[key])} <span class="num">${lists[key].length}</span></a></li>`
+        )
+        .join('')}</ul>
+       <form class="find" method="get" action="/account/people">
+         ${activeTab === 'everyone' ? '' : `<input type="hidden" name="tab" value="${esc(activeTab)}">`}
+         <input type="search" name="q" value="${esc(needle)}" maxlength="80" placeholder="Find someone" aria-label="Find someone">
+         <button type="submit" class="ghost">Find</button>
+       </form>`
+    : '';
+
+  // ---- handing a project over: offers TO this account, and offers it made
+  const offers = [
+    ...transfers.incoming.map(
+      (x) => `<li>
+        <span><strong>${esc(String(x.from_name ?? '').trim() || 'The owner')} wants to make you the owner of ${esc(x.project_name || x.project_id)}</strong>
+          <span class="quiet">Nothing changes unless you accept. The owner decides who is on the project and pays for it when it has a plan.</span></span>
+        <span class="acts">
+          ${post({ do: 'transfer-decline', transfer: x.id }, 'Decline', { ghost: true })}
+          ${post({ do: 'transfer-accept', transfer: x.id }, 'Become the owner')}
+        </span>
+      </li>`
+    ),
+    ...transfers.outgoing.map(
+      (x) => `<li>
+        <span><strong>You offered ${esc(x.project_name || x.project_id)} to ${esc(String(x.to_name ?? '').trim() || x.to_email)}</strong>
+          <span class="quiet">Waiting for them to accept. You are still the owner.</span></span>
+        <span class="acts">${post({ do: 'transfer-cancel', transfer: x.id, project: x.project_id }, 'Take the offer back', { ghost: true })}</span>
+      </li>`
+    ),
+  ];
+  const offersHtml = offers.length
+    ? `<div class="card"><h2>A new owner</h2><ul class="needs">${offers.join('\n')}</ul></div>`
+    : '';
 
   // ---- what is waiting on the owner
   const requests = owned.flatMap(({ project, requests: list = [] }) =>
@@ -322,7 +402,8 @@ export function accountPeoplePage({
             <input type="hidden" name="account" value="${esc(person.account_id)}">
             ${roleSelect('role', member.role, { label: `What ${person.email} can do on ${projectName(project)}`, canView })}
             <span><button type="submit" name="do" value="role">Save</button>
-              <button type="submit" name="do" value="remove" class="ghost">Remove from ${esc(projectName(project))}</button></span>
+              <button type="submit" name="do" value="remove" class="ghost">Remove from ${esc(projectName(project))}</button>
+              <button type="submit" name="do" value="transfer-offer" class="ghost">Offer to make them the owner of ${esc(projectName(project))}</button></span>
           </form>
         </details>`);
     }
@@ -333,7 +414,7 @@ export function accountPeoplePage({
     }
     return `<td>${parts.length ? parts.join('<br>') : '<span class="quiet">—</span>'}</td>`;
   };
-  const rows = everyone
+  const rows = shown
     .map((person) => {
       const self = person.account_id === account.id;
       const seen = lastOpen ? lastOpen.get(person.account_id) : null;
@@ -356,15 +437,30 @@ export function accountPeoplePage({
                `<th><a href="/projects/${esc(project.id)}/people">${esc(projectName(project))}</a></th>`
            )
            .join('')}${lastOpen ? '<th class="right">Last here</th>' : ''}</tr></thead>
-         <tbody>${rows}</tbody>
+         <tbody>${rows || `<tr><td colspan="${owned.length + (lastOpen ? 2 : 1)}" class="quiet">Nobody here matches.</td></tr>`}</tbody>
        </table>
        ${
          everyone.length > 1
            ? `<form id="bulk" class="bulk" method="post" action="/account/people">
                 ${csrfField(csrf)}
-                <label><input type="checkbox" name="sure" value="yes" required> Remove the selected people from every project I own, and cancel their open invitations</label>
+                <span>For the selected people:</span>
+                <select name="project" aria-label="Project">${owned
+                  .map(
+                    ({ project }) =>
+                      `<option value="${esc(project.id)}">${esc(projectName(project))}</option>`
+                  )
+                  .join('')}</select>
+                ${roleSelect('role', 'member', { label: 'Role in that project', canView: owned.every((o) => o.canView !== false) })}
+                <button type="submit" name="do" value="role-bulk" class="ghost">Change role in that project</button>
+                <button type="submit" name="do" value="add-bulk" class="ghost">Add to that project</button>
+                <label><input type="checkbox" name="sure" value="yes"> I mean it: remove them from every project I own, and cancel their open invitations</label>
                 <button type="submit" name="do" value="remove-all" class="ghost">Remove from account</button>
               </form>
+              <p class="quiet">A bulk change is checked for everyone selected before anything changes: one person or
+                project that is not yours stops all of it. If a role change then fails part-way it is put back; if adding
+                or removing fails part-way, this page says exactly who was done. Adding someone at a role they already hold
+                on one of your projects (or a lower one) needs no new invitation; a higher role is sent as an invitation
+                they accept.</p>
               <p class="quiet">Removing takes effect at once for opening a project. Someone already in a project is
                 disconnected within minutes, and at the latest ${Math.round(ACCESS_TOKEN_TTL_MS / 3_600_000)} hours later.
                 To add someone, invite them from a project’s own People page — they join when they accept.</p>
@@ -408,8 +504,9 @@ export function accountPeoplePage({
     'People and invites',
     `${notices({ error, notice })}
      ${summary ? `<p class="plan-line">${esc(summary)}</p>` : ''}
+     ${offersHtml}
      ${waiting}
-     <h2>Projects you own</h2>${matrix}
+     <h2>Projects you own</h2>${finder}${matrix}
      <h2>Shared with you</h2>${sharedHtml}`,
     {
       account,
@@ -747,6 +844,14 @@ const PEOPLE_DONE = {
   declined: 'The request is closed. Nothing changed for them.',
   resent: 'The invitation was sent again.',
   cancelled: 'The invitation is cancelled.',
+  'role-bulk': 'Saved for everyone selected.',
+  'add-bulk':
+    'Done. People who already held that role with you were added; anyone else was sent an invitation.',
+  offered:
+    'Offered. They become the owner only if they accept — you are told nothing changed until then.',
+  'offer-cancelled': 'The offer is taken back. You are still the owner.',
+  accepted: 'You are the owner now. The previous owner stays on the project and can edit.',
+  'declined-offer': 'Declined. Nothing changed.',
 };
 
 const PROJECT_ID_SHAPE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -759,7 +864,18 @@ const NOT_YOURS = '<p>This project is not available to your account.</p>';
  */
 async function peopleAction(env, { account, origin, form, ctx, now }) {
   const verb = String(form.get('do') ?? '');
-  const projectId = String(form.get('project') ?? '');
+  let projectId = String(form.get('project') ?? '');
+  // An offer names its project: taking one back needs only the offer's id,
+  // and only an offer THIS account made resolves to anything.
+  if (verb === 'transfer-cancel' && !projectId) {
+    const offer = await env.DB.prepare(
+      'SELECT project_id FROM project_transfers WHERE id = ? AND from_account = ?'
+    )
+      .bind(String(form.get('transfer') ?? ''), account.id)
+      .first()
+      .catch(() => null);
+    projectId = offer?.project_id ?? '';
+  }
   const call = (method, path, extra = {}) =>
     pageAccessCall(env, {
       origin,
@@ -780,6 +896,9 @@ async function peopleAction(env, { account, origin, form, ctx, now }) {
     'request-decline': () => call('POST', `requests/${id('request')}/decline`),
     'invite-resend': () => call('POST', `invites/${id('invite')}/resend`),
     'invite-cancel': () => call('DELETE', `invites/${id('invite')}`),
+    'transfer-offer': () =>
+      call('POST', 'transfers', { body: { account: String(form.get('account') ?? '') } }),
+    'transfer-cancel': () => call('DELETE', `transfers/${id('transfer')}`),
   };
   const DONE = {
     role: 'role',
@@ -788,6 +907,8 @@ async function peopleAction(env, { account, origin, form, ctx, now }) {
     'request-decline': 'declined',
     'invite-resend': 'resent',
     'invite-cancel': 'cancelled',
+    'transfer-offer': 'offered',
+    'transfer-cancel': 'offer-cancelled',
   };
   if (!Object.hasOwn(ROUTES, verb))
     return { ok: false, error: 'That is not something this page does.' };
@@ -795,6 +916,24 @@ async function peopleAction(env, { account, origin, form, ctx, now }) {
   // the project's own page — the list did not offer it. (A project that is
   // not this account's reads as not holding it, and the authority below then
   // says the rest.)
+  // A role is CHANGED here, never given: an id that is not on that project is
+  // refused — they join by accepting an invitation (or "Add to project").
+  if (verb === 'role') {
+    const seat = await env.DB.prepare(
+      `SELECT 1 AS x FROM project_members m JOIN projects p ON p.id = m.project_id
+        WHERE m.project_id = ? AND m.account_id = ? AND p.account_id = ?`
+    )
+      .bind(projectId, String(form.get('account') ?? ''), account.id)
+      .first()
+      .catch(() => null);
+    const owns = await env.DB.prepare('SELECT 1 AS x FROM projects WHERE id = ? AND account_id = ?')
+      .bind(projectId, account.id)
+      .first()
+      .catch(() => null);
+    if (owns && !seat) {
+      return { ok: false, error: 'That person is not on that project. Nothing was changed.' };
+    }
+  }
   if (verb === 'role' && String(form.get('role') ?? '') === 'observer') {
     const row = PROJECT_ID_SHAPE.test(projectId)
       ? await env.DB.prepare('SELECT capabilities FROM projects WHERE id = ? AND account_id = ?')
@@ -812,55 +951,321 @@ async function peopleAction(env, { account, origin, form, ctx, now }) {
   return { ok: true, done: DONE[verb] };
 }
 
+/** The bulk verbs of the People page — each all-or-nothing. */
+const BULK_VERBS = ['role-bulk', 'add-bulk', 'remove-all'];
+
+/** Roles a bulk action may set. `owner` is an offer, never a role. */
+const BULK_ROLES = ['member', 'viewer', 'observer'];
+
 /**
- * Remove several people from EVERY project this account owns: the membership,
- * each single-canvas access, and any invitation still open for their address.
- * Walks only `ownerView`s — projects read as owned by this account — and each
- * removal is the authority's own (so its checks run again per project).
+ * Everything the People page shows for one account: the projects it owns with
+ * their people, what is shared with it, when people last opened those
+ * projects (only with analytics), and the open hand-over offers either way.
+ * Read-only; `analytics: false` skips the one outside read.
  */
-async function removeFromAccount(env, { account, origin, owned, accountIds, ctx, now }) {
-  let removed = 0;
-  // Each person's address, from wherever on these projects they appear: an
-  // invitation can be open on a project they are not on yet.
+export async function peopleViewData(env, accountId, { now = Date.now(), analytics = true } = {}) {
+  const owned = await Promise.all(
+    (await ownedProjects(env, accountId)).map((p) => ownerView(env, p, { now }))
+  );
+  const shared = await sharedProjects(env, accountId);
+  // Which of these workspaces hold Can view (`roles-v2`), from what each last
+  // reported — no workspace is asked, or woken, to draw this page.
+  for (const o of owned) o.canView = cellHolds(o.project, 'roles-v2');
+  // "Last here" comes from recorded opens; without analytics the column — and
+  // the "Not here in 30 days" list — is simply not there.
+  const lastOpen =
+    analytics && owned.length
+      ? await lastOpens(
+          env,
+          owned.map((o) => o.project.id)
+        ).catch(() => null)
+      : null;
+  const incoming = await all(
+    env.DB,
+    `SELECT t.id, t.project_id, p.name AS project_name, a.name AS from_name
+       FROM project_transfers t
+       JOIN projects p ON p.id = t.project_id AND p.account_id = t.from_account
+       JOIN accounts a ON a.id = t.from_account
+      WHERE t.to_account = ? AND t.closed_at IS NULL AND t.expires_at > ? AND p.state != 'purged'
+      ORDER BY t.created_at`,
+    accountId,
+    now
+  ).catch(() => []);
+  const outgoing = await all(
+    env.DB,
+    `SELECT t.id, t.project_id, p.name AS project_name, a.name AS to_name, a.email AS to_email
+       FROM project_transfers t
+       JOIN projects p ON p.id = t.project_id AND p.account_id = t.from_account
+       JOIN accounts a ON a.id = t.to_account
+      WHERE t.from_account = ? AND t.closed_at IS NULL AND t.expires_at > ?
+      ORDER BY t.created_at`,
+    accountId,
+    now
+  ).catch(() => []);
+  return { owned, shared, lastOpen, transfers: { incoming, outgoing } };
+}
+
+/**
+ * A bulk action over the selected people — ALL OR NOTHING.
+ *
+ * Everything is checked against rows read as THIS account's before a single
+ * change is made: every selected person must be on one of its projects, the
+ * named project must be one it owns, the role must be one that project holds.
+ * One id that is not this account's — a person from somebody else's project,
+ * another owner, a project the caller merely edits — refuses the whole
+ * request with the "not yours" answer and applies nothing; it is never
+ * skipped while the rest goes through. Each change is then the access
+ * authority's own call, so its checks run again per person.
+ */
+async function bulkPeopleAction(env, { account, origin, form, ctx, now, verb }) {
+  const ids = [...new Set(form.getAll('people').map(String).filter(Boolean))];
+  if (ids.length === 0 || ids.length > 100) {
+    return { ok: false, error: 'Select the people first. Nothing was changed.' };
+  }
+  const owned = await Promise.all(
+    (await ownedProjects(env, account.id)).map((p) => ownerView(env, p, { now }))
+  );
   const emailOf = new Map();
   for (const view of owned) {
     for (const p of [...view.people, ...view.grants]) emailOf.set(p.account_id, p.email);
   }
-  for (const view of owned) {
-    const call = (method, path, query = '') =>
-      pageAccessCall(env, {
-        origin,
-        projectId: view.project.id,
-        actorEmail: account.email,
-        method,
-        path,
-        query,
-        ctx,
-        now,
-      });
-    for (const accountId of accountIds) {
-      if (accountId === account.id) continue;
-      // Only people who are on one of THESE projects: an id that is not is
-      // nobody this account can remove.
-      const email = emailOf.get(accountId);
-      if (!email) continue;
-      if (view.people.some((p) => p.account_id === accountId)) {
-        const out = await call('DELETE', `people/${encodeURIComponent(accountId)}`);
-        if (out.status < 400) removed += 1;
+  // Not one of this account's people (or the owner themself): nothing happens.
+  if (ids.some((id) => id === account.id || !emailOf.has(id))) return { notYours: true };
+
+  const call = (projectId, method, path, extra = {}) =>
+    pageAccessCall(env, {
+      origin,
+      projectId,
+      actorEmail: account.email,
+      method,
+      path,
+      ctx,
+      now,
+      ...extra,
+    });
+
+  if (verb === 'remove-all') {
+    if (form.get('sure') !== 'yes') {
+      return { ok: false, error: 'Tick the box to confirm. Nothing was removed.' };
+    }
+    // A removal cannot be all-or-nothing after the fact (putting somebody back
+    // would need their consent again), so it is all-CHECKED above and then
+    // done project by project; if a step fails the page says exactly where it
+    // stopped, and the same request can be sent again to finish.
+    const failed = [];
+    for (const view of owned) {
+      for (const accountId of ids) {
+        const steps = [];
+        if (view.people.some((p) => p.account_id === accountId)) {
+          steps.push(() =>
+            call(view.project.id, 'DELETE', `people/${encodeURIComponent(accountId)}`)
+          );
+        }
+        for (const g of view.grants.filter((x) => x.account_id === accountId)) {
+          steps.push(() =>
+            call(view.project.id, 'DELETE', `people/${encodeURIComponent(accountId)}`, {
+              query: `canvas=${encodeURIComponent(g.canvas_path)}`,
+            })
+          );
+        }
+        for (const i of view.invites.filter((x) => x.email === emailOf.get(accountId))) {
+          steps.push(() => call(view.project.id, 'DELETE', `invites/${encodeURIComponent(i.id)}`));
+        }
+        for (const step of steps) {
+          try {
+            const answer = await step();
+            if (answer.status >= 400)
+              throw new Error(answer.body?.error ?? `HTTP ${answer.status}`);
+          } catch (err) {
+            console.error(`[people] removal step failed: ${err.message}`);
+            failed.push(`${emailOf.get(accountId)} on ${view.project.name || view.project.id}`);
+            break;
+          }
+        }
       }
-      for (const g of view.grants.filter((x) => x.account_id === accountId)) {
-        await call(
-          'DELETE',
-          `people/${encodeURIComponent(accountId)}`,
-          `canvas=${encodeURIComponent(g.canvas_path)}`
-        );
-      }
-      for (const i of view.invites.filter((x) => x.email === email)) {
-        await call('DELETE', `invites/${encodeURIComponent(i.id)}`);
+    }
+    if (failed.length) {
+      return {
+        ok: false,
+        error: `Not everything was removed. Still there: ${failed.join('; ')}. Everyone else selected was removed — send this again to finish.`,
+      };
+    }
+    return { ok: true, done: 'removed-all' };
+  }
+
+  const view = owned.find((o) => o.project.id === String(form.get('project') ?? ''));
+  if (!view) return { notYours: true };
+  const role = String(form.get('role') ?? '');
+  if (!BULK_ROLES.includes(role))
+    return { ok: false, error: 'That is not a role. Nothing was changed.' };
+  if (role === 'observer' && !view.canView && !cellHolds(view.project, 'roles-v2')) {
+    return { ok: false, error: `${CAN_VIEW_UNAVAILABLE} Nothing was changed.` };
+  }
+  const isMember = (id) => view.people.some((p) => p.account_id === id);
+  const wrong = verb === 'role-bulk' ? ids.filter((id) => !isMember(id)) : ids.filter(isMember);
+  if (wrong.length) {
+    const names = wrong.map((id) => emailOf.get(id)).join(', ');
+    return {
+      ok: false,
+      error:
+        verb === 'role-bulk'
+          ? `Not on ${view.project.name || view.project.id}: ${names}. Nothing was changed — add them first.`
+          : `Already on ${view.project.name || view.project.id}: ${names}. Nothing was changed.`,
+    };
+  }
+  // Everything above was checked for everyone before anything changes. What
+  // is left is the authority's own write per person, which can still fail (a
+  // database error) — so each is tried, and on the first failure:
+  //   role-bulk  every change already made is PUT BACK to the role it was;
+  //   add-bulk   nothing is taken away from somebody who was just added or
+  //              invited (an invitation already mailed cannot be unsent), and
+  //              the page says exactly who was done and who was not.
+  const attempt = async (fn) => {
+    try {
+      const answer = await fn();
+      return answer.status < 400 && !notYours(answer);
+    } catch (err) {
+      console.error(`[people] bulk step failed: ${err.message}`);
+      return false;
+    }
+  };
+  const roleBefore = new Map(view.people.map((p) => [p.account_id, p.role]));
+  // The highest role each person already holds on ANY project of this owner.
+  const highest = new Map();
+  for (const o of owned) {
+    for (const p of o.people) {
+      if (p.role === 'owner') continue;
+      if (!highest.has(p.account_id) || rankOf(p.role) > rankOf(highest.get(p.account_id))) {
+        highest.set(p.account_id, p.role);
       }
     }
   }
-  return removed;
+  const done = [];
+  for (const accountId of ids) {
+    // ADD: nobody is put on a project ABOVE what they already hold on this
+    // owner's projects without accepting. At or below it, they are added at
+    // once (it is access the owner already gave them, on one more project);
+    // above it — or holding only a single canvas somewhere — they get the
+    // normal invitation and join when they accept.
+    const direct =
+      verb === 'role-bulk' ||
+      (highest.has(accountId) && rankOf(role) <= rankOf(highest.get(accountId)));
+    const ok = await attempt(() =>
+      direct
+        ? call(view.project.id, 'PATCH', `people/${encodeURIComponent(accountId)}`, {
+            body: { role },
+          })
+        : call(view.project.id, 'POST', 'invites', {
+            body: { email: emailOf.get(accountId), role },
+          })
+    );
+    if (ok) {
+      done.push(accountId);
+      continue;
+    }
+    const names = (list) => list.map((id) => emailOf.get(id)).join(', ') || 'nobody';
+    if (verb === 'role-bulk') {
+      const stuck = [];
+      for (const id of done) {
+        const back = await attempt(() =>
+          call(view.project.id, 'PATCH', `people/${encodeURIComponent(id)}`, {
+            body: { role: roleBefore.get(id) },
+          })
+        );
+        if (!back) stuck.push(id);
+      }
+      return {
+        ok: false,
+        error: stuck.length
+          ? `That failed part-way and could not be fully undone. Changed: ${names(stuck)}. Everyone else is as they were.`
+          : 'That failed part-way, and what had been changed was put back. Nothing was changed.',
+      };
+    }
+    return {
+      ok: false,
+      error: `That failed part-way. Done: ${names(done)}. Not done: ${names(ids.filter((id) => !done.includes(id)))}.`,
+    };
+  }
+  return { ok: true, done: verb };
+}
+
+/**
+ * The RECIPIENT's answer to a hand-over offer. Only the account the offer was
+ * made to can answer it; anybody else — the owner who made it included — gets
+ * "not yours". Accepting re-checks everything the offer checked (still the
+ * same owner, still no plan on the project, the recipient's address still
+ * proven), claims the offer in one conditional write, and only then moves the
+ * project (access-forward.mjs `transferOwnership`).
+ */
+async function answerTransfer(env, { account, form, ctx, now, verb }) {
+  const db = env.DB;
+  const id = String(form.get('transfer') ?? '');
+  const offer = await db
+    .prepare(
+      `SELECT * FROM project_transfers
+        WHERE id = ? AND to_account = ? AND closed_at IS NULL AND expires_at > ?`
+    )
+    .bind(id, account.id, now)
+    .first()
+    .catch(() => null);
+  if (!offer) return { notYours: true };
+  const accept = verb === 'transfer-accept';
+  const project = await db
+    .prepare('SELECT * FROM projects WHERE id = ?')
+    .bind(offer.project_id)
+    .first();
+  const mine = await db.prepare('SELECT * FROM accounts WHERE id = ?').bind(account.id).first();
+  // Everything the offer was made on, asked again NOW: the same owner, no plan
+  // and no payment on its way, no deletion scheduled, the recipient's address
+  // still proven — and the recipient still on the project with at least the
+  // role they held when it was offered. Someone removed or demoted since then
+  // was not offered the project as they are today.
+  const seat = await db
+    .prepare('SELECT role FROM project_members WHERE project_id = ? AND account_id = ?')
+    .bind(offer.project_id, account.id)
+    .first()
+    .catch(() => null);
+  const stillGood = Boolean(
+    project &&
+      project.state !== 'purged' &&
+      project.account_id === offer.from_account &&
+      !project.subscription_id &&
+      project.delete_since == null &&
+      mine?.email_verified_at &&
+      seat?.role &&
+      rankOf(seat.role) >= rankOf(offer.to_role) &&
+      !(await checkoutOpen(db, offer.project_id, { now }))
+  );
+  const claimed = await db
+    .prepare(
+      'UPDATE project_transfers SET closed_at = ?, outcome = ? WHERE id = ? AND closed_at IS NULL'
+    )
+    .bind(now, accept && stillGood ? 'accepted' : 'declined', id)
+    .run();
+  if (!claimed?.meta?.changes) return { notYours: true };
+  if (!accept) {
+    await audit(db, {
+      accountId: account.id,
+      projectId: offer.project_id,
+      actor: `customer:${account.email}`,
+      action: 'project.transfer.declined',
+    });
+    return { ok: true, done: 'declined-offer' };
+  }
+  if (!stillGood) {
+    return { ok: false, error: 'That offer can no longer be accepted. Nothing changed.' };
+  }
+  const moved = await transferOwnership(env, {
+    project,
+    target: { id: mine.id, email: mine.email },
+    actor: `customer:${account.email}`,
+    action: 'project.transfer.accepted',
+    detail: { offer: id },
+    ctx,
+    now,
+  });
+  if (!moved) return { ok: false, error: 'That offer can no longer be accepted. Nothing changed.' };
+  return { ok: true, done: 'accepted' };
 }
 
 async function liveMacs(env, accountId) {
@@ -1054,54 +1459,31 @@ export async function handleAccountPages(request, env, { account, ctx = null } =
   // ---- people
   if (section === 'people') {
     const csrf = await csrfFor(request, env);
-    const view = async (extra = {}, status = 200) => {
-      const owned = await Promise.all(
-        (await ownedProjects(env, account.id)).map((p) => ownerView(env, p, { now }))
-      );
-      const shared = await sharedProjects(env, account.id);
-      // Which of these workspaces hold Can view (`roles-v2`), from what each
-      // last reported — no workspace is asked, or woken, to draw this page.
-      for (const o of owned) o.canView = cellHolds(o.project, 'roles-v2');
-      // "Last here" comes from recorded opens; without analytics the column is
-      // simply not there.
-      const lastOpen = owned.length
-        ? await lastOpens(
-            env,
-            owned.map((o) => o.project.id)
-          ).catch(() => null)
-        : null;
-      return html(
-        accountPeoplePage({ account: me, owned, shared, csrf, lastOpen, now, ...extra }),
+    const view = async (extra = {}, status = 200) =>
+      html(
+        accountPeoplePage({
+          account: me,
+          ...(await peopleViewData(env, account.id, { now })),
+          csrf,
+          tab: String(url.searchParams.get('tab') ?? 'everyone'),
+          q: String(url.searchParams.get('q') ?? '').slice(0, 80),
+          now,
+          ...extra,
+        }),
         status
       );
-    };
     if (method !== 'POST') {
       return view({ notice: PEOPLE_DONE[url.searchParams.get('done')] ?? null });
     }
     const form = await request.formData();
     if (!(await postAllowed(request, env, url, form))) return html(REFUSED, 403);
-    if (String(form.get('do') ?? '') === 'remove-all') {
-      const accountIds = form.getAll('people').map(String).filter(Boolean).slice(0, 100);
-      if (form.get('sure') !== 'yes' || accountIds.length === 0) {
-        return view(
-          { error: 'Select the people, and tick the box to confirm. Nothing was removed.' },
-          400
-        );
-      }
-      const owned = await Promise.all(
-        (await ownedProjects(env, account.id)).map((p) => ownerView(env, p, { now }))
-      );
-      await removeFromAccount(env, {
-        account: me,
-        origin: url.origin,
-        owned,
-        accountIds,
-        ctx,
-        now,
-      });
-      return redirect('/account/people?done=removed-all');
-    }
-    const out = await peopleAction(env, { account: me, origin: url.origin, form, ctx, now });
+    const verb = String(form.get('do') ?? '');
+    const args = { account: me, origin: url.origin, form, ctx, now };
+    const out = BULK_VERBS.includes(verb)
+      ? await bulkPeopleAction(env, { ...args, verb })
+      : verb.startsWith('transfer-') && verb !== 'transfer-offer' && verb !== 'transfer-cancel'
+        ? await answerTransfer(env, { ...args, verb })
+        : await peopleAction(env, args);
     // One answer for "not yours" and "no such project", and it is the same
     // sentence a wrong project URL gets — nothing here confirms a project exists.
     if (out.notYours) return html(NOT_YOURS, 404);

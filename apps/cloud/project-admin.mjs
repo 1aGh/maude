@@ -389,6 +389,22 @@ export const AUDIT_COPY = {
   'operator.project.moved': 'Maude moved this project to another owner',
   'operator.account.viewed': 'Maude opened the owner’s account record',
   'operator.account.signed-out': 'Maude signed this account out everywhere',
+  'operator.account.viewed-as': 'Maude support looked at your account',
+  'operator.project.people.viewed': 'Maude support looked at who is on this project',
+  'operator.project.delete-scheduled': 'Maude support scheduled this project for deletion',
+  'operator.project.delete-undone': 'Maude support took the scheduled deletion back',
+  'reconcile.delete-cancelled': 'The scheduled deletion was cancelled — the project has a plan',
+  'access.invite': 'Invited someone',
+  'access.invite-resend': 'Sent an invitation again',
+  'access.invite-cancel': 'Cancelled an invitation',
+  'access.role': 'Changed what someone can do',
+  'access.remove': 'Removed someone from the project',
+  'access.request-approve': 'Allowed someone to edit',
+  'access.request-decline': 'Declined a request to edit',
+  'access.transfer-offer': 'Offered the project to a new owner',
+  'access.transfer-cancel': 'Took that offer back',
+  'project.transfer.accepted': 'The project has a new owner',
+  'project.transfer.declined': 'The offer of a new owner was declined',
 };
 
 /**
@@ -419,12 +435,82 @@ export const OWNER_ONLY_ACTIVITY = Object.freeze([
   'do.promo-ending',
 ]);
 
+/**
+ * Who did it, as the page says it. An operator is "Maude support" — the
+ * promise is that the owner can see WE acted and why, not which employee's
+ * address did it.
+ */
+function actorWord(actor) {
+  const a = String(actor ?? '');
+  if (a.startsWith('operator:')) return 'Maude support';
+  return a.replace(/^customer:/, '');
+}
+
+/**
+ * What one viewer reads on a project's Activity page. One function, so the
+ * page and the operator's read-only view of it cannot show different logs.
+ */
+export async function activityEntries(env, { project, viewerId }) {
+  //
+  // ONLY THE FLEET-WIDE ONES, BY NAME (D1 v21). The union used to take every
+  // operator row with no project — fine while every such row was a list
+  // view. An operator action on ONE ACCOUNT also has no project ("signed out
+  // everywhere — laptop stolen"), and under the old filter it would have
+  // appeared, reason and all, on every other customer's Activity page. So:
+  // the named fleet-wide reads for everyone; rows about ONE account for that
+  // account's own owner only.
+  //
+  // AND CUT AT A MOVE. When an operator moves a project to another owner,
+  // the operator and plan rows written BEFORE the move are about the
+  // previous owner ("behind on invoices", "abuse report") and are not the
+  // new owner's to read. From the move on — the move itself included — they
+  // are. Ordinary project history (who was added, what was exported) is the
+  // project's and stays.
+  const quoted = (list) => list.map((a) => `'${a}'`).join(', ');
+  const viewerOwns = project.account_id === viewerId;
+  const moved = viewerOwns
+    ? await env.DB.prepare(
+        `SELECT MAX(at) AS at FROM audit_log
+              WHERE project_id = ? AND action IN ('operator.project.moved', 'project.transfer.accepted')`
+      )
+        .bind(project.id)
+        .first()
+        .catch(() => null)
+    : null;
+  const cut = Number(moved?.at ?? 0);
+  const rows = await env.DB.prepare(
+    `SELECT at, actor, action, reason FROM audit_log
+          WHERE project_id = ?1
+            ${
+              viewerOwns
+                ? `AND NOT (at < ?3 AND (action LIKE 'operator.%' OR action IN (${quoted(OWNER_ONLY_ACTIVITY)})))`
+                : `AND action NOT IN (${quoted(OWNER_ONLY_ACTIVITY)})`
+            }
+         UNION ALL
+         SELECT at, actor, action, reason FROM audit_log
+          WHERE project_id IS NULL AND actor LIKE 'operator:%'
+            AND action IN (${quoted(FLEET_WIDE_READS)})
+         ${
+           viewerOwns
+             ? `UNION ALL
+         SELECT at, actor, action, reason FROM audit_log
+          WHERE project_id IS NULL AND actor LIKE 'operator:%' AND account_id = ?2
+            AND action NOT IN (${quoted(FLEET_WIDE_READS)})`
+             : ''
+}
+         ORDER BY at DESC LIMIT 200`
+  )
+    .bind(...(viewerOwns ? [project.id, viewerId, cut] : [project.id]))
+    .all();
+  return rows?.results ?? [];
+}
+
 export function auditPage({ account, project, isOwner, entries }) {
   const rows = entries
     .map(
       (e) => `<tr>
         <td>${esc(AUDIT_COPY[e.action] ?? e.action)}</td>
-        <td class="quiet">${esc(String(e.actor).replace(/^customer:/, ''))}</td>
+        <td class="quiet">${esc(actorWord(e.actor))}</td>
         <td>${e.reason ? esc(e.reason) : '<span class="quiet">—</span>'}</td>
         <td class="right"><time>${when(e.at)}</time></td>
       </tr>`
@@ -925,58 +1011,8 @@ export async function handleProjectAdminRoutes(request, env, { account, ctx = nu
     // inverting the promise (attacker review, 2026-08-04). They are unioned in
     // here: a cross-tenant read is a read of this project, whatever column it
     // happened to be filed under.
-    //
-    // ONLY THE FLEET-WIDE ONES, BY NAME (D1 v21). The union used to take every
-    // operator row with no project — fine while every such row was a list
-    // view. An operator action on ONE ACCOUNT also has no project ("signed out
-    // everywhere — laptop stolen"), and under the old filter it would have
-    // appeared, reason and all, on every other customer's Activity page. So:
-    // the named fleet-wide reads for everyone; rows about ONE account for that
-    // account's own owner only.
-    //
-    // AND CUT AT A MOVE. When an operator moves a project to another owner,
-    // the operator and plan rows written BEFORE the move are about the
-    // previous owner ("behind on invoices", "abuse report") and are not the
-    // new owner's to read. From the move on — the move itself included — they
-    // are. Ordinary project history (who was added, what was exported) is the
-    // project's and stays.
-    const quoted = (list) => list.map((a) => `'${a}'`).join(', ');
-    const viewerOwns = project.account_id === account.id;
-    const moved = viewerOwns
-      ? await env.DB.prepare(
-          `SELECT MAX(at) AS at FROM audit_log
-            WHERE project_id = ? AND action = 'operator.project.moved'`
-        )
-          .bind(projectId)
-          .first()
-          .catch(() => null)
-      : null;
-    const cut = Number(moved?.at ?? 0);
-    const rows = await env.DB.prepare(
-      `SELECT at, actor, action, reason FROM audit_log
-        WHERE project_id = ?1
-          ${
-            viewerOwns
-              ? `AND NOT (at < ?3 AND (action LIKE 'operator.%' OR action IN (${quoted(OWNER_ONLY_ACTIVITY)})))`
-              : `AND action NOT IN (${quoted(OWNER_ONLY_ACTIVITY)})`
-          }
-       UNION ALL
-       SELECT at, actor, action, reason FROM audit_log
-        WHERE project_id IS NULL AND actor LIKE 'operator:%'
-          AND action IN (${quoted(FLEET_WIDE_READS)})
-       ${
-         viewerOwns
-           ? `UNION ALL
-       SELECT at, actor, action, reason FROM audit_log
-        WHERE project_id IS NULL AND actor LIKE 'operator:%' AND account_id = ?2
-          AND action NOT IN (${quoted(FLEET_WIDE_READS)})`
-           : ''
-}
-       ORDER BY at DESC LIMIT 200`
-    )
-      .bind(...(viewerOwns ? [projectId, account.id, cut] : [projectId]))
-      .all();
-    return html(auditPage({ account, project, isOwner, entries: rows?.results ?? [] }));
+    const entries = await activityEntries(env, { project, viewerId: account.id });
+    return html(auditPage({ account, project, isOwner, entries }));
   }
 
   // ------------------------------------------------------------------ mirror

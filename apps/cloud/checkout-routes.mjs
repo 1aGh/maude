@@ -778,6 +778,28 @@ async function choosePlan(env, { request, url, account, project, pricing, ctx })
   if (project.subscription_id || (project.trial_ends_at === null && project.promo_since == null)) {
     return html('<p>This project already has a plan.</p>', 409);
   }
+  // Scheduled for deletion by Maude support (D1 v23): no payment is taken for
+  // a project on its way out. The way back is to have the deletion undone.
+  if (project.delete_since != null) {
+    return html(
+      '<p>This project is scheduled for deletion, so a plan cannot be started for it. Ask Maude support to undo the deletion first — reply to the e-mail about it.</p>',
+      409
+    );
+  }
+  // Offered to a new owner and not answered yet: a plan belongs to the account
+  // that pays, so it is not started while the owner may be about to change.
+  const offered = await env.DB.prepare(
+    'SELECT 1 AS x FROM project_transfers WHERE project_id = ? AND closed_at IS NULL AND expires_at > ? LIMIT 1'
+  )
+    .bind(project.id, Date.now())
+    .first()
+    .catch(() => null);
+  if (offered) {
+    return html(
+      '<p>This project is offered to a new owner. Take the offer back on your People page, or wait for their answer, before choosing a plan.</p>',
+      409
+    );
+  }
   const form = await request.formData();
   // The picker is the billing page's (S9.16) and carries its per-session token:
   // same-origin AND the `csrf` field, fail closed (a cross-site form post can
@@ -862,7 +884,8 @@ async function convertTrialProject(env, { account, projectId, session, sessionId
   try {
     updated = await env.DB.prepare(
       `UPDATE projects SET subscription_id = ?, plan = ?,
-              promo_since = NULL, promo_tier = NULL, promo_ends_at = NULL
+              promo_since = NULL, promo_tier = NULL, promo_ends_at = NULL,
+              delete_since = NULL
         WHERE id = ? AND account_id = ? AND subscription_id IS NULL
           AND (trial_ends_at IS NOT NULL OR promo_since IS NOT NULL)`
     )
@@ -921,6 +944,17 @@ async function convertTrialProject(env, { account, projectId, session, sessionId
     action: 'checkout.converted',
     detail: JSON.stringify({ session: sessionId }),
   });
+  // A deletion Maude support had scheduled is off: the statement above cleared
+  // it together with attaching the plan, and the log says so.
+  if (before?.delete_since != null) {
+    await audit(env.DB, {
+      accountId: account.id,
+      projectId,
+      actor: 'system',
+      action: 'reconcile.delete-cancelled',
+      detail: 'a paid plan started',
+    });
+  }
   if (wasPromo) {
     await audit(env.DB, {
       accountId: account.id,
@@ -989,7 +1023,8 @@ async function renderBilling(
   // What the plan reads as for its owner (plan-copy.mjs): a trial's date, a
   // Promo, or an operator's pause — each replaces the bare state card.
   const plan = ownerPlan(project);
-  const promo = promoFacts(project);
+  // A project scheduled for deletion says that, whatever plan it had.
+  const promo = plan.state === 'deleting' ? null : promoFacts(project);
   if (!canPortal) {
     return billingPage({
       account,

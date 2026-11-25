@@ -25,7 +25,7 @@
 //     project and the account it touched. That log is the customer's to read
 //     (DDR-193 §4) — which is why the forms say the reason can be read.
 
-import { accessWentDown, createProjectInvite, notifyAccessChanged } from './access-forward.mjs';
+import { createProjectInvite, transferOwnership } from './access-forward.mjs';
 import {
   createAccount,
   getAccountByEmail,
@@ -36,12 +36,25 @@ import {
 import { FREE_TIME_DAYS, TRIAL_DAYS, TRIALS_PER_VERIFIED_EMAIL } from './billing.mjs';
 import { validateTrialProject } from './checkout.mjs';
 import { settleTrialProject } from './checkout-routes.mjs';
-import { audit, enqueueReconcile } from './db.mjs';
-import { freeTimeEmail, passwordResetEmail, projectMadeEmail, sendEmail } from './email.mjs';
+import {
+  audit,
+  CHECKOUT_OPEN_WINDOW_MS,
+  checkoutOpen,
+  enqueueReconcile,
+  NO_OPEN_CHECKOUT_SQL,
+} from './db.mjs';
+import {
+  deletionScheduledEmail,
+  freeTimeEmail,
+  passwordResetEmail,
+  projectMadeEmail,
+  sendEmail,
+} from './email.mjs';
 import { mintEmailToken } from './email-tokens.mjs';
 import { planState } from './project-access.mjs';
 import { validPromoTier } from './promo.mjs';
 import { nudgeCellRevocations, restartCell } from './provision.mjs';
+import { SUSPEND_RETENTION_DAYS } from './reconcile.mjs';
 
 const DAY_MS = 86_400_000;
 
@@ -77,49 +90,6 @@ async function ownerOf(db, project) {
     .prepare('SELECT id, email, name FROM accounts WHERE id = ?')
     .bind(project.account_id)
     .first();
-}
-
-/** How long a Stripe Checkout Session can still be completed after it was made. */
-const CHECKOUT_OPEN_MS = 24 * 3600_000;
-
-/**
- * Is a checkout under way for this project right now?
- *
- * Two shapes: a first checkout authorized and not yet settled
- * (`checkout_attempts`), or Choose a plan started and not yet returned
- * (`checkout.started` in the log with no `checkout.converted` after it, inside
- * the session's lifetime). While either is true the payment will land on THIS
- * row for THIS owner — so the row is not moved and not paused under it.
- */
-export async function checkoutOpen(db, projectId, { now = Date.now() } = {}) {
-  try {
-    const attempt = await db
-      .prepare(
-        "SELECT 1 AS x FROM checkout_attempts WHERE project_id = ? AND payment = 'authorized' LIMIT 1"
-      )
-      .bind(projectId)
-      .first();
-    if (attempt) return true;
-    const started = await db
-      .prepare(
-        `SELECT MAX(at) AS at FROM audit_log
-          WHERE project_id = ? AND action = 'checkout.started' AND at > ?`
-      )
-      .bind(projectId, now - CHECKOUT_OPEN_MS)
-      .first();
-    if (!started?.at) return false;
-    const done = await db
-      .prepare(
-        `SELECT 1 AS x FROM audit_log
-          WHERE project_id = ? AND action = 'checkout.converted' AND at >= ? LIMIT 1`
-      )
-      .bind(projectId, started.at)
-      .first();
-    return !done;
-  } catch {
-    // Could not tell: the careful answer is "one may be open".
-    return true;
-  }
 }
 
 /**
@@ -839,55 +809,25 @@ export async function moveProject(
   // Never to an account whose address nobody proved (see `unproven`), and
   // never to one with no way to have proved it yet.
   if (!target.email_verified_at) return { ok: false, reason: 'move-unverified' };
+  // A scheduled deletion does not travel to a new owner who never heard of it.
+  if (project.delete_since != null) return { ok: false, reason: 'move-deleting' };
   if (project.subscription_id) return { ok: false, reason: 'move-paid' };
   // A payment on its way attaches to this row FOR ITS CURRENT OWNER
   // (checkout-routes.mjs `convertTrialProject` matches on the account).
   if (await checkoutOpen(db, project.id, { now })) {
     return { ok: false, reason: 'move-checkout-open' };
   }
-  const from = await ownerOf(db, project);
-
-  const moved = await db
-    .prepare(
-      'UPDATE projects SET account_id = ? WHERE id = ? AND account_id = ? AND subscription_id IS NULL'
-    )
-    .bind(target.id, project.id, project.account_id)
-    .run();
-  if (!moved?.meta?.changes) return { ok: true, changed: false };
-  // The owner is a column, never a membership row (project-routes.mjs).
-  await db
-    .prepare('DELETE FROM project_members WHERE project_id = ? AND account_id = ?')
-    .bind(project.id, target.id)
-    .run();
-  await db
-    .prepare(
-      `INSERT INTO project_members (project_id, account_id, role, added_at) VALUES (?, ?, 'member', ?)
-       ON CONFLICT (project_id, account_id) DO UPDATE SET role = 'member'`
-    )
-    .bind(project.id, project.account_id, now)
-    .run();
-  await audit(
-    db,
-    {
-      accountId: target.id,
-      projectId: project.id,
-      actor: actorOf(operator),
-      action: 'operator.project.moved',
-      reason,
-      detail: JSON.stringify({ operator: operator.id, from: project.account_id, to: target.id }),
-    },
-    { now }
-  );
-  // Both people's access changed; the cell hears now (access-forward.mjs).
-  if (from?.email) {
-    await accessWentDown(env, project.id, from.email, {
-      reason: 'removed',
-      now,
-      ctx,
-      role: 'member',
-    });
-  }
-  await notifyAccessChanged(env, project.id, { email: target.email, change: 'raised' }, { ctx });
+  const done = await transferOwnership(env, {
+    project,
+    target,
+    actor: actorOf(operator),
+    action: 'operator.project.moved',
+    reason,
+    detail: { operator: operator.id },
+    ctx,
+    now,
+  });
+  if (!done) return { ok: true, changed: false };
   return { ok: true, changed: true, to: target };
 }
 
@@ -978,4 +918,152 @@ export async function signOutEverywhere(
     { now }
   );
   return { ok: true, changed: true, sessions, macs };
+}
+
+// ---------------------------------------------------------------------- delete
+
+/**
+ * Schedule a project's deletion — never a purge.
+ *
+ * The write is one column, `delete_since`; the reconciler then walks the SAME
+ * ladder a lapsed subscription walks (reconcile.mjs): the workspace is paused,
+ * the complete copy is prepared and mailed, the owner is warned two days
+ * before, and the bytes go at thirty days — and only with a copy in storage.
+ * The customer's own "Delete project" is the stricter of the two paths in one
+ * respect (it refuses until a copy exists) and the looser in another (it then
+ * deletes at once); an operator gets neither shortcut.
+ *
+ * Refused: a project with a subscription (the plan is cancelled first, by its
+ * owner or in Stripe — a deletion that keeps charging is the worst order), a
+ * checkout under way, a project already gone, and a typed name that is not
+ * this project's.
+ */
+export async function scheduleDelete(
+  env,
+  { operator, project, confirm, reason, origin, reconcileNow = null },
+  { now = Date.now() } = {}
+) {
+  const db = env.DB;
+  const typed = String(confirm ?? '')
+    .trim()
+    .toLowerCase();
+  if (
+    !typed ||
+    (typed !== project.id &&
+      typed !==
+        String(project.name ?? '')
+          .trim()
+          .toLowerCase())
+  ) {
+    return { ok: false, reason: 'delete-confirm' };
+  }
+  if (project.state === 'purged' || project.state === 'exported') {
+    return { ok: false, reason: 'delete-gone' };
+  }
+  if (project.delete_since != null) return { ok: true, changed: false };
+  if (project.subscription_id) return { ok: false, reason: 'delete-paid' };
+
+  // ONE STATEMENT decides and writes: no subscription, no checkout under way,
+  // not already gone. A page that read the row a moment ago proves nothing —
+  // a checkout that started since then makes this match no row.
+  //
+  // The retention clock starts NOW, in the same statement: a project already
+  // paused (an operator's hold, a trial long over) must still get its full
+  // thirty days from the moment somebody decided to delete it.
+  const wrote = await db
+    .prepare(
+      `UPDATE projects
+          SET delete_since = ?1,
+              state_since = CASE WHEN state = 'suspended' THEN ?1 ELSE state_since END
+        WHERE id = ?2 AND delete_since IS NULL AND subscription_id IS NULL
+          AND state NOT IN ('purged', 'exported')
+          AND ${NO_OPEN_CHECKOUT_SQL('?2', '?3')}`
+    )
+    .bind(now, project.id, now - CHECKOUT_OPEN_WINDOW_MS)
+    .run();
+  if (!wrote?.meta?.changes) {
+    // Say WHY nothing was written, from the row as it is now.
+    const fresh = await db.prepare('SELECT * FROM projects WHERE id = ?').bind(project.id).first();
+    if (fresh?.delete_since != null) return { ok: true, changed: false };
+    if (fresh?.subscription_id) return { ok: false, reason: 'delete-paid' };
+    if (!fresh || fresh.state === 'purged' || fresh.state === 'exported') {
+      return { ok: false, reason: 'delete-gone' };
+    }
+    return { ok: false, reason: 'delete-checkout-open' };
+  }
+  const deletesAt = now + SUSPEND_RETENTION_DAYS * DAY_MS;
+  await audit(
+    db,
+    {
+      accountId: project.account_id,
+      projectId: project.id,
+      actor: actorOf(operator),
+      action: 'operator.project.delete-scheduled',
+      reason,
+      detail: JSON.stringify({ operator: operator.id, deletesAt }),
+    },
+    { now }
+  );
+  // The owner hears first, whatever the export does next.
+  const owner = await ownerOf(db, project);
+  if (owner?.email) {
+    await sendEmail(env, {
+      to: owner.email,
+      ...deletionScheduledEmail({
+        projectName: project.name || project.id,
+        downloadUrl: `${origin}/projects/${project.id}/download`,
+        deletesAt,
+      }),
+    });
+  }
+  let settled = null;
+  if (reconcileNow) settled = await reconcileNow(project.id).catch(() => null);
+  if (settled?.outcome !== 'ok') {
+    await enqueueReconcile(db, { projectId: project.id, reason: 'manual' }, { now });
+  }
+  return { ok: true, changed: true, deletesAt };
+}
+
+/**
+ * Undo a scheduled deletion — for exactly as long as nothing has been deleted
+ * (the row is still `suspended`; once the ladder has moved it on, there is
+ * nothing to bring back and this refuses). The project returns to what its
+ * plan says: the reconciler wakes it.
+ */
+export async function undoDelete(
+  env,
+  { operator, project, reason, reconcileNow = null },
+  { now = Date.now() } = {}
+) {
+  const db = env.DB;
+  if (project.delete_since == null) return { ok: false, reason: 'delete-not-scheduled' };
+  if (project.state !== 'suspended' && project.state !== 'active' && project.state !== 'past_due') {
+    return { ok: false, reason: 'delete-too-late' };
+  }
+  const wrote = await db
+    .prepare(
+      `UPDATE projects SET delete_since = NULL, state_since = ?
+        WHERE id = ? AND delete_since IS NOT NULL AND state IN ('suspended', 'active', 'past_due')`
+    )
+    .bind(now, project.id)
+    .run();
+  if (!wrote?.meta?.changes) return { ok: false, reason: 'delete-too-late' };
+  await audit(
+    db,
+    {
+      accountId: project.account_id,
+      projectId: project.id,
+      actor: actorOf(operator),
+      action: 'operator.project.delete-undone',
+      reason,
+      detail: JSON.stringify({ operator: operator.id }),
+    },
+    { now }
+  );
+  let settled = null;
+  if (reconcileNow) settled = await reconcileNow(project.id).catch(() => null);
+  if (settled?.outcome !== 'ok') {
+    await enqueueReconcile(db, { projectId: project.id, reason: 'manual' }, { now });
+  }
+  return { ok: true, changed: true };
 }

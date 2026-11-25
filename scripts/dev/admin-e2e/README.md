@@ -89,7 +89,9 @@ S1, S3, S4, S5 and S7 ran before it in the same run.
 # Maude Cloud scenarios (`cloud-scenarios.mjs`)
 
 The control plane, a paying customer, a project, its people, the browser studio, the desktop
-side and the operator — C1…C8, on this machine, from source.
+side and the operator — C1…C9, on this machine, from source. C9 is the operator's People in this project,
+the read-only "See it as the owner does" view, Delete with Undo and the overview lists; C4 and C7
+also drive the owner's People lists, a bulk role change and Make owner (offer, then accept) in the browser.
 
 ```sh
 FARM_LOCAL=1 scripts/v2-test-lane.sh -- node scripts/dev/admin-e2e/cloud-scenarios.mjs

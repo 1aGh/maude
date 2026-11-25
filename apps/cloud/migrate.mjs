@@ -553,6 +553,34 @@ export const MIGRATIONS = [
       'ALTER TABLE projects ADD COLUMN capabilities TEXT;',
     ],
   },
+  {
+    version: 23, // An operator's scheduled deletion, and an owner's offer to hand a project over
+    atomic: true,
+    statements: [
+      // "Delete" from the operator surface is never a purge. It is this
+      // instant on the row, which the reconciler reads as "walk the ordinary
+      // export-then-retention ladder" (reconcile.mjs): pause, prepare the
+      // copy, warn two days before, delete at thirty. NULL again = undone.
+      'ALTER TABLE projects ADD COLUMN delete_since INTEGER;',
+      // Make owner is two steps and never silent: the owner OFFERS, the
+      // recipient ACCEPTS. One open offer per project (the index); an offer
+      // is over when it is accepted, declined, cancelled or past `expires_at`.
+      `CREATE TABLE IF NOT EXISTS project_transfers (
+        id           TEXT PRIMARY KEY,
+        project_id   TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+        from_account TEXT NOT NULL,
+        to_account   TEXT NOT NULL,
+        to_role      TEXT NOT NULL,
+        created_at   INTEGER NOT NULL,
+        expires_at   INTEGER NOT NULL,
+        closed_at    INTEGER,
+        outcome      TEXT CHECK (outcome IN ('accepted','declined','cancelled'))
+      );`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS project_transfers_open
+         ON project_transfers (project_id) WHERE closed_at IS NULL;`,
+      'CREATE INDEX IF NOT EXISTS project_transfers_to ON project_transfers (to_account, closed_at);',
+    ],
+  },
 ];
 
 /** Run one migration's statements plus its schema_migrations row. */

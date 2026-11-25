@@ -382,3 +382,23 @@ export async function lastOpens(env, projectIds, { fetchImpl = fetch } = {}) {
   }
   return out;
 }
+
+/**
+ * The accounts with the most recorded events in the last seven days, busiest
+ * first: `[{ accountId, events }]`, or null when analytics could not answer.
+ * Account ids only — the operator page joins the addresses from D1.
+ */
+export async function mostActiveAccounts(env, { limit = 25, fetchImpl = fetch } = {}) {
+  const res = await queryEvents(
+    env,
+    `SELECT blob1 AS account, SUM(_sample_interval) AS events
+       FROM ${DATASET}
+      WHERE timestamp > NOW() - INTERVAL '7' DAY AND blob1 != ''
+      GROUP BY account ORDER BY events DESC LIMIT ${Math.max(1, Math.min(100, Number(limit) || 25))}`,
+    { fetchImpl }
+  );
+  if (!res.ok) return null;
+  return res.rows
+    .filter((r) => typeof r.account === 'string' && r.account)
+    .map((r) => ({ accountId: r.account, events: num(r.events) }));
+}

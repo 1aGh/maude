@@ -6,7 +6,12 @@
 // is left here is reading rows, writing rows, and turning a verdict into a
 // response — which is the whole point of the split (DDR-196 §1).
 
-import { createProjectInvite, notYours, pageAccessCall } from './access-forward.mjs';
+import {
+  closeStaleOffers,
+  createProjectInvite,
+  notYours,
+  pageAccessCall,
+} from './access-forward.mjs';
 import { csrfFor, postAllowed } from './account-pages.mjs';
 import { track } from './analytics.mjs';
 import { pageCsp } from './edge.mjs';
@@ -101,6 +106,16 @@ async function peopleList(env, project, members) {
       : []),
     ...members.filter((m) => m.account_id !== project.account_id),
   ];
+}
+
+/**
+ * Who is on a project, as its owner's People page lists it: people (owner
+ * first), single-canvas access, open invitations. Read-only; for the
+ * operator's read-only view of that page (operator-view.mjs).
+ */
+export async function projectPeopleData(env, project) {
+  const { members, grants, invites } = await load(env, project.id, project.account_id);
+  return { people: await peopleList(env, project, members), grants, invites };
 }
 
 /**
@@ -358,6 +373,25 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
     );
   }
 
+  // A role is CHANGED here, never given: somebody who is not on the project
+  // joins by accepting an invitation (the form above), not by an id in a POST.
+  if (decision.action === 'add') {
+    return html(
+      peoplePage({
+        csrf,
+        canView,
+        account,
+        project,
+        people,
+        grants,
+        invites,
+        isOwner,
+        error: 'That person is not on this project. Invite them instead.',
+      }),
+      400
+    );
+  }
+
   if (decision.action === 'remove') {
     await env.DB.prepare('DELETE FROM project_members WHERE project_id = ? AND account_id = ?')
       .bind(projectId, targetId)
@@ -370,6 +404,10 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
       .bind(projectId, targetId, String(form.get('role')), Date.now())
       .run();
   }
+
+  // An offer to make this person the owner does not outlive their removal or
+  // demotion (access-forward.mjs `closeStaleOffers`).
+  await closeStaleOffers(env.DB, projectId);
 
   // Removals and demotions must reach LIVE sessions, not only future tokens
   // (Phase 23 B2). The row is what the cell's revocation sweep consumes; a

@@ -1288,6 +1288,62 @@ scenarios.C4 = {
       me2.ok && decided[0]?.decision === 'approved',
       `role=${me2.value?.role ?? '?'} decision=${decided[0]?.decision}`
     );
+
+    // ---- /account/people: the lists, Find someone, and a bulk change — in the browser
+    await b.open(`${C()}/account/people`);
+    const lists = await b.until((x) => /Everyone\s+\d+/.test(x.text) && /Owners\s+1/.test(x.text));
+    check(
+      'the People page has its lists with counts (Everyone, Owners)',
+      lists.ok,
+      lists.text.match(/Everyone\s+\d+.{0,40}/)?.[0] ?? lists.text.slice(0, 120)
+    );
+    await b.fill('form.find input[name=q]', asker.email.slice(0, 6));
+    await b.click('form.find button[type=submit]');
+    const found = await b.until((x) => /[?&]q=/.test(x.url));
+    const matrixText = found.text.split('Projects you own')[1]?.split('Shared with you')[0] ?? '';
+    check(
+      'Find someone narrows the table to the match',
+      found.ok && matrixText.includes(asker.email) && !matrixText.includes(member.email),
+      `${found.url} · ${matrixText.slice(0, 160)}`
+    );
+    await b.checkBox(`input[name=people][value="${asker.accountId}"]`);
+    await b.eval(
+      `(document.querySelector('#bulk select[name=project]').value=${JSON.stringify(PROJECT.id)},document.querySelector('#bulk select[name=role]').value='viewer','ok')`
+    );
+    const bulked = await submitInBrowser(owner, b, {
+      label: 'Change role in that project (bulk)',
+      action: '/account/people',
+      click: '#bulk button[value=role-bulk]',
+      done: (x) => /done=role-bulk/.test(x.url),
+    });
+    const bulkRole = await stack.d1(
+      'SELECT role FROM project_members WHERE project_id = ? AND account_id = ?',
+      PROJECT.id,
+      asker.accountId
+    );
+    check(
+      'the bulk change is applied: the selected person is Can comment in that project',
+      bulked.ok && bulkRole[0]?.role === 'viewer',
+      `role=${bulkRole[0]?.role}; ${bulked.url}`
+    );
+    // One id that is not this owner's refuses the whole request.
+    const stranger = await ensureAccount(person('stranger'));
+    const pageNow = await owner.client.get(`${C()}/account/people`);
+    const csrfNow = /name="csrf" value="([0-9a-f]{32})"/.exec(pageNow.text)?.[1] ?? '';
+    const mixed = await owner.client.request('POST', `${C()}/account/people`, {
+      body: `csrf=${csrfNow}&do=role-bulk&project=${PROJECT.id}&role=member&people=${asker.accountId}&people=${stranger.accountId}`,
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    });
+    const stillViewer = await stack.d1(
+      'SELECT role FROM project_members WHERE project_id = ? AND account_id = ?',
+      PROJECT.id,
+      asker.accountId
+    );
+    check(
+      'a bulk request naming somebody who is not on this owner’s projects changes nobody',
+      mixed.status === 404 && stillViewer[0]?.role === 'viewer',
+      `HTTP ${mixed.status}; role=${stillViewer[0]?.role}`
+    );
   },
 };
 
@@ -2163,6 +2219,52 @@ scenarios.C7 = {
       `      (mail after the move: ${movedMail.map((m) => `${m.to}: ${m.subject}`).join(' | ') || 'none'})`
     );
 
+    // ---- Make owner: the owner OFFERS in their browser, the recipient ACCEPTS in theirs
+    // (P2 now belongs to `owner`; `friend`, its previous owner, is on it as Can edit.)
+    const obr = await ensureBrowser(owner);
+    await obr.open(`${C()}/account/people`);
+    const offerBtn = `xpath=//form[.//input[@name="project" and @value="${P2.id}"] and .//input[@name="account" and @value="${friend.accountId}"]]//button[@value="transfer-offer"]`;
+    await obr.click(
+      `xpath=//details[.//input[@name="project" and @value="${P2.id}"] and .//input[@name="account" and @value="${friend.accountId}"]]/summary`
+    );
+    const offered = await submitInBrowser(owner, obr, {
+      label: 'Offer to make them the owner',
+      action: '/account/people',
+      click: offerBtn,
+      done: (x) => /done=offered/.test(x.url),
+    });
+    row = await projectRow(P2.id);
+    const offerMail = mailTo(friend.email, /owner of/i);
+    check(
+      'the offer changes nothing by itself, and the recipient is mailed',
+      offered.ok && row.account_id === owner.accountId && offerMail.length === 1,
+      `owner still ${row.account_id === owner.accountId ? 'the offerer' : row.account_id}; mails=${offerMail.length}: ${offerMail[0]?.subject}`
+    );
+    await fb.open(`${C()}/account/people`);
+    const seesOffer = await fb.until((x) => x.text.includes(`owner of ${P2.name}`));
+    check(
+      'the recipient sees the offer on their People page',
+      seesOffer.ok,
+      seesOffer.text.slice(0, 160)
+    );
+    const accepted = await submitInBrowser(friend, fb, {
+      label: 'Become the owner',
+      action: '/account/people',
+      click: 'xpath=//form[.//input[@name="do" and @value="transfer-accept"]]//button',
+      done: (x) => /done=accepted/.test(x.url),
+    });
+    row = await projectRow(P2.id);
+    const exOwner = await stack.d1(
+      'SELECT role FROM project_members WHERE project_id = ? AND account_id = ?',
+      P2.id,
+      owner.accountId
+    );
+    check(
+      'accepting makes them the owner; the previous owner stays on it as Can edit',
+      accepted.ok && row.account_id === friend.accountId && exOwner[0]?.role === 'member',
+      `owner=${row.account_id === friend.accountId ? 'the recipient' : row.account_id}; previous owner role=${exOwner[0]?.role}`
+    );
+
     // ---- sign an account out everywhere
     const sessionBefore = await friend.client.get(`${C()}/auth/session`);
     const tokenBefore = await new Client('app').get(`${C()}/api/projects`, {
@@ -2378,6 +2480,236 @@ process.on('uncaughtException', (err) => {
   say(`uncaught: ${err.stack ?? err}`);
   shutdown(1);
 });
+
+scenarios.C9 = {
+  title:
+    'operator: People in this project, See it as the owner does (read only), Delete with Undo, the overview lists',
+  async run() {
+    const op = await ensureOperator();
+    await signIn(op);
+    const ob = await ensureBrowser(op);
+    const nine = person('nine');
+    const N = { id: `nine-${RUN_ID}`, name: `Nine ${RUN_ID}` };
+    const made = await operatorPost(op, '/operator/new-project', '/operator/new-project', {
+      owner: nine.email,
+      name: N.name,
+      plan: 'promo',
+      tier: 'project',
+      ends: '',
+      invites: '',
+      reason: 'e2e: a project for the C9 checks',
+    });
+    let row = await projectRow(N.id);
+    need(
+      'a Promo project exists for a new address',
+      made.status === 303 && row?.state === 'active',
+      `HTTP ${made.status}; state=${row?.state}`
+    );
+    nine.accountId = await accountIdOf(nine.email);
+
+    // ---- People in this project — the form filled and clicked in the operator's browser
+    const peopleUrl = `/operator/projects/${N.id}/people`;
+    const invitee = person('nine-guest');
+    await ob.open(`${C()}${peopleUrl}`);
+    await ob.click('xpath=//details[.//input[@name="do" and @value="invite"]]/summary');
+    const inviteForm = 'xpath=//form[.//input[@name="do" and @value="invite"]]';
+    await ob.fill(`${inviteForm}//input[@name="email"]`, invitee.email);
+    await ob.fill(`${inviteForm}//textarea[@name="reason"]`, 'e2e: support adds a colleague');
+    await ob.click(`${inviteForm}//button[@type="submit"]`);
+    const invitedPage = await ob.until((x) => /done=people-invite/.test(x.url), {
+      timeoutMs: 15_000,
+    });
+    const invMail = mailTo(invitee.email, /invited you/i);
+    const invLog = await stack.d1(
+      "SELECT actor, reason FROM audit_log WHERE project_id = ? AND action = 'access.invite'",
+      N.id
+    );
+    check(
+      'the operator invites someone from People in this project, in a real browser',
+      invitedPage.ok && invMail.length === 1 && invitedPage.text.includes(invitee.email),
+      `${invitedPage.url}; mails=${invMail.length}`
+    );
+    check(
+      'it is logged as the operator’s, with the reason — not as the owner’s',
+      invLog.length === 1 &&
+        invLog[0].actor === `operator:${op.email}` &&
+        /support adds a colleague/.test(String(invLog[0].reason)),
+      invLog.map((l) => `${l.actor} (“${l.reason}”)`).join(', ')
+    );
+    const inviteId = (
+      await stack.d1(
+        'SELECT id FROM project_invites WHERE project_id = ? AND email = ?',
+        N.id,
+        invitee.email
+      )
+    )[0]?.id;
+    const cancelled = await operatorPost(op, peopleUrl, peopleUrl, {
+      do: 'invite-cancel',
+      invite: inviteId,
+      reason: 'e2e: wrong address',
+    });
+    const ownerGone = await operatorPost(op, peopleUrl, peopleUrl, {
+      do: 'remove',
+      account: nine.accountId,
+      reason: 'e2e: trying to remove the owner',
+    });
+    const stillOwner = await projectRow(N.id);
+    check(
+      'Cancel invite works; removing the owner is refused, as it is for the owner',
+      /done=people-invite-cancel/.test(cancelled.location ?? '') &&
+        /error=people-refused/.test(ownerGone.location ?? '') &&
+        stillOwner.account_id === nine.accountId,
+      `${cancelled.location} · ${ownerGone.location}`
+    );
+
+    // ---- See it as the owner does — read only
+    const count = async (table) => (await stack.d1(`SELECT COUNT(*) AS n FROM ${table}`))[0].n;
+    const before = [
+      await count('sessions'),
+      await count('personal_tokens'),
+      await count('handoff_codes'),
+    ];
+    const startsBefore = stack.cellStarts.get(N.id) ?? 0;
+    const viewBase = `/operator/accounts/${nine.accountId}/view`;
+    await ob.open(`${C()}${viewBase}`);
+    const dash = await ob.until((x) => /read only/.test(x.text) && x.text.includes(N.name));
+    const inert = await ob.eval(
+      "JSON.stringify({forms:document.querySelectorAll('form').length,live:[...document.querySelectorAll('button,input,select,textarea')].filter(e=>!e.disabled).length})"
+    );
+    const inertNow = typeof inert === 'string' ? JSON.parse(inert) : inert;
+    check(
+      'the owner’s dashboard is shown with the read-only banner, no form and no live control',
+      dash.ok && inertNow?.forms === 0 && inertNow?.live === 0,
+      `${dash.text.match(/You are looking at this as .{0,60}/)?.[0]} · forms=${inertNow?.forms} live controls=${inertNow?.live}`
+    );
+    await ob.open(`${C()}${viewBase}/projects/${N.id}/billing`);
+    const viewBilling = await ob.until((x) => /read only/.test(x.text) && /Promo/.test(x.text));
+    check(
+      '…and the owner’s billing page for the project',
+      viewBilling.ok,
+      viewBilling.text.slice(0, 140)
+    );
+    const viewPost = await operatorPostRaw(op, `${viewBase}/account/people`, {
+      do: 'remove-all',
+      sure: 'yes',
+      people: nine.accountId,
+      reason: 'e2e',
+    });
+    const closed = await Promise.all(
+      [`/projects/${N.id}/connect`, `/projects/${N.id}/download`, '/account/macs'].map((x) =>
+        op.client.get(`${C()}${viewBase}${x}`)
+      )
+    );
+    const after = [
+      await count('sessions'),
+      await count('personal_tokens'),
+      await count('handoff_codes'),
+    ];
+    check(
+      'a POST under the view is 405; pages that open the project or hand out a credential are not in it',
+      viewPost.status === 405 && closed.every((r) => r.status === 404),
+      `POST → ${viewPost.status}; ${closed.map((r) => r.status).join(' ')}`
+    );
+    check(
+      'no session, device token or hand-off code was made, and the workspace was not started',
+      before.join() === after.join() && (stack.cellStarts.get(N.id) ?? 0) === startsBefore,
+      `sessions/tokens/codes ${before.join('/')} → ${after.join('/')}; cell starts +${(stack.cellStarts.get(N.id) ?? 0) - startsBefore}`
+    );
+    await op.client.get(`${C()}${viewBase}`);
+    await op.client.get(`${C()}${viewBase}`);
+    const viewLog = await stack.d1(
+      "SELECT detail FROM audit_log WHERE action = 'operator.account.viewed-as' AND account_id = ?",
+      nine.accountId
+    );
+    check(
+      'each page looked at is one log row, however often it is reloaded',
+      viewLog.length === 2,
+      `${viewLog.length} rows: ${viewLog.map((v) => JSON.parse(v.detail).page).join(', ')}`
+    );
+
+    // ---- Delete: never at once, with an Undo
+    const delAction = `/operator/projects/${N.id}/delete`;
+    const wrongName = await operatorPost(op, `/operator/projects/${N.id}`, delAction, {
+      confirm: 'something else',
+      reason: 'e2e: the wrong name',
+    });
+    await ob.open(`${C()}/operator/projects/${N.id}`);
+    await ob.click(`xpath=//details[.//form[@action="${delAction}"]]/summary`);
+    await ob.fill(`form[action="${delAction}"] input[name=confirm]`, N.id);
+    await ob.fill(
+      `form[action="${delAction}"] textarea[name=reason]`,
+      'e2e: the owner asked for it'
+    );
+    await ob.click(`form[action="${delAction}"] button[type=submit]`);
+    const scheduled = await ob.until((x) => /done=delete-scheduled/.test(x.url), {
+      timeoutMs: 30_000,
+    });
+    row = await projectRow(N.id);
+    const down = await waitFor(async () => !stack.cf.domains.has(`${N.id}.${stack.zone}`), {
+      timeoutMs: 15_000,
+    });
+    const delMail = mailTo(nine.email, /will be deleted on/i);
+    check(
+      'a wrong typed name schedules nothing',
+      /error=delete-confirm/.test(wrongName.location ?? ''),
+      String(wrongName.location)
+    );
+    check(
+      'Delete, from a real browser: paused and scheduled — the row is still there, nothing purged',
+      scheduled.ok && row.state === 'suspended' && Number(row.delete_since) > 0 && down.ok,
+      `state=${row.state} delete_since=${row.delete_since}; address down=${down.ok}`
+    );
+    check(
+      'the owner is mailed the date and the way to their copy',
+      delMail.length >= 1 && delMail[0].text.includes(`/projects/${N.id}/download`),
+      `${delMail.length}: ${delMail[0]?.subject}`
+    );
+    const undone = await operatorPost(op, `/operator/projects/${N.id}`, `${delAction}/undo`, {
+      reason: 'e2e: it was the wrong project',
+    });
+    row = await projectRow(N.id);
+    const back = await waitFor(async () => stack.cf.domains.has(`${N.id}.${stack.zone}`), {
+      timeoutMs: 30_000,
+    });
+    check(
+      'Undo brings it back: running again, no deletion scheduled, the address is up',
+      undone.status === 303 && row.state === 'active' && row.delete_since === null && back.ok,
+      `HTTP ${undone.status} → ${undone.location}; state=${row.state}; address up=${back.ok}`
+    );
+    const ownerLog = await stack.d1(
+      "SELECT action FROM audit_log WHERE project_id = ? AND action LIKE 'operator.project.delete%' ORDER BY at",
+      N.id
+    );
+    check(
+      'both steps are in the project’s log',
+      ownerLog.map((l) => l.action).join() ===
+        'operator.project.delete-scheduled,operator.project.delete-undone',
+      ownerLog.map((l) => l.action).join(', ')
+    );
+
+    // ---- the overview's lists
+    await ob.open(`${C()}/operator?tab=promo`);
+    const promoTab = await ob.until(
+      (x) => /Promo\s+\d+/.test(x.text) && x.text.includes(nine.email)
+    );
+    check(
+      'the overview lists Promo accounts with a count, and Needs a look',
+      promoTab.ok &&
+        /Newest accounts\s+\d+/.test(promoTab.text) &&
+        /Needs a look/.test(promoTab.text),
+      promoTab.text.match(/Newest accounts.{0,120}/)?.[0] ?? promoTab.text.slice(0, 160)
+    );
+  },
+};
+
+/** A POST as the operator with their own token, to a path that has no form to read one from. */
+async function operatorPostRaw(op, path, fields) {
+  const page = await op.client.get(`${C()}/operator/accounts`);
+  const any = await op.client.get(`${C()}/operator/new-project`);
+  const csrf = hiddenFields(any.text, /new-project/)?.fields?.csrf ?? '';
+  void page;
+  return op.client.post(`${C()}${path}`, { form: { csrf, ...fields } });
+}
 
 async function main() {
   const unknown = ONLY ? [...ONLY].filter((id) => !scenarios[id]) : [];

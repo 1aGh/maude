@@ -64,6 +64,8 @@ export function tenantFromRow(row) {
     // Promo (free, runs with no subscription) and the hold (paused by hand).
     promo: row.promo_since != null,
     holdSince: typeof row.hold_since === 'number' ? row.hold_since : null,
+    // D1 v23 — an operator scheduled this project's deletion.
+    deleteSince: typeof row.delete_since === 'number' ? row.delete_since : null,
   };
 }
 
@@ -136,3 +138,68 @@ export async function audit(
     .run();
   return id;
 }
+
+// ------------------------------------------------------------- open checkout
+
+/** How long a Stripe Checkout Session can still be completed after it was made. */
+const CHECKOUT_OPEN_MS = 24 * 3600_000;
+
+/**
+ * Is a checkout under way for this project right now?
+ *
+ * Two shapes: a first checkout authorized and not yet settled
+ * (`checkout_attempts`), or Choose a plan started and not yet returned
+ * (`checkout.started` in the log with no `checkout.converted` after it, inside
+ * the session's lifetime). While either is true the payment will land on THIS
+ * row for THIS owner — so the row is not moved and not paused under it.
+ */
+export async function checkoutOpen(db, projectId, { now = Date.now() } = {}) {
+  try {
+    const attempt = await db
+      .prepare(
+        "SELECT 1 AS x FROM checkout_attempts WHERE project_id = ? AND payment = 'authorized' LIMIT 1"
+      )
+      .bind(projectId)
+      .first();
+    if (attempt) return true;
+    const started = await db
+      .prepare(
+        `SELECT MAX(at) AS at FROM audit_log
+          WHERE project_id = ? AND action = 'checkout.started' AND at > ?`
+      )
+      .bind(projectId, now - CHECKOUT_OPEN_MS)
+      .first();
+    if (!started?.at) return false;
+    const done = await db
+      .prepare(
+        `SELECT 1 AS x FROM audit_log
+          WHERE project_id = ? AND action = 'checkout.converted' AND at >= ? LIMIT 1`
+      )
+      .bind(projectId, started.at)
+      .first();
+    return !done;
+  } catch {
+    // Could not tell: the careful answer is "one may be open".
+    return true;
+  }
+}
+
+/**
+ * "No checkout is open for project `p`" as ONE SQL condition, for a guarded
+ * write (`... WHERE id = ? AND ${NO_OPEN_CHECKOUT_SQL('?', '?')}`): the check
+ * and the write are then the same statement, and a checkout that starts
+ * between a page's read and its write wins. Same two shapes as `checkoutOpen`.
+ * `idParam` is bound to the project id (twice), `sinceParam` to now − 24 h.
+ */
+export const NO_OPEN_CHECKOUT_SQL = (idParam, sinceParam) => `
+  NOT EXISTS (SELECT 1 FROM checkout_attempts c
+               WHERE c.project_id = ${idParam} AND c.payment = 'authorized')
+  AND NOT EXISTS (
+    SELECT 1 FROM audit_log s
+     WHERE s.project_id = ${idParam} AND s.action = 'checkout.started' AND s.at > ${sinceParam}
+       AND NOT EXISTS (SELECT 1 FROM audit_log d
+                        WHERE d.project_id = s.project_id AND d.action = 'checkout.converted'
+                          AND d.at >= s.at))`;
+
+/** How long a started checkout counts as open (a Stripe Checkout Session's lifetime). */
+export const CHECKOUT_OPEN_WINDOW_MS = 24 * 3600_000;

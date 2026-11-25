@@ -17,8 +17,8 @@ import { CAPABILITIES, rankOf } from '../studio/access/roles.ts';
 import { GRANT_ROLES, MAX_GRANTS, resolveAccess } from '../studio/access/scope.ts';
 import { getAccountByEmail, normalizeEmail } from './accounts.mjs';
 import { deriveCellSecret, secretsMatch } from './cell-token.mjs';
-import { audit } from './db.mjs';
-import { emailConfigured, inviteEmail, sendEmail } from './email.mjs';
+import { audit, checkoutOpen } from './db.mjs';
+import { emailConfigured, inviteEmail, sendEmail, transferOfferEmail } from './email.mjs';
 import { createLink, endLinkGrants, LINK_ROLES, patchLink } from './links.mjs';
 import { decideMembershipChange } from './membership.mjs';
 import { decideAccess } from './project-access.mjs';
@@ -432,15 +432,31 @@ export async function handleAccessForward(request, env, { ctx = null, now = Date
 export async function accessCall(
   request,
   env,
-  { projectId, path, actorEmail, ctx = null, now = Date.now() }
+  { projectId, path, actorEmail, operator = null, ctx = null, now = Date.now() }
 ) {
   const url = new URL(request.url);
   if (!PROJECT_ID.test(String(projectId))) return json({ error: 'unauthorized' }, 401);
   const db = env.DB;
-  const actor = actorEmail ? await getAccountByEmail(db, actorEmail) : null;
+  // AN OPERATOR, acting on a customer's project (operator-routes.mjs, behind
+  // its own gate: allowlist, session token, required reason). Not a third
+  // caller smuggled through `actorEmail`: an explicit argument only the
+  // operator surface passes, which stands at the owner's place for the people
+  // routes below and is RECORDED AS ITSELF — every audit row it causes carries
+  // `operator:<email>` and the reason, never the owner's name. The cell's
+  // forward (`handleAccessForward`) cannot set it.
+  const actor = operator
+    ? { id: null, name: 'Maude support', email: null }
+    : actorEmail
+      ? await getAccountByEmail(db, actorEmail)
+      : null;
+  const mailFrom = operator ? 'Maude support' : actorEmail;
   const facts = await projectFacts(db, projectId);
   if (!facts.project) return refuse(404, 'no-access', 'This project is not available.');
-  const verdict = decideClaim({ accountId: actor?.id ?? null, ...facts });
+  const verdict = operator
+    ? facts.project.state === 'purged'
+      ? { ok: false, reason: 'purged' }
+      : { ok: true, role: 'owner', grants: [] }
+    : decideClaim({ accountId: actor?.id ?? null, ...facts });
   const access = accessOf(verdict);
   const project = facts.project;
   let rest;
@@ -453,11 +469,12 @@ export async function accessCall(
   const isOwner = access.can('invite', null);
   const record = (action, detail) =>
     audit(db, {
-      accountId: actor?.id ?? null,
+      accountId: operator ? project.account_id : (actor?.id ?? null),
       projectId,
-      actor: `customer:${actorEmail}`,
+      actor: operator ? `operator:${operator.email}` : `customer:${actorEmail}`,
       action,
-      detail: JSON.stringify(detail),
+      ...(operator ? { reason: operator.reason ?? null } : {}),
+      detail: JSON.stringify(operator ? { ...detail, operator: operator.id } : detail),
     });
 
   // ---- GET me — the client's caps come from here, never from a guess
@@ -631,7 +648,7 @@ export async function accessCall(
     const made = await createProjectInvite(env, {
       project,
       invitedBy: actor.id,
-      invitedByEmail: actorEmail,
+      invitedByEmail: mailFrom,
       email,
       role,
       canvas,
@@ -676,7 +693,7 @@ export async function accessCall(
         email: inv.email,
         role: inv.role,
         inviteUrl: `${url.origin}/invite/${id}`,
-        invitedBy: actorEmail,
+        invitedBy: mailFrom,
       });
       return json({ expiresAt });
     }
@@ -687,6 +704,107 @@ export async function accessCall(
         .bind(now, id)
         .run();
       await record('access.invite-cancel', { id });
+      return json(null, 204);
+    }
+    return null;
+  }
+
+  // ---- POST transfers {account} · DELETE transfers/:id — "Make owner", step one
+  //
+  // The owner OFFERS; nothing moves until the recipient accepts (their own
+  // page, their own session — account-pages.mjs `answerTransfer`). Offered
+  // only to somebody already on the project, whose address is proven, and
+  // only for a project with no plan on it and no payment on its way: a
+  // subscription belongs to the Stripe customer who pays, and does not follow
+  // a project to another account. One open offer per project.
+  if (rest[0] === 'transfers') {
+    if (method === 'POST' && rest.length === 1) {
+      const body = await readBody(request);
+      const to = await db
+        .prepare('SELECT id, email, name, email_verified_at FROM accounts WHERE id = ?')
+        .bind(String(body.account ?? ''))
+        .first();
+      const toRole = facts.members.find((x) => x.account_id === to?.id)?.role ?? null;
+      if (!to || !toRole || to.id === project.account_id) {
+        return refuse(
+          422,
+          'not-a-member',
+          'Only someone already on the project can be offered it.'
+        );
+      }
+      if (!to.email_verified_at) {
+        return refuse(422, 'unverified', 'That person has not confirmed their e-mail address yet.');
+      }
+      if (project.delete_since != null) {
+        return refuse(
+          422,
+          'deleting',
+          'This project is scheduled for deletion and cannot be offered.'
+        );
+      }
+      if (project.subscription_id) {
+        return refuse(
+          422,
+          'has-plan',
+          'This project has a plan, and a plan stays with the account that pays for it. Cancel the plan first.'
+        );
+      }
+      if (await checkoutOpen(db, projectId, { now })) {
+        return refuse(
+          422,
+          'checkout-open',
+          'A payment for this project is under way. Try again afterwards.'
+        );
+      }
+      const id = `xfer_${crypto.randomUUID()}`;
+      const expiresAt = now + INVITE_TTL_MS;
+      // An offer that ran out makes room for a new one.
+      await db
+        .prepare(
+          `UPDATE project_transfers SET closed_at = ?, outcome = 'cancelled'
+            WHERE project_id = ? AND closed_at IS NULL AND expires_at <= ?`
+        )
+        .bind(now, projectId, now)
+        .run();
+      try {
+        await db
+          .prepare(
+            `INSERT INTO project_transfers (id, project_id, from_account, to_account, to_role, created_at, expires_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(id, projectId, project.account_id, to.id, toRole, now, expiresAt)
+          .run();
+      } catch {
+        return refuse(
+          409,
+          'pending',
+          'This project is already offered to someone. Take that offer back first.'
+        );
+      }
+      await record('access.transfer-offer', { id, to: to.id });
+      if (emailConfigured(env)) {
+        await sendEmail(env, {
+          to: to.email,
+          ...transferOfferEmail({
+            projectName: project.name || project.id,
+            fromName: actor?.name || actorEmail,
+            acceptUrl: `${url.origin}/account/people`,
+            expiresAt,
+          }),
+        }).catch(() => {});
+      }
+      return json({ id, expiresAt }, 201);
+    }
+    if (method === 'DELETE' && rest.length === 2) {
+      const closed = await db
+        .prepare(
+          `UPDATE project_transfers SET closed_at = ?, outcome = 'cancelled'
+            WHERE id = ? AND project_id = ? AND closed_at IS NULL`
+        )
+        .bind(now, rest[1], projectId)
+        .run();
+      if (!closed?.meta?.changes) return refuse(404, 'gone', 'That offer is no longer open.');
+      await record('access.transfer-cancel', { id: rest[1] });
       return json(null, 204);
     }
     return null;
@@ -757,6 +875,8 @@ export async function accessCall(
     }
     // Did their reach go down anywhere? A demotion, a narrowed grant, a
     // removal — each revokes the live sessions the old claim opened.
+    // Somebody's place on the project changed: an offer that depended on it is over.
+    await closeStaleOffers(db, projectId, { now });
     const after = accessOf(await loadClaim(db, projectId, target.id).then((x) => x.verdict));
     const down = wentDown(before, after);
     const up = wentUp(before, after);
@@ -918,6 +1038,108 @@ async function peopleFor(db, facts, { canvas, isOwner, now }) {
 }
 
 /**
+ * Close every open Make-owner offer on a project that is no longer true:
+ * the offerer stopped being the owner, or the recipient is no longer on the
+ * project with at least the role they held when it was offered. Called after
+ * anything that changes who is on a project; the acceptance re-checks the
+ * same facts itself (account-pages.mjs `answerTransfer`), so this is what
+ * keeps a dead offer off people's pages — not the only thing between it and a
+ * hand-over.
+ */
+export async function closeStaleOffers(db, projectId, { now = Date.now() } = {}) {
+  try {
+    const { results } = await db
+      .prepare(
+        `SELECT t.id, t.to_role, t.from_account, p.account_id AS owner, m.role AS role_now
+           FROM project_transfers t
+           JOIN projects p ON p.id = t.project_id
+           LEFT JOIN project_members m ON m.project_id = t.project_id AND m.account_id = t.to_account
+          WHERE t.project_id = ? AND t.closed_at IS NULL`
+      )
+      .bind(projectId)
+      .all();
+    for (const t of results ?? []) {
+      const still =
+        t.owner === t.from_account && t.role_now && rankOf(t.role_now) >= rankOf(t.to_role);
+      if (still) continue;
+      await db
+        .prepare(
+          "UPDATE project_transfers SET closed_at = ?, outcome = 'cancelled' WHERE id = ? AND closed_at IS NULL"
+        )
+        .bind(now, t.id)
+        .run();
+    }
+  } catch {
+    /* pre-v23 D1: no offers exist */
+  }
+}
+
+/**
+ * The hand-over itself — ONE place, for an operator's move and for an owner's
+ * accepted offer (account-pages.mjs): the owner column changes (guarded: still
+ * the same owner, still no subscription), the new owner's membership row goes
+ * (the owner is a column, never a row), the previous owner stays on the
+ * project as Can edit, the log gets its row, and the cell is told both
+ * people's access changed. Returns false when the guarded write matched
+ * nothing.
+ */
+export async function transferOwnership(
+  env,
+  { project, target, actor, action, reason = null, detail = {}, ctx = null, now = Date.now() }
+) {
+  const db = env.DB;
+  const from = await db
+    .prepare('SELECT id, email, name FROM accounts WHERE id = ?')
+    .bind(project.account_id)
+    .first();
+
+  const moved = await db
+    .prepare(
+      'UPDATE projects SET account_id = ? WHERE id = ? AND account_id = ? AND subscription_id IS NULL AND delete_since IS NULL'
+    )
+    .bind(target.id, project.id, project.account_id)
+    .run();
+  if (!moved?.meta?.changes) return false;
+  // The owner is a column, never a membership row (project-routes.mjs).
+  await db
+    .prepare('DELETE FROM project_members WHERE project_id = ? AND account_id = ?')
+    .bind(project.id, target.id)
+    .run();
+  await db
+    .prepare(
+      `INSERT INTO project_members (project_id, account_id, role, added_at) VALUES (?, ?, 'member', ?)
+       ON CONFLICT (project_id, account_id) DO UPDATE SET role = 'member'`
+    )
+    .bind(project.id, project.account_id, now)
+    .run();
+  await audit(
+    db,
+    {
+      accountId: target.id,
+      projectId: project.id,
+      actor,
+      action,
+      reason,
+      detail: JSON.stringify({ ...detail, from: project.account_id, to: target.id }),
+    },
+    { now }
+  );
+  // Both people's access changed; the cell hears now (access-forward.mjs).
+  if (from?.email) {
+    await accessWentDown(env, project.id, from.email, {
+      reason: 'removed',
+      now,
+      ctx,
+      role: 'member',
+    });
+  }
+  await notifyAccessChanged(env, project.id, { email: target.email, change: 'raised' }, { ctx });
+  // The offerer is no longer the owner: any offer still open is void.
+  await closeStaleOffers(db, project.id, { now });
+  return true;
+}
+
+/**
  * One call to the access authority from a control-plane PAGE, as the signed-in
  * account. Returns `{ status, body }`.
  *
@@ -933,7 +1155,8 @@ export async function pageAccessCall(
   {
     origin,
     projectId,
-    actorEmail,
+    actorEmail = null,
+    operator = null,
     method,
     path,
     query = '',
@@ -954,7 +1177,7 @@ export async function pageAccessCall(
         : {}),
     }
   );
-  const res = await accessCall(request, env, { projectId, path, actorEmail, ctx, now });
+  const res = await accessCall(request, env, { projectId, path, actorEmail, operator, ctx, now });
   if (!res) return { status: 404, body: { reason: 'no-route' } };
   let parsed = null;
   try {

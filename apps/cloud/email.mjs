@@ -291,6 +291,60 @@ export function projectMadeEmail({
 }
 
 /**
+ * "<project> will be deleted on <date>" — an operator scheduled the deletion
+ * (D1 v23). Sent at once, before anything else happens, and again in the same
+ * words when the copy is ready (`copyReady`). It says who decided, where the
+ * copy is, and how to stop it: this is the ordinary thirty-day ladder, and
+ * replying inside it is enough.
+ */
+export function deletionScheduledEmail({
+  projectName: raw,
+  downloadUrl,
+  deletesAt,
+  copyReady = false,
+}) {
+  const projectName = oneLine(raw, 80) || 'Your project';
+  return {
+    subject: `${projectName} will be deleted on ${day(deletesAt)}`,
+    text: [
+      `Maude support scheduled “${projectName}” for deletion. It is paused now,`,
+      `and on ${day(deletesAt)} it is deleted from our computers.`,
+      'Nothing has been deleted yet.',
+      '',
+      copyReady
+        ? 'A complete copy of your work has been prepared and is waiting here:'
+        : 'You can download a complete copy of your work here:',
+      '',
+      `  ${downloadUrl}`,
+      '',
+      'If this is a mistake, reply to this e-mail before that date and the',
+      'project comes back exactly as it was — same address, same people.',
+      'The reason is on the project’s Activity page.',
+    ].join('\n'),
+  };
+}
+
+/** "<name> wants to make you the owner of <project>" — the offer, never the hand-over itself. */
+export function transferOfferEmail({ projectName: raw, fromName: rawFrom, acceptUrl, expiresAt }) {
+  const projectName = oneLine(raw, 80) || 'a project';
+  const fromName = oneLine(rawFrom, 80) || 'The owner';
+  return {
+    subject: `${fromName} wants to make you the owner of ${projectName}`,
+    text: [
+      `${fromName} offered to make you the owner of “${projectName}” on Maude Cloud.`,
+      'The owner decides who is on the project, and is the one who pays for it',
+      'when it has a plan.',
+      '',
+      'Nothing changes unless you accept. Accept or decline here:',
+      '',
+      `  ${acceptUrl}`,
+      '',
+      `The offer stops working on ${day(expiresAt)}.`,
+    ].join('\n'),
+  };
+}
+
+/**
  * One line of untrusted text, safe for a subject or a quote: control
  * characters and line breaks become spaces (no header can be smuggled into a
  * subject, no fake paragraph into the body), runs collapse, and anything past

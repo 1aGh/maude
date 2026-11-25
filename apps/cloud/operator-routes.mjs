@@ -39,7 +39,8 @@
 //      session-derived token, then a required reason — before anything is
 //      read or written, and each lands in the audit log with that reason.
 
-import { boardMetrics, tenantMetrics, totalContent } from './analytics.mjs';
+import { notYours, pageAccessCall } from './access-forward.mjs';
+import { boardMetrics, mostActiveAccounts, tenantMetrics, totalContent } from './analytics.mjs';
 import { SESSION_COOKIE } from './auth-routes.mjs';
 import { audit, enqueueReconcile } from './db.mjs';
 import { pageCsp } from './edge.mjs';
@@ -61,8 +62,10 @@ import {
   moveProject,
   parseFreeTime,
   parseInviteList,
+  scheduleDelete,
   setHold,
   signOutEverywhere,
+  undoDelete,
 } from './operator-actions.mjs';
 import {
   operatorAccountPage,
@@ -71,9 +74,13 @@ import {
   operatorNewProjectPage,
   operatorOverviewPage,
   operatorProjectPage,
+  operatorProjectPeoplePage,
   operatorProjectsPage,
 } from './operator-pages.mjs';
+import { renderViewAs } from './operator-view.mjs';
 import pricingCatalog from './pricing.json' with { type: 'json' };
+import { cellHolds } from './project-access.mjs';
+import { projectPeopleData } from './project-routes.mjs';
 
 /** Same id shape the rest of the plane validates before it reaches D1. */
 const PROJECT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -217,6 +224,42 @@ export async function handleOperatorRoutes(
 
   const actor = `operator:${account.email}`;
 
+  // ------------------------------------------- see it as the owner does
+  //
+  // READ ONLY, and decided here before anything else: a POST under the prefix
+  // is 405 whatever it carries. The rendering (operator-view.mjs) mints no
+  // session and no token — it draws the owner's pages from the owner's rows.
+  const viewAs = url.pathname.match(/^\/operator\/accounts\/([A-Za-z0-9_-]+)\/view(\/.*)?$/);
+  if (viewAs) {
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      return html('<p>This is a read-only view. Nothing can be changed from here.</p>', 405, {
+        allow: 'GET, HEAD',
+      });
+    }
+    const [, accountId, rest = ''] = viewAs;
+    if (!ACCOUNT_ID.test(accountId)) return notFound();
+    const target = await env.DB.prepare(
+      'SELECT id, email, name, trial_started_at FROM accounts WHERE id = ?'
+    )
+      .bind(accountId)
+      .first()
+      .catch(() => null);
+    if (!target) return notFound();
+    const page = await renderViewAs(env, {
+      operator: account,
+      target,
+      rest: rest.replace(/\/$/, ''),
+    });
+    if (page === null) return notFound();
+    if (typeof page !== 'string') {
+      return html(
+        '<p>This view could not be recorded just now, so it is not shown. Try again in a minute.</p>',
+        503
+      );
+    }
+    return html(page);
+  }
+
   // ------------------------------------------------------------- overview
   if (url.pathname === '/operator' && request.method === 'GET') {
     // CONCURRENT — nothing here depends on anything before it, and the two
@@ -242,6 +285,8 @@ export async function handleOperatorRoutes(
         accounts,
         metrics: metrics.ok ? { ...metrics, coldStartP95Ms: tenant.coldStartP95Ms } : null,
         totals: totalContent(tenant.stats),
+        lists: await accountLists(env, String(url.searchParams.get('tab') ?? 'newest')),
+        tab: String(url.searchParams.get('tab') ?? 'newest'),
       })
     );
   }
@@ -418,6 +463,47 @@ export async function handleOperatorRoutes(
     );
   }
 
+  // ------------------------------------------------ people in one project
+  const peoplePath = url.pathname.match(/^\/operator\/projects\/([a-z0-9-]+)\/people$/);
+  if (peoplePath && request.method === 'GET') {
+    const [, projectId] = peoplePath;
+    if (!PROJECT_ID.test(projectId)) return notFound();
+    const project = await env.DB.prepare('SELECT * FROM projects WHERE id = ?')
+      .bind(projectId)
+      .first()
+      .catch(() => null);
+    if (!project || project.state === 'purged') return notFound();
+    const data = await projectPeopleData(env, project);
+    const requests = await env.DB.prepare(
+      `SELECT r.id, r.created_at, a.email, a.name FROM access_requests r
+         JOIN accounts a ON a.id = r.account_id
+        WHERE r.project_id = ? AND r.decided_at IS NULL ORDER BY r.created_at`
+    )
+      .bind(projectId)
+      .all()
+      .then((r) => r?.results ?? [])
+      .catch(() => []);
+    await record(env, null, {
+      accountId: project.account_id,
+      projectId,
+      actor,
+      action: 'operator.project.people.viewed',
+      detail: JSON.stringify({ operator: account.id }),
+    });
+    return html(
+      operatorProjectPeoplePage({
+        account,
+        project,
+        ...data,
+        requests,
+        csrf: (await csrfFor(request, env)) ?? '',
+        canView: cellHolds(project, 'roles-v2'),
+        notice: noticeFor(url),
+        error: ERRORS[url.searchParams.get('error')] ?? null,
+      })
+    );
+  }
+
   // ----------------------------------------------------------- the actions
   //
   // ONE GATE for every write below, in one order: the form is read, the token
@@ -544,7 +630,7 @@ export async function handleOperatorRoutes(
 
   // ---- project actions
   const action = url.pathname.match(
-    /^\/operator\/projects\/([a-z0-9-]+)\/(free-time|promo|promo\/end|pause|wake|move)$/
+    /^\/operator\/projects\/([a-z0-9-]+)\/(free-time|promo|promo\/end|pause|wake|move|delete|delete\/undo|people)$/
   );
   if (action && request.method === 'POST') {
     const [, projectId, verb] = action;
@@ -560,7 +646,7 @@ export async function handleOperatorRoutes(
     const base =
       g.form.get('back') === 'account'
         ? `/operator/accounts/${project.account_id}`
-        : `/operator/projects/${projectId}`;
+        : `/operator/projects/${projectId}${verb === 'people' ? '/people' : ''}`;
     const back = (query) => redirect(`${base}?${query}`);
     if (!g.reason) return back(`error=${g.problem}`);
     const common = { operator: account, project, reason: g.reason, ctx };
@@ -615,6 +701,22 @@ export async function handleOperatorRoutes(
       return back(`done=${!out.changed || out.settled ? word : `${word}-queued`}`);
     }
 
+    if (verb === 'delete' || verb === 'delete/undo') {
+      const out =
+        verb === 'delete'
+          ? await scheduleDelete(env, {
+              ...common,
+              confirm: g.form.get('confirm'),
+              origin,
+              reconcileNow,
+            })
+          : await undoDelete(env, { ...common, reconcileNow });
+      if (!out.ok) return back(`error=${out.reason}`);
+      return back(`done=${verb === 'delete' ? 'delete-scheduled' : 'delete-undone'}`);
+    }
+
+    if (verb === 'people') return operatorPeopleAction(env, { g, project, account, origin, ctx });
+
     // move
     const out = await moveProject(env, { ...common, toEmail: String(g.form.get('to') ?? '') });
     if (!out.ok) return back(`error=${out.reason}`);
@@ -668,6 +770,132 @@ export async function handleOperatorRoutes(
   }
 
   return notFound();
+}
+
+/**
+ * One People action on a customer's project, as the operator.
+ *
+ * The access authority does it (access-forward.mjs `accessCall`), told
+ * explicitly that the caller is an operator: the owner's rules apply
+ * unchanged — the owner cannot be removed or demoted, `owner` is not a role,
+ * an invitation is an invitation — and every row it writes names the operator
+ * and carries the reason this request was gated on.
+ */
+async function operatorPeopleAction(env, { g, project, account, origin, ctx }) {
+  const base = `/operator/projects/${project.id}/people`;
+  const back = (query) => redirect(`${base}?${query}`);
+  const form = g.form;
+  const verb = String(form.get('do') ?? '');
+  const id = (name) => encodeURIComponent(String(form.get(name) ?? ''));
+  const role = String(form.get('role') ?? '');
+  if (
+    (verb === 'invite' || verb === 'role') &&
+    role === 'observer' &&
+    !cellHolds(project, 'roles-v2')
+  ) {
+    return back('error=people-can-view');
+  }
+  const call = (method, path, body = null) =>
+    pageAccessCall(env, {
+      origin,
+      projectId: project.id,
+      operator: { id: account.id, email: account.email, reason: g.reason },
+      method,
+      path,
+      body,
+      ctx,
+    });
+  const ROUTES = {
+    invite: () => call('POST', 'invites', { email: String(form.get('email') ?? ''), role }),
+    role: () => call('PATCH', `people/${id('account')}`, { role }),
+    remove: () => call('DELETE', `people/${id('account')}`),
+    'invite-resend': () => call('POST', `invites/${id('invite')}/resend`),
+    'invite-cancel': () => call('DELETE', `invites/${id('invite')}`),
+    'request-allow': () => call('POST', `requests/${id('request')}/approve`),
+    'request-decline': () => call('POST', `requests/${id('request')}/decline`),
+  };
+  if (!Object.hasOwn(ROUTES, verb)) return back('error=people-refused');
+  // A role is changed, never given: an id that is not on this project is
+  // refused (they join by accepting an invitation).
+  if (verb === 'role') {
+    const seat = await env.DB.prepare(
+      'SELECT 1 AS x FROM project_members WHERE project_id = ? AND account_id = ?'
+    )
+      .bind(project.id, String(form.get('account') ?? ''))
+      .first()
+      .catch(() => null);
+    if (!seat) return back('error=people-refused');
+  }
+  const answer = await ROUTES[verb]();
+  if (notYours(answer) || answer.status >= 400) return back('error=people-refused');
+  return back(`done=people-${verb}`);
+}
+
+/**
+ * The overview's four account lists (canvas 16, cl-operator), with a count for
+ * each tab and the rows of the chosen one. Most active comes from recorded
+ * events; without them it says so (`rows: null`) rather than showing nobody.
+ */
+async function accountLists(env, tab) {
+  const now = Date.now();
+  const soon = now + 7 * 86_400_000;
+  const q = async (sql, ...args) => {
+    try {
+      const res = await env.DB.prepare(sql)
+        .bind(...args)
+        .all();
+      return res?.results ?? [];
+    } catch (err) {
+      console.error(`[operator] account list failed: ${err.message}`);
+      return [];
+    }
+  };
+  const COLS = `a.id, a.email, a.created_at,
+                (SELECT COUNT(*) FROM projects p WHERE p.account_id = a.id AND p.state != 'purged') AS projects`;
+  const TRIAL = `p.account_id = a.id AND p.state = 'active' AND p.subscription_id IS NULL
+                 AND p.promo_since IS NULL AND p.trial_ends_at > ?1 AND p.trial_ends_at <= ?2`;
+  const PROMO = `p.account_id = a.id AND p.state != 'purged' AND p.subscription_id IS NULL
+                 AND p.promo_since IS NOT NULL`;
+  const [total, trial, promo] = await Promise.all([
+    q('SELECT COUNT(*) AS n FROM accounts'),
+    q(
+      `SELECT ${COLS} FROM accounts a WHERE EXISTS (SELECT 1 FROM projects p WHERE ${TRIAL}) ORDER BY a.created_at DESC LIMIT 100`,
+      now,
+      soon
+    ),
+    q(
+      `SELECT ${COLS} FROM accounts a WHERE EXISTS (SELECT 1 FROM projects p WHERE ${PROMO}) ORDER BY a.created_at DESC LIMIT 100`
+    ),
+  ]);
+  const counts = {
+    newest: total[0]?.n ?? null,
+    active: null,
+    trial: trial.length,
+    promo: promo.length,
+  };
+  if (tab === 'trial')
+    return { counts, rows: trial.map((a) => ({ ...a, note: 'trial ends within 7 days' })) };
+  if (tab === 'promo') return { counts, rows: promo };
+  if (tab === 'active') {
+    const busiest = await mostActiveAccounts(env);
+    if (busiest === null) {
+      return {
+        counts,
+        rows: null,
+        note: 'Analytics is not connected, so there is no record of who is most active.',
+      };
+    }
+    const rows = [];
+    for (const b of busiest) {
+      const [a] = await q(`SELECT ${COLS} FROM accounts a WHERE a.id = ?`, b.accountId);
+      if (a) rows.push({ ...a, note: `${b.events} events this week` });
+    }
+    return { counts: { ...counts, active: rows.length }, rows };
+  }
+  return {
+    counts,
+    rows: await q(`SELECT ${COLS} FROM accounts a ORDER BY a.created_at DESC LIMIT 25`),
+  };
 }
 
 /** One account, with what the header shows: how it signs in, when it was last here, its Macs. */
@@ -736,6 +964,16 @@ const DONE = {
   'moved-same': 'That account already owns this project. Nothing changed.',
   'signed-out': 'Signed out everywhere.',
   'project-made': 'Project made.',
+  'delete-scheduled':
+    'Deletion scheduled. The project is paused, its owner was mailed the date, and nothing is deleted for 30 days.',
+  'delete-undone': 'The scheduled deletion is undone.',
+  'people-invite': 'Invitation sent.',
+  'people-role': 'Saved.',
+  'people-remove': 'Removed from this project.',
+  'people-invite-resend': 'The invitation was sent again.',
+  'people-invite-cancel': 'The invitation is cancelled.',
+  'people-request-allow': 'They can edit now.',
+  'people-request-decline': 'The request is closed.',
 };
 
 function noticeFor(url) {
@@ -784,4 +1022,17 @@ const ERRORS = {
   'move-paid':
     'This project has a subscription that belongs to its current owner. Move the subscription in Stripe first — nothing was moved.',
   'move-gone': 'This project is deleted. Nothing was moved.',
+  'move-deleting':
+    'A deletion is scheduled for this project. Undo it first — a project is not handed over on its way out. Nothing was moved.',
+  'delete-confirm': 'That is not this project’s name or id. Nothing was scheduled.',
+  'delete-paid':
+    'This project has a paid plan. Cancel the plan first — a deletion that keeps charging is the worst order. Nothing was scheduled.',
+  'delete-checkout-open':
+    'A checkout is open for this project — its owner is paying right now. Nothing was scheduled.',
+  'delete-gone': 'This project is already deleted or queued for deletion.',
+  'delete-not-scheduled': 'No deletion is scheduled for this project.',
+  'delete-too-late': 'The deletion has already gone past the point where it can be undone.',
+  'people-refused':
+    'That was refused, as it would be for the owner: the owner cannot be changed or removed here, a role must be one of those listed, and an invitation or request must still be open. Nothing was changed.',
+  'people-can-view': 'Can view is not available for this project yet. Nothing was changed.',
 };

@@ -201,25 +201,35 @@ export function billingPage({
              : `<p class="quiet" style="margin:0">No trial, no card, nothing to choose.</p>`
 }
        </div>`
-    : plan?.state === 'held'
+    : plan?.state === 'deleting'
       ? `<div class="card warn">
+           <h2>This project will be deleted on ${esc(plan.deletesOn)}</h2>
+           <p class="quiet" style="margin:0">Maude support scheduled it, and the reason is on this
+             project’s Activity page. Nothing has been deleted yet. If this is a mistake, reply to
+             the e-mail about it before that date and the project comes back as it was.</p>
+           <form method="post" action="${p}/download" style="margin:var(--space-3) 0 0">
+             <button type="submit" class="ghost">Download everything</button>
+           </form>
+         </div>`
+      : plan?.state === 'held'
+        ? `<div class="card warn">
            <h2>Paused by Maude</h2>
            <p class="quiet" style="margin:0">Nothing has been deleted and no deletion is scheduled.
              The reason is on this project’s Activity page. You can still download everything.</p>
          </div>`
-      : plan?.state === 'trial'
-        ? `<div class="card">
+        : plan?.state === 'trial'
+          ? `<div class="card">
              <h2>Free until ${esc(formatDay(plan.freeUntil))}</h2>
              <p class="quiet" style="margin:0">${esc(plan.line)}. No card is needed. After that date
                you pick a plan to keep editing; nothing is deleted.</p>${choose}
            </div>`
-        : plan?.state === 'paused'
-          ? `<div class="card warn">
+          : plan?.state === 'paused'
+            ? `<div class="card warn">
                <h2>Choose a plan to keep editing</h2>
                <p class="quiet" style="margin:0">The free time has ended. Nothing is deleted, and
                  everyone can still open and download everything.</p>${choose}
              </div>`
-          : null;
+            : null;
   const d = details ?? {
     company: '',
     line1: '',
@@ -300,7 +310,7 @@ export function billingPage({
     extraCss: EXTRA_CSS,
     pill: promo
       ? { tone: 'ok', label: 'Promo' }
-      : pausedUntil || plan?.state === 'held'
+      : pausedUntil || plan?.state === 'held' || plan?.state === 'deleting'
         ? { tone: 'stop', label: 'Paused' }
         : subscription.cancelling
           ? { tone: 'warn', label: `Ending ${formatDay(subscription.periodEndMs ?? Date.now())}` }
@@ -313,7 +323,7 @@ export function billingPage({
      ${
        // Paused, with the clock visible (A11, canvas E0 screen 3). A retention
        // window nobody can see the end of is not a promise, it is a surprise.
-       pausedUntil
+       pausedUntil && plan?.state !== 'deleting'
          ? `<div class="card warn">
               <h2>Paused — deleted in ${pausedUntil.daysLeft} day${pausedUntil.daysLeft === 1 ? '' : 's'}</h2>
               <p class="quiet">${esc(project.name)} stopped on ${esc(formatDay(pausedUntil.pausedOn))}.
@@ -465,6 +475,7 @@ export function allCheckoutHtml({ pricing }) {
         plan: { state: 'promo' },
       },
       { plan: { state: 'held' } },
+      { plan: { state: 'deleting', deletesOn: '25 December 2026' } },
       { plan: { state: 'trial', freeUntil: 0, line: 'Free trial · 12 days left' } },
       { plan: { state: 'paused' } },
     ].map((extra) =>
