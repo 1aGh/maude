@@ -354,35 +354,15 @@ function healthLines({ version, durability, repoDir, gitLock, now }) {
     { key: 'version', label: 'Version', value: `Maude ${version}`, state: 'ok', word: 'Running' },
   ];
   const d = durability;
+  const kept = Number.isInteger(d?.kept) ? d.kept : null;
+  const keptWord = kept === null ? 'Working' : `${kept} kept`;
+  const backups = (line) =>
+    lines.push({ key: 'backups', label: 'Backups', ...(kept === null ? {} : { kept }), ...line });
   if (!d || d.state === 'not-configured') {
-    lines.push({
-      key: 'backups',
-      label: 'Backups',
-      value: 'Not set up',
-      state: 'off',
-      word: 'Not set up',
-    });
-  } else if (d.state === 'ok') {
-    lines.push({
-      key: 'backups',
-      label: 'Backups',
-      value: 'Last backup',
-      at: d.lastOkAt,
-      state: 'ok',
-      word: 'Working',
-    });
-  } else if (d.state === 'pending') {
-    lines.push({
-      key: 'backups',
-      label: 'Backups',
-      value: 'No backup yet',
-      state: 'warn',
-      word: 'Waiting for the first one',
-    });
-  } else {
-    lines.push({
-      key: 'backups',
-      label: 'Backups',
+    backups({ value: 'Not set up', state: 'off', word: 'Not set up' });
+  } else if (d.state === 'failed' || d.state === 'identity-conflict') {
+    // The reason, and the last good one still named: "failing since" needs both.
+    backups({
       value: d.state === 'identity-conflict' ? 'Turned off' : 'Failing',
       ...(d.lastOkAt ? { at: d.lastOkAt } : {}),
       state: 'bad',
@@ -391,6 +371,17 @@ function healthLines({ version, durability, repoDir, gitLock, now }) {
           ? 'Another server already backs up to this place'
           : String(d.message ?? 'The last backup failed').slice(0, 160),
     });
+  } else if (d.lastOkAt) {
+    backups({ value: 'Last backup', at: d.lastOkAt, state: 'ok', word: keptWord });
+  } else if (d.listError) {
+    // Neither a record nor a listing: say that, never "no backup yet".
+    backups({
+      value: 'Cannot read the backup place',
+      state: 'warn',
+      word: String(d.listError).slice(0, 160),
+    });
+  } else {
+    backups({ value: 'No backup yet', state: 'warn', word: 'Waiting for the first one' });
   }
   let git = {
     key: 'git',

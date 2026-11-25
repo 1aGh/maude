@@ -111,13 +111,16 @@ import {
   permissiveDevAuthDisabled,
 } from './auth-routes.mjs';
 import {
+  backupSummary,
   fileTarget,
+  IDENTITY_CONFLICT,
   prefixedTarget,
   runBackup,
   scheduleBackups,
   targetFromConfig,
   targetFromEnv,
 } from './backup.mjs';
+import { readBackupStatus, sizeWords, writeBackupStatus } from './backup-status.mjs';
 import { maybeIssueOnBoot, verifyAndConsume } from './bootstrap.mjs';
 import {
   BROWSER_SESSION_COOKIE,
@@ -590,29 +593,150 @@ export function createHub(config = {}) {
     state: bootTarget ? 'pending' : 'not-configured',
     lastGeneration: null,
     lastOkAt: null,
+    // How many generations the target holds — from its own listing, or null
+    // until that has been read.
+    kept: null,
     conflictWith: null,
     message: null,
     at: null,
   };
+  // ── THE TRUTH ABOUT BACKUPS IS NOT THIS PROCESS'S MEMORY (backup-status.mjs).
+  // The schedule's first tick is a whole interval after boot, so everything
+  // above is "pending" for six hours after every restart unless it is seeded:
+  // from the status file now (the last attempt and the last success, as this
+  // hub recorded them), and from the target's own listing just below.
+  {
+    const known = readBackupStatus(dataDir);
+    if (bootTarget && known.lastOk) {
+      durability.state = 'ok';
+      durability.lastOkAt = known.lastOk.at;
+      durability.lastGeneration = known.lastOk.prefix ?? null;
+    }
+    if (
+      bootTarget &&
+      known.lastAttempt?.ok === false &&
+      known.lastAttempt.at >= (known.lastOk?.at ?? 0)
+    ) {
+      durability.state =
+        known.lastAttempt.code === IDENTITY_CONFLICT ? 'identity-conflict' : 'failed';
+      durability.message = known.lastAttempt.message ?? null;
+      durability.conflictWith = known.lastAttempt.conflictWith ?? null;
+      durability.at = known.lastAttempt.at;
+    }
+  }
+  let backupSummaryAt = 0;
+  let backupSummaryInFlight = null;
+  /** How long the target's listing is trusted between backups. */
+  const BACKUP_SUMMARY_TTL_MS = 5 * 60_000;
+  /**
+   * Every backup attempt ends here — `runBackup`'s `onAttempt` — whichever
+   * kind it was: on the schedule, the last one on shutdown, the one before a
+   * conversion. One row in Activity (made, with its size; or failed, with the
+   * reason), and for the regular keyspace the status file.
+   */
+  const noteBackup = (kind) => (a) => {
+    const before = kind === 'before-conversion';
+    audit({
+      kind: 'backup',
+      actor: 'Server',
+      detail: a.ok
+        ? `${before ? 'Backup before moving to Maude 2 made' : 'Backup made'} · ${sizeWords(a.bytes)}`
+        : `Backup failed: ${a.message}`,
+    });
+    if (before) return; // its own keyspace; not "the last backup" of the schedule
+    writeBackupStatus(dataDir, {
+      lastAttempt: {
+        at: Date.now(),
+        ok: a.ok,
+        ...(a.ok ? {} : { message: a.message, code: a.code, conflictWith: a.conflictWith }),
+      },
+      ...(a.ok ? { lastOk: { at: a.at, prefix: a.prefix, bytes: a.bytes } } : {}),
+    });
+    if (a.ok) {
+      durability.state = 'ok';
+      durability.lastOkAt = a.at;
+      durability.lastGeneration = a.prefix;
+      durability.message = null;
+    } else {
+      durability.state = a.code === IDENTITY_CONFLICT ? 'identity-conflict' : 'failed';
+      durability.message = a.message;
+      durability.conflictWith = a.conflictWith ?? null;
+      durability.at = Date.now();
+    }
+    // The listing changed (or should have): read it again — and a read that
+    // is in flight right now started before this, so it must not count as fresh.
+    backupEpoch += 1;
+    backupSummaryAt = 0;
+  };
+  let backupEpoch = 0;
+  /**
+   * Read what the target itself holds and fold it into `durability`: how many
+   * generations, the newest one's time. A generation this hub has no record of
+   * (it was stopped between the upload and its own bookkeeping, or its disk is
+   * new) is adopted — and logged once, so Activity is not missing a backup
+   * that exists. Cached; an attempt invalidates it. Never throws.
+   */
+  const refreshBackupSummary = async () => {
+    if (!backupTarget) return;
+    // Wait out a read in flight, then check again: it may predate the last backup.
+    for (let round = 0; round < 3; round++) {
+      if (backupSummaryInFlight) {
+        await backupSummaryInFlight;
+        continue;
+      }
+      if (Date.now() - backupSummaryAt < BACKUP_SUMMARY_TTL_MS) return;
+      backupSummaryInFlight = readBackupSummary();
+    }
+  };
+  const readBackupSummary = async () => {
+    const epoch = backupEpoch;
+    try {
+      const s = await backupSummary(await backupTarget());
+      durability.kept = s.count;
+      durability.listError = null;
+      const known = readBackupStatus(dataDir);
+      if (s.lastAt && s.lastPrefix !== known.lastOk?.prefix && s.lastAt > (known.lastOk?.at ?? 0)) {
+        audit({
+          kind: 'backup',
+          actor: 'Server',
+          at: s.lastAt,
+          detail: `Backup made${s.lastBytes ? ` · ${sizeWords(s.lastBytes)}` : ''} · found in the backup place at startup`,
+        });
+        writeBackupStatus(dataDir, {
+          lastOk: { at: s.lastAt, prefix: s.lastPrefix, bytes: s.lastBytes },
+        });
+      }
+      if (s.lastAt && s.lastAt >= (durability.lastOkAt ?? 0)) {
+        durability.lastOkAt = s.lastAt;
+        durability.lastGeneration = s.lastPrefix;
+      }
+      // A generation newer than the failure on record means the failure is over.
+      const failedAt = durability.state === 'failed' ? (durability.at ?? 0) : 0;
+      if (durability.state === 'pending' || (failedAt && (s.lastAt ?? 0) > failedAt)) {
+        durability.state = s.count > 0 ? 'ok' : 'pending';
+      }
+    } catch (err) {
+      durability.listError = String(err?.message ?? err).slice(0, 200);
+    } finally {
+      backupSummaryAt = epoch === backupEpoch ? Date.now() : 0;
+      backupSummaryInFlight = null;
+    }
+  };
+  void refreshBackupSummary();
   const stopBackups = scheduleBackups({
     dataDir,
     target: backupTarget,
     intervalMs: backupTarget ? backupIntervalMs : 0,
+    // Activity + the status file: one place, for every kind of attempt.
+    onAttempt: noteBackup('regular'),
     onStatus: (s) => {
-      // Into the kept log: every backup made, and a failure once per change of
-      // state (a failing target retries; the log is not a retry counter).
-      if (s.state === 'ok') audit({ kind: 'backup', actor: 'Server', detail: 'Backup made' });
-      else if (s.state !== durability.state && s.state !== 'pending') {
-        audit({ kind: 'backup', actor: 'Server', detail: `Backup ${s.state}: ${s.message ?? ''}` });
-      }
       durability.state = s.state;
       durability.at = s.at;
       durability.message = s.message ?? null;
       durability.conflictWith = s.conflictWith ?? null;
-      if (s.state === 'ok') {
-        durability.lastGeneration = s.generation;
-        durability.lastOkAt = s.at;
-      }
+      // `lastOkAt` is the GENERATION's own time, set by `noteBackup` — not the
+      // moment this callback ran, which a restart could never read back.
+      if (s.state === 'ok') durability.lastGeneration = s.generation;
     },
     // Cloud Phase 15 — the checkout rides in the same generation as the
     // databases. A cell's disk is ephemeral, so a history that is not in the
@@ -2342,6 +2466,7 @@ export function createHub(config = {}) {
           note,
           audit,
           changesNow,
+          refreshBackupSummary,
         });
         bailFromOnRequest();
       }
@@ -2832,6 +2957,7 @@ export function createHub(config = {}) {
     const out = await runBackup({
       dataDir,
       target,
+      onAttempt: noteBackup('before-conversion'),
       repoDir: process.env.MAUDE_REPO_DIR || null,
       run: process.env.MAUDE_REPO_DIR ? createGitRunner() : null,
     });
@@ -3262,6 +3388,8 @@ async function handleAdminApi(ctx) {
 
   // ---- everything below is the ADMIN KEY or a SIGNED-IN ADMIN ACCOUNT ----
 
+  // The backup line comes from the target's own listing (cached), not from memory since boot.
+  if (path === '/overview' || path === '/status') await ctx.refreshBackupSummary?.();
   if (
     path === '/overview' ||
     path === '/people' ||

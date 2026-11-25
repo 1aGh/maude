@@ -110,6 +110,11 @@ function formatBytes(n) {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** A count with its noun: `1 event`, `2 events`, `1 canvas`, `3 canvases`. Every count on the page goes through here. */
+function plural(n, one, many = `${one}s`) {
+  return `${n} ${Number(n) === 1 ? one : many}`;
+}
+
 function escapeHtml(s) {
   return String(s ?? '').replace(
     /[&<>"']/g,
@@ -233,7 +238,7 @@ function showMember(me) {
       .join('') || '<p class="ad-quiet">Nowhere else.</p>';
   $('member-admins').innerHTML = me.runBy?.length
     ? `<p>${esc(me.runBy.join(', '))}</p><p class="ad-quiet">Ask them for access or to invite someone.</p>`
-    : `<p class="ad-quiet">${me.admins} admin${me.admins === 1 ? '' : 's'} run it. Ask whoever invited you.</p>`;
+    : `<p class="ad-quiet">${plural(me.admins, 'admin runs', 'admins run')} it. Ask whoever invited you.</p>`;
   const dom = me.domains?.length ? `@${me.domains.join(', @')}` : '';
   $('member-join').innerHTML = `<p>${esc(
     me.whoCanJoin === 'domain' && dom
@@ -483,7 +488,7 @@ function renderOverview(o) {
       )
       .join('') || '<p class="ad-quiet">Nothing yet.</p>';
   $('activity-sub').textContent =
-    `Kept for ${o.retentionDays} days · ${c.eventsThisWeek} events this week`;
+    `Kept for ${plural(o.retentionDays, 'day')} · ${plural(c.eventsThisWeek, 'event')} this week`;
 }
 
 // ------------------------------------------------------------------- people
@@ -528,7 +533,7 @@ function renderPeople() {
   $('pc-off').textContent = c.off || '';
   $('nav-count-people').textContent = c.asks || '';
   $('people-sub').textContent =
-    `${c.people} ${c.people === 1 ? 'person' : 'people'} · who can come in is set in Settings › Who can join`;
+    `${plural(c.people, 'person', 'people')} · who can come in is set in Settings › Who can join`;
   const q = $('people-find').value.trim().toLowerCase();
   const f = state.peopleFilter;
   const rows = d.people.filter(
@@ -553,7 +558,7 @@ function renderPeople() {
           const n = p.sessions.length;
           return (
             `<tr class="is-row${p.status === 'asks' ? ' is-hl' : ''}${p.status === 'off' ? ' is-dim' : ''}" data-key="${esc(p.key)}" data-testid="person-row">` +
-            `<td>${who(p.email ?? 'Anyone with the link', p.kind === 'account' && n ? `signed in on ${n} device${n === 1 ? '' : 's'}` : '')}</td>` +
+            `<td>${who(p.email ?? 'Anyone with the link', p.kind === 'account' && n ? `signed in on ${plural(n, 'device')}` : '')}</td>` +
             `<td>${esc(p.roleLabel)}</td><td data-testid="person-status">${st}</td>` +
             `<td class="td-num">${esc(seen)}</td>` +
             `<td><span class="ad-acts">${rowActions(p)}</span></td></tr>`
@@ -656,7 +661,7 @@ async function openPerson(key) {
     const kinds = { browser: 'A browser', app: 'The Maude app', token: 'A token' };
     body.innerHTML = `${head}
       <div class="field"><span class="field-label">Can</span><span class="ad-seg" id="person-role">${seg('member', 'Can edit')}${seg('admin', 'Admin')}</span>
-      <span class="field-help">Changes at once: this person is signed out everywhere and signs in again with the new role.${p.canvases ? ` Has ${p.canvases} canvas${p.canvases === 1 ? '' : 'es'} only.` : ''}</span></div>
+      <span class="field-help">Changes at once: this person is signed out everywhere and signs in again with the new role.${p.canvases ? ` Has ${plural(p.canvases, 'canvas', 'canvases')} only.` : ''}</span></div>
       <div><h4>Signed in on</h4>${
         p.sessions
           .map(
@@ -804,7 +809,7 @@ async function makeInvites(emails) {
 function renderCanvases(c) {
   const rows = c.canvases || [];
   $('canvases-context').textContent =
-    `${rows.length} canvas${rows.length === 1 ? '' : 'es'} saved on this team server.`;
+    `${plural(rows.length, 'canvas', 'canvases')} saved on this team server.`;
   $('canvases-rows').innerHTML = rows.length
     ? rows
         .map(

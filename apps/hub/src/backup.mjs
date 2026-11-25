@@ -297,15 +297,55 @@ export function snapshotPrefix(now = new Date()) {
  * generation complete. A crash mid-upload leaves an unlisted, ignorable partial
  * rather than a directory that looks restorable and isn't.
  */
-export async function runBackup({
-  dataDir,
-  target,
-  now = new Date(),
-  keep = DEFAULT_KEEP,
-  repoDir = null,
-  run = null,
-  workspace = null,
-}) {
+/**
+ * `onAttempt` is THE ONE PLACE every backup attempt reports its end — the
+ * schedule's tick, the last generation on shutdown, the one before a
+ * conversion, a manual run:
+ *
+ *   { ok: true,  prefix, at, bytes, files }   the manifest is in the target —
+ *       reported the moment it is, BEFORE the prune, so a hub stopped in the
+ *       tail of a shutdown has still said what it did;
+ *   { ok: false, at, message, code?, conflictWith? }   it did not get there.
+ *
+ * Exactly one call per attempt. It never makes a backup fail.
+ */
+export async function runBackup({ onAttempt = null, ...args }) {
+  let reported = false;
+  const report = (attempt) => {
+    if (reported || !onAttempt) return;
+    reported = true;
+    try {
+      onAttempt(attempt);
+    } catch {
+      /* a listener must never fail the backup it is told about */
+    }
+  };
+  try {
+    return await takeBackup(args, report);
+  } catch (err) {
+    report({
+      ok: false,
+      at: Date.now(),
+      message: String(err?.message ?? err).slice(0, 300),
+      ...(err?.code ? { code: err.code } : {}),
+      ...(err?.conflictWith ? { conflictWith: err.conflictWith } : {}),
+    });
+    throw err;
+  }
+}
+
+async function takeBackup(
+  {
+    dataDir,
+    target,
+    now = new Date(),
+    keep = DEFAULT_KEEP,
+    repoDir = null,
+    run = null,
+    workspace = null,
+  },
+  report
+) {
   if (!target) throw new Error('runBackup: no target configured');
 
   // WHOSE KEYSPACE IS THIS? (Phase 0 F1.) Asked BEFORE a single object is
@@ -372,6 +412,14 @@ export async function runBackup({
     ...(repo ? { repo } : {}),
   };
   await target.put(`${prefix}/manifest.json`, Buffer.from(JSON.stringify(manifest, null, 2)));
+  // The generation is complete: say so NOW (see `onAttempt`).
+  report({
+    ok: true,
+    prefix,
+    at: now.getTime(),
+    bytes: files.reduce((n, f) => n + f.bytes, 0) + (repo?.bytes ?? 0),
+    files: files.length + (repo ? 1 : 0),
+  });
 
   const pruned = await pruneOldBackups({ target, keep, workspace: workspaceId });
   return { prefix, files, manifest, repo, pruned };
@@ -393,6 +441,37 @@ export async function readManifest(target, generation) {
   } catch {
     return null;
   }
+}
+
+/** When a generation was taken, from its own name (`backups/20261125T031502Z`) — ms, or null. */
+export function generationTime(generation) {
+  const m = /(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z$/.exec(String(generation ?? ''));
+  if (!m) return null;
+  const at = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+  return Number.isFinite(at) ? at : null;
+}
+
+/**
+ * What the TARGET itself holds: how many complete generations, and the newest
+ * one's name, time and size. One listing and one manifest read — the answer
+ * an Overview can give after a restart, when nothing in memory knows.
+ */
+export async function backupSummary(target) {
+  const generations = await listBackups(target);
+  const last = generations[generations.length - 1] ?? null;
+  if (!last) return { count: 0, lastPrefix: null, lastAt: null, lastBytes: null };
+  const manifest = await readManifest(target, last);
+  const created = manifest?.createdAt ? Date.parse(manifest.createdAt) : Number.NaN;
+  const bytes = Array.isArray(manifest?.files)
+    ? manifest.files.reduce((n, f) => n + (Number(f.bytes) || 0), 0) +
+      (Number(manifest?.repo?.bytes) || 0)
+    : null;
+  return {
+    count: generations.length,
+    lastPrefix: last,
+    lastAt: Number.isFinite(created) ? created : generationTime(last),
+    lastBytes: bytes,
+  };
 }
 
 /** List complete generations (those that have a manifest), oldest first. */
@@ -664,6 +743,8 @@ export function scheduleBackups({
    * Degradation is a report, not a liveness signal.
    */
   onStatus = null,
+  /** Handed to every `runBackup` this schedule makes — see `runBackup`. */
+  onAttempt = null,
 }) {
   if (!target || !intervalMs || intervalMs <= 0) {
     const none = () => {};
@@ -680,7 +761,18 @@ export function scheduleBackups({
       resolved = typeof target === 'function' ? await target() : target;
     } catch (err) {
       log.error?.(`[hub] backup target unavailable: ${err.message}`);
-      return;
+      // An attempt that never reached `runBackup` is still an attempt that failed.
+      try {
+        onAttempt?.({
+          ok: false,
+          at: Date.now(),
+          message: `backup target unavailable: ${err.message}`,
+        });
+      } catch {
+        /* see runBackup */
+      }
+      onStatus?.({ state: 'failed', message: err.message, at: Date.now() });
+      return null;
     }
     if (!resolved) return null;
     let covered = null;
@@ -689,7 +781,7 @@ export function scheduleBackups({
     } catch (err) {
       log.error?.(`[hub] pre-generation hook failed: ${err.message}`);
     }
-    return runBackup({ dataDir, target: resolved, keep, repoDir, run })
+    return runBackup({ dataDir, target: resolved, keep, repoDir, run, onAttempt })
       .then(async (r) => {
         log.log?.(
           `[hub] backup ${r.prefix} (${r.files.length} file(s)${r.repo ? ' + checkout' : ''})`

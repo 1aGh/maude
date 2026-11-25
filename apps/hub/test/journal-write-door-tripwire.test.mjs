@@ -39,6 +39,10 @@ const NOT_A_FILE_PLANE_WRITE = new Map([
   ['admin-auth.mjs', 'admin credential file in dataDir'],
   ['bootstrap.mjs', 'the boot bootstrap token file in dataDir'],
   ['settings.mjs', 'the hub settings JSON in dataDir'],
+  [
+    'backup-status.mjs',
+    'the last backup attempt, `<dataDir>/backup-status.json` — never a designRoot path',
+  ],
   // S8.19: who holds which asset — `<dataDir>/asset-presence.json`, a hint the
   // probe feeds and the presence query reads; never a designRoot path.
   ['asset-presence.mjs', 'the asset-presence hint store in dataDir'],

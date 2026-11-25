@@ -1590,6 +1590,23 @@ scenario(
     };
     const adminLinked = (await personRow(hub, ADMIN.email))?.linked;
 
+    // A regular backup has been made (the schedule here is one minute) — so that
+    // after the restart, with the next one a minute away, the Overview has to
+    // know it from disk and from the backup folder, not from memory.
+    const backupsLine = async () =>
+      okJson(await a.json('/admin/api/overview'), 'overview').health.find(
+        (h) => h.key === 'backups'
+      );
+    const backedUp = await waitFor(async () => (await backupsLine()).value === 'Last backup', {
+      timeoutMs: 90_000,
+    });
+    const lineBefore = await backupsLine();
+    check(
+      'a backup has been made before the restart, and the Overview names it',
+      backedUp.ok && lineBefore.state === 'ok' && lineBefore.kept >= 1,
+      `${lineBefore.value} · ${lineBefore.word} · state=${lineBefore.state} (after ${backedUp.ms} ms)`
+    );
+
     const pid = hub.handle.pid;
     await killGroup(hub.handle, { hard: true });
     const down = await waitFor(async () => !(await health(hub)), { timeoutMs: 10_000 });
@@ -1628,6 +1645,29 @@ scenario(
       'the kept log lost nothing',
       lost.length === 0 && before.events.length > 0,
       `${before.events.length} events before, ${afterEvents.length} after, ${lost.length} lost`
+    );
+    // Backups: the first thing asked after the restart, a minute before this
+    // process's own first backup. The line is the truth from disk + the backup
+    // folder; Activity has the row for the backup that was made, with its size.
+    const lineAfter = await backupsLine();
+    check(
+      'the Overview still says when the last backup was and how many are kept',
+      lineAfter.value === 'Last backup' &&
+        lineAfter.state === 'ok' &&
+        lineAfter.at >= lineBefore.at &&
+        lineAfter.kept >= lineBefore.kept &&
+        /^\d+ kept$/.test(lineAfter.word),
+      `${lineAfter.value} · ${new Date(lineAfter.at).toISOString()} · ${lineAfter.word} (before: ${lineBefore.word})`
+    );
+    const backupRows = afterEvents.filter(
+      (e) => e.kind === 'backup' && /^Backup made · [\d.]+ (B|KB|MB|GB)/.test(e.detail)
+    );
+    check(
+      'Activity has a row for the backup that was made, with its size',
+      backupRows.length >= 1,
+      backupRows.length
+        ? `${backupRows.length} row(s), newest: ${backupRows[0].detail}`
+        : `no "Backup made" row among ${afterEvents.filter((e) => e.kind === 'backup').length} backup events`
     );
     // links: a linked member signs in through the provider; the linked admin too (when S1 ran)
     const again = await oidcSignIn(hub, kept);

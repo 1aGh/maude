@@ -208,3 +208,18 @@ test('the console\'s "Open the studio" CTAs point at the studio root, not the de
     assert.ok(!m[1].startsWith('/'), `#${id} href must be relative, got ${m[1]}`);
   }
 });
+
+// "1 events this week" (seen live, 2026-11-25). A count and its noun are put
+// together in ONE place, so singular and plural cannot drift per call site.
+test('every count the admin renders agrees with its noun — one helper, no hand-rolled "s"', async () => {
+  const { ADMIN_JS } = await import('../src/admin-assets.mjs');
+  // The helper, as shipped: `1` is singular, everything else (0 included) plural.
+  assert.match(
+    ADMIN_JS,
+    /function plural\(n, one, many = `\$\{one\}s`\) \{\s*return `\$\{n\} \$\{Number\(n\) === 1 \? one : many\}`;/
+  );
+  assert.match(ADMIN_JS, /plural\(c\.eventsThisWeek, 'event'\)\} this week/);
+  assert.doesNotMatch(ADMIN_JS, /\} events this week/, 'the hand-written plural is gone');
+  // No count is pluralised by hand any more: `${n} thing${n === 1 ? '' : 's'}`.
+  assert.doesNotMatch(ADMIN_JS, /\$\{[^}]+\} [a-z]+\$\{[^}]*=== 1 \? '' : '(s|es)'\}/);
+});
