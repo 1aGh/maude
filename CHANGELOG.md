@@ -1,5 +1,11 @@
 # @1agh/maude
 
+## 2.4.6
+
+### Patch Changes
+
+- 19daacb: On Windows an update no longer closes Maude by itself. The update downloads in the background and installs only when you choose Restart now (#231).
+
 ## 2.4.5
 
 ### Patch Changes
