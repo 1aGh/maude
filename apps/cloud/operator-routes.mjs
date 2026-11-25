@@ -72,6 +72,7 @@ import {
   operatorAccountPage,
   operatorAccountsPage,
   operatorEventsPage,
+  operatorFleetPage,
   operatorNewProjectPage,
   operatorOverviewPage,
   operatorProjectPage,
@@ -83,6 +84,7 @@ import { operatorPlan } from './plan-copy.mjs';
 import pricingCatalog from './pricing.json' with { type: 'json' };
 import { cellHolds } from './project-access.mjs';
 import { projectPeopleData } from './project-routes.mjs';
+import { NOT_ROUTINE, withRoutineCheck } from './routine-log.mjs';
 
 /** Same id shape the rest of the plane validates before it reaches D1. */
 const PROJECT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -403,6 +405,22 @@ export async function handleOperatorRoutes(
     );
   }
 
+  // ---------------------------------------------------------------- fleet
+  if (url.pathname === '/operator/fleet' && request.method === 'GET') {
+    const [projects, tenant] = await Promise.all([
+      listProjectsWithOwners(env.DB),
+      tenantMetrics(env),
+    ]);
+    record(env, ctx, { accountId: account.id, actor, action: 'operator.fleet.viewed' });
+    return html(
+      operatorFleetPage({
+        account,
+        board: assembleBoard({ projects, render: tenant.render }),
+        projects,
+      })
+    );
+  }
+
   // --------------------------------------------------------------- events
   if (url.pathname === '/operator/events' && request.method === 'GET') {
     const metrics = await boardMetrics(env);
@@ -438,13 +456,17 @@ export async function handleOperatorRoutes(
       .all()
       .then((r) => r?.results ?? [])
       .catch(() => []);
-    const entries = await env.DB.prepare(
-      'SELECT at, actor, action, reason FROM audit_log WHERE project_id = ? ORDER BY at DESC LIMIT 50'
-    )
-      .bind(projectId)
-      .all()
-      .then((r) => r?.results ?? [])
-      .catch(() => []);
+    const entries = await withRoutineCheck(
+      env.DB,
+      projectId,
+      await env.DB.prepare(
+        `SELECT at, actor, action, reason FROM audit_log WHERE project_id = ? AND ${NOT_ROUTINE} ORDER BY at DESC LIMIT 50`
+      )
+        .bind(projectId)
+        .all()
+        .then((r) => r?.results ?? [])
+        .catch(() => [])
+    );
 
     record(env, ctx, {
       accountId: account.id,

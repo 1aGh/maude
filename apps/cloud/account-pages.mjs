@@ -1468,7 +1468,10 @@ export async function handleAccountPages(request, env, { account, ctx = null } =
   if (method !== 'GET' && method !== 'HEAD' && method !== 'POST') {
     return html('<p>Not allowed.</p>', 405);
   }
-  const me = (await accountRow(env, account.id)) ?? account;
+  // The fuller row, laid OVER the session's — never instead of it: the
+  // session read carries `owns`, which is what gives an owner People and
+  // Settings in the nav. Dropping it lost both tabs on every /account page.
+  const me = { ...account, ...((await accountRow(env, account.id)) ?? {}) };
 
   // ---- overview (GET only; the pre-v2 revoke form posted here)
   if (section === null) {

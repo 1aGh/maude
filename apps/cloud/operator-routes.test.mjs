@@ -383,12 +383,34 @@ describe('the one write', () => {
     assert.match(bad, /A reason is required/);
   });
 
+  it('every tab in the operator nav opens a page — Fleet included', async () => {
+    // Live finding 2026-11-25: the nav linked /operator/fleet and it 404ed.
+    const { env } = fresh();
+    const board = await (await call(get('/operator'), env, OPERATOR)).text();
+    const hrefs = [...board.matchAll(/<a class="ad-nav-tab" href="(\/operator[^"]*)"/g)].map(
+      (m) => m[1]
+    );
+    assert.ok(hrefs.includes('/operator/fleet'), `nav: ${hrefs.join(', ')}`);
+    for (const href of hrefs) {
+      assert.equal((await call(get(href), env, OPERATOR)).status, 200, href);
+    }
+    const fleet = await (await call(get('/operator/fleet'), env, OPERATOR)).text();
+    assert.match(fleet, /<h1[^>]*>Fleet</);
+    assert.match(fleet, /Restore drill/);
+    assert.match(fleet, /href="\/operator\/fleet" aria-current="page"/);
+  });
+
   it('the list pages take no write at all', async () => {
     // Every write is on ONE target's page and goes through the gate
     // (operator-actions.test.mjs). A POST to a list is not a route. Comp and
     // refund stay in Stripe.
     const { env } = fresh();
-    for (const path of ['/operator', '/operator/projects', '/operator/accounts']) {
+    for (const path of [
+      '/operator',
+      '/operator/projects',
+      '/operator/accounts',
+      '/operator/fleet',
+    ]) {
       assert.equal((await call(post(path, {}), env, OPERATOR)).status, 404, path);
     }
   });

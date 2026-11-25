@@ -31,6 +31,7 @@ import { pageCsp } from './edge.mjs';
 import { validateTarget } from './mirror.mjs';
 import { ACCESS_MESSAGES, can, decideAccess } from './project-access.mjs';
 import { removeCellDomain } from './provision.mjs';
+import { NOT_ROUTINE, routineCount, withRoutineCheck } from './routine-log.mjs';
 import { purgeTenantObjects } from './purge.mjs';
 
 const CSS = `
@@ -474,7 +475,7 @@ export async function activityEntries(env, { project, viewerId }) {
   const cut = Number(moved?.at ?? 0);
   const rows = await env.DB.prepare(
     `SELECT at, actor, action, reason FROM audit_log
-          WHERE project_id = ?1
+          WHERE project_id = ?1 AND ${NOT_ROUTINE}
             ${
               viewerOwns
                 ? `AND NOT (at < ?3 AND (action LIKE 'operator.%' OR action IN (${quoted(OWNER_ONLY_ACTIVITY)})))`
@@ -496,14 +497,14 @@ export async function activityEntries(env, { project, viewerId }) {
   )
     .bind(...(viewerOwns ? [project.id, viewerId, cut] : [project.id]))
     .all();
-  return rows?.results ?? [];
+  return withRoutineCheck(env.DB, project.id, rows?.results ?? []);
 }
 
 export function auditPage({ account, project, isOwner, entries }) {
   const rows = entries
     .map(
       (e) => `<tr>
-        <td>${esc(AUDIT_COPY[e.action] ?? e.action)}</td>
+        <td>${esc(AUDIT_COPY[e.action] ?? e.action)}${esc(routineCount(e))}</td>
         <td class="quiet">${esc(actorWord(e.actor))}</td>
         <td>${e.reason ? esc(e.reason) : '<span class="quiet">—</span>'}</td>
         <td class="right"><time>${when(e.at)}</time></td>

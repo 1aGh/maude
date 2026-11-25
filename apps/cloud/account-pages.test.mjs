@@ -234,6 +234,18 @@ describe('every account page: a session, no-store, no script', () => {
     }
   });
 
+  test('an owner keeps People and Settings in the nav on every account page', async () => {
+    // Live finding 2026-11-25: /account re-read the account row and dropped the
+    // session's `owns`, so the nav fell back to a member's two tabs.
+    const { env, ana } = await world();
+    for (const path of PATHS) {
+      const html = await (await get(env, path, ana.session)).text();
+      const nav = /<nav class="island ad-nav"[\s\S]*?<\/nav>/.exec(html)?.[0] ?? '';
+      assert.match(nav, /href="\/account\/people"/, `${path}: People tab`);
+      assert.match(nav, />Settings</, `${path}: Settings tab`);
+    }
+  });
+
   test('the overview carries the plan line and the six doors (ob-settings + S9.18 E-mails)', async () => {
     const { env, ana, sqlite } = await world();
     sqlite

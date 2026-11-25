@@ -25,6 +25,7 @@ import { appShell, icon, logLine, sheetActions, stat, statusWord, thumb, who } f
 import { changesView } from './changes.mjs';
 import { operatorPlan } from './plan-copy.mjs';
 import { PROMO_TIERS, promoTierLabel } from './promo.mjs';
+import { routineCount } from './routine-log.mjs';
 
 // The page pieces are the shared ones (brand-css.mjs, canvas 16): stat tiles,
 // cards, tables, the log feed. Only what an operator page adds lives here.
@@ -34,6 +35,14 @@ const CSS = `
   .op-kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
   .op-acts { display: flex; flex-direction: column; }
   .op-acts details.sheet { box-shadow: inset 0 0.5px 0 var(--border-subtle); }
+  /* In a table row the doors sit side by side as small buttons on the right; one that is opened takes the row's width under them. */
+  .op-acts-cell { text-align: right; vertical-align: middle; width: 240px; }
+  .op-acts--row { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+  .op-acts--row details.sheet { box-shadow: none; text-align: left; white-space: normal; }
+  .op-acts--row details.sheet > summary { padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); box-shadow: inset 0 0 0 1px var(--border-default); font-weight: var(--weight-medium); white-space: nowrap; }
+  .op-acts--row details.sheet > summary::after { content: none; }
+  .op-acts--row details.sheet[open] { flex-basis: 100%; min-width: 260px; }
+  .op-acts--row details.sheet > form { padding: var(--space-3) 0 0; }
   details.sheet > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-5); font-size: var(--type-sm); font-weight: var(--weight-semibold); }
   details.sheet > summary::-webkit-details-marker { display: none; }
   details.sheet > summary::after { content: "›"; color: var(--fg-3); font-size: var(--type-md); line-height: 1; }
@@ -187,6 +196,7 @@ function shell({
   heading = null,
   actions = '',
   sheet = null,
+  counts = {},
 }) {
   return appShell({
     account,
@@ -194,6 +204,7 @@ function shell({
     heading,
     body,
     isOperator: true,
+    counts,
     active,
     lede,
     actions,
@@ -354,12 +365,114 @@ export function operatorOverviewPage({
     lede: `${day} · every project and account on the platform, and what is wrong right now`,
     actions: `<a class="btn btn--primary" href="/operator/new-project">${icon('plus', 14)}New project for an account</a>`,
     sheet,
+    counts: { fleet: fleetCount(board) },
     body: `${tiles(list)}
       <div class="ad-cols ad-cols--2-1">
         ${accountLists(lists, tab)}
         ${needs}
       </div>
       ${unpriced}`,
+  });
+}
+
+/** How many cells need a look — the small count on the Fleet tab. */
+export function fleetCount(board) {
+  return new Set((board?.board?.problems ?? []).map((p) => p.id).filter((id) => id !== '(fleet)'))
+    .size;
+}
+
+// ------------------------------------------------------------------- fleet
+
+const KIND_WORD = {
+  unhealthy: 'Unhealthy',
+  'never-drilled': 'Never drilled',
+  'stale-drill': 'Drill is old',
+  'no-checkpoint': 'Never replicated',
+  'stale-checkpoint': 'Replication is old',
+  'version-spread': 'Versions differ',
+  'config-drift': 'Config drift',
+};
+
+/**
+ * Fleet: every serving cell, one row each — health, version, when it last
+ * replicated and when a restore was last proven — with what is wrong on top.
+ * The overview says how many; this page says which and why. No script: it is
+ * the page somebody opens during an outage.
+ *
+ * @param {object} args.board  assembleBoard() output
+ * @param {Array}  args.projects  listProjectsWithOwners() rows, for names and owners
+ */
+export function operatorFleetPage({ account, board, projects = [], now = Date.now() }) {
+  const byId = new Map(projects.map((p) => [p.id, p]));
+  const problemsOf = new Map();
+  for (const p of board.board.problems) {
+    const list = problemsOf.get(p.id) ?? [];
+    list.push(p);
+    problemsOf.set(p.id, list);
+  }
+  const age = (v, unit) => (v === null || v === undefined ? 'never' : `${v} ${unit} ago`);
+  const rows = board.board.rows
+    .map((r) => {
+      const p = byId.get(r.id) ?? {};
+      const wrong = problemsOf.get(r.id) ?? [];
+      return `<tr>
+        <td><a class="ad-who" href="/operator/projects/${esc(r.id)}">${thumb('ad-thumb--row')}<span class="ad-who-t"><strong>${esc(p.name || r.id)}</strong><span class="mono">${esc(r.id)}</span></span></a></td>
+        <td class="ad-quiet">${ownerLink(p)}</td>
+        <td>${r.health === 'healthy' ? statusWord('ok', 'Healthy') : statusWord('error', String(r.health))}</td>
+        <td class="mono">${esc(r.version ?? '—')}${r.canary ? ' <small>canary</small>' : ''}</td>
+        <td class="ad-quiet">${esc(age(r.checkpointAgeMinutes, 'min'))}</td>
+        <td class="ad-quiet">${esc(age(r.drillAgeDays, 'days'))}</td>
+        <td>${
+          wrong.length
+            ? wrong.map((w) => statusWord('warn', KIND_WORD[w.kind] ?? w.kind)).join(' ')
+            : statusWord('ok', 'Nothing')
+        }</td>
+      </tr>`;
+    })
+    .join('\n');
+
+  const fleetWide = [
+    ...board.alarms.alarms.map(
+      (a) =>
+        `<div class="ad-alarm">${statusWord('error', 'Cost alarm')}<span>${esc(a.kind)} — ${esc(a.detail)}</span><span></span></div>`
+    ),
+    ...board.board.problems
+      .filter((p) => p.id === '(fleet)')
+      .map(
+        (p) =>
+          `<div class="ad-alarm">${statusWord('warn', KIND_WORD[p.kind] ?? p.kind)}<span>${esc(p.detail ?? '')}</span><span></span></div>`
+      ),
+  ];
+
+  const count = fleetCount(board);
+  const day = new Date(now).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
+  return shell({
+    account,
+    title: 'Fleet',
+    active: 'operator-fleet',
+    lede: `${day} · ${board.serving} serving ${board.serving === 1 ? 'cell' : 'cells'} · ${
+      count ? `${count} ${count === 1 ? 'needs' : 'need'} a look` : 'nothing needs a look'
+    }`,
+    counts: { fleet: count },
+    body: `${
+      fleetWide.length
+        ? card('The whole fleet', `<div class="ad-feed">${fleetWide.join('\n')}</div>`)
+        : ''
+    }${
+      board.board.rows.length
+        ? `<div class="ad-card ad-card--clip"><div class="ad-scroll"><table class="ad-table">
+          <thead><tr>
+            <th scope="col">Project</th><th scope="col">Owner</th><th scope="col">Health</th><th scope="col">Version</th>
+            <th scope="col">Replicated</th><th scope="col">Restore drill</th><th scope="col">Needs a look</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div></div>`
+        : `<div class="ad-card">${note('No cell is serving right now.')}</div>`
+    }`,
   });
 }
 
@@ -979,7 +1092,7 @@ export function operatorProjectPeoplePage({
       const who = personCell(p);
       if (p.role === 'owner')
         return `<tr><td>${who}</td><td><span class="ad-mrole ad-mrole--own">Owner</span></td><td></td></tr>`;
-      return `<tr><td>${who}</td><td><span class="ad-mrole">${esc(word(p.role))}</span></td><td class="op-acts">
+      return `<tr><td>${who}</td><td><span class="ad-mrole">${esc(word(p.role))}</span></td><td class="op-acts-cell"><div class="op-acts op-acts--row">
         ${act(
           'Change role',
           { do: 'role', account: p.account_id },
@@ -990,7 +1103,7 @@ export function operatorProjectPeoplePage({
           }
         )}
         ${act('Remove', { do: 'remove', account: p.account_id }, { id: `rm-${p.account_id}`, submit: 'Remove from this project' })}
-      </td></tr>`;
+      </div></td></tr>`;
     })
     .join('\n');
   const grantRows = grants
@@ -1003,20 +1116,20 @@ export function operatorProjectPeoplePage({
     .map(
       (
         i
-      ) => `<tr><td>${personCell({ email: i.email })}</td><td><span class="ad-mrole">${esc(word(i.role))}</span> <span class="ad-quiet">not joined yet · until ${when(i.expires_at)}</span></td><td class="op-acts">
+      ) => `<tr><td>${personCell({ email: i.email })}</td><td><span class="ad-mrole">${esc(word(i.role))}</span> <span class="ad-quiet">not joined yet · until ${when(i.expires_at)}</span></td><td class="op-acts-cell"><div class="op-acts op-acts--row">
         ${act('Send again', { do: 'invite-resend', invite: i.id }, { id: `rs-${i.id}`, submit: 'Send again' })}
         ${act('Cancel invite', { do: 'invite-cancel', invite: i.id }, { id: `cx-${i.id}`, submit: 'Cancel invite' })}
-      </td></tr>`
+      </div></td></tr>`
     )
     .join('\n');
   const requestRows = requests
     .map(
       (
         r
-      ) => `<tr><td>${personCell(r)}</td><td class="ad-quiet">asked ${when(r.created_at)}</td><td class="op-acts">
+      ) => `<tr><td>${personCell(r)}</td><td class="ad-quiet">asked ${when(r.created_at)}</td><td class="op-acts-cell"><div class="op-acts op-acts--row">
         ${act('Allow editing', { do: 'request-allow', request: r.id }, { id: `ok-${r.id}`, submit: 'Allow editing' })}
         ${act('Not now', { do: 'request-decline', request: r.id }, { id: `no-${r.id}`, submit: 'Not now' })}
-      </td></tr>`
+      </div></td></tr>`
     )
     .join('\n');
 
@@ -1218,7 +1331,7 @@ export function operatorProjectPage({
           : /people|invite|access/.test(String(e.action))
             ? 'people'
             : 'pulse',
-        body: `<strong>${esc(String(e.actor).replace(/^operator:/, ''))}</strong> <span>${esc(e.action)}</span><br><span class="op-ev-r">Reason: ${esc(e.reason ?? '—')}</span>`,
+        body: `<strong>${esc(String(e.actor).replace(/^operator:/, ''))}</strong> <span>${esc(e.action)}${esc(routineCount(e))}</span><br><span class="op-ev-r">Reason: ${esc(e.reason ?? '—')}</span>`,
         when: ago(e.at, now),
       })
     )

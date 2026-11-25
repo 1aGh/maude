@@ -404,6 +404,28 @@ export async function handleOidc({
       page(response, 400, 'Sign-in could not be verified', 'Please start again.');
       return true;
     }
+    // The provider said no (OAuth `error=`): say what it said. It is the one
+    // line that tells the person what to do — e.g. auth.studyfi.com's "sign in
+    // with your @studyfi.com account". Plain text (servicePage escapes), capped.
+    const refused = url.searchParams.get('error');
+    if (refused) {
+      clearTxnCookie(response);
+      const said = String(url.searchParams.get('error_description') ?? '')
+        .split('')
+        .map((c) => (c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 ? ' ' : c))
+        .join('')
+        .trim()
+        .slice(0, 300);
+      page(
+        response,
+        403,
+        'Sign-in was refused',
+        said
+          ? `${new URL(cfg.issuer).host} says: ${said}`
+          : 'The sign-in provider did not let this account in. Try another account.'
+      );
+      return true;
+    }
     const code = url.searchParams.get('code');
     if (!code) {
       clearTxnCookie(response);
