@@ -6,7 +6,8 @@
  * @stack       React 19 · TSX · Bun.build
  * @history     .design/_history/ui-v2-16_team_server_and_cloud_admin
  * @artboards   ts-overview | ts-people | ts-invitee | ts-settings |
- *              ts-person | ts-activity | cl-account | cl-people | cl-operator | cl-op-account
+ *              ts-person | ts-activity | cl-account | cl-people | cl-operator | cl-op-account |
+ *              cl-settings | cl-project-people | cl-op-fleet
  * @brief       "udelej redesign hub admin cell ale i hub cloud.maude dashboard … zvani uzivatelu je celkem komplikovane
  *              a matouci. Musi se tam prihlasit, pak ja to musim potvrdit a pak stejne potrebuji vygenerovany token aby si
  *              napojili repo … V cloud maude dashboard bych zase rad videl vic statistik a taky moznost masaz members a
@@ -1026,6 +1027,126 @@ export default function TeamServerAndCloudAdmin() {
                 </table>
               </div>
             </div>
+          </Stage>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ── 4 · One way to move around ─────────────────────────────────────────────────────── */}
+      <DCSection id="nav" title="One way to move around — the nav on top, one tab strip under the title" subtitle="Settings and every page about one project use the same strip under the page title, so a page never switches between a side list and a row of tabs; the operator's Fleet is a tab of its own">
+        <DCArtboard id="cl-settings" label="16 · Settings — one strip for the whole account" width={W} height={H} fixed>
+          <Stage note={<Note n={16} title="Settings is a nav tab for everyone.">Account, Billing and plan, Your Macs, E-mails, Download everything and Delete sit in one strip under the title, the same on every Settings page. People and invites joins the strip only for someone who owns no project — an owner has People in the nav already.</Note>}>
+            <Browser host="cloud.maude.sh" path="/account/billing">
+              <Nav {...CL} tabs={CL_TABS} current="Settings" />
+              <div className="ad-main">
+                <div className="ad-head"><div><h1 className="ad-h1">Billing and plan</h1><p className="ad-sub">Your free trial, and the plan of each project you own.</p></div></div>
+                <nav className="ad-ptabs" aria-label="Settings">
+                  {["Account", "Billing and plan", "Your Macs", "E-mails", "Download everything"].map((t) => (
+                    <span key={t} className="ad-tab" aria-current={t === "Billing and plan" ? "page" : undefined}>{t}</span>
+                  ))}
+                  <span className="ad-tab ad-tab--danger">Delete the account</span>
+                </nav>
+                <div className="ad-card ad-card--pad ad-plan-card">
+                  <h2 className="ad-card-h">Alligators brand</h2>
+                  <p>Project · €29 a month · card ok</p>
+                  <span className="ad-link">Billing details and invoices for Alligators brand</span>
+                </div>
+                <div className="ad-card ad-card--pad ad-plan-card">
+                  <h2 className="ad-card-h">Onboarding <span className="ad-promo">Promo</span></h2>
+                  <p>Promo from Maude · free · never ends</p>
+                  <span className="ad-link">Billing details and invoices for Onboarding</span>
+                </div>
+                <div className="ad-card ad-card--pad ad-plan-card">
+                  <h2 className="ad-card-h">Pricing tests</h2>
+                  <p>Free trial · 9 days left · free until 4 Dec</p>
+                  <span className="ad-pick" role="radiogroup" style={{ marginBottom: "var(--space-3)" }}>
+                    <PickOpt on title="Project · €29" sub="One isolated workspace per project" />
+                    <PickOpt title="Dedicated · €129" sub="Pinned instance, custom domain, region, priority support" />
+                  </span>
+                  <span className="ad-head-a"><span className="btn btn--primary">Choose a plan</span></span>
+                </div>
+                <p className="ad-sub">Payment details are handled by Stripe. Each project has its own plan.</p>
+              </div>
+            </Browser>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="cl-project-people" label="17 · One project — its own strip, People first for the owner" width={W} height={H} fixed>
+          <Stage note={<Note n={17} title="A project's pages share one strip.">Open, People, Billing, GitHub copy, Saving, Activity, Download everything — Delete last, in red. A member sees Open, People, Activity and Download only. People adds by email with a role, changes a role in place, and keeps unopened invites below with Send again and Cancel.</Note>}>
+            <Browser host="cloud.maude.sh" path="/projects/alligators/people">
+              <Nav {...CL} tabs={CL_TABS} current="Projects" />
+              <div className="ad-main">
+                <p className="ad-crumb"><b>Projects</b> › Alligators brand</p>
+                <div className="ad-head"><div><span className="ad-h1-row"><h1 className="ad-h1">People</h1><StatusWord state="ok">Ready</StatusWord></span><p className="ad-sub">Who is on Alligators brand, and what each person can do.</p></div></div>
+                <nav className="ad-ptabs" aria-label="Alligators brand">
+                  {["Open", "People", "Billing", "GitHub copy", "Saving", "Activity", "Download everything"].map((t) => (
+                    <span key={t} className="ad-tab" aria-current={t === "People" ? "page" : undefined}>{t}</span>
+                  ))}
+                  <span className="ad-tab ad-tab--danger">Delete project…</span>
+                </nav>
+                <div className="ad-card ad-card--pad" style={{ marginBottom: "var(--space-4)" }}>
+                  <h2 className="ad-card-h" style={{ padding: "0 0 var(--space-3)" }}>Add someone</h2>
+                  <div className="ad-addrow"><span className="ad-in ad-in--ph">their email</span><span className="ad-sel" style={{ width: 300 }}>Can edit — change the designs<Icon name="chevron" size={12} /></span><span className="btn btn--primary">Send invitation</span></div>
+                  <p className="ad-sub" style={{ marginTop: "var(--space-3)" }}>They get an email with a link. Without a Maude account yet, the link makes one.</p>
+                </div>
+                <div className="ad-card" style={{ marginBottom: "var(--space-4)" }}>
+                  <table className="ad-table">
+                    <thead><tr><th scope="col">Person</th><th scope="col">What they can do</th><th scope="col"><span className="ad-sr">Action</span></th></tr></thead>
+                    <tbody>
+                      <tr><td><Who name="You" tone="yellow" ini="S" /></td><td><strong>Owner</strong> <span className="ad-quiet">Everything, plus billing, people and deleting the project.</span></td><td /></tr>
+                      {([
+                        ["Jonas Berger", "jonas@studyfi.com", "green", "Can edit"],
+                        ["Ondřej Malý", "ondrej@studyfi.com", "green", "Can comment"],
+                        ["Tereza Nováková", "tereza@studyfi.com", "sky", "Can edit"],
+                        ["Vojta Černý", "vojta@alligators.cz", "grey", "Can view"],
+                      ] as [string, string, Tone, string][]).map(([n, e, t, r]) => (
+                        <tr key={e}><td><Who name={n} email={e} tone={t} /></td><td><Role>{r}</Role></td><td><span className="ad-row-a"><span className="btn btn--ghost btn--sm">Remove…</span></span></td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="ad-card">
+                  <h2 className="ad-card-h">Invited <small>1</small></h2>
+                  <div className="ad-need"><Avatar ini="R" tone="grey" size="lg" /><span className="ad-need-t"><strong>radek@alligators.cz</strong><span>Can comment · not joined yet · the link works until 26 Nov</span></span><span className="ad-need-a"><span className="btn btn--ghost btn--sm">Cancel invite</span><span className="btn btn--sm">Send again</span></span></div>
+                </div>
+              </div>
+            </Browser>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="cl-op-fleet" label="18 · Operator — Fleet: every project's cell, and what needs a look" width={W} height={H} fixed>
+          <Stage note={<Note n={18} title="Fleet is where the count on the tab leads.">One row per serving cell: health, version, last copy to storage and the last restore drill. Needs a look names the reason in words, so the count on the tab is never a mystery; the row opens the project's operator page.</Note>}>
+            <Browser host="cloud.maude.sh" path="/operator/fleet">
+              <div className="ad-op-band"><Icon name="server" size={13} />Operator — you are looking at every account on Maude Cloud. Changes here are logged as yours.</div>
+              <Nav op name="Maude Cloud" place="Whole service" tag={<span className="ad-op-tag" style={{ marginLeft: "var(--space-2)" }}>Operator</span>} tabs={[{ label: "Overview" }, { label: "Accounts" }, { label: "Projects" }, { label: "Fleet", count: 2 }, { label: "Events" }]} current="Fleet" me="Michal" />
+              <div className="ad-main">
+                <div className="ad-head"><div><h1 className="ad-h1">Fleet</h1><p className="ad-sub">25 Nov · 9 serving cells · 2 need a look</p></div></div>
+                <div className="ad-card">
+                  <table className="ad-table">
+                    <thead><tr><th scope="col">Project</th><th scope="col">Owner</th><th scope="col">Health</th><th scope="col">Version</th><th scope="col">Replicated</th><th scope="col">Restore drill</th><th scope="col">Needs a look</th></tr></thead>
+                    <tbody>
+                      {([
+                        ["Alligators brand", "alligators", "home", "tomas@alligators.cz", "ok", "Healthy", "2.4.10", "4 min ago", "21 Nov", null],
+                        ["StudyFi app", "studyfi-app", "mobile", "team@studyfi.com", "ok", "Healthy", "2.4.10", "6 min ago", "21 Nov", null],
+                        ["Kolář web", "kolar-web", "home", "jan@kolar.studio", "error", "Stopped", "2.4.10", "3 h ago", "never", "Unhealthy · Never drilled"],
+                        ["Plakáty 2027", "plakaty", "gator-poster", "jan@kolar.studio", "ok", "Healthy", "2.4.9", "52 min ago", "14 Nov", "Replication is old"],
+                        ["Marketing site", "marketing", "home", "team@studyfi.com", "ok", "Healthy", "2.4.10", "5 min ago", "21 Nov", null],
+                        ["Onboarding", "onboarding", "onb", "team@studyfi.com", "ok", "Healthy", "2.4.10", "8 min ago", "21 Nov", null],
+                      ] as [string, string, Art, string, "ok" | "error", string, string, string, string, string | null][]).map(([n, id, art, o, st, hw, v, rep, dr, need]) => (
+                        <tr key={id} className={need ? "is-hl" : ""}>
+                          <td><span className="ad-who"><Thumb art={art} w={48} h={32} /><span className="ad-who-t"><strong>{n}</strong><span className="ad-mono">{id}</span></span></span></td>
+                          <td><span className="ad-link">{o}</span></td>
+                          <td><StatusWord state={st}>{hw}</StatusWord></td>
+                          <td className="ad-mono">{v}</td>
+                          <td className="ad-quiet">{rep}</td>
+                          <td className="ad-quiet">{dr}</td>
+                          <td>{need ? <StatusWord state="warn">{need}</StatusWord> : <span className="ad-quiet">—</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Browser>
           </Stage>
         </DCArtboard>
       </DCSection>

@@ -287,3 +287,17 @@
 /* 13–15 · person sheet, activity, operator account */
 .ad-sheet-h4 { margin: 0 0 var(--space-1); font-size: var(--type-xs); font-weight: var(--weight-semibold); color: var(--fg-1); }
 .ad-menu-key { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-5) var(--space-4); font-size: var(--type-xs); color: var(--fg-2); }
+
+/* 16–18 · one tab strip under the title — Settings and every page about one project use the same one (2.4.10) */
+.ad-ptabs { display: flex; align-items: center; gap: var(--space-1); margin: 0 0 var(--space-5); }
+.ad-ptabs .ad-tab[aria-current="page"] { background: var(--bg-3); color: var(--fg-0); font-weight: var(--weight-semibold); }
+.ad-tab--danger { color: var(--status-error-text); }
+.ad-crumb { margin: 0 0 var(--space-2); font-size: var(--type-sm); color: var(--fg-1); }
+.ad-crumb b { font-weight: var(--weight-regular); color: var(--accent-text); }
+.ad-h1-row { display: flex; align-items: center; gap: var(--space-3); }
+.ad-addrow { display: flex; align-items: center; gap: var(--space-2); }
+.ad-addrow .ad-in { flex: 1; }
+.ad-plan-card { margin-bottom: var(--space-3); }
+.ad-plan-card .ad-card-h { padding: 0 0 var(--space-2); }
+.ad-plan-card p { margin: 0 0 var(--space-2); font-size: var(--type-sm); font-weight: var(--weight-semibold); }
+.ad-flags { display: inline-flex; gap: var(--space-3); }
