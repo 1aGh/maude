@@ -101,13 +101,22 @@ describe(`shell parity (${target()})`, () => {
 
     const frame = await $('[data-testid="canvas-frame"]');
     await frame.waitForExist({ timeout: 30_000 });
-    // the active frame can still be the last-open canvas when the click returns: wait for the clicked one
+    // On a cold cloud tab the list is still settling (thumbnails, the Recent order), so the pointer click
+    // above can land on the row that moved under it (seen: Export, Print). Click the row again, by
+    // element, until the clicked canvas is the active one.
     await browser
       .waitUntil(
-        async () =>
-          (await $('[data-testid="canvas-frame"]').getAttribute('data-path')) ===
-          '.design/ui/Smoke.tsx',
-        { timeout: 15_000, interval: 200 }
+        async () => {
+          const path = await $('[data-testid="canvas-frame"]').getAttribute('data-path');
+          if (path === '.design/ui/Smoke.tsx') return true;
+          await browser.execute(() =>
+            (
+              document.querySelector('[data-testid="canvas-row-ui-smoke"]') as HTMLElement | null
+            )?.click()
+          );
+          return false;
+        },
+        { timeout: 15_000, interval: 500 }
       )
       .catch(() => {});
     expect(await $('[data-testid="canvas-frame"]').getAttribute('data-path')).toBe(
