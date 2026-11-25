@@ -1,5 +1,11 @@
 # @1agh/maude
 
+## 2.4.7
+
+### Patch Changes
+
+- The team server admin and Maude Cloud look like their design. Both are a light page with one floating navigation bar (no sidebar), the team server's sign-in and invite pages included; Cloud pages stay light whatever the system theme. A saved admin key the server no longer accepts is forgotten instead of leaving the team server Overview blank, a valid sign-in wins over a stored key, and any part of the page that fails to load says so with Retry.
+
 ## 2.4.6
 
 ### Patch Changes
