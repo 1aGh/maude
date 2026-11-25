@@ -21,7 +21,7 @@ import {
   setPassword,
 } from './accounts.mjs';
 import { track } from './analytics.mjs';
-import { dashboardPage } from './dashboard.mjs';
+import { dashboardPage, projectsPage } from './dashboard.mjs';
 import { audit, getProject } from './db.mjs';
 import { passwordResetEmail, sendEmail, verifyEmail } from './email.mjs';
 import { consumeEmailToken, mintEmailToken, peekEmailToken } from './email-tokens.mjs';
@@ -148,7 +148,12 @@ function clearCookie(name) {
  */
 export async function currentAccount(request, env) {
   const token = cookieValue(request, SESSION_COOKIE);
-  return token ? sessionAccount(env.DB, token) : null;
+  const account = token ? await sessionAccount(env.DB, token) : null;
+  // The shell offers the operator's way in from the avatar menu — to the
+  // allowlisted operator and to nobody else. Decided HERE, from the allowlist,
+  // so no page can forget to ask and none can be talked into it.
+  if (account && isOperator(env, account)) account.operator = true;
+  return account;
 }
 
 /**
@@ -164,11 +169,16 @@ export async function currentAccount(request, env) {
 export async function projectsFor(env, accountId) {
   try {
     const rows = await env.DB.prepare(
+      // `ownerName` is who shares a project with you — for a project you do
+      // not own only; your own needs no such line.
       `SELECT p.id, p.name, p.state,
-              CASE WHEN p.account_id = ?1 THEN 'owner' ELSE m.role END AS role
+              CASE WHEN p.account_id = ?1 THEN 'owner' ELSE m.role END AS role,
+              CASE WHEN p.account_id = ?1 THEN NULL
+                   ELSE COALESCE(NULLIF(TRIM(o.name), ''), o.email) END AS ownerName
          FROM projects p
          LEFT JOIN project_members m
            ON m.project_id = p.id AND m.account_id = ?1
+         LEFT JOIN accounts o ON o.id = p.account_id
         WHERE p.account_id = ?1 OR m.account_id IS NOT NULL
         ORDER BY p.name`
     )
@@ -240,6 +250,19 @@ export async function handleAuth(request, env, { ctx = null, account: given } = 
         plans,
       })
     );
+  }
+  if (method === 'GET' && pathname === '/projects') {
+    // The Projects tab: every project this person can open, as one grid. The
+    // same reads as the Overview, and the same rule — a failed figure costs a
+    // line on a card, never the page.
+    const account = await session();
+    if (!account) return redirect('/login?next=%2Fprojects');
+    const [projects, overview, plans] = await Promise.all([
+      projectsFor(env, account.id),
+      ownerOverview(env, account.id).catch(() => null),
+      ownerPlans(env, account.id).catch(() => null),
+    ]);
+    return html(projectsPage({ account, projects, can, overview, plans }));
   }
   if (method === 'GET' && pathname === '/signup') {
     const next = safeNext(url);

@@ -1,19 +1,34 @@
 // Team server admin — vanilla JS, no framework, strict CSP (no inline script
-// or style: every look is a class, every handler is wired here).
+// or style: every look is a class, every handler is wired here). The markup and
+// the stylesheet reproduce the design canvas "16 Team Server and Cloud Admin"
+// (artboards ts-overview, ts-people, ts-person, ts-activity, ts-settings,
+// un-member-ts); this file fills them with what the server really has.
 //
-// WHO IS LOOKING decides the page (`GET api/me`):
+// WHO IS LOOKING decides the page:
 //   ?key=<bootstrap>          → "bootstrap" (one-time claim)
 //   an admin                  → "dash" — signed in with an Admin account (the
 //                               ordinary way), or holding the admin key
 //   a signed-in member        → "member" — their own access, nothing else
 //   nobody                    → "onboard" — Sign in, or (Advanced) the admin key
 //
-// Two credentials, never mixed up: the browser SESSION is a cookie the hub
-// set at sign-in (this script never sees it); the admin KEY lives in
-// localStorage and rides as a Bearer. Key-only things (tokens, connected
-// sessions, the key itself) are asked for only when the key is present.
+// TWO CREDENTIALS, never mixed up. The browser SESSION is a cookie the hub set
+// at sign-in (this script never sees it). The admin KEY lives in localStorage
+// and rides as a Bearer. The rules between them:
+//   • a signed-in Admin session is PREFERRED over a stored key — the key is
+//     then used only for what needs it (Settings › Advanced) — unless the
+//     person chose the key in THIS tab (sessionStorage);
+//   • a stored key the server rejects is forgotten AT ONCE, the page falls
+//     back to the session (or to the sign-in card), and one quiet line says so;
+//   • no page is ever left empty: a request that fails or does not answer says
+//     what happened, with Retry.
 
 const LS_KEY = 'maude-hub-secret';
+/** "I chose the admin key in this tab" — per tab, so it does not outlive it. */
+const SS_KEY_MODE = 'maude-hub-key-mode';
+const KEY_REMOVED = 'The saved admin key no longer works — it was removed.';
+/** A request that has not answered by now is a failure the person can retry, not a blank page. */
+const REQUEST_TIMEOUT_MS = 20_000;
+
 const $ = (id) => document.getElementById(id);
 const all = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -21,16 +36,29 @@ const all = (sel, root = document) => [...root.querySelectorAll(sel)];
 // root (/admin) and behind a path-stripping reverse proxy.
 const API_BASE = `${location.pathname.replace(/\/+$/, '')}/api`;
 
+const store = (area) => {
+  try {
+    return window[area];
+  } catch {
+    return null;
+  }
+};
+
 const state = {
-  secret: localStorage.getItem(LS_KEY) || '',
+  secret: store('localStorage')?.getItem(LS_KEY) || '',
+  /** Send the key on EVERY request (key mode) — else only on the key-only ones. */
+  useKey: false,
   bootstrapKey: new URLSearchParams(location.search).get('key') || '',
   hubIdentity: null,
   me: null,
   view: 'overview',
   people: null,
+  overview: null,
+  status: null,
   peopleFilter: 'all',
-  act: { kind: '', q: '', more: null, rows: [] },
+  act: { kind: '', q: '', more: null, rows: [], paged: false },
   platform: false,
+  note: '',
 };
 
 // DDR-053 §7: strip ?key= at once so it never sits in history or the bar.
@@ -40,33 +68,78 @@ function showOnly(id) {
   for (const s of all('main > section')) s.hidden = s.id !== id;
 }
 
-async function api(path, opts = {}) {
+function forgetKey() {
+  state.secret = '';
+  state.useKey = false;
+  store('localStorage')?.removeItem(LS_KEY);
+  store('sessionStorage')?.removeItem(SS_KEY_MODE);
+}
+
+/**
+ * One request. `key`: 'never' (the session alone), 'always' (a key-only route),
+ * or by default the key only in key mode. Throws an Error whose `.status` is
+ * the HTTP status (0 = no answer).
+ */
+async function request(path, { key, ...opts } = {}) {
   const headers = new Headers(opts.headers || {});
-  if (state.secret) headers.set('Authorization', `Bearer ${state.secret}`);
+  const withKey = Boolean(state.secret) && key !== 'never' && (key === 'always' || state.useKey);
+  if (withKey) headers.set('Authorization', `Bearer ${state.secret}`);
   if (opts.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-  const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
-  if (res.status === 401) {
-    // A dead key is dropped; the session (if any) decides what is shown next.
-    const hadKey = Boolean(state.secret);
-    state.secret = '';
-    localStorage.removeItem(LS_KEY);
-    if (hadKey || state.me?.signedIn) void boot();
-    throw new Error('Unauthorized');
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...opts,
+      headers,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (err) {
+    const e = new Error(
+      err?.name === 'TimeoutError'
+        ? 'The team server did not answer in time.'
+        : 'The team server could not be reached.'
+    );
+    e.status = 0;
+    throw e;
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
+    const text = await res.text().catch(() => '');
     let message = text;
     try {
       message = JSON.parse(text)?.error ?? text;
     } catch {
       /* not JSON */
     }
-    throw new Error(message || `HTTP ${res.status}`);
+    const e = new Error(message || `HTTP ${res.status}`);
+    e.status = res.status;
+    e.withKey = withKey;
+    throw e;
   }
-  if (opts.raw) return res;
-  return res.status === 204 ? null : res.json();
+  return res;
 }
-const post = (path, body = {}) => api(path, { method: 'POST', body: JSON.stringify(body) });
+
+async function api(path, opts = {}) {
+  try {
+    const res = await request(path, opts);
+    if (opts.raw) return res;
+    return res.status === 204 ? null : await res.json();
+  } catch (err) {
+    if (err.status === 401) {
+      // A key the server rejects is forgotten at once; a session that ended
+      // means signing in again. Either way: find out who is looking now.
+      if (err.withKey) {
+        forgetKey();
+        state.note = KEY_REMOVED;
+      }
+      void boot();
+      const e = new Error('Unauthorized');
+      e.status = 401;
+      throw e;
+    }
+    throw err;
+  }
+}
+const post = (path, body = {}, opts = {}) =>
+  api(path, { method: 'POST', body: JSON.stringify(body), ...opts });
 const hasKey = () => Boolean(state.secret);
 
 // ------------------------------------------------------------ formatters
@@ -85,23 +158,43 @@ function formatUntil(ts) {
   if (!ts) return '—';
   const left = ts - Date.now();
   if (left <= 0) return 'expired';
-  if (left < 3_600_000) return `in ${Math.max(1, Math.floor(left / 60_000))}m`;
-  if (left < 86_400_000) return `in ${Math.floor(left / 3_600_000)}h`;
-  return `in ${Math.floor(left / 86_400_000)}d`;
+  if (left < 3_600_000) return plural(Math.max(1, Math.floor(left / 60_000)), 'more minute');
+  if (left < 86_400_000) return plural(Math.floor(left / 3_600_000), 'more hour');
+  return plural(Math.floor(left / 86_400_000), 'more day');
 }
 
+const clock = (d) =>
+  d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+const dayMonth = (d) => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+const sameDay = (a, b) => a.toDateString() === b.toDateString();
+
+/** "12 min ago" · "Today, 03:00" · "Yesterday, 17:40" · "28 Oct" — the canvas's wording. */
 function formatTime(ts) {
   if (!ts) return '—';
   const diff = Date.now() - ts;
   if (diff < 60_000) return 'Just now';
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} min ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} h ago`;
-  return new Date(ts).toLocaleString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatWhen(ts);
+}
+function formatWhen(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  const now = new Date();
+  if (sameDay(d, now)) return `Today, ${clock(d)}`;
+  if (sameDay(d, new Date(now.getTime() - 86_400_000))) return `Yesterday, ${clock(d)}`;
+  return `${dayMonth(d)}, ${clock(d)}`;
+}
+/** The feed's short stamp: "2 min" · "1 h" · "03:00" · "Yesterday" · "12 Sep". */
+function formatShort(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const d = new Date(ts);
+  if (diff < 60_000) return 'now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} min`;
+  if (diff < 6 * 3_600_000) return `${Math.floor(diff / 3_600_000)} h`;
+  if (sameDay(d, new Date())) return clock(d);
+  if (sameDay(d, new Date(Date.now() - 86_400_000))) return 'Yesterday';
+  return dayMonth(d);
 }
 
 function formatBytes(n) {
@@ -123,26 +216,47 @@ function escapeHtml(s) {
 }
 const esc = escapeHtml;
 
-// Avatar colour by class, never an inline style (the CSP drops those).
-function avatar(name) {
+// ------------------------------------------------------------ pieces (the kit's)
+
+const ic = (name, size = 14) =>
+  `<svg class="k-ic k-ic--${size}" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+
+/** The avatar's colour, from the name — a class, never an inline style (the CSP drops those). */
+function tone(name) {
   const n = String(name || '?');
   let h = 0;
   for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
-  return `<span class="avatar avatar--${h % 6}" aria-hidden="true">${esc(n[0] || '?')}</span>`;
+  return h % 5;
 }
-const who = (title, sub) =>
-  `<span class="ad-who">${avatar(title)}<span class="ad-who-t"><strong>${esc(title)}</strong>${sub ? `<span>${esc(sub)}</span>` : ''}</span></span>`;
-const statusWord = (state_, word) => `<span class="ad-st ad-st--${state_}">${esc(word)}</span>`;
+const avatar = (name, lg = false) =>
+  `<span class="k-av k-av--${tone(name)}${lg ? ' k-av--lg' : ''}" aria-hidden="true">${esc(String(name || '?')[0])}</span>`;
+const serverIcon = () => `<span class="ad-ev-ic">${ic('server', 13)}</span>`;
+/** Who did it: a person's initial, or a glyph for the server and for the admin key (not a person). */
+const actorMark = (actor) =>
+  actor === 'Admin key' ? `<span class="ad-ev-ic">${ic('lock', 13)}</span>` : avatar(actor);
+const who = (title, sub, lg = true) =>
+  `<span class="ad-who">${avatar(title, lg)}<span class="ad-who-t"><strong>${esc(title)}</strong>${sub ? `<span>${esc(sub)}</span>` : ''}</span></span>`;
+/** Status is always a word with a dot. */
+const sw = (kind, word) => `<span class="k-sw k-sw--${kind}"><i></i>${esc(word)}</span>`;
 const btn = (label, attrs, cls = '') =>
   `<button type="button" class="btn btn--sm ${cls}" ${attrs}>${esc(label)}</button>`;
+/** What to call a person when all there is is an address: the address. Its first name for a greeting. */
+const firstName = (email) => {
+  const local = String(email || '')
+    .split('@')[0]
+    .split(/[._+-]/)[0];
+  return local ? local.charAt(0).toUpperCase() + local.slice(1) : '';
+};
 
 async function copyText(text, el) {
   try {
     await navigator.clipboard.writeText(text);
     if (el) {
-      const was = el.textContent;
+      const was = el.innerHTML;
       el.textContent = 'Copied';
-      setTimeout(() => (el.textContent = was), 1500);
+      setTimeout(() => {
+        el.innerHTML = was;
+      }, 1500);
     }
     return true;
   } catch {
@@ -150,104 +264,198 @@ async function copyText(text, el) {
   }
 }
 
+// ---- the quiet line: something changed, or a page could not be loaded (with Retry)
+
+let retryAction = null;
+function showNote(text, { bad = false, retry = null } = {}) {
+  $('page-note-text').textContent = text;
+  $('page-note').classList.toggle('ad-note--bad', bad);
+  $('page-note-retry').hidden = !retry;
+  retryAction = retry;
+  $('page-note').hidden = false;
+}
+function clearNote() {
+  $('page-note').hidden = true;
+  retryAction = null;
+}
+/** A view never stays empty: what failed is said, and can be tried again. */
+function pageFailed(what, err, retry) {
+  if (err?.status === 401) return;
+  showNote(`${what} could not be loaded. ${err?.message ?? ''}`.trim(), { bad: true, retry });
+}
+
 // -------------------------------- who is looking ---------------------------
 
-async function boot() {
+async function me(key) {
+  try {
+    return await (await request('/me', { key })).json();
+  } catch (err) {
+    return { error: err };
+  }
+}
+
+let booting = null;
+function boot() {
+  if (!booting) {
+    booting = bootOnce().finally(() => {
+      booting = null;
+    });
+  }
+  return booting;
+}
+
+async function bootOnce() {
   if (state.bootstrapKey && !state.secret) {
     showOnly('bootstrap');
     void loadIdentityForBootstrapView();
     return;
   }
-  let me;
-  try {
-    me = await api('/me');
-  } catch {
-    // A dead key was dropped and api() boots again without it. With no key at
-    // all this is a cloud cell, where `/me` answers only the admin key.
-    if (!state.secret) {
-      $('onboard-signin').hidden = true;
-      $('onboard-lede').textContent =
-        'This project takes its people from its dashboard. The admin key opens this page.';
-      all('#onboard details')[0].open = true;
-      showOnly('onboard');
+  const choseKey = store('sessionStorage')?.getItem(SS_KEY_MODE) === '1';
+  // 1. The session first — it is what a person signed in with.
+  const session = await me('never');
+  // 2. The stored key, when there is one: is it still good?
+  let keyed = null;
+  if (state.secret) {
+    keyed = await me('always');
+    if (keyed.error?.status === 401) {
+      forgetKey();
+      state.note = KEY_REMOVED;
+      keyed = null;
     }
+  }
+  // 3. Which of them is this page? A signed-in admin, unless the key was chosen in this tab.
+  const sessionAdmin = session.admin === true;
+  state.useKey = Boolean(keyed?.admin) && (choseKey || !sessionAdmin);
+  const who_ = state.useKey ? keyed : session;
+
+  if (who_.error) {
+    // No answer at all (or a cell, which answers only the key): the sign-in card, saying why.
+    showOnboard({ selfService: who_.error.status !== 401, hub: null }, who_.error);
     return;
   }
-  state.me = me;
-  for (const el of all('[data-hub-name]')) el.textContent = me.hub?.name || 'Team server';
-  document.title = `${me.hub?.name || 'Team server'} · Admin`;
-  if (me.admin) return showDash();
-  if (me.signedIn) return showMember(me);
-  // Nobody. Under cloud identity people are the dashboard's: only the key works here.
-  $('onboard-signin').hidden = !me.selfService;
-  if (!me.selfService) {
-    $('onboard-lede').textContent =
-      'This project takes its people from Maude Cloud. The admin key opens this page.';
-    all('#onboard details')[0].open = true;
-  }
+  state.me = who_;
+  for (const el of all('[data-hub-name]')) el.textContent = who_.hub?.name || 'Team server';
+  document.title = `${who_.hub?.name || 'Team server'} · Admin`;
+  if (who_.admin) return showDash();
+  if (who_.signedIn) return showMember(who_);
+  showOnboard(who_, null);
+}
+
+function showOnboard(info, err) {
+  const cell = info.selfService === false;
+  $('onboard-signin').hidden = cell;
+  $('onboard-lede').textContent = cell
+    ? 'This project takes its people from its dashboard. The admin key opens this page.'
+    : 'Sign in with your account on this team server. Admins manage people and settings here; everyone else sees their own access.';
+  if (cell) all('#onboard details')[0].open = true;
+  const note = $('onboard-note');
+  const text =
+    state.note || (err && err.status !== 401 ? `${err.message} Reload the page to try again.` : '');
+  note.textContent = text;
+  note.hidden = !text;
+  state.note = '';
   showOnly('onboard');
 }
 
 function showDash() {
-  const me = state.me;
+  const m = state.me;
   showOnly('dash');
-  $('auth-state').hidden = false;
-  $('me-chip').textContent = me.via === 'key' ? 'Admin key' : `${me.email} · ${me.roleLabel}`;
-  $('signout').hidden = me.via !== 'session';
+  const name = m.via === 'key' ? 'Admin key' : `${firstName(m.email) || m.email} · ${m.roleLabel}`;
+  $('me-chip').textContent = name;
+  $('me-chip').title = m.email ?? '';
+  $('me-chip').parentElement.setAttribute('aria-label', `${name} — menu`);
+  $('me-av').textContent = (m.email || 'A')[0];
+  $('me-av').className = `k-av k-av--${tone(m.email || 'admin')}`;
+  $('signout').hidden = m.via !== 'session';
   $('forget').hidden = !hasKey();
-  renderLinkCards(me);
+  $('me-menu-note').textContent =
+    m.via === 'key'
+      ? 'You are using the admin key.'
+      : hasKey()
+        ? `${m.email} · the admin key is saved for Advanced.`
+        : (m.email ?? '');
+  for (const f of all('[data-link-menu]')) f.hidden = !m.canLink;
+  renderLinkCards(m);
+  if (state.note) {
+    showNote(state.note);
+    state.note = '';
+  }
   setView(state.view);
   void refresh();
   void loadSettings();
 }
 
 /** "Link my sign-in" — offered when there is a provider and this account has none linked. */
-function renderLinkCards(me) {
+function renderLinkCards(m) {
   for (const card of all('[data-link-card]')) {
-    card.hidden = !me.canLink;
-    if (!me.canLink) continue;
+    card.hidden = !m.canLink;
+    if (!m.canLink) continue;
     card.querySelector('[data-link-text]').textContent =
-      `Your account ${me.email} signs in with a password. Link it to ${me.provider} — use the same address. From then on you sign in there: the password stops working and your other sessions end.`;
-    card.querySelector('[data-link-btn]').textContent = `Link my sign-in · ${me.provider}`;
+      `Your account signs in with a password. Link it to ${m.provider} — use the same address. From then on you sign in there: the password stops working and your other sessions end.`;
+    card.querySelector('[data-link-btn]').textContent = `Link my sign-in · ${m.provider}`;
   }
 }
 
-function showMember(me) {
+function showMember(m) {
   showOnly('member');
-  const local = (me.email || '').split('@')[0].split(/[._+-]/)[0];
-  const name = local.charAt(0).toUpperCase() + local.slice(1);
-  $('member-me').textContent = `${me.email} · ${me.roleLabel}`;
+  const name = firstName(m.email);
+  $('member-me').textContent = `${name || m.email} · ${m.roleLabel}`;
+  $('member-av').textContent = (m.email || '?')[0];
+  $('member-av').className = `k-av k-av--${tone(m.email)}`;
   $('member-hello').textContent = `Hi ${name}.`;
-  const hub = me.hub?.name || 'this team server';
-  $('member-sub').textContent = me.access?.everything
-    ? `You can edit everything on ${hub}.`
-    : `You can edit some canvases on ${hub}.`;
-  $('member-access').innerHTML = me.access?.everything
-    ? `<div class="ad-row"><span>All projects — now and new ones</span>${statusWord('ok', 'Can edit')}</div>`
-    : (me.access?.canvases ?? [])
+  const hub = m.hub?.name || 'this team server';
+  const runs = m.runBy?.length
+    ? ` · ${m.runBy.join(' and ')} ${m.runBy.length === 1 ? 'runs' : 'run'} it`
+    : '';
+  $('member-sub').textContent = m.access?.everything
+    ? `You can edit everything on ${hub}${runs}`
+    : `You can edit ${plural(m.access?.canvases?.length ?? 0, 'canvas', 'canvases')} on ${hub}${runs}`;
+  const row = (icon, strong, sub, action = '') =>
+    `<div class="ad-need ad-need--flat">${ic(icon, 16)}<span class="ad-need-t"><strong>${esc(strong)}</strong><span>${esc(sub)}</span></span>${action ? `<span class="ad-need-a">${action}</span>` : ''}</div>`;
+  $('member-access').innerHTML = m.access?.everything
+    ? `<div class="ad-ev"><span class="ad-ev-ic">${ic('folder', 13)}</span><span class="ad-ev-t"><strong>All projects</strong> <span>· now and new ones</span></span>${sw('ok', 'Can edit')}</div>`
+    : (m.access?.canvases ?? [])
         .map(
-          (c) => `<div class="ad-row"><span>${esc(c)}</span>${statusWord('ok', 'Can edit')}</div>`
+          (c) =>
+            `<div class="ad-ev"><span class="ad-ev-ic">${ic('folder', 13)}</span><span class="ad-ev-t"><strong>${esc(c)}</strong></span>${sw('ok', 'Can edit')}</div>`
         )
-        .join('') || '<p class="ad-quiet">Nothing yet.</p>';
+        .join('') || '<p class="ad-empty">Nothing yet.</p>';
   $('member-sessions').innerHTML =
-    (me.sessions ?? [])
-      .map(
-        (s) =>
-          `<div class="ad-row"><span>${s.kind === 'browser' ? 'A browser' : 'The Maude app'}${s.current ? ' · this one' : ''}</span><span class="ad-quiet">${esc(formatTime(s.lastUsedAt ?? s.createdAt))}</span></div>`
+    (m.sessions ?? [])
+      .map((s) =>
+        row(
+          'laptop',
+          s.kind === 'browser' ? 'A browser' : 'The Maude app',
+          `${s.current ? 'This one · ' : ''}${formatTime(s.lastUsedAt ?? s.createdAt).toLowerCase()}`
+        )
       )
-      .join('') || '<p class="ad-quiet">Nowhere else.</p>';
-  $('member-admins').innerHTML = me.runBy?.length
-    ? `<p>${esc(me.runBy.join(', '))}</p><p class="ad-quiet">Ask them for access or to invite someone.</p>`
-    : `<p class="ad-quiet">${plural(me.admins, 'admin runs', 'admins run')} it. Ask whoever invited you.</p>`;
-  const dom = me.domains?.length ? `@${me.domains.join(', @')}` : '';
-  $('member-join').innerHTML = `<p>${esc(
-    me.whoCanJoin === 'domain' && dom
-      ? `Anyone ${dom} can sign in and comes straight in.`
-      : me.whoCanJoin === 'ask' && me.provider
-        ? `Anyone ${dom || 'who can sign in'} can sign in and ask; an admin lets them in.`
-        : 'An admin has to invite them.'
-  )}</p><p class="ad-quiet">Only admins send invites.</p>`;
-  renderLinkCards(me);
+      .join('') || '<p class="ad-empty">Nowhere else.</p>';
+  $('member-admins').innerHTML = m.runBy?.length
+    ? row('people', m.runBy.join(', '), 'Ask them for access or to invite someone.')
+    : row(
+        'people',
+        `${plural(m.admins, 'admin runs', 'admins run')} it`,
+        'Ask whoever invited you.'
+      );
+  const dom = m.domains?.length ? `@${m.domains.join(', @')}` : '';
+  const rule =
+    m.whoCanJoin === 'domain' && dom
+      ? `Anyone ${dom} can sign in and comes straight in`
+      : m.whoCanJoin === 'ask' && m.provider
+        ? `Anyone ${dom || 'who can sign in'} can sign in and ask`
+        : 'An admin has to invite them';
+  $('member-join').innerHTML = row(
+    'people',
+    rule,
+    'Only admins send invites.',
+    btn('Copy the address', 'data-copy-address="1"')
+  );
+  $('member-join')
+    .querySelector('[data-copy-address]')
+    ?.addEventListener('click', (e) =>
+      copyText(location.origin + location.pathname.replace(/\/admin\/?$/, '/'), e.currentTarget)
+    );
+  renderLinkCards(m);
 }
 
 // DDR-053 §7: show the hub's identity on the claim screen (phishing defence).
@@ -258,11 +466,11 @@ async function loadIdentityForBootstrapView() {
     if (!res.ok) return;
     const id = await res.json();
     state.hubIdentity = id;
-    const row = (k, v, cls = '') =>
-      `<div class="fp-row"><span class="fp-k">${k}</span><span class="fp-v ${cls}">${esc(v)}</span></div>`;
+    const row = (k, v) =>
+      `<div class="fp-row"><span class="fp-k">${k}</span><span class="fp-v">${esc(v)}</span></div>`;
     $('bootstrap-identity').innerHTML =
       row('Claiming', id.publicUrl) +
-      row('Fingerprint', id.hostFingerprint, 'fp-hash') +
+      row('Fingerprint', id.hostFingerprint) +
       (id.version ? row('Version', id.version) : '');
   } catch {
     /* informational */
@@ -271,25 +479,67 @@ async function loadIdentityForBootstrapView() {
 
 // -------------------------------- refresh ----------------------------------
 
+/**
+ * Load everything the open page shows. Each part is loaded and drawn on its
+ * own, so one that fails says so (with Retry) and does not blank the others —
+ * and a part that throws while DRAWING is reported the same way, never left as
+ * an empty page.
+ */
 async function refresh() {
   if (!state.me?.admin) return;
-  try {
-    const [status, overview, canvases] = await Promise.all([
-      api('/status'),
-      api('/overview'),
-      api('/canvases'),
-    ]);
-    applyPlatformPosture(status);
-    renderStatus(status);
-    renderOverview(overview);
-    renderCanvases(canvases);
-    // People must not blank the rest of the page when it fails.
-    await loadPeople().catch((e) => console.warn('[hub-admin] people:', e.message));
-    if (state.view === 'activity' && !state.act.paged) await loadActivity();
-    if (hasKey() && $('advanced').open) await loadAdvanced();
-  } catch (err) {
-    if (err.message !== 'Unauthorized') console.warn('[hub-admin] refresh failed:', err.message);
+  const part = async (what, load, draw) => {
+    try {
+      draw(await load());
+      return true;
+    } catch (err) {
+      console.warn(`[hub-admin] ${what}:`, err);
+      pageFailed(what, err, () => {
+        clearNote();
+        void refresh();
+      });
+      return false;
+    }
+  };
+  const ok = await Promise.all([
+    part(
+      'The overview',
+      () => api('/overview'),
+      (o) => {
+        state.overview = o;
+        renderOverview(o);
+        renderSettingsCards();
+      }
+    ),
+    part(
+      'The server status',
+      () => api('/status'),
+      (s) => {
+        state.status = s;
+        applyPlatformPosture(s);
+        renderStatus(s);
+        renderSettingsCards();
+      }
+    ),
+    part('The canvases', () => api('/canvases'), renderCanvases),
+  ]);
+  if (!state.platform) {
+    ok.push(
+      await part(
+        'The people',
+        () => api('/people'),
+        (d) => {
+          state.people = d;
+          renderPeople();
+        }
+      )
+    );
   }
+  if (state.view === 'activity' && !state.act.paged) {
+    ok.push(await part('The activity', () => fetchActivity(false), drawActivity));
+  }
+  if ($('advanced').open) await loadAdvanced();
+  // A page that loads again after a failure takes its error line away.
+  if (ok.every(Boolean) && retryAction) clearNote();
 }
 
 /**
@@ -307,7 +557,7 @@ function applyPlatformPosture(s) {
   state.platform = platform;
   const peopleNav = document.querySelector('.nav-item[data-view="people"]');
   if (peopleNav) peopleNav.hidden = platform;
-  for (const b of all('[data-invite]')) b.hidden = platform;
+  for (const b of all('[data-invite], [data-invite-hide]')) b.hidden = platform;
   const note = $('people-platform-note');
   note.hidden = !platform;
   if (platform) {
@@ -320,7 +570,8 @@ function applyPlatformPosture(s) {
 function renderStatus(s) {
   renderRelease(s);
   $('s-uptime').textContent = formatDuration(s.uptimeMs);
-  $('s-version').textContent = s.version;
+  $('s-version').textContent =
+    `Maude ${s.releaseVersion || s.version} · running for ${formatDuration(s.uptimeMs)}`;
   $('s-port').textContent = s.port;
   $('s-data').textContent = s.dataDir;
   $('s-tokens').textContent = `${s.tokenCount} (${s.authMode})`;
@@ -332,21 +583,11 @@ function renderStatus(s) {
 function renderDurability(d) {
   const alert = $('s-backup-alert');
   if (!d) {
-    $('s-backups').textContent = '—';
-    $('s-backup-prefix').textContent = '—';
     alert.hidden = true;
     return;
   }
   $('s-backup-prefix').textContent = d.prefix ?? '(bucket root)';
-  const when = d.lastOkAt ? ` · last ${formatDuration(Date.now() - d.lastOkAt)} ago` : '';
-  const label = {
-    'not-configured': 'not set up',
-    pending: 'set up, no backup yet',
-    ok: `working${when}`,
-    failed: 'FAILING',
-    'identity-conflict': 'TURNED OFF — another server uses this place',
-  };
-  $('s-backups').textContent = label[d.state] ?? d.state;
+  $('s-backups').textContent = d.state;
   if (d.state === 'identity-conflict') {
     alert.textContent = `Backups are turned off: this backup place already holds backups of another server (${d.conflictWith ?? 'unknown'}). Nothing of theirs is overwritten — and nothing of yours is saved. Give this team server its own MAUDE_BACKUP_PREFIX or its own bucket.`;
   } else if (d.state === 'failed') {
@@ -358,138 +599,186 @@ function renderDurability(d) {
 /**
  * The release stamp: which RELEASE and which BYTES (bundle-identity.mjs).
  * An absent answer renders as nothing — the element hides itself when empty.
+ * It is the island's hover title, not a second line of chrome.
  */
 function renderRelease(s) {
   const el = $('nav-hub-version');
   const ver = s.releaseVersion || s.version;
   const client = s.studio?.client?.artifacts?.['dist/client.bundle.js'];
-  el.textContent = ver ? (client ? `v${ver} · ${client}` : `v${ver}`) : '';
-  el.title = client ? `release v${ver}, serving client.bundle.js ${client}` : '';
+  el.textContent = '';
+  el.parentElement.title = ver
+    ? client
+      ? `release v${ver}, serving client.bundle.js ${client}`
+      : `release v${ver}`
+    : '';
 }
 
 // -------------------------------- overview ---------------------------------
 
-/** Bars for the last days — SVG attributes, not inline styles (the CSP drops those). Today is the last bar. */
-function spark(days) {
-  const max = Math.max(1, ...days.map((d) => d.count));
-  const bars = days
-    .map((d, i) => {
-      const h = d.count ? Math.max(2, Math.round((d.count / max) * 24)) : 1;
-      return `<rect x="${i * 8}" y="${24 - h}" width="6" height="${h}" rx="1"${i === days.length - 1 ? ' class="is-today"' : ''}><title>${esc(d.day)}: ${d.count}</title></rect>`;
-    })
-    .join('');
-  return `<svg class="ad-spark" viewBox="0 0 ${days.length * 8 - 2} 24" preserveAspectRatio="none">${bars}</svg>`;
-}
-
+/** One kept event as a sentence that starts with a verb ("Invited …"). Every field is escaped; the log holds no secrets. */
 const EVENT_WORDS = {
-  login: 'signed in from the Maude app',
-  logout: 'signed out',
-  'signin-browser': 'signed in',
-  'oidc-signin': 'signed in',
-  'oidc-pending': 'signed in and asks to join',
-  'oidc-refused': 'was turned away at sign-in',
-  'oidc-domain-join': 'joined — colleagues come straight in',
-  'oidc-self-link': 'linked their sign-in',
-  'invite-redeem': 'joined from an invite',
-  'invite-create': 'invited',
-  'invite-reissue': 'made a new invite link for',
-  'invite-revoke': 'cancelled the invite for',
-  'role-change': 'changed',
-  'user-create': 'added',
-  'user-disable': 'turned off',
-  'user-enable': 'turned back on',
-  'user-delete': 'removed',
-  'user-password': 'reset the password of',
-  'user-signout': 'signed out',
-  'oidc-approve': 'let in',
-  'oidc-link': 'linked a sign-in to',
-  'oidc-dismiss': 'dismissed the request of',
-  settings: 'changed settings',
-  token: 'made the token',
-  'token-rotate': 'replaced the token',
-  'token-delete': 'deleted the token',
-  'secret-rotate': 'changed the admin key',
+  login: 'Signed in from the Maude app',
+  logout: 'Signed out',
+  'signin-browser': 'Signed in',
+  'oidc-signin': 'Signed in',
+  'oidc-pending': 'Signed in and asks to join',
+  'oidc-refused': 'Was turned away at sign-in',
+  'oidc-domain-join': 'Joined — colleagues come straight in',
+  'oidc-self-link': 'Linked their sign-in',
+  'invite-redeem': 'Joined from an invite',
+  'invite-create': 'Invited',
+  'invite-reissue': 'Made a new invite link for',
+  'invite-revoke': 'Cancelled the invite for',
+  'role-change': 'Changed',
+  'user-create': 'Added',
+  'user-disable': 'Turned off',
+  'user-enable': 'Turned back on',
+  'user-delete': 'Removed',
+  'user-password': 'Reset the password of',
+  'user-signout': 'Signed out',
+  'oidc-approve': 'Let in',
+  'oidc-link': 'Linked a sign-in to',
+  'oidc-unlink': 'Unlinked the sign-in of',
+  'oidc-dismiss': 'Dismissed the request of',
+  settings: 'Changed settings',
+  token: 'Made the token',
+  'token-rotate': 'Replaced the token',
+  'token-delete': 'Deleted the token',
+  'secret-rotate': 'Changed the admin key',
   backup: '',
-  kick: 'disconnected',
+  kick: 'Disconnected',
 };
 const AREA_WORDS = { people: 'People', signin: 'Sign-in', settings: 'Settings', server: 'Server' };
 
-/** One kept event as a sentence. Every field is escaped; the log holds no secrets. */
-function eventText(e) {
-  const verb = EVENT_WORDS[e.kind] ?? e.kind;
-  const self = !e.target || e.target === e.actor;
-  const about = self ? '' : ` <strong>${esc(e.target)}</strong>`;
+function eventText(e, { lower = false } = {}) {
+  let verb = EVENT_WORDS[e.kind] ?? e.kind;
   // A server event (a backup) has no verb: its detail is the sentence.
-  if (!verb) return esc(e.detail);
-  const detail = e.detail ? ` <span class="ad-quiet">· ${esc(e.detail)}</span>` : '';
+  if (!verb) {
+    const d = String(e.detail ?? '');
+    return esc(lower ? d.charAt(0).toLowerCase() + d.slice(1) : d);
+  }
+  if (lower) verb = verb.charAt(0).toLowerCase() + verb.slice(1);
+  const self = !e.target || e.target === e.actor;
+  const about = self ? '' : ` ${esc(e.target)}`;
+  const detail = e.detail ? ` · ${esc(e.detail)}` : '';
   return `${esc(verb)}${about}${detail}`;
+}
+
+/** Bars for the last days — SVG attributes, not inline styles (the CSP drops those). Today is the last bar. */
+function spark(days) {
+  const max = Math.max(1, ...days.map((d) => d.count));
+  const w = 100 / days.length;
+  const bars = days
+    .map((d, i) => {
+      const h = d.count ? Math.max(3, Math.round((d.count / max) * 28)) : 2;
+      return `<rect x="${(i * w).toFixed(2)}" y="${28 - h}" width="${(w - 1.4).toFixed(2)}" height="${h}" rx="1.2"${i === days.length - 1 ? ' class="is-today"' : ''}><title>${esc(d.day)}: ${d.count}</title></rect>`;
+    })
+    .join('');
+  return `<svg class="ad-spark" viewBox="0 0 100 28" preserveAspectRatio="none">${bars}</svg>`;
 }
 
 function renderOverview(o) {
   const hour = new Date().getHours();
   const hello = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const bad = o.health.filter((h) => h.state === 'bad').length;
+  const name = state.me.via === 'session' ? firstName(state.me.email) : '';
   $('ov-hello').textContent =
-    `${hello}. ${bad ? 'Something needs a look.' : 'Everything is running.'}`;
-  $('ov-sub').textContent = o.health
-    .map(
-      (h) =>
-        `${h.label}: ${h.at ? `${h.value.toLowerCase()} ${formatTime(h.at).toLowerCase()}` : h.value}`
-    )
-    .join(' · ');
+    `${hello}${name ? `, ${name}` : ''}. ${bad ? 'Something needs a look.' : 'Everything is running.'}`;
+  const H = Object.fromEntries(o.health.map((h) => [h.key, h]));
+  const sub = [`${o.hub.name} runs ${H.version?.value ?? 'Maude'}`];
+  if (H.backups) {
+    sub.push(
+      H.backups.at && H.backups.state !== 'bad'
+        ? `backed up ${formatTime(H.backups.at).toLowerCase()}`
+        : `backups: ${H.backups.value.toLowerCase()}`
+    );
+  }
+  if (H.git) {
+    sub.push(
+      H.git.at
+        ? `saved to Git ${formatTime(H.git.at).toLowerCase()}`
+        : `saving to Git: ${H.git.value.toLowerCase()}`
+    );
+  }
+  $('ov-sub').textContent = sub.join(' · ');
 
-  const n = state.platform ? 0 : o.needs.length;
+  // ---- what needs you: the biggest thing on the page, acted on in place
+  const needs = state.platform ? o.needs.filter((x) => x.type === 'backup') : o.needs;
+  const n = needs.length;
+  $('ov-hero').classList.toggle('ad-hero--quiet', n === 0);
   $('ov-needs-n').textContent = n;
+  $('ov-needs-n').hidden = n === 0;
   $('ov-needs-t').textContent =
     n === 1 ? 'thing needs you' : n ? 'things need you' : 'Nothing needs you';
-  $('ov-needs-n').hidden = n === 0;
-  $('ov-needs-rows').innerHTML = state.platform
-    ? ''
-    : o.needs
-        .map((x) =>
-          x.type === 'backup'
-            ? `<div class="ad-need" data-testid="need-backup">${avatar('!')}<span class="ad-need-t"><strong>${x.since ? `The last backup is from ${esc(formatTime(x.since).toLowerCase())}` : 'There is no backup yet'}</strong><span>${x.failing ? 'The last attempt failed — see Health below.' : 'Backups are set up, but none has been made for a while.'}</span></span><span class="ad-acts">${btn(x.running ? 'Backing up…' : 'Back up now', `data-backup="1" data-testid="need-backup-now"${x.running ? ' disabled' : ''}`, 'btn--primary')}</span></div>`
-            : x.type === 'request'
-              ? `<div class="ad-need" data-testid="need-request">${avatar(x.email)}<span class="ad-need-t"><strong>${esc(x.email ?? 'Someone')} asks to join</strong><span>Signed in ${esc(formatTime(x.since).toLowerCase())}${o.signIn?.provider ? ` with ${esc(o.signIn.provider)}` : ''} — nobody has invited them yet</span></span><span class="ad-acts">${btn('Dismiss', `data-dismiss="${esc(x.sub)}"`, 'btn--ghost')}${btn('Let in · Can edit', `data-letin="${esc(x.sub)}" data-testid="need-letin"`, 'btn--primary')}</span></div>`
-              : `<div class="ad-need" data-testid="need-invite">${avatar(x.email ?? '?')}<span class="ad-need-t"><strong>${esc(x.email ?? 'A one-time link')} hasn't opened the invite</strong><span>Made ${esc(formatTime(x.since).toLowerCase())} · the link works ${esc(formatUntil(x.expiresAt).replace('in ', 'for '))} more</span></span><span class="ad-acts">${btn('Copy new link', `data-reissue="${esc(x.id)}"`)}</span></div>`
-        )
-        .join('');
+  $('ov-needs-rows').hidden = n === 0;
+  const provider = o.signIn?.provider;
+  $('ov-needs-rows').innerHTML = needs
+    .map((x) => {
+      if (x.type === 'backup') {
+        return `<div class="ad-need" data-testid="need-backup"><span class="ad-ev-ic">${ic('server', 13)}</span><span class="ad-need-t"><strong>${x.since ? `The last backup is from ${esc(formatTime(x.since).toLowerCase())}` : 'There is no backup yet'}</strong><span>${x.failing ? 'The last attempt failed — see Health below' : 'Backups are set up, but none has been made for a while'}</span></span><span class="ad-need-a">${btn(x.running ? 'Backing up…' : 'Back up now', `data-backup="1" data-testid="need-backup-now"${x.running ? ' disabled' : ''}`, 'btn--primary')}</span></div>`;
+      }
+      if (x.type === 'request') {
+        return `<div class="ad-need" data-testid="need-request">${avatar(x.email, true)}<span class="ad-need-t"><strong>${esc(x.email ?? 'Someone')} asks to join</strong><span>Signed in${provider ? ` with ${esc(provider)}` : ''} ${esc(formatTime(x.since).toLowerCase())} — nobody has invited them yet</span></span><span class="ad-need-a">${btn('Dismiss', `data-dismiss="${esc(x.sub)}"`)}${btn('Let in · Can edit', `data-letin="${esc(x.sub)}" data-testid="need-letin"`, 'btn--primary')}</span></div>`;
+      }
+      return `<div class="ad-need" data-testid="need-invite">${avatar(x.email ?? '?', true)}<span class="ad-need-t"><strong>${esc(x.email ?? 'A link for anyone')}'s invite hasn't been opened</strong><span>Made ${esc(formatTime(x.since).toLowerCase())} · the link works for ${esc(formatUntil(x.expiresAt))}</span></span><span class="ad-need-a">${btn('Copy a new link', `data-reissue="${esc(x.id)}"`)}</span></div>`;
+    })
+    .join('');
   wirePeopleActions($('ov-needs-rows'));
 
   const c = o.counts;
   $('stat-people').textContent = c.people;
-  $('stat-people-f').textContent = [
-    c.invited ? `${c.invited} invited` : '',
-    c.asks ? `${c.asks} ask${c.asks === 1 ? 's' : ''} to join` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  $('stat-people-f').textContent =
+    [
+      c.invited ? `${c.invited} invited` : '',
+      c.asks ? `${c.asks} ${c.asks === 1 ? 'asks' : 'ask'} to join` : '',
+    ]
+      .filter(Boolean)
+      .join(' · ') || 'everyone is in';
   $('stat-here').textContent = c.hereNow;
-  $('stat-here-f').textContent = o.hereNow.map((e) => e.split('@')[0]).join(', ');
+  $('stat-here-f').textContent =
+    o.hereNow.map((e) => firstName(e) || e).join(', ') || 'nobody is in a canvas';
   $('stat-canvases').textContent = c.canvases;
-  // CHANGES = saves to canvases, from the file journal (the number the Cloud
-  // dashboard shows too). A server with no journal cannot tell: a dash, not a 0.
+  $('stat-canvases-u').textContent = c.canvases === 1 ? 'canvas' : 'canvases';
+  // CHANGES = saves to canvases (the number the Cloud dashboard shows too).
+  // A server that cannot tell shows a dash, never a 0.
   const tracked = Number.isInteger(c.changesThisWeek);
-  $('stat-changes').textContent = tracked ? c.changesThisWeek : '—';
-  $('stat-changes-f').textContent = tracked
-    ? 'saves to canvases, last 7 days'
-    : 'not counted on this server';
+  $('stat-changes').textContent = tracked
+    ? c.changesThisWeek.toLocaleString('en').replace(/,/g, ' ')
+    : '—';
+  $('stat-changes-f').textContent = tracked ? '' : 'not counted on this server';
+  $('stat-changes-f').parentElement.hidden = tracked;
   $('stat-changes-spark').innerHTML = tracked ? spark(o.changesByDay.slice(-14)) : '';
 
-  $('ov-health').innerHTML = o.health
-    .map(
-      (h) =>
-        `<div class="ad-hl" data-testid="health-${esc(h.key)}"><span>${esc(h.label)}</span><strong>${esc(h.value)}${h.at ? ` · ${esc(formatTime(h.at))}` : ''}</strong><span class="ad-acts">${statusWord(h.state === 'off' ? 'off' : h.state, h.running ? 'Backing up…' : h.word)}${h.canRunNow && !h.running && (h.stale || h.state !== 'ok') ? btn('Back up now', 'data-backup="1" data-testid="health-backup-now"', 'btn--ghost') : ''}</span></div>`
-    )
+  // ---- health: four cells, each a label, a fact and a status word
+  const lines = [
+    ...o.health,
+    {
+      key: 'signin',
+      label: 'Sign-in',
+      value: provider ?? 'Passwords',
+      state: 'ok',
+      word: o.signIn?.domains?.length
+        ? `@${o.signIn.domains.join(', @')}`
+        : 'Accounts on this server',
+    },
+  ];
+  $('ov-health').innerHTML = lines
+    .map((h) => {
+      const fact = h.at ? formatTime(h.at) : h.value;
+      const kind = h.state === 'bad' ? 'error' : h.state;
+      const offer = h.canRunNow && !h.running && (h.stale || h.state !== 'ok');
+      return `<span class="ad-hl" data-testid="health-${esc(h.key)}"><span>${esc(h.label)}</span><strong>${esc(fact)}</strong>${sw(kind, h.running ? 'Backing up…' : h.word)}${offer ? btn('Back up now', 'data-backup="1" data-testid="health-backup-now"') : ''}</span>`;
+    })
     .join('');
   wirePeopleActions($('ov-health'));
+
   $('ov-activity-feed').innerHTML =
     o.recent
-      .map(
-        (e) =>
-          `<div class="ad-row"><span><strong>${esc(e.actor || 'Server')}</strong> ${eventText(e)}</span><span class="ad-quiet td-num">${esc(formatTime(e.at))}</span></div>`
-      )
-      .join('') || '<p class="ad-quiet">Nothing yet.</p>';
+      .map((e) => {
+        const server = !e.actor || e.actor === 'Server';
+        return `<div class="ad-ev">${server ? serverIcon() : actorMark(e.actor)}<span class="ad-ev-t">${server ? '' : `<strong>${esc(firstName(e.actor) || e.actor)}</strong> `}<span>${eventText(e, { lower: !server })}</span></span><time>${esc(formatShort(e.at))}</time></div>`;
+      })
+      .join('') || '<p class="ad-empty">Nothing yet.</p>';
   $('activity-sub').textContent =
     `Kept for ${plural(o.retentionDays, 'day')} · ${plural(c.eventsThisWeek, 'event')} this week`;
 }
@@ -499,31 +788,42 @@ function renderOverview(o) {
 // ONE list. Accounts, people who signed in and ask to join, and open invites
 // are rows of the same table; the status word says where each one is.
 
-async function loadPeople() {
-  if (state.platform) return;
-  state.people = await api('/people');
-  renderPeople();
+function statusCell(p) {
+  if (p.status === 'asks') {
+    return `<span class="chip ad-chip ad-chip--warn">${ic('people', 12)}${esc(p.statusLabel)}</span>`;
+  }
+  const kind = { online: 'ok', away: 'off', off: 'off', invited: 'busy' }[p.status] ?? 'off';
+  return sw(kind, p.statusLabel);
+}
+
+/** The role, in the row: a select where it can be changed here, the word where it cannot. */
+function roleCell(p) {
+  const opt = (v, label, cur) =>
+    `<option value="${v}"${cur === v ? ' selected' : ''}>${label}</option>`;
+  if (p.kind === 'invite' || p.status === 'off' || p.canvases) {
+    return `<span class="ad-role ad-role--fixed">${esc(p.roleLabel)}</span>`;
+  }
+  const attr =
+    p.kind === 'request'
+      ? `data-role-for="${esc(p.sub)}" aria-label="Let in as"`
+      : `data-role-of="${esc(p.id)}" aria-label="What ${esc(p.email)} can do"`;
+  return `<span class="ad-role"><select ${attr} data-testid="person-role">${opt('member', 'Can edit', p.role)}${opt('admin', 'Admin', p.role)}</select>${ic('chevron', 12)}</span>`;
 }
 
 function rowActions(p) {
   if (p.kind === 'request') {
     const sub = esc(p.sub);
     return (
-      btn('Dismiss', `data-dismiss="${sub}" data-testid="person-dismiss"`, 'btn--ghost') +
+      btn('Dismiss', `data-dismiss="${sub}" data-testid="person-dismiss"`) +
       btn('Let in', `data-letin="${sub}" data-testid="person-letin"`, 'btn--primary')
     );
   }
   if (p.kind === 'invite') {
-    const id = esc(p.id);
-    const label = esc(p.email ?? 'a one-time link');
-    return (
-      btn('Copy new link', `data-reissue="${id}" data-testid="invite-reissue"`, 'btn--ghost') +
-      `<button type="button" class="btn btn--sm btn--ghost" data-revoke="${id}" data-testid="invite-revoke" title="Cancel this invitation" aria-label="Revoke the invitation for ${label}"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>`
-    );
+    return btn('Copy a new link', `data-reissue="${esc(p.id)}" data-testid="invite-reissue"`);
   }
   return p.status === 'off'
     ? btn('Turn back on', `data-turnon="${esc(p.id)}" data-testid="person-turnon"`, 'btn--ghost')
-    : btn('Open', `data-open="${esc(p.key)}" data-testid="person-open"`, 'btn--ghost');
+    : `<button type="button" class="btn btn--ghost btn--sm" data-open="${esc(p.key)}" data-testid="person-open" aria-label="Open ${esc(p.email)}">${ic('more')}</button>`;
 }
 
 function renderPeople() {
@@ -534,7 +834,7 @@ function renderPeople() {
   $('pc-asks').textContent = c.asks || '';
   $('pc-invited').textContent = c.invited || '';
   $('pc-off').textContent = c.off || '';
-  $('nav-count-people').textContent = c.asks || '';
+  $('nav-count-people').textContent = c.asks + c.invited || '';
   $('people-sub').textContent =
     `${plural(c.people, 'person', 'people')} · who can come in is set in Settings › Who can join`;
   const q = $('people-find').value.trim().toLowerCase();
@@ -544,36 +844,62 @@ function renderPeople() {
       (f === 'all' || p.status === f) &&
       (!q || `${p.email ?? ''} ${p.roleLabel} ${p.statusLabel}`.toLowerCase().includes(q))
   );
-  const tone = { online: 'ok', away: 'off', off: 'off', invited: 'warn' };
+  const open = $('person-sheet').open ? $('person-sheet').dataset.key : null;
   $('people-rows').innerHTML = rows.length
     ? rows
         .map((p) => {
-          const st =
-            p.status === 'asks'
-              ? `<span class="ad-chip">${esc(p.statusLabel)}</span>`
-              : statusWord(tone[p.status] ?? 'off', p.statusLabel);
           const seen =
             p.kind === 'invite'
               ? 'Not yet'
               : p.status === 'online'
                 ? 'Now'
                 : formatTime(p.lastSeen);
-          const n = p.sessions.length;
+          // The name slot holds what there is: the address. Under it, where they are signed in.
+          const under =
+            p.kind === 'account'
+              ? p.sessions.length
+                ? `signed in on ${plural(p.sessions.length, 'device')}`
+                : 'not signed in anywhere'
+              : p.kind === 'invite'
+                ? `the link works for ${formatUntil(p.expiresAt)}`
+                : 'signed in, not invited';
+          const cls = [
+            'is-row',
+            p.status === 'asks' ? 'is-hl' : '',
+            p.status === 'off' ? 'is-dim' : '',
+            open === p.key ? 'is-picked' : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
           return (
-            `<tr class="is-row${p.status === 'asks' ? ' is-hl' : ''}${p.status === 'off' ? ' is-dim' : ''}" data-key="${esc(p.key)}" data-testid="person-row">` +
-            `<td>${who(p.email ?? 'Anyone with the link', p.kind === 'account' && n ? `signed in on ${plural(n, 'device')}` : '')}</td>` +
-            `<td>${esc(p.roleLabel)}</td><td data-testid="person-status">${st}</td>` +
-            `<td class="td-num">${esc(seen)}</td>` +
-            `<td><span class="ad-acts">${rowActions(p)}</span></td></tr>`
+            `<tr class="${cls}" data-key="${esc(p.key)}" data-testid="person-row">` +
+            `<td>${who(p.email ?? 'Anyone with the link', under)}</td>` +
+            `<td>${roleCell(p)}</td><td data-testid="person-status">${statusCell(p)}</td>` +
+            `<td class="ad-quiet">${esc(seen)}</td>` +
+            `<td><span class="ad-row-a">${rowActions(p)}</span></td></tr>`
           );
         })
         .join('')
     : '<tr class="empty"><td colspan="5">Nobody here.</td></tr>';
   const tbody = $('people-rows');
   wirePeopleActions(tbody);
+  for (const sel of all('select[data-role-of]', tbody)) {
+    sel.addEventListener('change', () => {
+      const p = d.people.find((x) => x.id === sel.dataset.roleOf);
+      if (!p || sel.value === p.role) return;
+      if (
+        sel.value === 'admin' &&
+        !confirm(`Make ${p.email} an Admin? Admins invite and remove people and change settings.`)
+      ) {
+        sel.value = p.role;
+        return;
+      }
+      void act(() => post('/people/role', { id: p.id, role: sel.value }));
+    });
+  }
   for (const tr of all('tr[data-key]', tbody)) {
     tr.addEventListener('click', (e) => {
-      if (!e.target.closest('button')) openPerson(tr.dataset.key);
+      if (!e.target.closest('button, select, .ad-role')) openPerson(tr.dataset.key);
     });
   }
 }
@@ -583,7 +909,7 @@ async function act(fn) {
   try {
     await fn();
   } catch (err) {
-    if (err.message !== 'Unauthorized') alert(err.message);
+    if (err.status !== 401) showNote(err.message, { bad: true });
   }
   await refresh();
 }
@@ -597,15 +923,17 @@ function wirePeopleActions(root) {
       });
     }
   };
-  on('letin', (sub) => act(() => post('/people/let-in', { sub, role: 'member' })));
+  on('letin', (sub) => {
+    const sel = document.querySelector(`select[data-role-for="${CSS.escape(sub)}"]`);
+    return act(() => post('/people/let-in', { sub, role: sel?.value ?? 'member' }));
+  });
   on('dismiss', (sub) => act(() => post('/people/dismiss', { sub })));
   on('reissue', (id, b) =>
     act(async () => {
       const r = await post('/people/invite/reissue', { id });
-      if (!(await copyText(r.url, b))) showSecret(r.url, r.email ?? 'a one-time link');
+      if (!(await copyText(r.url, b))) showSecret(r.url, r.email ?? 'a link for anyone');
     })
   );
-  on('revoke', (id) => act(() => post('/people/invite/revoke', { id })));
   on('turnon', (id) => act(() => post('/people/turn-on', { id })));
   on('open', (key) => openPerson(key));
   // "Back up now": the hub answers at once; the row and the Overview line say how it ended.
@@ -616,81 +944,121 @@ function wirePeopleActions(root) {
   });
 }
 
+// ---- sheets: a veil over the page, the sheet at the right (canvas `ad-sheet`)
+
+function openSheet(dialog) {
+  if (!dialog.open) dialog.showModal();
+  document.body.classList.add('has-sheet');
+}
+for (const d of all('dialog.ad-sheet')) {
+  d.addEventListener('close', () => {
+    document.body.classList.remove('has-sheet');
+    delete d.dataset.key;
+    if (state.people) renderPeople();
+  });
+  d.addEventListener('click', (e) => {
+    if (e.target === d || e.target.closest('[data-close]')) d.close();
+  });
+}
+
 // ---- the person sheet: everything about one person, changed in place ----
 
 async function openPerson(key) {
   const p = state.people?.people.find((x) => x.key === key);
   if (!p) return;
   const sheet = $('person-sheet');
+  sheet.dataset.key = key;
+  sheet.setAttribute('aria-label', p.email ?? 'A link for anyone');
   $('person-error').hidden = true;
   const body = $('person-body');
   const actions = $('person-actions');
-  const head = `<div class="stack stack--4">${who(p.email ?? 'Anyone with the link', p.statusLabel)}`;
-  const done =
-    '<span class="ad-sp"></span><button type="button" class="btn btn--primary" data-close>Done</button>';
+  const head = who(p.email ?? 'Anyone with the link', p.statusLabel);
+  const close =
+    '<span class="ad-sp"></span><button type="button" class="btn btn--ghost" data-close>Close</button>';
+  const inAll = `<span class="field"><span class="field-label">In</span><span class="ad-sel">All projects — now and new ones${ic('chevron', 12)}</span></span>`;
 
   if (p.kind === 'request') {
     // The link action keys on the SUBJECT and the admin types the address:
     // offering "link to <claimed address>" would be the address→account
     // guess the sign-in path refuses to make.
     const sub = esc(p.sub);
-    body.innerHTML = `${head}<p class="ad-quiet">Signed in ${esc(formatTime(p.createdAt).toLowerCase())} and has no account here. Nobody invited this address.</p>
-      <div class="field"><label class="field-label" for="letin-role">Let in as</label><select id="letin-role" class="input"><option value="member">Can edit</option><option value="admin">Admin</option></select></div>
-      <p class="field-help">Already has an account here? ${
+    body.innerHTML = `${head}
+      <span class="field"><span class="field-label">Let in as</span><span class="seg ad-seg" id="letin-role"><button type="button" class="ad-seg-b" data-role="member" aria-pressed="true">Can edit</button><button type="button" class="ad-seg-b" data-role="admin" aria-pressed="false">Admin</button></span>
+      <span class="field-hint">Signed in ${esc(formatTime(p.createdAt).toLowerCase())} and has no account here. Nobody invited this address.</span></span>
+      ${inAll}
+      <p class="ad-sub ad-sub--flat">Already has an account here? ${
         hasKey()
           ? `<button type="button" class="ad-link" data-link="${sub}">Link to an existing account</button> — its password stops working and its sessions end.`
-          : 'They sign in with its password and choose Link my sign-in. (Linking for someone else needs the admin key.)'
-      }</p></div>`;
-    actions.innerHTML = `${btn('Dismiss', `data-x="dismiss"`, 'btn--ghost')}<span class="ad-sp"></span><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn btn--primary" data-approve="${sub}" data-testid="sheet-letin">Let in</button>`;
-    actions
-      .querySelector('[data-approve]')
-      .addEventListener('click', () =>
-        sheetAct(() => post('/people/let-in', { sub: p.sub, role: $('letin-role').value }))
-      );
+          : 'They sign in with its password and choose Link my sign-in. Linking for someone else needs the admin key.'
+      }</p>`;
+    actions.innerHTML = `${btn('Dismiss', 'data-x="dismiss"')}<span class="ad-sp"></span><button type="button" class="btn btn--ghost" data-close>Close</button><button type="button" class="btn btn--primary" data-approve="${sub}" data-testid="sheet-letin">Let in</button>`;
+    for (const b of all('#letin-role .ad-seg-b', body)) {
+      b.addEventListener('click', () => {
+        for (const o of all('#letin-role .ad-seg-b', body))
+          o.setAttribute('aria-pressed', String(o === b));
+      });
+    }
+    actions.querySelector('[data-approve]').addEventListener('click', () =>
+      sheetAct(() =>
+        post('/people/let-in', {
+          sub: p.sub,
+          role: body.querySelector('#letin-role [aria-pressed="true"]').dataset.role,
+        })
+      )
+    );
     actions
       .querySelector('[data-x="dismiss"]')
       .addEventListener('click', () => sheetAct(() => post('/people/dismiss', { sub: p.sub })));
     body.querySelector('[data-link]')?.addEventListener('click', () => linkPending(p.sub));
   } else if (p.kind === 'invite') {
-    body.innerHTML = `${head}<div class="ad-row"><span>They can</span><strong>${esc(p.roleLabel)}</strong></div><div class="ad-row"><span>The link works</span><strong>${esc(formatUntil(p.expiresAt))}</strong></div><p class="field-help">The link was shown once when the invite was made. "Copy new link" makes a fresh one; the old one stops working.</p></div>`;
-    actions.innerHTML = `${btn('Cancel invite', 'data-x="revoke"', 'btn--danger')}${btn('Copy new link', 'data-x="reissue"')}${done}`;
+    const id = esc(p.id);
+    const label = esc(p.email ?? 'a link for anyone');
+    body.innerHTML = `${head}
+      <span class="field"><span class="field-label">They can</span><span class="seg ad-seg"><span class="ad-seg-b" aria-pressed="true">${esc(p.roleLabel)}</span></span></span>
+      ${inAll}
+      <div><div class="ad-adv-row"><span>The link works for</span><span class="ad-quiet">${esc(formatUntil(p.expiresAt))}</span></div><div class="ad-adv-row"><span>Made</span><span class="ad-quiet">${esc(formatTime(p.createdAt))}</span></div></div>
+      <p class="ad-sub ad-sub--flat">The link was shown once, when the invite was made. Copy a new link makes a fresh one; the old one stops working.</p>`;
+    actions.innerHTML = `<button type="button" class="btn btn--sm k-btn-danger" data-revoke="${id}" data-testid="invite-revoke" aria-label="Revoke the invitation for ${label}">Cancel invite</button>${btn('Copy a new link', 'data-x="reissue"')}${close}`;
     actions
-      .querySelector('[data-x="revoke"]')
+      .querySelector('[data-revoke]')
       .addEventListener('click', () => sheetAct(() => post('/people/invite/revoke', { id: p.id })));
     actions.querySelector('[data-x="reissue"]').addEventListener('click', (e) =>
       sheetAct(async () => {
         const r = await post('/people/invite/reissue', { id: p.id });
-        if (!(await copyText(r.url, e.target))) showSecret(r.url, p.email ?? 'a one-time link');
+        if (!(await copyText(r.url, e.target))) showSecret(r.url, p.email ?? 'a link for anyone');
       }, false)
     );
   } else {
     const off = p.status === 'off';
     const seg = (role, label) =>
-      `<button type="button" data-role="${role}" aria-pressed="${p.role === role}" data-testid="role-${role}">${label}</button>`;
+      `<button type="button" class="ad-seg-b" data-role="${role}" aria-pressed="${p.role === role}" data-testid="role-${role}">${label}</button>`;
     const kinds = { browser: 'A browser', app: 'The Maude app', token: 'A token' };
+    const short = firstName(p.email) || p.email;
     body.innerHTML = `${head}
-      <div class="field"><span class="field-label">Can</span><span class="ad-seg" id="person-role">${seg('member', 'Can edit')}${seg('admin', 'Admin')}</span>
-      <span class="field-help">Changes at once: this person is signed out everywhere and signs in again with the new role.${p.canvases ? ` Has ${plural(p.canvases, 'canvas', 'canvases')} only.` : ''}</span></div>
-      <div><h4>Signed in on</h4>${
+      <span class="field"><span class="field-label">${esc(short)} can</span><span class="seg ad-seg" id="person-role">${seg('member', 'Can edit')}${seg('admin', 'Admin')}</span>
+      <span class="field-hint">Changes at once: ${esc(short)} is signed out everywhere and signs in again with the new role.${p.canvases ? ` Has ${plural(p.canvases, 'canvas', 'canvases')} only.` : ''}</span></span>
+      ${inAll}
+      <div><h4 class="ad-sheet-h4">Signed in on</h4>${
         p.sessions
           .map(
             (s) =>
-              `<div class="ad-row"><span>${kinds[s.kind]} <span class="ad-quiet">· ${s.live ? 'now' : esc(formatTime(s.lastUsedAt ?? s.createdAt).toLowerCase())}</span></span>${btn('Sign out', `data-signout-label="${esc(s.label)}"`, 'btn--ghost')}</div>`
+              `<div class="ad-adv-row"><span>${kinds[s.kind]} <span class="ad-quiet">· ${s.live ? 'now' : esc(formatTime(s.lastUsedAt ?? s.createdAt).toLowerCase())}</span></span>${btn('Sign out', `data-signout-label="${esc(s.label)}"`, 'btn--ghost')}</div>`
           )
-          .join('') || '<p class="ad-quiet">Nowhere right now.</p>'
+          .join('') ||
+        '<div class="ad-adv-row"><span class="ad-quiet">Nowhere right now</span></div>'
       }</div>
-      <div><h4>Lately</h4><div id="person-lately" data-testid="person-lately"><p class="ad-quiet">…</p></div></div>
-      <p class="field-help">${p.linked ? `Signs in with ${esc(state.people.signIn.provider ?? 'the provider')}.` : 'Signs in with a password.'}</p></div>`;
+      <div><h4 class="ad-sheet-h4">Lately <button type="button" class="ad-link" data-see-all>See all in Activity</button></h4><div id="person-lately" data-testid="person-lately"><div class="ad-adv-row"><span class="ad-quiet">…</span></div></div></div>
+      <p class="ad-sub ad-sub--flat">Turn off keeps ${esc(short)}'s work and ends every session; you can turn ${esc(short)} back on. Remove asks first. The last Admin can't be turned off or removed. ${p.linked ? `Signs in with ${esc(state.people.signIn.provider ?? 'the provider')}.` : 'Signs in with a password.'}</p>`;
     actions.innerHTML =
       (off
         ? btn('Turn back on', 'data-x="turn-on" data-testid="sheet-turnon"')
         : btn('Turn off', 'data-x="turn-off" data-testid="sheet-turnoff"')) +
-      btn('Remove', 'data-x="remove" data-testid="sheet-remove"', 'btn--danger') +
+      btn('Remove…', 'data-x="remove" data-testid="sheet-remove"', 'k-btn-danger') +
       // Setting a password is key-only: a session must not be able to leave one behind.
       (hasKey() && state.people.signIn.passwords
         ? btn('Reset password', 'data-pw="1"', 'btn--ghost')
         : '') +
-      done;
+      close;
     for (const b of all('#person-role button', body)) {
       b.addEventListener('click', () => {
         if (b.dataset.role === p.role) return;
@@ -721,20 +1089,32 @@ async function openPerson(key) {
       });
     }
     actions.querySelector('[data-pw]')?.addEventListener('click', () => resetPassword(p.email));
+    body.querySelector('[data-see-all]').addEventListener('click', () => {
+      sheet.close();
+      $('activity-find').value = p.email;
+      state.act.q = p.email;
+      setView('activity');
+    });
     // The same kept log, narrowed to this person — by account id, so no address is in a URL.
-    api(`/activity?who=${encodeURIComponent(p.id)}&limit=6`)
+    api(`/activity?who=${encodeURIComponent(p.id)}&limit=4`)
       .then((a) => {
         $('person-lately').innerHTML =
           a.events
             .map(
               (e) =>
-                `<div class="ad-row"><span>${e.actor === p.email ? 'They ' : `<strong>${esc(e.actor || 'Server')}</strong> `}${eventText({ ...e, target: e.target === p.email ? '' : e.target })}</span><span class="ad-quiet td-num">${esc(formatTime(e.at))}</span></div>`
+                `<div class="ad-adv-row"><span>${e.actor === p.email ? '' : `${esc(firstName(e.actor) || e.actor || 'Server')}: `}${eventText({ ...e, target: e.target === p.email ? '' : e.target }, { lower: e.actor !== p.email })}</span><span class="ad-quiet">${esc(formatShort(e.at))}</span></div>`
             )
-            .join('') || '<p class="ad-quiet">Nothing yet.</p>';
+            .join('') || '<div class="ad-adv-row"><span class="ad-quiet">Nothing yet</span></div>';
       })
-      .catch(() => {});
+      .catch((err) => {
+        $('person-lately').innerHTML =
+          `<div class="ad-adv-row"><span class="ad-quiet">Could not be loaded. ${esc(err.message)}</span></div>`;
+      });
   }
-  if (!sheet.open) sheet.showModal();
+  openSheet(sheet);
+  // The sheet itself takes focus: no ring drawn on its first control (canvas ts-person).
+  sheet.focus();
+  renderPeople();
 }
 
 /** A change made from a sheet: errors stay in the sheet; success closes it (unless told not to). */
@@ -745,7 +1125,7 @@ async function sheetAct(fn, close = true) {
     await fn();
     if (close) $('person-sheet').close();
   } catch (e) {
-    if (e.message === 'Unauthorized') return;
+    if (e.status === 401) return;
     err.textContent = e.message;
     err.hidden = false;
   }
@@ -757,31 +1137,40 @@ async function linkPending(sub) {
     `Link this sign-in to which existing account? Type the account's email address.`
   );
   if (!email) return;
-  await sheetAct(() => post('/oidc/link', { sub, email: email.trim() }));
+  await sheetAct(() => post('/oidc/link', { sub, email: email.trim() }, { key: 'always' }));
 }
 
 async function resetPassword(email) {
   const password = prompt(`New password for ${email} (at least 12 characters)`);
   if (!password) return;
-  await sheetAct(() => post('/users/password', { email, password }), false);
+  await sheetAct(() => post('/users/password', { email, password }, { key: 'always' }), false);
 }
 
 // ---- the invite sheet ----
 
+const typedEmails = () =>
+  $('person-invite-email')
+    .value.split(/[\s,;]+/)
+    .filter(Boolean);
+
 function openInvite() {
-  const s = state.people?.signIn;
+  const s = state.people?.signIn ?? state.overview?.signIn;
   const hub = state.me?.hub?.name || 'this team server';
   $('invite-sheet-t').textContent = `Invite people to ${hub}`;
   $('invite-sheet-s').textContent = s?.provider
     ? `They sign in with ${s.provider} — the invite lets them straight in.`
     : 'They open the link, choose a password, and are in.';
-  $('invite-promise').textContent = s?.provider
-    ? `No approving afterwards. They open the link, continue with ${s.provider}${s.domains?.length ? ` (@${s.domains.join(', @')})` : ''}, and are in — in the browser and in the Maude app.`
-    : 'No approving afterwards. Whoever opens the link is in.';
+  $('invite-promise').textContent =
+    `No approving and no token afterwards. They open the link, ${s?.provider ? 'sign in' : 'choose a password'}, and the Maude app connects from the browser. The team server does not send email: you pass the links on.`;
   $('invite-results').innerHTML = '';
   $('person-invite-error').hidden = true;
-  $('invite-sheet').showModal();
+  countInvites();
+  openSheet($('invite-sheet'));
   $('person-invite-email').focus();
+}
+function countInvites() {
+  const n = new Set(typedEmails().map((e) => e.toLowerCase())).size;
+  $('invite-submit').textContent = n ? `Make ${plural(n, 'invite link')}` : 'Make invite links';
 }
 
 async function makeInvites(emails) {
@@ -796,21 +1185,25 @@ async function makeInvites(emails) {
     $('invite-results').innerHTML = r.invites
       .map((i, n) =>
         i.ok
-          ? `<div class="ad-row" data-testid="invite-result"><span><strong>${esc(i.email ?? 'Anyone with the link')}</strong><br><span class="ad-url">${esc(i.url)}</span></span>${btn('Copy link', `data-copy="${n}"`)}</div>`
-          : `<div class="ad-row" data-testid="invite-result-error"><span><strong>${esc(i.email)}</strong></span>${statusWord('bad', i.error)}</div>`
+          ? `<div class="ad-adv-row" data-testid="invite-result"><span><strong>${esc(i.email ?? 'Anyone with the link')}</strong><span class="ad-url">${esc(i.url)}</span></span>${btn('Copy link', `data-copy="${n}"`)}</div>`
+          : `<div class="ad-adv-row" data-testid="invite-result-error"><span><strong>${esc(i.email)}</strong></span>${sw('error', i.error)}</div>`
       )
       .join('');
     for (const b of all('[data-copy]', $('invite-results'))) {
       b.addEventListener('click', () => copyText(r.invites[Number(b.dataset.copy)].url, b));
     }
     if (r.invites.some((i) => i.ok)) $('person-invite-email').value = '';
+    countInvites();
+    return r;
   } catch (e) {
-    if (e.message !== 'Unauthorized') {
+    if (e.status !== 401) {
       err.textContent = e.message;
       err.hidden = false;
     }
+    return null;
+  } finally {
+    await refresh();
   }
-  await refresh();
 }
 
 // -------------------------------- projects ---------------------------------
@@ -819,11 +1212,12 @@ function renderCanvases(c) {
   const rows = c.canvases || [];
   $('canvases-context').textContent =
     `${plural(rows.length, 'canvas', 'canvases')} saved on this team server.`;
+  $('git-canvases').textContent = rows.length;
   $('canvases-rows').innerHTML = rows.length
     ? rows
         .map(
           (r) =>
-            `<tr><td>${esc(r.name)}</td><td class="td-num">${esc(formatBytes(r.bytes))}</td><td>${statusWord(r.peers ? 'ok' : 'off', r.peers ? `${r.peers} open` : 'Nobody')}</td></tr>`
+            `<tr><td><span class="ad-who"><span class="ad-ev-ic">${ic('folder', 13)}</span><span class="ad-who-t"><strong>${esc(r.name)}</strong></span></span></td><td class="ad-quiet">${esc(formatBytes(r.bytes))}</td><td>${sw(r.peers ? 'ok' : 'off', r.peers ? `${r.peers} open` : 'Nobody')}</td></tr>`
         )
         .join('')
     : '<tr class="empty"><td colspan="3">No canvases yet.</td></tr>';
@@ -836,22 +1230,36 @@ const activityQuery = (extra = '') => {
   return `?kind=${encodeURIComponent(a.kind)}&q=${encodeURIComponent(a.q)}${extra}`;
 };
 
-async function loadActivity(older = false) {
+async function fetchActivity(older) {
   const a = state.act;
   const data = await api(`/activity${activityQuery(older && a.more ? `&before=${a.more}` : '')}`);
+  return { data, older };
+}
+function drawActivity({ data, older }) {
+  const a = state.act;
   a.rows = older ? a.rows.concat(data.events) : data.events;
   // Once older rows are shown the 5 s refresh leaves the list alone.
   a.paged = older;
   a.more = data.events.length >= 100 ? data.more : null;
-  $('activity-more').hidden = !a.more;
+  $('activity-more-row').hidden = !a.more;
   $('activity-rows').innerHTML = a.rows.length
     ? a.rows
-        .map(
-          (e) =>
-            `<tr data-testid="activity-row"><td class="td-num">${esc(formatTime(e.at))}</td><td>${who(e.actor || 'Server')}</td><td>${eventText(e)}</td><td class="ad-quiet">${esc(AREA_WORDS[e.area] ?? e.area)}</td></tr>`
-        )
+        .map((e) => {
+          const server = !e.actor || e.actor === 'Server';
+          return `<tr data-testid="activity-row"><td class="ad-quiet">${esc(formatWhen(e.at))}</td><td><span class="ad-who">${server ? serverIcon() : actorMark(e.actor)}<span class="ad-who-t"><strong>${esc(server ? 'Server' : e.actor)}</strong></span></span></td><td class="ad-wrap">${eventText(e)}</td><td class="ad-quiet">${esc(AREA_WORDS[e.area] ?? e.area)}</td></tr>`;
+        })
         .join('')
     : '<tr class="empty"><td colspan="4">Nothing here.</td></tr>';
+}
+async function loadActivity(older = false) {
+  try {
+    drawActivity(await fetchActivity(older));
+  } catch (err) {
+    pageFailed('The activity', err, () => {
+      clearNote();
+      void loadActivity(older);
+    });
+  }
 }
 
 /** CSV: fetched with whichever credential this page holds, then saved — a link could not carry the key. */
@@ -866,6 +1274,42 @@ async function downloadCsv() {
 }
 
 // -------------------------------- settings ---------------------------------
+
+const setSw = (id, kind, word) => {
+  $(id).className = `k-sw k-sw--${kind}`;
+  $(`${id}-t`).textContent = word;
+};
+
+/** Backups and Git, from what the Overview and the status already hold. */
+function renderSettingsCards() {
+  const H = Object.fromEntries((state.overview?.health ?? []).map((h) => [h.key, h]));
+  const d = state.status?.durability;
+  const b = H.backups;
+  if (b) {
+    const kind = b.state === 'bad' ? 'error' : b.state;
+    setSw('bk-state', kind, b.at && b.state !== 'bad' ? formatTime(b.at) : b.value);
+    $('bk-kept').textContent = Number.isInteger(b.kept)
+      ? `${plural(b.kept, 'backup')}${b.state === 'bad' ? ` · ${b.word}` : ''}`
+      : b.word;
+    $('bk-where').textContent = d?.target
+      ? `${d.target}${d.prefix ? ` · ${d.prefix}` : ''}`
+      : 'Not set up';
+    $('bk-every').textContent = d?.intervalMs ? `Every ${formatDuration(d.intervalMs)}` : '—';
+    $('bk-now').hidden = !b.canRunNow;
+    $('bk-now').disabled = Boolean(b.running);
+    $('bk-now').textContent = b.running ? 'Backing up…' : 'Back up now';
+  }
+  const g = H.git;
+  if (g) {
+    setSw('git-state', g.state === 'bad' ? 'error' : g.state, g.at ? formatTime(g.at) : g.word);
+    $('git-last').textContent = g.at ? formatWhen(g.at) : g.value;
+  }
+  const s = state.status;
+  if (s) {
+    $('adv-facts').textContent =
+      `${$('set-transport').textContent || 'http'} · port ${s.port} · ${s.dataDir}`;
+  }
+}
 
 async function loadSettings() {
   try {
@@ -886,21 +1330,27 @@ async function loadSettings() {
     if (radio) radio.checked = true;
     const p = s.signIn ?? {};
     const dom = p.domains?.length ? `@${p.domains.join(', @')}` : '';
-    $('join-provider').textContent = p.provider
-      ? `${p.provider}${dom ? ` · ${dom}` : ''}`
-      : 'Passwords only';
-    $('join-provider').className = `ad-st ad-st--${p.provider ? 'ok' : 'off'}`;
+    setSw(
+      'join-provider',
+      p.provider ? 'ok' : 'off',
+      p.provider ? `${p.provider}${dom ? ` · ${dom.replace(/^@/, '')}` : ''}` : 'Passwords only'
+    );
+    setSw('adv-signin', p.provider ? 'ok' : 'off', p.provider ? 'Connected' : 'Passwords only');
+    $('adv-signin-l').textContent = p.provider ? `${p.provider} sign-in` : 'Sign-in';
     // Without a provider nobody can arrive uninvited: the rule has nothing to decide.
     for (const r of all('input[name="whoCanJoin"]')) r.disabled = !p.provider || state.platform;
     $('join-ask-sub').textContent =
-      `Anyone ${dom || 'who signs in'} can ask; you see it under "needs you".`;
-    $('join-domain-sub').textContent = `Anyone ${dom || 'who signs in'} joins as Can edit.`;
-    if (!p.provider) {
-      $('join-status').textContent =
-        'People sign in with a password here, so only an invitation or an account you add lets someone in.';
-    }
+      `Anyone ${dom || 'who signs in'} can ask; you see it under Needs you`;
+    $('join-domain-sub').textContent = `Anyone ${dom || 'who signs in'} joins as Can edit`;
+    $('join-status').textContent = p.provider
+      ? ''
+      : 'People sign in with a password here, so only an invitation lets someone in.';
+    renderSettingsCards();
   } catch (err) {
-    if (err.message !== 'Unauthorized') console.warn('[hub-admin] settings:', err.message);
+    pageFailed('The settings', err, () => {
+      clearNote();
+      void loadSettings();
+    });
   }
 }
 
@@ -909,10 +1359,12 @@ async function saveSettings(body, statusEl, errorEl) {
   try {
     const saved = await post('/settings', { name: $('set-name').value, ...body });
     statusEl.textContent = 'Saved.';
-    setTimeout(() => (statusEl.textContent = ''), 2000);
+    setTimeout(() => {
+      statusEl.textContent = '';
+    }, 2000);
     for (const el of all('[data-hub-name]')) el.textContent = saved.name;
   } catch (err) {
-    if (err.message === 'Unauthorized') return;
+    if (err.status === 401) return;
     errorEl.textContent = err.message;
     errorEl.hidden = false;
     void loadSettings();
@@ -922,58 +1374,82 @@ async function saveSettings(body, statusEl, errorEl) {
 // ---- Advanced: tokens, connected sessions, the admin key — key-only ----
 
 async function loadAdvanced() {
-  $('adv-key-form').hidden = hasKey();
-  $('adv-body').hidden = !hasKey();
-  if (!hasKey()) return;
+  const key = hasKey();
+  $('adv-key-form').hidden = key;
+  $('rotate-admin').hidden = !key;
+  if (!key) {
+    const need =
+      '<div class="ad-adv-row"><span class="ad-quiet">Needs the admin key — enter it on the right</span></div>';
+    $('tokens-rows').innerHTML = need;
+    $('peers-rows').innerHTML = need;
+    $('invite-form').hidden = true;
+    return;
+  }
   try {
-    const [tokens, peers] = await Promise.all([api('/tokens'), api('/peers')]);
+    const [tokens, peers] = await Promise.all([
+      api('/tokens', { key: 'always' }),
+      api('/peers', { key: 'always' }),
+    ]);
     renderTokens(tokens, peers.peers);
     renderPeers(peers);
   } catch (err) {
-    if (err.message !== 'Unauthorized') console.warn('[hub-admin] advanced:', err.message);
+    if (err.status === 401) return;
+    const failed = `<div class="ad-adv-row"><span class="ad-quiet">Could not be loaded. ${esc(err.message)}</span>${btn('Retry', 'data-adv-retry="1"')}</div>`;
+    $('tokens-rows').innerHTML = failed;
+    $('peers-rows').innerHTML = '';
+    $('tokens-rows')
+      .querySelector('[data-adv-retry]')
+      .addEventListener('click', () => void loadAdvanced());
   }
 }
 
 function renderTokens(t, peers) {
-  const tbody = $('tokens-rows');
+  const box = $('tokens-rows');
   const live = new Map();
   for (const p of peers) live.set(p.user, (live.get(p.user) ?? 0) + 1);
   // A person's sign-in is a token too (`studio-…` in a browser, `u-…` in the
   // Maude app). Those are People's to show and end, not this list's.
   const rows = t.tokens.filter((r) => !/^(studio-|u-[0-9a-f]{12}$)/.test(r.label));
-  tbody.innerHTML = rows.length
-    ? rows
-        .map((r) => {
-          const lbl = esc(r.label);
-          const n = live.get(r.label) ?? 0;
-          return (
-            `<tr><td>${lbl}${r.dev ? ' <code>dev</code>' : ''}</td>` +
-            `<td>${!r.scope || r.scope === '*' ? 'every canvas' : esc(r.scope)}</td>` +
-            `<td class="td-num">${n ? `${n} connected` : esc(formatTime(r.lastUsedAt))}</td>` +
-            `<td><span class="ad-acts"><button type="button" class="btn btn--ghost btn--sm" data-rotate="${lbl}">Replace</button>` +
-            `<button type="button" class="btn btn--danger btn--sm" data-delete="${lbl}" aria-label="Delete token ${lbl}"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg></button></span></td></tr>`
-          );
-        })
-        .join('')
-    : '<tr class="empty"><td colspan="4">No tokens.</td></tr>';
-  for (const b of all('button[data-rotate]', tbody))
+  box.innerHTML =
+    rows
+      .map((r) => {
+        const lbl = esc(r.label);
+        const n = live.get(r.label) ?? 0;
+        const used = n
+          ? `${n} connected`
+          : r.lastUsedAt
+            ? `used ${formatTime(r.lastUsedAt).toLowerCase()}`
+            : 'not used yet';
+        return (
+          `<div class="ad-adv-row"><span>${lbl} <span class="ad-quiet">· ${!r.scope || r.scope === '*' ? 'every canvas' : esc(r.scope)} · ${esc(used)}</span></span>` +
+          `<span class="ad-row-a"><button type="button" class="btn btn--ghost btn--sm" data-rotate="${lbl}">Replace</button>` +
+          `<button type="button" class="btn btn--ghost btn--sm" data-delete="${lbl}" aria-label="Delete token ${lbl}">${ic('trash', 13)}</button></span></div>`
+        );
+      })
+      .join('') +
+    `<div class="ad-adv-row"><button type="button" class="ad-link" data-new-token>+ New token</button><span class="ad-quiet">shown once</span></div>`;
+  for (const b of all('button[data-rotate]', box))
     b.addEventListener('click', () => rotate(b.dataset.rotate));
-  for (const b of all('button[data-delete]', tbody))
+  for (const b of all('button[data-delete]', box))
     b.addEventListener('click', () => deleteToken(b.dataset.delete));
+  box.querySelector('[data-new-token]').addEventListener('click', () => {
+    $('invite-form').hidden = !$('invite-form').hidden;
+    if (!$('invite-form').hidden) $('invite-label').focus();
+  });
 }
 
 function renderPeers(p) {
-  const tbody = $('peers-rows');
-  tbody.innerHTML = p.peers.length
+  const box = $('peers-rows');
+  box.innerHTML = p.peers.length
     ? p.peers
         .map(
           (peer) =>
-            `<tr><td>${esc(peer.documentName)}</td><td>${esc(peer.user || 'anon')}</td>` +
-            `<td><span class="ad-acts"><button type="button" class="btn btn--ghost btn--sm" data-kick="${esc(peer.socketId)}">Disconnect</button></span></td></tr>`
+            `<div class="ad-adv-row"><span>${esc(peer.user || 'anon')} · ${esc(peer.documentName)}</span>` +
+            `<button type="button" class="btn btn--ghost btn--sm" data-kick="${esc(peer.socketId)}">Disconnect</button></div>`
         )
         .join('')
-    : '<tr class="empty"><td colspan="3">Nobody is connected.</td></tr>';
-  for (const b of all('button[data-kick]', tbody))
+    : '<div class="ad-adv-row"><span class="ad-quiet">Nobody is connected</span></div>';
+  for (const b of all('button[data-kick]', box))
     b.addEventListener('click', () => kickPeer(b.dataset.kick));
 }
 
@@ -982,32 +1458,31 @@ async function advAct(question, fn) {
   try {
     await fn();
   } catch (err) {
-    if (err.message !== 'Unauthorized') alert(err.message);
+    if (err.status !== 401) showNote(err.message, { bad: true });
   }
   await loadAdvanced();
 }
 const rotate = (label) =>
   advAct(`Replace token "${label}"? The old value stops working at once.`, async () =>
-    showInvite(await post('/token/rotate', { label }), label)
+    showInvite(await post('/token/rotate', { label }, { key: 'always' }), label)
   );
 const deleteToken = (label) =>
   advAct(`Delete token "${label}"? Anything using it is disconnected. This can't be undone.`, () =>
-    post('/token/delete', { label })
+    post('/token/delete', { label }, { key: 'always' })
   );
 const kickPeer = (socketId) =>
   advAct('Disconnect this session? It can reconnect with a valid token.', () =>
-    post('/peers/kick', { socketId })
+    post('/peers/kick', { socketId }, { key: 'always' })
   );
 
 /** The one "shown once" surface — a peer token's command, or a link. */
 function showInvite({ token, command, scope }, label) {
   $('token-command').textContent = command;
   $('token-raw').textContent = token;
-  $('token-modal-title').textContent = label ? `Ready — for "${label}"` : 'Ready';
+  $('token-modal-title').textContent = label ? `Ready — for ${label}` : 'Ready';
   const sc = scope ?? '*';
-  $('token-scope').textContent = sc === '*' ? 'REACH · every canvas' : `REACH · ${sc}`;
-  $('token-modal-stamp').textContent =
-    `${new Date().toISOString().replace('T', ' ').slice(0, 16)}Z`;
+  $('token-scope').textContent = sc === '*' ? 'Reaches every canvas.' : `Reaches: ${sc}.`;
+  $('token-modal-stamp').textContent = new Date().toISOString();
   $('token-modal').showModal();
   $('token-copy').focus();
 }
@@ -1036,7 +1511,7 @@ function setView(name) {
     else item.removeAttribute('aria-current');
   }
   if (name === 'settings') void loadSettings();
-  if (name === 'activity') void loadActivity().catch(() => {});
+  if (name === 'activity') void loadActivity();
 }
 
 function pressTab(group, button) {
@@ -1045,24 +1520,26 @@ function pressTab(group, button) {
 
 // -------------------------------- wire -------------------------------------
 
+/** The person chose the admin key, here, in this tab. */
 async function useKey(input, errorEl) {
   const secret = input.value.trim();
   if (!secret) return;
   errorEl.hidden = true;
-  const before = state.secret;
-  state.secret = secret;
   try {
     const res = await fetch(`${API_BASE}/status`, {
       headers: { Authorization: `Bearer ${secret}` },
     });
     if (!res.ok)
       throw new Error(res.status === 401 ? 'That is not the admin key.' : `HTTP ${res.status}`);
-    localStorage.setItem(LS_KEY, secret);
+    state.secret = secret;
+    store('localStorage')?.setItem(LS_KEY, secret);
+    // From the sign-in card this IS choosing key mode; from Settings › Advanced
+    // a signed-in admin stays themself and the key just unlocks Advanced.
+    if (input.id === 'onboard-secret') store('sessionStorage')?.setItem(SS_KEY_MODE, '1');
     input.value = '';
     await boot();
     if ($('advanced').open) void loadAdvanced();
   } catch (err) {
-    state.secret = before;
     errorEl.textContent = err.message;
     errorEl.hidden = false;
   }
@@ -1090,7 +1567,8 @@ $('bootstrap-form').addEventListener('submit', async (e) => {
     const { secret } = await res.json();
     state.secret = secret;
     state.bootstrapKey = '';
-    localStorage.setItem(LS_KEY, secret);
+    store('localStorage')?.setItem(LS_KEY, secret);
+    store('sessionStorage')?.setItem(SS_KEY_MODE, '1');
     await boot();
   } catch (err) {
     $('bootstrap-error').textContent = err.message;
@@ -1107,8 +1585,9 @@ $('invite-form').addEventListener('submit', async (e) => {
   try {
     // Checked → scope '*' (every canvas, needed for sync); else the hub scopes it to the label.
     const body = $('invite-wildcard').checked ? { label, scope: '*' } : { label };
-    showInvite(await post('/token', body), label);
+    showInvite(await post('/token', body, { key: 'always' }), label);
     $('invite-label').value = '';
+    $('invite-form').hidden = true;
     await loadAdvanced();
   } catch (err) {
     $('invite-error').textContent = err.message;
@@ -1121,13 +1600,21 @@ $('person-invite-form').addEventListener('submit', (e) => {
   const emails = $('person-invite-email').value.trim();
   if (emails) void makeInvites(emails);
 });
+$('person-invite-email').addEventListener('input', countInvites);
 $('invite-open-link').addEventListener('click', () => void makeInvites([]));
 for (const b of all('[data-invite]')) b.addEventListener('click', openInvite);
-for (const d of all('dialog.ad-sheet')) {
-  d.addEventListener('click', (e) => {
-    if (e.target === d || e.target.closest('[data-close]')) d.close();
-  });
-}
+// "Copy invite link" on the Overview: one link for anyone, made and copied in one step.
+$('ov-copy-link').addEventListener('click', async (e) => {
+  const b = e.currentTarget;
+  try {
+    const r = await post('/people/invite', { emails: [], role: 'member' });
+    const url = r.invites[0]?.url;
+    if (url && !(await copyText(url, b))) showSecret(url, 'a link for anyone');
+  } catch (err) {
+    if (err.status !== 401) showNote(err.message, { bad: true });
+  }
+  await refresh();
+});
 
 $('settings-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -1141,6 +1628,7 @@ $('join-form').addEventListener('change', (e) => {
   if (e.target.name !== 'whoCanJoin') return;
   void saveSettings({ whoCanJoin: e.target.value }, $('join-status'), $('join-error'));
 });
+wirePeopleActions($('backups-card'));
 
 $('rotate-admin').addEventListener('click', async () => {
   if (
@@ -1151,20 +1639,18 @@ $('rotate-admin').addEventListener('click', async () => {
     return;
   $('danger-error').hidden = true;
   try {
-    await post('/admin-secret/rotate');
-    state.secret = '';
-    localStorage.removeItem(LS_KEY);
+    await post('/admin-secret/rotate', {}, { key: 'always' });
+    forgetKey();
     await boot();
   } catch (err) {
-    if (err.message === 'Unauthorized') return;
+    if (err.status === 401) return;
     $('danger-error').textContent = err.message;
     $('danger-error').hidden = false;
   }
 });
 
 $('forget').addEventListener('click', () => {
-  localStorage.removeItem(LS_KEY);
-  state.secret = '';
+  forgetKey();
   void boot();
 });
 
@@ -1183,10 +1669,32 @@ $('token-copy').addEventListener('click', async () => {
   }
 });
 
+$('page-note-retry').addEventListener('click', () => retryAction?.());
+$('page-note-close').addEventListener('click', clearNote);
+
 for (const item of all('.nav-item'))
   item.addEventListener('click', () => setView(item.dataset.view));
 for (const link of all('[data-nav]'))
   link.addEventListener('click', () => setView(link.dataset.nav));
+
+// The avatar menu: Open the studio, the sign-in, sign out.
+for (const b of all('[data-menu]')) {
+  const menu = $(b.dataset.menu);
+  b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.hidden = !menu.hidden;
+    b.setAttribute('aria-expanded', String(!menu.hidden));
+  });
+}
+const closeMenus = () => {
+  for (const b of all('[data-menu]')) {
+    $(b.dataset.menu).hidden = true;
+    b.setAttribute('aria-expanded', 'false');
+  }
+};
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.ad-menu')) closeMenus();
+});
 
 for (const b of all('#people-tabs .ad-tab')) {
   b.addEventListener('click', () => {
@@ -1213,11 +1721,33 @@ $('activity-find').addEventListener('input', () => {
   }, 250);
 });
 $('activity-more').addEventListener('click', () => void loadActivity(true));
-$('activity-csv').addEventListener(
-  'click',
-  () => void downloadCsv().catch((e) => alert(e.message))
+$('activity-csv').addEventListener('click', () =>
+  downloadCsv().catch((err) => {
+    if (err.status !== 401)
+      showNote(`The CSV could not be downloaded. ${err.message}`, { bad: true });
+  })
 );
 $('advanced').addEventListener('toggle', () => void loadAdvanced());
+
+// Search (⌘K): people where you are looking at people, the kept log on Activity.
+$('search').addEventListener('input', () => {
+  const q = $('search').value;
+  if (state.view === 'activity') {
+    $('activity-find').value = q;
+    $('activity-find').dispatchEvent(new Event('input'));
+    return;
+  }
+  if (state.view !== 'people' && !state.platform) setView('people');
+  $('people-find').value = q;
+  renderPeople();
+});
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && !$('dash').hidden) {
+    e.preventDefault();
+    $('search').focus();
+  }
+  if (e.key === 'Escape') closeMenus();
+});
 
 void boot();
 setInterval(() => {

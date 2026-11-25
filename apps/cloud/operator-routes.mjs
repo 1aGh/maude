@@ -68,6 +68,7 @@ import {
   undoDelete,
 } from './operator-actions.mjs';
 import {
+  newProjectSheet,
   operatorAccountPage,
   operatorAccountsPage,
   operatorEventsPage,
@@ -78,6 +79,7 @@ import {
   operatorProjectsPage,
 } from './operator-pages.mjs';
 import { renderViewAs } from './operator-view.mjs';
+import { operatorPlan } from './plan-copy.mjs';
 import pricingCatalog from './pricing.json' with { type: 'json' };
 import { cellHolds } from './project-access.mjs';
 import { projectPeopleData } from './project-routes.mjs';
@@ -261,7 +263,11 @@ export async function handleOperatorRoutes(
   }
 
   // ------------------------------------------------------------- overview
-  if (url.pathname === '/operator' && request.method === 'GET') {
+  // The overview, and New project for an account as a sheet over it (canvas
+  // 16, cl-operator) — the sheet is its own address because these pages ship
+  // no script.
+  const newProject = url.pathname === '/operator/new-project' && request.method === 'GET';
+  if ((url.pathname === '/operator' || newProject) && request.method === 'GET') {
     // CONCURRENT — nothing here depends on anything before it, and the two
     // analytics reads each carry an 8 s timeout. In series, the page whose
     // whole justification is "opens during an outage" is the page that makes
@@ -276,7 +282,8 @@ export async function handleOperatorRoutes(
     // `ok: false` when the read token is unset, and the page simply renders
     // fewer tiles — a board that cannot come up because one tile has no data
     // is a board that cannot report the outage it exists for.
-    record(env, ctx, { accountId: account.id, actor, action: 'operator.board.viewed' });
+    if (!newProject)
+      record(env, ctx, { accountId: account.id, actor, action: 'operator.board.viewed' });
     return html(
       operatorOverviewPage({
         account,
@@ -287,6 +294,12 @@ export async function handleOperatorRoutes(
         totals: totalContent(tenant.stats),
         lists: await accountLists(env, String(url.searchParams.get('tab') ?? 'newest')),
         tab: String(url.searchParams.get('tab') ?? 'newest'),
+        sheet: newProject
+          ? newProjectSheet({
+              csrf: (await csrfFor(request, env)) ?? '',
+              values: { owner: String(url.searchParams.get('owner') ?? '').slice(0, 254) },
+            })
+          : null,
       })
     );
   }
@@ -382,17 +395,10 @@ export async function handleOperatorRoutes(
         currency: pricingCatalog.currency,
         notice: noticeFor(url),
         error: ERRORS[url.searchParams.get('error')] ?? null,
-      })
-    );
-  }
-
-  // ------------------------------------------------- new project (the form)
-  if (url.pathname === '/operator/new-project' && request.method === 'GET') {
-    return html(
-      operatorNewProjectPage({
-        account,
-        csrf: (await csrfFor(request, env)) ?? '',
-        values: { owner: String(url.searchParams.get('owner') ?? '').slice(0, 254) },
+        sheet: ['free', 'sign-out'].includes(url.searchParams.get('sheet'))
+          ? url.searchParams.get('sheet')
+          : null,
+        sheetProject: String(url.searchParams.get('project') ?? '').slice(0, 80) || null,
       })
     );
   }
@@ -459,6 +465,9 @@ export async function handleOperatorRoutes(
         csrf: (await csrfFor(request, env)) ?? '',
         notice: url.searchParams.get('nudged') ? 'Reconcile enqueued.' : noticeFor(url),
         error: ERRORS[url.searchParams.get('error')] ?? null,
+        sheet: ['free', 'promo'].includes(url.searchParams.get('sheet'))
+          ? url.searchParams.get('sheet')
+          : null,
       })
     );
   }
@@ -850,8 +859,13 @@ async function accountLists(env, tab) {
       return [];
     }
   };
-  const COLS = `a.id, a.email, a.created_at,
-                (SELECT COUNT(*) FROM projects p WHERE p.account_id = a.id AND p.state != 'purged') AS projects`;
+  // What a row shows (canvas 16, cl-operator): who, how many projects and
+  // people, when last here. The plan word is decorated below from the rows.
+  const COLS = `a.id, a.email, a.name, a.created_at,
+                (SELECT COUNT(*) FROM projects p WHERE p.account_id = a.id AND p.state != 'purged') AS projects,
+                (SELECT COUNT(DISTINCT m.account_id) FROM project_members m JOIN projects p ON p.id = m.project_id
+                  WHERE p.account_id = a.id AND p.state != 'purged') AS people,
+                (SELECT MAX(s.created_at) FROM sessions s WHERE s.account_id = a.id) AS last_seen`;
   const TRIAL = `p.account_id = a.id AND p.state = 'active' AND p.subscription_id IS NULL
                  AND p.promo_since IS NULL AND p.trial_ends_at > ?1 AND p.trial_ends_at <= ?2`;
   const PROMO = `p.account_id = a.id AND p.state != 'purged' AND p.subscription_id IS NULL
@@ -873,9 +887,26 @@ async function accountLists(env, tab) {
     trial: trial.length,
     promo: promo.length,
   };
-  if (tab === 'trial')
-    return { counts, rows: trial.map((a) => ({ ...a, note: 'trial ends within 7 days' })) };
-  if (tab === 'promo') return { counts, rows: promo };
+  // The plan a row says: the one that needs a look first — a trial ending,
+  // then Promo, then a paid plan, then anything else (plan-copy.mjs).
+  const decorate = async (list) => {
+    if (!list?.length) return list;
+    const ids = list.map((a) => a.id);
+    const owned = await q(
+      `SELECT * FROM projects WHERE state != 'purged' AND account_id IN (${ids.map(() => '?').join(',')})`,
+      ...ids
+    );
+    const RANK = { trial: 0, paused: 1, held: 1, promo: 2, paid: 3 };
+    return list.map((a) => {
+      const plans = owned
+        .filter((p) => p.account_id === a.id)
+        .map((p) => operatorPlan(p, { now }))
+        .sort((x, y) => (RANK[x.state] ?? 9) - (RANK[y.state] ?? 9));
+      return { ...a, plan: plans[0] ?? null };
+    });
+  };
+  if (tab === 'trial') return { counts, rows: await decorate(trial) };
+  if (tab === 'promo') return { counts, rows: await decorate(promo) };
   if (tab === 'active') {
     const busiest = await mostActiveAccounts(env);
     if (busiest === null) {
@@ -890,11 +921,13 @@ async function accountLists(env, tab) {
       const [a] = await q(`SELECT ${COLS} FROM accounts a WHERE a.id = ?`, b.accountId);
       if (a) rows.push({ ...a, note: `${b.events} events this week` });
     }
-    return { counts: { ...counts, active: rows.length }, rows };
+    return { counts: { ...counts, active: rows.length }, rows: await decorate(rows) };
   }
   return {
     counts,
-    rows: await q(`SELECT ${COLS} FROM accounts a ORDER BY a.created_at DESC LIMIT 25`),
+    rows: await decorate(
+      await q(`SELECT ${COLS} FROM accounts a ORDER BY a.created_at DESC LIMIT 25`)
+    ),
   };
 }
 

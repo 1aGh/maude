@@ -14,103 +14,8 @@
 // something is wrong, and a page that needs JavaScript to tell you your
 // project is paused is a page that cannot tell you anything when it is broken.
 
-import { appShell } from './brand.mjs';
-
-// Styling comes from the design system shell (brand.mjs). What is left here
-// is a GALLERY of project cards: a decorative mini-canvas header (the
-// showcase's artboards-on-dots motif, in pure CSS), the name + state, one
-// primary action, and everything secondary folded into a ⋯ menu — a native
-// <details> dropdown, because these pages ship no script.
-const CSS = `
-  .main-inner { max-width: 72rem; }
-  .projects { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-5); }
-  .project {
-    display: flex; flex-direction: column;
-    background: var(--bg-1);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    overflow: visible;
-    box-shadow: var(--shadow-sm);
-    transition: border-color var(--dur-soft) var(--ease-out), box-shadow var(--dur-soft) var(--ease-out);
-  }
-  .project:hover { border-color: var(--border-default); box-shadow: var(--shadow-md); }
-
-  .pcanvas {
-    display: block; position: relative; height: 96px;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    border-bottom: 1px solid var(--border-subtle);
-    background-color: var(--bg-0);
-    background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
-    background-size: 16px 16px;
-    overflow: hidden;
-  }
-  .pcanvas .ab { position: absolute; background: var(--bg-3); border: 1px solid var(--border-default); border-radius: var(--radius-xs); }
-  .pcanvas .ab-1 { left: 14%; top: 22%; width: 26%; height: 52%; }
-  .pcanvas .ab-2 { left: 46%; top: 34%; width: 20%; height: 40%; }
-  .pcanvas .ab-3 { left: 72%; top: 18%; width: 14%; height: 34%; }
-  .project:hover .pcanvas .ab-1 { border-color: var(--accent-muted); }
-
-  .pbody { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4) var(--space-5) var(--space-5); flex: 1; }
-  .prow { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
-  .prow h2 { margin: 0; font-size: var(--type-md); line-height: var(--lh-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .prow h2 a { color: var(--fg-0); text-decoration: none; }
-  .prow h2 a:hover { color: var(--accent-hover); }
-  .note { color: var(--fg-2); font-size: var(--type-sm); line-height: var(--lh-sm); margin: 0; }
-  .pfoot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: auto; padding-top: var(--space-4); }
-  .pfoot .btn { font-size: var(--type-sm); line-height: var(--lh-sm); padding: var(--space-2) var(--space-4); }
-
-  .menu { position: relative; }
-  .menu > summary {
-    list-style: none; cursor: pointer;
-    display: grid; place-items: center;
-    width: 30px; height: 30px; border-radius: var(--radius-md);
-    color: var(--fg-2); font-weight: 600; letter-spacing: 0.08em;
-    border: 1px solid transparent;
-    transition: background var(--dur-soft) var(--ease-out), color var(--dur-soft) var(--ease-out);
-  }
-  .menu > summary::-webkit-details-marker { display: none; }
-  .menu > summary:hover { background: var(--bg-2); color: var(--fg-0); }
-  .menu[open] > summary { background: var(--bg-3); color: var(--fg-0); border-color: var(--border-default); }
-  .menu-list {
-    position: absolute; right: 0; top: calc(100% + var(--space-2)); z-index: 20;
-    min-width: 210px; padding: var(--space-2);
-    background: var(--bg-2); border: 1px solid var(--border-default);
-    border-radius: var(--radius-md); box-shadow: var(--shadow-md);
-    display: flex; flex-direction: column;
-  }
-  .menu-list a {
-    display: block; padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-sm);
-    color: var(--fg-1); text-decoration: none; font-size: var(--type-base);
-  }
-  .menu-list a:hover { background: var(--bg-3); color: var(--fg-0); }
-  .menu-list a.danger { color: var(--status-error); }
-  .menu-list .menu-sep { height: 1px; background: var(--border-subtle); margin: var(--space-2) var(--space-2); }
-
-  .overview { margin: 0 0 var(--space-7); }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-4); }
-  .tile { background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: var(--space-4) var(--space-5); margin: 0; }
-  .tile dt { font-family: var(--font-mono); font-size: var(--type-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); margin: 0 0 var(--space-2); }
-  .tile dd { margin: 0; font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl); color: var(--fg-0); font-variant-numeric: tabular-nums; }
-  .tile .sub { font-family: var(--font-sans); font-size: var(--type-sm); color: var(--fg-2); }
-  .where { background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-4) var(--space-5); }
-  .where h2 { margin: 0 0 var(--space-2); font-size: var(--type-md); }
-  .where ul { list-style: none; margin: 0; padding: 0; }
-  .where li { display: flex; gap: var(--space-4); justify-content: space-between; padding: var(--space-2) 0; border-top: 1px solid var(--border-subtle); }
-  .where li:first-child { border-top: 0; }
-  .where li span { color: var(--fg-2); font-variant-numeric: tabular-nums; }
-  .plan-line { color: var(--fg-1); }
-  .chart { margin-bottom: var(--space-4); }
-  .bars { display: flex; align-items: flex-end; gap: 3px; height: 96px; padding-top: var(--space-2); }
-  .bar { flex: 1; min-width: 2px; background: var(--border-strong); border-radius: 2px 2px 0 0; }
-  .bar-today { background: var(--accent); }
-  .axis { display: flex; justify-content: space-between; margin: var(--space-2) 0 0; font-size: var(--type-xs); color: var(--fg-2); }
-  .empty {
-    border: 1px dashed var(--border-default); border-radius: var(--radius-lg);
-    padding: var(--space-8) var(--space-6); text-align: center; background: var(--bg-1);
-    max-width: 34rem;
-  }
-`;
+import { appShell, avatar, icon, stat, statusWord, thumb } from './brand.mjs';
+import pricing from './pricing.json' with { type: 'json' };
 
 function esc(s) {
   return String(s).replace(
@@ -158,68 +63,90 @@ export const STATE_COPY = {
   },
 };
 
-/**
- * One project card.
- *
- * Actions are filtered by what this person may actually do — a menu that shows
- * everything and then refuses is worse than a shorter menu, because it teaches
- * people that the interface lies.
- */
-function projectCard(project, { can, plan = null }) {
-  const copy = STATE_COPY[project.state] ?? { tone: 'warn', label: project.state, note: null };
+/** The doors of one project, filtered by what this person may actually do. */
+function projectMenu(project, { can }) {
   const p = `/projects/${esc(project.id)}`;
-
-  // "Open" goes to OUR connect page, never to a bare hostname (Cloud Phase 23
-  // A1) — the workspace's front door is an operator surface until the
-  // one-click handoff lands, and a link that promises the project must not
-  // deliver infrastructure. A pending project opens its live setup instead.
-  const primary =
-    project.state === 'pending'
-      ? `<a class="btn" href="${p}/setup">Setup progress</a>`
-      : project.state !== 'purged'
-        ? `<a class="btn" href="${p}/connect">Open</a>`
-        : '';
-  const primaryHref = project.state === 'pending' ? `${p}/setup` : `${p}/connect`;
-
-  // Everything secondary folds into the ⋯ menu, filtered by what this person
-  // may actually do. "Download everything" is in EVERY state, including the
-  // ones where somebody is deciding whether to leave — an export you can only
-  // reach while everything is fine is not a guarantee.
   const menu = [];
+  // "Open" goes to OUR connect page, never to a bare hostname (Cloud Phase 23
+  // A1). A pending project opens its live setup instead; a deleted one has
+  // nothing to open.
+  if (project.state === 'pending') menu.push(`<a href="${p}/setup">Setup progress</a>`);
+  else if (project.state !== 'purged') menu.push(`<a href="${p}/connect">Open</a>`);
   if (can('invite')) menu.push(`<a href="${p}/people">People</a>`);
   if (can('billing')) menu.push(`<a href="${p}/billing">Billing</a>`);
   if (can('mirror')) menu.push(`<a href="${p}/mirror">GitHub copy</a>`);
   menu.push(`<a href="${p}/audit">Activity</a>`);
+  // "Download everything" is in EVERY state, including the ones where
+  // somebody is deciding whether to leave — an export you can only reach
+  // while everything is fine is not a guarantee.
   menu.push(`<a href="${p}/download">Download everything</a>`);
   if (can('delete') && project.state !== 'purged') {
     menu.push('<div class="menu-sep"></div>');
     menu.push(`<a class="danger" href="${p}/delete">Delete project…</a>`);
   }
+  return `<details class="menu ad-hover-menu">
+    <summary aria-label="More for ${esc(project.name || project.id)}">${icon('more', 14)}</summary>
+    <div class="menu-list">${menu.join('\n')}</div>
+  </details>`;
+}
 
-  return `<article class="project">
-    <a class="pcanvas" href="${primaryHref}" aria-hidden="true" tabindex="-1">
-      <span class="ab ab-1"></span><span class="ab ab-2"></span><span class="ab ab-3"></span>
-    </a>
-    <div class="pbody">
-      <div class="prow">
-        <h2><a href="${primaryHref}">${esc(project.name || project.id)}</a></h2>
-        <span class="state ${copy.tone}">${esc(copy.label)}</span>
-      </div>
-      ${copy.note ? `<p class="note">${esc(copy.note)}</p>` : ''}
+const primaryHref = (project) =>
+  `/projects/${esc(project.id)}/${project.state === 'pending' ? 'setup' : 'connect'}`;
+
+/** The state of a project as a word with a dot (the old three tones, said the DS way). */
+const SW = { ok: 'ok', warn: 'warn', stop: 'off' };
+
+/** What a role lets a person do, in the words of the People page. */
+const ROLE_WORD = {
+  owner: 'Owner',
+  admin: 'Can edit',
+  member: 'Can edit',
+  editor: 'Can edit',
+  viewer: 'Can comment',
+  commenter: 'Can comment',
+  observer: 'Can view',
+};
+
+function faces(people) {
+  if (!people?.length) return '';
+  return `<span class="ad-faces">${people
+    .slice(0, 3)
+    .map((who) => avatar(who.name || who.email, { size: 'sm', seed: who.email }))
+    .join('')}</span>`;
+}
+
+/**
+ * One project card (canvas 16, cl-account): its picture, its name, one quiet
+ * line, and its state said in a word.
+ *
+ * The picture is the same neutral one for every project — the control plane
+ * never sees what is on a canvas. Actions are filtered by what this person may
+ * actually do: a menu that shows everything and then refuses teaches people
+ * that the interface lies.
+ */
+function projectCard(project, { can, plan = null, week = null, people = null }) {
+  const copy = STATE_COPY[project.state] ?? { tone: 'warn', label: project.state, note: null };
+  const meta =
+    week !== null
+      ? `${week} ${week === 1 ? 'change' : 'changes'} this week`
+      : project.role === 'owner'
+        ? ''
+        : (ROLE_WORD[project.role] ?? '');
+  return `<article class="ad-proj">
+    ${thumb()}
+    <span class="ad-proj-b">
+      <strong><a href="${primaryHref(project)}">${esc(project.name || project.id)}</a></strong>
+      <span class="ad-proj-m"><span>${esc(meta)}</span>${faces(people)}</span>
+      ${statusWord(SW[copy.tone] ?? 'warn', copy.label)}
+      ${copy.note ? `<span class="ad-proj-n">${esc(copy.note)}</span>` : ''}
       ${
         // The plan, for the OWNER only (plan-copy.mjs): a trial with the date
         // it is free until, Promo, or that a plan is due. A member's card has
         // no such line — a plan is the owner's business (canvas 16).
-        plan?.line ? `<p class="note plan-line">${esc(plan.line)}</p>` : ''
+        plan?.line ? `<span class="ad-proj-n plan-line">${esc(plan.line)}</span>` : ''
       }
-      <div class="pfoot">
-        ${primary}
-        <details class="menu">
-          <summary aria-label="More for ${esc(project.name || project.id)}">⋯</summary>
-          <div class="menu-list">${menu.join('\n')}</div>
-        </details>
-      </div>
-    </div>
+    </span>
+    ${projectMenu(project, { can })}
   </article>`;
 }
 
@@ -259,112 +186,215 @@ function changesChart(changes) {
   const low = Math.min(...days.map((d) => d.count));
   const summary = `Changes per day over ${days.length} days: lowest ${low}, highest ${max}${max > 0 ? ` on ${shortDay(peak.day)}` : ''}, ${total} in total, ${days.at(-1).count} today.`;
   const bars = days
-    .map((d, i) => {
+    .map((d) => {
       const pct = max > 0 ? Math.max(d.count > 0 ? 3 : 0, Math.round((d.count / max) * 100)) : 0;
-      return `<span class="bar${i === days.length - 1 ? ' bar-today' : ''}" style="height: ${pct}%"></span>`;
+      return `<i style="height:100%"><b style="height:${pct}%"></b></i>`;
     })
     .join('');
-  return `<div class="where chart">
-    <h2>Changes per day</h2>
-    <div class="bars" role="img" aria-label="${esc(summary)}">${bars}</div>
-    <p class="axis" aria-hidden="true"><span>${esc(shortDay(days[0].day))}</span><span>${esc(shortDay(days[Math.floor(days.length / 2)].day))}</span><span>Today</span></p>
-    <p class="note">${changes.reporting < changes.of ? `From the ${changes.reporting} of your ${changes.of} projects that report it. ` : ''}Days are counted in UTC.</p>
+  return `<div class="ad-card chart">
+    <h2 class="ad-card-h">Changes per day <span class="ad-legend" aria-hidden="true"><span><i></i>Earlier days</span><span><i class="ad-lg-a"></i>Today</span></span></h2>
+    <div class="ad-bars" role="img" aria-label="${esc(summary)}">${bars}</div>
+    <div class="ad-bars-x" aria-hidden="true"><span>${esc(shortDay(days[0].day))}</span><span>${esc(shortDay(days[Math.floor(days.length / 2)].day))}</span><span>Today</span></div>
+    ${changes.reporting < changes.of ? `<p class="ad-card-p">From the ${changes.reporting} of your ${changes.of} projects that report it.</p>` : ''}
   </div>`;
 }
 
-/** Where people open their work: the two places a person recognises. */
+/** Where people open their work: the places a person recognises, each with its picture. */
 const SURFACE_WORD = { desktop: 'Mac app', browser: 'Browser', cli: 'Command line' };
+const SURFACE_GLYPH = { desktop: 'laptop', browser: 'web', cli: 'file' };
 
 /**
- * How the owner's projects are used (canvas 16, cl-account).
+ * How the owner's projects are used (canvas 16, cl-account): the row of
+ * tiles, then "Changes per day" beside "Where people open their work".
  *
  * EVERY TILE IS OPTIONAL, AND ABSENT RATHER THAN EMPTY. A figure the platform
  * could not read is `null` and its tile is not rendered: a "0" under Exports
- * that means "the read failed" is a number somebody will repeat. For the same
- * reason there is no Edits tile at all — nothing counts edits.
+ * that means "the read failed" is a number somebody will repeat. The row
+ * re-divides itself over the tiles that are there.
  */
 function overviewSection(overview) {
   if (!overview) return '';
   const tiles = [];
-  const tile = (label, value, sub = '') =>
-    tiles.push(
-      `<dl class="tile"><dt>${esc(label)}</dt><dd>${esc(value)}${sub ? ` <span class="sub">${esc(sub)}</span>` : ''}</dd></dl>`
-    );
   const approx = overview.sampled ? '~' : '';
   if (overview.activeThisWeek !== null) {
-    tile(
-      'Active this week',
-      `${approx}${overview.activeThisWeek}`,
-      overview.people !== null ? `of ${overview.people}` : ''
+    tiles.push(
+      stat({
+        label: 'Active this week',
+        glyph: 'people',
+        value: `${approx}${overview.activeThisWeek}`,
+        unit: overview.people !== null ? `of ${overview.people}` : null,
+        href: '/account/people',
+      })
+    );
+  } else if (overview.people !== null) {
+    tiles.push(
+      stat({
+        label: 'People',
+        glyph: 'people',
+        value: String(overview.people),
+        unit: `in ${overview.projects} ${overview.projects === 1 ? 'project' : 'projects'}`,
+        href: '/account/people',
+      })
     );
   }
-  if (overview.people !== null) {
-    tile(
-      'People',
-      String(overview.people),
-      `in ${overview.projects} ${overview.projects === 1 ? 'project' : 'projects'}`
-    );
-  }
-  // Changes this week — the cells' own count (changes.mjs). Present only when
-  // at least one of the owner's projects reports it.
+  // Changes this week — the workspaces' own count (changes.mjs). Present only
+  // when at least one of the owner's projects reports it.
   const changes = overview.changes ?? null;
   if (changes) {
     const top = changes.perProject[0];
-    tile(
-      'Changes',
-      String(changes.week),
-      [
-        'this week',
-        ...(changes.perProject.length > 1 && top.week > 0 ? [`most in ${top.name}`] : []),
-        ...(changes.reporting < changes.of
-          ? [`${changes.reporting} of ${changes.of} projects report`]
-          : []),
-      ].join(' · ')
+    const max = Math.max(1, ...changes.days.map((d) => d.count));
+    tiles.push(
+      stat({
+        label: 'Changes',
+        glyph: 'edit',
+        value: String(changes.week),
+        spark: changes.days.slice(-14).map((d) => (d.count / max) * 100),
+        foot: `<span>${esc(
+          [
+            'this week',
+            ...(changes.perProject.length > 1 && top.week > 0 ? [`most in ${top.name}`] : []),
+            ...(changes.reporting < changes.of
+              ? [`${changes.reporting} of ${changes.of} projects report`]
+              : []),
+          ].join(' · ')
+        )}</span>`,
+      })
     );
   }
-  if (overview.canvases !== null) tile('Canvases', String(overview.canvases));
-  if (overview.exports !== null) tile('Exports', `${approx}${overview.exports}`, 'last 30 days');
-  if (overview.storageBytes !== null) tile('Storage', bytesWord(overview.storageBytes));
+  if (overview.canvases !== null) {
+    tiles.push(stat({ label: 'Canvases', glyph: 'file', value: String(overview.canvases) }));
+  }
+  if (overview.exports !== null) {
+    tiles.push(
+      stat({
+        label: 'Exports',
+        glyph: 'export',
+        value: `${approx}${overview.exports}`,
+        foot: '<span>last 30 days</span>',
+      })
+    );
+  }
+  if (overview.storageBytes !== null) {
+    const [amount, unit] = bytesWord(overview.storageBytes).split(' ');
+    tiles.push(stat({ label: 'Storage', glyph: 'server', value: amount, unit }));
+  }
 
   const rows = [];
   const opens = overview.opens ? Object.entries(overview.opens).filter(([, n]) => n > 0) : [];
   const total = opens.reduce((sum, [, n]) => sum + n, 0);
-  for (const [surface, n] of opens.sort((a, b) => b[1] - a[1])) {
+  const row = (glyph, name, line) =>
     rows.push(
-      `<li><strong>${esc(SURFACE_WORD[surface] ?? surface)}</strong> <span>${approx}${n} opens · ${Math.round((n / total) * 100)} %</span></li>`
+      `<div class="ad-need${rows.length ? '' : ' ad-need--first'}">${icon(glyph)}<span class="ad-need-t"><strong>${esc(name)}</strong><span>${esc(line)}</span></span></div>`
+    );
+  for (const [surface, n] of opens.sort((a, b) => b[1] - a[1])) {
+    row(
+      SURFACE_GLYPH[surface] ?? 'file',
+      SURFACE_WORD[surface] ?? surface,
+      `${approx}${n} opens · ${Math.round((n / total) * 100)} %`
     );
   }
   if (overview.invites) {
     const i = overview.invites;
-    rows.push(
-      `<li><strong>Invites</strong> <span>${i.sent} sent · ${i.joined} joined · ${i.waiting} waiting</span></li>`
-    );
+    row('people', 'Invites', `${i.sent} sent · ${i.joined} joined · ${i.waiting} waiting`);
   }
   if (!tiles.length && !rows.length) return '';
+  const where = rows.length
+    ? `<div class="ad-card where">
+         <h2 class="ad-card-h">${opens.length ? 'Where people open their work' : 'Invitations'} <small>last 30 days</small></h2>
+         <div class="ad-feed">${rows.join('\n')}</div>
+       </div>`
+    : '';
+  const chart = changes ? changesChart(changes) : '';
   return `<section class="overview" aria-label="How your projects are used">
-    ${tiles.length ? `<div class="tiles">${tiles.join('\n')}</div>` : ''}
-    ${changes ? changesChart(changes) : ''}
-    ${
-      rows.length
-        ? `<div class="where"><h2>${opens.length ? 'Where people open their work' : 'Invitations'}</h2><ul>${rows.join('\n')}</ul>
-             <p class="note">Opens and invitations are for the last 30 days. <a href="/account/people">People across your projects</a></p></div>`
-        : ''
-    }
+    ${tiles.length ? `<div class="ad-stats" style="--n:${tiles.length}">${tiles.join('\n')}</div>` : ''}
+    ${chart && where ? `<div class="ad-cols ad-cols--2-1">${chart}${where}</div>` : `${chart}${where}`}
   </section>`;
 }
 
+/** How many project cards the Overview's strip shows before "All N" takes over. */
+const STRIP = 5;
+
+const newProjectTile = `<a class="ad-proj ad-proj--new" href="/projects/new"><span class="ad-plus">${icon('plus', 16)}</span>New project</a>`;
+
+/** The strip of project cards, with the "New project" tile at its end. */
+function projectStrip(projects, { can, plans, overview, limit = STRIP }) {
+  const weekOf = new Map((overview?.changes?.perProject ?? []).map((p) => [p.id, p.week]));
+  const shown = limit ? projects.slice(0, limit) : projects;
+  const cards = shown.map((p) =>
+    projectCard(p, {
+      can: (capability) => can(p.role, capability),
+      plan: p.role === 'owner' ? (plans?.get(p.id) ?? null) : null,
+      week: p.role === 'owner' && weekOf.has(p.id) ? weekOf.get(p.id) : null,
+      people: p.role === 'owner' ? (overview?.faces?.get(p.id) ?? null) : null,
+    })
+  );
+  return `<div class="ad-projects" style="--n:${limit ? STRIP + 1 : 4}">${cards.join('\n')}${newProjectTile}</div>`;
+}
+
 /**
- * The dashboard.
+ * A member's Overview (canvas 16, un-member-cl): what is shared with them and
+ * what they may do in each — and, apart from that, their own account.
+ *
+ * No plan, no billing and no People of the projects here: those are the
+ * owner's. What a member is offered is a project of their OWN.
+ */
+function memberOverview({ projects, can }) {
+  const owners = [...new Set(projects.map((p) => p.ownerName).filter(Boolean))];
+  const rows = projects
+    .map((p) => {
+      const copy = STATE_COPY[p.state] ?? { tone: 'warn', label: p.state, note: null };
+      return `<tr>
+        <td><a class="ad-who" href="${primaryHref(p)}">${thumb('ad-thumb--row')}<span class="ad-who-t"><strong>${esc(p.name || p.id)}</strong><span>${esc(owners.length === 1 ? copy.label : p.ownerName ? `${p.ownerName} · ${copy.label}` : copy.label)}</span></span></a></td>
+        <td><span class="ad-mrole">${esc(ROLE_WORD[p.role] ?? 'Can view')}</span></td>
+        <td><span class="ad-row-a">${projectMenu(p, { can: (capability) => can(p.role, capability) })}${p.state === 'purged' ? '' : `<a class="btn btn--ghost btn--sm" href="${primaryHref(p)}">${p.state === 'pending' ? 'Setup progress' : 'Open'}</a>`}</span></td>
+      </tr>${copy.note ? `<tr class="is-dim"><td colspan="3" class="ad-wrap">${esc(copy.note)}</td></tr>` : ''}`;
+    })
+    .join('\n');
+  return `<div class="ad-cols ad-cols--2-1">
+    <div class="ad-card ad-card--clip">
+      <h2 class="ad-card-h">Shared with you${owners.length === 1 ? ` by ${esc(owners[0])}` : ''}</h2>
+      <div class="ad-scroll"><table class="ad-table">
+        <thead><tr><th scope="col">Project</th><th scope="col">You can</th><th scope="col"><span class="ad-sr">Action</span></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>
+    <div class="ad-stack">
+      <div class="ad-card">
+        <h2 class="ad-card-h">Your own account</h2>
+        <div class="ad-need ad-need--first">${icon('folder')}<span class="ad-need-t"><strong>No projects of your own yet</strong><span>${pricing.trialDays} days free, no card. Only you pay for what you start.</span></span><span class="ad-need-a"><a class="btn btn--sm" href="/projects/new">Start a project</a></span></div>
+      </div>
+      <div class="ad-card">
+        <h2 class="ad-card-h">Your Macs</h2>
+        <div class="ad-need ad-need--first">${icon('laptop')}<span class="ad-need-t"><strong>The Macs signed in to your account</strong><span>See them, and sign one out.</span></span><span class="ad-need-a"><a class="btn btn--ghost btn--sm" href="/account/macs">Manage</a></span></div>
+      </div>
+      <div class="ad-card">
+        <h2 class="ad-card-h">Emails</h2>
+        <div class="ad-need ad-need--first"><span class="ad-need-t"><strong>Mentions and invites</strong><span>Which e-mails Maude Cloud sends you.</span></span><span class="ad-need-a"><a class="btn btn--ghost btn--sm" href="/account/emails">Change</a></span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+const EMPTY = `<div class="ad-card ad-empty empty">
+  <p><strong>No projects yet.</strong></p>
+  <p class="note">A project is one design system and the work around it.
+    You can invite people to it once it exists.</p>
+  <form method="get" action="/projects/new"><button type="submit" class="btn btn--primary">Start a project</button></form>
+</div>`;
+
+/**
+ * The Overview — what "/" is for a signed-in person.
+ *
+ * An OWNER gets how their projects are used and the strip of project cards
+ * (cl-account). A MEMBER — somebody who owns nothing here — gets what is
+ * shared with them and their own account beside it (un-member-cl).
  *
  * @param {object} args
- * @param {{email: string}} args.account
+ * @param {{email: string, name?: string}} args.account
  * @param {object[]} args.projects  each with `role`, so actions can be filtered
  * @param {(role: string, capability: string) => boolean} args.can
- * @param {boolean} [args.isOperator]  Cloud Phase 26. The shell can render the
- *   Fleet section, but only `operator-pages.mjs` ever asked it to — so the
- *   surface had no way IN except typing the URL. This is the way in, and the
- *   only customer-facing page that gets one: the dashboard is where a signed-in
- *   person starts. Default false keeps every other caller's shell unchanged.
+ * @param {boolean} [args.isOperator]  Cloud Phase 26 — adds the operator's way
+ *   in to the avatar menu. Default false keeps a customer's shell free of it.
  */
 export function dashboardPage({
   account,
@@ -374,31 +404,68 @@ export function dashboardPage({
   overview = null,
   plans = null,
 }) {
-  const cards =
-    projects.length === 0
-      ? `<div class="empty">
-           <p><strong>No projects yet.</strong></p>
-           <p class="note">A project is one design system and the work around it.
-             You can invite people to it once it exists.</p>
-           <form method="get" action="/projects/new"><button type="submit">Start a project</button></form>
-         </div>`
-      : `<div class="projects">${projects
-          .map((p) =>
-            projectCard(p, {
-              can: (capability) => can(p.role, capability),
-              plan: p.role === 'owner' ? (plans?.get(p.id) ?? null) : null,
-            })
-          )
-          .join('\n')}</div>`;
-  const body = `${overviewSection(overview)}${cards}`;
+  const owned = projects.filter((p) => p.role === 'owner');
+  const name = String(account?.name ?? '').trim() || String(account?.email ?? '').split('@')[0];
+  const first = name.split(/\s+/)[0];
+
+  if (projects.length && !owned.length) {
+    const owners = [...new Set(projects.map((p) => p.ownerName).filter(Boolean))];
+    const n = `${projects.length} ${projects.length === 1 ? 'project' : 'projects'}`;
+    return appShell({
+      account,
+      title: 'Your projects',
+      heading: `Hi ${first}.`,
+      lede: owners.length === 1 ? `${owners[0]} shares ${n} with you` : `${n} shared with you`,
+      active: 'overview',
+      wide: true,
+      body: memberOverview({ projects, can }),
+      isOperator,
+    });
+  }
+
+  const facts = [];
+  if (owned.length) facts.push(`${owned.length} ${owned.length === 1 ? 'project' : 'projects'}`);
+  if (overview?.people != null) {
+    facts.push(`${overview.people} ${overview.people === 1 ? 'person' : 'people'}`);
+  }
+  const body = projects.length
+    ? `${overviewSection(overview)}
+       <div class="ad-card ad-gap">
+         <h2 class="ad-card-h">Projects <a class="ad-link" href="/projects">All ${projects.length}</a></h2>
+         ${projectStrip(projects, { can, plans, overview })}
+       </div>`
+    : EMPTY;
 
   return appShell({
-    account,
+    account: owned.length ? { ...account, owns: account?.owns ?? owned.length } : account,
     title: 'Your projects',
-    active: 'projects',
-    extraCss: CSS,
+    heading: owned.length ? `${name} on Maude Cloud` : `Hi ${first}.`,
+    lede: facts.join(' · ') || null,
+    actions: `${owned.length ? `<a class="btn" href="/account/people?sheet=invite">${icon('people', 14)}Invite people</a>` : ''}<a class="btn btn--primary" href="/projects/new">${icon('plus', 14)}New project</a>`,
+    active: 'overview',
+    wide: true,
     body,
     isOperator,
+  });
+}
+
+/**
+ * Every project this person can see, as one grid — the Projects tab.
+ */
+export function projectsPage({ account, projects = [], can, overview = null, plans = null }) {
+  const owned = projects.filter((p) => p.role === 'owner');
+  return appShell({
+    account: owned.length ? { ...account, owns: account?.owns ?? owned.length } : account,
+    title: 'Projects',
+    lede: projects.length
+      ? `${projects.length} ${projects.length === 1 ? 'project' : 'projects'} you can open`
+      : null,
+    actions: `<a class="btn btn--primary" href="/projects/new">${icon('plus', 14)}New project</a>`,
+    active: 'projects',
+    wide: true,
+    body: projects.length
+      ? `<div class="ad-card"><h2 class="ad-card-h">All projects <small>${projects.length}</small></h2>${projectStrip(projects, { can, plans, overview, limit: 0 })}</div>`
+      : EMPTY,
   });
 }
 
@@ -414,6 +481,13 @@ export function allDashboardHtml() {
   return [
     dashboardPage({ account: { email: 'a@example.com' }, projects: [], can }),
     dashboardPage({ account: { email: 'a@example.com' }, projects, can }),
+    dashboardPage({
+      account: { email: 'a@example.com', name: 'Anna Example' },
+      projects: projects.map((p) => ({ ...p, role: 'viewer', ownerName: 'Example Studio' })),
+      can,
+    }),
+    projectsPage({ account: { email: 'a@example.com' }, projects, can }),
+    projectsPage({ account: { email: 'a@example.com' }, projects: [], can }),
     dashboardPage({
       account: { email: 'a@example.com' },
       projects,

@@ -203,7 +203,7 @@ describe('the dashboard overview — numbers already recorded, finally shown', (
     assert.match(page, /Brand[\s\S]*Promo from Maude · free/);
     assert.match(page, /Free trial · 5 days left/);
     const brandCard =
-      /<article class="project">(?:(?!<\/article>)[\s\S])*Brand[\s\S]*?<\/article>/.exec(html)[0];
+      /<article class="ad-proj">(?:(?!<\/article>)[\s\S])*Brand[\s\S]*?<\/article>/.exec(html)[0];
     assert.doesNotMatch(brandCard, /Choose a plan|Free trial/);
   });
 });

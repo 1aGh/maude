@@ -94,6 +94,26 @@ export async function ownerOverview(env, accountId, { now = Date.now() } = {}) {
             .length,
         };
 
+  // Faces on a project card: who is in it, as an initial. Names and addresses
+  // of people on projects THIS account owns — what its People page already
+  // shows — and never more than three a card.
+  const inside = await rows(
+    env.DB,
+    `SELECT m.project_id AS project, a.email, a.name
+       FROM project_members m
+       JOIN projects p ON p.id = m.project_id
+       JOIN accounts a ON a.id = m.account_id
+      WHERE p.account_id = ? AND p.state != 'purged' AND m.role != 'owner'
+      ORDER BY m.project_id, a.email`,
+    accountId
+  );
+  const faces = new Map();
+  for (const row of inside ?? []) {
+    const list = faces.get(row.project) ?? [];
+    if (list.length < 3) list.push({ email: row.email, name: row.name });
+    faces.set(row.project, list);
+  }
+
   const metrics = await ownerMetrics(env, ids);
   const m = metrics.ok ? metrics : null;
   return {
@@ -109,5 +129,6 @@ export async function ownerOverview(env, accountId, { now = Date.now() } = {}) {
     // From D1, whatever analytics is doing: what each project's workspace
     // last reported (changes.mjs). null when none reports — no tile, no chart.
     changes: changesView(owned, { now }),
+    faces,
   };
 }

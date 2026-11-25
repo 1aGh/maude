@@ -46,7 +46,7 @@ import { notYours, pageAccessCall, transferOwnership } from './access-forward.mj
 import { lastOpens } from './analytics.mjs';
 import { SESSION_COOKIE } from './auth-routes.mjs';
 import { formatDay, TRIAL_DAYS, trialView } from './billing.mjs';
-import { appShell } from './brand.mjs';
+import { appShell, avatar, icon, sheetActions, who } from './brand.mjs';
 import { STATE_COPY } from './dashboard.mjs';
 import { audit, checkoutOpen } from './db.mjs';
 import { pageCsp, sameOriginPost, spend } from './edge.mjs';
@@ -54,7 +54,6 @@ import { verifyCsrf } from './operator.mjs';
 import {
   CAN_VIEW_UNAVAILABLE,
   canvasName,
-  personLabel,
   ROLE_MEANING,
   roleSelect,
   roleWord as roleWordFor,
@@ -88,43 +87,22 @@ export const ACCOUNT_SECTIONS = Object.freeze([
 ]);
 
 const CSS = `
-  .tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-6); padding: 0; list-style: none; }
-  .tabs a { display: inline-block; padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); border: 1px solid var(--border-subtle); background: var(--bg-1); color: var(--fg-1); font-size: var(--type-sm); text-decoration: none; }
-  .tabs a[aria-current="page"] { background: var(--bg-4); color: var(--fg-0); font-weight: 600; }
-  .tabs a.danger { color: var(--status-error); }
-  table { width: 100%; border-collapse: collapse; margin: var(--space-3) 0 var(--space-6); background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
-  th { text-align: left; font-family: var(--font-mono); font-size: var(--type-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border-subtle); }
-  td { padding: var(--space-4) var(--space-5); border-top: 1px solid var(--border-subtle); vertical-align: baseline; font-size: var(--type-base); }
-  tr:first-child td { border-top: 0; }
-  td.right { text-align: right; white-space: nowrap; }
-  td .num, .num { font-variant-numeric: tabular-nums; }
-  form.inline { display: inline; }
-  .card { margin-bottom: var(--space-6); }
-  .card h2 { margin: 0 0 var(--space-3); }
-  .danger-card { border-color: color-mix(in oklab, var(--status-error) 40%, transparent); }
-  .doors { display: grid; gap: var(--space-2); padding: 0; margin: 0; list-style: none; }
-  .doors a { display: block; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--bg-1); border: 1px solid var(--border-subtle); color: var(--fg-0); text-decoration: none; }
-  .doors a.danger { color: var(--status-error); }
-  .plan-line { font-size: var(--type-md); margin: 0 0 var(--space-2); }
+  .tabs { display: flex; flex-wrap: wrap; gap: var(--space-1); margin: 0 0 var(--space-5); padding: 0; list-style: none; }
+  .tabs a { display: inline-flex; align-items: center; height: 28px; padding: 0 var(--space-3); border-radius: var(--radius-md); color: var(--fg-1); font-size: var(--type-sm); text-decoration: none; }
+  .tabs a:hover { background: var(--bg-3); color: var(--fg-0); }
+  .tabs a[aria-current="page"] { background: var(--bg-3); color: var(--fg-0); font-weight: var(--weight-semibold); }
+  .tabs a.danger { color: var(--status-error-text); }
+  .card h2 { margin: 0 0 var(--space-3); font-family: var(--font-body); font-size: var(--type-base); line-height: var(--lh-base); }
+  .doors { display: grid; gap: 0; padding: 0; margin: 0; list-style: none; border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default); overflow: hidden; }
+  .doors li + li { box-shadow: inset 0 0.5px 0 var(--border-subtle); }
+  .doors a { display: block; padding: var(--space-3) var(--space-5); color: var(--fg-0); font-size: var(--type-sm); text-decoration: none; }
+  .doors a:hover { background: var(--bg-3); }
+  .doors a.danger { color: var(--status-error-text); }
+  .plan-line { font-size: var(--type-base); font-weight: var(--weight-semibold); margin: 0 0 var(--space-2); }
   .picker { display: grid; gap: var(--space-2); margin: var(--space-3) 0 0; }
-  .picker label { display: flex; gap: var(--space-2); align-items: baseline; font-size: var(--type-base); }
-  ul.what { margin: var(--space-2) 0 0; padding-left: var(--space-6); line-height: var(--lh-base); }
+  .picker label { display: flex; gap: var(--space-2); align-items: baseline; margin: 0; font-size: var(--type-sm); font-weight: var(--weight-regular); color: var(--fg-0); }
+  ul.what { margin: var(--space-2) 0 0; padding-left: var(--space-5); line-height: var(--lh-base); }
   input[name=confirm] { max-width: 26rem; }
-  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: var(--space-5); margin-bottom: var(--space-2); }
-  ul.needs { list-style: none; margin: 0; padding: 0; }
-  ul.needs li { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: baseline; justify-content: space-between; padding: var(--space-3) 0; border-top: 1px solid var(--border-subtle); }
-  ul.needs li:first-child { border-top: 0; }
-  ul.needs .acts { display: flex; gap: var(--space-2); }
-  table.matrix td { vertical-align: top; }
-  table.matrix details { margin-top: var(--space-1); }
-  table.matrix summary { cursor: pointer; color: var(--fg-2); font-size: var(--type-sm); }
-  table.matrix details form { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
-  .bulk { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; margin: 0 0 var(--space-6); }
-  .bulk label { font-size: var(--type-sm); color: var(--fg-1); margin: 0; }
-  .bulk select { width: auto; }
-  .ptabs { margin-bottom: var(--space-3); }
-  form.find { display: flex; gap: var(--space-2); margin: 0 0 var(--space-3); }
-  form.find input { max-width: 20rem; }
 `;
 
 function esc(s) {
@@ -239,19 +217,21 @@ export function accountPeoplePage({
   transfers = { incoming: [], outgoing: [] },
   tab = 'everyone',
   q = '',
+  sheet = null,
+  sheetProject = null,
   error = null,
   notice = null,
   now = Date.now(),
 }) {
   const projectName = (p) => p.name || p.id;
-  const post = (fields, button, { ghost = false } = {}) =>
+  const post = (fields, button, { cls = '' } = {}) =>
     `<form class="inline" method="post" action="/account/people">${csrfField(csrf)}${Object.entries(
       fields
     )
       .map(([k, v]) => `<input type="hidden" name="${esc(k)}" value="${esc(v)}">`)
       .join(
         ''
-      )}<button type="submit"${ghost ? ' class="ghost"' : ''}>${esc(button)}</button></form>`;
+      )}<button type="submit" class="btn btn--sm${cls ? ` ${cls}` : ''}">${esc(button)}</button></form>`;
 
   // ---- everyone, once
   const persons = new Map();
@@ -303,41 +283,41 @@ export function accountPeoplePage({
     return `/account/people${qs ? `?${qs}` : ''}`;
   };
   const finder = owned.length
-    ? `<ul class="tabs ptabs">${Object.keys(lists)
+    ? `<nav class="ad-tabs" aria-label="Lists of people">${Object.keys(lists)
         .map(
           (key) =>
-            `<li><a href="${esc(tabHref(key))}"${key === activeTab ? ' aria-current="page"' : ''}>${esc(TAB_WORD[key])} <span class="num">${lists[key].length}</span></a></li>`
+            `<a class="ad-tab" href="${esc(tabHref(key))}"${key === activeTab ? ' aria-current="page"' : ''}>${esc(TAB_WORD[key])} <span class="ad-count">${lists[key].length}</span></a>`
         )
-        .join('')}</ul>
-       <form class="find" method="get" action="/account/people">
+        .join('')}<span class="ad-tabs-sp"></span>
+       <form class="ad-filter" role="search" method="get" action="/account/people">
          ${activeTab === 'everyone' ? '' : `<input type="hidden" name="tab" value="${esc(activeTab)}">`}
-         <input type="search" name="q" value="${esc(needle)}" maxlength="80" placeholder="Find someone" aria-label="Find someone">
-         <button type="submit" class="ghost">Find</button>
-       </form>`
+         ${icon('search', 13)}<input type="search" name="q" value="${esc(needle)}" maxlength="80" placeholder="Find someone" aria-label="Find someone">
+         <button type="submit" class="ad-sr">Find</button>
+       </form></nav>`
     : '';
 
   // ---- handing a project over: offers TO this account, and offers it made
   const offers = [
     ...transfers.incoming.map(
-      (x) => `<li>
-        <span><strong>${esc(String(x.from_name ?? '').trim() || 'The owner')} wants to make you the owner of ${esc(x.project_name || x.project_id)}</strong>
-          <span class="quiet">Nothing changes unless you accept. The owner decides who is on the project and pays for it when it has a plan.</span></span>
-        <span class="acts">
-          ${post({ do: 'transfer-decline', transfer: x.id }, 'Decline', { ghost: true })}
-          ${post({ do: 'transfer-accept', transfer: x.id }, 'Become the owner')}
+      (x) => `<div class="ad-need">${icon('people')}
+        <span class="ad-need-t"><strong>${esc(String(x.from_name ?? '').trim() || 'The owner')} wants to make you the owner of ${esc(x.project_name || x.project_id)}</strong>
+          <span>Nothing changes unless you accept. The owner decides who is on the project and pays for it when it has a plan.</span></span>
+        <span class="ad-need-a">
+          ${post({ do: 'transfer-decline', transfer: x.id }, 'Decline', { cls: 'btn--ghost' })}
+          ${post({ do: 'transfer-accept', transfer: x.id }, 'Become the owner', { cls: 'btn--primary' })}
         </span>
-      </li>`
+      </div>`
     ),
     ...transfers.outgoing.map(
-      (x) => `<li>
-        <span><strong>You offered ${esc(x.project_name || x.project_id)} to ${esc(String(x.to_name ?? '').trim() || x.to_email)}</strong>
-          <span class="quiet">Waiting for them to accept. You are still the owner.</span></span>
-        <span class="acts">${post({ do: 'transfer-cancel', transfer: x.id, project: x.project_id }, 'Take the offer back', { ghost: true })}</span>
-      </li>`
+      (x) => `<div class="ad-need">${icon('people')}
+        <span class="ad-need-t"><strong>You offered ${esc(x.project_name || x.project_id)} to ${esc(String(x.to_name ?? '').trim() || x.to_email)}</strong>
+          <span>Waiting for them to accept. You are still the owner.</span></span>
+        <span class="ad-need-a">${post({ do: 'transfer-cancel', transfer: x.id, project: x.project_id }, 'Take the offer back', { cls: 'btn--ghost' })}</span>
+      </div>`
     ),
   ];
   const offersHtml = offers.length
-    ? `<div class="card"><h2>A new owner</h2><ul class="needs">${offers.join('\n')}</ul></div>`
+    ? `<div class="ad-card ad-gap-b"><h2 class="ad-card-h">A new owner <small>${offers.length}</small></h2>${offers.join('\n')}</div>`
     : '';
 
   // ---- what is waiting on the owner
@@ -349,14 +329,16 @@ export function accountPeoplePage({
   );
   const requestRows = requests
     .map(
-      (r) => `<li>
-        <span><strong>${esc(String(r.name ?? '').trim() || r.email)} · ${esc(projectName(r.project))}</strong>
-          <span class="quiet">${r.canvas_path ? `on ${esc(canvasName(r.canvas_path))} · ` : ''}asked ${esc(when(r.created_at, { now }))}</span></span>
-        <span class="acts">
-          ${post({ do: 'request-decline', project: r.project.id, request: r.id }, 'Not now', { ghost: true })}
-          ${post({ do: 'request-allow', project: r.project.id, request: r.id }, 'Allow editing')}
+      (
+        r
+      ) => `<div class="ad-need">${avatar(String(r.name ?? '').trim() || r.email, { size: 'lg', seed: r.email })}
+        <span class="ad-need-t"><strong>${esc(String(r.name ?? '').trim() || r.email)} · ${esc(projectName(r.project))}</strong>
+          <span>${r.canvas_path ? `on ${esc(canvasName(r.canvas_path))} · ` : ''}asked ${esc(when(r.created_at, { now }))}</span></span>
+        <span class="ad-need-a">
+          ${post({ do: 'request-decline', project: r.project.id, request: r.id }, 'Not now')}
+          ${post({ do: 'request-allow', project: r.project.id, request: r.id }, 'Allow editing', { cls: 'btn--primary' })}
         </span>
-      </li>`
+      </div>`
     )
     .join('\n');
   const inviteRows = invites
@@ -364,131 +346,135 @@ export function accountPeoplePage({
       const sent = dayCount(now - Number(i.created_at ?? now));
       const left = Math.max(1, Math.ceil((Number(i.expires_at) - now) / DAY_MS));
       const where = i.canvas_path ? ` on ${esc(canvasName(i.canvas_path))}` : '';
-      return `<li>
-        <span><strong>${esc(i.email)} · ${esc(projectName(i.project))}</strong>
-          <span class="quiet"><strong>${esc(roleWordFor(i.role))}</strong>${where} · sent ${sent === 0 ? 'today' : `${plural(sent, 'day', 'days')} ago`}, works ${plural(left, 'more day', 'more days')}</span></span>
+      return `<div class="ad-need">${avatar(i.email, { size: 'lg', seed: i.email, tone: 'grey' })}
+        <span class="ad-need-t"><strong>${esc(i.email)} · ${esc(projectName(i.project))}</strong>
+          <span>${esc(roleWordFor(i.role))}${where} · sent ${sent === 0 ? 'today' : `${plural(sent, 'day', 'days')} ago`}, works ${plural(left, 'more day', 'more days')}</span></span>
         ${
           i.id
-            ? `<span class="acts">
-                 ${post({ do: 'invite-cancel', project: i.project.id, invite: i.id }, 'Cancel invite', { ghost: true })}
+            ? `<span class="ad-need-a">
+                 ${post({ do: 'invite-cancel', project: i.project.id, invite: i.id }, 'Cancel invite', { cls: 'btn--ghost' })}
                  ${post({ do: 'invite-resend', project: i.project.id, invite: i.id }, 'Send again')}
                </span>`
             : ''
         }
-      </li>`;
+      </div>`;
     })
     .join('\n');
   const waiting =
     requests.length || invites.length
-      ? `<div class="two">
-           ${requests.length ? `<div class="card"><h2>Asks to edit</h2><ul class="needs">${requestRows}</ul></div>` : ''}
-           ${invites.length ? `<div class="card"><h2>Invites not opened</h2><ul class="needs">${inviteRows}</ul></div>` : ''}
+      ? `<div class="ad-cols ${requests.length && invites.length ? 'ad-cols--1-1' : ''} ad-gap-b">
+           ${requests.length ? `<div class="ad-card"><h2 class="ad-card-h">Asks to edit <small>${requests.length}</small></h2>${requestRows}</div>` : ''}
+           ${invites.length ? `<div class="ad-card"><h2 class="ad-card-h">Invites not opened <small>${invites.length}</small></h2>${inviteRows}</div>` : ''}
          </div>`
       : '';
 
-  // ---- the matrix
+  // ---- the matrix: a cell is what they can do there — click it to change
   const cell = (person, { project, people, grants, canView = true }) => {
     const member = people.find((p) => p.account_id === person.account_id);
     const theirs = grants.filter((g) => g.account_id === person.account_id);
     const parts = [];
     if (member?.role === 'owner') {
-      parts.push(`<strong>${esc(roleWordFor('owner'))}</strong>`);
+      parts.push(`<span class="ad-mrole ad-mrole--own">${esc(roleWordFor('owner'))}</span>`);
     } else if (member) {
-      parts.push(`<strong>${esc(roleWordFor(member.role))}</strong>
-        <details><summary>Change</summary>
-          <form method="post" action="/account/people">
+      parts.push(`<details class="ad-at-d"><summary aria-label="Change what ${esc(person.email)} can do on ${esc(projectName(project))}"><span class="ad-mrole">${esc(roleWordFor(member.role))}</span></summary>
+          <div class="ad-pop"><form method="post" action="/account/people">
             ${csrfField(csrf)}
             <input type="hidden" name="project" value="${esc(project.id)}">
             <input type="hidden" name="account" value="${esc(person.account_id)}">
             ${roleSelect('role', member.role, { label: `What ${person.email} can do on ${projectName(project)}`, canView })}
-            <span><button type="submit" name="do" value="role">Save</button>
-              <button type="submit" name="do" value="remove" class="ghost">Remove from ${esc(projectName(project))}</button>
-              <button type="submit" name="do" value="transfer-offer" class="ghost">Offer to make them the owner of ${esc(projectName(project))}</button></span>
-          </form>
+            <button type="submit" name="do" value="role" class="btn btn--sm btn--primary">Save</button>
+            <button type="submit" name="do" value="remove" class="btn btn--sm btn--ghost">Remove from ${esc(projectName(project))}</button>
+            <button type="submit" name="do" value="transfer-offer" class="btn btn--sm btn--ghost">Offer to make them the owner of ${esc(projectName(project))}</button>
+          </form></div>
         </details>`);
     }
     for (const g of theirs) {
       parts.push(
-        `<strong>${esc(roleWordFor(g.role))}</strong> <span class="quiet">on ${esc(canvasName(g.canvas_path))} only</span>`
+        `<span class="ad-mrole">${esc(roleWordFor(g.role))}</span> <span class="ad-quiet">on ${esc(canvasName(g.canvas_path))} only</span>`
       );
     }
-    return `<td>${parts.length ? parts.join('<br>') : '<span class="quiet">—</span>'}</td>`;
+    return `<td class="ad-at">${parts.length ? parts.join(' ') : '<span class="ad-mrole ad-mrole--none">No access</span>'}</td>`;
   };
   const rows = shown
     .map((person) => {
       const self = person.account_id === account.id;
       const seen = lastOpen ? lastOpen.get(person.account_id) : null;
+      const name = String(person.name ?? '').trim();
       return `<tr>
-        <td>${
+        <td><span class="ad-who-row">${
           self
-            ? ''
-            : `<input type="checkbox" name="people" value="${esc(person.account_id)}" form="bulk" aria-label="Select ${esc(person.email)}"> `
-        }${personLabel(person, { isOwner: true, selfId: account.id })}</td>
+            ? '<span class="ad-pick-sp"></span>'
+            : `<input type="checkbox" class="ad-pick-box" name="people" value="${esc(person.account_id)}" form="bulk" aria-label="Select ${esc(person.email)}">`
+        }${who({ name: self ? 'You' : name || person.email, sub: self || name ? person.email : null, seed: person.email })}</span></td>
         ${owned.map((o) => cell(person, o)).join('')}
-        ${lastOpen ? `<td class="right quiet">${seen ? esc(when(seen, { now })) : '—'}</td>` : ''}
+        ${lastOpen ? `<td class="ad-quiet">${seen ? esc(when(seen, { now })) : '—'}</td>` : ''}
       </tr>`;
     })
     .join('\n');
+  const canViewAll = owned.every((o) => o.canView !== false);
   const matrix = owned.length
-    ? `<table class="matrix">
-         <thead><tr><th>Person</th>${owned
+    ? `<div class="ad-card ad-card--clip">
+         <h2 class="ad-sr">Projects you own</h2>
+         ${finder}
+         <div class="ad-scroll"><table class="ad-table ad-matrix">
+         <thead><tr><th scope="col">Person</th>${owned
            .map(
              ({ project }) =>
-               `<th><a href="/projects/${esc(project.id)}/people">${esc(projectName(project))}</a></th>`
+               `<th scope="col"><a href="/projects/${esc(project.id)}/people">${esc(projectName(project))}</a></th>`
            )
-           .join('')}${lastOpen ? '<th class="right">Last here</th>' : ''}</tr></thead>
-         <tbody>${rows || `<tr><td colspan="${owned.length + (lastOpen ? 2 : 1)}" class="quiet">Nobody here matches.</td></tr>`}</tbody>
-       </table>
+           .join('')}${lastOpen ? '<th scope="col">Last here</th>' : ''}</tr></thead>
+         <tbody>${rows || `<tr><td colspan="${owned.length + (lastOpen ? 2 : 1)}" class="ad-quiet">Nobody here matches.</td></tr>`}</tbody>
+       </table></div>
        ${
          everyone.length > 1
-           ? `<form id="bulk" class="bulk" method="post" action="/account/people">
+           ? `<div class="ad-menu-key">A bulk change is checked for everyone selected before anything changes: one person or
+                project that is not yours stops all of it. If a role change then fails part-way it is put back; if adding
+                or removing fails part-way, this page says exactly who was done. Adding someone at a role they already hold
+                on one of your projects (or a lower one) needs no new invitation; a higher role is sent as an invitation
+                they accept. Removing takes effect at once for opening a project. Someone already in a project is
+                disconnected within minutes, and at the latest ${Math.round(ACCESS_TOKEN_TTL_MS / 3_600_000)} hours later.${
+                  canViewAll
+                    ? ''
+                    : ` ${esc(CAN_VIEW_UNAVAILABLE.replace('this project', 'some of these projects'))}`
+                }</div>
+              <form id="bulk" class="island ad-bulk" method="post" action="/account/people">
                 ${csrfField(csrf)}
-                <span>For the selected people:</span>
+                <strong class="ad-bulk-n"><span class="ad-sr">For the selected people:</span></strong>
                 <select name="project" aria-label="Project">${owned
                   .map(
                     ({ project }) =>
                       `<option value="${esc(project.id)}">${esc(projectName(project))}</option>`
                   )
                   .join('')}</select>
-                ${roleSelect('role', 'member', { label: 'Role in that project', canView: owned.every((o) => o.canView !== false) })}
-                <button type="submit" name="do" value="role-bulk" class="ghost">Change role in that project</button>
-                <button type="submit" name="do" value="add-bulk" class="ghost">Add to that project</button>
-                <label><input type="checkbox" name="sure" value="yes"> I mean it: remove them from every project I own, and cancel their open invitations</label>
-                <button type="submit" name="do" value="remove-all" class="ghost">Remove from account</button>
-              </form>
-              <p class="quiet">A bulk change is checked for everyone selected before anything changes: one person or
-                project that is not yours stops all of it. If a role change then fails part-way it is put back; if adding
-                or removing fails part-way, this page says exactly who was done. Adding someone at a role they already hold
-                on one of your projects (or a lower one) needs no new invitation; a higher role is sent as an invitation
-                they accept.</p>
-              <p class="quiet">Removing takes effect at once for opening a project. Someone already in a project is
-                disconnected within minutes, and at the latest ${Math.round(ACCESS_TOKEN_TTL_MS / 3_600_000)} hours later.
-                To add someone, invite them from a project’s own People page — they join when they accept.</p>
-              ${
-                owned.some((o) => o.canView === false)
-                  ? `<p class="quiet">${esc(CAN_VIEW_UNAVAILABLE.replace('this project', 'some of these projects'))}</p>`
-                  : ''
-              }`
+                ${roleSelect('role', 'member', { label: 'Role in that project', canView: canViewAll })}
+                <button type="submit" name="do" value="role-bulk" class="btn btn--sm">Change role in that project</button>
+                <button type="submit" name="do" value="add-bulk" class="btn btn--sm">Add to that project</button>
+                <label class="ad-bulk-sure"><input type="checkbox" name="sure" value="yes"> I mean it: remove them from every project I own, and cancel their open invitations</label>
+                <button type="submit" name="do" value="remove-all" class="btn btn--sm k-btn-danger">Remove from account</button>
+              </form>`
            : ''
-}`
-    : '<p class="quiet">You own no projects yet.</p>';
+}
+       </div>`
+    : '<div class="ad-card ad-card--pad"><p class="ad-quiet" style="margin:0">You own no projects yet.</p></div>';
 
   const sharedRows = shared
     .map(({ project, ownerName, role, grants }) => {
       const access = [
-        ...(role ? [`<strong>${esc(roleWordFor(role))}</strong>`] : []),
+        ...(role ? [`<span class="ad-mrole">${esc(roleWordFor(role))}</span>`] : []),
         ...grants.map(
           (g) =>
-            `<strong>${esc(roleWordFor(g.role))}</strong> on ${esc(canvasName(g.canvas_path))} only`
+            `<span class="ad-mrole">${esc(roleWordFor(g.role))} on ${esc(canvasName(g.canvas_path))} only</span>`
         ),
-      ].join(' · ');
+      ].join(' ');
       const owner = String(ownerName ?? '').trim();
-      return `<tr><td>${esc(project.name || project.id)}${owner ? ` <span class="quiet">· ${esc(owner)}’s project</span>` : ''}</td><td>${access}</td></tr>`;
+      return `<tr><td><span class="ad-who">${`<span class="ad-who-t"><strong>${esc(project.name || project.id)}</strong>${owner ? `<span>${esc(owner)}’s project</span>` : ''}</span>`}</span></td><td>${access}</td></tr>`;
     })
     .join('\n');
-  const sharedHtml = shared.length
-    ? `<table><thead><tr><th>Project</th><th>What you can do</th></tr></thead><tbody>${sharedRows}</tbody></table>`
-    : '<p class="quiet">Nothing is shared with you yet.</p>';
+  const sharedHtml = `<div class="ad-card ad-card--clip ad-gap"><h2 class="ad-card-h">Shared with you <small>${shared.length || ''}</small></h2>${
+    shared.length
+      ? `<table class="ad-table"><thead><tr><th scope="col">Project</th><th scope="col">What you can do</th></tr></thead><tbody>${sharedRows}</tbody></table>`
+      : '<p class="ad-card-p">Nothing is shared with you yet.</p>'
+  }</div>`;
 
   const summary = owned.length
     ? [
@@ -498,22 +484,56 @@ export function accountPeoplePage({
           : []),
         ...(invites.length ? [`${plural(invites.length, 'invite', 'invites')} not opened`] : []),
       ].join(' · ')
-    : null;
+    : 'Who can open what, across every project you own.';
 
-  return page(
-    'People and invites',
-    `${notices({ error, notice })}
-     ${summary ? `<p class="plan-line">${esc(summary)}</p>` : ''}
+  // ---- Invite people: a sheet over this page (no script — its own address).
+  // An invitation belongs to ONE project, so the sheet first asks which.
+  let sheetHtml = null;
+  if (sheet === 'invite' && owned.length) {
+    const target = owned.find((o) => o.project.id === sheetProject)?.project ?? null;
+    sheetHtml = target
+      ? {
+          title: `Invite people to ${projectName(target)}`,
+          sub: 'They get an email with a link. If they have no Maude account yet, the link makes one.',
+          back: '/account/people',
+          body: `<form method="post" action="/projects/${esc(target.id)}/people">
+              ${csrfField(csrf)}
+              <span class="field"><label for="invite-email">Their email</label><input type="email" id="invite-email" name="email" required maxlength="254" autofocus></span>
+              <span class="field"><label for="invite-role">What they can do</label>${roleSelect('role', 'member', { canView: owned.find((o) => o.project.id === target.id)?.canView !== false }).replace('<select ', '<select id="invite-role" ')}</span>
+              ${sheetActions({ back: '/account/people', submit: 'Send invitation' })}
+            </form>`,
+        }
+      : {
+          title: 'Invite people',
+          sub: 'An invitation is to one project. Which one?',
+          back: '/account/people',
+          body: `<div class="ad-pick" role="list">${owned
+            .map(
+              ({ project, people }) =>
+                `<a class="ad-pick-o" role="listitem" href="/account/people?sheet=invite&amp;project=${encodeURIComponent(project.id)}"><span><strong>${esc(projectName(project))}</strong><span>${plural(people.length, 'person', 'people')}</span></span></a>`
+            )
+            .join('')}</div>
+            <div class="ad-sheet-a"><span class="ad-sp"></span><a class="btn" href="/account/people">Cancel</a></div>`,
+        };
+  }
+
+  return appShell({
+    account: owned.length ? { ...account, owns: account?.owns ?? owned.length } : account,
+    title: 'People',
+    lede: summary,
+    active: 'people',
+    wide: true,
+    actions: owned.length
+      ? `<a class="btn btn--primary" href="/account/people?sheet=invite">${icon('plus', 14)}Invite people</a>`
+      : '',
+    sheet: sheetHtml,
+    extraCss: CSS,
+    body: `${notices({ error, notice })}
      ${offersHtml}
      ${waiting}
-     <h2>Projects you own</h2>${finder}${matrix}
-     <h2>Shared with you</h2>${sharedHtml}`,
-    {
-      account,
-      active: 'people',
-      lede: 'Who can open what, across every project you own. Only a project’s owner sees addresses and invitations.',
-    }
-  );
+     ${matrix}
+     ${sharedHtml}`,
+  });
 }
 
 // ------------------------------------------------------------------- billing
@@ -1467,6 +1487,8 @@ export async function handleAccountPages(request, env, { account, ctx = null } =
           csrf,
           tab: String(url.searchParams.get('tab') ?? 'everyone'),
           q: String(url.searchParams.get('q') ?? '').slice(0, 80),
+          sheet: url.searchParams.get('sheet') === 'invite' ? 'invite' : null,
+          sheetProject: String(url.searchParams.get('project') ?? '').slice(0, 80) || null,
           now,
           ...extra,
         }),

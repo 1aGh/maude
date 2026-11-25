@@ -284,10 +284,15 @@ describe('People and invites', () => {
     const html = await (await get(env, '/account/people', ana.session)).text();
     assert.match(html, /Studio site/);
     assert.match(html, /tereza@example\.com/);
-    assert.match(html, /<strong>Can edit<\/strong>/);
-    assert.match(html, /Jonas[\s\S]*?<strong>Can comment<\/strong>[\s\S]*?on Pricing only/);
+    // A role is a chip in its cell (canvas 16, cl-people), an invitation says
+    // its role in words.
+    assert.match(html, /<span class="ad-mrole">Can edit<\/span>/);
+    assert.match(
+      html,
+      /Jonas[\s\S]*?<span class="ad-mrole">Can comment<\/span>[\s\S]*?on Pricing only/
+    );
     assert.match(html, /pending@example\.com/);
-    assert.match(html, /<strong>Can view<\/strong>/);
+    assert.match(html, /pending@example\.com[\s\S]*?Can view/);
     assert.ok(
       !/\b(observer|viewer|member)\b/.test(html.replace(/<[^>]+>/g, ' ')),
       'no wire id is shown'
@@ -297,8 +302,8 @@ describe('People and invites', () => {
   test('shared with you: the project, the owner’s NAME and your own access — no other address', async () => {
     const { env, ana } = await world();
     const html = await (await get(env, '/account/people', ana.session)).text();
-    assert.match(html, /Alligators brand <span class="quiet">· Tereza’s project/);
-    assert.match(html, /Alligators brand[\s\S]*?<strong>Can comment<\/strong>/);
+    assert.match(html, /<strong>Alligators brand<\/strong><span>Tereza’s project/);
+    assert.match(html, /Alligators brand[\s\S]*?<span class="ad-mrole">Can comment<\/span>/);
     // Tereza's address appears only where Ana is the owner (Studio site), and
     // Jonas's only as his Studio site grant — never as Alligators' people.
     const shared = html.slice(html.indexOf('Shared with you'));

@@ -16,6 +16,12 @@
 //     and CSV · Settings with who-can-join), the invite and person sheets, the
 //     member's page and the sign-in door grew it to ~29.5 KB gz, after the old
 //     app-shell CSS was removed. Raised deliberately, with ~8% headroom.
+//   - 40 KB gz — the one-to-one port of design canvas 16 (2026-11-25): the
+//     maude-v2 tokens copied under their own names (the hub cannot import the
+//     design root at runtime), the kit's glyph sprite, the canvas's page shell,
+//     cards, tables, sheets and settings grid, the light sign-in and invite
+//     pages that now share this stylesheet, and the stale-key / Retry handling
+//     in app.js — ~36.5 KB gz. Raised deliberately, with ~8% headroom.
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -23,9 +29,9 @@ import { gzipSync } from 'node:zlib';
 
 import { ADMIN_CSS, ADMIN_HTML, ADMIN_JS } from '../src/admin-assets.mjs';
 
-const BUDGET_BYTES = 32 * 1024; // 32 KB gz, hard ceiling (see the history above).
+const BUDGET_BYTES = 40 * 1024; // 40 KB gz, hard ceiling (see the history above).
 
-test('combined gzipped admin bundle is under 32 KB', () => {
+test('combined gzipped admin bundle is under 40 KB', () => {
   const combined = `${ADMIN_HTML}\n${ADMIN_CSS}\n${ADMIN_JS}`;
   const gz = gzipSync(Buffer.from(combined, 'utf8'), { level: 9 });
   assert.ok(

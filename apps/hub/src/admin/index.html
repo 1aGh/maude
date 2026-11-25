@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="ad">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -19,111 +19,107 @@
 <body>
 <a class="skip-nav" href="#main-content">Skip to main content</a>
 
-<!-- Icon sprite — thin-stroke geometric glyphs, no emoji. -->
+<!-- Icons: the design kit's glyphs (ui/v2/_kit.tsx GLYPHS), 16-unit, stroked 1.5 by `.k-ic`. No emoji. -->
 <svg width="0" height="0" class="svg-sprite" aria-hidden="true" focusable="false">
-  <symbol id="i-sparkle" viewBox="0 0 32 32"><path d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z"/></symbol>
-  <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4"/><line x1="10" y1="10" x2="13.5" y2="13.5"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 16 16"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></symbol>
-  <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1.4"/><path d="M3.5 10.5H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h6.5a1 1 0 0 1 1 1v.5"/></symbol>
-  <symbol id="i-check" viewBox="0 0 16 16"><polyline points="3 8.2 6.4 11.5 13 4.2"/></symbol>
-  <symbol id="i-x" viewBox="0 0 16 16"><line x1="4.3" y1="4.3" x2="11.7" y2="11.7"/><line x1="11.7" y1="4.3" x2="4.3" y2="11.7"/></symbol>
-  <symbol id="i-rotate" viewBox="0 0 16 16"><path d="M12.5 6.5A5 5 0 1 0 13 9"/><polyline points="12.8 2.8 12.8 6.5 9.1 6.5"/></symbol>
-  <symbol id="i-link" viewBox="0 0 16 16"><path d="M6.5 9.5 9.5 6.5"/><path d="M7 4.5 8.5 3a2.6 2.6 0 0 1 3.7 3.7L10.7 8.2"/><path d="M9 11.5 7.5 13a2.6 2.6 0 0 1-3.7-3.7L5.3 7.8"/></symbol>
-  <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 2 13 4v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/><polyline points="5.8 8 7.4 9.6 10.4 6"/></symbol>
-  <symbol id="i-trash" viewBox="0 0 16 16"><polyline points="3 4.5 13 4.5"/><path d="M5.5 4.5V3.2a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.3"/><path d="M4.6 4.5l.55 8.3a1 1 0 0 0 1 .95h3.7a1 1 0 0 0 1-.95l.55-8.3"/></symbol>
-  <symbol id="i-download" viewBox="0 0 16 16"><path d="M8 2.5v8M4.8 7.5 8 10.7l3.2-3.2M3 13.5h10"/></symbol>
+  <symbol id="i-mark" viewBox="0 0 32 32"><path class="k-mark-tile" d="M7 0H25A7 7 0 0 1 32 7V32H7A7 7 0 0 1 0 25V7A7 7 0 0 1 7 0Z"/><path class="k-mark-star" d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z"/></symbol>
+  <symbol id="i-mark-inv" viewBox="0 0 32 32"><path class="k-mark-tile--inv" d="M7 0H25A7 7 0 0 1 32 7V32H7A7 7 0 0 1 0 25V7A7 7 0 0 1 7 0Z"/><path class="k-mark-star--inv" d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.25"/><path d="M10.25 10.25l3.25 3.25"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+  <symbol id="i-link" viewBox="0 0 16 16"><path d="M7 9a2.5 2.5 0 0 0 3.5 0l2-2a2.5 2.5 0 0 0-3.5-3.5l-.75.75M9 7a2.5 2.5 0 0 0-3.5 0l-2 2A2.5 2.5 0 0 0 7 12.5l.75-.75"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 16 16"><path d="M5 6.5l3 3 3-3"/></symbol>
+  <symbol id="i-chevron-r" viewBox="0 0 16 16"><path d="M6.5 5l3 3-3 3"/></symbol>
+  <symbol id="i-more" viewBox="0 0 16 16"><path d="M3.5 8h.01M8 8h.01M12.5 8h.01" stroke-width="2.2"/></symbol>
+  <symbol id="i-people" viewBox="0 0 16 16"><circle cx="6" cy="5.5" r="2.25"/><path d="M2 13a4 4 0 0 1 8 0M10.5 3.5a2.25 2.25 0 0 1 0 4.25M12 9.25A4 4 0 0 1 14 13"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 16 16"><path d="M1.75 8.5h2.5l1.5-4 2.5 7.5 1.75-5.5 1 2h3.25"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 16 16"><path d="M2.5 4.5A1.5 1.5 0 0 1 4 3h2.5L8 4.5h4A1.5 1.5 0 0 1 13.5 6v5.5A1.5 1.5 0 0 1 12 13H4a1.5 1.5 0 0 1-1.5-1.5z"/></symbol>
+  <symbol id="i-history" viewBox="0 0 16 16"><path d="M2.75 8A5.25 5.25 0 1 0 4.3 4.3M4.3 1.8v2.5h2.5M8 5.25V8l2 1.5"/></symbol>
+  <symbol id="i-export" viewBox="0 0 16 16"><path d="M8 2.5V10M5.25 7.25L8 10l2.75-2.75"/><path d="M2.75 10.5V12a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5v-1.5"/></symbol>
+  <symbol id="i-server" viewBox="0 0 16 16"><rect x="2.5" y="2.75" width="11" height="4.25" rx="1.5"/><rect x="2.5" y="9" width="11" height="4.25" rx="1.5"/><path d="M5 4.9h.01M5 11.1h.01"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 16 16"><path d="M3 7.25a5 5 0 0 1 8.6-3L13 5.5M13 2.5v3h-3M13 8.75a5 5 0 0 1-8.6 3L3 10.5M3 13.5v-3h3"/></symbol>
+  <symbol id="i-done" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75"/><path d="M5.5 8.25l1.75 1.75 3.25-3.75"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="6.5" rx="1.25"/><path d="M1.75 12.5h12.5"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.75"/><path d="M5.5 7V5.25a2.5 2.5 0 0 1 5 0V7"/></symbol>
+  <symbol id="i-close" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.1a1 1 0 0 0 1 .9h3.8a1 1 0 0 0 1-.9l.6-8.1"/></symbol>
 </svg>
 
 <div class="maude hub-frame">
   <main id="main-content">
 
     <!-- ── SIGN IN ─────────────────────────────────────────────────────────
-         The ordinary way in is the team server's own sign-in: an account whose
-         role is Admin opens straight to Overview. The admin key is still a way
-         in, under Advanced (DDR-053) — it is the operator's credential. -->
-    <section id="onboard" class="pre-center" hidden>
-      <div class="signin">
-        <div class="signin-hero">
-          <span class="mark mark--lg" aria-hidden="true"><svg class="mark-ic" viewBox="0 0 32 32"><use href="#i-sparkle"/></svg></span>
-          <span class="signin-hero-tx">
-            <span class="signin-hero-name" data-hub-name>Team server</span>
-            <span class="signin-hero-sub">Team server</span>
-          </span>
-        </div>
-        <h2>Sign in</h2>
-        <p class="lede" id="onboard-lede">Sign in with your account on this team server. Admins manage people and settings here; everyone else sees their own access.</p>
-        <div class="actions" id="onboard-signin">
-          <a id="signin-link" class="btn btn--primary btn--lg" href="studio/signin?return=admin" data-testid="admin-signin">Sign in</a>
-        </div>
-        <details class="ad-adv" data-testid="admin-key-advanced">
-          <summary>Advanced <small>— use the admin key</small></summary>
-          <form id="onboard-form" class="signin-card">
-            <div class="field">
-              <label class="field-label" for="onboard-secret">Admin key (HUB_SECRET)</label>
-              <input id="onboard-secret" class="input input--mono input--pw" type="password" name="secret" autocomplete="off" required data-testid="admin-key-input">
-            </div>
-            <div class="actions">
-              <button type="submit" class="btn" data-testid="admin-key-submit">Use the admin key</button>
-            </div>
-            <div id="onboard-error" class="callout callout--error" role="alert" hidden></div>
-            <p class="hint">For whoever runs the server. Kept in this browser only; "Forget the admin key" removes it.</p>
-          </form>
-        </details>
+         The canvas's one-column web page (`ad-web`, ts-invitee). The ordinary
+         way in is the team server's own sign-in: an Admin account opens straight
+         to Overview. The admin key is still a way in, under Advanced (DDR-053). -->
+    <section id="onboard" class="ad-web" hidden>
+      <span class="ad-web-who"><svg class="k-mark k-mark--48" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-mark"/></svg></span>
+      <h1 class="ad-web-t" data-hub-name>Team server</h1>
+      <p class="ad-web-s" id="onboard-lede">Sign in with your account on this team server. Admins manage people and settings here; everyone else sees their own access.</p>
+      <div id="onboard-note" class="ad-note" role="status" data-testid="key-removed-note" hidden></div>
+      <div id="onboard-signin">
+        <a id="signin-link" class="btn btn--primary btn--lg" href="studio/signin?return=admin" data-testid="admin-signin">Sign in</a>
       </div>
+      <details data-testid="admin-key-advanced">
+        <summary class="k-adv-btn"><svg class="k-ic k-ic--12" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-chevron"/></svg>Advanced<span class="ad-sub ad-sub--flat">— use the admin key</span></summary>
+        <form id="onboard-form" class="ad-form">
+          <label class="field"><span class="field-label">Admin key (HUB_SECRET)</span>
+            <input id="onboard-secret" class="input input--mono" type="password" name="secret" autocomplete="off" required data-testid="admin-key-input"></label>
+          <button type="submit" class="btn" data-testid="admin-key-submit">Use the admin key</button>
+          <div id="onboard-error" class="ad-err" role="alert" hidden></div>
+          <p class="ad-web-fine">For whoever runs the server. Kept in this browser only; "Forget the admin key" removes it.</p>
+        </form>
+      </details>
     </section>
 
     <!-- ── FIRST-RUN CLAIM ──────────────────────────────────────────────── -->
-    <section id="bootstrap" class="pre-center" hidden>
-      <div class="signin">
-        <div class="signin-hero">
-          <span class="mark mark--lg" aria-hidden="true"><svg class="mark-ic" viewBox="0 0 32 32"><use href="#i-sparkle"/></svg></span>
-          <span class="signin-hero-tx">
-            <span class="signin-hero-name">Team server</span>
-            <span class="signin-hero-sub">first run</span>
-          </span>
-        </div>
-        <p class="eyebrow">ONE-TIME LINK · EXPIRES 24H</p>
-        <h2>Claim this team server</h2>
-        <p class="lede">It has no admin yet. Confirm to claim it — the link is used up and can't be reused. <b>Check that the fingerprint matches your server logs</b> before you trust it.</p>
-        <div class="fp" aria-label="Team server identity">
-          <p id="bootstrap-identity" class="fp-identity">Checking…</p>
-        </div>
-        <form id="bootstrap-form">
-          <div class="actions">
-            <button type="submit" class="btn btn--primary btn--lg" data-testid="admin-claim"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg> Claim</button>
-            <span class="tag tag--warn">expires 24h</span>
-          </div>
-        </form>
-        <p class="hint">Single use. Afterwards <code>/admin</code> needs an admin sign-in or the admin key.</p>
-        <div id="bootstrap-error" class="callout callout--error" role="alert" hidden></div>
-      </div>
+    <section id="bootstrap" class="ad-web" hidden>
+      <span class="ad-web-who"><svg class="k-mark k-mark--48" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-mark"/></svg></span>
+      <h1 class="ad-web-t">Claim this team server</h1>
+      <p class="ad-web-s">It has no admin yet. Confirm to claim it — the one-time link is used up and can't be reused. Check that the fingerprint matches your server logs before you trust it.</p>
+      <div id="bootstrap-identity" class="fp-identity" aria-label="Team server identity">Checking…</div>
+      <form id="bootstrap-form">
+        <button type="submit" class="btn btn--primary btn--lg" data-testid="admin-claim">Claim</button>
+      </form>
+      <p class="ad-web-fine">Single use, expires in 24 hours. Afterwards <code>/admin</code> needs an admin sign-in or the admin key.</p>
+      <div id="bootstrap-error" class="ad-err" role="alert" hidden></div>
     </section>
 
-    <!-- ── A MEMBER'S PAGE ──────────────────────────────────────────────────
-         Same address, a member's page (artboard un-member-ts): their own
-         access, who runs the server, their own sign-ins. No admin data — the
-         API answers a member with nothing else. -->
+    <!-- ── A MEMBER'S PAGE (artboard un-member-ts) ─────────────────────────
+         Same address, a member's page: their own access, who runs the server,
+         their own sign-ins. No admin data — the API answers a member with
+         nothing else. -->
     <section id="member" hidden data-testid="member-view">
-      <nav class="ad-nav" aria-label="Team server">
-        <span class="ad-nav-id"><span class="mark" aria-hidden="true"><svg class="mark-ic" viewBox="0 0 32 32"><use href="#i-sparkle"/></svg></span><span data-hub-name>Team server</span><small>Team server</small></span>
-        <span class="ad-sp"></span>
-        <span class="ad-me" id="member-me" data-testid="member-me"></span>
-        <button type="button" class="btn btn--ghost btn--sm" data-signout data-testid="member-signout">Sign out</button>
+      <nav class="island ad-nav" aria-label="Team server">
+        <span class="ad-nav-id"><svg class="k-mark k-mark--24" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-mark"/></svg><span data-hub-name>Team server</span><small>Team server</small></span>
+        <span class="ad-nav-tabs"><span class="ad-nav-tab" aria-current="page">Overview</span></span>
+        <span class="ad-nav-sp"></span>
+        <span class="ad-menu-wrap">
+          <button type="button" class="ad-nav-me" data-menu="member-menu" aria-haspopup="menu" aria-expanded="false"><span class="k-av" id="member-av" aria-hidden="true"></span><span id="member-me" data-testid="member-me"></span></button>
+          <span class="ad-menu" id="member-menu" role="menu" hidden>
+            <a class="ad-menu-i" role="menuitem" href="./">Open the studio</a>
+            <button type="button" class="ad-menu-i" role="menuitem" data-signout data-testid="member-signout">Sign out</button>
+          </span>
+        </span>
       </nav>
       <div class="ad-main">
         <div class="ad-head">
           <div><h1 class="ad-h1" id="member-hello">Hi.</h1><p class="ad-sub" id="member-sub"></p></div>
-          <div class="actions"><a class="btn btn--primary" href="./" data-testid="member-open">Open the studio</a></div>
+          <div class="ad-head-a"><a class="btn btn--primary" id="member-studio" href="./" data-testid="member-open"><svg class="k-mark k-mark--16" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-mark-inv"/></svg>Open the studio</a></div>
         </div>
-        <div class="ad-set">
-          <div class="ad-card"><h2 class="ad-card-h">Your access</h2><div id="member-access" data-testid="member-access"></div></div>
-          <div class="ad-card"><h2 class="ad-card-h">Signed in on</h2><div id="member-sessions" data-testid="member-sessions"></div></div>
-          <div class="ad-card"><h2 class="ad-card-h">Who runs this team server</h2><div id="member-admins" data-testid="member-admins"></div></div>
-          <div class="ad-card"><h2 class="ad-card-h">Bring a colleague</h2><div id="member-join"></div></div>
-          <div class="ad-card ad-wide" data-link-card hidden>
-            <h2 class="ad-card-h">Your sign-in</h2>
-            <p class="ad-quiet" data-link-text></p>
-            <form method="post" action="auth/oidc/start"><input type="hidden" name="link" value="1"><button type="submit" class="btn" data-link-btn data-testid="link-signin">Link my sign-in</button></form>
+        <div class="ad-cols ad-cols--2-1">
+          <div class="ad-card">
+            <h2 class="ad-card-h">Your access</h2>
+            <div class="ad-feed" id="member-access" data-testid="member-access"></div>
+          </div>
+          <div class="ad-stack">
+            <div class="ad-card"><h2 class="ad-card-h">Who runs this team server</h2><div id="member-admins" data-testid="member-admins"></div></div>
+            <div class="ad-card"><h2 class="ad-card-h">Signed in on</h2><div id="member-sessions" data-testid="member-sessions"></div></div>
+            <div class="ad-card"><h2 class="ad-card-h">Bring a colleague</h2><div id="member-join"></div></div>
+            <div class="ad-card" data-link-card hidden>
+              <h2 class="ad-card-h">Your sign-in</h2>
+              <div class="ad-need ad-need--flat"><svg class="k-ic k-ic--16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-lock"/></svg><span class="ad-need-t"><strong>Link my sign-in</strong><span data-link-text></span></span>
+                <form class="ad-need-a" method="post" action="auth/oidc/start"><input type="hidden" name="link" value="1"><button type="submit" class="btn btn--sm" data-link-btn data-testid="link-signin">Link my sign-in</button></form></div>
+            </div>
           </div>
         </div>
       </div>
@@ -131,80 +127,87 @@
 
     <!-- ── THE ADMIN ────────────────────────────────────────────────────── -->
     <section id="dash" hidden>
-      <nav class="ad-nav" aria-label="Team server admin" data-testid="admin-nav">
-        <span class="ad-nav-id">
-          <span class="mark" aria-hidden="true"><svg class="mark-ic" viewBox="0 0 32 32"><use href="#i-sparkle"/></svg></span>
-          <span class="nav-brand-name" data-hub-name>Team server</span><small>Team server</small><span class="nav-brand-ver" id="nav-hub-version"></span>
-        </span>
+      <!-- ONE floating island, one row: mark · name · Team server · tabs · search · avatar. -->
+      <nav class="island ad-nav" aria-label="Team server admin" data-testid="admin-nav">
+        <span class="ad-nav-id"><svg class="k-mark k-mark--24" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-mark"/></svg><span class="nav-brand-name" data-hub-name>Team server</span><small>Team server</small><span class="nav-brand-ver" id="nav-hub-version"></span></span>
         <span class="ad-nav-tabs" id="nav-list">
-          <button type="button" class="nav-item" data-view="overview" aria-current="page" data-testid="nav-overview">Overview</button>
-          <button type="button" class="nav-item" data-view="people" data-testid="nav-people">People<span class="ad-count ad-count--hot" id="nav-count-people"></span></button>
-          <button type="button" class="nav-item" data-view="projects" data-testid="nav-projects">Projects</button>
-          <button type="button" class="nav-item" data-view="activity" data-testid="nav-activity">Activity</button>
-          <button type="button" class="nav-item" data-view="settings" data-testid="nav-settings">Settings</button>
+          <button type="button" class="ad-nav-tab nav-item" data-view="overview" aria-current="page" data-testid="nav-overview">Overview</button>
+          <button type="button" class="ad-nav-tab nav-item" data-view="people" data-testid="nav-people">People<span class="ad-count" id="nav-count-people"></span></button>
+          <button type="button" class="ad-nav-tab nav-item" data-view="projects" data-testid="nav-projects">Projects</button>
+          <button type="button" class="ad-nav-tab nav-item" data-view="activity" data-testid="nav-activity">Activity</button>
+          <button type="button" class="ad-nav-tab nav-item" data-view="settings" data-testid="nav-settings">Settings</button>
         </span>
-        <span class="ad-sp"></span>
-        <a id="nav-studio" class="btn btn--sm" href="./">Open the studio</a>
-        <span class="ad-me" id="auth-state" hidden>
-          <span id="me-chip" data-testid="admin-me"></span>
-          <button type="button" class="btn btn--ghost btn--sm" data-signout id="signout" data-testid="admin-signout" hidden>Sign out</button>
-          <button id="forget" type="button" class="btn btn--ghost btn--sm" data-testid="admin-forget-key" hidden>Forget the admin key</button>
+        <span class="ad-nav-sp"></span>
+        <label class="ad-nav-search"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Search" aria-label="Search people and activity" data-testid="nav-search"><span class="kbd" aria-hidden="true">⌘K</span></label>
+        <span class="ad-menu-wrap" id="auth-state">
+          <button type="button" class="ad-nav-me" data-menu="me-menu" aria-haspopup="menu" aria-expanded="false" data-testid="admin-me-button"><span class="k-av" id="me-av" aria-hidden="true"></span><span id="me-chip" data-testid="admin-me"></span></button>
+          <span class="ad-menu" id="me-menu" role="menu" hidden data-testid="admin-me-menu">
+            <a class="ad-menu-i" role="menuitem" id="nav-studio" href="./">Open the studio</a>
+            <form method="post" action="auth/oidc/start" data-link-menu hidden><input type="hidden" name="link" value="1"><button type="submit" class="ad-menu-i" role="menuitem" data-testid="menu-link-signin">Link my sign-in</button></form>
+            <button type="button" class="ad-menu-i" role="menuitem" data-signout id="signout" data-testid="admin-signout" hidden>Sign out</button>
+            <button type="button" class="ad-menu-i" role="menuitem" id="forget" data-testid="admin-forget-key" hidden>Forget the admin key</button>
+            <span class="ad-menu-note" id="me-menu-note"></span>
+          </span>
         </span>
       </nav>
 
       <div class="ad-main">
+        <!-- One quiet line: something changed (a dead key was removed), or a page could not be loaded — with Retry. -->
+        <div id="page-note" class="ad-note" role="status" data-testid="page-note" hidden><span id="page-note-text"></span><button type="button" class="btn btn--sm" id="page-note-retry" data-testid="page-retry" hidden>Retry</button><button type="button" class="btn btn--ghost btn--sm" id="page-note-close" aria-label="Dismiss"><svg class="k-ic k-ic--12" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-close"/></svg></button></div>
 
-        <!-- OVERVIEW -->
+        <!-- OVERVIEW (ts-overview) -->
         <div class="view" id="view-overview" data-testid="view-overview">
           <div class="ad-head">
             <div><h1 class="ad-h1" id="ov-hello">Overview</h1><p class="ad-sub" id="ov-sub"></p></div>
-            <div class="actions">
-              <a id="topbar-studio" class="btn" href="./">Open the studio</a>
-              <button type="button" class="btn btn--primary" data-invite data-testid="overview-invite"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg> Invite people</button>
+            <div class="ad-head-a">
+              <button type="button" class="btn" id="ov-copy-link" data-invite-hide data-testid="overview-copy-link"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-link"/></svg>Copy invite link</button>
+              <button type="button" class="btn btn--primary" data-invite data-testid="overview-invite"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-plus"/></svg>Invite people</button>
             </div>
           </div>
-          <div id="s-backup-alert" class="callout callout--error" role="alert" hidden></div>
-          <section class="ad-hero" aria-labelledby="ov-needs-h" data-testid="overview-needs">
+          <div id="s-backup-alert" class="ad-note ad-note--bad" role="alert" hidden></div>
+          <section class="ad-hero" id="ov-hero" aria-labelledby="ov-needs-h" data-testid="overview-needs">
             <h2 id="ov-needs-h" class="ad-hero-h"><span class="ad-hero-n" id="ov-needs-n">0</span><span id="ov-needs-t">things need you</span></h2>
-            <div id="ov-needs-rows"></div>
+            <div class="ad-hero-rows" id="ov-needs-rows"></div>
           </section>
           <div class="ad-stats">
-            <button type="button" class="ad-card ad-stat" data-nav="people"><span class="ad-stat-l">People</span><span class="ad-stat-v" id="stat-people" data-testid="stat-people">—</span><span class="ad-stat-f" id="stat-people-f"></span></button>
-            <button type="button" class="ad-card ad-stat" data-nav="people"><span class="ad-stat-l">Here now</span><span class="ad-stat-v" id="stat-here" data-testid="stat-here">—</span><span class="ad-stat-f" id="stat-here-f"></span></button>
-            <button type="button" class="ad-card ad-stat" data-nav="projects"><span class="ad-stat-l">Canvases</span><span class="ad-stat-v" id="stat-canvases" data-testid="stat-canvases">—</span><span class="ad-stat-f">saved on this team server</span></button>
-            <button type="button" class="ad-card ad-stat" data-nav="projects"><span class="ad-stat-l">Changes this week</span><span class="ad-stat-v" id="stat-changes" data-testid="stat-changes">—</span><span id="stat-changes-spark" data-testid="stat-changes-spark" aria-hidden="true"></span><span class="ad-stat-f" id="stat-changes-f">saves to canvases</span></button>
+            <button type="button" class="ad-card ad-stat" data-nav="people"><span class="ad-stat-go"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-chevron-r"/></svg></span><span class="ad-stat-l"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-people"/></svg>People</span><span class="ad-stat-v" id="stat-people" data-testid="stat-people">—</span><span class="ad-stat-f"><span id="stat-people-f"></span></span></button>
+            <button type="button" class="ad-card ad-stat" data-nav="people"><span class="ad-stat-go"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-chevron-r"/></svg></span><span class="ad-stat-l"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-pulse"/></svg>Here now</span><span class="ad-stat-v" id="stat-here" data-testid="stat-here">—</span><span class="ad-stat-f"><span id="stat-here-f"></span></span></button>
+            <button type="button" class="ad-card ad-stat" data-nav="projects"><span class="ad-stat-go"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-chevron-r"/></svg></span><span class="ad-stat-l"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-folder"/></svg>Projects</span><span class="ad-stat-v"><span id="stat-projects">1</span><small><span id="stat-canvases" data-testid="stat-canvases">—</span> <span id="stat-canvases-u">canvases</span></small></span><span class="ad-stat-f"><span id="stat-canvases-f">saved on this team server</span></span></button>
+            <button type="button" class="ad-card ad-stat" data-nav="activity"><span class="ad-stat-go"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-chevron-r"/></svg></span><span class="ad-stat-l"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-history"/></svg>Changes this week</span><span class="ad-stat-v" id="stat-changes" data-testid="stat-changes">—</span><span id="stat-changes-spark" data-testid="stat-changes-spark" aria-hidden="true"></span><span class="ad-stat-f"><span id="stat-changes-f"></span></span></button>
           </div>
-          <div class="ad-cols">
-            <div class="ad-card">
-              <h2 class="ad-card-h">Health <button type="button" class="ad-link" data-nav="settings">Details in Settings</button></h2>
-              <div id="ov-health" data-testid="overview-health"></div>
+          <div class="ad-cols ad-cols--2-1">
+            <div class="ad-stack">
+              <div class="ad-card">
+                <h2 class="ad-card-h">Health <button type="button" class="ad-link" data-nav="settings">Details in Settings</button></h2>
+                <div class="ad-health" id="ov-health" data-testid="overview-health"></div>
+              </div>
             </div>
             <div class="ad-card">
               <h2 class="ad-card-h">What happened <button type="button" class="ad-link" data-nav="activity">All activity</button></h2>
-              <div id="ov-activity-feed" data-testid="overview-activity"></div>
+              <div class="ad-feed" id="ov-activity-feed" data-testid="overview-activity"></div>
             </div>
           </div>
         </div>
 
-        <!-- PEOPLE — one list; the status says where each person is -->
+        <!-- PEOPLE (ts-people) — one list; the status says where each person is -->
         <div class="view" id="view-people" hidden data-testid="view-people">
           <div class="ad-head">
             <div><h1 class="ad-h1">People</h1><p class="ad-sub" id="people-sub"></p></div>
-            <div class="actions"><button type="button" class="btn btn--primary" data-invite data-testid="people-invite"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg> Invite people</button></div>
+            <div class="ad-head-a"><button type="button" class="btn btn--primary" data-invite data-testid="people-invite"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-plus"/></svg>Invite people</button></div>
           </div>
-          <div id="people-platform-note" class="callout callout--info" hidden></div>
-          <div class="ad-card ad-card--flush" id="card-oidc-pending">
+          <div id="people-platform-note" class="ad-note" hidden></div>
+          <div class="ad-card ad-card--clip ad-people-card" id="card-oidc-pending">
             <div class="ad-tabs" id="people-tabs">
               <button type="button" class="ad-tab" data-filter="all" aria-pressed="true" data-testid="people-tab-all">Everyone <span class="ad-count" id="pc-all"></span></button>
               <button type="button" class="ad-tab" data-filter="asks" aria-pressed="false" data-testid="people-tab-asks">Asks to join <span class="ad-count ad-count--hot" id="pc-asks"></span></button>
               <button type="button" class="ad-tab" data-filter="invited" aria-pressed="false" data-testid="people-tab-invited">Invited <span class="ad-count" id="pc-invited"></span></button>
               <button type="button" class="ad-tab" data-filter="off" aria-pressed="false" data-testid="people-tab-off">Turned off <span class="ad-count" id="pc-off"></span></button>
-              <span class="ad-sp"></span>
-              <input id="people-find" class="input input--sm ad-find" type="search" placeholder="Find someone" aria-label="Find someone" data-testid="people-find">
+              <span class="ad-tabs-sp"></span>
+              <label class="ad-filter"><svg class="k-ic k-ic--13" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-search"/></svg><input id="people-find" type="search" placeholder="Find someone" aria-label="Find someone" data-testid="people-find"></label>
             </div>
             <div class="ad-scroll">
               <table class="ad-table" aria-label="People">
-                <thead><tr><th scope="col">Person</th><th scope="col">Can</th><th scope="col">Status</th><th scope="col">Last here</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+                <thead><tr><th scope="col">Person</th><th scope="col">Can</th><th scope="col">Status</th><th scope="col">Last here</th><th scope="col"><span class="ad-sr">Action</span></th></tr></thead>
                 <tbody id="people-rows" data-testid="people-rows"><tr class="empty"><td colspan="5">Nobody yet.</td></tr></tbody>
               </table>
             </div>
@@ -214,7 +217,7 @@
         <!-- PROJECTS — what is saved here -->
         <div class="view" id="view-projects" hidden data-testid="view-projects">
           <div class="ad-head"><div><h1 class="ad-h1">Projects</h1><p class="ad-sub" id="canvases-context">Every canvas saved on this team server.</p></div></div>
-          <div class="ad-card ad-card--flush">
+          <div class="ad-card ad-card--clip">
             <div class="ad-scroll">
               <table class="ad-table" aria-label="Canvases">
                 <thead><tr><th scope="col">Canvas</th><th scope="col">Size</th><th scope="col">Open now</th></tr></thead>
@@ -224,21 +227,21 @@
           </div>
         </div>
 
-        <!-- ACTIVITY — kept, searchable -->
+        <!-- ACTIVITY (ts-activity) — kept, searchable -->
         <div class="view" id="view-activity" hidden data-testid="view-activity">
           <div class="ad-head">
             <div><h1 class="ad-h1">Activity</h1><p class="ad-sub" id="activity-sub">Kept for 90 days.</p></div>
-            <div class="actions"><button type="button" class="btn" id="activity-csv" data-testid="activity-csv"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg> Download as CSV</button></div>
+            <div class="ad-head-a"><button type="button" class="btn" id="activity-csv" data-testid="activity-csv"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-export"/></svg>Download as CSV</button></div>
           </div>
-          <div class="ad-card ad-card--flush">
+          <div class="ad-card ad-card--clip">
             <div class="ad-tabs" id="activity-tabs">
               <button type="button" class="ad-tab" data-kind="" aria-pressed="true" data-testid="activity-tab-all">Everything</button>
               <button type="button" class="ad-tab" data-kind="people" aria-pressed="false" data-testid="activity-tab-people">People and access</button>
               <button type="button" class="ad-tab" data-kind="signin" aria-pressed="false" data-testid="activity-tab-signin">Sign-ins</button>
               <button type="button" class="ad-tab" data-kind="settings" aria-pressed="false" data-testid="activity-tab-settings">Settings</button>
               <button type="button" class="ad-tab" data-kind="server" aria-pressed="false" data-testid="activity-tab-server">Server</button>
-              <span class="ad-sp"></span>
-              <input id="activity-find" class="input input--sm ad-find" type="search" placeholder="Person or word" aria-label="Search activity" data-testid="activity-find">
+              <span class="ad-tabs-sp"></span>
+              <label class="ad-filter"><svg class="k-ic k-ic--13" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-search"/></svg><input id="activity-find" type="search" placeholder="Person or word" aria-label="Search activity" data-testid="activity-find"></label>
             </div>
             <div class="ad-scroll">
               <table class="ad-table" aria-label="Activity">
@@ -246,89 +249,88 @@
                 <tbody id="activity-rows" data-testid="activity-rows"><tr class="empty"><td colspan="4">Nothing yet.</td></tr></tbody>
               </table>
             </div>
-            <div class="ad-tabs"><button type="button" class="btn btn--ghost btn--sm" id="activity-more" data-testid="activity-more" hidden>Show older</button></div>
+            <div class="ad-tabs" id="activity-more-row" hidden><button type="button" class="btn btn--ghost btn--sm" id="activity-more" data-testid="activity-more">Show older</button></div>
           </div>
         </div>
 
-        <!-- SETTINGS — who can join, the name; Advanced folds the rest -->
+        <!-- SETTINGS (ts-settings) — who can join, backups, Git, this server; Advanced folds the rest -->
         <div class="view" id="view-settings" hidden data-testid="view-settings">
           <div class="ad-head"><div><h1 class="ad-h1">Settings</h1><p class="ad-sub" id="set-sub"></p></div></div>
           <div class="ad-set">
             <form class="ad-card" id="join-form" data-testid="join-form">
-              <h2 class="ad-card-h">Who can join <span class="ad-st ad-st--ok" id="join-provider"></span></h2>
-              <div class="ad-pick" role="radiogroup" aria-label="Who can join">
-                <label><input type="radio" name="whoCanJoin" value="invite-only" data-testid="join-invite-only"><span><b>Only people you invite</b><span>Anyone else who signs in is turned away.</span></span></label>
-                <label><input type="radio" name="whoCanJoin" value="ask" data-testid="join-ask"><span><b>Colleagues ask, you let them in</b><span id="join-ask-sub">Anyone who signs in can ask; you see it under "needs you".</span></span></label>
-                <label><input type="radio" name="whoCanJoin" value="domain" data-testid="join-domain"><span><b>Colleagues come straight in</b><span id="join-domain-sub">Anyone from your sign-in's addresses joins as Can edit.</span></span></label>
-              </div>
-              <p class="field-help" id="join-help">An invitation always lets its person in, whichever you choose. A team server has two roles, Admin and Can edit — there is no view-only account, so "straight in" means Can edit.</p>
-              <div id="join-error" class="callout callout--error" role="alert" hidden></div>
-              <span class="field-help" id="join-status" aria-live="polite"></span>
+              <span class="ad-set-h"><svg class="k-ic k-ic--16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-people"/></svg>Who can join<span class="k-sw" id="join-provider"><i></i><span id="join-provider-t"></span></span></span>
+              <span class="ad-pick" role="radiogroup" aria-label="Who can join">
+                <label class="ad-pick-o"><input type="radio" name="whoCanJoin" value="invite-only" data-testid="join-invite-only"><span class="ad-radio"></span><span><strong>Only people you invite</strong><span>Anyone else who signs in is turned away</span></span></label>
+                <label class="ad-pick-o"><input type="radio" name="whoCanJoin" value="ask" data-testid="join-ask"><span class="ad-radio"></span><span><strong>Colleagues ask, you let them in</strong><span id="join-ask-sub">Anyone who signs in can ask; you see it under Needs you</span></span></label>
+                <label class="ad-pick-o"><input type="radio" name="whoCanJoin" value="domain" data-testid="join-domain"><span class="ad-radio"></span><span><strong>Colleagues come straight in</strong><span id="join-domain-sub">Anyone who signs in joins as Can edit</span></span></label>
+              </span>
+              <span class="field-hint" id="join-status" aria-live="polite"></span>
+              <div id="join-error" class="ad-err" role="alert" hidden></div>
             </form>
+
+            <div class="ad-card" id="backups-card" data-testid="backups-card">
+              <span class="ad-set-h"><svg class="k-ic k-ic--16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-server"/></svg>Backups<span class="k-sw" id="bk-state"><i></i><span id="bk-state-t">—</span></span></span>
+              <dl class="ad-kv">
+                <dt>Kept</dt><dd id="bk-kept">—</dd>
+                <dt>Where</dt><dd id="bk-where">—</dd>
+                <dt>How often</dt><dd id="bk-every">—</dd>
+              </dl>
+              <span class="ad-head-a"><button type="button" class="btn btn--sm" id="bk-now" data-backup="1" data-testid="settings-backup-now" hidden>Back up now</button></span>
+            </div>
+
+            <div class="ad-card" id="git-card">
+              <span class="ad-set-h"><svg class="k-ic k-ic--16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-sync"/></svg>Saving to Git<span class="k-sw" id="git-state"><i></i><span id="git-state-t">—</span></span></span>
+              <dl class="ad-kv">
+                <dt>Last save</dt><dd id="git-last">—</dd>
+                <dt>Canvases</dt><dd id="git-canvases">—</dd>
+              </dl>
+            </div>
 
             <form class="ad-card" id="settings-form" data-testid="settings-form">
-              <h2 class="ad-card-h">Name</h2>
-              <div class="field"><label class="field-label" for="set-name">Team server name</label><input id="set-name" class="input" type="text" maxlength="64" pattern="[A-Za-z0-9 _\-.]+" data-testid="set-name"></div>
-              <div class="field"><label class="field-label" for="set-desc">Description</label><input id="set-desc" class="input" type="text" maxlength="120"></div>
-              <div class="actions"><button type="submit" class="btn btn--primary btn--sm" data-testid="settings-save">Save</button><span class="field-help" id="settings-status" aria-live="polite"></span></div>
-              <div id="settings-error" class="callout callout--error" role="alert" hidden></div>
+              <span class="ad-set-h"><svg class="k-ic k-ic--16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-done"/></svg>This team server<span class="k-sw"><i></i><span id="set-running">Running</span></span></span>
+              <dl class="ad-kv">
+                <dt><label for="set-name">Name</label></dt><dd><input id="set-name" class="input" type="text" maxlength="64" pattern="[A-Za-z0-9 _\-.]+" data-testid="set-name"></dd>
+                <dt><label for="set-desc">Description</label></dt><dd><input id="set-desc" class="input" type="text" maxlength="120"></dd>
+                <dt>Version</dt><dd id="s-version">—</dd>
+              </dl>
+              <span class="ad-head-a"><button type="submit" class="btn btn--sm" data-testid="settings-save">Save</button><span class="field-hint" id="settings-status" aria-live="polite"></span></span>
+              <div id="settings-error" class="ad-err" role="alert" hidden></div>
             </form>
 
-            <div class="ad-card ad-wide" data-link-card hidden>
-              <h2 class="ad-card-h">Your sign-in</h2>
-              <p class="ad-quiet" data-link-text></p>
-              <form method="post" action="auth/oidc/start"><input type="hidden" name="link" value="1"><button type="submit" class="btn" data-link-btn data-testid="link-signin">Link my sign-in</button></form>
-            </div>
-
-            <div class="ad-card ad-wide">
-              <details class="ad-adv" id="advanced" data-testid="settings-advanced">
-                <summary>Advanced <small>— for scripts and whoever runs the server</small></summary>
-                <!-- A signed-in admin without the key: these are key-only (DDR-053). -->
-                <form id="adv-key-form" class="stack stack--3" hidden>
-                  <p class="ad-quiet">Tokens for scripts, connected sessions and the admin key itself need the admin key.</p>
-                  <div class="actions"><input id="adv-key" class="input input--mono input--pw ad-find" type="password" autocomplete="off" aria-label="Admin key" required data-testid="adv-key-input"><button type="submit" class="btn btn--sm" data-testid="adv-key-submit">Use the admin key</button></div>
-                  <div id="adv-key-error" class="callout callout--error" role="alert" hidden></div>
-                </form>
-                <div class="ad-adv-b" id="adv-body" hidden>
-                  <div class="stack stack--3" id="view-tokens">
-                    <h4>Tokens for scripts and CI</h4>
-                    <div class="ad-scroll"><table class="ad-table" aria-label="Tokens">
-                      <thead><tr><th scope="col">Label</th><th scope="col">Reach</th><th scope="col">Last used</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-                      <tbody id="tokens-rows" data-testid="tokens-rows"><tr class="empty"><td colspan="4">No tokens.</td></tr></tbody>
-                    </table></div>
-                    <form id="invite-form" class="stack stack--3">
-                      <div class="field"><label class="field-label" for="invite-label">Peer token — for a script or a teammate with a git clone</label><input id="invite-label" class="input input--mono" type="text" placeholder="ci-render" required maxlength="64" pattern="[A-Za-z0-9 _\-.]+"></div>
-                      <label class="check" for="invite-wildcard"><input id="invite-wildcard" class="switch" type="checkbox" checked><span class="check-tx"><b>Every canvas</b><span>Needed for sync. Off: the token only reaches documents named after its label.</span></span></label>
-                      <div class="actions"><button type="submit" class="btn btn--sm" data-testid="token-new"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg> New token</button></div>
-                      <div id="invite-error" class="callout callout--error" role="alert" hidden></div>
-                    </form>
-                  </div>
-                  <div class="stack stack--3" id="view-peers">
-                    <h4>Connected right now</h4>
-                    <div class="ad-scroll"><table class="ad-table" aria-label="Connected sessions">
-                      <thead><tr><th scope="col">Canvas</th><th scope="col">Token</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-                      <tbody id="peers-rows" data-testid="peers-rows"><tr class="empty"><td colspan="3">Nobody is connected.</td></tr></tbody>
-                    </table></div>
-                    <h4>This server</h4>
-                    <dl class="ad-kv" id="status-dl">
-                      <dt>Address</dt><dd id="set-url">—</dd>
-                      <dt>Transport</dt><dd id="set-transport">—</dd>
-                      <dt>Version</dt><dd id="s-version">—</dd>
-                      <dt>Running for</dt><dd id="s-uptime">—</dd>
-                      <dt>Port</dt><dd id="s-port">—</dd>
-                      <dt>Data folder</dt><dd id="s-data">—</dd>
-                      <dt>Tokens</dt><dd id="s-tokens">—</dd>
-                      <dt>Connections</dt><dd id="s-peers">—</dd>
-                      <dt>Backups</dt><dd id="s-backups">—</dd>
-                      <dt>Backup place</dt><dd id="s-backup-prefix">—</dd>
-                    </dl>
-                    <h4>Admin key</h4>
-                    <div class="ad-row"><span>Change the admin key — signs out every browser that uses it</span><button id="rotate-admin" type="button" class="btn btn--danger btn--sm" data-testid="admin-key-rotate"><svg class="ic" aria-hidden="true"><use href="#i-rotate"/></svg> Change key</button></div>
-                    <div id="danger-error" class="callout callout--error" role="alert" hidden></div>
-                  </div>
+            <details class="ad-card ad-adv" id="advanced" data-testid="settings-advanced">
+              <summary class="k-adv-btn"><svg class="k-ic k-ic--12" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-chevron"/></svg>Advanced<span class="ad-sub ad-sub--flat">— for scripts and whoever runs the server</span></summary>
+              <div class="ad-adv-b">
+                <div id="view-tokens">
+                  <h4>Tokens for scripts and CI</h4>
+                  <div id="tokens-rows" data-testid="tokens-rows"></div>
+                  <form id="invite-form" class="ad-form" hidden>
+                    <label class="field"><span class="field-label">Peer token — for a script or a teammate with a git clone</span>
+                      <input id="invite-label" class="input input--mono" type="text" placeholder="ci-render" required maxlength="64" pattern="[A-Za-z0-9 _\-.]+"></label>
+                    <label class="ad-inline"><input id="invite-wildcard" type="checkbox" checked><span class="field-hint">Every canvas (needed for sync). Off: only documents named after its label.</span></label>
+                    <span class="ad-inline"><button type="submit" class="btn btn--sm" data-testid="token-new">New token</button></span>
+                    <div id="invite-error" class="ad-err" role="alert" hidden></div>
+                  </form>
                 </div>
-              </details>
-            </div>
+                <div id="view-peers">
+                  <h4>Connected right now</h4>
+                  <div id="peers-rows" data-testid="peers-rows"></div>
+                  <div class="ad-adv-row"><span class="ad-mono" id="adv-facts">—</span></div>
+                  <span class="ad-sr"><span id="s-uptime"></span><span id="s-port"></span><span id="s-data"></span><span id="s-tokens"></span><span id="s-peers"></span><span id="s-backups"></span><span id="s-backup-prefix"></span><span id="set-url"></span><span id="set-transport"></span></span>
+                </div>
+                <div>
+                  <h4>Admin key and sign-in</h4>
+                  <div class="ad-adv-row"><span id="adv-signin-l">Sign-in</span><span class="k-sw" id="adv-signin"><i></i><span id="adv-signin-t">—</span></span></div>
+                  <div class="ad-adv-row" data-link-card hidden><span>Your account signs in with a password<span class="ad-sr" data-link-text></span></span><form method="post" action="auth/oidc/start"><input type="hidden" name="link" value="1"><button type="submit" class="btn btn--sm" data-link-btn data-testid="link-signin">Link my sign-in</button></form></div>
+                  <div class="ad-adv-row" id="adv-key-row"><span>Admin key for the command line</span><button id="rotate-admin" type="button" class="btn btn--sm" data-testid="admin-key-rotate" hidden>Change key</button></div>
+                  <form id="adv-key-form" class="ad-form" hidden>
+                    <span class="field-hint">Tokens, connected sessions and the admin key itself need the admin key.</span>
+                    <span class="ad-inline"><input id="adv-key" class="input input--mono" type="password" autocomplete="off" aria-label="Admin key" required data-testid="adv-key-input"><button type="submit" class="btn btn--sm" data-testid="adv-key-submit">Use the key</button></span>
+                    <div id="adv-key-error" class="ad-err" role="alert" hidden></div>
+                  </form>
+                  <div id="danger-error" class="ad-err" role="alert" hidden></div>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -338,60 +340,50 @@
   </main>
 </div>
 
-<!-- Invite people — emails, what they can do, and the promise in words -->
-<dialog id="invite-sheet" class="maude ad-sheet" aria-labelledby="invite-sheet-t" data-testid="invite-sheet">
-  <h2 class="ad-sheet-t" id="invite-sheet-t">Invite people</h2>
-  <p class="ad-quiet" id="invite-sheet-s"></p>
-  <form id="person-invite-form" class="stack stack--4">
-    <div class="field">
-      <label class="field-label" for="person-invite-email">Emails</label>
-      <textarea id="person-invite-email" class="input ad-area" placeholder="marek@example.com, eva@example.com" data-testid="invite-emails"></textarea>
-      <span class="field-help">Several at once: separate with commas, spaces or new lines.</span>
-    </div>
-    <div class="field">
-      <span class="field-label">They can</span>
-      <div class="ad-pick" role="radiogroup" aria-label="They can">
-        <label><input type="radio" name="invite-role" value="member" checked data-testid="invite-role-member"><span><b>Can edit</b><span>Change canvases, comment, export.</span></span></label>
-        <label><input type="radio" name="invite-role" value="admin" data-testid="invite-role-admin"><span><b>Admin</b><span>Also invites people and runs this team server.</span></span></label>
-      </div>
-    </div>
-    <div class="ad-promise" id="invite-promise"></div>
-    <p class="field-help">The team server does not send email. Each person gets their own link — copy it and send it however you already talk to them.</p>
-    <div id="person-invite-error" class="callout callout--error" role="alert" hidden></div>
+<!-- Invite people (ts-people): emails, what they can do, where — and the promise in words -->
+<dialog id="invite-sheet" class="ad-sheet" aria-labelledby="invite-sheet-t" data-testid="invite-sheet">
+  <form id="person-invite-form" class="ad-sheet-body">
+    <div><h2 class="ad-sheet-t" id="invite-sheet-t">Invite people</h2></div>
+    <p class="ad-sheet-s" id="invite-sheet-s"></p>
+    <span class="field"><label class="field-label" for="person-invite-email">Emails</label>
+      <textarea id="person-invite-email" class="ad-emails" rows="2" placeholder="marek@example.com, eva@example.com" data-testid="invite-emails"></textarea></span>
+    <span class="field"><span class="field-label">They can</span>
+      <span class="ad-pick" role="radiogroup" aria-label="They can">
+        <label class="ad-pick-o"><input type="radio" name="invite-role" value="member" checked data-testid="invite-role-member"><span class="ad-radio"></span><span><strong>Can edit</strong><span>Change canvases, draw, use AI, move things to the trash</span></span></label>
+        <label class="ad-pick-o"><input type="radio" name="invite-role" value="admin" data-testid="invite-role-admin"><span class="ad-radio"></span><span><strong>Admin</strong><span>Also invites people and runs this team server · always for a named address</span></span></label>
+      </span></span>
+    <span class="field"><span class="field-label">In</span>
+      <span class="ad-sel">All projects — now and new ones<svg class="k-ic k-ic--12" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-chevron"/></svg></span></span>
+    <div class="ad-promise"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-check"/></svg><span id="invite-promise">No approving and no token afterwards. They open the link, sign in, and the Maude app connects from the browser. The team server does not send email: you pass the links on.</span></div>
+    <div id="person-invite-error" class="ad-err" role="alert" hidden></div>
     <div id="invite-results" data-testid="invite-results"></div>
-    <div class="actions">
-      <button type="button" class="btn btn--ghost btn--sm" id="invite-open-link" data-testid="invite-open-link"><svg class="ic" aria-hidden="true"><use href="#i-link"/></svg> A one-time link for anyone</button>
+    <div class="ad-sheet-a">
+      <button type="button" class="btn btn--ghost" id="invite-open-link" data-testid="invite-open-link"><svg class="k-ic k-ic--14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-link"/></svg>A link for anyone</button>
       <span class="ad-sp"></span>
-      <button type="button" class="btn" data-close>Done</button>
-      <button type="submit" class="btn btn--primary" data-testid="invite-submit">Make invites</button>
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn btn--primary" id="invite-submit" data-testid="invite-submit">Make invite links</button>
     </div>
   </form>
 </dialog>
 
-<!-- One person — everything about them, changed in place -->
-<dialog id="person-sheet" class="maude ad-sheet" aria-label="Person" data-testid="person-sheet">
-  <div id="person-body"></div>
-  <div id="person-error" class="callout callout--error" role="alert" hidden></div>
-  <div class="actions" id="person-actions"></div>
+<!-- One person (ts-person) — everything about them, changed in place -->
+<dialog id="person-sheet" tabindex="-1" class="ad-sheet ad-sheet--person" aria-label="Person" data-testid="person-sheet">
+  <div id="person-body" class="ad-sheet-body"></div>
+  <div id="person-error" class="ad-err" role="alert" hidden></div>
+  <div class="ad-sheet-a" id="person-actions"></div>
 </dialog>
 
 <!-- A token or a link, shown once -->
-<dialog id="token-modal" class="maude" aria-labelledby="token-modal-title">
-  <div class="issued">
-    <div class="issued-hd"><span class="sku sku--accent">SHOWN ONCE</span><span class="stamp" id="token-modal-stamp"></span></div>
-    <div class="issued-bd">
-      <h2 id="token-modal-title">Ready</h2>
-      <p>Copy it now. It is shown <b>once</b> — close this and it's gone.</p>
-      <pre id="token-command" class="cmd"></pre>
-      <div class="issued-actions">
-        <button id="token-copy" type="button" class="btn btn--primary"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg> Copy</button>
-        <span class="sr-only" id="copy-status" aria-live="polite" aria-atomic="true"></span>
-      </div>
-      <hr class="tear">
-      <div class="stub"><span class="lbl">Raw value</span><code id="token-raw"></code></div>
-      <div class="issued-meta"><span id="token-scope" class="is-scope"></span></div>
-    </div>
-    <div class="issued-ft"><form method="dialog"><button type="submit" class="btn btn--ghost">Done</button></form></div>
+<dialog id="token-modal" class="ad-pop" aria-labelledby="token-modal-title">
+  <h2 class="ad-sheet-t" id="token-modal-title">Ready</h2>
+  <p class="ad-sub ad-sub--flat">Copy it now. It is shown once — close this and it is gone. <span id="token-scope"></span><span id="token-modal-stamp" class="ad-sr"></span></p>
+  <pre id="token-command" class="cmd"></pre>
+  <code id="token-raw" class="ad-sr"></code>
+  <div class="ad-sheet-a">
+    <span class="ad-sr" id="copy-status" aria-live="polite" aria-atomic="true"></span>
+    <span class="ad-sp"></span>
+    <form method="dialog"><button type="submit" class="btn btn--ghost">Close</button></form>
+    <button id="token-copy" type="button" class="btn btn--primary">Copy</button>
   </div>
 </dialog>
 

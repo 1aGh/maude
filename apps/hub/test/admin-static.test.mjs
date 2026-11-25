@@ -197,7 +197,9 @@ test('the console\'s "Open the studio" CTAs point at the studio root, not the de
   // Canonical console address (GET /admin/ 301s here), so relative hrefs
   // resolve exactly as the browser resolves them.
   const base = 'http://h/admin';
-  for (const id of ['nav-studio', 'topbar-studio']) {
+  // The admin's "Open the studio" lives in the avatar menu (#nav-studio, canvas 16); the
+  // member's page has it as its one primary button (#member-studio).
+  for (const id of ['nav-studio', 'member-studio']) {
     const m = html.match(new RegExp(`<a[^>]*\\bid="${id}"[^>]*\\bhref="([^"]*)"`));
     assert.ok(m, `#${id} is an <a> with an href`);
     const path = new URL(m[1], base).pathname;

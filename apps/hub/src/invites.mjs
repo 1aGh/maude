@@ -280,6 +280,7 @@ export function peekInvite(dataDir, value, now = Date.now()) {
       email: row.email,
       role: row.role,
       expiresAt: row.expires_at,
+      createdBy: row.created_by ?? null,
       ...(access ? { access } : {}),
     },
   };

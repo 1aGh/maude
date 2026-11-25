@@ -77,9 +77,9 @@ export function readOnlyView(html, { email, base }) {
       .replace(/href="\/(?!\/)([^"]*)"/g, (_m, rest) => `href="${base}${rest ? `/${rest}` : ''}"`)
       .replace(
         '</style>',
-        '.ro-banner{margin:0 0 var(--space-5);padding:var(--space-2) var(--space-4);border-radius:var(--radius-md);background:var(--fg-0);color:var(--bg-0);font-size:var(--type-sm);font-weight:600}.ro-form{display:contents}</style>'
+        '.ro-banner{margin:0 0 var(--space-5);padding:var(--space-2) var(--space-4);border-radius:var(--radius-md);background:var(--fg-0);color:var(--bg-1);font-size:var(--type-sm);font-weight:var(--weight-semibold)}.ro-form{display:contents}</style>'
       )
-      .replace('<div class="main-inner">', `<div class="main-inner">${banner}`)
+      .replace('<main class="ad-main">', `<main class="ad-main">${banner}`)
   );
 }
 

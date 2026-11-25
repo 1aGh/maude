@@ -30,7 +30,7 @@
 // invite reaches the callback inside the signed transaction cookie and is the
 // approval (oidc-routes.mjs `resolveVerified`). Still never a URL.
 
-import { escapeHtml as esc, oidcLabel } from './studio-door.mjs';
+import { escapeHtml as esc, oidcLabel, webPage } from './studio-door.mjs';
 import { MIN_PASSWORD_LENGTH } from './users.mjs';
 
 /** A hostname for the heading — `https://design.acme.com/` → `design.acme.com`. */
@@ -44,26 +44,6 @@ function workspaceName(workspace) {
   }
 }
 
-const STYLE = `
-  body { margin:0; min-height:100vh; display:grid; place-items:center; background:#0e1014; color:#e9ecf3;
-         font:15px/1.6 -apple-system, system-ui, sans-serif; padding:24px; }
-  main { width:min(24rem, 100%); }
-  h1 { font-size:1.3rem; margin:0 0 .4rem; }
-  p { margin:0 0 .6rem; color:#b7bdcc; }
-  label { display:block; font-size:12px; color:#828b9e; margin:12px 0 4px; }
-  input { width:100%; padding:9px 11px; border-radius:9px; border:1px solid #262c38;
-          background:#14171d; color:inherit; font:inherit; box-sizing:border-box; }
-  input[readonly] { color:#b7bdcc; }
-  .hint { font-size:12px; color:#828b9e; margin:4px 0 0; }
-  button { margin-top:16px; width:100%; padding:10px; border:0; border-radius:9px;
-           background:#7a86f8; color:#0f1020; font:inherit; font-weight:650; cursor:pointer; }
-  .err { color:#f0a3a3; font-size:13px; margin-top:10px; }
-  .button { display:block; margin-top:16px; padding:10px; border-radius:9px; text-align:center;
-            border:1px solid #262c38; background:#14171d; color:inherit; text-decoration:none; font-weight:600; }
-  .or { margin:18px 0 0; text-align:center; font-size:12px; color:#828b9e; }
-  button.button { width:100%; font:inherit; font-weight:600; cursor:pointer; }
-`;
-
 /** The provider button for an invite: a POST that carries the invite, never a link. */
 function providerForm(token, env, { switchAccount = false, label = null } = {}) {
   const name = oidcLabel(env);
@@ -72,7 +52,7 @@ function providerForm(token, env, { switchAccount = false, label = null } = {}) 
   <input type="hidden" name="invite" value="${esc(token)}">${
     switchAccount ? '<input type="hidden" name="switch" value="1">' : ''
   }
-  <button type="submit" class="button" data-testid="join-provider">${esc(label ?? `Continue with ${name}`)}</button>
+  <button type="submit" class="btn btn--primary btn--lg" data-testid="join-provider">${esc(label ?? `Continue with ${name}`)}</button>
 </form>`;
 }
 
@@ -82,16 +62,13 @@ function providerForm(token, env, { switchAccount = false, label = null } = {}) 
  * button signs in again and asks the provider to choose the account.
  */
 export function inviteMismatchPage({ token, inviteEmail, email, env = process.env }) {
-  return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
-<title>This invitation is for another address</title>
-<style>${STYLE}</style></head>
-<body><main data-testid="join-mismatch">
-  <h1>This invitation is for ${esc(inviteEmail)}</h1>
-  <p>You signed in as <strong>${esc(email)}</strong>. The invitation still works — sign in with <strong>${esc(inviteEmail)}</strong> to use it.</p>
-  ${providerForm(token, env, { switchAccount: true, label: 'Use another account' })}
-</main></body></html>`;
+  return webPage({
+    title: 'This invitation is for another address',
+    heading: `This invitation is for ${esc(inviteEmail)}`,
+    sub: `You signed in as <strong>${esc(email)}</strong>. The invitation still works — sign in with <strong>${esc(inviteEmail)}</strong> to use it.`,
+    testid: 'join-mismatch',
+    body: providerForm(token, env, { switchAccount: true, label: 'Use another account' }),
+  });
 }
 
 /**
@@ -113,60 +90,85 @@ export function joinPage({
   error = null,
   env = process.env,
   desktop = false,
+  hubName = null,
+  description = null,
+  inviter = null,
+  role = null,
 }) {
-  const name = workspaceName(workspace);
+  const name = hubName || workspaceName(workspace);
   const oidc = providerForm(token, env);
   const passwordsRefused = env.HUB_OIDC_MODE === 'strict';
+  const heading = inviter
+    ? `${esc(inviter)} invited you to ${esc(name)}`
+    : `You're invited to ${esc(name)}`;
+  const who = inviter
+    ? `<span class="k-av k-av--${tone(inviter)}" aria-hidden="true">${esc(inviter.charAt(0))}</span>`
+    : '';
+  const roleChip = role
+    ? `<span class="ad-web-role" data-testid="join-role">${role === 'admin' ? 'You will be an Admin' : 'You can edit'}</span>`
+    : '';
+  const err = error ? `<p class="ad-web-err" role="alert">${esc(error)}</p>` : '';
+  const app = desktop
+    ? '<p class="ad-web-fine" data-desktop>After you join, you go back to the Maude app.</p>'
+    : workspace
+      ? `<p class="ad-web-fine" data-desktop>Using the Maude app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
+      : '';
 
   // Under `strict` the hub refuses passwords outright (`cloud-identity`), so an
   // account this form would create could never sign in again once the first
   // session expires. Same rule `signInPage` keeps: strict renders the provider
   // link alone, and says so.
-  const body = passwordsRefused
-    ? `<h1>You're invited to ${esc(name)}</h1>
-  <p>${workspace ? esc(name) : 'This project'} signs people in through its own sign-in page. Sign in there${
-    email ? ` with <strong>${esc(email)}</strong>` : ''
-  } and you're in — the invitation is all you need.</p>
-  ${oidc}`
-    : `<form method="post" action="/join" autocomplete="on">
-  <h1>You're invited to ${esc(name)}</h1>
-  <p>${
-    email
-      ? `Choose a password and you're in — no download, no setup. Already have an account on this project? Enter its password instead.`
-      : `Choose a password and you're in — no download, no setup.`
-  }</p>
-  <input type="hidden" name="token" value="${esc(token)}">
-  <label for="email">Email</label>
-  ${
-    email
-      ? `<input id="email" name="email" type="email" value="${esc(email)}" readonly autocomplete="username">`
-      : `<input id="email" name="email" type="email" autocomplete="username" required autofocus placeholder="you@example.com">`
+  if (passwordsRefused) {
+    return webPage({
+      title: `Join ${name}`,
+      heading,
+      who,
+      sub: `${workspace || hubName ? esc(name) : 'This project'} signs people in through its own sign-in page. Sign in there${
+        email ? ` with <strong>${esc(email)}</strong>` : ''
+      } and you're in — the invitation is all you need.`,
+      body: `${roleChip}${err}${oidc}`,
+    });
   }
-  <label for="password">${email ? 'Password' : 'Choose a password'}</label>
-  <input id="password" name="password" type="password" autocomplete="new-password" minlength="${MIN_PASSWORD_LENGTH}" required${
-    email ? ' autofocus' : ''
+  const passwordLine = email
+    ? `Choose a password and you're in — no download, no setup. Already have an account on this project? Enter its password instead.`
+    : `Choose a password and you're in — no download, no setup.`;
+  // The provider, when there is one, is the way in (the invite rides through it — design canvas 16,
+  // ts-invitee step 1); a password is the other way, under "or".
+  const form = `<form class="ad-web-form" method="post" action="/join" autocomplete="on">
+  <input type="hidden" name="token" value="${esc(token)}">
+  <label class="field" for="email"><span class="field-label">Email</span>${
+    email
+      ? `<input class="input" id="email" name="email" type="email" value="${esc(email)}" readonly autocomplete="username">`
+      : `<input class="input" id="email" name="email" type="email" autocomplete="username" required${oidc ? '' : ' autofocus'} placeholder="you@example.com">`
+  }</label>
+  <label class="field" for="password"><span class="field-label">${email ? 'Password' : 'Choose a password'}</span>
+  <input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength="${MIN_PASSWORD_LENGTH}" required${
+    email && !oidc ? ' autofocus' : ''
   }>
-  <p class="hint">${
+  <span class="field-hint">${
     email
       ? `New here: at least ${MIN_PASSWORD_LENGTH} characters. You'll use it to sign in next time.`
       : `At least ${MIN_PASSWORD_LENGTH} characters. You'll use it to sign in next time.`
-  }</p>
-  ${error ? `<p class="err">${esc(error)}</p>` : ''}
-  <button type="submit">Join ${esc(name)}</button>
-</form>
-${oidc ? `<p class="or">or</p>${oidc}` : ''}
-${
-  desktop
-    ? '<p class="hint" data-desktop>After you join, you go back to the Maude app.</p>'
-    : workspace
-      ? `<p class="hint" data-desktop>Using the Maude app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
-      : ''
-}`;
+  }</span></label>
+  ${err}
+  <button type="submit" class="btn btn--lg${oidc ? '' : ' btn--primary'}">Join ${esc(name)}</button>
+</form>`;
+  return webPage({
+    title: `Join ${name}`,
+    heading,
+    who,
+    sub: oidc ? esc(description || workspaceName(workspace)) : passwordLine,
+    body: `${roleChip}${
+      oidc
+        ? `${oidc}${email ? `<p class="ad-web-fine">Use ${esc(email)} — that's who the invitation is for.</p>` : ''}<p class="ad-web-or">or</p><p class="ad-web-fine">${passwordLine}</p>`
+        : ''
+    }${form}${app}`,
+  });
+}
 
-  return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
-<title>Join ${esc(name)}</title>
-<style>${STYLE}</style></head>
-<body><main>${body}</main></body></html>`;
+/** The avatar's colour from a name — the same five tones the admin page uses. */
+function tone(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return h % 5;
 }

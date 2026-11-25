@@ -480,6 +480,8 @@ scenario(
 
     // Sign out, then in again through the provider alone.
     await b.eval(`document.querySelector('[data-testid="nav-overview"]')?.click()`);
+    // Sign out lives in the avatar menu (design canvas 16): open it, then choose it.
+    await b.eval(`document.querySelector('[data-testid="admin-me-button"]')?.click()`);
     await b.eval(
       `[...document.querySelectorAll('[data-testid="admin-signout"]')].find(e => e.offsetParent !== null)?.click()`
     );

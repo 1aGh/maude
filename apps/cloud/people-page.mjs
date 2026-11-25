@@ -19,21 +19,14 @@ import { ROLES, removalEffect } from './membership.mjs';
 // adds lives here. The table wears the same one-material card the admin
 // surfaces use.
 const CSS = `
-  table { width: 100%; border-collapse: collapse; margin-bottom: var(--space-6); background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
-  th { text-align: left; font-family: var(--font-mono); font-size: var(--type-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border-subtle); }
-  td { padding: var(--space-4) var(--space-5); border-top: 1px solid var(--border-subtle); vertical-align: baseline; font-size: var(--type-base); }
-  tr:first-child td { border-top: 0; }
-  td.right { text-align: right; white-space: nowrap; }
-  form.inline { display: inline; }
-  select, input[type=email] { width: auto; }
-  td .inline button {
-    background: var(--bg-2); color: var(--fg-1); border-color: var(--border-default);
-  }
-  td .inline button:hover { background: var(--bg-3); color: var(--fg-0); }
-  .card h2 { margin: 0 0 var(--space-3); }
-  .card { margin-bottom: var(--space-6); }
-  .warn { border-color: color-mix(in oklab, var(--status-warn) 45%, transparent); }
-  ul { margin: var(--space-2) 0 0; padding-left: var(--space-6); font-size: var(--type-base); line-height: var(--lh-base); }
+  form.inline { display: inline-flex; align-items: center; gap: var(--space-1); }
+  td select, td input[type=email] { width: auto; height: 26px; font-size: var(--type-xs); }
+  .card h2 { margin: 0 0 var(--space-3); font-family: var(--font-body); font-size: var(--type-base); line-height: var(--lh-base); }
+  .card form { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+  .card form input[type=email] { flex: 1; min-width: 14rem; }
+  .card form select { width: auto; }
+  .card.warn ul { margin: 0; }
+  ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); font-size: var(--type-sm); line-height: var(--lh-sm); }
 `;
 
 function esc(s) {

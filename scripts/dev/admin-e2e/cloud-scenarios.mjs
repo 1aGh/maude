@@ -464,7 +464,7 @@ scenarios.C1 = {
     await b.checkBox('input[name=disclosure]');
     await b.click('button[type=submit]');
     const landed = await b.until(
-      (s) => /Your projects/.test(s.text) && s.text.includes(owner.email)
+      (s) => /\bOverview\b/.test(s.text) && s.text.includes(owner.email)
     );
     need(
       'signup lands signed in on the dashboard',
@@ -506,6 +506,8 @@ scenarios.C1 = {
 
     // Sign out, then in again through the form.
     await b.open(`${C()}/`);
+    // Sign out lives in the avatar menu (canvas 16): open it, then click.
+    await b.click('details.ad-me > summary');
     await b.click('form[action="/auth/logout"] button');
     const out = await b.until((s) => !s.text.includes(owner.email));
     check('sign out ends the browser session', out.ok, out.url);
@@ -513,7 +515,7 @@ scenarios.C1 = {
     const s = await b.state();
     check(
       'sign in with the password lands on the dashboard',
-      /Your projects/.test(s.text) && s.text.includes(owner.email),
+      /\bOverview\b/.test(s.text) && s.text.includes(owner.email),
       s.url
     );
 
@@ -1297,8 +1299,10 @@ scenarios.C4 = {
       lists.ok,
       lists.text.match(/Everyone\s+\d+.{0,40}/)?.[0] ?? lists.text.slice(0, 120)
     );
-    await b.fill('form.find input[name=q]', asker.email.slice(0, 6));
-    await b.click('form.find button[type=submit]');
+    // Find someone sits in the table's tab strip (canvas 16, cl-people).
+    // Enter in the field submits it; the Find button is there for screen readers only.
+    await b.fill('form.ad-filter input[name=q]', asker.email.slice(0, 6));
+    await b.eval(`(document.querySelector('form.ad-filter').requestSubmit(),'ok')`);
     const found = await b.until((x) => /[?&]q=/.test(x.url));
     const matrixText = found.text.split('Projects you own')[1]?.split('Shared with you')[0] ?? '';
     check(
@@ -1630,7 +1634,7 @@ scenarios.C6 = {
     const dashHtml = (await owner.client.get(`${C()}/`)).text;
     const dashText = textOf(dashHtml);
     const tile = dashText.match(/Changes\s+(\d+)\s+this week[^.]{0,60}/);
-    const barCount = (dashHtml.match(/<span class="bar/g) ?? []).length;
+    const barCount = (dashHtml.match(/<i style="height:100%"><b style="height:/g) ?? []).length;
     if (changesRow) {
       const stored = JSON.parse(changesRow);
       const reportedWeek =
@@ -1986,9 +1990,10 @@ scenarios.C7 = {
     );
     const before = (await projectRow(P.id)).trial_ends_at;
     const mailBefore = mailTo(friend.email).length;
+    // Give free time is a sheet over the account page — its own address (no script).
     const free = await operatorPost(
       op,
-      `/operator/accounts/${friend.accountId}`,
+      `/operator/accounts/${friend.accountId}?sheet=free&project=${P.id}`,
       `/operator/projects/${P.id}/free-time`,
       { days: '30', until: '', reason: 'e2e: thirty days on us' }
     );
@@ -2120,7 +2125,7 @@ scenarios.C7 = {
     // ---- Promo, and a trial sweep that must not pause it
     const promo = await operatorPost(
       op,
-      `/operator/projects/${P.id}`,
+      `/operator/projects/${P.id}?sheet=promo`,
       `/operator/projects/${P.id}/promo`,
       {
         tier: 'project',
@@ -2317,7 +2322,7 @@ scenarios.C7 = {
     });
     const out = await operatorPost(
       op,
-      `/operator/accounts/${friend.accountId}`,
+      `/operator/accounts/${friend.accountId}?sheet=sign-out`,
       `/operator/accounts/${friend.accountId}/sign-out`,
       { reason: 'e2e: sign out everywhere' }
     );

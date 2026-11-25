@@ -254,7 +254,10 @@ export async function sessionAccount(db, token, { now = Date.now() } = {}) {
   if (typeof token !== 'string' || !token.startsWith('mcs_')) return null;
   const row = await db
     .prepare(
-      'SELECT a.id, a.email, a.name, a.stripe_customer_id, a.disclosure_accepted_at FROM sessions s JOIN accounts a ON a.id = s.account_id ' +
+      // `owns` is how many live projects this account owns — the shell reads it
+      // to decide which tabs this person has (an owner's People and Settings).
+      // It rides on the session read so no page pays a second round trip.
+      "SELECT a.id, a.email, a.name, a.stripe_customer_id, a.disclosure_accepted_at, (SELECT COUNT(*) FROM projects p WHERE p.account_id = a.id AND p.state != 'purged') AS owns FROM sessions s JOIN accounts a ON a.id = s.account_id " +
         'WHERE s.id = ? AND s.revoked_at IS NULL AND s.expires_at > ?'
     )
     .bind(await sha256Hex(token), now)

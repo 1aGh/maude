@@ -132,7 +132,7 @@ describe('the overview answers what an operator opens it for', () => {
     // the link are what keep it from being read as revenue.
     const html = overview([project()]);
     assert.match(html, /MRR \(believed\)/);
-    assert.match(html, /€19\.00/);
+    assert.match(html, /€19\b/);
     assert.match(html, /Stripe is the authority/);
     assert.match(html, /dashboard\.stripe\.com/);
   });
@@ -147,7 +147,7 @@ describe('the overview answers what an operator opens it for', () => {
     const html = overview([project({ id: 'a' }), project({ id: 'b' })]);
     // Nothing has ever been restore-drilled; two projects is one line, not two.
     assert.match(html, /never-drilled/);
-    assert.match(html, /<span class="n">2<\/span>/);
+    assert.match(html, /<i><\/i>2 never-drilled</);
   });
 
   it('says so plainly when there is nothing to interpret', () => {
@@ -157,18 +157,20 @@ describe('the overview answers what an operator opens it for', () => {
 
   it('marks the cost tile as an alarm when the ratio breaks the model', () => {
     const html = overview([project()], { boardArgs: { actual: { compute: 30 } } });
-    assert.match(html, /tile alarm/);
-    assert.match(html, /Cost alarms/);
+    // A word with a dot in the error colour, on the revenue tile and in Needs a look.
+    assert.match(html, /k-sw--error"><i><\/i>cost [\d.]+× the/);
+    assert.match(html, /Cost alarm/);
     assert.match(html, /per-cell-cost/);
   });
 
   it('shows the analytics tile only when analytics answered', () => {
-    assert.doesNotMatch(overview([project()]), /Active accounts/);
+    assert.doesNotMatch(overview([project()]), /People active/);
     const connected = overview([project()], {
       page: { metrics: { dau: 3, wau: 8, mau: 20 } },
     });
-    assert.match(connected, /Active accounts/);
-    assert.match(connected, /8 this week/);
+    assert.match(connected, /People active/);
+    assert.match(connected, />8<small> week<\/small>/);
+    assert.match(connected, /3 today · 20 this month/);
   });
 });
 
@@ -286,8 +288,8 @@ describe('the project detail page', () => {
         { at: 0, actor: 'system', action: 'reconcile', reason: null },
       ],
     });
-    assert.match(html, /<th>Reason<\/th>/);
-    assert.match(html, /stuck in setup/);
+    // The log shows every entry's reason (canvas 16: the Log card).
+    assert.match(html, /Reason: stuck in setup/);
     // A system action has no reason, and an em-dash says so.
     assert.match(html, /—/);
   });
@@ -420,7 +422,7 @@ describe('the operator vocabulary must not reach a customer', () => {
   it('an operator shell does render it', () => {
     const op = appShell({ account, title: 'Fleet overview', body: '', isOperator: true });
     assert.match(op, /href="\/operator"/);
-    assert.match(op, /All projects/);
+    assert.match(op, /Fleet and accounts/);
   });
 
   it('every operator page escapes what it renders', () => {

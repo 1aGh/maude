@@ -6,7 +6,7 @@
 // depend on any of it working.
 
 import { formatDay } from './billing.mjs';
-import { appShell, lockup, PAGE_CSS } from './brand.mjs';
+import { appShell, lockup, PAGE_CSS, PUBLIC_CSS } from './brand.mjs';
 import { BILL_OF_MATERIALS_HTML } from './pages.mjs';
 import { PROVISION_STEPS } from './provisioning.mjs';
 
@@ -30,23 +30,20 @@ const EXTRA_CSS = `
   .steps li.now::before { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
   .steps li.done { color: var(--fg-1); }
   .steps li.done::before { background: var(--status-success); }
-  .reassure { border-color: color-mix(in oklab, var(--status-success) 30%, transparent); }
-  .warn { border-color: color-mix(in oklab, var(--status-warn) 45%, transparent); }
+  .card.reassure { box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--status-success); }
+  .ad-plan.warn { box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--status-warn); }
+  .ad-plan { margin-bottom: var(--space-4); }
   .card ul { margin: var(--space-3) 0 var(--space-4); padding-left: var(--space-6); line-height: 1.9; color: var(--fg-2); }
   .card ul strong { color: var(--fg-0); }
   .actions { display: flex; gap: var(--space-4); flex-wrap: wrap; margin: var(--space-5) 0 var(--space-4); }
   .pair { display: flex; gap: var(--space-4); align-items: flex-end; }
   .pair > div { flex: 1; }
-  table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0 var(--space-6); background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); overflow: hidden; }
-  th { text-align: left; font-family: var(--font-mono); font-size: var(--type-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border-subtle); }
-  td { padding: var(--space-3) var(--space-5); border-top: 1px solid var(--border-subtle); vertical-align: baseline; font-size: var(--type-base); }
-  tr:first-child td { border-top: 0; }
-  td.right, th.right { text-align: right; white-space: nowrap; }
-  .mono { font-family: var(--font-mono); font-size: var(--type-sm); }
+  .plan { box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default); border: 0; }
+  .plan:has(input:checked) { box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--accent); }
 `;
 // The centered waiting room keeps the narrow column; inside the shell the
 // column is the shell's own `.main-inner`.
-const CSS = `${PAGE_CSS + EXTRA_CSS}\n  main { max-width: 34rem; }\n`;
+const CSS = `${PAGE_CSS + PUBLIC_CSS + EXTRA_CSS}`;
 
 function esc(s) {
   return String(s).replace(
@@ -57,7 +54,7 @@ function esc(s) {
 
 function page(title, body, { refreshSeconds = null } = {}) {
   const refresh = refreshSeconds ? `<meta http-equiv="refresh" content="${refreshSeconds}">` : '';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${refresh}<title>${esc(title)} — Maude</title><style>${CSS}</style></head><body><main>${lockup()}${body}</main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${refresh}<title>${esc(title)} — Maude</title><style>${CSS}</style></head><body><main class="public"><div class="public-col"><div class="public-top">${lockup({ size: 44 })}</div>${body}</div></main></body></html>`;
 }
 
 function euros(minor) {
@@ -184,51 +181,65 @@ export function billingPage({
   // (canvas 16, cl-promo-owner); a trial shows the DATE it is free until, so
   // free time an operator gave is visible here; an operator's pause says so,
   // with no countdown — nothing is scheduled to be deleted.
-  const choose = `<p style="margin:var(--space-3) 0 0"><a class="btn" href="/account/billing">Choose a plan</a></p>`;
+  const choose = `<span class="ad-head-a"><a class="btn btn--primary" href="/account/billing">Choose a plan</a></span>`;
+  const planBox = (kicker, title, body, { tone = '' } = {}) =>
+    `<div class="ad-card ad-card--pad ad-plan${tone ? ` ${tone}` : ''}">
+       <span class="ad-promo-l">${esc(kicker)}</span>
+       <h2 class="ad-sheet-t">${title}</h2>
+       ${body}
+     </div>`;
   const planCard = promo
-    ? `<div class="card">
-         <h2><span class="state ok">Promo</span> ${esc(project.name)}</h2>
-         <table><tbody>
-           <tr><td class="quiet">Plan</td><td>${esc(promo.plan)}</td></tr>
-           ${promo.storage ? `<tr><td class="quiet">Storage</td><td>${esc(promo.storage)}</td></tr>` : ''}
-           <tr><td class="quiet">Ends</td><td>${esc(promo.ends)}</td></tr>
-         </tbody></table>
+    ? planBox(
+        promo.endingSoon ? `Plan · ends ${promo.ends}` : 'Plan',
+        `<span class="ad-promo">Promo</span> ${esc(project.name)}`,
+        `<dl class="ad-kv">
+           <dt>Plan</dt><dd>${esc(promo.plan)}</dd>
+           ${promo.storage ? `<dt>Storage</dt><dd>${esc(promo.storage)}</dd>` : ''}
+           <dt>Ends</dt><dd>${esc(promo.ends)}</dd>
+         </dl>
          ${
            promo.endingSoon
-             ? `<p class="quiet" style="margin:0">Pick a plan to keep editing after ${esc(promo.ends)}.
+             ? `<p class="ad-sub">Pick a plan to keep editing after ${esc(promo.ends)}.
                   Nothing is deleted, and until you choose, everyone can still open and download
                   everything.</p>${choose}`
-             : `<p class="quiet" style="margin:0">No trial, no card, nothing to choose.</p>`
-}
-       </div>`
+             : `<p class="ad-sub">No trial, no card, nothing to choose.</p>`
+}`
+      )
     : plan?.state === 'deleting'
-      ? `<div class="card warn">
-           <h2>This project will be deleted on ${esc(plan.deletesOn)}</h2>
-           <p class="quiet" style="margin:0">Maude support scheduled it, and the reason is on this
+      ? planBox(
+          'Plan',
+          `This project will be deleted on ${esc(plan.deletesOn)}`,
+          `<p class="ad-sub">Maude support scheduled it, and the reason is on this
              project’s Activity page. Nothing has been deleted yet. If this is a mistake, reply to
              the e-mail about it before that date and the project comes back as it was.</p>
-           <form method="post" action="${p}/download" style="margin:var(--space-3) 0 0">
-             <button type="submit" class="ghost">Download everything</button>
-           </form>
-         </div>`
+           <form method="post" action="${p}/download" style="margin:0">
+             <button type="submit" class="btn btn--ghost">Download everything</button>
+           </form>`,
+          { tone: 'warn' }
+        )
       : plan?.state === 'held'
-        ? `<div class="card warn">
-           <h2>Paused by Maude</h2>
-           <p class="quiet" style="margin:0">Nothing has been deleted and no deletion is scheduled.
-             The reason is on this project’s Activity page. You can still download everything.</p>
-         </div>`
+        ? planBox(
+            'Plan',
+            'Paused by Maude',
+            `<p class="ad-sub">Nothing has been deleted and no deletion is scheduled.
+             The reason is on this project’s Activity page. You can still download everything.</p>`,
+            { tone: 'warn' }
+          )
         : plan?.state === 'trial'
-          ? `<div class="card">
-             <h2>Free until ${esc(formatDay(plan.freeUntil))}</h2>
-             <p class="quiet" style="margin:0">${esc(plan.line)}. No card is needed. After that date
-               you pick a plan to keep editing; nothing is deleted.</p>${choose}
-           </div>`
+          ? planBox(
+              'Free trial',
+              `Free until ${esc(formatDay(plan.freeUntil))}`,
+              `<p class="ad-sub">${esc(plan.line)}. No card is needed. After that date
+               you pick a plan to keep editing; nothing is deleted.</p>${choose}`
+            )
           : plan?.state === 'paused'
-            ? `<div class="card warn">
-               <h2>Choose a plan to keep editing</h2>
-               <p class="quiet" style="margin:0">The free time has ended. Nothing is deleted, and
-                 everyone can still open and download everything.</p>${choose}
-             </div>`
+            ? planBox(
+                'Plan',
+                'Choose a plan to keep editing',
+                `<p class="ad-sub">The free time has ended. Nothing is deleted, and
+                 everyone can still open and download everything.</p>${choose}`,
+                { tone: 'warn' }
+              )
             : null;
   const d = details ?? {
     company: '',

@@ -164,7 +164,7 @@ describe('the read surfaces', () => {
     const body = await res.text();
     assert.match(body, /Fleet overview/);
     assert.match(body, /MRR \(believed\)/);
-    assert.match(body, /€19\.00/);
+    assert.match(body, /€19\b/);
 
     const [entry] = rows(sqlite, 'SELECT * FROM audit_log');
     assert.equal(entry.action, 'operator.board.viewed');

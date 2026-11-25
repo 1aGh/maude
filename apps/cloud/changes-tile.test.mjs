@@ -210,7 +210,7 @@ describe('the dashboard', () => {
     const { jan } = await world(t);
     const html = await (await get('/', jan)).text();
     assert.doesNotMatch(text(html), /Changes/);
-    assert.doesNotMatch(html, /class="bars"/);
+    assert.doesNotMatch(html, /class="ad-bars"/);
   });
 
   test('the tile (this week, most in …) and the 30-day chart, summed across the owner’s projects', async (t) => {
@@ -232,7 +232,9 @@ describe('the dashboard', () => {
     assert.doesNotMatch(page, /999/, 'another owner’s project is not in the sum');
     assert.doesNotMatch(page, /\bEdits\b/);
     // Thirty bars, the last one today's 27; a text summary for a screen reader.
-    const bars = [...html.matchAll(/<span class="bar[^"]*"[^>]*style="height:\s*([\d.]+)%"/g)];
+    const bars = [
+      ...html.matchAll(/<i style="height:100%"><b style="height:([\d.]+)%"><\/b><\/i>/g),
+    ];
     assert.equal(bars.length, 30);
     assert.equal(Number(bars.at(-1)[1]), 100, 'today is the tallest');
     assert.match(html, /role="img" aria-label="Changes per day over 30 days:[^"]*highest 27[^"]*"/);
@@ -275,11 +277,10 @@ describe('the dashboard', () => {
     const { sqlite, op, jan } = await world(t);
     put(sqlite, 'kolar-web', 30, [{ day: dayOf(Date.now()), count: 20 }]);
     const html = await (await get(`/operator/accounts/${jan.id}`, op)).text();
-    const page = text(html);
-    assert.match(page, /Changes \(week\)/);
-    const row = /<tr>(?:(?!<\/tr>)[\s\S])*kolar-web[\s\S]*?<\/tr>/.exec(html)[0];
-    assert.match(text(row), /\b30\b/);
-    const other = /<tr>(?:(?!<\/tr>)[\s\S])*plakaty[\s\S]*?<\/tr>/.exec(html)[0];
-    assert.match(text(other), /—/, 'not reported is a dash, never a zero');
+    // Each project row says its week (canvas 16, cl-op-account: under the name).
+    const row = /<tr[^>]*>(?:(?!<\/tr>)[\s\S])*kolar-web[\s\S]*?<\/tr>/.exec(html)[0];
+    assert.match(text(row), /\b30 changes this week\b/);
+    const other = /<tr[^>]*>(?:(?!<\/tr>)[\s\S])*plakaty[\s\S]*?<\/tr>/.exec(html)[0];
+    assert.match(text(other), /changes not reported/, 'not reported is said, never a zero');
   });
 });

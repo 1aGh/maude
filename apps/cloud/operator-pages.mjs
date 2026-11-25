@@ -21,67 +21,38 @@
 // shell's fleet section renders only for an allowlisted operator.
 
 import { FREE_TIME_DAYS } from './billing.mjs';
-import { appShell } from './brand.mjs';
+import { appShell, icon, logLine, sheetActions, stat, statusWord, thumb, who } from './brand.mjs';
 import { changesView } from './changes.mjs';
 import { operatorPlan } from './plan-copy.mjs';
 import { PROMO_TIERS, promoTierLabel } from './promo.mjs';
 
-// The table + card vocabulary the admin surfaces already use (project-admin,
-// people-page), plus the one new block: a row of KPI tiles. No new design
-// vocabulary — an internal board is the last place to invent any.
+// The page pieces are the shared ones (brand-css.mjs, canvas 16): stat tiles,
+// cards, tables, the log feed. Only what an operator page adds lives here.
 const CSS = `
-  .main-inner { max-width: 78rem; }
-  table { width: 100%; border-collapse: collapse; border-spacing: 0; margin: var(--space-4) 0 var(--space-6); background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
-  th { text-align: left; font-family: var(--font-mono); font-size: var(--type-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border-subtle); }
-  td { padding: var(--space-3) var(--space-5); border-top: 1px solid var(--border-subtle); vertical-align: baseline; font-size: var(--type-base); }
-  tr:first-child td { border-top: 0; }
-  td.right, th.right { text-align: right; white-space: nowrap; }
-  .mono { font-family: var(--font-mono); font-size: var(--type-sm); }
-  .quiet { color: var(--fg-2); }
-  .card { margin-bottom: var(--space-5); }
-  .card h2 { margin: 0 0 var(--space-3); font-size: var(--type-md); }
-  time { color: var(--fg-2); font-size: var(--type-sm); }
-
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-6); }
-  .tile { background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: var(--space-4) var(--space-5); margin: 0; }
-  .tile dt { font-family: var(--font-mono); font-size: var(--type-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); margin: 0 0 var(--space-2); }
-  .tile dd { margin: 0; font-family: var(--font-mono); font-size: var(--type-lg); line-height: var(--lh-md); color: var(--fg-0); }
-  .tile .sub { display: block; margin-top: var(--space-2); font-family: var(--font-sans); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-2); }
-  .tile.alarm { border-color: color-mix(in oklab, var(--status-error) 40%, transparent); }
-
-  .problems { list-style: none; margin: 0; padding: 0; }
-  .problems li { display: flex; gap: var(--space-4); align-items: baseline; padding: var(--space-3) 0; border-top: 1px solid var(--border-subtle); }
-  .problems li:first-child { border-top: 0; }
-  .problems .n { font-family: var(--font-mono); font-size: var(--type-md); color: var(--fg-0); min-width: 2.5rem; }
-  .problems .k { font-family: var(--font-mono); font-size: var(--type-sm); color: var(--fg-1); min-width: 11rem; }
-
-  .nudge textarea { width: 100%; min-height: 5rem; font: inherit; }
-  .nudge label { display: block; margin-bottom: var(--space-2); font-size: var(--type-sm); color: var(--fg-1); }
-  .err { color: var(--status-error); font-size: var(--type-sm); }
-  .ok { color: var(--status-success); font-size: var(--type-sm); }
-
-  .op-band { margin: 0 0 var(--space-5); padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); background: var(--fg-0); color: var(--bg-0); font-size: var(--type-sm); }
-  .head-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-5); }
-  .search { display: flex; gap: var(--space-2); margin: 0 0 var(--space-4); }
-  .search input { max-width: 26rem; }
-  .plan-ok { color: var(--fg-0); }
-  .plan-warn { color: var(--status-warn); }
-  .plan-stop { color: var(--status-error); }
-  .plan-off { color: var(--fg-2); }
-  details.sheet { margin: var(--space-3) 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-1); }
-  details.sheet > summary { cursor: pointer; padding: var(--space-3) var(--space-5); font-weight: 600; }
-  details.sheet > form { padding: 0 var(--space-5) var(--space-5); }
-  details.sheet label { display: block; margin: var(--space-3) 0 var(--space-1); font-size: var(--type-sm); color: var(--fg-1); }
-  details.sheet .pick label { display: flex; gap: var(--space-2); align-items: baseline; margin: var(--space-1) 0; color: var(--fg-0); font-size: var(--type-base); }
-  details.sheet textarea { width: 100%; min-height: 4rem; font: inherit; }
-  details.sheet .hint { margin: var(--space-1) 0 0; font-size: var(--type-sm); color: var(--fg-2); }
-  details.sheet .foot { display: flex; gap: var(--space-4); align-items: center; margin-top: var(--space-4); }
-  td form.inline { display: inline; }
-  .otabs { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-3); padding: 0; list-style: none; }
-  .otabs a { display: inline-block; padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); border: 1px solid var(--border-subtle); color: var(--fg-1); font-size: var(--type-sm); text-decoration: none; }
-  .otabs a[aria-current="page"] { background: var(--bg-4); color: var(--fg-0); font-weight: 600; }
-  .btn.ghost { background: var(--bg-2); color: var(--fg-1); border-color: var(--border-default); }
-  .card h3 { margin: var(--space-3) 0 var(--space-1); font-size: var(--type-sm); color: var(--fg-2); }
+  .op-kv { display: grid; grid-template-columns: 150px 1fr; gap: var(--space-1) var(--space-3); margin: 0; padding: 0 var(--space-5) var(--space-4); font-size: var(--type-sm); }
+  .op-kv dt { color: var(--fg-2); }
+  .op-kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .op-acts { display: flex; flex-direction: column; }
+  .op-acts details.sheet { box-shadow: inset 0 0.5px 0 var(--border-subtle); }
+  details.sheet > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-5); font-size: var(--type-sm); font-weight: var(--weight-semibold); }
+  details.sheet > summary::-webkit-details-marker { display: none; }
+  details.sheet > summary::after { content: "›"; color: var(--fg-3); font-size: var(--type-md); line-height: 1; }
+  details.sheet[open] > summary::after { transform: rotate(90deg); }
+  details.sheet > summary:hover { background: var(--bg-3); }
+  details.sheet > form { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; padding: 0 var(--space-5) var(--space-4); }
+  details.sheet label, .op-form label { margin: 0; }
+  textarea[name=reason] { min-height: 52px; height: 52px; }
+  .ad-sheet .field-hint, details.sheet .field-hint { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+  .ad-seg-b { white-space: nowrap; padding: 0 var(--space-2); }
+  form:not(:has(input[name=days][value=until]:checked)) .field:has(input[name=until]) { display: none; }
+  .hint { margin: 0; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+  .err { margin: 0 0 var(--space-4); color: var(--status-error-text); font-size: var(--type-sm); font-weight: var(--weight-semibold); }
+  .ok { margin: 0 0 var(--space-4); }
+  .op-nudge { padding: 0 var(--space-5) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+  .op-nudge form { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; }
+  .op-nudge button { align-self: flex-start; }
+  .op-ev-r { color: var(--fg-2); }
+  .ad-table td.mono, .mono { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-1); }
 `;
 
 function esc(s) {
@@ -107,6 +78,15 @@ export function money(minor, currency = 'eur') {
   if (minor === null || minor === undefined) return '—';
   const symbol = currency === 'eur' ? '€' : `${String(currency).toUpperCase()} `;
   return `${symbol}${(minor / 100).toFixed(2)}`;
+}
+
+/** `€8 460` — a tile's money: whole units, grouped by a thin space. */
+function wholeMoney(minor, currency = 'eur') {
+  if (minor === null || minor === undefined) return '—';
+  const symbol = currency === 'eur' ? '€' : `${String(currency).toUpperCase()} `;
+  return `${symbol}${Math.round(minor / 100)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009')}`;
 }
 
 /**
@@ -162,26 +142,63 @@ function ceilingHits(r) {
   return r === null || r === undefined ? null : r.timeouts + r.memoryKills;
 }
 
-function tile(label, value, sub = null, { alarm = false } = {}) {
-  return `<dl class="tile${alarm ? ' alarm' : ''}">
-    <dt>${esc(label)}</dt>
-    <dd>${value}${sub ? `<span class="sub">${sub}</span>` : ''}</dd>
-  </dl>`;
+/**
+ * One stat tile (canvas 16): label with its glyph, the figure, one quiet line.
+ * `value` and `sub` are plain text — every figure here is a number this module
+ * formatted, and anything a cell reported is escaped by `stat`.
+ */
+function tile(label, glyph, value, { unit = null, sub = null, alarm = false, href = null } = {}) {
+  return stat({
+    label,
+    glyph,
+    value: String(value),
+    unit,
+    foot: sub
+      ? `<span${alarm ? ' class="op-alarm"' : ''}>${alarm ? statusWord('error', sub) : esc(sub)}</span>`
+      : null,
+    href,
+  });
 }
 
-/** The band every operator page wears (canvas 16): whose changes these are. */
-const OP_BAND =
-  '<p class="op-band">Operator — every account on Maude Cloud is visible here. Changes are logged as yours, with the reason you give.</p>';
+/** The row of tiles, re-dividing itself over the tiles that are there. */
+const tiles = (list) =>
+  list.length ? `<div class="ad-stats" style="--n:${list.length}">${list.join('\n')}</div>` : '';
 
-function shell({ account, title, body: inner, active, lede = null }) {
-  const body = `${OP_BAND}${inner}`;
+/** A card with a heading. `title` is plain text; `inner` and `aside` are trusted markup. */
+const card = (title, inner, { aside = '', cls = '' } = {}) =>
+  `<div class="ad-card ad-card--clip${cls ? ` ${cls}` : ''}"><h2 class="ad-card-h">${esc(title)}${aside ? ` ${aside}` : ''}</h2>${inner}</div>`;
+
+/** A quiet paragraph inside a card. `text` is trusted markup. */
+const note = (text) => `<p class="ad-card-p">${text}</p>`;
+
+/** A plan said with its tone, as a word with a dot. */
+const PLAN_SW = { ok: 'ok', warn: 'warn', stop: 'error', off: 'off' };
+function planWord(plan) {
+  if (plan.state === 'promo') return `<span class="ad-promo">${esc(plan.line)}</span>`;
+  return statusWord(PLAN_SW[plan.tone] ?? 'ok', plan.line);
+}
+
+function shell({
+  account,
+  title,
+  body,
+  active,
+  lede = null,
+  heading = null,
+  actions = '',
+  sheet = null,
+}) {
   return appShell({
     account,
     title,
+    heading,
     body,
     isOperator: true,
     active,
     lede,
+    actions,
+    sheet,
+    wide: true,
     extraCss: CSS,
   });
 }
@@ -212,134 +229,135 @@ export function operatorOverviewPage({
   stripeUrl = 'https://dashboard.stripe.com/subscriptions',
   lists = null,
   tab = 'newest',
+  sheet = null,
+  now = Date.now(),
 }) {
   const states = Object.entries(board.byState ?? {}).sort((a, b) => b[1] - a[1]);
   const totalProjects = states.reduce((sum, [, n]) => sum + n, 0);
+  const running = board.byState?.active ?? 0;
 
-  // The cost tile is a RATIO against a model, never an invoice. `costAlarms`
+  // The cost line is a RATIO against a model, never an invoice. `costAlarms`
   // divides observed spend by cell count; `modelPerCellEur: 3` is a Phase-0
   // estimate that has never been given real figures, and presenting an
   // estimate as an invoice is how an estimate stops being questioned.
   const perCell = board.observedSpend === null ? null : board.alarms.perCell;
   const ratio = perCell === null ? null : perCell / board.modelPerCellEur;
 
-  const tiles = [
-    tile('Accounts', `<span>${num(accounts)}</span>`),
-    tile(
-      'Projects',
-      `<span>${totalProjects}</span>`,
-      states.map(([s, n]) => `${esc(s)} ${n}`).join(' · ') || 'none yet'
-    ),
-    tile(
-      'MRR (believed)',
-      `<span>${money(mrr.believedMonthlyMinor, mrr.currency)}</span>`,
+  const list = [
+    tile('Accounts', 'people', num(accounts), { href: '/operator/accounts' }),
+    tile('Projects running', 'folder', running, {
+      unit: `of ${totalProjects}`,
+      sub: states.map(([st, n]) => `${st} ${n}`).join(' · ') || 'none yet',
+      href: '/operator/projects',
+    }),
+  ];
+  if (metrics) {
+    list.push(
+      tile('People active', 'pulse', num(metrics.wau), {
+        unit: 'week',
+        sub: `${num(metrics.dau)} today · ${num(metrics.mau)} this month`,
+      })
+    );
+  }
+  list.push(
+    stat({
+      label: 'Monthly revenue',
+      glyph: 'export',
+      value: wholeMoney(mrr.believedMonthlyMinor, mrr.currency),
       // The label is the honesty. schema.sql: this table is the memory between
       // runs, not the authority — so the number drifts on a missed webhook and
       // the real one is one click away.
-      `derived from plan × state · <a href="${esc(stripeUrl)}">Stripe is the authority</a>`
-    ),
-    tile(
-      'Cost vs model',
-      `<span>${ratio === null ? '—' : `${ratio.toFixed(1)}×`}</span>`,
-      board.observedSpend === null
-        ? `no spend figure has ever been collected · model €${board.modelPerCellEur}/cell covers sync AND builds`
-        : `€${perCell.toFixed(2)}/cell against a €${board.modelPerCellEur} model` +
-            (board.build
-              ? ` · build side: ${num(board.build.builds)} builds, ${num(board.build.ceilingHits)} ceiling hits`
-              : ' · build side: no cell has reported'),
-      { alarm: !board.alarms.ok }
-    ),
-  ];
-
-  // Stage 4 — WHICH HALF. The €3 model covers a cell's sync lane and its canvas
-  // builds together, and until the build sandbox shipped there was no way to
-  // say which one moved. This tile is the build half's own figures; whatever
-  // the model spends that they do not explain is the sync half.
-  if (board.build) {
-    const b = board.build;
-    tiles.push(
-      tile(
-        'Canvas builds',
-        `<span>${num(b.builds)}</span>`,
-        // The ratio is divided HERE, from the two counts, never stored as one:
-        // a ratio computed over a window that reset is a confident lie.
-        `${b.cacheHitRatio === null ? '—' : `${Math.round(b.cacheHitRatio * 100)}% cached`} · ${num(b.ceilingHits)} ceiling hits · ${b.projects} cells reporting`,
-        { alarm: b.ceilingHits > 0 }
-      )
+      foot: `<span>${
+        board.observedSpend === null
+          ? `no spend figure has ever been collected · model €${board.modelPerCellEur}/cell covers sync and builds`
+          : board.alarms.ok
+            ? `cost ${ratio.toFixed(1)}× the €${board.modelPerCellEur}/cell model · ok`
+            : statusWord(
+                'error',
+                `cost ${ratio.toFixed(1)}× the €${board.modelPerCellEur}/cell model`
+              )
+      } · MRR (believed), derived from plan × state · <a href="${esc(stripeUrl)}">Stripe is the authority</a></span>`,
+    })
+  );
+  if (metrics?.coldStartP95Ms !== undefined && metrics?.coldStartP95Ms !== null) {
+    list.push(
+      tile('Cold start', 'clock', (Number(metrics.coldStartP95Ms) / 1000).toFixed(1), {
+        unit: 's p95',
+        sub:
+          board.build?.cacheHitRatio != null
+            ? `canvas builds ${Math.round(board.build.cacheHitRatio * 100)} % cached`
+            : 'waking a sleeping cell to a healthy answer',
+      })
     );
   }
-
-  if (metrics) {
-    tiles.push(
-      tile(
-        'Active accounts',
-        `<span>${num(metrics.dau)}</span>`,
-        `${num(metrics.wau)} this week · ${num(metrics.mau)} this month`
-      )
+  // Stage 4 — WHICH HALF. The €3 model covers a cell's sync lane and its canvas
+  // builds together; this tile is the build half's own figures.
+  if (board.build) {
+    const b = board.build;
+    list.push(
+      tile('Canvas builds', 'file', num(b.builds), {
+        sub: `${b.cacheHitRatio === null ? '—' : `${Math.round(b.cacheHitRatio * 100)}% cached`} · ${num(b.ceilingHits)} ceiling hits · ${b.projects} cells reporting`,
+        alarm: b.ceilingHits > 0,
+      })
     );
   }
   if (totals) {
-    tiles.push(
-      tile(
-        'Tenant content',
-        `<span>${num(totals.canvases)}</span>`,
-        `canvases · ${num(totals.designSystems)} design systems · ${bytes(totals.assetsBytes)}`
-      )
-    );
-  }
-  if (metrics?.coldStartP95Ms !== undefined) {
-    tiles.push(
-      tile(
-        'Cold start p95',
-        `<span>${ms(metrics.coldStartP95Ms)}</span>`,
-        'time from waking a sleeping cell to a healthy answer'
-      )
+    list.push(
+      tile('Tenant content', 'file', num(totals.canvases), {
+        unit: 'canvases',
+        sub: `${num(totals.designSystems)} design systems · ${bytes(totals.assetsBytes)}`,
+      })
     );
   }
 
-  const problems = board.problems.length
-    ? `<ul class="problems">${board.problems
-        .map(
-          (p) => `<li>
-            <span class="n">${p.count}</span>
-            <span class="k">${esc(p.kind)}</span>
-            <span class="quiet">${esc(p.detail ?? '')}${
-              p.ids.length
-                ? ` — ${esc(p.ids.join(', '))}${p.count > p.ids.length ? ', …' : ''}`
-                : ''
-            }</span>
-          </li>`
-        )
-        .join('\n')}</ul>`
-    : '<p class="quiet">Nothing to interpret. Every serving cell is drilled, checkpointed and on one version.</p>';
-
-  const alarms = board.alarms.alarms.length
-    ? `<ul class="problems">${board.alarms.alarms
-        .map(
-          (a) =>
-            `<li><span class="k">${esc(a.kind)}</span><span class="quiet">${esc(a.detail)}</span></li>`
-        )
-        .join('\n')}</ul>`
-    : '';
+  // Needs a look: what is wrong right now, each a word with a dot.
+  const alarmRows = [
+    ...board.alarms.alarms.map(
+      (a) =>
+        `<div class="ad-alarm">${statusWord('error', 'Cost alarm')}<span>${esc(a.kind)} — ${esc(a.detail)}</span><span></span></div>`
+    ),
+    ...board.problems.map(
+      (p) =>
+        `<div class="ad-alarm">${statusWord('warn', `${p.count} ${p.kind}`)}<span>${esc(p.detail ?? '')}${
+          p.ids.length ? ` — ${esc(p.ids.join(', '))}${p.count > p.ids.length ? ', …' : ''}` : ''
+        }</span><span></span></div>`
+    ),
+  ];
+  const needs = card(
+    'Needs a look',
+    alarmRows.length
+      ? `<div class="ad-feed">${alarmRows.join('\n')}</div>`
+      : note(
+          'Nothing to interpret. Every serving cell is drilled, checkpointed and on one version.'
+        ),
+    { aside: alarmRows.length ? `<small>${alarmRows.length}</small>` : '' }
+  );
 
   const unpriced = mrr.unpriced.length
-    ? `<div class="card"><h2>Projects on a plan with no price</h2>
-         <p class="quiet">Counted as nothing, which is why they are listed rather than summed.</p>
-         <p class="mono">${mrr.unpriced.map((u) => esc(`${u.id} (${u.plan})`)).join(', ')}</p>
-       </div>`
+    ? card(
+        'Projects on a plan with no price',
+        `${note('Counted as nothing, which is why they are listed rather than summed.')}${note(`<span class="mono">${mrr.unpriced.map((u) => esc(`${u.id} (${u.plan})`)).join(', ')}</span>`)}`,
+        { cls: 'ad-gap' }
+      )
     : '';
 
+  const day = new Date(now).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
   return shell({
     account,
     title: 'Fleet overview',
+    heading: 'The service today',
     active: 'operator',
-    lede: 'Every project and account on the platform, what the plane believes it earns, and what is wrong right now. Actions live on an account’s page and a project’s page; each needs a reason and is logged.',
-    body: `<p class="head-actions"><a class="btn" href="/operator/new-project">New project for an account</a></p>
-      <div class="tiles">${tiles.join('\n')}</div>
-      ${accountLists(lists, tab)}
-      <div class="card"><h2>Needs a look</h2>
-        ${alarms ? `<h3>Cost alarms</h3>${alarms}` : ''}
-        <h3>Fleet problems</h3>${problems}
+    lede: `${day} · every project and account on the platform, and what is wrong right now`,
+    actions: `<a class="btn btn--primary" href="/operator/new-project">${icon('plus', 14)}New project for an account</a>`,
+    sheet,
+    body: `${tiles(list)}
+      <div class="ad-cols ad-cols--2-1">
+        ${accountLists(lists, tab)}
+        ${needs}
       </div>
       ${unpriced}`,
   });
@@ -353,40 +371,73 @@ const LIST_WORD = {
   promo: 'Promo',
 };
 
+/** One account row: who, their plan, their counts, when last here. */
+function accountRow(a, { now = Date.now() } = {}) {
+  const plan = a.plan ? planWord(a.plan) : '<span class="ad-quiet">No project</span>';
+  return `<tr${a.plan?.tone === 'warn' ? ' class="is-hl"' : ''}>
+    <td>${who({ name: String(a.name ?? '').trim() || a.email, sub: a.email, seed: a.email, href: `/operator/accounts/${a.id}` })}</td>
+    <td>${plan}${a.note ? ` <span class="ad-quiet">· ${esc(a.note)}</span>` : ''}</td>
+    <td class="ad-num">${num(a.projects ?? null)}</td>
+    <td class="ad-num">${num(a.people ?? null)}</td>
+    <td class="ad-quiet">${a.last_seen ? esc(ago(a.last_seen, now)) : 'never'}</td>
+    <td><a class="btn btn--ghost btn--sm" href="/operator/accounts/${esc(a.id)}">Open</a></td>
+  </tr>`;
+}
+
 /**
  * @param {{counts: object, rows: object[]|null, note?: string}|null} lists
  *   `rows: null` means the list could not be read (Most active without
  *   analytics) — said in words, never drawn as an empty table.
  */
 function accountLists(lists, tab) {
-  if (!lists) return '';
+  if (!lists) return '<div></div>';
   const active = Object.hasOwn(LIST_WORD, tab) ? tab : 'newest';
-  const tabs = Object.keys(LIST_WORD)
+  const tabsHtml = Object.keys(LIST_WORD)
     .map((key) => {
       const n = lists.counts?.[key];
-      return `<li><a href="/operator${key === 'newest' ? '' : `?tab=${key}`}"${key === active ? ' aria-current="page"' : ''}>${esc(LIST_WORD[key])}${n === null || n === undefined ? '' : ` <span class="mono">${n}</span>`}</a></li>`;
+      return `<a class="ad-tab" href="/operator${key === 'newest' ? '' : `?tab=${key}`}"${key === active ? ' aria-current="page"' : ''}>${esc(LIST_WORD[key])}${n === null || n === undefined ? '' : ` <span class="ad-count${key === 'trial' && n > 0 ? ' ad-count--hot' : ''}">${n}</span>`}</a>`;
     })
     .join('');
-  const rows = (lists.rows ?? [])
-    .map(
-      (a) => `<tr>
-        <td><a href="/operator/accounts/${esc(a.id)}">${esc(a.email)}</a></td>
-        <td class="right mono">${num(a.projects ?? null)}</td>
-        <td class="quiet">${esc(a.note ?? '')}</td>
-        <td class="right"><time>${when(a.created_at)}</time></td>
-      </tr>`
-    )
-    .join('\n');
-  return `<div class="card">
-    <ul class="otabs">${tabs}</ul>
+  const rows = (lists.rows ?? []).map((a) => accountRow(a)).join('\n');
+  return `<div class="ad-card ad-card--clip">
+    <nav class="ad-tabs" aria-label="Lists of accounts">${tabsHtml}<span class="ad-tabs-sp"></span>
+      <form class="ad-filter" role="search" method="get" action="/operator/accounts">${icon('search', 13)}<input type="search" name="q" maxlength="120" placeholder="Email, project or id" aria-label="Email, project name or id"></form>
+    </nav>
     ${
       lists.rows === null
-        ? `<p class="quiet">${esc(lists.note ?? 'This list could not be read.')}</p>`
+        ? note(esc(lists.note ?? 'This list could not be read.'))
         : rows
-          ? `<table><thead><tr><th>Account</th><th class="right">Projects</th><th></th><th class="right">Created</th></tr></thead><tbody>${rows}</tbody></table>`
-          : '<p class="quiet">Nobody on this list.</p>'
+          ? `<div class="ad-scroll"><table class="ad-table"><thead><tr><th scope="col">Account</th><th scope="col">Plan</th><th scope="col" class="ad-num">Projects</th><th scope="col" class="ad-num">People</th><th scope="col">Last here</th><th scope="col"><span class="ad-sr">Action</span></th></tr></thead><tbody>${rows}</tbody></table></div>`
+          : note('Nobody on this list.')
     }
   </div>`;
+}
+
+/** "28 Oct" — a day as a person reads it (UTC). */
+function shortDay(ms) {
+  const t = Number(ms);
+  if (!Number.isFinite(t) || t <= 0) return '—';
+  return new Date(t).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
+}
+
+/** "12 min ago", "Yesterday", "3 Nov" — how long since, the way a person says it. */
+function ago(ms, now = Date.now()) {
+  const t = Number(ms);
+  if (!Number.isFinite(t) || t <= 0) return 'never';
+  const d = now - t;
+  if (d < 5 * 60_000) return 'Now';
+  if (d < 3_600_000) return `${Math.floor(d / 60_000)} min ago`;
+  if (d < 86_400_000) return `${Math.floor(d / 3_600_000)} h ago`;
+  if (d < 2 * 86_400_000) return 'Yesterday';
+  return new Date(t).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
 }
 
 // ---------------------------------------------------------------- projects
@@ -405,28 +456,27 @@ export function operatorProjectsPage({ account, projects = [], stats = null, ren
     .map((p) => {
       const s = stats?.get(p.id) ?? null;
       const r = render?.get(p.id) ?? null;
-      return `<tr>
-        <td class="mono"><a href="/operator/projects/${esc(p.id)}">${esc(p.id)}</a></td>
-        <td>${esc(p.name ?? '')}</td>
+      return `<tr${p.state === 'purged' ? ' class="is-dim"' : ''}>
+        <td><a class="ad-who" href="/operator/projects/${esc(p.id)}">${thumb('ad-thumb--row')}<span class="ad-who-t"><strong>${esc(p.name || p.id)}</strong><span class="mono">${esc(p.id)}</span></span></a></td>
         <td>${esc(p.state)}</td>
         <td>${planCell(p)}</td>
-        <td class="quiet">${ownerLink(p)}</td>
+        <td class="ad-quiet">${ownerLink(p)}</td>
         <td class="mono">${esc(p.version ?? '—')}</td>
-        <td class="right"><time>${when(p.last_checkpoint)}</time></td>
-        <td class="right">${p.cell_running ? 'yes' : 'no'}</td>
+        <td class="ad-quiet"><time>${when(p.last_checkpoint)}</time></td>
+        <td>${p.cell_running ? statusWord('ok', 'up') : statusWord('off', 'asleep')}</td>
         ${
           withStats
-            ? `<td class="right mono">${num(s?.canvases ?? null)}</td>
-               <td class="right mono">${num(s?.artboards ?? null)}</td>
-               <td class="right mono">${bytes(s?.assetsBytes ?? null)}</td>`
+            ? `<td class="ad-num">${num(s?.canvases ?? null)}</td>
+               <td class="ad-num">${num(s?.artboards ?? null)}</td>
+               <td class="ad-num">${bytes(s?.assetsBytes ?? null)}</td>`
             : ''
         }
         ${
           withRender
-            ? `<td class="right mono">${num(r?.builds ?? null)}</td>
-               <td class="right mono">${cachePct(r)}</td>
-               <td class="right mono">${ms(r?.durationMsP95)}</td>
-               <td class="right mono">${num(ceilingHits(r))}</td>`
+            ? `<td class="ad-num">${num(r?.builds ?? null)}</td>
+               <td class="ad-num">${cachePct(r)}</td>
+               <td class="ad-num">${ms(r?.durationMsP95)}</td>
+               <td class="ad-num">${num(ceilingHits(r))}</td>`
             : ''
         }
       </tr>`;
@@ -439,23 +489,22 @@ export function operatorProjectsPage({ account, projects = [], stats = null, ren
     active: 'operator-projects',
     lede: 'Every project on the platform, whatever state it is in. An em-dash means the plane has no answer — never that the answer is zero.',
     body: projects.length
-      ? `<table>
+      ? `<div class="ad-card ad-card--clip"><div class="ad-scroll"><table class="ad-table">
           <thead><tr>
-            <th>Project</th><th>Name</th><th>State</th><th>Plan</th><th>Owner</th><th>Version</th>
-            <th class="right">Last checkpoint</th><th class="right">Cell up</th>
-            ${withStats ? '<th class="right">Canvases</th><th class="right">Artboards</th><th class="right">Assets</th>' : ''}
-            ${withRender ? '<th class="right">Builds</th><th class="right">Cache hit</th><th class="right">Build p95</th><th class="right">Ceiling hits</th>' : ''}
+            <th scope="col">Project</th><th scope="col">State</th><th scope="col">Plan</th><th scope="col">Owner</th><th scope="col">Version</th>
+            <th scope="col">Last checkpoint</th><th scope="col">Cell</th>
+            ${withStats ? '<th scope="col" class="ad-num">Canvases</th><th scope="col" class="ad-num">Artboards</th><th scope="col" class="ad-num">Assets</th>' : ''}
+            ${withRender ? '<th scope="col" class="ad-num">Builds</th><th scope="col" class="ad-num">Cache hit</th><th scope="col" class="ad-num">Build p95</th><th scope="col" class="ad-num">Ceiling hits</th>' : ''}
           </tr></thead>
           <tbody>${rows}</tbody>
-        </table>`
-      : '<p class="quiet">No projects yet.</p>',
+        </table></div></div>`
+      : `<div class="ad-card">${note('No projects yet.')}</div>`,
   });
 }
 
 /** A project's plan as support reads it (plan-copy.mjs `operatorPlan`). */
 function planCell(project, { now = Date.now() } = {}) {
-  const plan = operatorPlan(project, { now });
-  return `<span class="plan-${esc(plan.tone)}">${esc(plan.line)}</span>`;
+  return planWord(operatorPlan(project, { now }));
 }
 
 /** The owner's address, linking to their account page when the id is known. */
@@ -472,11 +521,12 @@ export function operatorAccountsPage({ account, accounts = [], q = '' }) {
   const rows = accounts
     .map(
       (a) => `<tr>
-        <td class="mono"><a href="/operator/accounts/${esc(a.id)}">${esc(a.id)}</a></td>
+        <td>${who({ name: String(a.name ?? '').trim() || a.email, sub: a.id, seed: a.email, href: `/operator/accounts/${a.id}` })}</td>
         <td>${esc(a.email)}</td>
-        <td class="right mono">${num(a.projects ?? null)}</td>
-        <td class="right">${a.stripe_customer_id ? 'yes' : 'no'}</td>
-        <td class="right"><time>${when(a.created_at)}</time></td>
+        <td class="ad-num">${num(a.projects ?? null)}</td>
+        <td>${a.stripe_customer_id ? 'yes' : 'no'}</td>
+        <td class="ad-quiet"><time>${when(a.created_at)}</time></td>
+        <td><a class="btn btn--ghost btn--sm" href="/operator/accounts/${esc(a.id)}">Open</a></td>
       </tr>`
     )
     .join('\n');
@@ -486,20 +536,23 @@ export function operatorAccountsPage({ account, accounts = [], q = '' }) {
     title: 'All accounts',
     active: 'operator-accounts',
     lede: 'Who exists on the platform. Reading this list is itself recorded — a fleet-wide view of who our customers are is the break-glass, whatever it is called.',
-    body: `<form class="search" method="get" action="/operator/accounts">
-        <input type="search" name="q" value="${esc(q)}" maxlength="120"
-               placeholder="Email, project name or id" aria-label="Email, project name or id">
-        <button type="submit">Find</button>
-        ${q ? '<a class="btn ghost" href="/operator/accounts">All accounts</a>' : ''}
-      </form>
+    actions: `<a class="btn btn--primary" href="/operator/new-project">${icon('plus', 14)}New project for an account</a>`,
+    body: `<div class="ad-card ad-card--clip">
+      <nav class="ad-tabs" aria-label="Accounts">
+        <a class="ad-tab" href="/operator/accounts"${q ? '' : ' aria-current="page"'}>All accounts</a>
+        ${q ? `<span class="ad-tab" aria-current="page">Matching “${esc(q)}” <span class="ad-count">${accounts.length}</span></span>` : ''}
+        <span class="ad-tabs-sp"></span>
+        <form class="ad-filter" role="search" method="get" action="/operator/accounts">${icon('search', 13)}<input type="search" name="q" value="${esc(q)}" maxlength="120"
+               placeholder="Email, project name or id" aria-label="Email, project name or id"></form>
+      </nav>
       ${
         accounts.length
-          ? `<table>
-          <thead><tr><th>Account</th><th>Email</th><th class="right">Projects</th><th class="right">Stripe</th><th class="right">Created</th></tr></thead>
+          ? `<div class="ad-scroll"><table class="ad-table">
+          <thead><tr><th scope="col">Account</th><th scope="col">Email</th><th scope="col" class="ad-num">Projects</th><th scope="col">Stripe</th><th scope="col">Created</th><th scope="col"><span class="ad-sr">Action</span></th></tr></thead>
           <tbody>${rows}</tbody>
-        </table>`
-          : `<p class="quiet">${q ? `No account matches “${esc(q)}”.` : 'No accounts yet.'}</p>`
-      }`,
+        </table></div>`
+          : note(q ? `No account matches “${esc(q)}”.` : 'No accounts yet.')
+      }</div>`,
   });
 }
 
@@ -513,7 +566,29 @@ export function operatorAccountsPage({ account, accounts = [], q = '' }) {
 const REASON_HINT =
   'Recorded permanently with your name. The project’s owner can read it on the Activity page.';
 
-function sheet({ title, action, csrf, fields = '', submit, hidden = {}, note = null, id }) {
+/** The reason field every operator form carries. */
+function reasonField(id, { label = 'Why', placeholder = '' } = {}) {
+  return `<span class="field"><label for="${esc(id)}-reason">${esc(label)}</label>
+      <textarea id="${esc(id)}-reason" name="reason" required maxlength="500"${placeholder ? ` placeholder="${esc(placeholder)}"` : ''}></textarea>
+      <span class="field-hint">${esc(REASON_HINT)}</span></span>`;
+}
+
+/**
+ * An inline action: a <details> holding one form, for the actions that are
+ * rare enough to sit in a list (pause, move, delete…). The big three — free
+ * time, Promo, a new project — are sheets over the page (see `freeTimeSheet`).
+ */
+function sheet({
+  title,
+  action,
+  csrf,
+  fields = '',
+  submit,
+  hidden = {},
+  note: hint = null,
+  id,
+  danger = false,
+}) {
   const extra = Object.entries(hidden)
     .map(([k, v]) => `<input type="hidden" name="${esc(k)}" value="${esc(v)}">`)
     .join('');
@@ -521,54 +596,149 @@ function sheet({ title, action, csrf, fields = '', submit, hidden = {}, note = n
     <summary>${esc(title)}</summary>
     <form method="post" action="${esc(action)}">
       <input type="hidden" name="csrf" value="${esc(csrf)}">${extra}
-      ${note ? `<p class="hint">${note}</p>` : ''}
+      ${hint ? `<p class="hint">${hint}</p>` : ''}
       ${fields}
-      <label for="${esc(id)}-reason">Why</label>
-      <textarea id="${esc(id)}-reason" name="reason" required maxlength="500"></textarea>
-      <p class="hint">${esc(REASON_HINT)}</p>
-      <div class="foot"><button type="submit">${esc(submit)}</button></div>
+      ${reasonField(id)}
+      <div class="ad-sheet-a"><span class="ad-quiet">Logged as yours</span><span class="ad-sp"></span><button type="submit" class="btn btn--sm${danger ? ' k-btn-danger' : ' btn--primary'}">${esc(submit)}</button></div>
     </form>
   </details>`;
 }
 
-const dateInput = (name, label, id) =>
-  `<label for="${esc(id)}">${esc(label)}</label><input type="date" id="${esc(id)}" name="${esc(name)}">`;
+const dateInput = (name, label, id, value = '') =>
+  `<span class="field"><label for="${esc(id)}">${esc(label)}</label><input type="date" id="${esc(id)}" name="${esc(name)}" value="${esc(value)}"></span>`;
+
+/** A segmented control of radios: `options` is [[value, word]]. */
+function segmented(name, label, options, current) {
+  return `<span class="field"><span class="field-label" id="seg-${esc(name)}">${esc(label)}</span>
+    <span class="seg ad-seg" role="radiogroup" aria-labelledby="seg-${esc(name)}">${options
+      .map(
+        ([value, word]) =>
+          `<label class="ad-seg-b"><input type="radio" name="${esc(name)}" value="${esc(value)}"${String(value) === String(current) ? ' checked' : ''}>${esc(word)}</label>`
+      )
+      .join('')}</span></span>`;
+}
+
+/** A pick list of radios: `options` is [[value, title, sub]]. */
+function pickList(name, label, options, current) {
+  return `<span class="field"><span class="field-label" id="pick-${esc(name)}">${esc(label)}</span>
+    <span class="ad-pick" role="radiogroup" aria-labelledby="pick-${esc(name)}">${options
+      .map(
+        ([value, title, sub]) =>
+          `<label class="ad-pick-o"><input type="radio" name="${esc(name)}" value="${esc(value)}"${value === current ? ' checked' : ''}><span><strong>${esc(title)}</strong>${sub ? `<span>${esc(sub)}</span>` : ''}</span></label>`
+      )
+      .join('')}</span></span>`;
+}
 
 /** How long: 14 days · 30 days · 3 months · until a date. */
 function freeTimeFields(id) {
   const words = { 14: '14 days', 30: '30 days', 90: '3 months' };
-  return `<div class="pick" role="radiogroup" aria-label="How long">
-      ${FREE_TIME_DAYS.map(
-        (d) =>
-          `<label><input type="radio" name="days" value="${d}"${d === 30 ? ' checked' : ''}> ${esc(words[d] ?? `${d} days`)}</label>`
-      ).join('')}
-      <label><input type="radio" name="days" value="until"> Until a date</label>
-    </div>
-    ${dateInput('until', 'Until (only with “Until a date”)', `${id}-until`)}`;
+  return `${segmented(
+    'days',
+    'How long',
+    [...FREE_TIME_DAYS.map((d) => [d, words[d] ?? `${d} days`]), ['until', 'Until…']],
+    30
+  )}
+    ${dateInput('until', 'Until (only with “Until…”)', `${id}-until`)}`;
 }
 
-function freeTimeSheet({ action, csrf, rid, id, title, note, hidden = {} }) {
-  return sheet({
+const PROMO_SUB = {
+  project: 'Like the Project plan',
+  dedicated: 'Like the Dedicated plan',
+  unlimited: 'No storage limit at all',
+};
+
+function promoFields(id, { current = 'dedicated' } = {}) {
+  return `${pickList(
+    'tier',
+    'Storage',
+    PROMO_TIERS.map((t) => [t.id, promoTierLabel(t.id), PROMO_SUB[t.id] ?? '']),
+    current
+  )}
+    ${dateInput('ends', 'Ends (empty = never)', `${id}-ends`)}
+    <span class="field-hint">With a date, the owner hears 30 days before, and nothing is paused until the date.</span>`;
+}
+
+/**
+ * The right-hand sheet for one operator action (canvas 16: Give free time,
+ * Mark as Promo, New project for an account). No script on these pages, so a
+ * sheet is its own address — `?sheet=…` on the page it sits over — and Cancel
+ * is a link back to that page.
+ *
+ * @returns {{title: string, sub: string|null, back: string, body: string}}
+ */
+function actionSheet({
+  title,
+  sub = null,
+  back,
+  action,
+  csrf,
+  hidden = {},
+  fields,
+  submit,
+  id,
+  promise = null,
+  reasonFirst = false,
+}) {
+  const extra = Object.entries(hidden)
+    .map(([k, v]) => `<input type="hidden" name="${esc(k)}" value="${esc(v)}">`)
+    .join('');
+  const reason = reasonField(id, { label: reasonFirst ? 'Why' : 'Why · needed' });
+  return {
     title,
-    action,
+    sub,
+    back,
+    body: `<form method="post" action="${esc(action)}">
+      <input type="hidden" name="csrf" value="${esc(csrf)}">${extra}
+      ${reasonFirst ? reason : fields}
+      ${reasonFirst ? fields : reason}
+      ${promise ? `<div class="ad-promise">${icon('check', 14)}<span>${esc(promise)}</span></div>` : ''}
+      ${sheetActions({ back, submit, note: 'Logged as yours' })}
+    </form>`,
+  };
+}
+
+/** Give free time — to one project, or (no `project`) to every project of an account. */
+export function freeTimeSheet({ project = null, target = null, csrf, rid, back, backKey = null }) {
+  const paused = project ? operatorPlan(project).state === 'paused' : false;
+  const ends = project?.trial_ends_at ? shortDay(project.trial_ends_at) : null;
+  return actionSheet({
+    title: project
+      ? `${paused ? 'Wake' : 'Give'} ${project.name || project.id}${paused ? ' with' : ''} free time`
+      : 'Give every project of this account free time',
+    sub: project
+      ? paused
+        ? 'Counted from today. The project is editable again as soon as its workspace restarts.'
+        : `${ends ? `Free until ${ends} now. ` : ''}Free time is added on top, with no card.`
+      : 'Added to every project that has no paid plan and is not Promo; also wakes the ones paused because their trial ended. A paid project is left alone, and the log says so.',
+    back,
+    action: project
+      ? `/operator/projects/${project.id}/free-time`
+      : `/operator/accounts/${target.id}/free-time`,
     csrf,
-    id,
-    hidden: { rid, ...hidden },
-    note,
-    fields: freeTimeFields(id),
+    hidden: { rid, ...(backKey ? { back: backKey } : {}) },
+    fields: freeTimeFields(project ? `free-${project.id}` : 'free-all'),
     submit: 'Give free time',
+    id: project ? `free-${project.id}` : 'free-all',
+    promise: `${target?.email ?? project?.owner_email ?? 'The owner'} gets one email saying until when it is free.`,
   });
 }
 
-function promoFields(id, { current = 'dedicated' } = {}) {
-  return `<div class="pick" role="radiogroup" aria-label="Storage">
-      ${PROMO_TIERS.map(
-        (t) =>
-          `<label><input type="radio" name="tier" value="${esc(t.id)}"${t.id === current ? ' checked' : ''}> ${esc(promoTierLabel(t.id))}</label>`
-      ).join('')}
-    </div>
-    ${dateInput('ends', 'Ends (empty = never)', `${id}-ends`)}
-    <p class="hint">With a date, the owner is told 30 days before, and nothing is paused until the date.</p>`;
+/** Mark as Promo, or change it. */
+function promoSheet({ project, csrf, back }) {
+  const on = project.promo_since != null;
+  return actionSheet({
+    title: on
+      ? `Change Promo on ${project.name || project.id}`
+      : `Mark ${project.name || project.id} as Promo`,
+    sub: 'It stays free, never becomes a trial and is never paused while Promo runs.',
+    back,
+    action: `/operator/projects/${project.id}/promo`,
+    csrf,
+    fields: promoFields('promo', { current: project.promo_tier ?? 'dedicated' }),
+    submit: on ? 'Save Promo' : 'Mark as Promo',
+    id: 'promo',
+    reasonFirst: true,
+  });
 }
 
 // ------------------------------------------------------------- one account
@@ -594,6 +764,8 @@ export function operatorAccountPage({
   currency = 'eur',
   notice = null,
   error = null,
+  sheet = null,
+  sheetProject = null,
   now = Date.now(),
   newRid = () => crypto.randomUUID(),
 }) {
@@ -605,11 +777,13 @@ export function operatorAccountPage({
       : 'by an operator, and has not signed in yet';
   const macs = Number(target.macs ?? 0);
   const header = [
-    esc(target.email),
-    `${target.google_sub || target.password_hash ? 'signed up' : 'made'} ${when(target.created_at)} ${method}`,
-    `last here ${target.last_seen ? when(target.last_seen) : 'never'}`,
+    target.email,
+    `${target.google_sub || target.password_hash ? 'signed up' : 'made'} ${shortDay(target.created_at)} ${method}`,
+    `last here ${target.last_seen ? ago(target.last_seen, now).toLowerCase() : 'never'}`,
     macs === 0 ? 'no Mac signed in' : `${macs} ${macs === 1 ? 'Mac' : 'Macs'}`,
   ].join(' · ');
+  const first = (String(target.name ?? '').trim() || target.email).split(/[\s@]/)[0];
+  const base = `/operator/accounts/${target.id}`;
 
   const plans = live.map((p) => operatorPlan(p, { now }));
   const count = (state) => plans.filter((p) => p.state === state).length;
@@ -628,28 +802,32 @@ export function operatorAccountPage({
   const people = live.reduce((n, p) => n + Number(p.people ?? 0), 0);
   const waiting = live.reduce((n, p) => n + Number(p.invitesOpen ?? 0), 0);
   const withStorage = live.filter((p) => p.stats?.assetsBytes != null);
-  const tiles = [
-    tile('Projects', `<span>${live.length}</span>`, esc(breakdown) || 'none'),
-    tile(
-      'People',
-      `<span>${people}</span>`,
-      `across its projects, the owner counted in each · ${waiting} invited, not opened`
-    ),
-    tile(
-      'Pays (believed)',
-      `<span>${money(believedMonthlyMinor, currency)}</span>`,
-      'a month, from plan × state · Stripe is the authority'
-    ),
+  const list = [
+    tile('Projects', 'folder', live.length, { sub: breakdown || 'none' }),
+    tile('People', 'people', people, {
+      sub: `across its projects, the owner counted in each · ${waiting} invited, not opened`,
+    }),
+    stat({
+      label: 'Pays (believed)',
+      glyph: 'export',
+      value: money(believedMonthlyMinor, currency),
+      unit: believedMonthlyMinor ? 'a month' : null,
+      foot: '<span>from plan × state · Stripe is the authority</span>',
+    }),
     // Only when a cell reported: a storage figure summed from nothing would be
     // a zero that means "unknown".
     ...(withStorage.length
-      ? [
-          tile(
-            'Storage',
-            `<span>${bytes(withStorage.reduce((n, p) => n + p.stats.assetsBytes, 0))}</span>`,
-            `${withStorage.length} of ${live.length} projects reported`
-          ),
-        ]
+      ? (() => {
+          const [amount, unit] = bytes(
+            withStorage.reduce((n, p) => n + p.stats.assetsBytes, 0)
+          ).split(' ');
+          return [
+            tile('Storage', 'server', amount, {
+              unit,
+              sub: `${withStorage.length} of ${live.length} projects reported`,
+            }),
+          ];
+        })()
       : []),
   ];
 
@@ -659,100 +837,107 @@ export function operatorAccountPage({
       // Only where a trial clock exists: a row with no plan never expires, and
       // free time would put an end date on it (operator-actions.mjs `decideFreeTime`).
       const canFree = plan.state === 'trial' || plan.state === 'paused';
-      return `<tr>
-        <td><a href="/operator/projects/${esc(p.id)}">${esc(p.name || p.id)}</a>
-          <span class="quiet mono">${esc(p.id)}</span>${
-            p.stats?.canvases != null
-              ? ` <span class="quiet">· ${num(p.stats.canvases)} canvases</span>`
-              : ''
-          }</td>
-        <td><span class="plan-${esc(plan.tone)}">${esc(plan.line)}</span></td>
-        <td class="right mono">${num(p.people ?? null)}</td>
-        <td class="right mono">${bytes(p.stats?.assetsBytes ?? null)}</td>
-        <td class="right mono">${num(changesView([p], { now })?.week ?? null)}</td>
-        <td class="right"><time>${when(p.last_checkpoint)}</time></td>
-        <td>${
+      const week = changesView([p], { now })?.week ?? null;
+      const sub = [
+        ...(p.stats?.canvases != null ? [`${num(p.stats.canvases)} canvases`] : []),
+        week !== null ? `${week} changes this week` : 'changes not reported',
+      ].join(' · ');
+      const menu = `<details class="menu"><summary aria-label="More for ${esc(p.name || p.id)}">${icon('more', 14)}</summary><div class="menu-list">
+          <a href="/operator/projects/${esc(p.id)}/people">People in this project</a>
+          <a href="/operator/projects/${esc(p.id)}">Mark as Promo, pause, move, delete…</a>
+          <a href="${esc(base)}/view/projects/${esc(p.id)}/people">See it as ${esc(first)} does</a>
+        </div></details>`;
+      return `<tr class="${plan.tone === 'warn' ? 'is-hl' : plan.tone === 'off' || p.state === 'purged' ? 'is-dim' : ''}">
+        <td><a class="ad-who" href="/operator/projects/${esc(p.id)}">${thumb('ad-thumb--row')}<span class="ad-who-t"><strong>${esc(p.name || p.id)}</strong><span>${esc(sub)}</span></span></a></td>
+        <td>${planWord(plan)}</td>
+        <td class="ad-num">${num(p.people ?? null)}</td>
+        <td class="ad-num">${bytes(p.stats?.assetsBytes ?? null)}</td>
+        <td class="ad-quiet"><time>${p.last_checkpoint ? esc(ago(p.last_checkpoint, now)) : '—'}</time></td>
+        <td><span class="ad-row-a">${
           canFree
-            ? freeTimeSheet({
-                title: plan.state === 'paused' ? 'Wake with free time' : 'Give free time',
-                action: `/operator/projects/${p.id}/free-time`,
-                csrf,
-                rid: newRid(),
-                id: `free-${p.id}`,
-                hidden: { back: 'account' },
-                note:
-                  plan.state === 'paused'
-                    ? 'Counted from today. The project is editable again as soon as its workspace restarts.'
-                    : 'Added on top of the time it already has. No card.',
-              })
-            : ''
-        }</td>
+            ? `<a class="btn btn--sm" href="${esc(base)}?sheet=free&amp;project=${encodeURIComponent(p.id)}">${plan.state === 'paused' ? 'Wake with free time' : 'Give free time'}</a>`
+            : `<a class="btn btn--ghost btn--sm" href="/operator/projects/${esc(p.id)}">Open</a>`
+        }${menu}</span></td>
       </tr>`;
     })
     .join('\n');
 
-  const auditRows = entries
-    .map(
-      (e) => `<tr>
-        <td>${esc(e.action)}</td>
-        <td class="quiet">${esc(e.actor)}</td>
-        <td class="mono quiet">${esc(e.project_id ?? '')}</td>
-        <td>${esc(e.reason ?? '—')}</td>
-        <td class="right"><time>${when(e.at)}</time></td>
-      </tr>`
+  const GLYPH = (action) =>
+    /free|trial|promo/.test(action)
+      ? 'clock'
+      : /invite|people|role|member/.test(action)
+        ? 'people'
+        : /sign|session/.test(action)
+          ? 'lock'
+          : /project|create|move/.test(action)
+            ? 'folder'
+            : 'pulse';
+  const feed = entries
+    .map((e) =>
+      logLine({
+        glyph: GLYPH(String(e.action)),
+        body: `<strong>${esc(String(e.actor).replace(/^operator:/, ''))}</strong> <span>${esc(e.action)}${e.project_id ? ` · ${esc(e.project_id)}` : ''}</span>${e.reason ? `<br><span class="op-ev-r">${esc(e.reason)}</span>` : ''}`,
+        when: ago(e.at, now),
+      })
     )
     .join('\n');
+
+  let sheetHtml = null;
+  if (sheet === 'free') {
+    const one = sheetProject ? live.find((p) => p.id === sheetProject) : null;
+    const plan = one ? operatorPlan(one, { now }) : null;
+    if (!sheetProject || (one && (plan.state === 'trial' || plan.state === 'paused'))) {
+      sheetHtml = freeTimeSheet({
+        project: one ?? null,
+        target,
+        csrf,
+        rid: newRid(),
+        back: base,
+        backKey: one ? 'account' : null,
+      });
+    }
+  } else if (sheet === 'sign-out') {
+    sheetHtml = actionSheet({
+      title: `Sign ${first} out everywhere`,
+      sub: 'Ends every browser sign-in and every Mac of this account. Nothing else changes: the person signs in again and carries on.',
+      back: base,
+      action: `${base}/sign-out`,
+      csrf,
+      fields: '',
+      submit: 'Sign out everywhere',
+      id: 'sign-out',
+    });
+  }
 
   return shell({
     account,
     title: target.name || target.email,
     active: 'operator-accounts',
-    lede: 'One account: every project it owns, the people on them, and what happened. The designs themselves are in each project’s workspace and are not reachable from here.',
+    lede: header,
+    actions: `<a class="btn" href="${esc(base)}?sheet=sign-out">Sign out everywhere</a>
+      <a class="btn" href="/operator/new-project?owner=${encodeURIComponent(target.email)}">${icon('plus', 14)}New project for ${esc(first)}</a>
+      ${live.length ? `<a class="btn btn--primary" href="${esc(base)}?sheet=free">${icon('clock', 14)}Give free time</a>` : ''}`,
+    sheet: sheetHtml,
     body: `
       ${error ? `<p class="err">${esc(error)}</p>` : ''}
       ${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
-      <p class="quiet">${header}</p>
-      <p class="head-actions">
-        <a class="btn" href="/operator/new-project?owner=${encodeURIComponent(target.email)}">New project for this account</a>
-        <a class="btn ghost" href="/operator/accounts/${esc(target.id)}/view">See it as ${esc(target.email)} does</a>
-      </p>
-      <div class="tiles">${tiles.join('\n')}</div>
-
-      <div class="card"><h2>Projects</h2>
-        ${
+      ${tiles(list)}
+      <div class="ad-cols ad-cols--2-1">
+        ${card(
+          'Projects',
           projects.length
-            ? `<table><thead><tr><th>Project</th><th>Plan</th><th class="right">People</th><th class="right">Storage</th><th class="right">Changes (week)</th><th class="right">Last change</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-               <p class="quiet">Last change is the last checkpoint the platform recorded. People in this project, Mark as Promo, Pause, Wake, Move to another owner and Delete are on each project’s own page.</p>`
-            : '<p class="quiet">This account owns no project.</p>'
-        }
+            ? `<div class="ad-scroll"><table class="ad-table"><thead><tr><th scope="col">Project</th><th scope="col">Plan</th><th scope="col" class="ad-num">People</th><th scope="col" class="ad-num">Storage</th><th scope="col">Last change</th><th scope="col"><span class="ad-sr">Action</span></th></tr></thead><tbody>${rows}</tbody></table></div>
+               <div class="ad-menu-key"><span>In each row’s menu:</span><span class="chip">People in this project</span><span class="chip">Mark as Promo</span><span class="chip">Pause</span><span class="chip">Move to another owner</span><span class="chip">See it as ${esc(first)} does</span><span class="chip">Delete</span></div>`
+            : note('This account owns no project.'),
+          { aside: `<small>${projects.length}</small>` }
+        )}
+        ${card(
+          'Log',
+          entries.length ? `<div class="ad-feed">${feed}</div>` : note('Nothing recorded.'),
+          { aside: `<a class="ad-link" href="${esc(base)}/view">See it as ${esc(first)} does</a>` }
+        )}
       </div>
-
-      <div class="card"><h2>For the whole account</h2>
-        ${freeTimeSheet({
-          title: 'Give free time to every project of this account',
-          action: `/operator/accounts/${target.id}/free-time`,
-          csrf,
-          rid: newRid(),
-          id: 'free-all',
-          note: 'Added to every project that has no paid plan and is not Promo; also wakes the ones paused because their trial ended. A paid project is left alone, and the log says so. The owner gets one e-mail.',
-        })}
-        ${sheet({
-          title: 'Sign out everywhere',
-          action: `/operator/accounts/${target.id}/sign-out`,
-          csrf,
-          id: 'sign-out',
-          note: 'Ends every browser sign-in and every Mac of this account. Nothing else changes: the person signs in again and carries on.',
-          submit: 'Sign out everywhere',
-        })}
-      </div>
-
-      <div class="card"><h2>Log</h2>
-        ${
-          entries.length
-            ? `<table><thead><tr><th>Action</th><th>Actor</th><th>Project</th><th>Reason</th><th class="right">When</th></tr></thead><tbody>${auditRows}</tbody></table>`
-            : '<p class="quiet">Nothing recorded.</p>'
-        }
-      </div>`,
+      <p class="ad-foot" style="margin-top:var(--space-4)">The designs themselves are in each project’s workspace and are not reachable from here. Last change is the last checkpoint the platform recorded.</p>`,
   });
 }
 
@@ -791,16 +976,16 @@ export function operatorProjectPeoplePage({
 
   const personRows = people
     .map((p) => {
-      const who = `${esc(String(p.name ?? '').trim() || p.email)} <span class="quiet">${esc(p.email)}</span>`;
+      const who = personCell(p);
       if (p.role === 'owner')
-        return `<tr><td>${who}</td><td><strong>Owner</strong></td><td></td></tr>`;
-      return `<tr><td>${who}</td><td><strong>${esc(word(p.role))}</strong></td><td>
+        return `<tr><td>${who}</td><td><span class="ad-mrole ad-mrole--own">Owner</span></td><td></td></tr>`;
+      return `<tr><td>${who}</td><td><span class="ad-mrole">${esc(word(p.role))}</span></td><td class="op-acts">
         ${act(
           'Change role',
           { do: 'role', account: p.account_id },
           {
             id: `role-${p.account_id}`,
-            fields: `<label for="role-${esc(p.account_id)}-r">What they can do</label><select id="role-${esc(p.account_id)}-r" name="role">${roleOptions(p.role)}</select>`,
+            fields: `<span class="field"><label for="role-${esc(p.account_id)}-r">What they can do</label><select id="role-${esc(p.account_id)}-r" name="role">${roleOptions(p.role)}</select></span>`,
             submit: 'Save',
           }
         )}
@@ -811,14 +996,14 @@ export function operatorProjectPeoplePage({
   const grantRows = grants
     .map(
       (g) =>
-        `<tr><td>${esc(String(g.name ?? '').trim() || g.email)} <span class="quiet">${esc(g.email)}</span></td><td><strong>${esc(word(g.role))}</strong> <span class="quiet">on one canvas only</span></td><td></td></tr>`
+        `<tr><td>${personCell(g)}</td><td><span class="ad-mrole">${esc(word(g.role))}</span> <span class="ad-quiet">on one canvas only</span></td><td></td></tr>`
     )
     .join('\n');
   const inviteRows = invites
     .map(
       (
         i
-      ) => `<tr><td>${esc(i.email)}</td><td><strong>${esc(word(i.role))}</strong> <span class="quiet">not joined yet · until ${when(i.expires_at)}</span></td><td>
+      ) => `<tr><td>${personCell({ email: i.email })}</td><td><span class="ad-mrole">${esc(word(i.role))}</span> <span class="ad-quiet">not joined yet · until ${when(i.expires_at)}</span></td><td class="op-acts">
         ${act('Send again', { do: 'invite-resend', invite: i.id }, { id: `rs-${i.id}`, submit: 'Send again' })}
         ${act('Cancel invite', { do: 'invite-cancel', invite: i.id }, { id: `cx-${i.id}`, submit: 'Cancel invite' })}
       </td></tr>`
@@ -828,7 +1013,7 @@ export function operatorProjectPeoplePage({
     .map(
       (
         r
-      ) => `<tr><td>${esc(String(r.name ?? '').trim() || r.email)} <span class="quiet">${esc(r.email)}</span></td><td class="quiet">asked ${when(r.created_at)}</td><td>
+      ) => `<tr><td>${personCell(r)}</td><td class="ad-quiet">asked ${when(r.created_at)}</td><td class="op-acts">
         ${act('Allow editing', { do: 'request-allow', request: r.id }, { id: `ok-${r.id}`, submit: 'Allow editing' })}
         ${act('Not now', { do: 'request-decline', request: r.id }, { id: `no-${r.id}`, submit: 'Not now' })}
       </td></tr>`
@@ -840,29 +1025,35 @@ export function operatorProjectPeoplePage({
     title: `People in ${project.name || project.id}`,
     active: 'operator-projects',
     lede: 'Who is on this project and what each can do. Every change here is recorded as Maude support’s, with your reason, on the project’s own Activity page.',
+    actions: `<a class="btn" href="/operator/projects/${esc(project.id)}">Back to the project</a>`,
     body: `
       ${error ? `<p class="err">${esc(error)}</p>` : ''}
       ${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
-      <p class="head-actions"><a class="btn ghost" href="/operator/projects/${esc(project.id)}">Back to the project</a></p>
-      <div class="card"><h2>People</h2>
-        <table><thead><tr><th>Person</th><th>What they can do</th><th></th></tr></thead><tbody>${personRows}${grantRows}</tbody></table>
+      <div class="ad-cols ad-cols--2-1"><div class="ad-stack">
+      ${card('People', `<div class="ad-scroll"><table class="ad-table"><thead><tr><th scope="col">Person</th><th scope="col">What they can do</th><th scope="col"><span class="ad-sr">Action</span></th></tr></thead><tbody>${personRows}${grantRows}</tbody></table></div>`)}
+      ${requests.length ? card('Asks to edit', `<table class="ad-table"><tbody>${requestRows}</tbody></table>`) : ''}
+      ${invites.length ? card('Invited', `<table class="ad-table"><tbody>${inviteRows}</tbody></table>`) : ''}
       </div>
-      ${requests.length ? `<div class="card"><h2>Asks to edit</h2><table><tbody>${requestRows}</tbody></table></div>` : ''}
-      ${invites.length ? `<div class="card"><h2>Invited</h2><table><tbody>${inviteRows}</tbody></table></div>` : ''}
-      <div class="card"><h2>Invite someone</h2>
+      <div class="ad-card ad-card--clip"><h2 class="ad-card-h">Invite someone</h2><div class="op-acts">
         ${act(
           'Invite by e-mail',
           { do: 'invite' },
           {
             id: 'invite',
-            fields: `<label for="invite-email">Their email</label><input type="email" id="invite-email" name="email" required maxlength="254">
-            <label for="invite-role">What they can do</label><select id="invite-role" name="role">${roleOptions('member')}</select>
+            fields: `<span class="field"><label for="invite-email">Their email</label><input type="email" id="invite-email" name="email" required maxlength="254"></span>
+            <span class="field"><label for="invite-role">What they can do</label><select id="invite-role" name="role">${roleOptions('member')}</select></span>
             ${canView ? '' : '<p class="hint">Can view is not available for this project yet.</p>'}`,
             submit: 'Send invitation',
           }
         )}
-      </div>`,
+      </div></div></div>`,
   });
+}
+
+/** A person in an operator table: their face, their name, their address. */
+function personCell(p) {
+  const name = String(p.name ?? '').trim();
+  return who({ name: name || p.email, sub: name ? p.email : null, seed: p.email });
 }
 
 const PEOPLE_ROLE_WORD = {
@@ -874,44 +1065,64 @@ const PEOPLE_ROLE_WORD = {
 
 // --------------------------------------------------------- new project sheet
 
-/** New project for an account, no checkout (canvas 16, cl-operator). */
-export function operatorNewProjectPage({ account, csrf, values = {}, error = null }) {
+/**
+ * New project for an account, no checkout (canvas 16, cl-operator) — the sheet.
+ * `values` refills it after a refusal; every value is escaped.
+ */
+export function newProjectSheet({ csrf, values = {}, error = null, back = '/operator' }) {
   const v = (k) => esc(values[k] ?? '');
   const plan = values.plan === 'trial' ? 'trial' : 'promo';
+  return {
+    title: 'New project for an account',
+    sub: 'For a customer, a friend or a demo — no checkout.',
+    back,
+    body: `<form method="post" action="/operator/new-project">
+        <input type="hidden" name="csrf" value="${esc(csrf)}">
+        ${error ? `<p class="err">${esc(error)}</p>` : ''}
+        <span class="field"><label for="owner">Owner’s email</label>
+          <input type="email" id="owner" name="owner" value="${v('owner')}" required maxlength="254" autofocus>
+          <span class="field-hint">No account yet — one is made with no password, and its owner gets one invite email.</span></span>
+        <span class="field"><label for="name">Project name</label>
+          <input type="text" id="name" name="name" value="${v('name')}" required maxlength="120"></span>
+        ${pickList(
+          'plan',
+          'Plan',
+          [
+            ['promo', 'Promo', 'Never a trial, never paused · you pick the storage'],
+            ['trial', 'Trial', 'Then the owner picks a plan'],
+          ],
+          plan
+        )}
+        ${segmented(
+          'tier',
+          'Promo storage',
+          PROMO_TIERS.map((t) => [t.id, promoTierLabel(t.id)]),
+          values.tier ?? 'dedicated'
+        )}
+        ${dateInput('ends', 'Promo ends (empty = never)', 'ends', values.ends ?? '')}
+        <span class="field"><label for="invites">Also invite, as Can edit</label>
+          <input type="text" id="invites" name="invites" value="${v('invites')}" placeholder="Emails, separated by commas"></span>
+        <span class="field"><label for="reason">Why</label>
+          <textarea id="reason" name="reason" required maxlength="500">${v('reason')}</textarea>
+          <span class="field-hint">${esc(REASON_HINT)}</span></span>
+        ${sheetActions({ back, submit: 'Make project', note: 'Logged as yours in the audit' })}
+      </form>`,
+  };
+}
+
+/**
+ * The sheet on its own address. The route renders it over the overview; this
+ * form (after a refusal, or with nothing behind it) sits over a bare page.
+ */
+export function operatorNewProjectPage({ account, csrf, values = {}, error = null }) {
   return shell({
     account,
     title: 'New project for an account',
-    active: 'operator-accounts',
-    lede: 'For a customer, a friend or a demo — no checkout. If the address has no account, one is made with no password, and its owner gets one e-mail.',
-    body: `
-      ${error ? `<p class="err">${esc(error)}</p>` : ''}
-      <form class="card" method="post" action="/operator/new-project">
-        <input type="hidden" name="csrf" value="${esc(csrf)}">
-        <label for="owner">Owner’s email</label>
-        <input type="email" id="owner" name="owner" value="${v('owner')}" required maxlength="254">
-        <label for="name">Project name</label>
-        <input type="text" id="name" name="name" value="${v('name')}" required maxlength="120">
-        <fieldset>
-          <legend>Plan</legend>
-          <label><input type="radio" name="plan" value="promo"${plan === 'promo' ? ' checked' : ''}> Promo — never a trial, never paused; you pick the storage</label>
-          <label><input type="radio" name="plan" value="trial"${plan === 'trial' ? ' checked' : ''}> Trial — then the owner picks a plan</label>
-        </fieldset>
-        <fieldset>
-          <legend>Promo storage</legend>
-          ${PROMO_TIERS.map(
-            (t) =>
-              `<label><input type="radio" name="tier" value="${esc(t.id)}"${(values.tier ?? 'dedicated') === t.id ? ' checked' : ''}> ${esc(promoTierLabel(t.id))}</label>`
-          ).join('')}
-          <label for="ends">Promo ends (empty = never)</label>
-          <input type="date" id="ends" name="ends" value="${v('ends')}">
-        </fieldset>
-        <label for="invites">Also invite, as Can edit</label>
-        <input type="text" id="invites" name="invites" value="${v('invites')}" placeholder="Emails, separated by commas">
-        <label for="reason">Why</label>
-        <textarea id="reason" name="reason" required maxlength="500">${v('reason')}</textarea>
-        <p class="quiet">${esc(REASON_HINT)}</p>
-        <p><button type="submit">Make project</button> <a href="/operator/accounts">Cancel</a></p>
-      </form>`,
+    heading: 'The service today',
+    active: 'operator',
+    lede: 'If the address has no account, one is made with no password, and its owner gets one e-mail.',
+    sheet: newProjectSheet({ csrf, values, error }),
+    body: '',
   });
 }
 
@@ -936,6 +1147,7 @@ export function operatorProjectPage({
   error = null,
   notice = null,
   now = Date.now(),
+  sheet: sheetKey = null,
   newRid = () => crypto.randomUUID(),
 }) {
   const plan = operatorPlan(project, { now });
@@ -944,10 +1156,10 @@ export function operatorProjectPage({
     ['id', `<span class="mono">${esc(project.id)}</span>`],
     ['name', esc(project.name ?? '')],
     ['owner', ownerLink(project)],
-    ['plan state', `<span class="plan-${esc(plan.tone)}">${esc(plan.line)}</span>`],
+    ['plan state', planWord(plan)],
     [
       'state',
-      `${esc(project.state)} <span class="quiet">since ${when(project.state_since)}</span>`,
+      `${esc(project.state)} <span class="ad-quiet">since ${when(project.state_since)}</span>`,
     ],
     ['plan', esc(project.plan ?? '')],
     [
@@ -978,179 +1190,206 @@ export function operatorProjectPage({
       `${num(render.builds)} builds · ${cachePct(render, ' cached')} · p95 ${ms(render.durationMsP95)} · ${num(ceilingHits(render))} ceiling hits` +
         // Without the window start, a row of zeroes is ambiguous between "a
         // quiet hour" and "this cell rebooted a minute ago".
-        ` <span class="quiet">(window from ${when(render.windowStartedAt ?? null)})</span>`,
+        ` <span class="ad-quiet">(window from ${when(render.windowStartedAt ?? null)})</span>`,
     ]);
   }
 
-  const jobRows = jobs
-    .map(
-      (j) => `<tr>
-        <td class="mono">${esc(j.reason)}</td>
-        <td>${esc(j.outcome ?? 'pending')}</td>
-        <td class="quiet">${esc(String(j.detail ?? '').slice(0, 160))}</td>
-        <td class="right"><time>${when(j.created_at)}</time></td>
-      </tr>`
+  const jobFeed = jobs
+    .map((j) =>
+      logLine({
+        glyph: /export/.test(j.reason)
+          ? 'export'
+          : /backup|checkpoint/.test(j.reason)
+            ? 'server'
+            : 'sync',
+        body: `<span class="mono">${esc(j.reason)}</span> · ${esc(j.outcome ?? 'pending')}${j.detail ? `<br><span class="op-ev-r">${esc(String(j.detail).slice(0, 160))}</span>` : ''}`,
+        when: ago(j.created_at, now),
+      })
     )
     .join('\n');
 
-  const auditRows = entries
-    .map(
-      (e) => `<tr>
-        <td>${esc(e.action)}</td>
-        <td class="quiet">${esc(e.actor)}</td>
-        <td>${esc(e.reason ?? '—')}</td>
-        <td class="right"><time>${when(e.at)}</time></td>
-      </tr>`
+  // The log renders the REASON of every entry, which the customer-facing page
+  // did not until this phase — and an em-dash where there is none.
+  const logFeed = entries
+    .map((e) =>
+      logLine({
+        glyph: /free|promo|trial/.test(String(e.action))
+          ? 'clock'
+          : /people|invite|access/.test(String(e.action))
+            ? 'people'
+            : 'pulse',
+        body: `<strong>${esc(String(e.actor).replace(/^operator:/, ''))}</strong> <span>${esc(e.action)}</span><br><span class="op-ev-r">Reason: ${esc(e.reason ?? '—')}</span>`,
+        when: ago(e.at, now),
+      })
     )
     .join('\n');
+
+  const canFree = plan.state === 'trial' || plan.state === 'paused';
+  const canPromo = !(plan.state === 'paid' || plan.state === 'lapsed' || plan.state === 'gone');
+  let sheetHtml = null;
+  if (sheetKey === 'free' && canFree) {
+    sheetHtml = freeTimeSheet({ project, csrf, rid: newRid(), back: base });
+  } else if (sheetKey === 'promo' && canPromo) {
+    sheetHtml = promoSheet({ project, csrf, back: base });
+  }
+
+  const owner = project.owner_email ? `Owner ${project.owner_email}` : null;
+  const sub = [
+    owner,
+    ...(stats ? [`${num(stats.canvases)} canvases`] : []),
+    `cell ${project.cell_running ? 'up' : 'asleep'}`,
+    `version ${project.version ?? '—'}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const actions = [
+    `<a class="btn" href="#reconcile">Reconcile</a>`,
+    `<a class="btn" href="/operator/projects/${esc(project.id)}/people">${icon('people', 14)}People in this project</a>`,
+    ...(canFree
+      ? [
+          `<a class="btn${canPromo ? '' : ' btn--primary'}" href="${esc(base)}?sheet=free">${icon('clock', 14)}${plan.state === 'paused' ? 'Wake with free time' : 'Give free time'}</a>`,
+        ]
+      : []),
+    ...(canPromo
+      ? [
+          `<a class="btn btn--primary" href="${esc(base)}?sheet=promo">${project.promo_since != null ? 'Change Promo' : 'Mark as Promo'}</a>`,
+        ]
+      : []),
+  ].join('');
 
   return shell({
     account,
     title: project.name || project.id,
     active: 'operator-projects',
-    lede: 'Everything the control plane knows about this project. What it holds, what it earns and what state it is in — the designs themselves are in the cell and are not reachable from here.',
+    lede: sub,
+    actions,
+    sheet: sheetHtml,
     body: `
       ${error ? `<p class="err">${esc(error)}</p>` : ''}
       ${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
-      <div class="card"><h2>Row</h2>
-        <table><tbody>${facts
-          .map(([k, v]) => `<tr><td class="quiet">${esc(k)}</td><td>${v}</td></tr>`)
-          .join('\n')}</tbody></table>
-      </div>
-
-      <div class="card"><h2>Recent jobs</h2>
-        ${
-          jobs.length
-            ? `<table><thead><tr><th>Reason</th><th>Outcome</th><th>Detail</th><th class="right">Created</th></tr></thead><tbody>${jobRows}</tbody></table>`
-            : '<p class="quiet">No jobs recorded.</p>'
-        }
-      </div>
-
-      <div class="card"><h2>Activity</h2>
-        ${
-          entries.length
-            ? `<table><thead><tr><th>Action</th><th>Actor</th><th>Reason</th><th class="right">When</th></tr></thead><tbody>${auditRows}</tbody></table>`
-            : '<p class="quiet">Nothing recorded.</p>'
-        }
-      </div>
-
-      <p class="head-actions">
-        <a class="btn" href="/operator/projects/${esc(project.id)}/people">People in this project</a>
-        ${project.account_id ? `<a class="btn ghost" href="/operator/accounts/${esc(project.account_id)}/view/projects/${esc(project.id)}/people">See it as the owner does</a>` : ''}
-      </p>
-      <div class="card"><h2>Actions</h2>
-        <p class="quiet">None of these touches a subscription at Stripe. A project with a paid plan
-          is refused by the ones that would disagree with it, and the refusal is logged.</p>
-        ${
-          plan.state === 'trial' || plan.state === 'paused'
-            ? freeTimeSheet({
-                title: plan.state === 'paused' ? 'Wake with free time' : 'Give free time',
-                action: `${base}/free-time`,
-                csrf,
-                rid: newRid(),
-                id: 'free',
-                note: 'Days added to the time the project is free for — counted from today when that time has run out. No card, and the owner gets one e-mail.',
-              })
-            : ''
-        }
-        ${
-          plan.state === 'paid' || plan.state === 'lapsed' || plan.state === 'gone'
-            ? ''
-            : sheet({
-                title: project.promo_since != null ? 'Change Promo' : 'Mark as Promo',
-                action: `${base}/promo`,
-                csrf,
-                id: 'promo',
-                note: 'It stays free, never becomes a trial and is never paused while Promo runs.',
-                fields: promoFields('promo', { current: project.promo_tier ?? 'dedicated' }),
-                submit: project.promo_since != null ? 'Save Promo' : 'Mark as Promo',
-              })
-        }
-        ${
-          project.promo_since != null && plan.state !== 'paid'
-            ? sheet({
-                title: 'End Promo',
-                action: `${base}/promo/end`,
-                csrf,
-                id: 'promo-end',
-                note: 'After the date the owner picks a plan to keep editing. Nothing is deleted.',
-                fields: dateInput('ends', 'Ends on (empty = today)', 'promo-end-ends'),
-                submit: 'End Promo',
-              })
-            : ''
-        }
-        ${
-          project.hold_since != null
-            ? sheet({
-                title: 'Wake',
-                action: `${base}/wake`,
-                csrf,
-                id: 'wake',
-                note: 'Lifts the pause. The platform check then brings the project back as its plan says.',
-                submit: 'Wake',
-              })
-            : project.state === 'active' || project.state === 'past_due'
-              ? sheet({
-                  title: 'Pause',
-                  action: `${base}/pause`,
-                  csrf,
-                  id: 'pause',
-                  note: 'Stops the workspace and takes its address down. Nothing is deleted, no deletion is scheduled, and the owner can still download everything. A paid subscription keeps charging — pausing does not stop it.',
-                  submit: 'Pause',
-                })
-              : ''
-        }
-        ${
-          project.state === 'purged' || project.subscription_id
-            ? ''
-            : sheet({
-                title: 'Move to another owner',
-                action: `${base}/move`,
-                csrf,
-                id: 'move',
-                note: 'The new owner must already have an account. The current owner stays on the project as Can edit.',
-                fields:
-                  '<label for="move-to">New owner’s email</label><input type="email" id="move-to" name="to" required maxlength="254">',
-                submit: 'Move',
-              })
-        }
-        ${
-          project.delete_since != null
-            ? plan.state === 'deleting' && project.state === 'suspended'
-              ? sheet({
-                  title: 'Undo the scheduled deletion',
-                  action: `${base}/delete/undo`,
-                  csrf,
-                  id: 'undelete',
-                  note: 'Nothing has been deleted yet. The project comes back as its plan says, and the owner reads this on Activity.',
-                  submit: 'Undo',
-                })
-              : ''
-            : project.state === 'purged' || project.state === 'exported' || project.subscription_id
-              ? ''
-              : sheet({
-                  title: 'Delete…',
-                  action: `${base}/delete`,
-                  csrf,
-                  id: 'delete',
-                  note: 'Never at once. The project is paused, a complete copy is prepared and mailed to its owner, they are warned two days before, and it is deleted after 30 days. Until then this can be undone here.',
-                  fields: `<label for="delete-confirm">Type the project’s name or id to confirm</label><input type="text" id="delete-confirm" name="confirm" required autocomplete="off">`,
-                  submit: 'Schedule the deletion',
-                })
-        }
-      </div>
-
-      <div class="card nudge"><h2>Ask the reconciler to run</h2>
-        <p class="quiet">It enqueues a job; the reconciler
-          re-derives everything from Stripe and the cell, exactly as the hourly sweep does.
-          Comping and refunding stay in Stripe — the sweep picks those up on its own.</p>
-        <form method="post" action="/operator/projects/${esc(project.id)}/reconcile">
-          <input type="hidden" name="csrf" value="${esc(csrf)}">
-          <label for="reason">Why, in your own words. Recorded permanently, and the customer can read it.</label>
-          <textarea id="reason" name="reason" required maxlength="500"
-            placeholder="e.g. customer reported the project stuck in setup"></textarea>
-          <button type="submit">Enqueue a reconcile</button>
-        </form>
+      <div class="ad-cols ad-cols--2-1">
+        <div class="ad-stack">
+          ${card(
+            'Plan',
+            `<dl class="op-kv">
+              <dt>Plan</dt><dd>${esc(plan.line)}</dd>
+              <dt>Subscription</dt><dd>${project.subscription_id ? `<a class="mono" href="https://dashboard.stripe.com/subscriptions/${esc(project.subscription_id)}">${esc(project.subscription_id)}</a>` : 'none'}</dd>
+              <dt>Made</dt><dd>${shortDay(project.created_at)}</dd>
+              ${stats ? `<dt>Storage</dt><dd>${bytes(stats.assetsBytes)} used</dd>` : ''}
+            </dl>`,
+            { aside: planWord(plan) }
+          )}
+          ${card('Log', entries.length ? `<div class="ad-feed">${logFeed}</div>` : note('Nothing recorded.'))}
+          ${card(
+            'Everything the control plane knows',
+            `<dl class="op-kv">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join('')}</dl>
+             ${note('What it holds, what it earns and what state it is in — the designs themselves are in the cell and are not reachable from here.')}`
+          )}
+        </div>
+        <div class="ad-stack">
+          ${card('Recent jobs', jobs.length ? `<div class="ad-feed">${jobFeed}</div>` : note('No jobs recorded.'))}
+          <div class="ad-card ad-card--clip">
+            <h2 class="ad-card-h">More actions</h2>
+            ${note('None of these touches a subscription at Stripe. A project with a paid plan is refused by the ones that would disagree with it, and the refusal is logged.')}
+            <div class="op-acts">
+            ${
+              project.account_id
+                ? `<a class="ad-need" href="/operator/accounts/${esc(project.account_id)}/view/projects/${esc(project.id)}/people"><span class="ad-need-t"><strong>See it as the owner does</strong><span>Read only, and recorded</span></span>${icon('chevron-r', 14)}</a>`
+                : ''
+            }
+            ${
+              project.promo_since != null && plan.state !== 'paid'
+                ? sheet({
+                    title: 'End Promo',
+                    action: `${base}/promo/end`,
+                    csrf,
+                    id: 'promo-end',
+                    note: 'After the date the owner picks a plan to keep editing. Nothing is deleted.',
+                    fields: dateInput('ends', 'Ends on (empty = today)', 'promo-end-ends'),
+                    submit: 'End Promo',
+                  })
+                : ''
+            }
+            ${
+              project.hold_since != null
+                ? sheet({
+                    title: 'Wake',
+                    action: `${base}/wake`,
+                    csrf,
+                    id: 'wake',
+                    note: 'Lifts the pause. The platform check then brings the project back as its plan says.',
+                    submit: 'Wake',
+                  })
+                : project.state === 'active' || project.state === 'past_due'
+                  ? sheet({
+                      title: 'Pause',
+                      action: `${base}/pause`,
+                      csrf,
+                      id: 'pause',
+                      note: 'Stops the workspace and takes its address down. Nothing is deleted, no deletion is scheduled, and the owner can still download everything. A paid subscription keeps charging — pausing does not stop it.',
+                      submit: 'Pause',
+                    })
+                  : ''
+            }
+            ${
+              project.state === 'purged' || project.subscription_id
+                ? ''
+                : sheet({
+                    title: 'Move to another owner',
+                    action: `${base}/move`,
+                    csrf,
+                    id: 'move',
+                    note: 'The new owner must already have an account. The current owner stays on the project as Can edit.',
+                    fields:
+                      '<span class="field"><label for="move-to">New owner’s email</label><input type="email" id="move-to" name="to" required maxlength="254"></span>',
+                    submit: 'Move',
+                  })
+            }
+            ${
+              project.delete_since != null
+                ? plan.state === 'deleting' && project.state === 'suspended'
+                  ? sheet({
+                      title: 'Undo the scheduled deletion',
+                      action: `${base}/delete/undo`,
+                      csrf,
+                      id: 'undelete',
+                      note: 'Nothing has been deleted yet. The project comes back as its plan says, and the owner reads this on Activity.',
+                      submit: 'Undo',
+                    })
+                  : ''
+                : project.state === 'purged' ||
+                    project.state === 'exported' ||
+                    project.subscription_id
+                  ? ''
+                  : sheet({
+                      title: 'Delete…',
+                      action: `${base}/delete`,
+                      csrf,
+                      id: 'delete',
+                      danger: true,
+                      note: 'Never at once. The project is paused, a complete copy is prepared and mailed to its owner, they are warned two days before, and it is deleted after 30 days. Until then this can be undone here.',
+                      fields: `<span class="field"><label for="delete-confirm">Type the project’s name or id to confirm</label><input type="text" id="delete-confirm" name="confirm" required autocomplete="off"></span>`,
+                      submit: 'Schedule the deletion',
+                    })
+            }
+            </div>
+          </div>
+          <div class="ad-card" id="reconcile">
+            <h2 class="ad-card-h">Ask the reconciler to run</h2>
+            <div class="op-nudge">
+              <p class="hint">It enqueues a job; the reconciler re-derives everything from Stripe and the cell,
+                exactly as the hourly sweep does. Comping and refunding stay in Stripe — the sweep picks those up on its own.</p>
+              <form method="post" action="/operator/projects/${esc(project.id)}/reconcile">
+                <input type="hidden" name="csrf" value="${esc(csrf)}">
+                <label for="reason">Why, in your own words. Recorded permanently, and the customer can read it.</label>
+                <textarea id="reason" name="reason" required maxlength="500"
+                  placeholder="e.g. customer reported the project stuck in setup"></textarea>
+                <button type="submit" class="btn btn--sm">Enqueue a reconcile</button>
+              </form>
+            </div>
+          </div>
+        </div>
       </div>`,
   });
 }
@@ -1172,12 +1411,11 @@ export function operatorEventsPage({ account, metrics = null, sampled = false })
       title: 'Usage',
       active: 'operator-events',
       lede: 'Server-side product analytics, emitted by the edge and read back over the Analytics Engine SQL API.',
-      body: `<div class="card"><h2>Analytics is not connected</h2>
-        <p class="quiet">Events are being written — the binding is part of the Worker. Reading them
-          back needs a separate token with <span class="mono">Account Analytics Read</span> and
-          nothing else:</p>
-        <p class="mono">wrangler secret put CF_ANALYTICS_TOKEN</p>
-      </div>`,
+      body: card(
+        'Analytics is not connected',
+        `${note('Events are being written — the binding is part of the Worker. Reading them back needs a separate token with <span class="mono">Account Analytics Read</span> and nothing else:')}
+        ${note('<span class="mono">wrangler secret put CF_ANALYTICS_TOKEN</span>')}`
+      ),
     });
   }
 
@@ -1186,7 +1424,7 @@ export function operatorEventsPage({ account, metrics = null, sampled = false })
   const byName = (metrics.byName ?? [])
     .map(
       (r) =>
-        `<tr><td class="mono">${esc(r.name)}</td><td class="right mono">${approx(r.count)}</td></tr>`
+        `<tr><td class="mono">${esc(r.name)}</td><td class="ad-num">${approx(r.count)}</td></tr>`
     )
     .join('\n');
 
@@ -1197,20 +1435,23 @@ export function operatorEventsPage({ account, metrics = null, sampled = false })
     lede: sampled
       ? 'Analytics Engine sampled this window, so the counts are approximations — shown with a leading ~.'
       : 'Server-side product analytics. Account ids and action names only: no email, no content, no third party.',
-    body: `<div class="tiles">
-        ${tile('Active today', `<span>${approx(metrics.dau)}</span>`, 'distinct accounts, last 24 h')}
-        ${tile('Active this week', `<span>${approx(metrics.wau)}</span>`, 'distinct accounts, last 7 d')}
-        ${tile('Active this month', `<span>${approx(metrics.mau)}</span>`, 'distinct accounts, last 30 d')}
-        ${tile('Signups', `<span>${approx(metrics.signups)}</span>`, 'last 30 d')}
-        ${tile('Checkouts completed', `<span>${approx(metrics.checkouts)}</span>`, 'last 30 d')}
-      </div>
-      <div class="card"><h2>Events, last 7 days</h2>
-        ${
-          byName
-            ? `<table><thead><tr><th>Event</th><th class="right">Count</th></tr></thead><tbody>${byName}</tbody></table>`
-            : '<p class="quiet">No events in the window.</p>'
-        }
-      </div>`,
+    body: `${tiles([
+      tile('Active today', 'pulse', approx(metrics.dau), { sub: 'distinct accounts, last 24 h' }),
+      tile('Active this week', 'people', approx(metrics.wau), {
+        sub: 'distinct accounts, last 7 d',
+      }),
+      tile('Active this month', 'people', approx(metrics.mau), {
+        sub: 'distinct accounts, last 30 d',
+      }),
+      tile('Signups', 'plus', approx(metrics.signups), { sub: 'last 30 d' }),
+      tile('Checkouts completed', 'check', approx(metrics.checkouts), { sub: 'last 30 d' }),
+    ])}
+      ${card(
+        'Events, last 7 days',
+        byName
+          ? `<table class="ad-table"><thead><tr><th scope="col">Event</th><th scope="col" class="ad-num">Count</th></tr></thead><tbody>${byName}</tbody></table>`
+          : note('No events in the window.')
+      )}`,
   });
 }
 

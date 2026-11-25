@@ -60,6 +60,7 @@ import {
 } from './invites.mjs';
 import { joinPage } from './join-page.mjs';
 import { isRevoked } from './revocations.mjs';
+import { DEFAULT_HUB_NAME, readSettings } from './settings.mjs';
 import { servicePage } from './studio-door.mjs';
 
 import {
@@ -90,6 +91,29 @@ import {
 
 /** Default peer-token lifetime: 30 days. Override with HUB_USER_TOKEN_TTL_HOURS. */
 const DEFAULT_TTL_HOURS = 24 * 30;
+
+/**
+ * What the invite page says about where and from whom (design canvas 16, ts-invitee): the
+ * team server's name and description, the inviter's FIRST NAME only (never an address —
+ * the reader holds a link, not an account), and what the invite lets them do.
+ */
+function inviteWords(dataDir, invite) {
+  let settings = {};
+  try {
+    settings = readSettings(dataDir);
+  } catch {
+    /* the page still works with the address */
+  }
+  const by = String(invite?.createdBy ?? '');
+  const local = by.includes('@') ? by.split('@')[0].split(/[._+-]/)[0] : '';
+  return {
+    // An unnamed server (the default name) is called by its address, as before.
+    hubName: settings.name && settings.name !== DEFAULT_HUB_NAME ? settings.name : null,
+    description: settings.description || null,
+    inviter: local ? local.charAt(0).toUpperCase() + local.slice(1) : null,
+    role: invite?.access ? null : (invite?.role ?? null),
+  };
+}
 
 export function userTokenTtlMs(env = process.env) {
   const raw = Number(env.HUB_USER_TOKEN_TTL_HOURS);
@@ -433,6 +457,7 @@ export async function handleAuthRoutes(ctx) {
           email: check.invite.email,
           env,
           desktop: desktop.desktop,
+          ...inviteWords(ctx.dataDir, check.invite),
         })
       );
       return true;
@@ -572,6 +597,7 @@ export async function handleAuthRoutes(ctx) {
                   ? "That address can't be used with this invitation. If you already have an account on this project, enter its password."
                   : error,
               env,
+              ...inviteWords(dataDir, look.invite),
             })
           );
         } else {

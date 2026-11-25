@@ -22,7 +22,13 @@ import {
 } from './access-forward.mjs';
 import { createAccount, createSession, getAccountByEmail } from './accounts.mjs';
 import { track } from './analytics.mjs';
-import { DESKTOP_DOWNLOAD_URL, googleButton, publicPage, publicResponse } from './brand.mjs';
+import {
+  avatar,
+  DESKTOP_DOWNLOAD_URL,
+  googleButton,
+  publicPage,
+  publicResponse,
+} from './brand.mjs';
 import { audit } from './db.mjs';
 import { personalTokenAccount } from './device-auth.mjs';
 import { spend } from './edge.mjs';
@@ -99,6 +105,9 @@ export function canvasName(path) {
  * invitation; `thread` only ever comes with a canvas. The comment's TEXT lives
  * in the project, not here — the page says there is one, it does not quote it.
  */
+/** The role, said as what you can do (ts-invitee's pill): "You can edit". */
+const ROLE_WORD_FOR_PILL = { member: 'can edit', viewer: 'can comment', observer: 'can view' };
+
 export function invitePage({
   projectName,
   role,
@@ -183,12 +192,14 @@ export function invitePage({
   return publicPage({
     title: who ? `${who} invited you to ${projectName}` : `You’re invited to ${projectName}`,
     sub: meaning,
+    pill: ROLE_WORD_FOR_PILL[role] ? `You ${ROLE_WORD_FOR_PILL[role]}` : null,
+    lead: who ? avatar(who, { size: 'lg' }) : null,
     // The tab keeps the plain "Join <project>": it is what the page is FOR.
     tab: `Join ${projectName}`,
     body: `<p class="fine">This invitation is for <strong>${esc(email)}</strong>.</p>
      ${pointer ? `<div class="stack">${pointer}</div>` : ''}
      <div class="stack">
-       <a class="btn wide" href="${DESKTOP_DOWNLOAD_URL}">Download Maude for Mac</a>
+       <a class="btn btn--primary btn--lg wide" href="${DESKTOP_DOWNLOAD_URL}">Download Maude for Mac</a>
        <a class="btn secondary wide" href="maude://invite/${esc(inviteId)}">Already installed? Open in Maude</a>
      </div>
      <ol class="steps">

@@ -34,16 +34,10 @@ import { removeCellDomain } from './provision.mjs';
 import { purgeTenantObjects } from './purge.mjs';
 
 const CSS = `
-  table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0 var(--space-6); background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
-  table { border-spacing: 0; overflow: hidden; }
-  th { text-align: left; font-family: var(--font-mono); font-size: var(--type-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border-subtle); }
-  td { padding: var(--space-3) var(--space-5); border-top: 1px solid var(--border-subtle); vertical-align: baseline; font-size: var(--type-base); }
-  tr:first-child td { border-top: 0; }
-  td.right { text-align: right; white-space: nowrap; }
-  .mono { font-family: var(--font-mono); font-size: var(--type-sm); }
-  .card { margin-bottom: var(--space-5); }
-  .danger { border-color: color-mix(in oklab, var(--status-error) 40%, transparent); }
-  .danger h2 { color: var(--status-error); }
+  .card h2 { margin: 0 0 var(--space-3); font-family: var(--font-body); font-size: var(--type-base); line-height: var(--lh-base); }
+  .mono { font-family: var(--font-mono); font-size: var(--type-xs); }
+  .card.danger { box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--status-error); }
+  .card.danger h2 { color: var(--status-error-text); }
   time { color: var(--fg-2); font-size: var(--type-sm); }
 `;
 

@@ -49,7 +49,7 @@ import {
 } from './oidc-routes.mjs';
 import { setReturnToAdmin, takeReturnTo } from './return-to.mjs';
 import { isRevoked } from './revocations.mjs';
-import { escapeHtml, oidcButton, servicePage } from './studio-door.mjs';
+import { escapeHtml, oidcButton, servicePage, webPage } from './studio-door.mjs';
 import { addToken, removeToken, revokeTokensForOwner, verifyToken } from './tokens.mjs';
 import { authenticate as localAuthenticate, normalizeEmail, selfLinkOidcSub } from './users.mjs';
 
@@ -928,36 +928,24 @@ export function signInPage(error = null, env = process.env, { desktop = false } 
   const esc = escapeHtml;
   const oidc = oidcButton(env);
   const passwordsRefused = env.HUB_OIDC_MODE === 'strict';
-  return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sign in</title>
-<style>
-  body { margin:0; min-height:100vh; display:grid; place-items:center; background:#0e1014; color:#e9ecf3;
-         font:15px/1.6 -apple-system, system-ui, sans-serif; padding:24px; }
-  form { width:min(22rem, 100%); }
-  h1 { font-size:1.3rem; margin:0 0 1rem; }
-  label { display:block; font-size:12px; color:#828b9e; margin:12px 0 4px; }
-  input { width:100%; padding:9px 11px; border-radius:9px; border:1px solid #262c38;
-          background:#14171d; color:inherit; font:inherit; }
-  button { margin-top:16px; width:100%; padding:10px; border:0; border-radius:9px;
-           background:#7a86f8; color:#0f1020; font:inherit; font-weight:650; cursor:pointer; }
-  .err { color:#f0a3a3; font-size:13px; margin-top:10px; }
-  .button { display:block; margin-top:16px; padding:10px; border-radius:9px; text-align:center;
-            border:1px solid #262c38; background:#14171d; color:inherit; text-decoration:none; font-weight:600; }
-  .or { margin:18px 0 0; text-align:center; font-size:12px; color:#828b9e; }
-</style></head>
-<body><form method="post" action="/studio/signin">
-  <h1>Sign in to this workspace</h1>
-  ${desktop ? '<p class="or" style="text-align:left;margin:0">After you sign in, you go back to the Maude app.</p>' : ''}
-  ${
-    passwordsRefused
-      ? ''
-      : `<label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required autofocus>
-  <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
-  <button type="submit">Sign in</button>`
-  }
-  ${error ? `<p class="err">${esc(error)}</p>` : ''}
-  ${oidc && !passwordsRefused ? '<p class="or">or</p>' : ''}
-  ${oidc}
-</form></body></html>`;
+  // The light one-column page of design canvas 16 (ts-invitee), on /admin/style.css.
+  const form = passwordsRefused
+    ? ''
+    : `<form class="ad-web-form" method="post" action="/studio/signin">
+    <label class="field" for="email"><span class="field-label">Email</span><input class="input" id="email" name="email" type="email" autocomplete="username" required autofocus></label>
+    <label class="field" for="password"><span class="field-label">Password</span><input class="input" id="password" name="password" type="password" autocomplete="current-password" required></label>
+    <button type="submit" class="btn btn--primary btn--lg">Sign in</button>
+  </form>`;
+  return webPage({
+    title: 'Sign in',
+    heading: 'Sign in',
+    sub: desktop
+      ? 'After you sign in, you go back to the Maude app.'
+      : 'With your account on this server.',
+    testid: 'signin-page',
+    body: `${form}
+  ${error ? `<p class="ad-web-err" role="alert">${esc(error)}</p>` : ''}
+  ${oidc && !passwordsRefused ? '<p class="ad-web-or">or</p>' : ''}
+  ${oidc}`,
+  });
 }

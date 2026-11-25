@@ -204,6 +204,28 @@ export function escapeHtml(value) {
   );
 }
 
+/**
+ * The hub's own one-column web page (`ad-web` on design canvas 16, artboard
+ * ts-invitee): the light sheet from `/admin/style.css`, the mark, a title, a
+ * line under it, then `body`. Script-free; the CSP of these pages admits the
+ * linked stylesheet (`style-src 'self'`). Used by `signInPage` and `joinPage`.
+ */
+export function webPage({ title, heading, sub = '', who = '', body = '', testid = '' }) {
+  const esc = escapeHtml;
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
+<title>${esc(title)}</title>
+<link rel="stylesheet" href="/admin/style.css">
+</head>
+<body class="web-page"><main class="ad-web"${testid ? ` data-testid="${esc(testid)}"` : ''}>
+  <span class="ad-web-who"><svg class="k-mark k-mark--48" viewBox="0 0 32 32" aria-hidden="true"><path class="k-mark-tile" d="M7 0H25A7 7 0 0 1 32 7V32H7A7 7 0 0 1 0 25V7A7 7 0 0 1 7 0Z"/><path class="k-mark-star" d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z"/></svg>${who}</span>
+  <h1 class="ad-web-t">${heading}</h1>
+  ${sub ? `<p class="ad-web-s">${sub}</p>` : ''}
+  ${body}
+</main></body></html>`;
+}
+
 /** A plain page for the states that are not the studio. */
 export function servicePage(title, message, { action = null, refreshSeconds = null } = {}) {
   const esc = escapeHtml;
