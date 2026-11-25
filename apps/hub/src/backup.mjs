@@ -32,9 +32,11 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { Worker } from 'node:worker_threads';
 import { createGzip, gunzipSync, gzipSync } from 'node:zlib';
 
 import { bundleRepo, REPO_BUNDLE, restoreRepo } from './repo-checkpoint.mjs';
@@ -158,13 +160,14 @@ export function s3Target(cfg) {
     // answering is a backup that never ends and never says so — the schedule
     // then waits on it for ever and no later backup starts.
     put: (key, body) => timedPut(cfg, key, body, PART_TIMEOUT_MS),
-    // A snapshot goes up FROM ITS FILE: above 16 MB as a multipart upload,
-    // 16 MB a part, each part retried and each with the same deadline.
+    // A snapshot goes up FROM ITS FILE: above 8 MB as a multipart upload,
+    // 8 MB a part, each part retried and each with the same deadline.
     putFile: (key, abs, { partTimeoutMs = PART_TIMEOUT_MS } = {}) =>
       statSync(abs).size <= MULTIPART_ABOVE_BYTES
-        ? timedPut(cfg, key, readFileSync(abs), partTimeoutMs)
+        ? readFile(abs).then((body) => timedPut(cfg, key, body, partTimeoutMs))
         : putObjectFromFile(cfg, key, abs, {
             threshold: MULTIPART_ABOVE_BYTES,
+            partBytes: MULTIPART_ABOVE_BYTES,
             deps: {
               send: (opts) =>
                 sendSigned(cfg, { ...opts, signal: AbortSignal.timeout(partTimeoutMs) }),
@@ -317,7 +320,10 @@ export function snapshotDatabase(dataDir, name, { tmpDir } = {}) {
 }
 
 /** A snapshot larger than this is uploaded in parts. */
-const MULTIPART_ABOVE_BYTES = 16 * 1024 * 1024;
+// 8 MB, not more: each part is read and its SHA-256 computed on the main thread
+// before it is sent (SigV4 signs the payload) — a few tens of milliseconds per
+// part at this size, which is the grain at which an upload lets the hub serve.
+const MULTIPART_ABOVE_BYTES = 8 * 1024 * 1024;
 
 /** One PUT with a deadline; the error says which object and why. */
 async function timedPut(cfg, key, body, timeoutMs) {
@@ -348,61 +354,107 @@ export const FIRST_BACKUP_AFTER_MS = 3 * 60_000;
 /** The most database bytes a backup on SHUTDOWN will take on (raw, before compression). */
 export const SHUTDOWN_MAX_BYTES = 32 * 1024 * 1024;
 
-/** One request of an upload — a 16 MB part, or a small file — may take this long. */
+/** One request of an upload — an 8 MB part, or a small file — may take this long. */
 export const PART_TIMEOUT_MS = 5 * 60_000;
 /** A whole backup may take this long; past it the attempt is stopped and reported. */
 export const BACKUP_DEADLINE_MS = 60 * 60_000;
-/** Pages copied per step of the online backup (4096-byte pages: 16 MB), between which the hub serves. */
-const SNAPSHOT_PAGES_PER_STEP = 4096;
-/** Past this the snapshot stops yielding and finishes in one step (a busy store restarts a slow copy). */
-const SNAPSHOT_YIELD_MS = 30_000;
-
 /**
- * Snapshot one database to a gzipped FILE, without holding the event loop or
+ * Snapshot one database to a gzipped FILE without holding the event loop, or
  * the database in memory. Returns `{ path, bytes }`, or null when the database
  * does not exist. The caller removes `path`.
  *
- * WHY NOT `snapshotDatabase` (the function above, kept for small databases
- * and its tests): it is `VACUUM INTO` + `readFileSync` + `gzipSync`, all
- * synchronous. On a project store of a few hundred MB that is seconds to tens
- * of seconds in which this process answers nothing — and a process stopped in
- * the middle (a container's 10 s stop grace) leaves the scratch file behind,
- * because its `finally` never runs. That is what filled a live `/data` with
- * 385 MB `.backup-project-store.sqlite-*` files and left a fortnight of
- * generations with no project store and no manifest (2026-11-25).
+ * THE COPY RUNS ON ANOTHER THREAD. SQLite's work here is synchronous whichever
+ * API does it — `VACUUM INTO`, or the online backup a step at a time — and it
+ * ends by committing the copy with a synchronous flush of the whole file. How
+ * long that holds a thread is the disk's decision, not ours: milliseconds on
+ * an NVMe laptop, 1.4 s for 260 MB on a ~180 MB/s CI disk (measured,
+ * 2026-11-25), longer for a bigger store on a slower volume. On the main
+ * thread that is a hub that answers nobody — no sync, no cursor, no sign-in —
+ * for as long as the drive takes. No step size fixes it: the flush is one call.
+ * So the copy is a worker's (`SNAPSHOT_WORKER`), with its own connection, and
+ * this thread only waits for a message.
  *
- * Here: SQLite's online backup, a step at a time (the hub serves between
- * steps); then a streaming gzip (zlib's thread pool); and the scratch copy is
- * removed in a `finally` that an `await` can reach.
+ * History, for whoever is tempted to simplify: `snapshotDatabase` above (kept
+ * for small databases and its tests) did all of it on the main thread with
+ * `VACUUM INTO` + `readFileSync` + `gzipSync`; a process stopped in the middle
+ * never ran its `finally`, which filled a live `/data` with 385 MB scratch
+ * files and left a fortnight of generations with no project store.
+ *
+ * After the copy: a streaming gzip (zlib's thread pool), and the scratch copy
+ * is removed in a `finally` an `await` can reach.
+ *
+ * `slowFlushMs` is a TEST SEAM: the worker waits that long after the copy, the
+ * way a slow disk makes it wait in its flush.
  */
-export async function snapshotDatabaseFile(dataDir, name, { tmpDir } = {}) {
+export async function snapshotDatabaseFile(dataDir, name, { tmpDir, slowFlushMs = 0 } = {}) {
   const source = join(dataDir, name);
   if (!existsSync(source)) return null;
-  const Database = require('better-sqlite3');
   const scratch = join(tmpDir ?? dataDir, `${SCRATCH_PREFIX}${name}-${process.pid}-${Date.now()}`);
   const gz = `${scratch}.gz`;
-  rmSync(scratch, { force: true });
-  const started = Date.now();
-  const db = new Database(source, { readonly: true });
+  await rm(scratch, { force: true });
   try {
-    await db.backup(scratch, {
-      progress: () =>
-        Date.now() - started > SNAPSHOT_YIELD_MS ? 2 ** 30 : SNAPSHOT_PAGES_PER_STEP,
-    });
+    await copyInWorker({ source, dest: scratch, slowFlushMs });
     await pipeline(createReadStream(scratch), createGzip(), createWriteStream(gz));
     return { path: gz, bytes: statSync(gz).size };
   } catch (err) {
-    rmSync(gz, { force: true });
+    await rm(gz, { force: true });
     throw err;
   } finally {
-    try {
-      db.close();
-    } catch {
-      /* ignore */
-    }
-    rmSync(scratch, { force: true });
-    rmSync(`${scratch}-journal`, { force: true });
+    // Unlinking a file of a few hundred MB is not instant on every filesystem either.
+    await rm(scratch, { force: true });
+    await rm(`${scratch}-journal`, { force: true });
   }
+}
+
+/**
+ * The worker: open the database read-only, copy it with SQLite's online
+ * backup in ONE step (a read snapshot — in WAL mode it blocks no writer, and a
+ * single step cannot be restarted by one), close, report. CommonJS, evaluated
+ * from this string so the bundled hub (one file) needs no second file beside
+ * it; `better-sqlite3` is required by the absolute path this module resolved.
+ */
+const SNAPSHOT_WORKER = `
+const { parentPort, workerData } = require('node:worker_threads');
+(async () => {
+  const Database = require(workerData.sqlite);
+  const db = new Database(workerData.source, { readonly: true, fileMustExist: true });
+  try {
+    await db.backup(workerData.dest, { progress: () => 1073741824 });
+  } finally {
+    db.close();
+  }
+  if (workerData.slowFlushMs > 0) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, workerData.slowFlushMs);
+  }
+})().then(
+  () => parentPort.postMessage({ ok: true }),
+  (err) => parentPort.postMessage({ ok: false, message: String((err && err.message) || err) })
+);
+`;
+
+function copyInWorker({ source, dest, slowFlushMs }) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const done = (err) => {
+      if (settled) return;
+      settled = true;
+      if (err) reject(err);
+      else resolve();
+    };
+    const worker = new Worker(SNAPSHOT_WORKER, {
+      eval: true,
+      // Not the parent's flags: a test's `--import` preload has no business in here.
+      execArgv: [],
+      workerData: { source, dest, slowFlushMs, sqlite: require.resolve('better-sqlite3') },
+    });
+    worker.once('message', (m) =>
+      done(m?.ok ? null : new Error(`snapshot of ${source} failed: ${m?.message ?? 'unknown'}`))
+    );
+    worker.once('error', (err) => done(new Error(`snapshot of ${source} failed: ${err.message}`)));
+    worker.once('exit', (code) =>
+      done(code === 0 ? null : new Error(`snapshot of ${source} stopped (exit ${code})`))
+    );
+  });
 }
 
 /** Every scratch file a snapshot makes starts with this, in the data dir. */
@@ -563,7 +615,7 @@ async function takeBackup(
         await putFile(target, key, snap.path);
         files.push({ name, bytes: snap.bytes });
       } finally {
-        rmSync(snap.path, { force: true });
+        await rm(snap.path, { force: true });
       }
     }
     if (files.length === 0) throw new Error('runBackup: nothing to back up (no databases found)');
@@ -579,8 +631,19 @@ async function takeBackup(
       inTime('the checkout');
       const bundled = await bundleRepo(repoDir, run);
       if (bundled.state === 'ok') {
+        // Through a file, like the databases: tens of MB in one signed request
+        // is tens of MB hashed in one go on the main thread.
+        const bundleFile = join(
+          dataDir,
+          `${SCRATCH_PREFIX}${REPO_BUNDLE}-${process.pid}-${Date.now()}`
+        );
         written.push(`${prefix}/${REPO_BUNDLE}`);
-        await target.put(`${prefix}/${REPO_BUNDLE}`, bundled.bytes);
+        try {
+          await writeFile(bundleFile, bundled.bytes);
+          await putFile(target, `${prefix}/${REPO_BUNDLE}`, bundleFile);
+        } finally {
+          await rm(bundleFile, { force: true });
+        }
         repo = { name: REPO_BUNDLE, bytes: bundled.bytes.length };
       } else if (bundled.state === 'failed') {
         // Loud, but the databases are already up. Throwing here would discard
@@ -624,8 +687,8 @@ async function takeBackup(
 }
 
 /** Upload a file: from disk when the target can, else through memory. */
-function putFile(target, key, abs) {
-  return target.putFile ? target.putFile(key, abs) : target.put(key, readFileSync(abs));
+async function putFile(target, key, abs) {
+  return target.putFile ? target.putFile(key, abs) : target.put(key, await readFile(abs));
 }
 
 /** A half-written generation younger than this may still be in flight somewhere. */

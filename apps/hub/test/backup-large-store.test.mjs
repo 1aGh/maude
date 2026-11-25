@@ -13,8 +13,9 @@
 // real socket (multipart included), and the old code fails these tests.
 
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
@@ -29,6 +30,7 @@ import {
   runBackup,
   s3Target,
   scheduleBackups,
+  snapshotDatabaseFile,
   sweepStaleSnapshots,
 } from '../src/backup.mjs';
 import { ensureWorkspaceId } from '../src/workspace-identity.mjs';
@@ -37,6 +39,7 @@ import { rm, tmpDir, until } from './_acl-docs-fixture.mjs';
 const Database = createRequire(import.meta.url)('better-sqlite3');
 const BUCKET = 'big-backups';
 const STORE_MB = 260;
+const MAKE_STORE = new URL('./fixtures/make-project-store.mjs', import.meta.url).pathname;
 
 /** S3 over a real socket: single PUT, multipart (start / part / complete / abort), GET, DELETE, list. */
 function fakeS3() {
@@ -147,21 +150,15 @@ before(async () => {
     small.prepare('INSERT INTO t VALUES (?)').run(name);
     small.close();
   }
-  // A project store of realistic size and compressibility (text with a random part), in WAL like the live one.
-  const db = new Database(join(dataDir, 'project-store.sqlite'));
-  db.pragma('journal_mode = WAL');
-  db.exec('CREATE TABLE blobs (hash TEXT PRIMARY KEY, body TEXT NOT NULL, size INTEGER NOT NULL)');
-  const ins = db.prepare('INSERT INTO blobs VALUES (?, ?, ?)');
-  const fill = db.transaction((n) => {
-    for (let i = 0; i < n; i++) {
-      const b = `export default () => <div data-x="${randomBytes(6000).toString('base64')}">${'<p>seeded by a test</p>'.repeat(900)}</div>;`;
-      ins.run(randomBytes(16).toString('hex'), b, b.length);
-      rows += 1;
-    }
-  });
-  while (statSync(join(dataDir, 'project-store.sqlite')).size < STORE_MB * 1024 * 1024) fill(2000);
-  db.pragma('wal_checkpoint(TRUNCATE)');
-  db.close();
+  // A project store of realistic size and compressibility, in WAL like the
+  // live one — built by ANOTHER process (see the fixture for why).
+  rows = Number(
+    execFileSync(
+      process.execPath,
+      [MAKE_STORE, join(dataDir, 'project-store.sqlite'), String(STORE_MB)],
+      { encoding: 'utf8' }
+    )
+  );
 });
 after(async () => {
   for (const res of s3.hung) res.destroy();
@@ -208,12 +205,17 @@ describe(`a ${STORE_MB} MB project store`, () => {
     rm(restored);
 
     assert.ok(
-      s3.seen.largestBody <= 17 * 1024 * 1024,
-      `no request carried more than one 16 MB part (largest: ${(s3.seen.largestBody / 1048576).toFixed(1)} MB)`
+      s3.seen.largestBody <= 9 * 1024 * 1024,
+      `no request carried more than one 8 MB part (largest: ${(s3.seen.largestBody / 1048576).toFixed(1)} MB)`
     );
+    // Nineteen people are connected to a hub during its backup. A snapshot
+    // that holds the event loop — copying the store, or waiting for the disk to
+    // take it — is a hub that answers none of them for that long. The copy and
+    // its flush run on another thread, so this bound does not depend on how
+    // fast the disk is (a CI runner at ~180 MB/s froze 1.4 s here before).
     assert.ok(
-      worstFreeze < 1000,
-      `the hub was never frozen for a second (worst: ${Math.round(worstFreeze)} ms)`
+      worstFreeze < 500,
+      `the hub was never frozen for half a second (worst: ${Math.round(worstFreeze)} ms)`
     );
     assert.deepEqual(scratchFiles(), [], 'no scratch file left in the data folder');
     assert.ok(tookMs < 120_000, `bounded: ${Math.round(tookMs)} ms for ${STORE_MB} MB`);
@@ -292,6 +294,45 @@ describe(`a ${STORE_MB} MB project store`, () => {
       /took longer than/
     );
     assert.equal(attempts.at(-1).ok, false);
+    assert.deepEqual(scratchFiles(), []);
+  });
+});
+
+describe('a slow disk', () => {
+  test('the copy and its flush are off the main thread: a 1.5 s flush freezes nobody', async () => {
+    // The slow disk, injected: the snapshot's thread waits 1.5 s where a real
+    // one waits for the drive to take a few hundred MB (SQLite commits the copy
+    // with a synchronous flush). What is measured is THIS thread.
+    let worstFreeze = 0;
+    let last = performance.now();
+    const beat = setInterval(() => {
+      const now = performance.now();
+      worstFreeze = Math.max(worstFreeze, now - last - 20);
+      last = now;
+    }, 20);
+    const started = performance.now();
+    const snap = await snapshotDatabaseFile(dataDir, 'hub.db', { slowFlushMs: 1500 });
+    const took = performance.now() - started;
+    clearInterval(beat);
+    rm(snap.path);
+    assert.ok(took >= 1500, `the slow flush really happened (${Math.round(took)} ms)`);
+    assert.ok(
+      worstFreeze < 250,
+      `…and the hub kept answering throughout (worst freeze: ${Math.round(worstFreeze)} ms)`
+    );
+    assert.deepEqual(scratchFiles(), []);
+  });
+
+  test('a snapshot that cannot be taken says why, and leaves nothing behind', async () => {
+    writeFileSync(
+      join(dataDir, 'broken.db'),
+      'this is not a database, however long it is. '.repeat(200)
+    );
+    await assert.rejects(
+      snapshotDatabaseFile(dataDir, 'broken.db'),
+      /not a database|malformed|file is/i
+    );
+    rm(join(dataDir, 'broken.db'));
     assert.deepEqual(scratchFiles(), []);
   });
 });
