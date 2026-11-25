@@ -447,9 +447,11 @@ function renderOverview(o) {
     ? ''
     : o.needs
         .map((x) =>
-          x.type === 'request'
-            ? `<div class="ad-need" data-testid="need-request">${avatar(x.email)}<span class="ad-need-t"><strong>${esc(x.email ?? 'Someone')} asks to join</strong><span>Signed in ${esc(formatTime(x.since).toLowerCase())}${o.signIn?.provider ? ` with ${esc(o.signIn.provider)}` : ''} — nobody has invited them yet</span></span><span class="ad-acts">${btn('Dismiss', `data-dismiss="${esc(x.sub)}"`, 'btn--ghost')}${btn('Let in · Can edit', `data-letin="${esc(x.sub)}" data-testid="need-letin"`, 'btn--primary')}</span></div>`
-            : `<div class="ad-need" data-testid="need-invite">${avatar(x.email ?? '?')}<span class="ad-need-t"><strong>${esc(x.email ?? 'A one-time link')} hasn't opened the invite</strong><span>Made ${esc(formatTime(x.since).toLowerCase())} · the link works ${esc(formatUntil(x.expiresAt).replace('in ', 'for '))} more</span></span><span class="ad-acts">${btn('Copy new link', `data-reissue="${esc(x.id)}"`)}</span></div>`
+          x.type === 'backup'
+            ? `<div class="ad-need" data-testid="need-backup">${avatar('!')}<span class="ad-need-t"><strong>${x.since ? `The last backup is from ${esc(formatTime(x.since).toLowerCase())}` : 'There is no backup yet'}</strong><span>${x.failing ? 'The last attempt failed — see Health below.' : 'Backups are set up, but none has been made for a while.'}</span></span><span class="ad-acts">${btn(x.running ? 'Backing up…' : 'Back up now', `data-backup="1" data-testid="need-backup-now"${x.running ? ' disabled' : ''}`, 'btn--primary')}</span></div>`
+            : x.type === 'request'
+              ? `<div class="ad-need" data-testid="need-request">${avatar(x.email)}<span class="ad-need-t"><strong>${esc(x.email ?? 'Someone')} asks to join</strong><span>Signed in ${esc(formatTime(x.since).toLowerCase())}${o.signIn?.provider ? ` with ${esc(o.signIn.provider)}` : ''} — nobody has invited them yet</span></span><span class="ad-acts">${btn('Dismiss', `data-dismiss="${esc(x.sub)}"`, 'btn--ghost')}${btn('Let in · Can edit', `data-letin="${esc(x.sub)}" data-testid="need-letin"`, 'btn--primary')}</span></div>`
+              : `<div class="ad-need" data-testid="need-invite">${avatar(x.email ?? '?')}<span class="ad-need-t"><strong>${esc(x.email ?? 'A one-time link')} hasn't opened the invite</strong><span>Made ${esc(formatTime(x.since).toLowerCase())} · the link works ${esc(formatUntil(x.expiresAt).replace('in ', 'for '))} more</span></span><span class="ad-acts">${btn('Copy new link', `data-reissue="${esc(x.id)}"`)}</span></div>`
         )
         .join('');
   wirePeopleActions($('ov-needs-rows'));
@@ -477,9 +479,10 @@ function renderOverview(o) {
   $('ov-health').innerHTML = o.health
     .map(
       (h) =>
-        `<div class="ad-hl" data-testid="health-${esc(h.key)}"><span>${esc(h.label)}</span><strong>${esc(h.value)}${h.at ? ` · ${esc(formatTime(h.at))}` : ''}</strong>${statusWord(h.state === 'off' ? 'off' : h.state, h.word)}</div>`
+        `<div class="ad-hl" data-testid="health-${esc(h.key)}"><span>${esc(h.label)}</span><strong>${esc(h.value)}${h.at ? ` · ${esc(formatTime(h.at))}` : ''}</strong><span class="ad-acts">${statusWord(h.state === 'off' ? 'off' : h.state, h.running ? 'Backing up…' : h.word)}${h.canRunNow && !h.running && (h.stale || h.state !== 'ok') ? btn('Back up now', 'data-backup="1" data-testid="health-backup-now"', 'btn--ghost') : ''}</span></div>`
     )
     .join('');
+  wirePeopleActions($('ov-health'));
   $('ov-activity-feed').innerHTML =
     o.recent
       .map(
@@ -605,6 +608,12 @@ function wirePeopleActions(root) {
   on('revoke', (id) => act(() => post('/people/invite/revoke', { id })));
   on('turnon', (id) => act(() => post('/people/turn-on', { id })));
   on('open', (key) => openPerson(key));
+  // "Back up now": the hub answers at once; the row and the Overview line say how it ended.
+  on('backup', (_v, b) => {
+    b.disabled = true;
+    b.textContent = 'Backing up…';
+    return act(() => post('/backup/run'));
+  });
 }
 
 // ---- the person sheet: everything about one person, changed in place ----

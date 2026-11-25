@@ -369,6 +369,12 @@ describe('overview', () => {
     assert.ok(json.recent.length > 0);
   });
 
+  test('"Back up now" on a team server with no backups set up says so', async () => {
+    const res = await key('/backup/run', {});
+    assert.equal(res.status, 409);
+    assert.match(res.json.error, /not set up/i);
+  });
+
   test('health says "Not set up" honestly when backups and Git are absent', async () => {
     const { json } = await key('/overview');
     const by = Object.fromEntries(json.health.map((h) => [h.key, h]));

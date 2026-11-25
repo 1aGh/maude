@@ -21,6 +21,9 @@
 //   s3://                    any S3-compatible endpoint, R2 included
 
 import {
+  copyFileSync,
+  createReadStream,
+  createWriteStream,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -31,10 +34,18 @@ import {
 } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
-import { gunzipSync, gzipSync } from 'node:zlib';
+import { pipeline } from 'node:stream/promises';
+import { createGzip, gunzipSync, gzipSync } from 'node:zlib';
 
 import { bundleRepo, REPO_BUNDLE, restoreRepo } from './repo-checkpoint.mjs';
-import { deleteObject, getObject, listObjects, putObject, s3ConfigFromEnv } from './s3.mjs';
+import {
+  deleteObject,
+  getObject,
+  listObjects,
+  putObjectFromFile,
+  s3ConfigFromEnv,
+  sendSigned,
+} from './s3.mjs';
 import {
   decideBackupWrite,
   decideRestoreOwnership,
@@ -106,6 +117,13 @@ export function fileTarget(root) {
       writeFileSync(full, body);
       return { key, bytes: body.length };
     },
+    /** A file already on disk goes over as a copy — never through memory. */
+    async putFile(key, abs) {
+      const full = join(base, key);
+      mkdirSync(join(full, '..'), { recursive: true });
+      copyFileSync(abs, full);
+      return { key, bytes: statSync(full).size };
+    },
     async get(key) {
       const full = join(base, key);
       return existsSync(full) ? readFileSync(full) : null;
@@ -136,7 +154,22 @@ export function fileTarget(root) {
 export function s3Target(cfg) {
   return {
     describe: `s3://${cfg.bucket} @ ${cfg.endpoint}`,
-    put: (key, body) => putObject(cfg, key, body),
+    // EVERY upload has a deadline. Without one a connection that stops
+    // answering is a backup that never ends and never says so — the schedule
+    // then waits on it for ever and no later backup starts.
+    put: (key, body) => timedPut(cfg, key, body, PART_TIMEOUT_MS),
+    // A snapshot goes up FROM ITS FILE: above 16 MB as a multipart upload,
+    // 16 MB a part, each part retried and each with the same deadline.
+    putFile: (key, abs, { partTimeoutMs = PART_TIMEOUT_MS } = {}) =>
+      statSync(abs).size <= MULTIPART_ABOVE_BYTES
+        ? timedPut(cfg, key, readFileSync(abs), partTimeoutMs)
+        : putObjectFromFile(cfg, key, abs, {
+            threshold: MULTIPART_ABOVE_BYTES,
+            deps: {
+              send: (opts) =>
+                sendSigned(cfg, { ...opts, signal: AbortSignal.timeout(partTimeoutMs) }),
+            },
+          }),
     get: (key) => getObject(cfg, key),
     list: (prefix) => listObjects(cfg, prefix),
     remove: (key) => deleteObject(cfg, key),
@@ -164,6 +197,7 @@ export function prefixedTarget(target, prefix) {
   return {
     describe: `${target.describe} [${clean}/]`,
     put: (key, body) => target.put(at(key), body),
+    ...(target.putFile ? { putFile: (key, abs, opts) => target.putFile(at(key), abs, opts) } : {}),
     get: (key) => target.get(at(key)),
     remove: (key) => target.remove(at(key)),
     list: async (p) =>
@@ -282,6 +316,137 @@ export function snapshotDatabase(dataDir, name, { tmpDir } = {}) {
   }
 }
 
+/** A snapshot larger than this is uploaded in parts. */
+const MULTIPART_ABOVE_BYTES = 16 * 1024 * 1024;
+
+/** One PUT with a deadline; the error says which object and why. */
+async function timedPut(cfg, key, body, timeoutMs) {
+  const buf = Buffer.isBuffer(body) ? body : Buffer.from(body);
+  let res;
+  try {
+    res = await sendSigned(cfg, {
+      method: 'PUT',
+      key,
+      body: buf,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err) {
+    const why =
+      err?.name === 'TimeoutError'
+        ? `timed out after ${Math.round(timeoutMs / 1000)} s`
+        : (err?.message ?? err);
+    throw new Error(`S3 PUT ${key} failed: ${why}`);
+  }
+  if (!res.ok) {
+    throw new Error(`S3 PUT ${key} failed: ${res.status} ${(await res.text()).slice(0, 300)}`);
+  }
+  return { key, bytes: buf.length, etag: res.headers.get('etag') };
+}
+
+/** A process takes its first scheduled backup this long after it starts. */
+export const FIRST_BACKUP_AFTER_MS = 3 * 60_000;
+/** The most database bytes a backup on SHUTDOWN will take on (raw, before compression). */
+export const SHUTDOWN_MAX_BYTES = 32 * 1024 * 1024;
+
+/** One request of an upload — a 16 MB part, or a small file — may take this long. */
+export const PART_TIMEOUT_MS = 5 * 60_000;
+/** A whole backup may take this long; past it the attempt is stopped and reported. */
+export const BACKUP_DEADLINE_MS = 60 * 60_000;
+/** Pages copied per step of the online backup (4096-byte pages: 16 MB), between which the hub serves. */
+const SNAPSHOT_PAGES_PER_STEP = 4096;
+/** Past this the snapshot stops yielding and finishes in one step (a busy store restarts a slow copy). */
+const SNAPSHOT_YIELD_MS = 30_000;
+
+/**
+ * Snapshot one database to a gzipped FILE, without holding the event loop or
+ * the database in memory. Returns `{ path, bytes }`, or null when the database
+ * does not exist. The caller removes `path`.
+ *
+ * WHY NOT `snapshotDatabase` (the function above, kept for small databases
+ * and its tests): it is `VACUUM INTO` + `readFileSync` + `gzipSync`, all
+ * synchronous. On a project store of a few hundred MB that is seconds to tens
+ * of seconds in which this process answers nothing — and a process stopped in
+ * the middle (a container's 10 s stop grace) leaves the scratch file behind,
+ * because its `finally` never runs. That is what filled a live `/data` with
+ * 385 MB `.backup-project-store.sqlite-*` files and left a fortnight of
+ * generations with no project store and no manifest (2026-11-25).
+ *
+ * Here: SQLite's online backup, a step at a time (the hub serves between
+ * steps); then a streaming gzip (zlib's thread pool); and the scratch copy is
+ * removed in a `finally` that an `await` can reach.
+ */
+export async function snapshotDatabaseFile(dataDir, name, { tmpDir } = {}) {
+  const source = join(dataDir, name);
+  if (!existsSync(source)) return null;
+  const Database = require('better-sqlite3');
+  const scratch = join(tmpDir ?? dataDir, `${SCRATCH_PREFIX}${name}-${process.pid}-${Date.now()}`);
+  const gz = `${scratch}.gz`;
+  rmSync(scratch, { force: true });
+  const started = Date.now();
+  const db = new Database(source, { readonly: true });
+  try {
+    await db.backup(scratch, {
+      progress: () =>
+        Date.now() - started > SNAPSHOT_YIELD_MS ? 2 ** 30 : SNAPSHOT_PAGES_PER_STEP,
+    });
+    await pipeline(createReadStream(scratch), createGzip(), createWriteStream(gz));
+    return { path: gz, bytes: statSync(gz).size };
+  } catch (err) {
+    rmSync(gz, { force: true });
+    throw err;
+  } finally {
+    try {
+      db.close();
+    } catch {
+      /* ignore */
+    }
+    rmSync(scratch, { force: true });
+    rmSync(`${scratch}-journal`, { force: true });
+  }
+}
+
+/** Every scratch file a snapshot makes starts with this, in the data dir. */
+const SCRATCH_PREFIX = '.backup-';
+
+/**
+ * Remove snapshot scratch files a previous process left behind (it was stopped
+ * mid-snapshot). Called at BOOT, when no snapshot of this process exists yet —
+ * so everything with the prefix is stale. Returns `{ removed, bytes }`.
+ */
+export function sweepStaleSnapshots(dataDir) {
+  let removed = 0;
+  let bytes = 0;
+  try {
+    for (const entry of readdirSync(dataDir, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.startsWith(SCRATCH_PREFIX)) continue;
+      const full = join(dataDir, entry.name);
+      try {
+        bytes += statSync(full).size;
+        rmSync(full, { force: true });
+        removed += 1;
+      } catch {
+        /* one stubborn file must not stop the sweep */
+      }
+    }
+  } catch {
+    /* no data dir yet */
+  }
+  return { removed, bytes };
+}
+
+/** How big the databases a backup would snapshot are, in bytes — the size of the job. */
+export function backupWorkBytes(dataDir) {
+  let total = 0;
+  for (const name of BACKUP_DATABASES) {
+    try {
+      total += statSync(join(dataDir, name)).size;
+    } catch {
+      /* absent */
+    }
+  }
+  return total;
+}
+
 /** `backups/20260728T203000Z/hub.db.gz` — sortable, so "latest" is lexical. */
 export function snapshotPrefix(now = new Date()) {
   return `backups/${now
@@ -343,6 +508,7 @@ async function takeBackup(
     repoDir = null,
     run = null,
     workspace = null,
+    deadlineMs = BACKUP_DEADLINE_MS,
   },
   report
 ) {
@@ -374,55 +540,137 @@ async function takeBackup(
 
   const prefix = snapshotPrefix(now);
   const files = [];
-  for (const name of BACKUP_DATABASES) {
-    const gz = snapshotDatabase(dataDir, name);
-    if (!gz) continue;
-    await target.put(`${prefix}/${name}.gz`, gz);
-    files.push({ name, bytes: gz.length });
-  }
-  if (files.length === 0) throw new Error('runBackup: nothing to back up (no databases found)');
-
-  // Cloud Phase 15 — the checkout rides in the SAME generation as the
-  // databases. Documents from 03:00 restored beside a checkout from 02:00
-  // would give a workspace whose documents reference canvases the checkout
-  // does not have; consistency between the two is why this is not a separate
-  // schedule. A cell with no commits yet contributes nothing, which is a
-  // normal state and not a failure.
-  let repo = null;
-  if (repoDir && run) {
-    const bundled = await bundleRepo(repoDir, run);
-    if (bundled.state === 'ok') {
-      await target.put(`${prefix}/${REPO_BUNDLE}`, bundled.bytes);
-      repo = { name: REPO_BUNDLE, bytes: bundled.bytes.length };
-    } else if (bundled.state === 'failed') {
-      // Loud, but the databases are already up and a partial generation with
-      // no manifest is ignorable. Throwing here would discard a good document
-      // backup because the checkout lane had a bad day.
-      console.error(`[backup] the checkout was NOT included: ${bundled.reason}`);
+  // Everything this attempt wrote, so a failure can take it away again: a
+  // generation that stops half-way must not sit in the target looking like one.
+  const written = [];
+  let complete = false;
+  const startedAt = Date.now();
+  const inTime = (step) => {
+    if (Date.now() - startedAt > deadlineMs) {
+      throw new Error(
+        `runBackup: stopped at ${step} — the backup took longer than ${Math.round(deadlineMs / 60_000)} min`
+      );
     }
-  }
-
-  // version 2 — the generation now names its owner. Additive, so a reader that
-  // predates this still finds every field it knows.
-  const manifest = {
-    version: 2,
-    workspace: workspaceId,
-    createdAt: now.toISOString(),
-    files,
-    ...(repo ? { repo } : {}),
   };
-  await target.put(`${prefix}/manifest.json`, Buffer.from(JSON.stringify(manifest, null, 2)));
-  // The generation is complete: say so NOW (see `onAttempt`).
-  report({
-    ok: true,
-    prefix,
-    at: now.getTime(),
-    bytes: files.reduce((n, f) => n + f.bytes, 0) + (repo?.bytes ?? 0),
-    files: files.length + (repo ? 1 : 0),
-  });
+  try {
+    for (const name of BACKUP_DATABASES) {
+      inTime(name);
+      const snap = await snapshotDatabaseFile(dataDir, name);
+      if (!snap) continue;
+      try {
+        const key = `${prefix}/${name}.gz`;
+        written.push(key);
+        await putFile(target, key, snap.path);
+        files.push({ name, bytes: snap.bytes });
+      } finally {
+        rmSync(snap.path, { force: true });
+      }
+    }
+    if (files.length === 0) throw new Error('runBackup: nothing to back up (no databases found)');
 
-  const pruned = await pruneOldBackups({ target, keep, workspace: workspaceId });
-  return { prefix, files, manifest, repo, pruned };
+    // Cloud Phase 15 — the checkout rides in the SAME generation as the
+    // databases. Documents from 03:00 restored beside a checkout from 02:00
+    // would give a workspace whose documents reference canvases the checkout
+    // does not have; consistency between the two is why this is not a separate
+    // schedule. A cell with no commits yet contributes nothing, which is a
+    // normal state and not a failure.
+    let repo = null;
+    if (repoDir && run) {
+      inTime('the checkout');
+      const bundled = await bundleRepo(repoDir, run);
+      if (bundled.state === 'ok') {
+        written.push(`${prefix}/${REPO_BUNDLE}`);
+        await target.put(`${prefix}/${REPO_BUNDLE}`, bundled.bytes);
+        repo = { name: REPO_BUNDLE, bytes: bundled.bytes.length };
+      } else if (bundled.state === 'failed') {
+        // Loud, but the databases are already up. Throwing here would discard
+        // a good document backup because the checkout lane had a bad day.
+        console.error(`[backup] the checkout was NOT included: ${bundled.reason}`);
+      }
+    }
+
+    // version 2 — the generation now names its owner. Additive, so a reader that
+    // predates this still finds every field it knows.
+    const manifest = {
+      version: 2,
+      workspace: workspaceId,
+      createdAt: now.toISOString(),
+      files,
+      ...(repo ? { repo } : {}),
+    };
+    inTime('the manifest');
+    await target.put(`${prefix}/manifest.json`, Buffer.from(JSON.stringify(manifest, null, 2)));
+    complete = true;
+    // The generation is complete: say so NOW (see `onAttempt`).
+    report({
+      ok: true,
+      prefix,
+      at: now.getTime(),
+      bytes: files.reduce((n, f) => n + f.bytes, 0) + (repo?.bytes ?? 0),
+      files: files.length + (repo ? 1 : 0),
+    });
+
+    const pruned = await pruneOldBackups({ target, keep, workspace: workspaceId });
+    // …and what earlier attempts left half-done (stopped mid-upload).
+    const swept = await pruneIncompleteGenerations({ target, workspace: workspaceId }).catch(
+      () => []
+    );
+    return { prefix, files, manifest, repo, pruned, swept };
+  } catch (err) {
+    // No manifest, so nothing reads this as a backup — take it away anyway.
+    if (!complete) for (const key of written) await target.remove(key).catch(() => {});
+    throw err;
+  }
+}
+
+/** Upload a file: from disk when the target can, else through memory. */
+function putFile(target, key, abs) {
+  return target.putFile ? target.putFile(key, abs) : target.put(key, readFileSync(abs));
+}
+
+/** A half-written generation younger than this may still be in flight somewhere. */
+export const INCOMPLETE_GRACE_MS = 24 * 3600_000;
+
+/**
+ * Remove generations that never got their manifest — an attempt that was
+ * stopped mid-upload. They are not backups (nothing lists or restores them)
+ * but they look like backups to a person reading the bucket, and they cost
+ * storage every six hours.
+ *
+ * As careful as `pruneOldBackups`, for the same reason: with no manifest a
+ * generation names no owner. So it is removed only when NOTHING in the
+ * keyspace belongs to another workspace, only when it is older than a day
+ * (never an upload in flight), and only the object names a backup writes.
+ */
+export async function pruneIncompleteGenerations({
+  target,
+  workspace = null,
+  now = Date.now(),
+  olderThanMs = INCOMPLETE_GRACE_MS,
+}) {
+  if (workspace === null) return [];
+  const objects = await target.list('backups/');
+  const complete = new Set(
+    objects
+      .filter((o) => o.key.endsWith('/manifest.json'))
+      .map((o) => o.key.slice(0, -'/manifest.json'.length))
+  );
+  for (const gen of complete) {
+    const owner = manifestOwner(await readManifest(target, gen));
+    if (owner && owner !== workspace) return [];
+  }
+  const ours = new Set([...BACKUP_DATABASES.map((n) => `${n}.gz`), REPO_BUNDLE]);
+  const doomed = new Map();
+  for (const o of objects) {
+    const m = /^(backups\/[^/]+)\/([^/]+)$/.exec(o.key);
+    if (!m || complete.has(m[1]) || !ours.has(m[2])) continue;
+    const at = generationTime(m[1]);
+    if (at === null || now - at < olderThanMs) continue;
+    if (!doomed.has(m[1])) doomed.set(m[1], []);
+    doomed.get(m[1]).push(o.key);
+  }
+  for (const keys of doomed.values()) for (const key of keys) await target.remove(key);
+  return [...doomed.keys()].sort();
 }
 
 /** The error a write refusal raises, so callers can surface it as STATE. */
@@ -745,10 +993,22 @@ export function scheduleBackups({
   onStatus = null,
   /** Handed to every `runBackup` this schedule makes — see `runBackup`. */
   onAttempt = null,
+  /**
+   * The FIRST backup of a process is this long after boot, not a whole
+   * interval: a hub restarted a few times a day (deploys) otherwise never
+   * reaches its first tick, and goes days without a backup while looking
+   * scheduled. `skipFirst()` true leaves it out (a recent backup already exists).
+   */
+  firstAfterMs = Math.min(intervalMs || 0, FIRST_BACKUP_AFTER_MS),
+  skipFirst = () => false,
+  /** The last generation on shutdown is taken only when the job is at most this big. */
+  shutdownMaxBytes = SHUTDOWN_MAX_BYTES,
 }) {
   if (!target || !intervalMs || intervalMs <= 0) {
     const none = () => {};
     none.final = async () => null;
+    none.now = async () => null;
+    none.running = () => false;
     return none;
   }
   let inflight = null;
@@ -816,7 +1076,23 @@ export function scheduleBackups({
   };
   const timer = setInterval(() => void guarded(), intervalMs);
   timer.unref?.();
-  const stop = () => clearInterval(timer);
+  const first = setTimeout(() => {
+    let skip = false;
+    try {
+      skip = Boolean(skipFirst());
+    } catch {
+      /* cannot tell ⇒ take the backup */
+    }
+    if (!skip) void guarded();
+  }, firstAfterMs);
+  first.unref?.();
+  const stop = () => {
+    clearInterval(timer);
+    clearTimeout(first);
+  };
+  /** A backup asked for by a person. Joins the one in flight rather than starting a second. */
+  stop.now = () => guarded();
+  stop.running = () => inflight !== null;
   /**
    * The last generation, on a graceful shutdown. A cell's disk goes with the
    * container, and everything written since the previous tick — up to a whole
@@ -824,8 +1100,26 @@ export function scheduleBackups({
    * cell, 2026-09-24). Resolves with the generation, or null when it failed.
    */
   stop.final = async () => {
-    clearInterval(timer);
+    stop();
     if (inflight) await inflight;
+    // NEVER START WHAT THE STOP WINDOW CANNOT FINISH. A container is given
+    // about ten seconds between SIGTERM and SIGKILL; a few hundred MB of
+    // project store cannot be snapshotted, compressed and uploaded in that —
+    // and a backup killed half-way is worse than none (a generation with no
+    // manifest, a scratch file left on the data disk). So a big job is not
+    // attempted at shutdown at all, and SAYS so: the scheduled backups are the
+    // backups of a hub this size, and the first one comes minutes after boot.
+    const bytes = backupWorkBytes(dataDir);
+    if (bytes > shutdownMaxBytes) {
+      const message = `the data here is ${Math.round(bytes / 1048576)} MB — too much to back up while stopping; the scheduled backups cover it`;
+      log.log?.(`[hub] shutdown backup skipped: ${message}`);
+      try {
+        onAttempt?.({ ok: false, skipped: true, at: Date.now(), message });
+      } catch {
+        /* see runBackup */
+      }
+      return null;
+    }
     return guarded();
   };
   return stop;

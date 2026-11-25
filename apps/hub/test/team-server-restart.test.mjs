@@ -228,7 +228,12 @@ test('seeded admin → link my sign-in → invite → invitee in through the pro
   assert.equal(row.sessions.length, 1);
   const overview = await body(await admin.json('/admin/api/overview'));
   assert.equal(overview.hub.name, 'Example Design');
-  assert.equal(overview.needs.length, 0);
+  // Nobody waits for anything. (The one thing that does need the admin is true
+  // of this hub: backups are set up and none has been made yet.)
+  assert.deepEqual(
+    overview.needs.map((n) => n.type),
+    ['backup']
+  );
   // "Changes" comes from the file journal — the same two fields the control
   // plane reads from /health with the cell secret, and the Overview's tile.
   const probe = await (

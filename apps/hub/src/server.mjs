@@ -117,6 +117,7 @@ import {
   prefixedTarget,
   runBackup,
   scheduleBackups,
+  sweepStaleSnapshots,
   targetFromConfig,
   targetFromEnv,
 } from './backup.mjs';
@@ -624,6 +625,18 @@ export function createHub(config = {}) {
       durability.at = known.lastAttempt.at;
     }
   }
+  // A process stopped mid-snapshot leaves its scratch copy of the database
+  // behind (hundreds of MB each, on the disk the documents live on). Nothing of
+  // THIS process exists yet, so everything with the prefix is stale.
+  {
+    const swept = sweepStaleSnapshots(dataDir);
+    if (swept.removed) {
+      console.log(
+        `[hub] removed ${swept.removed} unfinished backup snapshot(s) left in the data folder (${sizeWords(swept.bytes)})`
+      );
+    }
+  }
+  durability.intervalMs = bootTarget ? backupIntervalMs : null;
   let backupSummaryAt = 0;
   let backupSummaryInFlight = null;
   /** How long the target's listing is trusted between backups. */
@@ -635,6 +648,11 @@ export function createHub(config = {}) {
    * reason), and for the regular keyspace the status file.
    */
   const noteBackup = (kind) => (a) => {
+    // Not attempted at all (too big for the stop window): said, not counted as a failure.
+    if (a.skipped) {
+      audit({ kind: 'backup', actor: 'Server', detail: `Shutdown backup skipped: ${a.message}` });
+      return;
+    }
     const before = kind === 'before-conversion';
     audit({
       kind: 'backup',
@@ -729,6 +747,13 @@ export function createHub(config = {}) {
     intervalMs: backupTarget ? backupIntervalMs : 0,
     // Activity + the status file: one place, for every kind of attempt.
     onAttempt: noteBackup('regular'),
+    // The first backup comes minutes after boot — unless a good one is recent
+    // enough that the regular schedule will do (a restart is not a reason to
+    // upload everything again).
+    skipFirst: () => {
+      const at = readBackupStatus(dataDir).lastOk?.at ?? durability.lastOkAt ?? 0;
+      return Date.now() - at < backupIntervalMs / 2;
+    },
     onStatus: (s) => {
       durability.state = s.state;
       durability.at = s.at;
@@ -2467,6 +2492,9 @@ export function createHub(config = {}) {
           audit,
           changesNow,
           refreshBackupSummary,
+          // "Back up now": joins a backup in flight, never starts a second.
+          backupNow: backupTarget ? () => stopBackups.now() : null,
+          backupRunning: () => stopBackups.running?.() ?? false,
         });
         bailFromOnRequest();
       }
@@ -3388,6 +3416,31 @@ async function handleAdminApi(ctx) {
 
   // ---- everything below is the ADMIN KEY or a SIGNED-IN ADMIN ACCOUNT ----
 
+  // "Back up now" — a person asks for one. Answered at once (a backup of a
+  // large project takes minutes); how it ended is the Activity row and the
+  // Overview line, like every other backup.
+  if (method === 'POST' && path === '/backup/run') {
+    try {
+      await readJsonBody(request);
+    } catch (err) {
+      respondAdminJson(response, 400, { error: err.message });
+      return;
+    }
+    if (!ctx.backupNow) {
+      respondAdminJson(response, 409, { error: 'Backups are not set up on this team server.' });
+      return;
+    }
+    const already = ctx.backupRunning?.() ?? false;
+    ctx.audit?.({
+      kind: 'backup',
+      actor: actor.name,
+      detail: already ? 'Asked for a backup — one was already running' : 'Asked for a backup now',
+    });
+    // Not awaited, and never an unhandled rejection: the schedule's own catch reports it.
+    void Promise.resolve(ctx.backupNow()).catch(() => {});
+    respondAdminJson(response, 202, { ok: true, started: !already, running: true });
+    return;
+  }
   // The backup line comes from the target's own listing (cached), not from memory since boot.
   if (path === '/overview' || path === '/status') await ctx.refreshBackupSummary?.();
   if (
@@ -3420,7 +3473,9 @@ async function handleAdminApi(ctx) {
         }),
       version: releaseVersion(),
       changes: (await ctx.changesNow?.()) ?? null,
-      durability: ctx.durability ?? null,
+      durability: ctx.durability
+        ? { ...ctx.durability, running: ctx.backupRunning?.() ?? false }
+        : null,
       repoDir,
       gitLock: repoDir ? gitLockState(repoDir) : null,
       canvasCount: () =>

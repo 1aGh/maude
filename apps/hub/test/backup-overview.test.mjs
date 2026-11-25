@@ -15,11 +15,12 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { after, before, describe, test } from 'node:test';
-
+import { buildOverview } from '../src/admin-people.mjs';
 import { closeAudit, listAudit } from '../src/audit-log.mjs';
 import { backupSummary, runBackup } from '../src/backup.mjs';
-import { closeUsers } from '../src/users.mjs';
+import { closeUsers, createUser } from '../src/users.mjs';
 import { rm, startHub, tmpDir, until } from './_acl-docs-fixture.mjs';
+import { browser } from './_fake-issuer.mjs';
 
 const BUCKET = 'team-backups';
 const S3_ENV = [
@@ -249,5 +250,92 @@ describe('backups on an S3-shaped target', () => {
     line = await backupsLine();
     assert.equal(line.state, 'ok');
     assert.equal(line.word, '3 kept');
+  });
+
+  test('"Back up now": a signed-in admin asks, the backup runs, and both are in Activity; a member cannot', async () => {
+    const PW = 'correct horse battery staple';
+    createUser(dataDir, { email: 'michal@x.test', password: PW, role: 'admin' });
+    createUser(dataDir, { email: 'marek@x.test', password: PW, role: 'member' });
+    const signIn = async (email) => {
+      const b = browser(hub.http);
+      assert.equal((await b.form('/studio/signin', { email, password: PW })).status, 302);
+      return b;
+    };
+    const member = await signIn('marek@x.test');
+    assert.equal((await member.json('/admin/api/backup/run', {})).status, 403);
+
+    const admin = await signIn('michal@x.test');
+    const keptBefore = (await backupsLine()).kept;
+    await new Promise((r) => setTimeout(r, 1100)); // a later second than the last generation
+    const asked = await admin.json('/admin/api/backup/run', {});
+    assert.equal(asked.status, 202);
+    assert.equal((await asked.json()).running, true);
+    await until(
+      async () => (await backupsLine()).kept === keptBefore + 1,
+      8000,
+      'the asked-for backup'
+    );
+    const rows = backupRows();
+    assert.ok(
+      rows.some((r) => r.actor === 'michal@x.test' && r.detail === 'Asked for a backup now')
+    );
+    assert.match(rows.find((r) => r.actor === 'Server').detail, /^Backup made · /);
+    // Cross-site, the cookie is not enough — like every other session-admin action.
+    const forged = await fetch(`${hub.http}/admin/api/backup/run`, {
+      method: 'POST',
+      headers: {
+        cookie: `maude_studio=${admin.jar.get('maude_studio')}`,
+        'content-type': 'application/json',
+        'sec-fetch-site': 'cross-site',
+      },
+      body: '{}',
+    });
+    assert.equal(forged.status, 403);
+  });
+
+  test('the Overview offers "Back up now" under "needs you" once the last good backup is older than two intervals', () => {
+    const now = Date.now();
+    const H = 3600_000;
+    const view = (durability) =>
+      buildOverview(dataDir, { peers: new Map(), now, version: '0.0.0', env: {}, durability });
+    const fresh = view({ state: 'ok', lastOkAt: now - 7 * H, intervalMs: 6 * H, kept: 3 });
+    assert.equal(
+      fresh.needs.some((n) => n.type === 'backup'),
+      false
+    );
+    assert.equal(fresh.health.find((h) => h.key === 'backups').canRunNow, true);
+
+    const stale = view({ state: 'ok', lastOkAt: now - 13 * H, intervalMs: 6 * H, kept: 3 });
+    assert.deepEqual(stale.needs[0], {
+      type: 'backup',
+      since: now - 13 * H,
+      running: false,
+      failing: false,
+    });
+    assert.equal(stale.health.find((h) => h.key === 'backups').stale, true);
+
+    const never = view({ state: 'pending', lastOkAt: null, intervalMs: 6 * H, kept: 0 });
+    assert.equal(never.needs[0].type, 'backup');
+    assert.equal(never.needs[0].since, null);
+
+    const failing = view({
+      state: 'failed',
+      message: 'S3 PUT … 503',
+      lastOkAt: now - 15 * 24 * H,
+      intervalMs: 6 * H,
+      kept: 1,
+      running: true,
+    });
+    assert.deepEqual(
+      { failing: failing.needs[0].failing, running: failing.needs[0].running },
+      { failing: true, running: true }
+    );
+    const off = view({ state: 'not-configured' });
+    assert.equal(
+      off.needs.some((n) => n.type === 'backup'),
+      false,
+      'not set up is not "stale"'
+    );
+    assert.equal(off.health.find((h) => h.key === 'backups').canRunNow, undefined);
   });
 });

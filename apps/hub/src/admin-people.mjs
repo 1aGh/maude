@@ -97,6 +97,8 @@ const SESSION_POST = new Set([
   '/people/turn-on',
   '/people/remove',
   '/people/signout',
+  // "Back up now": starts the schedule's own backup, nothing more.
+  '/backup/run',
   '/users/disable',
   '/users/enable',
   '/users/delete',
@@ -356,8 +358,18 @@ function healthLines({ version, durability, repoDir, gitLock, now }) {
   const d = durability;
   const kept = Number.isInteger(d?.kept) ? d.kept : null;
   const keptWord = kept === null ? 'Working' : `${kept} kept`;
+  // STALE: set up, and the last good backup is older than two intervals (or
+  // there is none). That is when the Overview offers "Back up now".
+  const interval = Number(d?.intervalMs) || 0;
+  const stale = Boolean(interval) && (!d?.lastOkAt || now - d.lastOkAt > 2 * interval);
   const backups = (line) =>
-    lines.push({ key: 'backups', label: 'Backups', ...(kept === null ? {} : { kept }), ...line });
+    lines.push({
+      key: 'backups',
+      label: 'Backups',
+      ...(kept === null ? {} : { kept }),
+      ...(interval ? { canRunNow: true, stale, running: Boolean(d?.running) } : {}),
+      ...line,
+    });
   if (!d || d.state === 'not-configured') {
     backups({ value: 'Not set up', state: 'off', word: 'Not set up' });
   } else if (d.state === 'failed' || d.state === 'identity-conflict') {
@@ -443,16 +455,27 @@ export function buildOverview(dataDir, ctx) {
   }
   const here = listing.people.filter((p) => p.status === 'online').map((p) => p.email);
   const settings = readSettings(dataDir);
+  const health = healthLines({
+    version: ctx.version,
+    durability: ctx.durability,
+    repoDir: ctx.repoDir,
+    gitLock: ctx.gitLock,
+    now,
+  });
+  // Backups that have gone stale are the admin's to act on, first in the list.
+  const backupLine = health.find((h) => h.key === 'backups');
+  if (backupLine?.stale) {
+    needs.unshift({
+      type: 'backup',
+      since: backupLine.at ?? null,
+      running: Boolean(backupLine.running),
+      failing: backupLine.state === 'bad',
+    });
+  }
   return {
     hub: { name: settings.name, description: settings.description },
     needs,
-    health: healthLines({
-      version: ctx.version,
-      durability: ctx.durability,
-      repoDir: ctx.repoDir,
-      gitLock: ctx.gitLock,
-      now,
-    }),
+    health,
     counts: {
       people: listing.counts.people,
       invited: listing.counts.invited,
