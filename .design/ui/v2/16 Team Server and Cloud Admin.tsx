@@ -20,7 +20,8 @@
  *     (studio-door.mjs → /auth/oidc/start), so every invited person lands in pending (oidc-routes.mjs:178), the admin
  *     approves in a prompt(), and desktop has no browser sign-in for a team server — so the admin mints a token by hand.
  *   · Proposed here (ts-invitee): the invite rides through Google sign-in and IS the approval; the app connects by a
- *     matching code confirmed in the browser (Cloud's device-auth.mjs + handoff codes, ported to the hub). Tokens stay —
+ *     browser hand-off the hub already has (desktop-signin.mjs: one-use code to this Mac's loopback). Built in 2.4.0:
+ *     a team server has two account roles (Admin, Can edit) and sends no email, so invites are links. Tokens stay —
  *     owned by a person, behind Settings › Advanced (ts-settings).
  *   · v2 hub pieces with no admin UI today, surfaced: access requests (routes-v2/access.mjs), backups (backup.mjs),
  *     Maude 2 conversion (v2-convert.mjs), saving to Git (workspace-agent.mjs), design-system grants (ds-grants.mjs).
@@ -134,10 +135,10 @@ function Bars({ data, labels, summary }: { data: number[]; labels: [string, stri
 type PersonRow = { name: string; email: string; tone: Tone; role: string; state: ReactNode; seen: string; macs: string; action: ReactNode; cls?: string; ini?: string };
 const PEOPLE_ROWS: PersonRow[] = [
   { name: "Lukáš Dvořák", email: "lukas.dvorak@studyfi.com", tone: "grey", role: "Can edit", state: <span className="chip ad-chip ad-chip--warn"><Icon name="people" size={12} />Asks to join</span>, seen: "12 min ago", macs: "—", action: <><span className="btn btn--sm">Dismiss</span><span className="btn btn--sm btn--primary">Let in</span></>, cls: "is-hl" },
-  { name: "Petra Svobodová", email: "petra@studyfi.com", tone: "lilac", role: "Can edit", state: <StatusWord state="busy">Invited · 5 days left</StatusWord>, seen: "Not yet", macs: "—", action: <><span className="btn btn--ghost btn--sm">Copy link</span><span className="btn btn--sm">Send again</span></> },
+  { name: "Petra Svobodová", email: "petra@studyfi.com", tone: "lilac", role: "Can edit", state: <StatusWord state="busy">Invited · 5 days left</StatusWord>, seen: "Not yet", macs: "—", action: <><span className="btn btn--sm">Copy a new link</span></> },
   { name: "Tereza Nováková", email: "tereza@studyfi.com", tone: "sky", role: "Admin", state: <StatusWord state="ok">Online</StatusWord>, seen: "Now", macs: "2 Macs", action: <span className="btn btn--ghost btn--sm"><Icon name="more" size={14} /></span> },
   { name: "Jonas Berger", email: "jonas@studyfi.com", tone: "green", role: "Can edit", state: <StatusWord state="ok">Online</StatusWord>, seen: "Now", macs: "1 Mac", action: <span className="btn btn--ghost btn--sm"><Icon name="more" size={14} /></span> },
-  { name: "Anna Králová", email: "anna.kralova@studyfi.com", tone: "yellow", ini: "A", role: "Can comment", state: <StatusWord state="off">Away</StatusWord>, seen: "Yesterday, 17:40", macs: "1 Mac", action: <span className="btn btn--ghost btn--sm"><Icon name="more" size={14} /></span> },
+  { name: "Anna Králová", email: "anna.kralova@studyfi.com", tone: "yellow", ini: "A", role: "Can edit", state: <StatusWord state="off">Away</StatusWord>, seen: "Yesterday, 17:40", macs: "1 Mac", action: <span className="btn btn--ghost btn--sm"><Icon name="more" size={14} /></span> },
   { name: "Ondřej Malý", email: "ondrej@studyfi.com", tone: "green", role: "Can edit", state: <StatusWord state="off">Away</StatusWord>, seen: "28 Oct", macs: "1 Mac", action: <span className="btn btn--ghost btn--sm"><Icon name="more" size={14} /></span> },
   { name: "Filip Horák", email: "filip@studyfi.com", tone: "grey", role: "Can edit", state: <StatusWord state="off">Turned off</StatusWord>, seen: "2 Sep", macs: "—", action: <span className="btn btn--ghost btn--sm">Turn back on</span>, cls: "is-dim" },
 ];
@@ -224,8 +225,8 @@ export default function TeamServerAndCloudAdmin() {
                     </div>
                     <div className="ad-need">
                       <Avatar ini="P" tone="lilac" size="lg" />
-                      <span className="ad-need-t"><strong>Petra's invite hasn't been opened</strong><span>Sent 2 days ago · the link works for 5 more days</span></span>
-                      <span className="ad-need-a"><span className="btn btn--sm">Send again</span></span>
+                      <span className="ad-need-t"><strong>Petra's invite hasn't been opened</strong><span>Made 2 days ago · the link works for 5 more days</span></span>
+                      <span className="ad-need-a"><span className="btn btn--sm">Copy a new link</span></span>
                     </div>
                   </div>
                 </section>
@@ -292,7 +293,7 @@ export default function TeamServerAndCloudAdmin() {
               {/* The invite sheet: emails, then what they can do, then where — and the promise in words. */}
               <section className="ad-sheet" style={{ right: 28, top: 108, width: 420 }} aria-label="Invite people">
                 <div><h2 className="ad-sheet-t">Invite people to StudyFi Design</h2></div>
-                <p className="ad-sheet-s">They sign in with their StudyFi Google account — the invite lets them straight in.</p>
+                <p className="ad-sheet-s">They sign in with their StudyFi account — the invite lets them straight in.</p>
                 <span className="field">
                   <span className="field-label">Emails</span>
                   <span className="ad-emails"><span className="chip">marek@studyfi.com</span><span className="chip">eva.pokorna@studyfi.com</span><i className="ad-caret" /></span>
@@ -301,21 +302,19 @@ export default function TeamServerAndCloudAdmin() {
                   <span className="field-label">They can</span>
                   <span className="ad-pick" role="radiogroup">
                     <PickOpt on title="Can edit" sub="Change canvases, draw, use AI, move things to the trash" />
-                    <PickOpt title="Can comment" sub="Look, comment and download" />
-                    <PickOpt title="Can view" sub="Look and download, nothing else" />
-                    <PickOpt title="Admin" sub="Also invites people and runs this team server · asks you to confirm" />
+                    <PickOpt title="Admin" sub="Also invites people and runs this team server · always for a named address" />
                   </span>
                 </span>
                 <span className="field">
                   <span className="field-label">In</span>
                   <span className="ad-sel">All projects — now and new ones<Icon name="chevron" size={12} /></span>
                 </span>
-                <div className="ad-promise"><Icon name="check" size={14} /><span>No approving and no token afterwards. They open the email, sign in, and the Maude app connects with one click.</span></div>
+                <div className="ad-promise"><Icon name="check" size={14} /><span>No approving and no token afterwards. They open the link, sign in, and the Maude app connects from the browser. The team server sends no email: you pass the links on.</span></div>
                 <div className="ad-sheet-a">
-                  <span className="btn btn--ghost"><Icon name="link" size={14} />Copy a one-time link</span>
+                  <span className="btn btn--ghost"><Icon name="link" size={14} />A link for anyone</span>
                   <span className="ad-sp" />
                   <span className="btn">Cancel</span>
-                  <span className="btn btn--primary">Send 2 invites</span>
+                  <span className="btn btn--primary">Make 2 invite links</span>
                 </div>
               </section>
             </Browser>
@@ -323,7 +322,7 @@ export default function TeamServerAndCloudAdmin() {
         </DCArtboard>
 
         <DCArtboard id="ts-invitee" label="3 · What Marek sees — three screens, no waiting, no token" width={W} height={H} fixed>
-          <Stage note={<Note n={3} title="Proposed: the invite rides through Google sign-in.">Today Google sign-in forgets the invite, so everyone waits for approval and then for a token. Now the invite is the approval, and the app links itself: the same code shows in the app and on the page, and one click confirms it.</Note>}>
+          <Stage note={<Note n={3} title="The invite rides through your own sign-in.">Before 2.4, sign-in forgot the invite, so everyone waited for approval and then for a token. Now the invite is the approval, and the app links itself: the browser hands the sign-in to Maude on this Mac, and one click connects it.</Note>}>
             <div className="ds k-v2 ad-closeup" data-theme="light">
               <div className="ad-story">
                 <div className="ad-story-h">
@@ -338,7 +337,7 @@ export default function TeamServerAndCloudAdmin() {
                         <h2 className="ad-web-t">Michal invited you to StudyFi Design</h2>
                         <p className="ad-web-s">The StudyFi team's designs · 14 people</p>
                         <span className="ad-web-role"><Icon name="edit" size={12} />You can edit</span>
-                        <span className="btn btn--primary btn--lg"><span className="ad-g">G</span>Continue with Google</span>
+                        <span className="btn btn--primary btn--lg">Continue with auth.studyfi.com</span>
                         <p className="ad-web-fine">Use marek@studyfi.com — that's who the invite is for. Signed in as someone else? The page says so and offers <u>Use another account</u>.</p>
                       </div>
                     </Browser>
@@ -353,14 +352,13 @@ export default function TeamServerAndCloudAdmin() {
                         <p className="ad-web-s">StudyFi app and Marketing site are ready for you.</p>
                         <span className="btn btn--primary btn--lg"><Mark size={16} tile="var(--accent-fg)" star="var(--accent)" />Open in Maude</span>
                         <span className="btn btn--ghost">Don't have it? Download Maude for Mac</span>
-                        <span className="ad-web-code"><span>Maude will ask you to check this code</span><b>K7F-Q2M</b></span>
                         <p className="ad-web-fine">Just looking? <u>Open in the browser</u></p>
                       </div>
                     </Browser>
-                    <p className="ad-step-cap">The invite was the approval: no "waiting for access". The page already shows the code the app will ask Marek to check.</p>
+                    <p className="ad-step-cap">The invite was the approval: no "waiting for access". Open in Maude hands the sign-in to the app, once and for this Mac only.</p>
                   </div>
                   <div className="ad-step">
-                    <span className="ad-step-l"><span className="ad-step-n">3</span>The app connects — check the code</span>
+                    <span className="ad-step-l"><span className="ad-step-n">3</span>The app connects</span>
                     <div className="ad-br" style={{ height: 470 }}>
                       <div className="ad-br-bar"><span className="k-lights"><i /><i /><i /></span><span className="ad-br-url" style={{ background: "transparent" }}><b>Maude</b></span><span className="ad-br-sp" /></div>
                       <div className="ad-br-page">
@@ -368,15 +366,14 @@ export default function TeamServerAndCloudAdmin() {
                           <section className="ad-sheet">
                             <Mark size={48} />
                             <h2 className="ad-sheet-t">Connect StudyFi Design?</h2>
-                            <p className="ad-sheet-s" style={{ margin: 0 }}>The browser shows the same code. If it matches, connect.</p>
-                            <span className="ad-code-band"><span className="ad-code" aria-label="Code K7F Q2M"><b>K</b><b>7</b><b>F</b><i /><b>Q</b><b>2</b><b>M</b></span></span>
+                            <p className="ad-sheet-s" style={{ margin: 0 }}>You signed in as marek@studyfi.com in the browser. Connect this Mac?</p>
                             <span className="btn btn--primary">Connect</span>
-                            <span className="btn btn--ghost btn--sm">It doesn't match</span>
+                            <span className="btn btn--ghost btn--sm">That's not me</span>
                           </section>
                         </div>
                       </div>
                     </div>
-                    <p className="ad-step-cap">It doesn't match → nothing connects and the page offers Try again. A match: Home shows both projects and the Mac joins Marek's Macs.</p>
+                    <p className="ad-step-cap">That's not me → nothing connects and the page offers Try again. Connect: Home shows both projects and the Mac joins Marek's Macs.</p>
                   </div>
                 </div>
                 <div className="ad-compare">
@@ -412,7 +409,7 @@ export default function TeamServerAndCloudAdmin() {
                     <span className="ad-pick" role="radiogroup">
                       <PickOpt title="Only people you invite" sub="Anyone else who signs in is turned away" />
                       <PickOpt on title="Colleagues ask, you let them in" sub="Anyone @studyfi.com can ask; you see it under Needs you" />
-                      <PickOpt title="Colleagues come straight in" sub="Anyone @studyfi.com joins as Can comment" />
+                      <PickOpt title="Colleagues come straight in" sub="Anyone @studyfi.com joins as Can edit" />
                     </span>
                   </div>
                   <div className="ad-card">
@@ -495,7 +492,7 @@ export default function TeamServerAndCloudAdmin() {
                 <Who name="Jonas Berger" email="jonas@studyfi.com" tone="green" />
                 <span className="field">
                   <span className="field-label">Jonas can</span>
-                  <span className="seg ad-seg"><span className="ad-seg-b">Can view</span><span className="ad-seg-b">Can comment</span><span className="ad-seg-b" aria-pressed="true">Can edit</span><span className="ad-seg-b">Admin</span></span>
+                  <span className="seg ad-seg"><span className="ad-seg-b" aria-pressed="true">Can edit</span><span className="ad-seg-b">Admin</span></span>
                   <span className="field-hint">Changes at once, on every Mac and in the browser.</span>
                 </span>
                 <span className="field">
@@ -547,8 +544,8 @@ export default function TeamServerAndCloudAdmin() {
                         ["Today, 20:57", "Jonas Berger", "green", "Exported Paywall · 4 images", "StudyFi app"],
                         ["Today, 20:54", "Lukáš Dvořák", "grey", "Signed in with Google and asks to join", "Sign-in"],
                         ["Today, 20:52", "Server", "grey", "Saved to Git — 12 changes", "studyfi/design"],
-                        ["Today, 20:06", "Anna Králová", "yellow", "Joined from Michal's invite · Can comment", "People"],
-                        ["Today, 19:40", "Michal", "yellow", "Changed Jonas from Can comment to Can edit", "People"],
+                        ["Today, 20:06", "Anna Králová", "yellow", "Joined from Michal's invite · Can edit", "People"],
+                        ["Today, 19:40", "Michal", "yellow", "Changed Tereza from Can edit to Admin", "People"],
                         ["Today, 19:38", "Michal", "yellow", "Invited petra@studyfi.com and anna.kralova@studyfi.com", "People"],
                         ["Today, 14:12", "Tereza Nováková", "sky", "Signed out Ondřej's old MacBook", "People"],
                         ["Today, 03:00", "Server", "grey", "Backup made · 182 MB", "Backups"],
@@ -584,14 +581,14 @@ export default function TeamServerAndCloudAdmin() {
                 </div>
                 <div className="ad-stats" style={{ "--n": 5 } as CSSProperties}>
                   <Stat label="Active this week" icon="people" value="9" unit="of 12" foot={<span className="ad-up">+2 vs last week</span>} />
-                  <Stat label="Edits" icon="edit" value="716" spark={[40, 52, 47, 60, 35, 18, 22, 58, 63, 70, 66, 49, 72, 80]} />
+                  <Stat label="Changes" icon="edit" value="716" spark={[40, 52, 47, 60, 35, 18, 22, 58, 63, 70, 66, 49, 72, 80]} />
                   <Stat label="Canvases" icon="file" value="208" foot={<span>+11 this week</span>} />
                   <Stat label="Exports" icon="export" value="48" foot={<span>31 images · 12 PDF · 5 video</span>} />
                   <Stat label="Storage" icon="server" value="3.2" unit="of 50 GB" foot={<span>Most in Alligators brand</span>} />
                 </div>
                 <div className="ad-cols ad-cols--2-1">
                   <div className="ad-card">
-                    <h2 className="ad-card-h">Edits per day <span className="ad-legend"><span><i />Earlier days</span><span><i className="ad-lg-a" />Today</span></span></h2>
+                    <h2 className="ad-card-h">Changes per day <span className="ad-legend"><span><i />Earlier days</span><span><i className="ad-lg-a" />Today</span></span></h2>
                     <Bars data={[30, 41, 38, 52, 22, 12, 15, 44, 57, 61, 49, 35, 16, 20, 58, 66, 72, 54, 47, 18, 14, 62, 70, 64, 76, 59, 24, 21, 68, 81]} labels={["5 Oct", "19 Oct", "Today"]} summary="Edits per day over 30 days: lowest 12 on weekends, highest 81 today; about 45 on a typical weekday." />
                   </div>
                   <div className="ad-card">

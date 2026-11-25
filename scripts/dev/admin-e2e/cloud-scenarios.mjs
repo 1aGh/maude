@@ -1620,6 +1620,51 @@ scenarios.C6 = {
       `member has m=${fileHas(seed, m1)} o=${fileHas(seed, o1)}; owner has m=${fileHas(oSeed, m1)} o=${fileHas(oSeed, o1)}`
     );
 
+    // ---- Changes: the edits just made, on the owner's dashboard after a sweep
+    // The cell counts changes and reports them in its tenant stats; the hourly
+    // sweep stores what it reports. A hub that does not report the field yet
+    // must leave the dashboard with NO Changes tile (unknown is not zero).
+    await stack.cron();
+    const changesRow = (await stack.d1('SELECT changes FROM projects WHERE id = ?', PROJECT.id))[0]
+      ?.changes;
+    const dashHtml = (await owner.client.get(`${C()}/`)).text;
+    const dashText = textOf(dashHtml);
+    const tile = dashText.match(/Changes\s+(\d+)\s+this week[^.]{0,60}/);
+    const barCount = (dashHtml.match(/<span class="bar/g) ?? []).length;
+    if (changesRow) {
+      const stored = JSON.parse(changesRow);
+      const reportedWeek =
+        stored.week ?? stored.byDay.slice(-7).reduce((n, d) => n + Number(d.count), 0);
+      check(
+        'the dashboard shows the Changes the cell reported for this week, with the 30-day chart',
+        Boolean(tile) &&
+          Number(tile[1]) === reportedWeek &&
+          barCount === 30 &&
+          !/<script/i.test(dashHtml),
+        `${tile?.[0] ?? 'no Changes tile'} · ${barCount} bars · the cell reported week=${stored.week}`
+      );
+      // EXACT, not "at least one". One change = one accepted save of a canvas
+      // (one committed action in the project store). Up to this sweep the
+      // project has had exactly three: the seed canvas `ui/welcome.tsx` being
+      // created through the cell's own studio, the member's edit, the owner's
+      // edit. Each was relayed to the other desktop and written into the
+      // cell's checkout — neither of which is a second change. (On 2026-11-25
+      // the same run read 0, then 1, then 3: first the count ignored the
+      // project store, then it was a minute stale. apps/hub/src/change-stats.mjs.)
+      const EXPECTED_CHANGES = 3;
+      check(
+        `the cell counted exactly ${EXPECTED_CHANGES} changes: the seed canvas created + the member's edit + the owner's edit`,
+        Number(tile?.[1]) === EXPECTED_CHANGES && reportedWeek === EXPECTED_CHANGES,
+        `dashboard shows ${tile?.[1]}; the cell reported week=${stored.week}, today=${stored.byDay?.at?.(-1)?.count}`
+      );
+    } else {
+      check(
+        'the cell does not report changes yet, so the dashboard shows no Changes tile and no chart',
+        !tile && barCount === 0,
+        `projects.changes is NULL after the sweep (the hub side of changesByDay / changesWeek is not in this tree yet); tile=${Boolean(tile)} bars=${barCount}`
+      );
+    }
+
     // ---- Can view is refused on write
     // Can view cannot be invited while no workspace holds it (C4), so this is a
     // person who already has the role: joined as Can comment, then the row is

@@ -96,6 +96,7 @@ also drive the owner's People lists, a bulk role change and Make owner (offer, t
 ```sh
 FARM_LOCAL=1 scripts/v2-test-lane.sh -- node scripts/dev/admin-e2e/cloud-scenarios.mjs
 FARM_LOCAL=1 scripts/v2-test-lane.sh -- node scripts/dev/admin-e2e/cloud-scenarios.mjs --only C3      # or C3,C8
+#   --strict-changes   (accepted, no longer needed) C6 always asserts the exact Changes count for its edits
 #   --keep      keep the scratch dir (D1, cell checkouts, desk folders, screenshots)
 #   --verbose   cell and studio logs on stderr
 ```

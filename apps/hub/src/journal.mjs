@@ -96,6 +96,21 @@ export const JOURNAL_SOURCES = Object.freeze([
 ]);
 
 /**
+ * The sources that are a PERSON's doing: a write or a delete through a door
+ * (desktop, the studio in the browser), an owner's adopt. Everything else in
+ * JOURNAL_SOURCES is the server looking after itself — a walk, a boot scan, a
+ * refill, a replay, a quarantine — and is not a "change" anyone made.
+ * An allowlist: a source added later counts for nothing until it is put here.
+ */
+export const PEOPLE_SOURCES = Object.freeze([
+  'peer-put',
+  'studio-report',
+  'owner-delete',
+  'owner-purge',
+  'owner-adopt',
+]);
+
+/**
  * How many class holds one checkout keeps (p8-holds-fix, recheck N1). A hold is
  * noted only for a real canvas body on disk and pruned when the file goes, so
  * the store tracks the tree; the walk itself stops at 20 000 files
@@ -204,6 +219,7 @@ export function openJournal(
       at_ms          INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS file_journal_path ON file_journal(path);
+    CREATE INDEX IF NOT EXISTS file_journal_at ON file_journal(at_ms);
     CREATE TABLE IF NOT EXISTS journal_meta (
       k TEXT PRIMARY KEY,
       v TEXT NOT NULL
@@ -302,6 +318,18 @@ export function closeJournal(dataDir) {
 function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log = console }) {
   const stmts = {
     head: db.prepare('SELECT COALESCE(MAX(seq), 0) AS head FROM file_journal'),
+    // "Changes" (change-stats.mjs): rows per UTC day in a time window, people's
+    // sources only, canvas / board / meta files only. One range scan over
+    // `file_journal_at`, bounded by the window the caller passes.
+    changesByDay: db.prepare(
+      `SELECT CAST(at_ms / 86400000 AS INTEGER) AS day, COUNT(*) AS n
+         FROM file_journal
+        WHERE at_ms >= ? AND at_ms < ?
+          AND source IN (${PEOPLE_SOURCES.map((s) => `'${s}'`).join(', ')})
+          AND (path LIKE '%.tsx' OR path LIKE '%.meta.json'
+               OR path LIKE '%.annotations.json' OR path LIKE '%.annotations.svg')
+        GROUP BY day`
+    ),
     latestForPath: db.prepare(
       'SELECT * FROM file_journal WHERE path = ? ORDER BY seq DESC LIMIT 1'
     ),
@@ -595,6 +623,9 @@ function makeHandle({ db, getMeta, setMeta, now, maxHolds = MAX_CLASS_HOLDS, log
 
     epoch: () => getMeta.get('epoch').v,
     head: () => stmts.head.get().head,
+
+    /** `[{ day: <UTC day number>, n }]` for rows in `[sinceMs, untilMs)` — see `changesByDay` above. */
+    changeCounts: (sinceMs, untilMs) => stmts.changesByDay.all(sinceMs, untilMs),
 
     /**
      * Rotate the epoch — every peer cursor becomes meaningless and peers

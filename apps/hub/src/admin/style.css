@@ -1277,6 +1277,15 @@ html.ad .maude {
   font-size: var(--type-sm);
   min-height: var(--lh-sm);
 }
+.ad-spark {
+  display: block;
+  width: 100%;
+  height: 24px;
+  fill: var(--border-strong);
+}
+.ad-spark .is-today {
+  fill: var(--accent);
+}
 .ad-cols {
   display: grid;
   grid-template-columns: 2fr 1fr;

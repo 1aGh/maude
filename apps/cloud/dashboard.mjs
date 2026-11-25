@@ -100,6 +100,11 @@ const CSS = `
   .where li:first-child { border-top: 0; }
   .where li span { color: var(--fg-2); font-variant-numeric: tabular-nums; }
   .plan-line { color: var(--fg-1); }
+  .chart { margin-bottom: var(--space-4); }
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 96px; padding-top: var(--space-2); }
+  .bar { flex: 1; min-width: 2px; background: var(--border-strong); border-radius: 2px 2px 0 0; }
+  .bar-today { background: var(--accent); }
+  .axis { display: flex; justify-content: space-between; margin: var(--space-2) 0 0; font-size: var(--type-xs); color: var(--fg-2); }
   .empty {
     border: 1px dashed var(--border-default); border-radius: var(--radius-lg);
     padding: var(--space-8) var(--space-6); text-align: center; background: var(--bg-1);
@@ -229,6 +234,44 @@ function bytesWord(n) {
   return `${v < 10 && i > 0 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
 }
 
+const shortDay = (day) =>
+  new Date(`${day}T00:00:00Z`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
+
+/**
+ * "Changes per day", thirty UTC days ending today — bars drawn in HTML and
+ * CSS, no script (this page's CSP allows none, and it is the page somebody
+ * opens when something is wrong).
+ *
+ * The bars are a picture (`role="img"`) with the whole story in its label: a
+ * screen reader hears the range and the total instead of thirty unlabeled
+ * boxes. Every number here is an integer that changes.mjs validated; the only
+ * text is a date this function formatted itself.
+ */
+function changesChart(changes) {
+  const days = changes.days;
+  const max = Math.max(...days.map((d) => d.count));
+  const total = days.reduce((n, d) => n + d.count, 0);
+  const peak = days.reduce((a, d) => (d.count > a.count ? d : a), days[0]);
+  const low = Math.min(...days.map((d) => d.count));
+  const summary = `Changes per day over ${days.length} days: lowest ${low}, highest ${max}${max > 0 ? ` on ${shortDay(peak.day)}` : ''}, ${total} in total, ${days.at(-1).count} today.`;
+  const bars = days
+    .map((d, i) => {
+      const pct = max > 0 ? Math.max(d.count > 0 ? 3 : 0, Math.round((d.count / max) * 100)) : 0;
+      return `<span class="bar${i === days.length - 1 ? ' bar-today' : ''}" style="height: ${pct}%"></span>`;
+    })
+    .join('');
+  return `<div class="where chart">
+    <h2>Changes per day</h2>
+    <div class="bars" role="img" aria-label="${esc(summary)}">${bars}</div>
+    <p class="axis" aria-hidden="true"><span>${esc(shortDay(days[0].day))}</span><span>${esc(shortDay(days[Math.floor(days.length / 2)].day))}</span><span>Today</span></p>
+    <p class="note">${changes.reporting < changes.of ? `From the ${changes.reporting} of your ${changes.of} projects that report it. ` : ''}Days are counted in UTC.</p>
+  </div>`;
+}
+
 /** Where people open their work: the two places a person recognises. */
 const SURFACE_WORD = { desktop: 'Mac app', browser: 'Browser', cli: 'Command line' };
 
@@ -262,6 +305,23 @@ function overviewSection(overview) {
       `in ${overview.projects} ${overview.projects === 1 ? 'project' : 'projects'}`
     );
   }
+  // Changes this week — the cells' own count (changes.mjs). Present only when
+  // at least one of the owner's projects reports it.
+  const changes = overview.changes ?? null;
+  if (changes) {
+    const top = changes.perProject[0];
+    tile(
+      'Changes',
+      String(changes.week),
+      [
+        'this week',
+        ...(changes.perProject.length > 1 && top.week > 0 ? [`most in ${top.name}`] : []),
+        ...(changes.reporting < changes.of
+          ? [`${changes.reporting} of ${changes.of} projects report`]
+          : []),
+      ].join(' · ')
+    );
+  }
   if (overview.canvases !== null) tile('Canvases', String(overview.canvases));
   if (overview.exports !== null) tile('Exports', `${approx}${overview.exports}`, 'last 30 days');
   if (overview.storageBytes !== null) tile('Storage', bytesWord(overview.storageBytes));
@@ -283,6 +343,7 @@ function overviewSection(overview) {
   if (!tiles.length && !rows.length) return '';
   return `<section class="overview" aria-label="How your projects are used">
     ${tiles.length ? `<div class="tiles">${tiles.join('\n')}</div>` : ''}
+    ${changes ? changesChart(changes) : ''}
     ${
       rows.length
         ? `<div class="where"><h2>${opens.length ? 'Where people open their work' : 'Invitations'}</h2><ul>${rows.join('\n')}</ul>
@@ -367,6 +428,19 @@ export function allDashboardHtml() {
         storageBytes: 3.2 * 1024 ** 3,
         opens: { desktop: 1104, browser: 214 },
         sampled: false,
+        changes: {
+          days: Array.from({ length: 30 }, (_, i) => ({
+            day: `2026-10-${String(i + 1).padStart(2, '0')}`,
+            count: (i * 7) % 23,
+          })),
+          week: 96,
+          perProject: [
+            { id: 'p0', name: 'Project 0', week: 70 },
+            { id: 'p1', name: 'Project 1', week: 26 },
+          ],
+          reporting: 2,
+          of: 3,
+        },
       },
       plans: new Map([
         ['p0', { line: 'Promo from Maude · free' }],

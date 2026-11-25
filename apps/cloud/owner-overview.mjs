@@ -11,6 +11,7 @@
 //     used, is its owner's business; a member's dashboard gets neither.
 
 import { ownerMetrics } from './analytics.mjs';
+import { changesView } from './changes.mjs';
 import { ownerPlan } from './plan-copy.mjs';
 
 const DAY_MS = 86_400_000;
@@ -51,9 +52,11 @@ export async function ownerPlans(env, accountId, { now = Date.now() } = {}) {
  *   storageBytes: number|null, opens: Record<string, number>|null, sampled: boolean }>}
  */
 export async function ownerOverview(env, accountId, { now = Date.now() } = {}) {
+  // `SELECT *`: the Changes column arrived in D1 v24, and a database the
+  // hourly migration has not reached yet must still draw the dashboard.
   const owned = await rows(
     env.DB,
-    `SELECT id FROM projects WHERE account_id = ? AND state != 'purged'`,
+    `SELECT * FROM projects WHERE account_id = ? AND state != 'purged'`,
     accountId
   );
   if (!owned?.length) return null;
@@ -103,5 +106,8 @@ export async function ownerOverview(env, accountId, { now = Date.now() } = {}) {
     storageBytes: m?.storageBytes ?? null,
     opens: m?.opens ?? null,
     sampled: m?.sampled ?? false,
+    // From D1, whatever analytics is doing: what each project's workspace
+    // last reported (changes.mjs). null when none reports — no tile, no chart.
+    changes: changesView(owned, { now }),
   };
 }

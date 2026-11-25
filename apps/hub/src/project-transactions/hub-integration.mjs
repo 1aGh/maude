@@ -121,6 +121,8 @@ export function createAcceptedRevisions({
   onFormat = () => {},
   /** Tests: the `{t:'runs'}` poke emitter (default: on `server`'s control document). */
   runsPoke = null,
+  /** One revision was just accepted through this hub (change-stats.mjs counts it). Must not throw. */
+  onRevision = () => {},
 }) {
   let state = { mode: 'legacy', epoch: 0, revision: 0, formatVersion: DEFAULT_FORMAT };
   // T19/T29 — the coordinator's own readiness and counters, apart from the
@@ -157,6 +159,11 @@ export function createAcceptedRevisions({
   let notifyFailures = 0;
 
   async function applyAccepted({ revision, actionId, changes, dirs, actor }) {
+    try {
+      onRevision(revision);
+    } catch {
+      /* a counter must never stand between a commit and its publication */
+    }
     const context = {
       accepted: { revision, actionId },
       user: { name: actor, email: actor.includes('@') ? actor : undefined },

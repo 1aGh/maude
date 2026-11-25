@@ -229,6 +229,21 @@ test('seeded admin → link my sign-in → invite → invitee in through the pro
   const overview = await body(await admin.json('/admin/api/overview'));
   assert.equal(overview.hub.name, 'Example Design');
   assert.equal(overview.needs.length, 0);
+  // "Changes" comes from the file journal — the same two fields the control
+  // plane reads from /health with the cell secret, and the Overview's tile.
+  const probe = await (
+    await fetch(`${base}/health`, { headers: { authorization: 'Bearer smoke-admin-key' } })
+  ).json();
+  assert.equal(probe.stats.changesByDay.length, 30);
+  assert.equal(probe.stats.changesByDay[29].day, new Date().toISOString().slice(0, 10));
+  assert.equal(Number.isInteger(probe.stats.changesWeek), true);
+  assert.equal(overview.counts.changesThisWeek, probe.stats.changesWeek);
+  assert.equal(overview.changesByDay.length, 30);
+  assert.equal(
+    (await (await fetch(`${base}/health`)).json()).stats,
+    undefined,
+    'not on the public probe'
+  );
   const health = Object.fromEntries(overview.health.map((h) => [h.key, h]));
   assert.notEqual(health.git.word, 'Not set up', 'this hub has a checkout');
   assert.notEqual(health.backups.word, 'Not set up', 'and a backup target');

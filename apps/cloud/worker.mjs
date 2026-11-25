@@ -26,6 +26,7 @@ import {
 import { track } from './analytics.mjs';
 import { currentAccount, handleAuth } from './auth-routes.mjs';
 import { deriveCellSecret, mintProjectToken, secretsMatch } from './cell-token.mjs';
+import { changesFromStats, changesRecord } from './changes.mjs';
 import { handleCheckoutRoutes } from './checkout-routes.mjs';
 import {
   audit,
@@ -791,6 +792,16 @@ export async function reconcileSweep(env, { now = Date.now() } = {}) {
                 .bind(next, row.id)
                 .run();
             }
+          }
+          // How much the project was changed, per day (D1 v24) — the cell's
+          // own count, kept only as far as it is believable (changes.mjs).
+          // A cell that reports none of it (older image, asleep) leaves the
+          // last report where it is; it ages out of the page by itself.
+          const changes = changesFromStats(probed.body?.stats);
+          if (changes) {
+            await env.DB.prepare('UPDATE projects SET changes = ? WHERE id = ?')
+              .bind(changesRecord(changes), row.id)
+              .run();
           }
         } catch (err) {
           console.warn(`[stats] ${row.id}: ${err.message}`);

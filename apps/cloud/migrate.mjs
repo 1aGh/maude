@@ -581,6 +581,17 @@ export const MIGRATIONS = [
       'CREATE INDEX IF NOT EXISTS project_transfers_to ON project_transfers (to_account, closed_at);',
     ],
   },
+  {
+    version: 24, // Changes per day, as each project's workspace last reported them
+    atomic: true,
+    statements: [
+      // JSON `{ at, week, byDay: [{day, count}] }` — the cell's own count of
+      // changes (changes.mjs), validated before it is written here by the
+      // hourly sweep, beside `capabilities`. NULL = never reported, which the
+      // dashboard shows as no tile at all, never as zero.
+      'ALTER TABLE projects ADD COLUMN changes TEXT;',
+    ],
+  },
 ];
 
 /** Run one migration's statements plus its schema_migrations row. */

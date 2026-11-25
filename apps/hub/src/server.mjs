@@ -104,7 +104,7 @@ import {
   parseAssetPath,
   parseCheckoutAssetPath,
 } from './assets.mjs';
-import { recordAudit } from './audit-log.mjs';
+import { countSyncedChange, recordAudit } from './audit-log.mjs';
 import {
   handleAuthRoutes,
   handleUserAdminRoutes,
@@ -138,6 +138,13 @@ import {
   scheduleMirror,
   scheduleRevocationSweep,
 } from './cell-ops.mjs';
+import {
+  changeStats,
+  createAcceptedChanges,
+  mergeChangeStats,
+  syncedChangeStats,
+  withChanges,
+} from './change-stats.mjs';
 import { clientIpFor, parseTrustedProxies } from './client-ip.mjs';
 import { projectTokenKey, verifyAccessToken } from './cloud-identity.mjs';
 import { designRootFor } from './design-root.mjs';
@@ -277,7 +284,7 @@ import { clearTombstone, isTombstoned, listTombstones, recordTombstone } from '.
 import { handleUploadSessions, UPLOADS_PREFIX } from './upload-sessions.mjs';
 import { countLinkedOidc } from './users.mjs';
 import { BACKUP_PREFIX, conversionGate, createV2Conversion } from './v2-convert.mjs';
-import { createWorkspaceAgent } from './workspace-agent.mjs';
+import { createWorkspaceAgent, slugFromDocName } from './workspace-agent.mjs';
 import { checkoutCanvasPathsIn } from './workspace-files.mjs';
 import { ensureWorkspaceId } from './workspace-identity.mjs';
 
@@ -1064,6 +1071,18 @@ export function createHub(config = {}) {
   // the hooks below read it lazily, so `null` simply means "legacy".
   /** @type {ReturnType<typeof createAcceptedRevisions>|null} */
   let accepted = null;
+  /** Per-day counts of accepted actions (change-stats.mjs) — set once the store is open. */
+  let acceptedChanges = null;
+  /**
+   * "Changes", from the three places a canvas edit can be recorded — the file
+   * journal, the accepted-revisions store, the synced-document counter — each
+   * edit in exactly one of them (change-stats.mjs). Null when none can tell.
+   */
+  const changesNow = async () =>
+    mergeChangeStats(
+      mergeChangeStats(changeStats(journal), (await acceptedChanges?.stats()) ?? null),
+      syncedChangeStats(dataDir)
+    );
   // Gate 0 A18 (S4.6 / S9.13) — formal votes; assigned once the store is open.
   /** @type {ReturnType<typeof createVotesRoutes>|null} */
   let votesRoutes = null;
@@ -1393,7 +1412,10 @@ export function createHub(config = {}) {
           peersCount: peers.size,
           exposeDataDir: false,
           studio,
-          stats: privileged ? tenantStats({ designRoot: designRootFor() }) : null,
+          // + `changesByDay` / `changesWeek` from the file journal (change-stats.mjs).
+          stats: privileged
+            ? withChanges(tenantStats({ designRoot: designRootFor() }), await changesNow())
+            : null,
           render: privileged && studio ? await studio.renderStats() : null,
           // Sync v2 capability advertisement (DDR-226 §5/§10 — the compat
           // matrix is BINDING). A client never attaches the control channel or
@@ -2319,6 +2341,7 @@ export function createHub(config = {}) {
           env: doorEnv,
           note,
           audit,
+          changesNow,
         });
         bailFromOnRequest();
       }
@@ -2513,6 +2536,19 @@ export function createHub(config = {}) {
     // authored by "Unknown editor" — a lie that git blame repeats forever.
     async afterStoreDocument({ documentName, document, lastContext }) {
       documentEvents.stored({ documentName, document });
+      // "Changes" (change-stats.mjs): one debounced store of a canvas document
+      // that a PERSON's connection caused is one change. Not the control
+      // document, not a store with nobody behind it (the hub's own loads and
+      // conversions), and not in accepted revisions — there the documents are
+      // read-only and the edit is an action in the project store, counted there.
+      if (
+        lastContext?.user &&
+        !isFilesCtlDoc(documentName) &&
+        slugFromDocName(documentName) &&
+        accepted?.health?.({ privileged: true })?.mode !== 'transactions'
+      ) {
+        countSyncedChange(dataDir);
+      }
       if (!workspace) return;
       try {
         await workspace.onDocumentStored({ documentName, document, user: lastContext?.user });
@@ -2563,6 +2599,7 @@ export function createHub(config = {}) {
         token: process.env.MAUDE_PROJECT_STORE_TOKEN || null,
       })
     : openSqliteProjectStore(dataDir);
+  acceptedChanges = createAcceptedChanges(projectStore);
   // Gate 0 A18 (S4.6 / S9.13) — the hub holds a linked project's ballots and
   // the timer; the routes are rows in `routes-v2/votes.mjs`.
   votesRoutes = createVotesRoutes({
@@ -2666,6 +2703,8 @@ export function createHub(config = {}) {
   accepted = createAcceptedRevisions({
     server,
     store: projectStore,
+    // "Changes" is exact: a commit here opens the count's one-minute cache.
+    onRevision: () => acceptedChanges?.touch(),
     projectId: process.env.MAUDE_TENANT_ID || 'local',
     canvasGroups: acceptedCanvasGroups,
     projectConfig: acceptedProjectConfig,
@@ -3252,6 +3291,7 @@ async function handleAdminApi(ctx) {
           extraHeaders: { 'Content-Disposition': `attachment; filename="${filename}"` },
         }),
       version: releaseVersion(),
+      changes: (await ctx.changesNow?.()) ?? null,
       durability: ctx.durability ?? null,
       repoDir,
       gitLock: repoDir ? gitLockState(repoDir) : null,

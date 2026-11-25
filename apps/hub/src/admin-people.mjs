@@ -469,10 +469,14 @@ export function buildOverview(dataDir, ctx) {
       hereNow: here.length,
       connections: ctx.peers?.size ?? 0,
       canvases: ctx.canvasCount?.() ?? 0,
-      // Counted from the kept activity log: sign-ins, invites, role and
-      // setting changes. Canvas edits are not in that log.
-      changesThisWeek: countAuditSince(dataDir, now - 7 * DAY),
+      // CHANGES are what people did to canvases, from the file journal
+      // (change-stats.mjs) — the same number the Cloud dashboard shows.
+      // Omitted, never zero, on a hub with no journal.
+      ...(ctx.changes ? { changesThisWeek: ctx.changes.changesWeek } : {}),
+      // EVENTS are the kept activity log: sign-ins, invites, people, settings.
+      eventsThisWeek: countAuditSince(dataDir, now - 7 * DAY),
     },
+    ...(ctx.changes ? { changesByDay: ctx.changes.changesByDay } : {}),
     hereNow: here.slice(0, 8),
     recent: listAudit(dataDir, { limit: 8 }),
     whoCanJoin: listing.whoCanJoin,

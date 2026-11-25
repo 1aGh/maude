@@ -106,6 +106,11 @@ function db(dataDir) {
      )`
   );
   handle.exec('CREATE INDEX IF NOT EXISTS audit_at ON audit(at)');
+  // Synced canvas edits per UTC day (change-stats.mjs) — a counter, not a log:
+  // one row per day, no name, no path, no person.
+  handle.exec(
+    'CREATE TABLE IF NOT EXISTS change_days (day INTEGER PRIMARY KEY, n INTEGER NOT NULL)'
+  );
   try {
     chmodSync(path, 0o600);
   } catch {
@@ -254,6 +259,43 @@ export function listAudit(dataDir, { kind, who, q, before, limit, max = PAGE_MAX
       .map(rowOf);
   } catch {
     return [];
+  }
+}
+
+/** Days of synced-edit counts kept (the series shows 30). */
+const CHANGE_DAYS_KEPT = 90;
+
+/**
+ * One synced canvas edit was stored (server.mjs `afterStoreDocument`). Bumps
+ * that UTC day's counter; never throws — a count must not fail a save.
+ */
+export function countSyncedChange(dataDir, at = Date.now()) {
+  try {
+    const day = Math.floor(at / 86_400_000);
+    const handle = db(dataDir);
+    handle
+      .prepare(
+        'INSERT INTO change_days (day, n) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1'
+      )
+      .run(day);
+    handle.prepare('DELETE FROM change_days WHERE day < ?').run(day - CHANGE_DAYS_KEPT);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * `[{ day, n }]` from `sinceDay` on — or null when this hub has never counted
+ * a synced edit (it cannot tell; that is not a zero).
+ */
+export function syncedChangeDays(dataDir, sinceDay) {
+  try {
+    const handle = db(dataDir);
+    if (!handle.prepare('SELECT 1 FROM change_days LIMIT 1').get()) return null;
+    return handle.prepare('SELECT day, n FROM change_days WHERE day >= ?').all(sinceDay);
+  } catch {
+    return null;
   }
 }
 

@@ -360,7 +360,12 @@ describe('overview', () => {
     assert.equal(typeof json.counts.people, 'number');
     assert.equal(json.counts.asks, 1);
     assert.equal(typeof json.counts.canvases, 'number');
-    assert.ok(json.counts.changesThisWeek > 5, 'counted from the kept log');
+    assert.ok(json.counts.eventsThisWeek > 5, 'events are counted from the kept log');
+    assert.equal(
+      'changesThisWeek' in json.counts,
+      false,
+      'no journal here: changes are absent, not 0'
+    );
     assert.ok(json.recent.length > 0);
   });
 
@@ -374,9 +379,9 @@ describe('overview', () => {
   });
 
   test("an eight-day-old event is not this week's change", async () => {
-    const before = (await key('/overview')).json.counts.changesThisWeek;
+    const before = (await key('/overview')).json.counts.eventsThisWeek;
     recordAudit(dataDir, { kind: 'login', actor: 'x@x.test', at: Date.now() - 8 * 86_400_000 });
     assert.equal(listAudit(dataDir, { who: 'x@x.test' }).length, 1, 'it is kept');
-    assert.equal((await key('/overview')).json.counts.changesThisWeek, before, 'and not counted');
+    assert.equal((await key('/overview')).json.counts.eventsThisWeek, before, 'and not counted');
   });
 });

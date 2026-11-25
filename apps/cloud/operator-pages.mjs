@@ -22,6 +22,7 @@
 
 import { FREE_TIME_DAYS } from './billing.mjs';
 import { appShell } from './brand.mjs';
+import { changesView } from './changes.mjs';
 import { operatorPlan } from './plan-copy.mjs';
 import { PROMO_TIERS, promoTierLabel } from './promo.mjs';
 
@@ -668,6 +669,7 @@ export function operatorAccountPage({
         <td><span class="plan-${esc(plan.tone)}">${esc(plan.line)}</span></td>
         <td class="right mono">${num(p.people ?? null)}</td>
         <td class="right mono">${bytes(p.stats?.assetsBytes ?? null)}</td>
+        <td class="right mono">${num(changesView([p], { now })?.week ?? null)}</td>
         <td class="right"><time>${when(p.last_checkpoint)}</time></td>
         <td>${
           canFree
@@ -719,7 +721,7 @@ export function operatorAccountPage({
       <div class="card"><h2>Projects</h2>
         ${
           projects.length
-            ? `<table><thead><tr><th>Project</th><th>Plan</th><th class="right">People</th><th class="right">Storage</th><th class="right">Last change</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+            ? `<table><thead><tr><th>Project</th><th>Plan</th><th class="right">People</th><th class="right">Storage</th><th class="right">Changes (week)</th><th class="right">Last change</th><th></th></tr></thead><tbody>${rows}</tbody></table>
                <p class="quiet">Last change is the last checkpoint the platform recorded. People in this project, Mark as Promo, Pause, Wake, Move to another owner and Delete are on each project’s own page.</p>`
             : '<p class="quiet">This account owns no project.</p>'
         }

@@ -364,6 +364,18 @@ function renderRelease(s) {
 
 // -------------------------------- overview ---------------------------------
 
+/** Bars for the last days — SVG attributes, not inline styles (the CSP drops those). Today is the last bar. */
+function spark(days) {
+  const max = Math.max(1, ...days.map((d) => d.count));
+  const bars = days
+    .map((d, i) => {
+      const h = d.count ? Math.max(2, Math.round((d.count / max) * 24)) : 1;
+      return `<rect x="${i * 8}" y="${24 - h}" width="6" height="${h}" rx="1"${i === days.length - 1 ? ' class="is-today"' : ''}><title>${esc(d.day)}: ${d.count}</title></rect>`;
+    })
+    .join('');
+  return `<svg class="ad-spark" viewBox="0 0 ${days.length * 8 - 2} 24" preserveAspectRatio="none">${bars}</svg>`;
+}
+
 const EVENT_WORDS = {
   login: 'signed in from the Maude app',
   logout: 'signed out',
@@ -448,7 +460,14 @@ function renderOverview(o) {
   $('stat-here').textContent = c.hereNow;
   $('stat-here-f').textContent = o.hereNow.map((e) => e.split('@')[0]).join(', ');
   $('stat-canvases').textContent = c.canvases;
-  $('stat-changes').textContent = c.changesThisWeek;
+  // CHANGES = saves to canvases, from the file journal (the number the Cloud
+  // dashboard shows too). A server with no journal cannot tell: a dash, not a 0.
+  const tracked = Number.isInteger(c.changesThisWeek);
+  $('stat-changes').textContent = tracked ? c.changesThisWeek : '—';
+  $('stat-changes-f').textContent = tracked
+    ? 'saves to canvases, last 7 days'
+    : 'not counted on this server';
+  $('stat-changes-spark').innerHTML = tracked ? spark(o.changesByDay.slice(-14)) : '';
 
   $('ov-health').innerHTML = o.health
     .map(
@@ -464,7 +483,7 @@ function renderOverview(o) {
       )
       .join('') || '<p class="ad-quiet">Nothing yet.</p>';
   $('activity-sub').textContent =
-    `Kept for ${o.retentionDays} days · ${c.changesThisWeek} this week`;
+    `Kept for ${o.retentionDays} days · ${c.eventsThisWeek} events this week`;
 }
 
 // ------------------------------------------------------------------- people
