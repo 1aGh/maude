@@ -3,6 +3,15 @@
   "version": "2.4.5",
   "entries": [
     {
+      "id": "windows-update-waits-for-restart",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Windows: an update waits for you",
+      "summary": "On Windows an update used to close Maude by itself and start the installer, even in the middle of work. It now downloads in the background and installs only when you choose Restart now.",
+      "surface": "design-ui"
+    },
+    {
       "id": "team-server-people-and-invites",
       "version": "2.4.0",
       "date": "2026-11-24",

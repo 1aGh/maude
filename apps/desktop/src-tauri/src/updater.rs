@@ -39,6 +39,38 @@ const INITIAL_DELAY_SECS: u64 = 15;
 /// you can only "restart to update" when there genuinely IS a staged update.
 static UPDATE_STAGED: AtomicBool = AtomicBool::new(false);
 
+/// #231: where installing an update ENDS the running app (Windows: the plugin starts the
+/// installer and calls `std::process::exit(0)`), the silent check may only DOWNLOAD. The
+/// verified package waits here and `restart_to_update` installs it when the person asks.
+/// Before this a Windows app left idle quit by itself and an installer appeared — unsent
+/// work in flight, the server not stopped, and the run recorded as a crash.
+static STAGED_PACKAGE: Mutex<Option<(tauri_plugin_updater::Update, Vec<u8>)>> = Mutex::new(None);
+
+/// Whether installing ends the running process on this OS (pure; Windows only).
+fn install_ends_the_app(os: &str) -> bool {
+    os == "windows"
+}
+
+/// What a check does once an update is already staged (pure): a silent one does nothing
+/// (no second download on every window focus), an asked-for one shows the banner again.
+fn staged_check_action(staged: bool, interactive: bool) -> StagedCheck {
+    match (staged, interactive) {
+        (false, _) => StagedCheck::Check,
+        (true, false) => StagedCheck::Skip,
+        (true, true) => StagedCheck::Announce,
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum StagedCheck {
+    Check,
+    Skip,
+    Announce,
+}
+
+/// The staged version, kept so an asked-for check can show the banner again.
+static STAGED_READY: Mutex<Option<UpdateReady>> = Mutex::new(None);
+
 /// V2-4.7c: a page may ask for an interactive check at most this often. Each
 /// interactive check can end in a native dialog, so a forged call loop from the
 /// main origin could otherwise stack dialogs; a person clicking twice loses nothing.
@@ -140,6 +172,16 @@ pub fn check_for_updates(app: AppHandle, webview: tauri::Webview) -> Result<(), 
 /// `interactive` = the user asked for this check (menu), so give explicit feedback
 /// on the up-to-date + error paths. Background/focus checks pass `false` and stay quiet.
 async fn check_and_apply(handle: &AppHandle, interactive: bool) {
+    match staged_check_action(UPDATE_STAGED.load(Ordering::Relaxed), interactive) {
+        StagedCheck::Check => {}
+        StagedCheck::Skip => return,
+        StagedCheck::Announce => {
+            if let Some(ready) = STAGED_READY.lock().ok().and_then(|g| g.clone()) {
+                crate::bus::broadcast("update-ready", ready);
+            }
+            return;
+        }
+    }
     let updater = match handle.updater() {
         Ok(u) => u,
         Err(e) => {
@@ -156,19 +198,34 @@ async fn check_and_apply(handle: &AppHandle, interactive: bool) {
             let version = update.version.clone();
             let notes = update.body.clone();
             eprintln!("[maude] update available: {version} — downloading in background");
-            // download_and_install stages the new bundle (macOS swaps the .app, Windows
-            // runs the signed installer). The running process keeps going until restart.
-            let result = update
-                .download_and_install(
-                    |_chunk, _total| {},
-                    || eprintln!("[maude] update downloaded — staged for restart"),
-                )
-                .await;
+            // macOS swaps the .app on disk and the running process keeps going until
+            // restart. On Windows installing ENDS the app (#231), so only the download
+            // happens here; the package is installed by `restart_to_update`.
+            let downloaded = || eprintln!("[maude] update downloaded — staged for restart");
+            let result = if install_ends_the_app(std::env::consts::OS) {
+                match update.download(|_chunk, _total| {}, downloaded).await {
+                    Ok(bytes) => {
+                        if let Ok(mut slot) = STAGED_PACKAGE.lock() {
+                            *slot = Some((update.clone(), bytes));
+                        }
+                        Ok(())
+                    }
+                    Err(e) => Err(e),
+                }
+            } else {
+                update
+                    .download_and_install(|_chunk, _total| {}, downloaded)
+                    .await
+            };
             match result {
                 Ok(()) => {
+                    let ready = UpdateReady { version, notes };
+                    if let Ok(mut slot) = STAGED_READY.lock() {
+                        *slot = Some(ready.clone());
+                    }
                     UPDATE_STAGED.store(true, Ordering::Relaxed);
                     // Every page, each through its own channel (bus.rs, finding 1d).
-                    crate::bus::broadcast("update-ready", UpdateReady { version, notes });
+                    crate::bus::broadcast("update-ready", ready);
                 }
                 Err(e) => {
                     eprintln!("[maude] update download/install failed: {e}");
@@ -270,14 +327,22 @@ pub fn restart_to_update(app: AppHandle, webview: tauri::Webview) -> Result<(), 
     crate::sidecar::kill_server(&app);
     // S11.16: an update restart is a clean quit, not a crash.
     crate::lifecycle::clean_exit(&app);
+    // #231: on Windows the package was only downloaded. Installing starts the installer
+    // and ends this process; the installer opens Maude again when it is done.
+    let package = STAGED_PACKAGE.lock().ok().and_then(|mut g| g.take());
+    if let Some((update, bytes)) = package {
+        if let Err(e) = update.install(&bytes) {
+            eprintln!("[maude] staged update could not be installed: {e}");
+        }
+    }
     app.restart();
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        auto_update_disabled, page_check_allowed, up_to_date_message, up_to_date_title,
-        PAGE_CHECK_COOLDOWN,
+        auto_update_disabled, install_ends_the_app, page_check_allowed, staged_check_action,
+        up_to_date_message, up_to_date_title, StagedCheck, PAGE_CHECK_COOLDOWN,
     };
     use std::time::{Duration, Instant};
 
@@ -305,6 +370,38 @@ mod tests {
         assert!(body("pub fn check_now(").contains("if auto_update_off()"));
         assert!(!body("pub fn check_now_interactive(").contains("auto_update_off"));
         assert!(src.contains("option_env!(\"MAUDE_NO_AUTO_UPDATE\")"));
+    }
+
+    /// #231: a Windows app left idle quit by itself and an installer appeared.
+    #[test]
+    fn a_silent_check_never_installs_where_installing_ends_the_app() {
+        assert!(install_ends_the_app("windows"));
+        assert!(!install_ends_the_app("macos"));
+        assert!(!install_ends_the_app("linux"));
+        let src = include_str!("updater.rs");
+        let check = &src[src.find("async fn check_and_apply(").unwrap()..];
+        let check = &check[..check.find("\n}\n").unwrap()];
+        // the install-in-place call sits only in the branch for the other systems
+        let gate = check
+            .find("if install_ends_the_app(std::env::consts::OS)")
+            .unwrap();
+        let other = check[gate..].find("} else {").unwrap() + gate;
+        assert!(check.find(".download_and_install(").unwrap() > other);
+        assert!(!check.contains(".install("));
+        // the person's "Restart now" is the only place the package is installed
+        let restart = &src[src.find("pub fn restart_to_update(").unwrap()..];
+        let restart = &restart[..restart.find("app.restart()").unwrap()];
+        let clean = restart.find("lifecycle::clean_exit(&app)").unwrap();
+        assert!(restart.find("update.install(&bytes)").unwrap() > clean);
+        assert!(restart.find("sidecar::kill_server(&app)").unwrap() < clean);
+    }
+
+    #[test]
+    fn a_staged_update_is_not_downloaded_again() {
+        assert_eq!(staged_check_action(false, false), StagedCheck::Check);
+        assert_eq!(staged_check_action(false, true), StagedCheck::Check);
+        assert_eq!(staged_check_action(true, false), StagedCheck::Skip);
+        assert_eq!(staged_check_action(true, true), StagedCheck::Announce);
     }
 
     #[test]
