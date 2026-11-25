@@ -41,7 +41,7 @@ function d1WithBatch(sqlite, { failOn = null } = {}) {
       try {
         const out = [];
         for (const s of stmts) {
-          if (failOn && failOn(s.sql)) throw new Error(`injected failure: ${s.sql.slice(0, 40)}`);
+          if (failOn?.(s.sql)) throw new Error(`injected failure: ${s.sql.slice(0, 40)}`);
           out.push(await s.run());
         }
         sqlite.exec('COMMIT');
