@@ -271,6 +271,11 @@ export const AD_CSS = `
   .ma-main { max-width: 1440px; margin: var(--space-5) auto 0; padding: var(--space-5) var(--space-7) var(--space-7); }
   .ma-nav-wrap { max-width: 1440px; margin: 0 auto; }
   .ma-col { max-width: 46rem; }
+  /* Every page spans the same width as the nav above it (owner, 2026-11-25:
+     a page that was half as wide as the next one read as a different app).
+     What has to stay readable is held inside: a line of prose, a text field. */
+  .ma-main p, .ma-main li { max-width: 80ch; }
+  .ma-main input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=search]), .ma-main select, .ma-main textarea { max-width: 34rem; }
   .ma-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-5); margin-bottom: var(--space-5); }
   .ma-h1 { margin: 0; font-family: var(--font-display); font-size: var(--type-2xl); line-height: var(--lh-2xl); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
   .ma-h1-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }

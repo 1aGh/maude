@@ -36,6 +36,7 @@ import { accessOf, decideClaim, projectFacts, validCanvasPath } from './access-f
 import { accountCsrf, DELETED_EMAIL_DOMAIN, postAllowed } from './account-pages.mjs';
 import { getAccountByEmail, normalizeEmail } from './accounts.mjs';
 import { SESSION_COOKIE } from './auth-routes.mjs';
+import { settingsTabs } from './account-pages.mjs';
 import { appShell, publicPage, publicResponse } from './brand.mjs';
 import { deriveCellSecret, secretsMatch } from './cell-token.mjs';
 import { audit } from './db.mjs';
@@ -304,13 +305,13 @@ export function emailPrefsPage({ account, mentions, csrf, saved = false }) {
     title: 'E-mails',
     active: 'account',
     lede: 'Which e-mails Maude Cloud sends you.',
-    body: `${saved ? '<p class="ok">Saved.</p>' : ''}
-      <form method="post" action="${EMAIL_PREFS_PATH}">
+    body: `${settingsTabs(account, 'emails')}${saved ? '<p class="ok">Saved.</p>' : ''}
+      <form class="ma-card ma-card--pad" method="post" action="${EMAIL_PREFS_PATH}">
         <input type="hidden" name="csrf" value="${esc(csrf ?? '')}">
         <p><label><input type="checkbox" name="mentions"${mentions ? ' checked' : ''}>
           E-mail me when someone mentions you and Maude is closed</label></p>
         <p class="quiet">One e-mail per mention, never a digest. In the app you get a notice instead.</p>
-        <p><button type="submit">Save</button> <a href="/account" style="margin-left:1rem">Back to the account</a></p>
+        <p><button type="submit" class="btn btn--primary">Save</button></p>
       </form>`,
   });
 }

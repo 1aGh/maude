@@ -344,21 +344,36 @@ const TAB_OF = {
   settings: 'settings',
 };
 
-/** The project's own strip of doors, for the pages that are about ONE project. */
+/**
+ * THE strip of tabs under a page's heading — one look and one behaviour for
+ * every page that has sections: a project's pages and Settings alike. A row of
+ * horizontal tabs, the current one lit, a destructive one last and red. Never a
+ * vertical list on one page and tabs on the next (owner, 2026-11-25).
+ *
+ * @param {string} label  plain text, the strip's accessible name
+ * @param {Array<{href: string, label: string, current?: boolean, danger?: boolean}>} items
+ */
+export function subTabs(label, items) {
+  return `<nav class="ma-ptabs" aria-label="${esc(label)}">${items
+    .map(
+      (t) =>
+        `<a class="ma-tab${t.danger ? ' danger' : ''}" href="${esc(t.href)}"${t.current ? ' aria-current="page"' : ''}>${esc(t.label)}</a>`
+    )
+    .join('')}</nav>`;
+}
+
+/** The project's own strip, for the pages that are about ONE project. */
 function projectTabs({ project, isOwner, active }) {
-  const p = `/projects/${esc(project.id)}`;
-  const tab = (key, label, { danger = false } = {}) =>
-    `<a class="ma-tab${danger ? ' danger' : ''}" href="${p}/${key}"${active === key ? ' aria-current="page"' : ''}>${label}</a>`;
-  return `<nav class="ma-ptabs" aria-label="${esc(project.name || project.id)}">
-    ${tab('connect', 'Open')}
-    ${tab('people', 'People')}
-    ${isOwner ? tab('billing', 'Billing') : ''}
-    ${isOwner ? tab('mirror', 'GitHub copy') : ''}
-    ${isOwner ? tab('saving', 'Saving') : ''}
-    ${tab('audit', 'Activity')}
-    ${tab('download', 'Download everything')}
-    ${isOwner ? tab('delete', 'Delete project…', { danger: true }) : ''}
-  </nav>`;
+  const p = `/projects/${project.id}`;
+  const t = (key, label, danger = false) => ({ href: `${p}/${key}`, label, current: active === key, danger });
+  return subTabs(project.name || project.id, [
+    t('connect', 'Open'),
+    t('people', 'People'),
+    ...(isOwner ? [t('billing', 'Billing'), t('mirror', 'GitHub copy'), t('saving', 'Saving')] : []),
+    t('audit', 'Activity'),
+    t('download', 'Download everything'),
+    ...(isOwner ? [t('delete', 'Delete project…', true)] : []),
+  ]);
 }
 
 /**
@@ -465,11 +480,14 @@ export function appShell({
           label: 'People',
           current: lit === 'people',
           count: counts.people || null,
-        }),
-        navTab({ href: '/account', label: 'Settings', current: lit === 'settings' })
+        })
       );
       search = `<form class="ma-nav-search" role="search" method="get" action="/account/people">${icon('search', 14)}<input type="search" name="q" placeholder="Search" aria-label="Search people"><span class="kbd" aria-hidden="true">⌘K</span></form>`;
     }
+    // Settings is everyone's: a member's E-mails, Macs and invitations live
+    // there too. Only reaching it through the avatar left /account with no
+    // tab lit for somebody who owns nothing (2026-11-25 crawl).
+    tabs.push(navTab({ href: '/account', label: 'Settings', current: lit === 'settings' }));
     place = `<small>${esc(name)}</small>`;
   }
 
@@ -511,7 +529,7 @@ ${op ? `<div class="ma-band" role="note">${icon('server', 13)}<span>${OPERATOR_B
 <main class="ma-main">
   ${head}
   ${project ? projectTabs({ project, isOwner, active }) : ''}
-  ${wide ? body : `<div class="ma-col">${body}</div>`}
+  ${body}
   <p class="ma-foot">${PROMISE}</p>
 </main>
 ${sheet ? sheetMarkup(sheet, { op }) : ''}

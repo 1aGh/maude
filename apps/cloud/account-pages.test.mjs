@@ -246,22 +246,27 @@ describe('every account page: a session, no-store, no script', () => {
     }
   });
 
-  test('the overview carries the plan line and the six doors (ob-settings + S9.18 E-mails)', async () => {
+  test('every Settings page wears the same tab strip — the first one too (owner, 2026-11-25)', async () => {
+    // Was: a vertical list on /account, horizontal tabs on its pages, and no
+    // tabs at all on E-mails. One strip now, the same one a project wears.
     const { env, ana, sqlite } = await world();
     sqlite
       .prepare('UPDATE accounts SET trial_started_at = ? WHERE id = ?')
       .run(Date.now() - 2 * DAY, ana.id);
-    const html = await (await get(env, '/account', ana.session)).text();
-    assert.match(html, /Free trial · 12 days left/);
-    for (const door of [
-      'People and invites',
-      'Billing and plan',
-      'Your Macs',
-      'E-mails',
-      'Download everything',
-      'Delete the account',
-    ]) {
-      assert.ok(html.includes(door), door);
+    const overview = await (await get(env, '/account', ana.session)).text();
+    assert.match(overview, /Free trial · 12 days left/);
+    assert.doesNotMatch(overview, /class="doors"|<ul class="tabs"/);
+    for (const path of [...PATHS.filter((p) => p !== '/account/people'), '/account/emails']) {
+      const res = await get(env, path, ana.session);
+      assert.equal(res.status, 200, path);
+      const html = await res.text();
+      const strip = /<nav class="ma-ptabs" aria-label="Settings">([\s\S]*?)<\/nav>/.exec(html)?.[1] ?? '';
+      for (const tab of ['Account', 'Billing and plan', 'Your Macs', 'E-mails', 'Download everything', 'Delete the account']) {
+        assert.ok(strip.includes(`>${tab}<`), `${path}: ${tab}`);
+      }
+      // Ana owns a project: People is her top-level tab, not a Settings one.
+      assert.ok(!strip.includes('People and invites'), `${path}: no People in Settings for an owner`);
+      assert.match(strip, /aria-current="page"/, `${path}: one tab is lit`);
     }
   });
 

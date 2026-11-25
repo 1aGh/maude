@@ -46,7 +46,7 @@ import { notYours, pageAccessCall, transferOwnership } from './access-forward.mj
 import { lastOpens } from './analytics.mjs';
 import { SESSION_COOKIE } from './auth-routes.mjs';
 import { formatDay, TRIAL_DAYS, trialView } from './billing.mjs';
-import { appShell, avatar, icon, sheetActions, who } from './brand.mjs';
+import { appShell, avatar, icon, sheetActions, subTabs, who } from './brand.mjs';
 import { STATE_COPY } from './dashboard.mjs';
 import { audit, checkoutOpen } from './db.mjs';
 import { pageCsp, sameOriginPost, spend } from './edge.mjs';
@@ -78,7 +78,8 @@ export const DELETED_EMAIL_DOMAIN = 'deleted.invalid';
 
 /** The doors, in the canvas's order (ob-settings); E-mails is S9.18's (the mention e-mail switch). */
 export const ACCOUNT_SECTIONS = Object.freeze([
-  { key: 'people', href: '/account/people', label: 'People and invites' },
+  { key: 'account', href: '/account', label: 'Account' },
+  { key: 'people', href: '/account/people', label: 'People and invites', membersOnly: true },
   { key: 'billing', href: '/account/billing', label: 'Billing and plan' },
   { key: 'macs', href: '/account/macs', label: 'Your Macs' },
   { key: 'emails', href: '/account/emails', label: 'E-mails' },
@@ -146,21 +147,33 @@ export function when(ms, { now = Date.now() } = {}) {
 
 // ------------------------------------------------------------------ the shell
 
-function tabs(active) {
-  return `<ul class="tabs">${ACCOUNT_SECTIONS.map(
-    (s) =>
-      `<li><a href="${s.href}"${s.key === 'delete' ? ' class="danger"' : ''}${s.key === active ? ' aria-current="page"' : ''}>${esc(s.label)}</a></li>`
-  ).join('')}</ul>`;
+/**
+ * Settings' own tabs — the same strip a project's pages wear (`subTabs`), on
+ * every Settings page including the first. People is a top-level tab for an
+ * owner, so it is not repeated here; somebody who owns nothing has no People
+ * tab up top and finds their invitations here instead.
+ */
+export function settingsTabs(account, active) {
+  const owns = Number(account?.owns ?? 0) > 0;
+  return subTabs(
+    'Settings',
+    ACCOUNT_SECTIONS.filter((s) => !(s.membersOnly && owns)).map((s) => ({
+      href: s.href,
+      label: s.label,
+      current: s.key === active,
+      danger: s.key === 'delete',
+    }))
+  );
 }
 
 function page(title, body, { account, active, lede = null }) {
   return appShell({
     account,
     title,
-    active: 'account',
+    active: active === 'people' ? 'people' : 'account',
     lede,
     extraCss: CSS,
-    body: `${active ? tabs(active) : ''}${body}`,
+    body: `${settingsTabs(account, active ?? 'account')}${body}`,
   });
 }
 
@@ -174,15 +187,14 @@ const csrfField = (csrf) => `<input type="hidden" name="csrf" value="${esc(csrf 
 export function overviewPage({ account, trial }) {
   return page(
     'Account',
-    `<p class="plan-line">${esc(trialLine(trial))}</p>
-     <ul class="doors">${ACCOUNT_SECTIONS.map(
-       (s) =>
-         `<li><a href="${s.href}"${s.key === 'delete' ? ' class="danger"' : ''}>${esc(s.label)}</a></li>`
-     ).join('')}</ul>`,
+    `<div class="ma-card ma-card--pad">
+       <p class="plan-line">${esc(trialLine(trial))}</p>
+       <p class="quiet">Signed in as ${esc(account.email)}. Each project has its own plan — see Billing and plan.</p>
+     </div>`,
     {
       account,
-      active: null,
-      lede: `Signed in as ${account.email}.`,
+      active: 'account',
+      lede: 'Your account, your plan, and what Maude Cloud keeps for you.',
     }
   );
 }
@@ -521,14 +533,16 @@ export function accountPeoplePage({
     account: owned.length ? { ...account, owns: account?.owns ?? owned.length } : account,
     title: 'People',
     lede: summary,
-    active: 'people',
+    // An owner reaches People from the top nav; somebody who owns nothing
+    // reaches it from Settings, so it wears Settings' tabs.
+    active: owned.length ? 'people' : 'account',
     wide: true,
     actions: owned.length
       ? `<a class="btn btn--primary" href="/account/people?sheet=invite">${icon('plus', 14)}Invite people</a>`
       : '',
     sheet: sheetHtml,
     extraCss: CSS,
-    body: `${notices({ error, notice })}
+    body: `${owned.length ? '' : settingsTabs(account, 'people')}${notices({ error, notice })}
      ${offersHtml}
      ${waiting}
      ${matrix}

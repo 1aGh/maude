@@ -17,7 +17,7 @@
 // locally, and the pages leave those tiles out rather than inventing them.
 
 import { execFile } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Client } from './cloud-http.mjs';
 import { killAll, REPO, startStack } from './cloud-stack.mjs';
@@ -79,6 +79,68 @@ class Shooter {
   }
   close() {
     return ab(['--session', this.session, 'close']);
+  }
+  /**
+   * `--crawl`: every same-origin page reachable from `start`, breadth first —
+   * one screenshot each plus what the page is made of, so a page that 404s,
+   * renders empty or wears a different navigation shows up in one table.
+   */
+  async crawl(label, start, { max = 90 } = {}) {
+    const dir = join(OUT, 'crawl', label);
+    mkdirSync(dir, { recursive: true });
+    const seen = new Set();
+    const queue = [...start];
+    const rows = [];
+    const skip = (u) =>
+      /^\/(logout|auth\/|api\/|internal\/)/.test(u) ||
+      /\.(json|zip|csv|png|svg|ico)(\?|$)/.test(u) ||
+      /\/download\/account|\/signout/.test(u);
+    while (queue.length && rows.length < max) {
+      const path = queue.shift();
+      if (seen.has(path) || skip(path)) continue;
+      seen.add(path);
+      await this.run('open', `${C}${path}`);
+      await this.run('wait', '500');
+      const probe = await this.run(
+        'eval',
+        `JSON.stringify((() => {
+          const t = document.body?.innerText ?? '';
+          const nav = document.querySelector('nav.island');
+          const links = [...document.querySelectorAll('a[href]')].map((a) => a.getAttribute('href'))
+            .filter((h) => h.startsWith('/') && !h.startsWith('//'));
+          return {
+            title: document.title,
+            h1: document.querySelector('h1')?.textContent?.trim() ?? null,
+            notFound: /^\\{"ok":false/.test(t.trim()) || /not found/i.test(document.title),
+            navTabs: [...(nav?.querySelectorAll('.ma-nav-tab') ?? [])].map((a) => a.textContent.trim() + (a.getAttribute('aria-current') ? '*' : '')),
+            subnav: document.querySelector('ul.tabs') ? 'h-tabs(ul.tabs)' : document.querySelector('.ptabs, .ma-ptabs, nav.project-tabs') ? 'project-tabs' : document.querySelector('ul.doors, .doors') ? 'v-list(doors)' : null,
+            subnavItems: [...document.querySelectorAll('ul.tabs a, .ptabs a, .ma-ptabs a, .doors a')].map((a) => a.textContent.trim()),
+            mainW: Math.round(document.querySelector('main')?.getBoundingClientRect().width ?? 0),
+            bodyLen: (document.querySelector('main')?.innerText ?? t).length,
+            links: [...new Set(links)],
+          };
+        })())`
+      );
+      let info = null;
+      try {
+        info = JSON.parse(JSON.parse(probe.out.trim()));
+      } catch {
+        try { info = JSON.parse(probe.out.trim()); } catch { info = { error: probe.out.slice(0, 200) }; }
+      }
+      const file = `${String(rows.length).padStart(3, '0')}.png`;
+      await this.run('screenshot', '--full', join(dir, file));
+      const { links = [], ...rest } = info ?? {};
+      rows.push({ path, file, ...rest });
+      say(`[${label}] ${rows.length} ${path} ${rest.notFound ? 'NOT FOUND' : rest.h1 ?? ''}`);
+      for (const l of links) {
+        const u = l.split('#')[0];
+        const q = u.includes('?') ? u.slice(u.indexOf('?')) : '';
+        if (q && !/^\?(sheet|tab)=/.test(q)) continue;
+        if (!seen.has(u)) queue.push(u);
+      }
+    }
+    writeFileSync(join(dir, 'index.json'), JSON.stringify(rows, null, 1));
+    return rows;
   }
 }
 
@@ -257,6 +319,25 @@ try {
   const op = await signUp('operator', 'Michal');
   await stack.setOperators([op.id]);
 
+  if (process.argv.includes('--crawl')) {
+    const who = [
+      ['owner', michal.email, ['/', '/projects', '/account']],
+      ['member', p.anna.email, ['/', '/projects', '/account']],
+      ['operator', op.email, ['/operator', '/', '/account']],
+    ];
+    for (const [label, email, start] of who) {
+      const s = new Shooter(`crawl-${label}`);
+      shooters.push(s);
+      await s.signIn(email);
+      await s.crawl(label, start);
+    }
+    const anonC = new Shooter('crawl-anon');
+    shooters.push(anonC);
+    await anonC.run('open', `${C}/login`);
+    await anonC.run('set', 'viewport', '1440', '980');
+    await anonC.crawl('anon', ['/login', '/signup', '/activate', '/forgot']);
+    process.exitCode = 0;
+  } else {
   // ---- the shots
   const owner = new Shooter('owner');
   shooters.push(owner);
@@ -290,6 +371,7 @@ try {
   await anon.shot('/login', 'public-login-real.png');
   await anon.shot('/signup', 'public-signup-real.png');
   await anon.shot('/activate', 'public-activate-real.png');
+  }
 } finally {
   for (const s of shooters) await s.close();
   await stack.stop().catch(() => {});
