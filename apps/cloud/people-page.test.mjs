@@ -78,15 +78,15 @@ describe('roles are explained, not just named', () => {
   it('says what each role can actually do', () => {
     // "viewer" is a word we chose. What somebody needs to know is whether that
     // person can change their work.
+    // Said ONCE, under the list — not on every row (owner, 2026-11-27).
     const html = peoplePage({ project, people, isOwner: true });
     assert.match(
       html,
-      /<strong>Can edit<\/strong> <span class="quiet">Change the designs, comment and download\./
+      /<p class="pp-key"><strong>Can edit<\/strong> change the designs, comment and download/
     );
-    assert.match(
-      html,
-      /<strong>Owner<\/strong> <span class="quiet">Everything, plus billing, people and deleting/
-    );
+    assert.match(html, /<strong>Can comment<\/strong> look, comment and download/);
+    assert.equal(html.match(/change the designs, comment and download/g)?.length, 1);
+    assert.match(html, /<span class="ma-mrole ma-mrole--own">Owner<\/span>/);
   });
 });
 
@@ -176,7 +176,7 @@ describe('S9.16: the v2 people panel', () => {
       isOwner: true,
     });
     for (const word of ['Owner', 'Can edit', 'Can comment', 'Can view']) {
-      assert.ok(html.includes(`<strong>${word}</strong>`), word);
+      assert.match(html, new RegExp(`class="ma-mrole[^"]*">${word}`), word);
     }
     assert.doesNotMatch(text(html), /\b(observer|viewer|member)\b/);
   });
@@ -191,12 +191,17 @@ describe('S9.16: the v2 people panel', () => {
       isOwner: false,
     });
     assert.doesNotMatch(html, /@example\.com/, 'no one else’s address reaches a non-owner');
-    assert.match(html, /<td>You<\/td>/, 'the signed-in person is You');
-    assert.match(html, /<td>Ana<\/td>/);
+    assert.match(html, /<strong>You<\/strong>/, 'the signed-in person is You');
+    assert.match(html, /<strong>Ana<\/strong><\/span><\/span><\/td><td><span class="ma-mrole[ "]/);
     assert.match(html, /No name yet/, 'a person with no name is not shown by address');
     assert.match(
       html,
-      /<td>Petr<\/td><td><strong>Can comment<\/strong> <span class="quiet">on Pricing only/
+      /<strong>Petr<\/strong><\/span><\/span><\/td><td><span class="ma-mrole">Can comment<\/span> <span class="quiet">on Pricing only/
+    );
+    assert.doesNotMatch(
+      html.replace(/<style>[\s\S]*?<\/style>/g, ''),
+      /class="ma-at-d"|<select/,
+      'a non-owner gets words, no controls'
     );
     assert.doesNotMatch(html, /not joined yet/);
   });
@@ -210,13 +215,16 @@ describe('S9.16: the v2 people panel', () => {
       invites,
       isOwner: true,
     });
-    assert.match(html, /Tereza <span class="quiet">tereza@example\.com<\/span>/);
+    assert.match(html, /<strong>Tereza<\/strong><span>tereza@example\.com<\/span>/);
     assert.match(html, /grant@example\.com/);
     assert.match(
       html,
-      /pending@example\.com<\/td><td><strong>Can edit<\/strong> <span class="quiet">· not joined yet · the link works until 20 Oct/
+      /<strong>pending@example\.com<\/strong><span>Invited, not joined yet · the link works until 20 Oct<\/span>[\s\S]*?<span class="ma-mrole">Can edit<\/span>/
     );
-    assert.match(html, /canvas@example\.com<\/td><td><strong>Can view<\/strong> on Homepage/);
+    assert.match(
+      html,
+      /<strong>canvas@example\.com<\/strong>[\s\S]*?<span class="ma-mrole">Can view<\/span> <span class="quiet"> on Homepage/
+    );
   });
 
   it('Make owner stays hidden (lead decision v2-lead-make-owner-hidden)', () => {

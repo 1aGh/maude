@@ -1093,7 +1093,7 @@ export default function TeamServerAndCloudAdmin() {
         </DCArtboard>
 
         <DCArtboard id="cl-project-people" label="17 · One project — four doors: Open, People, Activity, Settings" width={W} height={H} fixed>
-          <Stage note={<Note n={17} title="Four doors, never eight.">The strip says what a project is — open it, who is on it, what happened — and Settings holds what you set: plan, GitHub copy, saving, the download and deleting, one card each (19). A member sees Open, People and Activity. People adds by e-mail with a role, changes a role in place, and keeps unopened invites below.</Note>}>
+          <Stage note={<Note n={17} title="Four doors, never eight.">The strip says what a project is — open it, who is on it, what happened — and Settings holds what you set: plan, GitHub copy, saving, the download and deleting, one card each (19). A member sees Open, People and Activity. People is a quiet list: a face, a name, a role word. Clicking the word opens a small panel to change the role or remove them; invitations sit in the same list; what each word means is said once, underneath.</Note>}>
             <Browser host="cloud.maude.sh" path="/projects/alligators/people">
               <Nav {...CL} tabs={CL_TABS} current="Projects" />
               <div className="ad-main">
@@ -1104,30 +1104,28 @@ export default function TeamServerAndCloudAdmin() {
                     <span key={t} className="ad-tab" aria-current={t === "People" ? "page" : undefined}>{t}</span>
                   ))}
                 </nav>
-                <div className="ad-card ad-card--pad" style={{ marginBottom: "var(--space-4)" }}>
-                  <h2 className="ad-card-h" style={{ padding: "0 0 var(--space-3)" }}>Add someone</h2>
-                  <div className="ad-addrow"><span className="ad-in ad-in--ph">their email</span><span className="ad-sel" style={{ width: 300 }}>Can edit — change the designs<Icon name="chevron" size={12} /></span><span className="btn btn--primary">Send invitation</span></div>
-                  <p className="ad-sub" style={{ marginTop: "var(--space-3)" }}>They get an e-mail with a link — it makes them an account if they need one.</p>
-                </div>
-                <div className="ad-card" style={{ marginBottom: "var(--space-4)" }}>
+                <div className="ad-addrow" style={{ maxWidth: 900, marginBottom: "var(--space-4)" }}><span className="ad-in ad-in--ph">Invite by e-mail</span><span className="ad-sel" style={{ width: 300 }}>Can edit — change the designs<Icon name="chevron" size={12} /></span><span className="btn btn--primary">Send invitation</span></div>
+                <div className="ad-card" style={{ position: "relative" }}>
                   <table className="ad-table">
-                    <thead><tr><th scope="col">Person</th><th scope="col">What they can do</th><th scope="col"><span className="ad-sr">Action</span></th></tr></thead>
+                    <thead><tr><th scope="col">Person</th><th scope="col">Can</th><th scope="col"><span className="ad-sr">Invitation</span></th></tr></thead>
                     <tbody>
-                      <tr><td><Who name="You" tone="yellow" ini="S" /></td><td><strong>Owner</strong> <span className="ad-quiet">Everything, plus billing, people and deleting the project.</span></td><td /></tr>
+                      <tr><td><Who name="You" email="michal@studyfi.com" tone="yellow" ini="S" /></td><td><span className="ad-mrole ad-mrole--own">Owner</span></td><td /></tr>
                       {([
                         ["Jonas Berger", "jonas@studyfi.com", "green", "Can edit"],
                         ["Ondřej Malý", "ondrej@studyfi.com", "green", "Can comment"],
                         ["Tereza Nováková", "tereza@studyfi.com", "sky", "Can edit"],
                         ["Vojta Černý", "vojta@alligators.cz", "grey", "Can view"],
                       ] as [string, string, Tone, string][]).map(([n, e, t, r]) => (
-                        <tr key={e}><td><Who name={n} email={e} tone={t} /></td><td><Role>{r}</Role></td><td><span className="ad-row-a"><span className="btn btn--ghost btn--sm">Remove…</span></span></td></tr>
+                        <tr key={e}><td><Who name={n} email={e} tone={t} /></td><td><Role>{r}</Role></td><td /></tr>
                       ))}
+                      <tr className="is-dim"><td><Who name="radek@alligators.cz" email="Invited, not joined yet · the link works until 26 Nov" tone="grey" ini="R" /></td><td><span className="ad-mrole">Can comment</span></td><td><span className="ad-row-a"><span className="btn btn--sm">Send again</span><span className="btn btn--ghost btn--sm">Cancel invite</span></span></td></tr>
                     </tbody>
                   </table>
-                </div>
-                <div className="ad-card">
-                  <h2 className="ad-card-h">Invited <small>1</small></h2>
-                  <div className="ad-need"><Avatar ini="R" tone="grey" size="lg" /><span className="ad-need-t"><strong>radek@alligators.cz</strong><span>Can comment · not joined yet · the link works until 26 Nov</span></span><span className="ad-need-a"><span className="btn btn--ghost btn--sm">Cancel invite</span><span className="btn btn--sm">Send again</span></span></div>
+                  <p className="ad-pp-key"><b>Can edit</b> change the designs, comment and download · <b>Can comment</b> look, comment and download · <b>Can view</b> look only</p>
+                  <div className="ad-pp-pop" style={{ left: 680, top: 124 }}>
+                    <span className="ad-sel">Can edit — change the designs<Icon name="chevron" size={12} /></span>
+                    <span className="ad-head-a"><span className="btn btn--sm btn--primary">Save</span><span className="btn btn--ghost btn--sm">Remove…</span></span>
+                  </div>
                 </div>
               </div>
             </Browser>

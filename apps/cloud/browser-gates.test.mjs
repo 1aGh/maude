@@ -504,7 +504,7 @@ describe('4 · only what the project’s workspace can hold is offered', () => {
     withCapabilities(sqlite, null);
     addMember(sqlite, 'kolar-web', anna.id, 'observer');
     const html = await (await get('/projects/kolar-web/people', jan)).text();
-    assert.match(html, /<strong>Can view<\/strong>/);
+    assert.match(html, /class="ma-mrole">Can view/);
   });
 
   test('the hourly sweep records what the workspace says it holds — and a silent one changes nothing', async (t) => {

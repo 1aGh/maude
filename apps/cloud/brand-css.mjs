@@ -451,6 +451,12 @@ export const AD_CSS = `
   details.ma-at-d > summary:hover .ma-mrole { box-shadow: inset 0 0 0 1px var(--fg-2); }
   details.ma-at-d > .ma-pop { position: absolute; left: 0; top: calc(100% + var(--space-1)); z-index: 20; width: 240px; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); white-space: normal; text-align: left; border-radius: var(--radius-md); background: var(--bg-2); box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--border-strong); }
   .ma-pop form { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; }
+  /* An open role panel is never cut off by the card or the scroller it sits in. */
+  .ma-card--clip:has(details.ma-at-d[open]), .ma-scroll:has(details.ma-at-d[open]) { overflow: visible; }
+  details.ma-at-d[open] { z-index: 30; }
+  details.ma-at-d > .ma-pop { animation: ma-drop 140ms ease-out backwards; }
+  details.ma-at-d > .ma-pop { width: 300px; }
+  .ma-pop form .btn { align-self: flex-start; }
   body { counter-reset: picked; }
   .ma-pick-box:checked { counter-increment: picked; }
   .ma-bulk { position: fixed; z-index: 6; left: 50%; bottom: var(--space-5); transform: translateX(-50%); display: none; flex-wrap: wrap; justify-content: center; align-items: center; gap: var(--space-2); margin: 0; padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4); font-size: var(--type-sm); width: max-content; max-width: calc(100vw - 2 * var(--space-4)); }

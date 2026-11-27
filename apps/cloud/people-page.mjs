@@ -11,7 +11,7 @@
 // people open when something is wrong, including "the wrong person has
 // access".
 
-import { appShell } from './brand.mjs';
+import { appShell, avatar, icon } from './brand.mjs';
 import { STATE_COPY } from './dashboard.mjs';
 import { ROLES, removalEffect } from './membership.mjs';
 
@@ -20,18 +20,15 @@ import { ROLES, removalEffect } from './membership.mjs';
 // surfaces use.
 const CSS = `
   form.inline { display: inline-flex; align-items: center; gap: var(--space-1); margin: 0; }
-  td select, td input[type=email] { width: auto; height: 28px; font-size: var(--type-xs); }
-  .pp-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+  .pp-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); max-width: 56rem; }
   .pp-add input[type=email] { flex: 1; min-width: 16rem; max-width: none; }
   .pp-add select { width: auto; }
-  .pp-h { margin: var(--space-5) 0 var(--space-2); font-family: var(--font-body); font-size: var(--type-base); font-weight: var(--weight-semibold); }
+  .pp-list .ma-table td:nth-child(2) { width: 40%; }
+  .pp-list .ma-mrole .k-ic { margin-left: 2px; color: var(--fg-2); }
+  .pp-list .pp-key { margin: 0; max-width: none; padding: var(--space-3) var(--space-5); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); box-shadow: inset 0 0.5px 0 var(--border-subtle); }
+  .pp-list .pp-key strong { color: var(--fg-1); font-weight: var(--weight-semibold); }
   .ma-table td .quiet { color: var(--fg-2); }
-  .card h2 { margin: 0 0 var(--space-3); font-family: var(--font-body); font-size: var(--type-base); line-height: var(--lh-base); }
-  .card form { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
-  .card form input[type=email] { flex: 1; min-width: 14rem; }
-  .card form select { width: auto; }
-  .card.warn ul { margin: 0; }
-  ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); font-size: var(--type-sm); line-height: var(--lh-sm); }
+  .ma-table tr.is-dim .ma-who-t strong { font-weight: var(--weight-regular); }
 `;
 
 function esc(s) {
@@ -148,36 +145,66 @@ export function personLabel(person, { isOwner, selfId = null }) {
   return name ? esc(name) : '<span class="quiet">No name yet</span>';
 }
 
+/**
+ * Who a row is, drawn: a face, the name, and (owner only) the address under
+ * it. The same rules as `personLabel` — this only lays them out.
+ */
+function whoCell(person, { isOwner, selfId }) {
+  const self = selfId && person.account_id === selfId;
+  const name = String(person.name ?? '').trim();
+  const email = String(person.email ?? '');
+  const title = self
+    ? 'You'
+    : name
+      ? esc(name)
+      : isOwner
+        ? esc(email)
+        : '<span class="quiet">No name yet</span>';
+  const sub = isOwner && (self || name) && email ? `<span>${esc(email)}</span>` : '';
+  return `<span class="ma-who">${avatar(self ? 'You' : name || email || '?', { seed: email || person.account_id || name })}<span class="ma-who-t"><strong>${title}</strong>${sub}</span></span>`;
+}
+
 /** The one line that says why a role is missing from the list. */
 export const CAN_VIEW_UNAVAILABLE =
   'Can view is not available for this project yet. Use Can comment to let someone look without changing anything.';
 
+/**
+ * One person: who, and what they can do as a word. For the owner of the
+ * project the word opens a small panel — change the role, or remove them —
+ * so a row is one quiet line until somebody wants to change it (owner,
+ * 2026-11-27: a select, Save and Remove on every row read as a form, not a list).
+ */
 function personRow(person, { projectId, isOwner, selfId, withControls = true, canView = true }) {
-  const label = personLabel(person, { isOwner, selfId });
-  const word = `<strong>${esc(roleWord(person.role))}</strong>`;
+  const who = whoCell(person, { isOwner, selfId });
+  const word = esc(roleWord(person.role));
   if (person.role === 'owner') {
     // No controls at all, rather than disabled ones. A disabled button invites
     // somebody to hunt for the way to enable it. Make owner stays hidden.
-    return `<tr><td>${label}</td><td>${word} <span class="quiet">${esc(ROLE_MEANING.owner)}</span></td><td></td></tr>`;
+    return `<tr><td>${who}</td><td><span class="ma-mrole ma-mrole--own">${word}</span></td><td></td></tr>`;
   }
-  const controls =
+  const label = String(person.name ?? '').trim() || String(person.email ?? '');
+  const cell =
     isOwner && withControls
-      ? `<form class="inline" method="post" action="/projects/${esc(projectId)}/people">
-         <input type="hidden" name="account" value="${esc(person.account_id)}">
-         ${roleSelect('role', person.role, { canView })}
-         <button type="submit" name="do" value="role" class="btn btn--sm">Save</button>
-       </form>
-       <form class="inline" method="get" action="/projects/${esc(projectId)}/people/remove">
-         <input type="hidden" name="account" value="${esc(person.account_id)}">
-         <button type="submit" class="btn btn--sm btn--ghost">Remove…</button>
-       </form>`
-      : '';
-  return `<tr><td>${label}</td><td>${word} <span class="quiet">${esc(ROLE_MEANING[person.role] ?? '')}</span></td><td class="right">${controls}</td></tr>`;
+      ? `<details class="ma-at-d"><summary aria-label="Change what ${esc(label)} can do"><span class="ma-mrole">${word}${icon('chevron', 12)}</span></summary>
+          <div class="ma-pop">
+            <form method="post" action="/projects/${esc(projectId)}/people">
+              <input type="hidden" name="account" value="${esc(person.account_id)}">
+              ${roleSelect('role', person.role, { canView })}
+              <button type="submit" name="do" value="role" class="btn btn--sm btn--primary">Save</button>
+            </form>
+            <form method="get" action="/projects/${esc(projectId)}/people/remove">
+              <input type="hidden" name="account" value="${esc(person.account_id)}">
+              <button type="submit" class="btn btn--sm btn--ghost">Remove…</button>
+            </form>
+          </div>
+        </details>`
+      : `<span class="ma-mrole">${word}</span>`;
+  return `<tr><td>${who}</td><td>${cell}</td><td></td></tr>`;
 }
 
 /** A canvas grant: somebody with access to ONE canvas, not the project. */
 function grantRow(grant, { isOwner, selfId }) {
-  return `<tr><td>${personLabel(grant, { isOwner, selfId })}</td><td><strong>${esc(roleWord(grant.role))}</strong> <span class="quiet">on ${esc(canvasName(grant.canvas_path))} only</span></td><td></td></tr>`;
+  return `<tr><td>${whoCell(grant, { isOwner, selfId })}</td><td><span class="ma-mrole">${esc(roleWord(grant.role))}</span> <span class="quiet">on ${esc(canvasName(grant.canvas_path))} only</span></td><td></td></tr>`;
 }
 
 /** An invitation nobody has followed yet. Owner-only: it carries an address. */
@@ -194,13 +221,20 @@ function inviteRow(invite, { projectId = null, withControls = false, csrf = null
            <button type="submit" name="do" value="invite-cancel" class="btn btn--sm btn--ghost">Cancel invite</button>
          </form>`
       : '';
-  return `<tr><td>${esc(invite.email)}</td><td><strong>${esc(roleWord(invite.role))}</strong>${where} <span class="quiet">· not joined yet · the link works until ${esc(day(invite.expires_at))}</span></td><td class="right">${controls}</td></tr>`;
+  return `<tr class="is-dim"><td><span class="ma-who">${avatar(invite.email, { seed: invite.email, tone: 'grey' })}<span class="ma-who-t"><strong>${esc(invite.email)}</strong><span>Invited, not joined yet · the link works until ${esc(day(invite.expires_at))}</span></span></span></td><td><span class="ma-mrole">${esc(roleWord(invite.role))}</span>${where ? ` <span class="quiet">${where}</span>` : ''}</td><td class="right">${controls}</td></tr>`;
+}
+
+/** What each word means — said once, under the list, instead of on every row. */
+function roleKey({ canView }) {
+  const words = ['member', 'viewer', ...(canView ? ['observer'] : [])];
+  return `<p class="pp-key">${words.map((r) => `<strong>${esc(roleWord(r))}</strong> ${esc(ROLE_MEANING[r].replace(/\.$/, '').toLowerCase())}`).join(' · ')}${
+    canView ? '' : `<br>${esc(CAN_VIEW_UNAVAILABLE)}`
+  }</p>`;
 }
 
 /**
- * The table of who is on a project, plus (owner only) who was invited — the
- * one renderer the project's People page and the account's People and
- * invites page share, so the two can never disagree about who sees an address.
+ * The list of who is on a project — people, canvas grants and (owner only)
+ * the invitations still open, in ONE table. The project's People page uses it.
  */
 export function peopleRowsTable({
   people = [],
@@ -216,20 +250,12 @@ export function peopleRowsTable({
   const rows = [
     ...people.map((p) => personRow(p, { projectId, isOwner, selfId, withControls, canView })),
     ...grants.map((g) => grantRow(g, { isOwner, selfId })),
+    ...(isOwner ? invites.map((i) => inviteRow(i, { projectId, withControls, csrf })) : []),
   ];
-  const pending =
-    isOwner && invites.length
-      ? `<h3 class="pp-h">Invited <span class="ma-quiet">${invites.length}</span></h3>
-         <div class="ma-card ma-card--clip"><table class="ma-table">
-           <thead><tr><th>Address</th><th>What they can do</th><th></th></tr></thead>
-           <tbody>${invites.map((i) => inviteRow(i, { projectId, withControls, csrf })).join('\n')}</tbody>
-         </table></div>`
-      : '';
-  return `<div class="ma-card ma-card--clip"><table class="ma-table">
-       <thead><tr><th>Person</th><th>What they can do</th><th></th></tr></thead>
+  return `<div class="ma-card ma-card--clip pp-list"><table class="ma-table">
+       <thead><tr><th scope="col">Person</th><th scope="col">Can</th><th scope="col"><span class="ma-sr">Invitation</span></th></tr></thead>
        <tbody>${rows.join('\n')}</tbody>
-     </table></div>
-     ${pending}`;
+     </table>${roleKey({ canView })}</div>`;
 }
 
 /**
@@ -258,16 +284,13 @@ export function peoplePage({
 }) {
   const selfId = account?.id ?? null;
   const invite = isOwner
-    ? `<section class="ma-card ma-card--pad ma-gap-b">
-         <h2 class="ma-set-h" style="margin-bottom:var(--space-3)">Add someone</h2>
-         <form class="pp-add" method="post" action="/projects/${esc(project.id)}/people">
-           <input type="email" name="email" placeholder="Their e-mail" aria-label="Their email"
-                  required>
-           ${roleSelect('role', 'member', { canView })}
-           <button type="submit" name="do" value="invite" class="btn btn--primary">Send invitation</button>
-         </form>
-         <p class="ma-set-p ma-quiet" style="margin-top:var(--space-2)">They get an e-mail with a link — it makes them an account if they need one.${canView ? '' : ` ${esc(CAN_VIEW_UNAVAILABLE)}`}</p>
-       </section>`
+    ? `<form class="pp-add ma-gap-b" method="post" action="/projects/${esc(project.id)}/people">
+         <input type="email" name="email" placeholder="Invite by e-mail" aria-label="Their email"
+                required>
+         ${roleSelect('role', 'member', { canView })}
+         <button type="submit" name="do" value="invite" class="btn btn--primary">Send invitation</button>
+       </form>
+`
     : '';
   return page(
     'People',
