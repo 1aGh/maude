@@ -79,8 +79,17 @@ describe('the menu never shows what it will then refuse', () => {
     // "Sharing" is deliberately absent everywhere: there is no sharing
     // settings surface yet, and a dead link is the menu lying politely.
     const html = render([project({ role: 'owner' })]);
-    for (const label of ['Billing', 'People', 'Open', 'GitHub copy', 'Activity']) {
-      assert.match(html, new RegExp(label), label);
+    // The project's four doors, then Download and Delete (owner, 2026-11-27);
+    // Billing and the GitHub copy live on the project's Settings.
+    for (const label of [
+      'People',
+      'Open',
+      'Activity',
+      'Settings',
+      'Download everything',
+      'Delete project',
+    ]) {
+      assert.match(html, new RegExp(`>${label}`), label);
     }
   });
 });

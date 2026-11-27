@@ -72,17 +72,18 @@ function projectMenu(project, { can }) {
   // nothing to open.
   if (project.state === 'pending') menu.push(`<a href="${p}/setup">Setup progress</a>`);
   else if (project.state !== 'purged') menu.push(`<a href="${p}/connect">Open</a>`);
+  // The same four doors as the project's own strip (Open, People, Activity,
+  // Settings), then the two an owner reaches for in a hurry. Download stays
+  // one click away in every state: an export you can only reach while
+  // everything is fine is not a guarantee.
   if (can('invite')) menu.push(`<a href="${p}/people">People</a>`);
-  if (can('billing')) menu.push(`<a href="${p}/billing">Billing</a>`);
-  if (can('mirror')) menu.push(`<a href="${p}/mirror">GitHub copy</a>`);
   menu.push(`<a href="${p}/audit">Activity</a>`);
-  // "Download everything" is in EVERY state, including the ones where
-  // somebody is deciding whether to leave — an export you can only reach
-  // while everything is fine is not a guarantee.
-  menu.push(`<a href="${p}/download">Download everything</a>`);
-  if (can('delete') && project.state !== 'purged') {
+  if (can('delete')) {
+    menu.push(`<a href="${p}/settings">Settings</a>`);
     menu.push('<div class="menu-sep"></div>');
-    menu.push(`<a class="danger" href="${p}/delete">Delete project…</a>`);
+    menu.push(`<a href="${p}/download">Download everything</a>`);
+    if (project.state !== 'purged')
+      menu.push(`<a class="danger" href="${p}/delete">Delete project…</a>`);
   }
   return `<details class="menu ma-hover-menu">
     <summary aria-label="More for ${esc(project.name || project.id)}">${icon('more', 14)}</summary>
