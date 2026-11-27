@@ -307,7 +307,7 @@ function overviewSection(overview) {
   const chart = changes ? changesChart(changes) : '';
   return `<section class="overview" aria-label="How your projects are used">
     ${tiles.length ? `<div class="ma-stats" style="--n:${tiles.length}">${tiles.join('\n')}</div>` : ''}
-    ${chart && where ? `<div class="ma-cols ma-cols--2-1">${chart}${where}</div>` : `${chart}${where}`}
+    ${chart && where ? `<div class="ma-cols ma-cols--2-1 ma-cols--even">${chart}${where}</div>` : `${chart}${where}`}
   </section>`;
 }
 
@@ -364,12 +364,12 @@ function memberOverview({ projects, can }) {
         <div class="ma-need ma-need--first">${icon('folder')}<span class="ma-need-t"><strong>No projects of your own yet</strong><span>${pricing.trialDays} days free, no card. Only you pay for what you start.</span></span><span class="ma-need-a"><a class="btn btn--sm" href="/projects/new">Start a project</a></span></div>
       </div>
       <div class="ma-card">
-        <h2 class="ma-card-h">Your Macs</h2>
-        <div class="ma-need ma-need--first">${icon('laptop')}<span class="ma-need-t"><strong>The Macs signed in to your account</strong><span>See them, and sign one out.</span></span><span class="ma-need-a"><a class="btn btn--ghost btn--sm" href="/account/macs">Manage</a></span></div>
+        <h2 class="ma-card-h">Devices</h2>
+        <div class="ma-need ma-need--first">${icon('laptop')}<span class="ma-need-t"><strong>Where the Maude app is signed in</strong><span>Mac, Windows or Linux — see them, and sign one out.</span></span><span class="ma-need-a"><a class="btn btn--ghost btn--sm" href="/account/devices">Manage</a></span></div>
       </div>
       <div class="ma-card">
-        <h2 class="ma-card-h">Emails</h2>
-        <div class="ma-need ma-need--first"><span class="ma-need-t"><strong>Mentions and invites</strong><span>Which e-mails Maude Cloud sends you.</span></span><span class="ma-need-a"><a class="btn btn--ghost btn--sm" href="/account/emails">Change</a></span></div>
+        <h2 class="ma-card-h">Notifications</h2>
+        <div class="ma-need ma-need--first">${icon('pulse')}<span class="ma-need-t"><strong>Mentions</strong><span>Which e-mails Maude Cloud sends you.</span></span><span class="ma-need-a"><a class="btn btn--ghost btn--sm" href="/account/notifications">Change</a></span></div>
       </div>
     </div>
   </div>`;
@@ -444,6 +444,7 @@ export function dashboardPage({
     actions: `${owned.length ? `<a class="btn" href="/account/people?sheet=invite">${icon('people', 14)}Invite people</a>` : ''}<a class="btn btn--primary" href="/projects/new">${icon('plus', 14)}New project</a>`,
     active: 'overview',
     wide: true,
+    foot: true,
     body,
     isOperator,
   });

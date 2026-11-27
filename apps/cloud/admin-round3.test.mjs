@@ -417,16 +417,28 @@ describe('3 · operator: See it as the owner does — read only', () => {
       before
     );
     assert.deepEqual(net.cell, [], 'the workspace is never called');
-    // The pages that open the workspace or hand out a credential are not part of the view.
+    // The pages that open the workspace or hand out a credential are not part
+    // of the view: they answer as a CLOSED DOOR in the view's own chrome (so
+    // the owner's whole navigation can be walked, owner 2026-11-27) — never
+    // the page itself, never a credential, never a call to the workspace.
     for (const path of [
       '/projects/kolar-web/connect',
       '/projects/kolar-web/download',
       '/account/macs',
       '/account/delete',
-      '/projects/open',
     ]) {
-      assert.equal((await view(op, jan, path)).status, 404, path);
+      const res = await view(op, jan, path);
+      assert.equal(res.status, 200, path);
+      const html = await res.text();
+      assert.match(html, /Not part of the read-only view/, path);
+      assert.doesNotMatch(html, /handoff|Prepare a fresh copy|Type .* to confirm/i, path);
     }
+    assert.equal((await view(op, jan, '/projects/open')).status, 404, 'a project Jan does not own');
+    assert.deepEqual(
+      ['sessions', 'personal_tokens', 'handoff_codes', 'device_codes', 'email_tokens'].map(count),
+      before
+    );
+    assert.deepEqual(net.cell, [], 'the workspace is never called, closed doors included');
   });
 
   test('every POST under the prefix is 405, with or without a token', async (t) => {

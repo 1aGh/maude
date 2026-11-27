@@ -46,10 +46,11 @@ import { notYours, pageAccessCall, transferOwnership } from './access-forward.mj
 import { lastOpens } from './analytics.mjs';
 import { SESSION_COOKIE } from './auth-routes.mjs';
 import { formatDay, TRIAL_DAYS, trialView } from './billing.mjs';
-import { appShell, avatar, icon, sheetActions, subTabs, who } from './brand.mjs';
+import { appShell, avatar, icon, sheetActions, statusWord, who } from './brand.mjs';
 import { STATE_COPY } from './dashboard.mjs';
 import { audit, checkoutOpen } from './db.mjs';
 import { pageCsp, sameOriginPost, spend } from './edge.mjs';
+import { mentionEmailsOn } from './mentions.mjs';
 import { verifyCsrf } from './operator.mjs';
 import {
   CAN_VIEW_UNAVAILABLE,
@@ -76,13 +77,19 @@ const ACCOUNT_EXPORT_WINDOW_MS = 10 * 60_000;
 /** Where a deleted account's address goes: unique, unroutable, not an address anyone holds. */
 export const DELETED_EMAIL_DOMAIN = 'deleted.invalid';
 
-/** The doors, in the canvas's order (ob-settings); E-mails is S9.18's (the mention e-mail switch). */
+/**
+ * Settings, one page of cards (canvas 16, ts-settings): each card is one area
+ * with its state and one action, and the detail page sits behind it. No strip
+ * of tabs — a detail page says "Settings › …" above its title and that is the
+ * way back. Billing is not an account thing (an account is free; a PROJECT has
+ * a plan), so the account's card is Plans: one line per project you own.
+ */
 export const ACCOUNT_SECTIONS = Object.freeze([
-  { key: 'account', href: '/account', label: 'Account' },
-  { key: 'people', href: '/account/people', label: 'People and invites', membersOnly: true },
-  { key: 'billing', href: '/account/billing', label: 'Billing and plan' },
-  { key: 'macs', href: '/account/macs', label: 'Your Macs' },
-  { key: 'emails', href: '/account/emails', label: 'E-mails' },
+  { key: 'account', href: '/account', label: 'Settings' },
+  { key: 'plans', href: '/account/plans', label: 'Plans', ownersOnly: true },
+  { key: 'notifications', href: '/account/notifications', label: 'Notifications' },
+  { key: 'devices', href: '/account/devices', label: 'Devices' },
+  { key: 'invitations', href: '/account/people', label: 'Shared with you', membersOnly: true },
   { key: 'download', href: '/account/download', label: 'Download everything' },
   { key: 'delete', href: '/account/delete', label: 'Delete the account' },
 ]);
@@ -102,6 +109,8 @@ const CSS = `
   .plan-line { font-size: var(--type-base); font-weight: var(--weight-semibold); margin: 0 0 var(--space-2); }
   .picker { display: grid; gap: var(--space-2); margin: var(--space-3) 0 0; }
   .picker label { display: flex; gap: var(--space-2); align-items: baseline; margin: 0; font-size: var(--type-sm); font-weight: var(--weight-regular); color: var(--fg-0); }
+  .picker-int { display: flex; flex-wrap: wrap; gap: var(--space-4); padding-top: var(--space-1); }
+  .ma-set--plans { align-items: start; }
   ul.what { margin: var(--space-2) 0 0; padding-left: var(--space-5); line-height: var(--lh-base); }
   input[name=confirm] { max-width: 26rem; }
 `;
@@ -147,33 +156,16 @@ export function when(ms, { now = Date.now() } = {}) {
 
 // ------------------------------------------------------------------ the shell
 
-/**
- * Settings' own tabs — the same strip a project's pages wear (`subTabs`), on
- * every Settings page including the first. People is a top-level tab for an
- * owner, so it is not repeated here; somebody who owns nothing has no People
- * tab up top and finds their invitations here instead.
- */
-export function settingsTabs(account, active) {
-  const owns = Number(account?.owns ?? 0) > 0;
-  return subTabs(
-    'Settings',
-    ACCOUNT_SECTIONS.filter((s) => !(s.membersOnly && owns)).map((s) => ({
-      href: s.href,
-      label: s.label,
-      current: s.key === active,
-      danger: s.key === 'delete',
-    }))
-  );
-}
-
-function page(title, body, { account, active, lede = null }) {
+/** A Settings detail page: the shell says "Settings ›" above the title (brand.mjs). */
+function page(title, body, { account, active, lede = null, wide = false }) {
   return appShell({
     account,
     title,
-    active: active === 'people' ? 'people' : 'account',
+    active,
     lede,
+    wide,
     extraCss: CSS,
-    body: `${settingsTabs(account, active ?? 'account')}${body}`,
+    body,
   });
 }
 
@@ -184,19 +176,128 @@ const csrfField = (csrf) => `<input type="hidden" name="csrf" value="${esc(csrf 
 
 // ------------------------------------------------------------------ overview
 
-export function overviewPage({ account, trial }) {
-  return page(
-    'Account',
-    `<div class="ma-card ma-card--pad">
-       <p class="plan-line">${esc(trialLine(trial))}</p>
-       <p class="quiet">Signed in as ${esc(account.email)}. Each project has its own plan — see Billing and plan.</p>
-     </div>`,
-    {
-      account,
-      active: 'account',
-      lede: 'Your account, your plan, and what Maude Cloud keeps for you.',
-    }
-  );
+const setCard = ({ icon: ic, title, state = null, body = '', actions = '', cls = '' }) =>
+  `<section class="ma-card${cls ? ` ${cls}` : ''}"><h2 class="ma-set-h">${icon(ic, 16)}${esc(title)}${state ?? ''}</h2>${body}${actions ? `<div class="ma-set-a">${actions}</div>` : ''}</section>`;
+
+/**
+ * Settings (canvas 16, ts-settings): the whole account on one page.
+ *
+ * @param {object} args
+ * @param {object[]} [args.plans]     projects this account owns, each `{ id, name, line, tone }`
+ * @param {object[]|null} [args.devices]  signed-in apps `{ label, last_used_at }`, null when not read
+ * @param {boolean|null} [args.mentions]  the mention e-mail switch, null when not read
+ * @param {number} [args.sharedCount]  projects shared with this account
+ */
+export function overviewPage({
+  account,
+  trial,
+  plans = [],
+  devices = null,
+  mentions = null,
+  sharedCount = 0,
+  now = Date.now(),
+}) {
+  const owns = plans.length > 0 || Number(account?.owns ?? 0) > 0;
+  const name = String(account?.name ?? '').trim();
+  const cards = [
+    setCard({
+      icon: 'people',
+      title: 'Account',
+      body: `<dl class="ma-kv">
+          <dt>E-mail</dt><dd>${esc(account.email)}</dd>
+          ${name ? `<dt>Name</dt><dd>${esc(name)}</dd>` : ''}
+          <dt>Free trial</dt><dd>${esc(trialLine(trial).replace(/^Free trial · /, ''))}</dd>
+        </dl>`,
+      actions:
+        '<form method="post" action="/auth/logout"><button type="submit" class="btn btn--sm">Sign out</button></form>',
+    }),
+    owns
+      ? setCard({
+          icon: 'export',
+          title: 'Plans',
+          state: statusWord('ok', plural(plans.length, 'project', 'projects')),
+          body: `<p class="ma-set-p">The account is free. Each project you own has its own plan.</p>
+            <ul class="ma-set-list">${plans
+              .slice(0, 4)
+              .map(
+                (p) =>
+                  `<li><a href="/projects/${esc(p.id)}/billing">${esc(p.name || p.id)}</a>${statusWord(p.tone ?? 'ok', p.line)}</li>`
+              )
+              .join('')}</ul>`,
+          actions: `<a class="btn btn--sm" href="/account/plans">${plans.length > 4 ? `All ${plans.length} plans` : 'Choose or change a plan'}</a>`,
+        })
+      : setCard({
+          icon: 'export',
+          title: 'Plans',
+          body: '<p class="ma-set-p">The account is free. A plan belongs to a project — start one and it has 14 days free.</p>',
+          actions: '<a class="btn btn--sm btn--primary" href="/projects/new">Start a project</a>',
+        }),
+    setCard({
+      icon: 'pulse',
+      title: 'Notifications',
+      state:
+        mentions === null
+          ? ''
+          : statusWord(mentions ? 'ok' : 'off', mentions ? 'E-mails on' : 'E-mails off'),
+      body: '<p class="ma-set-p">An e-mail when someone mentions you while Maude is closed.</p>',
+      actions: '<a class="btn btn--sm" href="/account/notifications">Change</a>',
+    }),
+    setCard({
+      icon: 'laptop',
+      title: 'Devices',
+      state:
+        devices === null
+          ? ''
+          : statusWord(
+              devices.length ? 'ok' : 'off',
+              devices.length ? `${devices.length} signed in` : 'None'
+            ),
+      body: devices?.length
+        ? `<ul class="ma-set-list">${devices
+            .slice(0, 3)
+            .map(
+              (d) =>
+                `<li><span>${esc(d.label || 'A Maude app')}</span><span class="ma-quiet">${d.last_used_at ? `used ${esc(when(d.last_used_at, { now }))}` : 'not used yet'}</span></li>`
+            )
+            .join('')}</ul>`
+        : '<p class="ma-set-p">Every computer where the Maude app is signed in to this account — Mac, Windows or Linux.</p>',
+      actions: '<a class="btn btn--sm" href="/account/devices">Manage devices</a>',
+    }),
+    ...(owns
+      ? []
+      : [
+          setCard({
+            icon: 'folder',
+            title: 'Shared with you',
+            state: statusWord(
+              sharedCount ? 'ok' : 'off',
+              plural(sharedCount, 'project', 'projects')
+            ),
+            body: '<p class="ma-set-p">Projects other people invited you to, and what you can do in each.</p>',
+            actions: '<a class="btn btn--sm" href="/account/people">See them</a>',
+          }),
+        ]),
+    setCard({
+      icon: 'file',
+      title: 'Your data',
+      body: '<p class="ma-set-p">Every project you own as a .zip of its whole history, and one file about your account. Downloads keep working after a plan ends.</p>',
+      actions: '<a class="btn btn--sm" href="/account/download">Download everything</a>',
+    }),
+    setCard({
+      icon: 'close',
+      title: 'Delete the account',
+      cls: 'ma-card--danger',
+      body: `<p class="ma-set-p">${owns ? 'Delete your projects first — each one offers its download before it goes.' : 'Removes your name and address and signs out every device. It cannot be undone.'}</p>`,
+      actions: '<a class="btn btn--sm btn--ghost" href="/account/delete">Delete the account…</a>',
+    }),
+  ];
+  return appShell({
+    account,
+    title: 'Settings',
+    active: 'account',
+    extraCss: CSS,
+    body: `<div class="ma-set">${cards.join('\n')}</div>`,
+  });
 }
 
 // -------------------------------------------------------------------- people
@@ -222,19 +323,21 @@ const dayCount = (ms) => Math.max(0, Math.floor(ms / DAY_MS));
  */
 export function accountPeoplePage({
   account,
-  owned = [],
+  owned: ownedIn = [],
   shared = [],
   csrf = null,
   lastOpen = null,
   transfers = { incoming: [], outgoing: [] },
   tab = 'everyone',
   q = '',
+  only = null,
   sheet = null,
   sheetProject = null,
   error = null,
   notice = null,
   now = Date.now(),
 }) {
+  let owned = ownedIn;
   const projectName = (p) => p.name || p.id;
   const post = (fields, button, { cls = '' } = {}) =>
     `<form class="inline" method="post" action="/account/people">${csrfField(csrf)}${Object.entries(
@@ -244,6 +347,27 @@ export function accountPeoplePage({
       .join(
         ''
       )}<button type="submit" class="btn btn--sm${cls ? ` ${cls}` : ''}">${esc(button)}</button></form>`;
+
+  // ---- which project: "All projects" or one of them (?in=<id>) — a person is
+  // always seen beside the project they are on, never in a heap (owner, 2026-11-27).
+  const allOwned = owned;
+  const inProject = only ? (allOwned.find((o) => o.project.id === only) ?? null) : null;
+  if (inProject) owned = [inProject];
+  const peopleIn = (o) =>
+    new Set([...o.people, ...o.grants].map((x) => x.account_id).filter((id) => id !== account.id))
+      .size;
+  const chips =
+    allOwned.length > 1
+      ? `<nav class="ma-chips" aria-label="Which project">
+        <a class="ma-chip" href="/account/people"${inProject ? '' : ' aria-current="page"'}>All projects</a>
+        ${allOwned
+          .map(
+            (o) =>
+              `<a class="ma-chip" href="/account/people?in=${encodeURIComponent(o.project.id)}"${inProject?.project.id === o.project.id ? ' aria-current="page"' : ''}>${esc(projectName(o.project))} <span class="ma-count">${peopleIn(o)}</span></a>`
+          )
+          .join('')}
+      </nav>`
+      : '';
 
   // ---- everyone, once
   const persons = new Map();
@@ -288,6 +412,7 @@ export function accountPeoplePage({
   const TAB_WORD = { everyone: 'Everyone', owners: 'Owners', quiet: 'Not here in 30 days' };
   const tabHref = (key) => {
     const params = new URLSearchParams({
+      ...(inProject ? { in: inProject.project.id } : {}),
       ...(key === 'everyone' ? {} : { tab: key }),
       ...(needle ? { q: needle } : {}),
     });
@@ -303,6 +428,7 @@ export function accountPeoplePage({
         .join('')}<span class="ma-tabs-sp"></span>
        <form class="ma-filter" role="search" method="get" action="/account/people">
          ${activeTab === 'everyone' ? '' : `<input type="hidden" name="tab" value="${esc(activeTab)}">`}
+         ${inProject ? `<input type="hidden" name="in" value="${esc(inProject.project.id)}">` : ''}
          ${icon('search', 13)}<input type="search" name="q" value="${esc(needle)}" maxlength="80" placeholder="Find someone" aria-label="Find someone">
          <button type="submit" class="ma-sr">Find</button>
        </form></nav>`
@@ -405,7 +531,7 @@ export function accountPeoplePage({
         `<span class="ma-mrole">${esc(roleWordFor(g.role))}</span> <span class="ma-quiet">on ${esc(canvasName(g.canvas_path))} only</span>`
       );
     }
-    return `<td class="ma-at">${parts.length ? parts.join(' ') : '<span class="ma-mrole ma-mrole--none">No access</span>'}</td>`;
+    return `<td class="ma-at">${parts.length ? parts.join(' ') : '<span class="ma-mrole ma-mrole--none" aria-label="No access">—</span>'}</td>`;
   };
   const rows = shown
     .map((person) => {
@@ -432,23 +558,24 @@ export function accountPeoplePage({
          <thead><tr><th scope="col">Person</th>${owned
            .map(
              ({ project }) =>
-               `<th scope="col"><a href="/projects/${esc(project.id)}/people">${esc(projectName(project))}</a></th>`
+               `<th scope="col" class="ma-pcol"><a href="/projects/${esc(project.id)}/people" title="Open ${esc(projectName(project))} › People">${icon('folder', 12)}${esc(projectName(project))}</a></th>`
            )
            .join('')}${lastOpen ? '<th scope="col">Last here</th>' : ''}</tr></thead>
          <tbody>${rows || `<tr><td colspan="${owned.length + (lastOpen ? 2 : 1)}" class="ma-quiet">Nobody here matches.</td></tr>`}</tbody>
        </table></div>
        ${
          everyone.length > 1
-           ? `<div class="ma-menu-key">A bulk change is checked for everyone selected before anything changes: one person or
-                project that is not yours stops all of it. If a role change then fails part-way it is put back; if adding
-                or removing fails part-way, this page says exactly who was done. Adding someone at a role they already hold
-                on one of your projects (or a lower one) needs no new invitation; a higher role is sent as an invitation
-                they accept. Removing takes effect at once for opening a project. Someone already in a project is
+           ? `<details class="ma-more"><summary>Tick people to change their role, add them to a project or remove them — how that works</summary>
+                <p>A bulk change is checked for everyone selected before anything changes: one person or project that is
+                not yours stops all of it. If a role change then fails part-way it is put back; if adding or removing
+                fails part-way, this page says exactly who was done. Adding someone at a role they already hold on one
+                of your projects (or a lower one) needs no new invitation; a higher role is sent as an invitation they
+                accept. Removing takes effect at once for opening a project. Someone already in a project is
                 disconnected within minutes, and at the latest ${Math.round(ACCESS_TOKEN_TTL_MS / 3_600_000)} hours later.${
                   canViewAll
                     ? ''
                     : ` ${esc(CAN_VIEW_UNAVAILABLE.replace('this project', 'some of these projects'))}`
-                }</div>
+                }</p></details>
               <form id="bulk" class="island ma-bulk" method="post" action="/account/people">
                 ${csrfField(csrf)}
                 <strong class="ma-bulk-n"><span class="ma-sr">For the selected people:</span></strong>
@@ -467,7 +594,7 @@ export function accountPeoplePage({
            : ''
 }
        </div>`
-    : '<div class="ma-card ma-card--pad"><p class="ma-quiet" style="margin:0">You own no projects yet.</p></div>';
+    : '';
 
   const sharedRows = shared
     .map(({ project, ownerName, role, grants }) => {
@@ -482,11 +609,14 @@ export function accountPeoplePage({
       return `<tr><td><span class="ma-who">${`<span class="ma-who-t"><strong>${esc(project.name || project.id)}</strong>${owner ? `<span>${esc(owner)}’s project</span>` : ''}</span>`}</span></td><td>${access}</td></tr>`;
     })
     .join('\n');
-  const sharedHtml = `<div class="ma-card ma-card--clip ma-gap"><h2 class="ma-card-h">Shared with you <small>${shared.length || ''}</small></h2>${
-    shared.length
-      ? `<table class="ma-table"><thead><tr><th scope="col">Project</th><th scope="col">What you can do</th></tr></thead><tbody>${sharedRows}</tbody></table>`
-      : '<p class="ma-card-p">Nothing is shared with you yet.</p>'
-  }</div>`;
+  const sharedHtml =
+    owned.length && !shared.length
+      ? ''
+      : `<div class="ma-card ma-card--clip ma-gap"><h2 class="ma-card-h">Shared with you <small>${shared.length || ''}</small></h2>${
+          shared.length
+            ? `<table class="ma-table"><thead><tr><th scope="col">Project</th><th scope="col">What you can do</th></tr></thead><tbody>${sharedRows}</tbody></table>`
+            : '<p class="ma-card-p">Nothing is shared with you yet.</p>'
+        }</div>`;
 
   const summary = owned.length
     ? [
@@ -531,20 +661,24 @@ export function accountPeoplePage({
 
   return appShell({
     account: owned.length ? { ...account, owns: account?.owns ?? owned.length } : account,
-    title: 'People',
-    lede: summary,
+    title: owned.length ? 'People' : 'Shared with you',
+    lede: owned.length
+      ? summary
+      : 'Projects other people invited you to, and what you can do in each.',
     // An owner reaches People from the top nav; somebody who owns nothing
-    // reaches it from Settings, so it wears Settings' tabs.
-    active: owned.length ? 'people' : 'account',
+    // reaches it from Settings (Settings › Shared with you).
+    active: owned.length ? 'people' : 'invitations',
     wide: true,
     actions: owned.length
       ? `<a class="btn btn--primary" href="/account/people?sheet=invite">${icon('plus', 14)}Invite people</a>`
       : '',
     sheet: sheetHtml,
     extraCss: CSS,
-    body: `${owned.length ? '' : settingsTabs(account, 'people')}${notices({ error, notice })}
+    body: `${notices({ error, notice })}
      ${offersHtml}
      ${waiting}
+     ${chips}
+     ${inProject ? `<p class="ma-quiet ma-gap-b" style="margin-top:calc(-1 * var(--space-2))">Only ${esc(projectName(inProject.project))}. Invites, roles and removing someone also live on <a href="/projects/${esc(inProject.project.id)}/people">the project’s own People</a>.</p>` : ''}
      ${matrix}
      ${sharedHtml}`,
   });
@@ -557,7 +691,11 @@ function projectPlanLine(project, { now }) {
   const plan = ownerPlan(project, { now });
   return {
     ...plan,
-    line: plan.line ?? (STATE_COPY[project.state] ?? { label: project.state }).label,
+    line:
+      plan.line ??
+      (project.state === 'active'
+        ? 'Free — no plan'
+        : (STATE_COPY[project.state] ?? { label: project.state }).label),
   };
 }
 
@@ -572,34 +710,48 @@ function planPicker(project, csrf) {
   return `<form class="picker" method="post" action="/projects/${esc(project.id)}/billing/plan">
       ${csrfField(csrf)}
       ${plans}
-      <label><input type="radio" name="interval" value="monthly" checked> Monthly</label>
-      <label><input type="radio" name="interval" value="annual"> Annual — two months free</label>
-      <div><button type="submit">Choose a plan</button></div>
+      <div class="picker-int" role="radiogroup" aria-label="Billed"><label><input type="radio" name="interval" value="monthly" checked> Monthly</label><label><input type="radio" name="interval" value="annual"> Annual — two months free</label></div>
+      <div><button type="submit" class="btn btn--primary btn--sm">Choose a plan</button></div>
     </form>`;
 }
 
+/** A plan's tone (plan-copy.mjs) as a status word's dot. */
+export const PLAN_DOT = { ok: 'ok', warn: 'warn', stop: 'off' };
+
+/** The account's plan lines, for the Plans card on Settings. */
+export function planLines(projects, { now = Date.now() } = {}) {
+  return projects.map((project) => {
+    const { line, tone } = projectPlanLine(project, { now });
+    return { id: project.id, name: project.name, line, tone: PLAN_DOT[tone] ?? 'ok' };
+  });
+}
+
+/** Settings › Plans: one card per project you own, with its plan, and the picker where one can be chosen. */
 export function accountBillingPage({ account, trial, projects = [], csrf, now = Date.now() }) {
   const rows = projects
     .map((project) => {
       // The picker wherever a plan can be chosen: a trial, a project whose free
       // time ended, a Promo whose end date is near. A Promo with no end near
       // says Promo and offers nothing to choose (canvas 16, cl-promo-owner).
-      const { line, canChoose } = projectPlanLine(project, { now });
+      const { line, canChoose, tone } = projectPlanLine(project, { now });
       const picker = canChoose ? planPicker(project, csrf) : '';
-      return `<div class="card">
-        <h2>${esc(project.name || project.id)}</h2>
-        <p class="plan-line">${esc(line)}</p>
+      return `<section class="ma-card">
+        <h2 class="ma-set-h">${icon('folder', 16)}${esc(project.name || project.id)}${statusWord(PLAN_DOT[tone] ?? 'ok', line)}</h2>
         ${picker}
-        <p><a href="/projects/${esc(project.id)}/billing">Billing details and invoices for ${esc(project.name || project.id)}</a></p>
-      </div>`;
+        <div class="ma-set-a"><a class="btn btn--sm btn--ghost" href="/projects/${esc(project.id)}/billing">Billing details and invoices</a></div>
+      </section>`;
     })
     .join('\n');
   return page(
-    'Billing and plan',
-    `<p class="plan-line">${esc(trialLine(trial))}</p>
-     ${projects.length ? rows : '<p class="quiet">You own no projects, so nothing is billed.</p>'}
-     <p class="quiet">Payment details are handled by Stripe. Each project has its own plan.</p>`,
-    { account, active: 'billing', lede: 'Your free trial, and the plan of each project you own.' }
+    'Plans',
+    projects.length
+      ? `<div class="ma-set ma-set--plans">${rows}</div><p class="ma-quiet ma-gap">${esc(trialLine(trial))} · payment details are handled by Stripe.</p>`
+      : '<div class="ma-card ma-card--pad"><p class="ma-set-p">You own no projects, so nothing is billed. <a href="/projects/new">Start a project</a></p></div>',
+    {
+      account,
+      active: 'plans',
+      lede: 'The account is free — each project you own has its own plan.',
+    }
   );
 }
 
@@ -631,24 +783,28 @@ export function macsPage({
   const rows = macs
     .map(
       (m) => `<tr>
-        <td>${esc(m.label || 'A Maude app')}</td>
-        <td class="quiet">Signed in ${esc(when(m.created_at, { now }))} · ${m.last_used_at ? `last used ${esc(when(m.last_used_at, { now }))}` : 'not used yet'}</td>
-        <td class="right"><form class="inline" method="post" action="/account/macs">
+        <td><span class="ma-who">${icon('laptop', 16)}<strong>${esc(m.label || 'A Maude app')}</strong></span></td>
+        <td class="ma-quiet">${esc(when(m.created_at, { now }))} · ${m.last_used_at ? `last used ${esc(when(m.last_used_at, { now }))}` : 'not used yet'}</td>
+        <td><form class="inline" method="post" action="/account/devices">
           ${csrfField(csrf)}
           <input type="hidden" name="mac" value="${esc(m.handle)}">
-          <button type="submit" class="ghost">Sign out this Mac</button>
+          <button type="submit" class="btn btn--sm btn--ghost">Sign out</button>
         </form></td>
       </tr>`
     )
     .join('\n');
   return page(
-    'Your Macs',
+    'Devices',
     `${notices({ error, notice })}
-     ${macs.length ? `<table><tbody>${rows}</tbody></table>` : '<p class="quiet">No Mac is signed in to this account. The Maude app signs itself in when you sign in there.</p>'}`,
+     ${
+       macs.length
+         ? `<div class="ma-card ma-card--clip"><table class="ma-table"><thead><tr><th scope="col">Device</th><th scope="col">Signed in</th><th scope="col"><span class="ma-sr">Sign out</span></th></tr></thead><tbody>${rows}</tbody></table></div>`
+         : '<div class="ma-card ma-card--pad"><p class="ma-set-p">No device is signed in. The Maude app — on a Mac, Windows or Linux — signs itself in when you sign in there.</p></div>'
+}`,
     {
       account,
-      active: 'macs',
-      lede: 'Every Maude app signed in to this account. Sign one out and it stops opening your projects the next time it checks in.',
+      active: 'devices',
+      lede: 'Every computer where the Maude app is signed in. Sign one out and it stops opening your projects the next time it checks in.',
     }
   );
 }
@@ -661,7 +817,7 @@ export const ACCOUNT_FILE_CONTENTS = Object.freeze([
   'your free trial',
   'the projects you own, with their plan',
   'the projects shared with you, with what you can do in each',
-  'the Macs signed in to the account',
+  'the devices signed in to the account',
 ]);
 
 export function downloadEverythingPage({
@@ -674,27 +830,27 @@ export function downloadEverythingPage({
 }) {
   const rows = owned
     .map(
-      (p) => `<tr>
-        <td>${esc(p.name || p.id)}</td>
-        <td class="quiet">${p.latest ? `Latest copy ${esc(when(p.latest, { now }))}` : 'No copy yet'}</td>
-        <td class="right"><a href="/projects/${esc(p.id)}/download">Download ${esc(p.name || p.id)}</a></td>
-      </tr>`
+      (p) =>
+        `<li><span><strong>${esc(p.name || p.id)}</strong> <span class="ma-quiet">${p.latest ? `· latest copy ${esc(when(p.latest, { now }))}` : '· no copy yet'}</span></span><a class="btn btn--sm" href="/projects/${esc(p.id)}/download">Download</a></li>`
     )
     .join('\n');
   return page(
     'Download everything',
     `${notices({ error, notice })}
-     <h2>Projects you own</h2>
-     ${owned.length ? `<p class="quiet">Each project downloads as one .zip of its whole history, from its own page.</p><table><tbody>${rows}</tbody></table>` : '<p class="quiet">You own no projects.</p>'}
-     ${sharedCount ? `<p class="quiet">${esc(plural(sharedCount, 'project is', 'projects are'))} shared with you. Their owners download them.</p>` : ''}
-     <h2>Your account</h2>
-     <p>One file with ${esc(ACCOUNT_FILE_CONTENTS.join(', '))}.</p>
-     <p class="quiet">It holds nothing about other people — no one else’s name or address.</p>
-     <p><a class="btn" href="/account/download/account.json">Download your account file</a></p>`,
+     <div class="ma-set">
+       <section class="ma-card"><h2 class="ma-set-h">${icon('folder', 16)}Projects you own</h2>
+         ${owned.length ? `<p class="ma-set-p">Each one is a .zip of its whole history.</p><ul class="ma-set-list">${rows}</ul>` : '<p class="ma-set-p">You own no projects.</p>'}
+         ${sharedCount ? `<p class="ma-set-p ma-quiet">${esc(plural(sharedCount, 'project is', 'projects are'))} shared with you. Their owners download them.</p>` : ''}
+       </section>
+       <section class="ma-card"><h2 class="ma-set-h">${icon('people', 16)}Your account</h2>
+         <p class="ma-set-p">One file with ${esc(ACCOUNT_FILE_CONTENTS.join(', '))}. It holds no one else’s name or address.</p>
+         <div class="ma-set-a"><a class="btn btn--sm" href="/account/download/account.json">Download your account file</a></div>
+       </section>
+     </div>`,
     {
       account,
       active: 'download',
-      lede: 'Everything that is yours, to keep. Downloads work in every state, including after a plan ends.',
+      lede: 'Yours to keep, in every state — including after a plan ends.',
     }
   );
 }
@@ -725,7 +881,7 @@ export function deleteAccountPage({ account, blocking = [], csrf, error = null }
      <div class="card danger-card">
        <h2>What happens</h2>
        <ul class="what">
-         <li>You are signed out here, and every Mac signed in to this account is signed out.</li>
+         <li>You are signed out here, and every device signed in to this account is signed out.</li>
          <li>You leave every project shared with you. A project already open in the app keeps working for up to ${esc(plural(hours, 'hour', 'hours'))}.</li>
          <li>Your name and address are removed now. Invitations sent to the address stop working.</li>
          <li>The address can make a new account later. It gets no second free trial.</li>
@@ -1471,10 +1627,13 @@ const REFUSED = '<p>That request could not be verified. Reload the page and try 
 export async function handleAccountPages(request, env, { account, ctx = null } = {}) {
   const url = new URL(request.url);
   const m = url.pathname.match(
-    /^\/account(?:\/(people|billing|macs|download|delete))?(\/account\.json)?\/?$/
+    /^\/account(?:\/(people|billing|plans|macs|devices|download|delete))?(\/account\.json)?\/?$/
   );
   if (!m) return null;
-  const [, section = null, file = null] = m;
+  // Plans and Devices were Billing and plan and Your Macs: the old addresses
+  // still answer (e-mails, bookmarks), with the same page.
+  const section = { billing: 'plans', macs: 'devices' }[m[1]] ?? m[1] ?? null;
+  const file = m[2] ?? null;
   if (file && section !== 'download') return null;
   if (!account) return redirect(`/login?next=${encodeURIComponent(url.pathname)}`);
   const now = Date.now();
@@ -1490,7 +1649,23 @@ export async function handleAccountPages(request, env, { account, ctx = null } =
   // ---- overview (GET only; the pre-v2 revoke form posted here)
   if (section === null) {
     if (method === 'POST') return html(REFUSED, 403);
-    return html(overviewPage({ account: me, trial: trialView(me, { now }), now }));
+    const [owned, devices, mentions, shared] = await Promise.all([
+      ownedProjects(env, account.id),
+      liveMacs(env, account.id).catch(() => null),
+      mentionEmailsOn(env.DB, account.id).catch(() => null),
+      sharedProjects(env, account.id).catch(() => []),
+    ]);
+    return html(
+      overviewPage({
+        account: me,
+        trial: trialView(me, { now }),
+        plans: planLines(owned, { now }),
+        devices,
+        mentions,
+        sharedCount: shared.length,
+        now,
+      })
+    );
   }
 
   // ---- people
@@ -1504,6 +1679,7 @@ export async function handleAccountPages(request, env, { account, ctx = null } =
           csrf,
           tab: String(url.searchParams.get('tab') ?? 'everyone'),
           q: String(url.searchParams.get('q') ?? '').slice(0, 80),
+          only: String(url.searchParams.get('in') ?? '').slice(0, 80) || null,
           sheet: url.searchParams.get('sheet') === 'invite' ? 'invite' : null,
           sheetProject: String(url.searchParams.get('project') ?? '').slice(0, 80) || null,
           now,
@@ -1531,7 +1707,7 @@ export async function handleAccountPages(request, env, { account, ctx = null } =
   }
 
   // ---- billing
-  if (section === 'billing') {
+  if (section === 'plans') {
     if (method === 'POST') return html('<p>Not allowed.</p>', 405);
     // The plan picker on this page POSTs to /projects/<id>/billing/plan, which
     // answers a 303 to Stripe Checkout — so THIS page's form-action names it.
@@ -1549,7 +1725,7 @@ export async function handleAccountPages(request, env, { account, ctx = null } =
   }
 
   // ---- macs
-  if (section === 'macs') {
+  if (section === 'devices') {
     const csrf = await csrfFor(request, env);
     if (method !== 'POST') {
       return html(macsPage({ account: me, macs: await liveMacs(env, account.id), csrf, now }));
@@ -1573,9 +1749,9 @@ export async function handleAccountPages(request, env, { account, ctx = null } =
         actor: `customer:${me.email}`,
         action: 'device.disconnected',
       });
-      notice = 'Signed out. That Mac stops opening your projects the next time it checks in.';
+      notice = 'Signed out. That device stops opening your projects the next time it checks in.';
     } else {
-      error = 'That Mac is already signed out.';
+      error = 'That device is already signed out.';
     }
     return html(
       macsPage({ account: me, macs: await liveMacs(env, account.id), csrf, notice, error, now }),

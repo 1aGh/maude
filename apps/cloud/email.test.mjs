@@ -176,7 +176,7 @@ describe('mentionEmail', () => {
     assert.match(m.text, /“Mrkni prosím na datum, je pořád malé\.”/);
     assert.match(m.text, /Open in the Mac app:/);
     assert.ok(m.text.includes(base.openUrl));
-    assert.match(m.text, /Change which e-mails you get in Settings › General\./);
+    assert.match(m.text, /Change which e-mails you get in Settings › Notifications\./);
     assert.ok(m.text.includes(base.settingsUrl));
     assert.ok(m.text.includes(base.unsubscribeUrl));
   });

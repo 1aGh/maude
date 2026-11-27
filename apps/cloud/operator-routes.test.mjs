@@ -163,7 +163,7 @@ describe('the read surfaces', () => {
     assert.equal(res.status, 200);
     const body = await res.text();
     assert.match(body, /Fleet overview/);
-    assert.match(body, /MRR \(believed\)/);
+    assert.match(body, /derived from plans/);
     assert.match(body, /€19\b/);
 
     const [entry] = rows(sqlite, 'SELECT * FROM audit_log');

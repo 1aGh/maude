@@ -301,3 +301,16 @@
 .ad-plan-card .ad-card-h { padding: 0 0 var(--space-2); }
 .ad-plan-card p { margin: 0 0 var(--space-2); font-size: var(--type-sm); font-weight: var(--weight-semibold); }
 .ad-flags { display: inline-flex; gap: var(--space-3); }
+
+/* 16, 19 · Settings cards keep one height per row; the danger card names itself in red */
+.ad-set { align-items: stretch; }
+.ad-set .ad-head-a { margin-top: auto; }
+.ad-card--danger .ad-set-h, .ad-card--danger .ad-set-h .k-ic { color: var(--status-error-text); }
+/* 20 · Start a project: one column, three answers */
+.ad-np { display: flex; flex-direction: column; gap: var(--space-4); max-width: 640px; }
+.ad-np-card { display: flex; flex-direction: column; gap: var(--space-2); }
+.ad-np-l { font-size: var(--type-sm); font-weight: var(--weight-semibold); color: var(--fg-0); }
+/* 6 · People: which project — chips above the table */
+.ad-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
+.ad-chip-p { display: inline-flex; align-items: center; gap: var(--space-2); height: 30px; padding: 0 var(--space-3); border-radius: var(--radius-pill); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); font-size: var(--type-sm); color: var(--fg-1); }
+.ad-chip-p[aria-current="page"] { background: var(--fg-0); color: var(--bg-1); box-shadow: none; font-weight: var(--weight-semibold); }

@@ -91,7 +91,9 @@ describe('GET /operator/accounts/:id — one account, everything about it', () =
     assert.equal(seen.actor, `operator:${op.email}`);
     // …and that row is itself in the log the page shows next time.
     const again = text(await (await get(`/operator/accounts/${jan.id}`, op)).text());
-    assert.match(again, /operator\.account\.viewed/);
+    // In words, never the dotted key (owner, 2026-11-27).
+    assert.match(again, /Maude opened the owner’s account record/);
+    assert.doesNotMatch(again, /operator\.account\.viewed/);
   });
 
   test('an unknown account is the worker’s 404; so is the page for a non-operator', async (t) => {

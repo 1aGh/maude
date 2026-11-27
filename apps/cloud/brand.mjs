@@ -342,6 +342,13 @@ const TAB_OF = {
   people: 'people',
   account: 'settings',
   settings: 'settings',
+  notifications: 'settings',
+  devices: 'settings',
+  download: 'settings',
+  delete: 'settings',
+  plans: 'settings',
+  invitations: 'settings',
+  search: '',
 };
 
 /**
@@ -362,24 +369,42 @@ export function subTabs(label, items) {
     .join('')}</nav>`;
 }
 
-/** The project's own strip, for the pages that are about ONE project. */
+/** The doors that live inside a project's Settings — their pages light Settings on the strip. */
+/** The account's Settings doors (account-pages.mjs) — each page says Settings › … above its title. */
+export const ACCOUNT_SETTINGS_DOORS = Object.freeze([
+  'notifications',
+  'devices',
+  'download',
+  'delete',
+  'plans',
+  'invitations',
+]);
+
+export const PROJECT_SETTINGS_DOORS = Object.freeze([
+  'settings',
+  'billing',
+  'mirror',
+  'saving',
+  'download',
+  'delete',
+]);
+
+/**
+ * The project's own strip, for the pages that are about ONE project: four
+ * doors, never eight. Plan, saving, the GitHub copy, the download and deleting
+ * are one card each on the project's Settings page (canvas 16, ts-settings),
+ * the way the account's Settings are — so the strip says what a project IS
+ * (open it, who is on it, what happened) and Settings holds what you set.
+ * A member has no Settings: only the owner prepares the download.
+ */
 function projectTabs({ project, isOwner, active }) {
   const p = `/projects/${project.id}`;
-  const t = (key, label, danger = false) => ({
-    href: `${p}/${key}`,
-    label,
-    current: active === key,
-    danger,
-  });
+  const t = (key, label, current = active === key) => ({ href: `${p}/${key}`, label, current });
   return subTabs(project.name || project.id, [
     t('connect', 'Open'),
     t('people', 'People'),
-    ...(isOwner
-      ? [t('billing', 'Billing'), t('mirror', 'GitHub copy'), t('saving', 'Saving')]
-      : []),
     t('audit', 'Activity'),
-    t('download', 'Download everything'),
-    ...(isOwner ? [t('delete', 'Delete project…', true)] : []),
+    ...(isOwner ? [t('settings', 'Settings', PROJECT_SETTINGS_DOORS.includes(active))] : []),
   ]);
 }
 
@@ -412,6 +437,15 @@ export function sheetActions({ back, submit, note = null }) {
 }
 
 /**
+ * The search field in the nav — a GET form, so it works with no script. The
+ * pages ship no JavaScript (the privacy notice says so), so there is no ⌘K:
+ * a shortcut hint nothing listens for was a promise the page could not keep.
+ */
+function navSearch(action, placeholder, q = '') {
+  return `<form class="ma-nav-search" role="search" method="get" action="${esc(action)}">${icon('search', 14)}<input type="search" name="q" value="${esc(q)}" maxlength="80" placeholder="${esc(placeholder)}" aria-label="Search"></form>`;
+}
+
+/**
  * The signed-in shell. Server-rendered, no script.
  *
  * @param {object} args
@@ -429,6 +463,10 @@ export function sheetActions({ back, submit, note = null }) {
  * @param {boolean} [args.wide]          the body spans the page (dashboards, tables) rather than one column
  * @param {object|null} [args.sheet]     a sheet over the page — see `sheetMarkup`
  * @param {{people?: number, fleet?: number}} [args.counts]  the small counts on the tabs
+ * @param {Array<{label: string, href?: string}>|null} [args.crumb]  where this page sits under
+ *   its section (Settings › Devices) — said above the h1, after the project when there is one
+ * @param {boolean} [args.foot]          the download promise under the page (the Overview carries it)
+ * @param {string} [args.q]              what the search field already holds (the search page)
  * @param {boolean} [args.isOperator]    Cloud Phase 26 — this person is the allowlisted operator.
  *   Default false: the operator surface must not exist in a page a tenant can
  *   render, not as a link and not as a word (project-admin.test.mjs).
@@ -449,6 +487,9 @@ export function appShell({
   sheet = null,
   counts = {},
   extraCss = '',
+  crumb = null,
+  foot = false,
+  q = '',
 }) {
   const operator = isOperator || account?.operator === true;
   const op = operator && String(active).startsWith('operator');
@@ -473,7 +514,7 @@ export function appShell({
       navTab({ href: '/operator/events', label: 'Events', current: on('operator-events') }),
     ];
     place = '<small>Whole service</small><span class="ma-op-tag">Operator</span>';
-    search = `<form class="ma-nav-search" role="search" method="get" action="/operator/accounts">${icon('search', 14)}<input type="search" name="q" placeholder="Search" aria-label="Search accounts"><span class="kbd" aria-hidden="true">⌘K</span></form>`;
+    search = navSearch('/operator/search', 'Accounts, projects, e-mail', q);
   } else {
     const lit = project ? 'projects' : (TAB_OF[active] ?? '');
     tabs = [
@@ -489,9 +530,9 @@ export function appShell({
           count: counts.people || null,
         })
       );
-      search = `<form class="ma-nav-search" role="search" method="get" action="/account/people">${icon('search', 14)}<input type="search" name="q" placeholder="Search" aria-label="Search people"><span class="kbd" aria-hidden="true">⌘K</span></form>`;
     }
-    // Settings is everyone's: a member's E-mails, Macs and invitations live
+    search = navSearch('/search', owns ? 'Projects, people, settings' : 'Projects, settings', q);
+    // Settings is everyone's: a member's Notifications, Devices and invitations live
     // there too. Only reaching it through the avatar left /account with no
     // tab lit for somebody who owns nothing (2026-11-25 crawl).
     tabs.push(navTab({ href: '/account', label: 'Settings', current: lit === 'settings' }));
@@ -501,9 +542,9 @@ export function appShell({
   // The avatar menu: what is about YOU, on every page. The operator's way in
   // lives here and nowhere else, and only in the operator's own pages.
   const menu = [
-    '<a href="/account">Account</a>',
-    owns ? '<a href="/account/billing">Billing</a>' : '',
-    '<a href="/account/macs">Your Macs</a>',
+    '<a href="/account">Settings</a>',
+    '<a href="/account/devices">Devices</a>',
+    '<a href="/account/notifications">Notifications</a>',
     operator
       ? op
         ? '<div class="menu-sep"></div><a href="/">Your own account</a>'
@@ -514,10 +555,33 @@ export function appShell({
   ].join('');
   const me = `${esc(firstName(account))}${!op && owns ? ' · Owner' : ''}`;
 
+  // A door inside Settings says so above its title — Settings › Devices, or
+  // Projects › Alligators › Settings › Plan — and Settings is the way back.
+  if (
+    !crumb &&
+    project &&
+    isOwner &&
+    active !== 'settings' &&
+    PROJECT_SETTINGS_DOORS.includes(active)
+  )
+    crumb = [{ label: 'Settings', href: `/projects/${project.id}/settings` }];
+  if (!crumb && !project && !op && ACCOUNT_SETTINGS_DOORS.includes(active))
+    crumb = [{ label: 'Settings', href: '/account' }];
+  const crumbs = [
+    ...(project
+      ? [
+          '<a href="/projects">Projects</a>',
+          crumb?.length
+            ? `<a href="/projects/${esc(project.id)}/connect">${esc(project.name || project.id)}</a>`
+            : esc(project.name || project.id),
+        ]
+      : []),
+    ...(crumb ?? []).map((c) =>
+      c.href ? `<a href="${esc(c.href)}">${esc(c.label)}</a>` : esc(c.label)
+    ),
+  ];
   const head = `<div class="ma-head"><div>${
-    project
-      ? `<p class="ma-crumb"><a href="/projects">Projects</a> › ${esc(project.name || project.id)}</p>`
-      : ''
+    crumbs.length ? `<p class="ma-crumb">${crumbs.join(' › ')}</p>` : ''
   }<div class="ma-h1-row"><h1 class="ma-h1">${esc(heading ?? title)}</h1>${
     pill ? `<span class="state">${statusWord(PILL_TONE[pill.tone] ?? 'ok', pill.label)}</span>` : ''
   }</div>${lede ? `<p class="ma-sub">${esc(lede)}</p>` : ''}</div>${
@@ -537,7 +601,7 @@ ${op ? `<div class="ma-band" role="note">${icon('server', 13)}<span>${OPERATOR_B
   ${head}
   ${project ? projectTabs({ project, isOwner, active }) : ''}
   ${body}
-  <p class="ma-foot">${PROMISE}</p>
+  ${foot ? `<p class="ma-foot">${PROMISE}</p>` : ''}
 </main>
 ${sheet ? sheetMarkup(sheet, { op }) : ''}
 </body></html>`;

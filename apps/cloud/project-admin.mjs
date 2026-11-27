@@ -17,7 +17,7 @@
 //                             every tick, so saving needs no restart.
 
 import { track } from './analytics.mjs';
-import { appShell, DESKTOP_DOWNLOAD_URL } from './brand.mjs';
+import { appShell, DESKTOP_DOWNLOAD_URL, icon, statusWord } from './brand.mjs';
 import { mintProjectToken } from './cell-token.mjs';
 import { STATE_COPY } from './dashboard.mjs';
 import { audit } from './db.mjs';
@@ -29,6 +29,7 @@ import {
 } from './design-sync.mjs';
 import { pageCsp } from './edge.mjs';
 import { validateTarget } from './mirror.mjs';
+import { ownerPlan } from './plan-copy.mjs';
 import { ACCESS_MESSAGES, can, decideAccess } from './project-access.mjs';
 import { removeCellDomain } from './provision.mjs';
 import { purgeTenantObjects } from './purge.mjs';
@@ -194,23 +195,22 @@ export function connectPage({ account, project, isOwner, cellZone }) {
   const zone = cellZone || 'cloud.maude.sh';
   return page(
     `Open ${project.name}`,
-    `<div class="card">
-       <h2>In the Maude app</h2>
-       <p class="quiet">One click — the app opens this project signed in as you. Nothing to
-         copy, nothing to paste. This is where you make things.</p>
-       <form method="post" action="/projects/${esc(project.id)}/handoff" style="margin:0">
-         <button type="submit">Open in Maude</button>
-       </form>
-       <p class="quiet" style="margin:var(--space-3) 0 0">Don’t have the app yet?
-         <a href="${DESKTOP_DOWNLOAD_URL}">Get it at maude.sh/desktop</a>, then come back and
-         press the button.</p>
-     </div>
-     <div class="card">
-       <h2>In your browser</h2>
-       <p class="quiet">The same Maude, in a tab — the canvases, the design system, comments
-         and history. No install. The agent stays in the app, because it runs on your own
-         machine.</p>
-       <a class="button" href="https://${esc(project.id)}.${esc(zone)}">Open in the browser</a>
+    `<div class="ma-set">
+       <section class="ma-card">
+         <h2 class="ma-set-h">${icon('laptop', 16)}In the Maude app</h2>
+         <p class="ma-set-p">Opens this project signed in as you — where you make things, with the AI beside you.</p>
+         <div class="ma-set-a">
+           <form method="post" action="/projects/${esc(project.id)}/handoff">
+             <button type="submit" class="btn btn--primary">Open in Maude</button>
+           </form>
+           <span class="ma-quiet" style="font-size:var(--type-xs)">No app yet? <a href="${DESKTOP_DOWNLOAD_URL}">Get it at maude.sh/desktop</a></span>
+         </div>
+       </section>
+       <section class="ma-card">
+         <h2 class="ma-set-h">${icon('web', 16)}In your browser</h2>
+         <p class="ma-set-p">Canvases, the design system, comments and history in a tab. No install — the AI stays in the app.</p>
+         <div class="ma-set-a"><a class="btn" href="https://${esc(project.id)}.${esc(zone)}">Open in the browser</a></div>
+       </section>
      </div>`,
     { account, project, isOwner, active: 'connect' }
   );
@@ -265,7 +265,7 @@ export function savingPage({
     `${notice ? `<p class="notice">${esc(notice)}</p>` : ''}
      ${error ? `<p class="error">${esc(error)}</p>` : ''}
      <div class="card">
-       <h2>${on ? 'Accepted revisions — on' : mode ? 'Shared copy (classic)' : 'Unknown'}</h2>
+       <h2>${on ? 'Accepted revisions — on' : mode ? 'Shared copy (classic)' : 'The workspace is asleep'}</h2>
        <p class="quiet" style="margin:0">${
          on
            ? 'Every change is saved to the project and confirmed before anyone is told it is saved. History lists each action with its author; Undo takes back only your own.'
@@ -500,11 +500,101 @@ export async function activityEntries(env, { project, viewerId }) {
   return withRoutineCheck(env.DB, project.id, rows?.results ?? []);
 }
 
+/**
+ * A project's Settings (canvas 16, ts-settings): what an owner sets about ONE
+ * project, a card each — plan, the GitHub copy, how it saves, the download,
+ * and deleting it. Each card says its state and opens its own page; this page
+ * reads only the project row, so it opens even while the workspace sleeps.
+ */
+export function projectSettingsPage({ account, project, now = Date.now() }) {
+  const p = `/projects/${esc(project.id)}`;
+  const plan = ownerPlan(project, { now });
+  const dot = { ok: 'ok', warn: 'warn', stop: 'off' }[plan.tone] ?? 'ok';
+  const planLine =
+    plan.line ??
+    (project.state === 'active'
+      ? 'Free — no plan'
+      : (STATE_COPY[project.state] ?? { label: project.state }).label);
+  const repo = project.mirror_repo ? String(project.mirror_repo) : null;
+  const card = ({ ic, title, state = '', body, actions, cls = '' }) =>
+    `<section class="ma-card${cls ? ` ${cls}` : ''}"><h2 class="ma-set-h">${icon(ic, 16)}${esc(title)}${state}</h2><p class="ma-set-p">${body}</p><div class="ma-set-a">${actions}</div></section>`;
+  return page(
+    'Settings',
+    `<div class="ma-set">
+      ${card({
+        ic: 'export',
+        title: 'Plan',
+        state: statusWord(dot, planLine),
+        body: 'This project’s plan, its card and its invoices. Payment details stay with Stripe.',
+        actions: `<a class="btn btn--sm${plan.canChoose ? ' btn--primary' : ''}" href="${p}/billing">${plan.canChoose ? 'Choose a plan' : 'Plan and billing'}</a>`,
+      })}
+      ${card({
+        ic: 'link',
+        title: 'Copy to GitHub',
+        state: statusWord(repo ? 'ok' : 'off', repo ? 'On' : 'Off'),
+        body: repo
+          ? `Copied to <strong>${esc(repo)}</strong>, branch ${esc(project.mirror_branch ?? 'main')}.`
+          : 'Keep a copy of the project in a GitHub repository of yours.',
+        actions: `<a class="btn btn--sm" href="${p}/mirror">${repo ? 'Change' : 'Set up'}</a>`,
+      })}
+      ${card({
+        ic: 'sync',
+        title: 'Saving',
+        body: 'How changes reach the project: confirmed revisions with a history and personal undo, or the classic shared copy.',
+        actions: `<a class="btn btn--sm" href="${p}/saving">See how it saves</a>`,
+      })}
+      ${card({
+        ic: 'file',
+        title: 'Download everything',
+        body: 'The whole project and its history as a .zip — in every state, also after a plan ends.',
+        actions: `<a class="btn btn--sm" href="${p}/download">Download</a>`,
+      })}
+      ${card({
+        ic: 'close',
+        title: 'Delete the project',
+        cls: 'ma-card--danger ma-card--wide',
+        body: 'It is offered for download first. Everyone on it loses access.',
+        actions: `<a class="btn btn--sm btn--ghost" href="${p}/delete">Delete ${esc(project.name || project.id)}…</a>`,
+      })}
+    </div>`,
+    { account, project, isOwner: true, active: 'settings' }
+  );
+}
+
+/**
+ * Fold the same thing by the same hand on the same day into one row with a
+ * count — "Maude support looked at your account · 12×". Nothing is hidden
+ * (DDR-193: you can see that we looked); a looking that happened forty times
+ * in a day just does not take forty lines, even when other lookings fall in
+ * between. A row keeps the time of its newest occurrence (entries arrive
+ * newest first) and its place in that order. A routine-check row that already
+ * carries its own count (`routine-log.mjs`) is left as it is. Pure.
+ */
+export function foldActivity(entries) {
+  const out = [];
+  const byKey = new Map();
+  const dayOf = (at) => new Date(Number(at)).toISOString().slice(0, 10);
+  for (const e of entries) {
+    const key = e.count
+      ? null
+      : JSON.stringify([e.action, e.actor, e.reason ?? null, e.project_id ?? null, dayOf(e.at)]);
+    const seen = key && byKey.get(key);
+    if (seen) {
+      seen.times = (seen.times ?? 1) + 1;
+      continue;
+    }
+    const row = { ...e };
+    if (key) byKey.set(key, row);
+    out.push(row);
+  }
+  return out;
+}
+
 export function auditPage({ account, project, isOwner, entries }) {
-  const rows = entries
+  const rows = foldActivity(entries)
     .map(
       (e) => `<tr>
-        <td>${esc(AUDIT_COPY[e.action] ?? e.action)}${esc(routineCount(e))}</td>
+        <td>${esc(AUDIT_COPY[e.action] ?? e.action)}${esc(routineCount(e))}${e.times > 1 ? ` <span class="ma-count ma-count--quiet">${e.times}×</span>` : ''}</td>
         <td class="quiet">${esc(actorWord(e.actor))}</td>
         <td>${e.reason ? esc(e.reason) : '<span class="quiet">—</span>'}</td>
         <td class="right"><time>${when(e.at)}</time></td>
@@ -514,14 +604,14 @@ export function auditPage({ account, project, isOwner, entries }) {
   return page(
     'Activity',
     entries.length
-      ? `<table><thead><tr><th>What</th><th>Who</th><th>Why</th><th>When</th></tr></thead><tbody>${rows}</tbody></table>`
-      : '<p class="quiet">Nothing yet.</p>',
+      ? `<div class="ma-card ma-card--clip"><table class="ma-table"><thead><tr><th>What</th><th>Who</th><th>Why</th><th>When</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      : '<div class="ma-card ma-empty"><p class="ma-quiet">Nothing yet.</p></div>',
     {
       account,
       project,
       isOwner,
       active: 'audit',
-      lede: 'Everything that happened to this project — by you, by people you invited, and by the platform itself. If we ever touch your project, it shows up here, with the reason we gave at the time.',
+      lede: 'What happened to this project — by you, by people you invited, and by Maude, with the reason we gave.',
     }
   );
 }
@@ -555,27 +645,28 @@ export function mirrorPage({
          <label for="branch">Branch</label>
          <input type="text" id="branch" name="branch" value="${esc(branch ?? 'main')}">
 
-         <fieldset style="margin-top:var(--space-5);border:0;padding:0">
-           <legend class="quiet">What gets copied</legend>
-           <label style="display:block;margin-top:var(--space-3)">
-             <input type="radio" name="mode" value="backup" ${mode !== 'design-sync' ? 'checked' : ''}>
-             <strong>${esc(backup.label)}</strong>
-           </label>
-           <p class="quiet" style="margin-left:1.6rem">${esc(backup.what)} ${esc(backup.touches)}<br>
-             <em>${esc(contents.summary)}</em> ${esc(contents.detail)}</p>
-           <label style="display:block;margin-top:var(--space-4)">
-             <input type="radio" name="mode" value="design-sync" ${mode === 'design-sync' ? 'checked' : ''}>
-             <strong>${esc(sync.label)}</strong>
-           </label>
-           <p class="quiet" style="margin-left:1.6rem">${esc(sync.what)} ${esc(sync.touches)}</p>
-           <label for="folder" style="margin-left:1.6rem">Folder</label>
-           <input type="text" id="folder" name="folder" style="margin-left:1.6rem"
+         <fieldset style="margin-top:var(--space-4);border:0;padding:0">
+           <legend style="font-size:var(--type-sm);font-weight:var(--weight-semibold)">What gets copied</legend>
+           <div class="ma-pick" style="margin-top:var(--space-2)">
+             <label class="ma-pick-o">
+               <input type="radio" name="mode" value="backup" ${mode !== 'design-sync' ? 'checked' : ''}>
+               <span><strong>${esc(backup.label)}</strong>
+                 <span>${esc(backup.what)} ${esc(backup.touches)} ${esc(contents.summary)} ${esc(contents.detail)}</span></span>
+             </label>
+             <label class="ma-pick-o">
+               <input type="radio" name="mode" value="design-sync" ${mode === 'design-sync' ? 'checked' : ''}>
+               <span><strong>${esc(sync.label)}</strong>
+                 <span>${esc(sync.what)} ${esc(sync.touches)}</span></span>
+             </label>
+           </div>
+           <label for="folder" style="margin-top:var(--space-3)">Folder <span class="quiet">— for syncing into a folder</span></label>
+           <input type="text" id="folder" name="folder"
                   placeholder="${esc(DEFAULT_DESIGN_FOLDER)}" value="${esc(folder ?? '')}">
          </fieldset>
 
          <p style="margin-top:var(--space-4)">
-           <button type="submit" name="do" value="save">Save</button>
-           ${repository ? '<button type="submit" name="do" value="disconnect" class="ghost" style="margin-left:var(--space-4)">Disconnect</button>' : ''}
+           <button type="submit" name="do" value="save" class="btn btn--primary">Save</button>
+           ${repository ? '<button type="submit" name="do" value="disconnect" class="btn btn--ghost" style="margin-left:var(--space-2)">Disconnect</button>' : ''}
          </p>
        </form>
        <p class="quiet">Either way, this runs about once an hour. First
@@ -587,7 +678,7 @@ export function mirrorPage({
     'Copy to GitHub',
     `${error ? `<p class="error">${esc(error)}</p>` : ''}
      ${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
-     <div class="card">${form}</div>`,
+     <div class="ma-card ma-card--pad" style="max-width:46rem">${form}</div>`,
     {
       account,
       project,
@@ -680,7 +771,7 @@ async function cellHasNothingToExport(env, projectId, account) {
 export async function handleProjectAdminRoutes(request, env, { account, ctx = null } = {}) {
   const url = new URL(request.url);
   const m = url.pathname.match(
-    /^\/projects\/([a-z0-9-]+)\/(connect|download|delete|audit|mirror|saving)(\/file)?$/
+    /^\/projects\/([a-z0-9-]+)\/(connect|download|delete|audit|mirror|saving|settings)(\/file)?$/
   );
   if (!m) return null;
   const [, projectId, surface, isFile] = m;
@@ -694,6 +785,14 @@ export async function handleProjectAdminRoutes(request, env, { account, ctx = nu
     );
   }
   const isOwner = can(verdict.role, 'delete');
+
+  // ---------------------------------------------------------------- settings
+  if (surface === 'settings') {
+    if (!isOwner) return redirect(`/projects/${projectId}/download`);
+    if (request.method !== 'GET' && request.method !== 'HEAD')
+      return html('<p>Not allowed.</p>', 405);
+    return html(projectSettingsPage({ account, project }));
+  }
 
   // ----------------------------------------------------------------- connect
   if (surface === 'connect' && request.method === 'GET') {

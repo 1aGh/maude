@@ -66,7 +66,7 @@ describe('the routine check is one row, and real history survives it', () => {
     );
     const body = await res.text();
     assert.match(body, /demo for a partner/);
-    assert.equal(body.match(/>reconcile/g)?.length ?? 0, 1);
+    assert.equal(body.match(/Routine platform check/g)?.length ?? 0, 1);
     assert.match(body, /119 times this week/);
   });
 

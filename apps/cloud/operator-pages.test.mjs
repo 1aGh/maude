@@ -131,7 +131,7 @@ describe('the overview answers what an operator opens it for', () => {
     // A silently D1-derived MRR drifts on every missed webhook; the label and
     // the link are what keep it from being read as revenue.
     const html = overview([project()]);
-    assert.match(html, /MRR \(believed\)/);
+    assert.match(html, /derived from plans/);
     assert.match(html, /€19\b/);
     assert.match(html, /Stripe is the authority/);
     assert.match(html, /dashboard\.stripe\.com/);
@@ -147,7 +147,8 @@ describe('the overview answers what an operator opens it for', () => {
     const html = overview([project({ id: 'a' }), project({ id: 'b' })]);
     // Nothing has ever been restore-drilled; two projects is one line, not two.
     assert.match(html, /never-drilled/);
-    assert.match(html, /<i><\/i>2 never-drilled</);
+    assert.match(html, /<i><\/i>2 · Never drilled</);
+    assert.match(html, /href="\/operator\/fleet\?need=never-drilled"/);
   });
 
   it('says so plainly when there is nothing to interpret', () => {

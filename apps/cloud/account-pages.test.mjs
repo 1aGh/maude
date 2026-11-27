@@ -246,38 +246,51 @@ describe('every account page: a session, no-store, no script', () => {
     }
   });
 
-  test('every Settings page wears the same tab strip — the first one too (owner, 2026-11-25)', async () => {
-    // Was: a vertical list on /account, horizontal tabs on its pages, and no
-    // tabs at all on E-mails. One strip now, the same one a project wears.
+  test('Settings is one page of cards; each detail page says Settings › and has no strip (owner, 2026-11-27)', async () => {
+    // Was: a strip of six tabs where Account and Billing said the same thing
+    // (an account is free — a PROJECT has a plan). Now canvas 16's ts-settings:
+    // a card per area, its state and one action; a detail page sits behind it.
     const { env, ana, sqlite } = await world();
     sqlite
       .prepare('UPDATE accounts SET trial_started_at = ? WHERE id = ?')
       .run(Date.now() - 2 * DAY, ana.id);
     const overview = await (await get(env, '/account', ana.session)).text();
-    assert.match(overview, /Free trial · 12 days left/);
-    assert.doesNotMatch(overview, /class="doors"|<ul class="tabs"/);
-    for (const path of [...PATHS.filter((p) => p !== '/account/people'), '/account/emails']) {
+    assert.match(overview, /12 days left/);
+    for (const card of [
+      'Account',
+      'Plans',
+      'Notifications',
+      'Devices',
+      'Your data',
+      'Delete the account',
+    ]) {
+      assert.match(overview, new RegExp(`class="ma-set-h">[^]*?${card}`), `card: ${card}`);
+    }
+    assert.doesNotMatch(overview, /class="ma-ptabs"|class="doors"|<ul class="tabs"/);
+    for (const path of [
+      '/account/plans',
+      '/account/billing',
+      '/account/devices',
+      '/account/macs',
+      '/account/notifications',
+      '/account/emails',
+      '/account/download',
+      '/account/delete',
+    ]) {
       const res = await get(env, path, ana.session);
       assert.equal(res.status, 200, path);
       const html = await res.text();
-      const strip =
-        /<nav class="ma-ptabs" aria-label="Settings">([\s\S]*?)<\/nav>/.exec(html)?.[1] ?? '';
-      for (const tab of [
-        'Account',
-        'Billing and plan',
-        'Your Macs',
-        'E-mails',
-        'Download everything',
-        'Delete the account',
-      ]) {
-        assert.ok(strip.includes(`>${tab}<`), `${path}: ${tab}`);
-      }
-      // Ana owns a project: People is her top-level tab, not a Settings one.
-      assert.ok(
-        !strip.includes('People and invites'),
-        `${path}: no People in Settings for an owner`
+      assert.match(
+        html,
+        /class="ma-crumb"><a href="\/account">Settings<\/a>/,
+        `${path}: Settings ›`
       );
-      assert.match(strip, /aria-current="page"/, `${path}: one tab is lit`);
+      assert.doesNotMatch(html, /aria-label="Settings"/, `${path}: no strip`);
+      assert.match(
+        html,
+        /<a class="ma-nav-tab" href="\/account" aria-current="page">Settings/,
+        `${path}: Settings lit`
+      );
     }
   });
 
@@ -407,7 +420,7 @@ describe('Your Macs', () => {
       assert.ok(!html.includes(row.id), 'a stored hash reached the page');
     }
     assert.ok(!html.includes(anaMac) && !html.includes(olgaMac), 'a credential reached the page');
-    assert.match(html, />Sign out this Mac</);
+    assert.match(html, />Sign out</);
   });
 
   test('Sign out this Mac: CSRF required; then that Mac is refused', async () => {

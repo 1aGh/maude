@@ -395,7 +395,7 @@ export function mentionEmail({
       '',
       `  ${openUrl}`,
       '',
-      'Change which e-mails you get in Settings › General.',
+      'Change which e-mails you get in Settings › Notifications.',
       `  ${settingsUrl}`,
       '',
       'Or stop mention e-mails right away:',

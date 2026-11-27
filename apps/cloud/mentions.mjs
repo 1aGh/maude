@@ -33,7 +33,7 @@
 
 import { resolveMentions } from '../studio/comments/mentions.ts';
 import { accessOf, decideClaim, projectFacts, validCanvasPath } from './access-forward.mjs';
-import { accountCsrf, DELETED_EMAIL_DOMAIN, postAllowed, settingsTabs } from './account-pages.mjs';
+import { accountCsrf, DELETED_EMAIL_DOMAIN, postAllowed } from './account-pages.mjs';
 import { getAccountByEmail, normalizeEmail } from './accounts.mjs';
 import { SESSION_COOKIE } from './auth-routes.mjs';
 import { appShell, publicPage, publicResponse } from './brand.mjs';
@@ -45,7 +45,9 @@ import { consumeEmailToken, mintEmailToken, peekEmailToken } from './email-token
 import { canvasName } from './people-page.mjs';
 
 export const MENTIONS_PATH = '/internal/mentions';
-export const EMAIL_PREFS_PATH = '/account/emails';
+export const EMAIL_PREFS_PATH = '/account/notifications';
+/** The page's address before it was called Notifications — links in e-mails already sent still land. */
+export const OLD_EMAIL_PREFS_PATH = '/account/emails';
 export const UNSUBSCRIBE_PATH = '/emails/unsubscribe';
 
 /** Mention e-mails one project may send per rolling day. */
@@ -297,20 +299,20 @@ function cookieValue(request, name) {
   return null;
 }
 
-/** The preferences page: one switch, for now (canvas 10: "Change which e-mails you get"). */
+/** Notifications (Settings › Notifications): which e-mails Maude Cloud sends — one switch, for now. */
 export function emailPrefsPage({ account, mentions, csrf, saved = false }) {
   return appShell({
     account,
-    title: 'E-mails',
-    active: 'account',
-    lede: 'Which e-mails Maude Cloud sends you.',
-    body: `${settingsTabs(account, 'emails')}${saved ? '<p class="ok">Saved.</p>' : ''}
-      <form class="ma-card ma-card--pad" method="post" action="${EMAIL_PREFS_PATH}">
+    title: 'Notifications',
+    active: 'notifications',
+    body: `${saved ? '<p class="ok">Saved.</p>' : ''}
+      <form class="ma-set" method="post" action="${EMAIL_PREFS_PATH}">
         <input type="hidden" name="csrf" value="${esc(csrf ?? '')}">
-        <p><label><input type="checkbox" name="mentions"${mentions ? ' checked' : ''}>
-          E-mail me when someone mentions you and Maude is closed</label></p>
-        <p class="quiet">One e-mail per mention, never a digest. In the app you get a notice instead.</p>
-        <p><button type="submit" class="btn btn--primary">Save</button></p>
+        <div class="ma-card">
+          <h2 class="ma-set-h">Mentions</h2>
+          <label class="ma-pick-o" style="padding:0;background:none;box-shadow:none"><input type="checkbox" name="mentions"${mentions ? ' checked' : ''}><span><strong>E-mail when someone mentions you</strong><span>Only while Maude is closed — one e-mail per mention. In the app you get a notice instead.</span></span></label>
+          <div class="ma-set-a"><button type="submit" class="btn btn--primary btn--sm">Save</button></div>
+        </div>
       </form>`,
   });
 }
@@ -318,7 +320,7 @@ export function emailPrefsPage({ account, mentions, csrf, saved = false }) {
 const DEAD_LINK_PAGE = () =>
   publicPage({
     title: 'This link no longer works',
-    sub: 'Change which e-mails you get in Settings › General.',
+    sub: 'Change which e-mails you get in Settings › Notifications.',
     body: `<p class="fine"><a href="${EMAIL_PREFS_PATH}">Open your e-mail settings</a></p>`,
   });
 
@@ -375,7 +377,7 @@ async function unsubscribeRoute(request, env, { now }) {
     return publicResponse(
       publicPage({
         title: 'No more mention e-mails',
-        sub: 'You will still see mentions in the app. Change which e-mails you get in Settings › General.',
+        sub: 'You will still see mentions in the app. Change which e-mails you get in Settings › Notifications.',
       })
     );
   }
@@ -414,7 +416,8 @@ export async function handleMentionRoutes(
     if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405);
     return forwardedMention(request, env, { send: send ?? ((m) => sendEmail(env, m)), now });
   }
-  if (pathname === EMAIL_PREFS_PATH) return prefsRoute(request, env, { account, now });
+  if (pathname === EMAIL_PREFS_PATH || pathname === OLD_EMAIL_PREFS_PATH)
+    return prefsRoute(request, env, { account, now });
   if (pathname === UNSUBSCRIBE_PATH) return unsubscribeRoute(request, env, { now });
   return null;
 }

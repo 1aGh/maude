@@ -78,6 +78,7 @@ import {
   operatorProjectPage,
   operatorProjectPeoplePage,
   operatorProjectsPage,
+  operatorSearchPage,
 } from './operator-pages.mjs';
 import { renderViewAs } from './operator-view.mjs';
 import { operatorPlan } from './plan-copy.mjs';
@@ -405,6 +406,47 @@ export async function handleOperatorRoutes(
     );
   }
 
+  // --------------------------------------------------------------- search
+  if (url.pathname === '/operator/search' && request.method === 'GET') {
+    const q = String(url.searchParams.get('q') ?? '')
+      .trim()
+      .slice(0, 120);
+    let accounts = [];
+    let projects = [];
+    if (q) {
+      // A LITERAL term, as on Accounts: `%` and `_` find only themselves.
+      const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      try {
+        const [a, p] = await Promise.all([
+          env.DB.prepare(
+            `SELECT a.id, a.email, a.name,
+                    (SELECT COUNT(*) FROM projects p WHERE p.account_id = a.id AND p.state != 'purged') AS projects
+               FROM accounts a
+              WHERE a.email LIKE ?1 ESCAPE '\\' OR a.name LIKE ?1 ESCAPE '\\' OR a.id = ?2
+              ORDER BY a.created_at DESC LIMIT 25`
+          )
+            .bind(like, q)
+            .all(),
+          env.DB.prepare(
+            `SELECT p.id, p.name, p.state, a.email AS owner_email
+               FROM projects p LEFT JOIN accounts a ON a.id = p.account_id
+              WHERE p.state != 'purged' AND (p.name LIKE ?1 ESCAPE '\\' OR p.id LIKE ?1 ESCAPE '\\')
+              ORDER BY p.name LIMIT 25`
+          )
+            .bind(like)
+            .all(),
+        ]);
+        accounts = a.results ?? [];
+        projects = p.results ?? [];
+      } catch (err) {
+        console.error(`[operator] search failed: ${err.message}`);
+      }
+      // Customer addresses on a page: recorded like the Accounts list is.
+      record(env, ctx, { accountId: account.id, actor, action: 'operator.accounts.viewed' });
+    }
+    return html(operatorSearchPage({ account, q, accounts, projects }));
+  }
+
   // ---------------------------------------------------------------- fleet
   if (url.pathname === '/operator/fleet' && request.method === 'GET') {
     const [projects, tenant] = await Promise.all([
@@ -417,6 +459,7 @@ export async function handleOperatorRoutes(
         account,
         board: assembleBoard({ projects, render: tenant.render }),
         projects,
+        need: String(url.searchParams.get('need') ?? '').slice(0, 40) || null,
       })
     );
   }

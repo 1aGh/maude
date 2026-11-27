@@ -21,11 +21,37 @@
 // shell's fleet section renders only for an allowlisted operator.
 
 import { FREE_TIME_DAYS } from './billing.mjs';
-import { appShell, icon, logLine, sheetActions, stat, statusWord, thumb, who } from './brand.mjs';
+import {
+  appShell,
+  avatar,
+  icon,
+  logLine,
+  sheetActions,
+  stat,
+  statusWord,
+  thumb,
+  who,
+} from './brand.mjs';
 import { changesView } from './changes.mjs';
+import { STATE_COPY } from './dashboard.mjs';
 import { operatorPlan } from './plan-copy.mjs';
+import { AUDIT_COPY, foldActivity } from './project-admin.mjs';
 import { PROMO_TIERS, promoTierLabel } from './promo.mjs';
 import { routineCount } from './routine-log.mjs';
+
+/** An audit action in words — the customer's own wording where there is one, never a dotted key. */
+export function actionWord(action) {
+  const a = String(action ?? '');
+  return (
+    AUDIT_COPY[a] ??
+    a
+      .replace(/^operator\./, '')
+      .replace(/[.-]+/g, ' ')
+      .replace(/^./, (c) => c.toUpperCase())
+  );
+}
+const timesMark = (e) =>
+  e.times > 1 ? ` <span class="ma-count ma-count--quiet">${e.times}×</span>` : '';
 
 // The page pieces are the shared ones (brand-css.mjs, canvas 16): stat tiles,
 // cards, tables, the log feed. Only what an operator page adds lives here.
@@ -197,12 +223,14 @@ function shell({
   actions = '',
   sheet = null,
   counts = {},
+  q = '',
 }) {
   return appShell({
     account,
     title,
     heading,
     body,
+    q,
     isOperator: true,
     counts,
     active,
@@ -280,14 +308,14 @@ export function operatorOverviewPage({
       // the real one is one click away.
       foot: `<span>${
         board.observedSpend === null
-          ? `no spend figure has ever been collected · model €${board.modelPerCellEur}/cell covers sync and builds`
+          ? 'no spend figure has ever been collected'
           : board.alarms.ok
             ? `cost ${ratio.toFixed(1)}× the €${board.modelPerCellEur}/cell model · ok`
             : statusWord(
                 'error',
                 `cost ${ratio.toFixed(1)}× the €${board.modelPerCellEur}/cell model`
               )
-      } · MRR (believed), derived from plan × state · <a href="${esc(stripeUrl)}">Stripe is the authority</a></span>`,
+      } · derived from plans · <a href="${esc(stripeUrl)}">Stripe is the authority</a></span>`,
     })
   );
   if (metrics?.coldStartP95Ms !== undefined && metrics?.coldStartP95Ms !== null) {
@@ -327,11 +355,11 @@ export function operatorOverviewPage({
       (a) =>
         `<div class="ma-alarm">${statusWord('error', 'Cost alarm')}<span>${esc(a.kind)} — ${esc(a.detail)}</span><span></span></div>`
     ),
+    // Every row opens Fleet with just those cells — a list you cannot click
+    // into is a list you have to read twice (owner, 2026-11-27).
     ...board.problems.map(
       (p) =>
-        `<div class="ma-alarm">${statusWord('warn', `${p.count} ${p.kind}`)}<span>${esc(p.detail ?? '')}${
-          p.ids.length ? ` — ${esc(p.ids.join(', '))}${p.count > p.ids.length ? ', …' : ''}` : ''
-        }</span><span></span></div>`
+        `<a class="ma-alarm ma-alarm--go" href="/operator/fleet?need=${encodeURIComponent(p.kind)}">${statusWord('warn', `${p.count} · ${KIND_WORD[p.kind] ?? p.kind}`)}<span>${esc(p.ids.slice(0, 4).join(', '))}${p.count > Math.min(4, p.ids.length) ? ` and ${p.count - Math.min(4, p.ids.length)} more` : ''}</span><span>${icon('chevron-r', 12)}</span></a>`
     ),
   ];
   const needs = card(
@@ -402,8 +430,15 @@ const KIND_WORD = {
  * @param {object} args.board  assembleBoard() output
  * @param {Array}  args.projects  listProjectsWithOwners() rows, for names and owners
  */
-export function operatorFleetPage({ account, board, projects = [], now = Date.now() }) {
+export function operatorFleetPage({
+  account,
+  board,
+  projects = [],
+  need = null,
+  now = Date.now(),
+}) {
   const byId = new Map(projects.map((p) => [p.id, p]));
+  const filter = need && Object.hasOwn(KIND_WORD, need) ? need : null;
   const problemsOf = new Map();
   for (const p of board.board.problems) {
     const list = problemsOf.get(p.id) ?? [];
@@ -412,13 +447,23 @@ export function operatorFleetPage({ account, board, projects = [], now = Date.no
   }
   const age = (v, unit) => (v === null || v === undefined ? 'never' : `${v} ${unit} ago`);
   const rows = board.board.rows
+    .filter((r) => !filter || (problemsOf.get(r.id) ?? []).some((w) => w.kind === filter))
     .map((r) => {
       const p = byId.get(r.id) ?? {};
       const wrong = problemsOf.get(r.id) ?? [];
       return `<tr>
         <td><a class="ma-who" href="/operator/projects/${esc(r.id)}">${thumb('ma-thumb--row')}<span class="ma-who-t"><strong>${esc(p.name || r.id)}</strong><span class="mono">${esc(r.id)}</span></span></a></td>
         <td class="ma-quiet">${ownerLink(p)}</td>
-        <td>${r.health === 'healthy' ? statusWord('ok', 'Healthy') : statusWord('error', String(r.health))}</td>
+        <td>${
+          r.health === 'healthy'
+            ? statusWord('ok', 'Healthy')
+            : r.health === 'unknown' || !r.health
+              ? statusWord('off', 'No report yet')
+              : statusWord(
+                  'error',
+                  String(r.health).replace(/^./, (c) => c.toUpperCase())
+                )
+        }</td>
         <td class="mono">${esc(r.version ?? '—')}${r.canary ? ' <small>canary</small>' : ''}</td>
         <td class="ma-quiet">${esc(age(r.checkpointAgeMinutes, 'min'))}</td>
         <td class="ma-quiet">${esc(age(r.drillAgeDays, 'days'))}</td>
@@ -459,6 +504,22 @@ export function operatorFleetPage({ account, board, projects = [], now = Date.no
     }`,
     counts: { fleet: count },
     body: `${
+      problemsOf.size
+        ? `<nav class="ma-chips" aria-label="Show"><a class="ma-chip" href="/operator/fleet"${filter ? '' : ' aria-current="page"'}>Every cell</a>${Object.keys(
+            KIND_WORD
+          )
+            .map((k) => [
+              k,
+              [...problemsOf.values()].filter((l) => l.some((w) => w.kind === k)).length,
+            ])
+            .filter(([, n]) => n)
+            .map(
+              ([k, n]) =>
+                `<a class="ma-chip" href="/operator/fleet?need=${encodeURIComponent(k)}"${filter === k ? ' aria-current="page"' : ''}>${esc(KIND_WORD[k])} <span class="ma-count">${n}</span></a>`
+            )
+            .join('')}</nav>`
+        : ''
+    }${
       fleetWide.length
         ? card('The whole fleet', `<div class="ma-feed">${fleetWide.join('\n')}</div>`)
         : ''
@@ -648,7 +709,7 @@ export function operatorAccountsPage({ account, accounts = [], q = '' }) {
     account,
     title: 'All accounts',
     active: 'operator-accounts',
-    lede: 'Who exists on the platform. Reading this list is itself recorded — a fleet-wide view of who our customers are is the break-glass, whatever it is called.',
+    lede: 'Every account on the platform. Opening this list is recorded.',
     actions: `<a class="btn btn--primary" href="/operator/new-project">${icon('plus', 14)}New project for an account</a>`,
     body: `<div class="ma-card ma-card--clip">
       <nav class="ma-tabs" aria-label="Accounts">
@@ -666,6 +727,50 @@ export function operatorAccountsPage({ account, accounts = [], q = '' }) {
         </table></div>`
           : note(q ? `No account matches “${esc(q)}”.` : 'No accounts yet.')
       }</div>`,
+  });
+}
+
+/**
+ * The operator's search (the nav's field): accounts by e-mail, name or id, and
+ * projects by name or id with their owner — one page, two groups, each row
+ * opening the operator page for it.
+ */
+export function operatorSearchPage({ account, q = '', accounts = [], projects = [] }) {
+  const needle = String(q).trim().toLowerCase();
+  const mark = (t) => {
+    const text = String(t ?? '');
+    const i = needle ? text.toLowerCase().indexOf(needle) : -1;
+    return i < 0
+      ? esc(text)
+      : `${esc(text.slice(0, i))}<mark>${esc(text.slice(i, i + needle.length))}</mark>${esc(text.slice(i + needle.length))}`;
+  };
+  const group = (title, rows) =>
+    rows.length
+      ? `<section class="ma-card ma-card--clip"><h2 class="ma-card-h">${esc(title)} <small>${rows.length}</small></h2>${rows.join('')}</section>`
+      : '';
+  const body = !needle
+    ? `<div class="ma-card">${note('Type an e-mail, a name, a project or an id.')}</div>`
+    : accounts.length + projects.length === 0
+      ? `<div class="ma-card ma-empty"><p><strong>Nothing matches “${esc(q)}”.</strong></p></div>`
+      : `<div class="ma-results">${group(
+          'Accounts',
+          accounts.map(
+            (a) =>
+              `<a class="ma-hit" href="/operator/accounts/${esc(a.id)}">${avatar(String(a.name ?? '').trim() || a.email, { seed: a.email })}<span class="ma-who-t"><strong>${mark(String(a.name ?? '').trim() || a.email)}</strong><span>${mark(a.email)} · ${num(a.projects ?? 0)} ${Number(a.projects) === 1 ? 'project' : 'projects'}</span></span><span class="ma-hit-k">Open</span></a>`
+          )
+        )}${group(
+          'Projects',
+          projects.map(
+            (p) =>
+              `<a class="ma-hit" href="/operator/projects/${esc(p.id)}">${thumb('ma-thumb--row')}<span class="ma-who-t"><strong>${mark(p.name || p.id)}</strong><span>${mark(p.id)} · ${esc(p.owner_email ?? '')}</span></span><span class="ma-hit-k">${esc(STATE_COPY[p.state]?.label ?? String(p.state ?? ''))}</span></a>`
+          )
+        )}</div>`;
+  return shell({
+    account,
+    title: needle ? `Results for “${q}”` : 'Search',
+    active: 'operator-search',
+    q,
+    body,
   });
 }
 
@@ -985,11 +1090,15 @@ export function operatorAccountPage({
           : /project|create|move/.test(action)
             ? 'folder'
             : 'pulse';
-  const feed = entries
+  const feed = foldActivity(entries)
     .map((e) =>
       logLine({
         glyph: GLYPH(String(e.action)),
-        body: `<strong>${esc(String(e.actor).replace(/^operator:/, ''))}</strong> <span>${esc(e.action)}${e.project_id ? ` · ${esc(e.project_id)}` : ''}</span>${e.reason ? `<br><span class="op-ev-r">${esc(e.reason)}</span>` : ''}`,
+        body: `<strong>${esc(
+          String(e.actor)
+            .replace(/^operator:/, '')
+            .replace(/^customer:/, '')
+        )}</strong> <span>${esc(actionWord(e.action))}${e.project_id ? ` · ${esc(e.project_id)}` : ''}</span>${timesMark(e)}${e.reason ? `<br><span class="op-ev-r">${esc(e.reason)}</span>` : ''}`,
         when: ago(e.at, now),
       })
     )
@@ -1323,7 +1432,7 @@ export function operatorProjectPage({
 
   // The log renders the REASON of every entry, which the customer-facing page
   // did not until this phase — and an em-dash where there is none.
-  const logFeed = entries
+  const logFeed = foldActivity(entries)
     .map((e) =>
       logLine({
         glyph: /free|promo|trial/.test(String(e.action))
@@ -1331,7 +1440,11 @@ export function operatorProjectPage({
           : /people|invite|access/.test(String(e.action))
             ? 'people'
             : 'pulse',
-        body: `<strong>${esc(String(e.actor).replace(/^operator:/, ''))}</strong> <span>${esc(e.action)}${esc(routineCount(e))}</span><br><span class="op-ev-r">Reason: ${esc(e.reason ?? '—')}</span>`,
+        body: `<strong>${esc(
+          String(e.actor)
+            .replace(/^operator:/, '')
+            .replace(/^customer:/, '')
+        )}</strong> <span>${esc(actionWord(e.action))}${esc(routineCount(e))}</span>${timesMark(e)}${e.reason ? `<br><span class="op-ev-r">Reason: ${esc(e.reason)}</span>` : ''}`,
         when: ago(e.at, now),
       })
     )

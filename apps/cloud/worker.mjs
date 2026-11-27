@@ -75,6 +75,7 @@ import { mintingConfigured, mintTenantCredentials } from './r2-creds.mjs';
 import { SUSPEND_RETENTION_DAYS, settle } from './reconcile.mjs';
 import { handleReport } from './report.mjs';
 import { SCHEMA_SQL } from './schema.mjs';
+import { handleSearch } from './search.mjs';
 import { projectRefFromEvent, verifyStripeSignature } from './stripe-webhook.mjs';
 
 // The main module exports only handlers (the default object, functions):
@@ -309,6 +310,10 @@ export default {
     // forward, the per-account switch, and the unsubscribe link.
     const mentionSurface = await handleMentionRoutes(request, env, { account });
     if (mentionSurface) return mentionSurface;
+
+    // Search (the nav's field): a page of what this person may already open.
+    const searchSurface = await handleSearch(request, env, { account });
+    if (searchSurface) return searchSurface;
 
     // Identity surface (pages, signup/login, Google, grant mint) — Phase 13.
     const auth = await handleAuth(request, env, { ctx, account });

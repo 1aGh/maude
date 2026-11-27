@@ -153,15 +153,17 @@ export async function startStack({ log = () => {}, verbose = false } = {}) {
   const bundleDir = join(root, 'bundle');
   mkdirSync(bundleDir, { recursive: true });
   log('bundling apps/cloud (wrangler deploy --dry-run)');
-  execFileSync(
-    join(REPO, 'node_modules/.pnpm/node_modules/.bin/wrangler'),
-    ['deploy', '--dry-run', '--outdir', bundleDir],
-    {
-      cwd: join(REPO, 'apps/cloud'),
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, WRANGLER_SEND_METRICS: 'false', CI: 'true' },
-    }
-  );
+  const bundle = () =>
+    execFileSync(
+      join(REPO, 'node_modules/.pnpm/node_modules/.bin/wrangler'),
+      ['deploy', '--dry-run', '--outdir', bundleDir],
+      {
+        cwd: join(REPO, 'apps/cloud'),
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, WRANGLER_SEND_METRICS: 'false', CI: 'true' },
+      }
+    );
+  bundle();
 
   // ----------------------------------------------------------- the stand-ins
   /** Captured e-mail: { to, subject, text, at }. */
@@ -578,6 +580,12 @@ export async function startStack({ log = () => {}, verbose = false } = {}) {
     await mf.setOptions(mfOptions(bindings));
     await mf.ready;
   }
+  /** Re-bundle apps/cloud from the working tree and restart the Worker (cloud-serve's /rebuild). */
+  async function rebuild() {
+    bundle();
+    await mf.setOptions(mfOptions(bindings));
+    await mf.ready;
+  }
 
   // ---------------------------------------------------------------- the edge
   const certDir = join(root, 'tls');
@@ -844,6 +852,7 @@ export async function startStack({ log = () => {}, verbose = false } = {}) {
     cron,
     d1,
     setOperators,
+    rebuild,
     stopCell,
     stop,
     /** The derived secret a cell presents to the control plane (and vice versa). */

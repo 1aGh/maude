@@ -323,7 +323,45 @@ try {
   const op = await signUp('operator', 'Michal');
   await stack.setOperators([op.id]);
 
-  if (process.argv.includes('--crawl')) {
+  if (process.argv.includes('--serve')) {
+    // Keep the seeded stack up for clicking through by hand (or in a browser pane):
+    // test accounts all share PASSWORD; POST /rebuild re-bundles apps/cloud from the tree.
+    const { createServer } = await import('node:http');
+    const info = {
+      cloud: C,
+      edgePort: stack.edgePort,
+      password: PASSWORD,
+      owner: michal.email,
+      member: p.anna.email,
+      operator: op.email,
+      kolar: kolar.email,
+      kolarId: kolar.id,
+      projects: ids,
+    };
+    const ctl = createServer(async (req, res) => {
+      const send = (v, status = 200) => {
+        res.writeHead(status, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(v, null, 2));
+      };
+      try {
+        if (req.url === '/rebuild') return send({ ok: true, done: await stack.rebuild() });
+        if (req.url === '/info') return send(info);
+        if (req.url === '/mail') return send(stack.mail.slice(-20));
+        send({ error: 'unknown' }, 404);
+      } catch (err) {
+        send({ error: String(err?.stack ?? err) }, 500);
+      }
+    });
+    await new Promise((ok) => ctl.listen(0, '127.0.0.1', ok));
+    info.control = `http://127.0.0.1:${ctl.address().port}`;
+    if (process.env.CLOUD_SERVE_INFO)
+      writeFileSync(process.env.CLOUD_SERVE_INFO, JSON.stringify(info, null, 2), { mode: 0o600 });
+    say(`[serve] ${JSON.stringify(info)}`);
+    await new Promise((ok) => {
+      process.on('SIGINT', ok);
+      process.on('SIGTERM', ok);
+    });
+  } else if (process.argv.includes('--crawl')) {
     const who = [
       ['owner', michal.email, ['/', '/projects', '/account']],
       ['member', p.anna.email, ['/', '/projects', '/account']],

@@ -695,7 +695,9 @@ async function submitInBrowser(_p, b, { label, action, click, done }) {
   check(
     `${label}: the form is accepted when submitted from a real browser`,
     accepted,
-    accepted ? s.url : `Chromium POST ${action} → “${s.text.trim().slice(0, 120)}”`
+    accepted
+      ? s.url
+      : `Chromium POST ${action} → ${s.url} “${(s.text.match(/[^.]*(?:Nothing was changed|not on|could not|not yours|refused|Not allowed)[^.]*\./i)?.[0] ?? s.text.trim().slice(0, 120)).trim()}”`
   );
   return { ...s, ok: accepted };
 }
@@ -2656,8 +2658,9 @@ scenarios.C9 = {
       await count('handoff_codes'),
     ];
     check(
-      'a POST under the view is 405; pages that open the project or hand out a credential are not in it',
-      viewPost.status === 405 && closed.every((r) => r.status === 404),
+      'a POST under the view is 405; pages that open the project or hand out a credential are a closed door in it',
+      viewPost.status === 405 &&
+        closed.every((r) => r.status === 200 && /Not part of the read-only view/.test(r.text)),
       `POST → ${viewPost.status}; ${closed.map((r) => r.status).join(' ')}`
     );
     check(

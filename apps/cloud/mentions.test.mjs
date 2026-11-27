@@ -143,7 +143,7 @@ describe('POST /internal/mentions — who gets an e-mail', () => {
     assert.equal(m.subject, 'Jonas mentioned you in Alligators brand');
     assert.match(m.text, /A4 plakat/);
     assert.match(m.text, /Mrkni prosím na datum, je pořád malé\./);
-    assert.match(m.text, /Change which e-mails you get in Settings › General\./);
+    assert.match(m.text, /Change which e-mails you get in Settings › Notifications\./);
     assert.match(m.text, /https:\/\/cloud\.test\/projects\/alligators\/connect\?canvas=/);
     assert.match(m.text, /thread=c_9f2a/);
     assert.ok(unsubLink(m.text), 'carries its own unsubscribe link');
@@ -326,7 +326,7 @@ describe('POST /internal/mentions — only the project’s own cell', () => {
   });
 });
 
-describe('preferences — Settings › General links here', () => {
+describe('preferences — Settings › Notifications links here', () => {
   const page = (env, session, init = {}) =>
     worker.fetch(
       new Request(`https://cloud.test${EMAIL_PREFS_PATH}`, {
@@ -432,7 +432,7 @@ describe('the unsubscribe link', () => {
     const res = await confirm();
     assert.equal(res.status, 200);
     assert.equal(res.headers.get('set-cookie'), null, 'no session is minted');
-    assert.match(await res.text(), /Settings › General/);
+    assert.match(await res.text(), /Settings › Notifications/);
     assert.equal(await mentionEmailsOn(env.DB, ana.id), false);
     const again = await confirm();
     assert.equal(again.status, 410);

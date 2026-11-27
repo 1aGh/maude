@@ -1933,9 +1933,85 @@ body.service-page .button {
     max-width: none;
   }
 }
+/* Motion: a view rises in when its tab is chosen, a sheet slides in from the
+   right, menus drop in, and cards, rows and tabs answer the pointer. All of
+   it collapses under prefers-reduced-motion. */
+/* The rise moves `top` on a relative box, never `transform`: a transform makes
+   the view a containing block for any position:fixed child inside it. */
+@keyframes ma-rise {
+  from {
+    opacity: 0;
+    top: 6px;
+  }
+  to {
+    opacity: 1;
+    top: 0;
+  }
+}
+@keyframes ma-slide {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ma-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+#dash .view:not([hidden]) {
+  position: relative;
+  animation: ma-rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+#onboard:not([hidden]),
+#bootstrap:not([hidden]),
+#member:not([hidden]) {
+  position: relative;
+  animation: ma-rise 260ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+dialog.ma-sheet[open] {
+  animation: ma-slide 240ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+dialog.ma-sheet[open]::backdrop {
+  animation: ma-fade 200ms ease-out backwards;
+}
+.menu-list,
+details[open] > .menu-list {
+  animation: ma-fade 140ms ease-out backwards;
+}
+.ma-card,
+.ma-stat,
+.ma-tab,
+.nav-item,
+.ma-table tbody tr,
+.ma-need,
+.ma-mrole {
+  transition:
+    background-color 140ms ease-out,
+    box-shadow 160ms ease-out,
+    color 140ms ease-out,
+    transform 160ms ease-out;
+}
+a.ma-stat:hover,
+button.ma-stat:hover {
+  transform: translateY(-1px);
+}
 @media (prefers-reduced-motion: reduce) {
   .btn,
   .input {
     transition: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
   }
 }

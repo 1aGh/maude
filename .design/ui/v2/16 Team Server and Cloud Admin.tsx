@@ -7,7 +7,7 @@
  * @history     .design/_history/ui-v2-16_team_server_and_cloud_admin
  * @artboards   ts-overview | ts-people | ts-invitee | ts-settings |
  *              ts-person | ts-activity | cl-account | cl-people | cl-operator | cl-op-account |
- *              cl-settings | cl-project-people | cl-op-fleet
+ *              cl-settings | cl-project-people | cl-op-fleet | cl-project-settings | cl-new-project
  * @brief       "udelej redesign hub admin cell ale i hub cloud.maude dashboard … zvani uzivatelu je celkem komplikovane
  *              a matouci. Musi se tam prihlasit, pak ja to musim potvrdit a pak stejne potrebuji vygenerovany token aby si
  *              napojili repo … V cloud maude dashboard bych zase rad videl vic statistik a taky moznost masaz members a
@@ -67,7 +67,9 @@ function Browser({ host, path = "", children }: { host: string; path?: string; c
 }
 
 type NavTab = { label: string; count?: number; quiet?: boolean };
-function Nav({ name, place, tabs, current, me, tag, op = false, ini, tone }: { ini?: string; tone?: Tone; op?: boolean; name: string; place: string; tabs: NavTab[]; current: string; me: string; tag?: ReactNode }) {
+// Maude Cloud's pages ship no script (its privacy notice says so), so its search is a page and has no ⌘K;
+// the team server's admin is an app and keeps the shortcut. `kbd={false}` — every cloud and operator nav.
+function Nav({ name, place, tabs, current, me, tag, op = false, ini, tone, kbd = true, hint = "Search" }: { ini?: string; tone?: Tone; op?: boolean; kbd?: boolean; hint?: string; name: string; place: string; tabs: NavTab[]; current: string; me: string; tag?: ReactNode }) {
   return (
     <nav className={`island ad-nav${op ? " ad-nav--op" : ""}`} aria-label={name}>
       <span className="ad-nav-id"><Mark size={24} />{name}<small>{place}</small>{tag}</span>
@@ -79,7 +81,7 @@ function Nav({ name, place, tabs, current, me, tag, op = false, ini, tone }: { i
         ))}
       </span>
       <span className="ad-nav-sp" />
-      <span className="ad-nav-search"><Icon name="search" size={14} />Search<Kbd>⌘K</Kbd></span>
+      <span className="ad-nav-search"><Icon name="search" size={14} />{op ? "Accounts, projects, e-mail" : hint}{kbd && !op ? <Kbd>⌘K</Kbd> : null}</span>
       <span className="ad-nav-me">{ini ? <Avatar ini={ini} tone={tone ?? "grey"} /> : <Avatar who="you" />}{me}</span>
     </nav>
   );
@@ -176,7 +178,7 @@ function PickOpt({ on, title, sub }: { on?: boolean; title: string; sub: string 
 
 /* ═══ Cloud pieces ══════════════════════════════════════════════════════════════════════════ */
 const CL_TABS: NavTab[] = [{ label: "Overview" }, { label: "Projects" }, { label: "People", count: 3 }, { label: "Settings" }];
-const CL = { name: "Maude Cloud", place: "StudyFi", me: "Michal · Owner" };
+const CL = { name: "Maude Cloud", place: "StudyFi", me: "Michal · Owner", kbd: false, hint: "Projects, people, settings" };
 
 type Proj = { name: string; art: Art; people: { ini: string; tone: Tone }[]; canvases: number; edits: string; state: ReactNode };
 const PROJECTS: Proj[] = [
@@ -639,6 +641,12 @@ export default function TeamServerAndCloudAdmin() {
                     <div className="ad-need"><Avatar ini="R" tone="grey" size="lg" /><span className="ad-need-t"><strong>radek@alligators.cz · Alligators brand</strong><span>Can comment · sent 6 days ago, works 1 more</span></span><span className="ad-need-a"><span className="btn btn--ghost btn--sm">Cancel invite</span><span className="btn btn--sm">Send again</span></span></div>
                   </div>
                 </div>
+                <nav className="ad-chips" aria-label="Which project">
+                  <span className="ad-chip-p" aria-current="page">All projects</span>
+                  {([["Alligators brand", 5], ["StudyFi app", 4], ["Marketing site", 3], ["Pricing tests", 2]] as [string, number][]).map(([n, c]) => (
+                    <span key={n} className="ad-chip-p">{n} <span className="ad-count ad-count--quiet">{c}</span></span>
+                  ))}
+                </nav>
                 <div className="ad-card">
                   <div className="ad-tabs">
                     <span className="ad-tab" aria-pressed="true">Everyone <span className="ad-count">12</span></span>
@@ -1033,60 +1041,73 @@ export default function TeamServerAndCloudAdmin() {
 
       {/* ── 4 · One way to move around ─────────────────────────────────────────────────────── */}
       <DCSection id="nav" title="One way to move around — the nav on top, one tab strip under the title" subtitle="Settings and every page about one project use the same strip under the page title, so a page never switches between a side list and a row of tabs; the operator's Fleet is a tab of its own">
-        <DCArtboard id="cl-settings" label="16 · Settings — one strip for the whole account" width={W} height={H} fixed>
-          <Stage note={<Note n={16} title="Settings is a nav tab for everyone.">Account, Billing and plan, Your Macs, E-mails, Download everything and Delete sit in one strip under the title, the same on every Settings page. People and invites joins the strip only for someone who owns no project — an owner has People in the nav already.</Note>}>
-            <Browser host="cloud.maude.sh" path="/account/billing">
+        <DCArtboard id="cl-settings" label="16 · Settings — one page of cards, the way the team server's are" width={W} height={H} fixed>
+          <Stage note={<Note n={16} title="Settings is one page, a card per area.">Lifted from ts-settings: each card says its state and has one action; the detail page sits behind it and says Settings › above its title. Billing is not an account thing — the account is free, a project has a plan — so the card is Plans. E-mails became Notifications and Your Macs became Devices: Mac, Windows or Linux.</Note>}>
+            <Browser host="cloud.maude.sh" path="/account">
               <Nav {...CL} tabs={CL_TABS} current="Settings" />
               <div className="ad-main">
-                <div className="ad-head"><div><h1 className="ad-h1">Billing and plan</h1><p className="ad-sub">Your free trial, and the plan of each project you own.</p></div></div>
-                <nav className="ad-ptabs" aria-label="Settings">
-                  {["Account", "Billing and plan", "Your Macs", "E-mails", "Download everything"].map((t) => (
-                    <span key={t} className="ad-tab" aria-current={t === "Billing and plan" ? "page" : undefined}>{t}</span>
-                  ))}
-                  <span className="ad-tab ad-tab--danger">Delete the account</span>
-                </nav>
-                <div className="ad-card ad-card--pad ad-plan-card">
-                  <h2 className="ad-card-h">Alligators brand</h2>
-                  <p>Project · €29 a month · card ok</p>
-                  <span className="ad-link">Billing details and invoices for Alligators brand</span>
+                <div className="ad-head"><div><h1 className="ad-h1">Settings</h1></div></div>
+                <div className="ad-set">
+                  <div className="ad-card">
+                    <span className="ad-set-h"><Icon name="people" size={16} />Account</span>
+                    <dl className="ad-kv"><dt>E-mail</dt><dd>michal@studyfi.com</dd><dt>Name</dt><dd>StudyFi</dd><dt>Free trial</dt><dd>12 days left</dd></dl>
+                    <span className="ad-head-a"><span className="btn btn--sm">Sign out</span></span>
+                  </div>
+                  <div className="ad-card">
+                    <span className="ad-set-h"><Icon name="export" size={16} />Plans<StatusWord state="ok">5 projects</StatusWord></span>
+                    <span className="ad-sub" style={{ margin: 0 }}>The account is free. Each project you own has its own plan.</span>
+                    <div>
+                      {([["Alligators brand", "Project · €29", "ok"], ["Onboarding", "Promo from Maude · free", "ok"], ["Pricing tests", "Free trial · 9 days left", "warn"]] as [string, string, "ok" | "warn"][]).map(([n, l, st]) => (
+                        <div key={n} className="ad-adv-row"><span>{n}</span><StatusWord state={st}>{l}</StatusWord></div>
+                      ))}
+                    </div>
+                    <span className="ad-head-a"><span className="btn btn--sm">All 5 plans</span></span>
+                  </div>
+                  <div className="ad-card">
+                    <span className="ad-set-h"><Icon name="pulse" size={16} />Notifications<StatusWord state="ok">E-mails on</StatusWord></span>
+                    <span className="ad-sub" style={{ margin: 0 }}>An e-mail when someone mentions you while Maude is closed.</span>
+                    <span className="ad-head-a"><span className="btn btn--sm">Change</span></span>
+                  </div>
+                  <div className="ad-card">
+                    <span className="ad-set-h"><Icon name="laptop" size={16} />Devices<StatusWord state="ok">3 signed in</StatusWord></span>
+                    <div>
+                      <div className="ad-adv-row"><span>MacBook Pro · Michal</span><span className="ad-quiet">used now</span></div>
+                      <div className="ad-adv-row"><span>ThinkPad · Windows</span><span className="ad-quiet">used yesterday</span></div>
+                    </div>
+                    <span className="ad-head-a"><span className="btn btn--sm">Manage devices</span></span>
+                  </div>
+                  <div className="ad-card">
+                    <span className="ad-set-h"><Icon name="file" size={16} />Your data</span>
+                    <span className="ad-sub" style={{ margin: 0 }}>Every project you own as a .zip of its whole history, and one file about your account.</span>
+                    <span className="ad-head-a"><span className="btn btn--sm">Download everything</span></span>
+                  </div>
+                  <div className="ad-card ad-card--danger">
+                    <span className="ad-set-h"><Icon name="close" size={16} />Delete the account</span>
+                    <span className="ad-sub" style={{ margin: 0 }}>Delete your projects first — each one offers its download before it goes.</span>
+                    <span className="ad-head-a"><span className="btn btn--ghost btn--sm">Delete the account…</span></span>
+                  </div>
                 </div>
-                <div className="ad-card ad-card--pad ad-plan-card">
-                  <h2 className="ad-card-h">Onboarding <span className="ad-promo">Promo</span></h2>
-                  <p>Promo from Maude · free · never ends</p>
-                  <span className="ad-link">Billing details and invoices for Onboarding</span>
-                </div>
-                <div className="ad-card ad-card--pad ad-plan-card">
-                  <h2 className="ad-card-h">Pricing tests</h2>
-                  <p>Free trial · 9 days left · free until 4 Dec</p>
-                  <span className="ad-pick" role="radiogroup" style={{ marginBottom: "var(--space-3)" }}>
-                    <PickOpt on title="Project · €29" sub="One isolated workspace per project" />
-                    <PickOpt title="Dedicated · €129" sub="Pinned instance, custom domain, region, priority support" />
-                  </span>
-                  <span className="ad-head-a"><span className="btn btn--primary">Choose a plan</span></span>
-                </div>
-                <p className="ad-sub">Payment details are handled by Stripe. Each project has its own plan.</p>
               </div>
             </Browser>
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="cl-project-people" label="17 · One project — its own strip, People first for the owner" width={W} height={H} fixed>
-          <Stage note={<Note n={17} title="A project's pages share one strip.">Open, People, Billing, GitHub copy, Saving, Activity, Download everything — Delete last, in red. A member sees Open, People, Activity and Download only. People adds by email with a role, changes a role in place, and keeps unopened invites below with Send again and Cancel.</Note>}>
+        <DCArtboard id="cl-project-people" label="17 · One project — four doors: Open, People, Activity, Settings" width={W} height={H} fixed>
+          <Stage note={<Note n={17} title="Four doors, never eight.">The strip says what a project is — open it, who is on it, what happened — and Settings holds what you set: plan, GitHub copy, saving, the download and deleting, one card each (19). A member sees Open, People and Activity. People adds by e-mail with a role, changes a role in place, and keeps unopened invites below.</Note>}>
             <Browser host="cloud.maude.sh" path="/projects/alligators/people">
               <Nav {...CL} tabs={CL_TABS} current="Projects" />
               <div className="ad-main">
                 <p className="ad-crumb"><b>Projects</b> › Alligators brand</p>
-                <div className="ad-head"><div><span className="ad-h1-row"><h1 className="ad-h1">People</h1><StatusWord state="ok">Ready</StatusWord></span><p className="ad-sub">Who is on Alligators brand, and what each person can do.</p></div></div>
+                <div className="ad-head"><div><span className="ad-h1-row"><h1 className="ad-h1">People</h1><StatusWord state="ok">Ready</StatusWord></span></div></div>
                 <nav className="ad-ptabs" aria-label="Alligators brand">
-                  {["Open", "People", "Billing", "GitHub copy", "Saving", "Activity", "Download everything"].map((t) => (
+                  {["Open", "People", "Activity", "Settings"].map((t) => (
                     <span key={t} className="ad-tab" aria-current={t === "People" ? "page" : undefined}>{t}</span>
                   ))}
-                  <span className="ad-tab ad-tab--danger">Delete project…</span>
                 </nav>
                 <div className="ad-card ad-card--pad" style={{ marginBottom: "var(--space-4)" }}>
                   <h2 className="ad-card-h" style={{ padding: "0 0 var(--space-3)" }}>Add someone</h2>
                   <div className="ad-addrow"><span className="ad-in ad-in--ph">their email</span><span className="ad-sel" style={{ width: 300 }}>Can edit — change the designs<Icon name="chevron" size={12} /></span><span className="btn btn--primary">Send invitation</span></div>
-                  <p className="ad-sub" style={{ marginTop: "var(--space-3)" }}>They get an email with a link. Without a Maude account yet, the link makes one.</p>
+                  <p className="ad-sub" style={{ marginTop: "var(--space-3)" }}>They get an e-mail with a link — it makes them an account if they need one.</p>
                 </div>
                 <div className="ad-card" style={{ marginBottom: "var(--space-4)" }}>
                   <table className="ad-table">
@@ -1144,6 +1165,80 @@ export default function TeamServerAndCloudAdmin() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </Browser>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="cl-project-settings" label="19 · One project's Settings — plan, GitHub copy, saving, download, delete" width={W} height={H} fixed>
+          <Stage note={<Note n={19} title="The same cards, one level down.">What an owner sets about ONE project, a card each with its state and one action, read from the project's record alone — so it opens even while the workspace sleeps. Each card's page (Billing, GitHub copy…) says Projects › Alligators brand › Settings above its title and lights Settings on the strip.</Note>}>
+            <Browser host="cloud.maude.sh" path="/projects/alligators/settings">
+              <Nav {...CL} tabs={CL_TABS} current="Projects" />
+              <div className="ad-main">
+                <p className="ad-crumb"><b>Projects</b> › Alligators brand</p>
+                <div className="ad-head"><div><span className="ad-h1-row"><h1 className="ad-h1">Settings</h1><StatusWord state="ok">Ready</StatusWord></span></div></div>
+                <nav className="ad-ptabs" aria-label="Alligators brand">
+                  {["Open", "People", "Activity", "Settings"].map((t) => (
+                    <span key={t} className="ad-tab" aria-current={t === "Settings" ? "page" : undefined}>{t}</span>
+                  ))}
+                </nav>
+                <div className="ad-set">
+                  <div className="ad-card">
+                    <span className="ad-set-h"><Icon name="export" size={16} />Plan<StatusWord state="ok">Project · €29</StatusWord></span>
+                    <span className="ad-sub" style={{ margin: 0 }}>This project's plan, its card and its invoices. Payment details stay with Stripe.</span>
+                    <span className="ad-head-a"><span className="btn btn--sm">Plan and billing</span></span>
+                  </div>
+                  <div className="ad-card">
+                    <span className="ad-set-h"><Icon name="link" size={16} />Copy to GitHub<StatusWord state="ok">On</StatusWord></span>
+                    <span className="ad-sub" style={{ margin: 0 }}>Copied to <b>alligators/brand</b>, branch main.</span>
+                    <span className="ad-head-a"><span className="btn btn--sm">Change</span></span>
+                  </div>
+                  <div className="ad-card">
+                    <span className="ad-set-h"><Icon name="sync" size={16} />Saving</span>
+                    <span className="ad-sub" style={{ margin: 0 }}>Confirmed revisions with a history and personal undo, or the classic shared copy.</span>
+                    <span className="ad-head-a"><span className="btn btn--sm">See how it saves</span></span>
+                  </div>
+                  <div className="ad-card">
+                    <span className="ad-set-h"><Icon name="file" size={16} />Download everything</span>
+                    <span className="ad-sub" style={{ margin: 0 }}>The whole project and its history as a .zip — in every state, also after a plan ends.</span>
+                    <span className="ad-head-a"><span className="btn btn--sm">Download</span></span>
+                  </div>
+                  <div className="ad-card ad-card--danger" style={{ gridColumn: "1 / -1" }}>
+                    <span className="ad-set-h"><Icon name="close" size={16} />Delete the project</span>
+                    <span className="ad-sub" style={{ margin: 0 }}>It is offered for download first. Everyone on it loses access.</span>
+                    <span className="ad-head-a"><span className="btn btn--ghost btn--sm">Delete Alligators brand…</span></span>
+                  </div>
+                </div>
+              </div>
+            </Browser>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="cl-new-project" label="20 · Start a project — three answers, not a cockpit" width={W} height={H} fixed>
+          <Stage note={<Note n={20} title="A name, a plan, monthly or annual.">One column. The plans are two rows with their price; the billing rhythm is a segmented control. What a buyer must know before a card form — a Mac or a PC and their own Claude subscription — is one tinted line above the button, never folded away, and the Terms sit above the button too.</Note>}>
+            <Browser host="cloud.maude.sh" path="/projects/new">
+              <Nav {...CL} tabs={CL_TABS} current="Projects" />
+              <div className="ad-main">
+                <p className="ad-crumb"><b>Projects</b></p>
+                <div className="ad-head"><div><h1 className="ad-h1">Start a project</h1><p className="ad-sub">The first 14 days are free. Nothing is charged today.</p></div></div>
+                <div className="ad-np">
+                  <div className="ad-card ad-card--pad ad-np-card">
+                    <span className="ad-np-l">Name</span>
+                    <span className="ad-in ad-in--focus">Novaková — identita 2027<i className="ad-caret" style={{ marginLeft: 2 }} /></span>
+                    <span className="ad-quiet" style={{ fontSize: "var(--type-xs)" }}>One project is one workspace: its own address, people and design system.</span>
+                  </div>
+                  <div className="ad-card ad-card--pad ad-np-card">
+                    <span className="ad-np-l">Plan</span>
+                    <span className="ad-pick" role="radiogroup">
+                      <PickOpt on title="Cloud Project · €19 / month" sub="One isolated workspace per project" />
+                      <PickOpt title="Dedicated · €99 / month" sub="Pinned instance, custom domain, region pinning, priority support" />
+                    </span>
+                    <span className="seg ad-seg" style={{ maxWidth: 420 }}><span className="ad-seg-b" aria-pressed="true">Monthly</span><span className="ad-seg-b">Annual — two months free</span></span>
+                  </div>
+                  <div className="ad-promise"><Icon name="laptop" size={14} /><span><b>What you'll need:</b> a Mac or a PC with the free Maude app, and your own Claude subscription — about €20 a month, paid to Anthropic, not to Maude.</span></div>
+                  <span className="ad-quiet" style={{ fontSize: "var(--type-xs)" }}>By continuing you agree to the Terms and the Privacy notice. Stripe adds your country's VAT and shows the total next.</span>
+                  <span><span className="btn btn--primary btn--lg">Continue to payment details</span></span>
                 </div>
               </div>
             </Browser>

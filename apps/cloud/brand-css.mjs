@@ -472,6 +472,9 @@ export const AD_CSS = `
   .ma-alarm .k-sw { min-width: 92px; }
   .ma-alarm > span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .ma-alarm > span:last-child { margin-left: auto; font-size: var(--type-xs); color: var(--fg-2); white-space: nowrap; }
+  a.ma-alarm--go { color: var(--fg-0); transition: background-color 140ms ease-out; }
+  a.ma-alarm--go:hover { background: var(--bg-3); text-decoration: none; }
+  a.ma-alarm--go > span:last-child { color: var(--fg-3); }
 
   .ma-promo { display: inline-flex; align-items: center; gap: var(--space-1); height: 22px; padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--accent-muted); color: var(--accent-text); font-size: var(--type-xs); font-weight: var(--weight-semibold); white-space: nowrap; }
   .ma-promo-l { font-size: var(--type-xs); font-weight: var(--weight-semibold); color: var(--fg-1); }
@@ -489,10 +492,94 @@ export const AD_CSS = `
   .ma-web-s { margin: 0; font-size: var(--type-sm); color: var(--fg-1); }
   .ma-web-fine { margin-top: var(--space-2); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); text-align: center; }
 
+  /* ---- Settings: one page of cards (canvas 16, ts-settings) — a card is one
+     area with its state word and one or two actions; detail pages sit behind it. */
+  .ma-set { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: stretch; }
+  .ma-set > .ma-card { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); }
+  .ma-set > .ma-card--wide { grid-column: 1 / -1; }
+  .ma-set-h { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-family: var(--font-body); font-size: var(--type-base); line-height: var(--lh-base); font-weight: var(--weight-semibold); }
+  .ma-set-h .k-ic { color: var(--fg-1); }
+  .ma-set-h .k-sw { margin-left: auto; font-weight: var(--weight-regular); }
+  .ma-set-p { margin: 0; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+  .ma-set-a { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: auto; padding-top: var(--space-1); }
+  .ma-set-a form { margin: 0; }
+  .ma-set .ma-kv { grid-template-columns: 9rem 1fr; }
+  .ma-set .ma-kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .ma-set-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+  .ma-set-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); max-width: none; padding: var(--space-2) 0; font-size: var(--type-sm); box-shadow: inset 0 -0.5px 0 var(--border-subtle); }
+  .ma-set-list li:last-child { box-shadow: none; }
+  .ma-set-list a { color: var(--fg-0); font-weight: var(--weight-medium); }
+  .ma-card--danger .ma-set-h { color: var(--status-error-text); }
+  .ma-card--danger .ma-set-h .k-ic { color: var(--status-error-text); }
+  .ma-crumb a { color: var(--accent-text); }
+  .ma-back { display: inline-flex; align-items: center; gap: var(--space-1); }
+
+  /* ---- Search results: the nav's field answers with a page of hits */
+  .ma-results { display: flex; flex-direction: column; gap: var(--space-4); }
+  .ma-hit { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); box-shadow: inset 0 0.5px 0 var(--border-subtle); color: var(--fg-0); font-size: var(--type-sm); }
+  .ma-hit:first-of-type { box-shadow: none; }
+  a.ma-hit:hover { background: var(--bg-3); text-decoration: none; }
+  .ma-hit .ma-who-t { flex: 1; min-width: 0; }
+  .ma-hit mark { background: color-mix(in oklch, var(--accent) 22%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+  .ma-hit-k { font-size: var(--type-xs); color: var(--fg-2); white-space: nowrap; }
+
+  /* ---- People: which project — a row of project chips above the table */
+  .ma-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-4); }
+  .ma-chip { display: inline-flex; align-items: center; gap: var(--space-2); height: 30px; padding: 0 var(--space-3); border-radius: var(--radius-pill); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); font-size: var(--type-sm); color: var(--fg-1); white-space: nowrap; }
+  .ma-chip:hover { color: var(--fg-0); text-decoration: none; box-shadow: inset 0 0 0 1px var(--fg-3); }
+  .ma-chip[aria-current="page"] { background: var(--fg-0); color: var(--bg-1); box-shadow: none; font-weight: var(--weight-semibold); }
+  .ma-chip[aria-current="page"] .ma-count { background: color-mix(in oklch, var(--bg-1) 22%, transparent); color: var(--bg-1); }
+  .ma-chip .ma-count { background: var(--bg-3); color: var(--fg-1); }
+  .ma-matrix th.ma-pcol { text-align: left; }
+  .ma-matrix th.ma-pcol a { display: inline-flex; align-items: center; gap: var(--space-1); }
+  details.ma-more { margin: 0; padding: var(--space-3) var(--space-5) var(--space-4); font-size: var(--type-xs); color: var(--fg-2); }
+  details.ma-more > summary { cursor: pointer; color: var(--fg-1); }
+  details.ma-more p { margin: var(--space-2) 0 0; line-height: var(--lh-xs); }
+
+  /* ---- Equal heights: a row of cards is one height, the foot sits at the bottom */
+  .ma-stats { align-items: stretch; }
+  .ma-stats > .ma-stat { height: 100%; }
+  .ma-stat-f { margin-top: auto; }
+  .ma-cols--even { align-items: stretch; }
+  .ma-cols--even > .ma-card { height: 100%; }
+
+  /* ---- Motion. A page's content rises in, cards and controls answer the
+     pointer, a sheet slides in, a menu drops. Two rules keep it safe:
+     - the content's rise moves \`top\` on a relative box, never \`transform\` —
+       a transform (even a finished one, even a stalled one) makes every card a
+       containing block, and the position:fixed bulk bar inside it is caught
+       and clipped;
+     - nothing overlays the page while it moves (no cross-document view
+       transition): a click must never wait for an animation to finish.
+     All of it collapses to nothing under prefers-reduced-motion. */
+  @keyframes ma-rise { from { opacity: 0; top: 6px; } to { opacity: 1; top: 0; } }
+  @keyframes ma-drop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  @keyframes ma-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes ma-slide { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+  /* backwards, never both: a finished animation must leave no transform behind,
+     or every position:fixed child (the bulk bar) is caught inside its card. */
+  .ma-main > * { position: relative; animation: ma-rise 240ms var(--ease-out, cubic-bezier(.2,.8,.2,1)) backwards; }
+  .ma-main > :nth-child(2) { animation-delay: 30ms; }
+  .ma-main > :nth-child(3) { animation-delay: 60ms; }
+  .ma-main > :nth-child(n+4) { animation-delay: 90ms; }
+  .ma-veil { animation: ma-fade 200ms ease-out backwards; }
+  .ma-sheet--side { animation: ma-slide 240ms var(--ease-out, cubic-bezier(.2,.8,.2,1)) backwards; }
+  .ma-card, .ma-stat, .ma-proj, .ma-chip, .ma-tab, .ma-nav-tab, .btn, .ma-hit, .ma-mrole, .ma-nav-search, .ma-filter, .ma-me > summary {
+    transition: background-color 140ms ease-out, box-shadow 160ms ease-out, color 140ms ease-out, transform 160ms ease-out, opacity 140ms ease-out;
+  }
+  a.ma-stat:hover, a.ma-proj:hover, .ma-proj:has(a:hover) { transform: translateY(-1px); box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--border-strong); }
+  .btn:active { transform: translateY(0.5px); }
+  .menu-list { animation: ma-drop 140ms ease-out backwards; }
+  .ma-bars i b { transform-origin: bottom; animation: ma-grow 420ms var(--ease-out, cubic-bezier(.2,.8,.2,1)) backwards; }
+  @keyframes ma-grow { from { transform: scaleY(0); } to { transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
   @media (max-width: 1100px) {
     .ma-main { padding: var(--space-4) var(--space-5) var(--space-6); }
     .ma-stats { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
-    .ma-cols--2-1, .ma-cols--1-1, .ma-promo-grid { grid-template-columns: 1fr; }
+    .ma-cols--2-1, .ma-cols--1-1, .ma-promo-grid, .ma-set { grid-template-columns: 1fr; }
     .ma-projects { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
     .ma-nav-search { width: 160px; }
   }

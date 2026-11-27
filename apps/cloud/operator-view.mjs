@@ -28,17 +28,20 @@ import {
   accountPeoplePage,
   overviewPage,
   peopleViewData,
+  planLines,
 } from './account-pages.mjs';
 import { projectsFor } from './auth-routes.mjs';
 import { trialView } from './billing.mjs';
+import { appShell, icon } from './brand.mjs';
 import { billingPage } from './checkout-pages.mjs';
-import { dashboardPage, STATE_COPY } from './dashboard.mjs';
+import { dashboardPage, projectsPage, STATE_COPY } from './dashboard.mjs';
 import { audit } from './db.mjs';
+import { emailPrefsPage, mentionEmailsOn } from './mentions.mjs';
 import { ownerOverview, ownerPlans } from './owner-overview.mjs';
 import { peoplePage } from './people-page.mjs';
 import { ownerPlan, promoFacts } from './plan-copy.mjs';
 import { can, cellHolds } from './project-access.mjs';
-import { activityEntries, auditPage } from './project-admin.mjs';
+import { activityEntries, auditPage, projectSettingsPage } from './project-admin.mjs';
 import { projectPeopleData } from './project-routes.mjs';
 
 const PROJECT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -59,12 +62,19 @@ function esc(s) {
  * Applied to pages that were ALREADY rendered with no token and no write
  * target that would accept one — this is the second lock, not the only one.
  */
-export function readOnlyView(html, { email, base }) {
-  const banner = `<p class="ro-banner" role="status">You are looking at this as ${esc(email)} sees it — read only</p>`;
+export function readOnlyView(html, { email, base, exit = null }) {
+  const banner = `<p class="ro-banner" role="status"><span>You are looking at this as ${esc(email)} sees it — read only</span>${
+    exit ? `<a class="ro-exit" href="${esc(exit)}">Leave this view</a>` : ''
+  }</p>`;
   return (
     String(html)
       .replace(/<input\b[^>]*\btype="hidden"[^>]*>/gi, '')
-      .replace(/<form\b[^>]*>/gi, '<div class="ro-form">')
+      // A form becomes a box that cannot submit — keeping its own class, so
+      // the page still looks like the owner's (the nav's search field is one).
+      .replace(/<form\b([^>]*)>/gi, (_m, attrs) => {
+        const cls = /\bclass="([^"]*)"/.exec(attrs)?.[1];
+        return cls ? `<div class="${esc(cls)}">` : '<div class="ro-form">';
+      })
       .replace(/<\/form>/gi, '</div>')
       // `disabled` on EVERY control, unconditionally — never "unless the tag
       // already says disabled": that word in a title or a placeholder is not
@@ -77,7 +87,7 @@ export function readOnlyView(html, { email, base }) {
       .replace(/href="\/(?!\/)([^"]*)"/g, (_m, rest) => `href="${base}${rest ? `/${rest}` : ''}"`)
       .replace(
         '</style>',
-        '.ro-banner{margin:0 0 var(--space-5);padding:var(--space-2) var(--space-4);border-radius:var(--radius-md);background:var(--fg-0);color:var(--bg-1);font-size:var(--type-sm);font-weight:var(--weight-semibold)}.ro-form{display:contents}</style>'
+        '.ro-banner{position:sticky;top:calc(52px + var(--space-6));z-index:4;display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);max-width:none;margin:0 0 var(--space-5);padding:var(--space-2) var(--space-2) var(--space-2) var(--space-4);border-radius:var(--radius-md);background:var(--fg-0);color:var(--bg-1);font-size:var(--type-sm);font-weight:var(--weight-semibold);box-shadow:var(--shadow-md)}.ro-exit{display:inline-flex;align-items:center;height:28px;padding:0 var(--space-3);border-radius:var(--radius-sm);background:var(--bg-1);color:var(--fg-0);font-weight:var(--weight-semibold)}.ro-exit:hover{text-decoration:none;background:var(--bg-3)}.ro-form{display:contents}</style>'
       )
       .replace('<main class="ma-main">', `<main class="ma-main">${banner}`)
   );
@@ -86,13 +96,42 @@ export function readOnlyView(html, { email, base }) {
 /** The page key a path names, or null when the view does not include it. */
 export function viewPage(rest) {
   if (rest === '' || rest === '/') return { page: 'dashboard' };
+  if (rest === '/projects') return { page: 'projects' };
+  if (rest === '/projects/new') return { page: 'closed', door: 'new' };
   if (rest === '/account') return { page: 'account' };
   if (rest === '/account/people') return { page: 'account-people' };
-  if (rest === '/account/billing') return { page: 'account-billing' };
-  const m = /^\/projects\/([a-z0-9-]+)\/(people|billing|audit)$/.exec(rest);
+  if (rest === '/account/billing' || rest === '/account/plans') return { page: 'account-billing' };
+  if (rest === '/account/notifications' || rest === '/account/emails')
+    return { page: 'account-notifications' };
+  // Pages that hand out something or act on the account: drawn as a closed
+  // door in the view's own chrome, never as the page — and never a 404, so
+  // the owner's whole navigation can be walked (owner, 2026-11-27).
+  const closed = /^\/account\/(devices|macs|download|delete)$/.exec(rest);
+  if (closed) return { page: 'closed', door: closed[1] === 'macs' ? 'devices' : closed[1] };
+  const m = /^\/projects\/([a-z0-9-]+)\/(people|billing|audit|settings)$/.exec(rest);
   if (m && PROJECT_ID.test(m[1])) return { page: `project-${m[2]}`, projectId: m[1] };
+  const shut = /^\/projects\/([a-z0-9-]+)\/(connect|download|delete|mirror|saving)$/.exec(rest);
+  if (shut && PROJECT_ID.test(shut[1]))
+    return { page: 'project-closed', projectId: shut[1], door: shut[2] };
   return null;
 }
+
+/** What each closed door would do — said on the page instead of doing it. */
+const CLOSED_DOOR = {
+  devices: ['Devices', 'the devices signed in to this account, with a way to sign each one out'],
+  new: [
+    'Start a project',
+    'starting a project with this account’s card — for a project you make for them, use New project for an account',
+  ],
+  download: [
+    'Download everything',
+    'the downloads of this account’s projects and its account file',
+  ],
+  delete: ['Delete the account', 'deleting this account'],
+  connect: ['Open', 'opening the project in the Maude app or the browser, signed in as the owner'],
+  mirror: ['GitHub copy', 'the GitHub copy and its connection'],
+  saving: ['Saving', 'how the workspace saves — reading it would wake the workspace'],
+};
 
 /**
  * Render one page of `target`'s account for the operator, or null when the
@@ -109,6 +148,7 @@ export async function renderViewAs(env, { operator, target, rest, now = Date.now
   const named = viewPage(rest);
   if (!named) return null;
   const base = `/operator/accounts/${target.id}/view`;
+  const exit = `/operator/accounts/${target.id}`;
   const me = { id: target.id, email: target.email, name: target.name ?? null };
 
   // THE LOOKING IS RECORDED FIRST, OR NOTHING IS SHOWN. "You can see that we
@@ -122,28 +162,59 @@ export async function renderViewAs(env, { operator, target, rest, now = Date.now
     project: named.projectId ?? null,
   });
   const actor = `operator:${operator.email}`;
-  try {
-    const recent = await env.DB.prepare(
-      `SELECT 1 AS x FROM audit_log
-        WHERE action = 'operator.account.viewed-as' AND account_id = ? AND actor = ?
-          AND detail = ? AND at > ? LIMIT 1`
-    )
-      .bind(target.id, actor, detail, now - VIEW_AUDIT_WINDOW_MS)
-      .first();
-    if (!recent) {
-      await audit(
-        env.DB,
-        { accountId: target.id, actor, action: 'operator.account.viewed-as', detail },
-        { now }
-      );
+  // A closed door shows nothing of the owner's — it is not a look, and is not
+  // logged as one; every real page is.
+  const isClosed = named.page === 'closed' || named.page === 'project-closed';
+  if (!isClosed) {
+    try {
+      const recent = await env.DB.prepare(
+        `SELECT 1 AS x FROM audit_log
+          WHERE action = 'operator.account.viewed-as' AND account_id = ? AND actor = ?
+            AND detail = ? AND at > ? LIMIT 1`
+      )
+        .bind(target.id, actor, detail, now - VIEW_AUDIT_WINDOW_MS)
+        .first();
+      if (!recent) {
+        await audit(
+          env.DB,
+          { accountId: target.id, actor, action: 'operator.account.viewed-as', detail },
+          { now }
+        );
+      }
+    } catch (err) {
+      console.error(`[operator] view-as audit failed, page withheld: ${err.message}`);
+      return { unavailable: true };
     }
-  } catch (err) {
-    console.error(`[operator] view-as audit failed, page withheld: ${err.message}`);
-    return { unavailable: true };
   }
 
   let html = null;
-  if (named.page === 'dashboard') {
+  const closedDoor = (door, { project = null } = {}) => {
+    const [title, what] = CLOSED_DOOR[door] ?? [door, 'this page'];
+    return appShell({
+      account: { ...me, owns: 1 },
+      title,
+      project,
+      isOwner: true,
+      active: door,
+      body: `<div class="ma-card ma-empty">${icon('lock', 20)}<p><strong>Not part of the read-only view</strong></p><p class="ma-quiet">This page is ${esc(what)}. It is left closed here, so looking can never open, hand out or change anything.</p></div>`,
+    });
+  };
+  if (named.page === 'closed') {
+    html = closedDoor(named.door);
+  } else if (named.page === 'projects') {
+    const [projects, overview, plans] = await Promise.all([
+      projectsFor(env, target.id),
+      ownerOverview(env, target.id).catch(() => null),
+      ownerPlans(env, target.id).catch(() => null),
+    ]);
+    html = projectsPage({ account: me, projects, can, overview, plans });
+  } else if (named.page === 'account-notifications') {
+    html = emailPrefsPage({
+      account: me,
+      mentions: await mentionEmailsOn(env.DB, target.id).catch(() => null),
+      csrf: null,
+    });
+  } else if (named.page === 'dashboard') {
     const [projects, overview, plans] = await Promise.all([
       projectsFor(env, target.id),
       ownerOverview(env, target.id).catch(() => null),
@@ -151,7 +222,18 @@ export async function renderViewAs(env, { operator, target, rest, now = Date.now
     ]);
     html = dashboardPage({ account: me, projects, can, overview, plans });
   } else if (named.page === 'account') {
-    html = overviewPage({ account: me, trial: trialView(target, { now }), now });
+    const { results: owned } = await env.DB.prepare(
+      `SELECT * FROM projects WHERE account_id = ? AND state != 'purged' ORDER BY name`
+    )
+      .bind(target.id)
+      .all();
+    html = overviewPage({
+      account: me,
+      trial: trialView(target, { now }),
+      plans: planLines(owned ?? [], { now }),
+      mentions: await mentionEmailsOn(env.DB, target.id).catch(() => null),
+      now,
+    });
   } else if (named.page === 'account-people') {
     const data = await peopleViewData(env, target.id, { now, analytics: false });
     html = accountPeoplePage({ account: me, ...data, csrf: null, now });
@@ -174,7 +256,11 @@ export async function renderViewAs(env, { operator, target, rest, now = Date.now
       .bind(named.projectId, target.id)
       .first();
     if (!project || project.state === 'purged') return null;
-    if (named.page === 'project-people') {
+    if (named.page === 'project-closed') {
+      html = closedDoor(named.door, { project });
+    } else if (named.page === 'project-settings') {
+      html = projectSettingsPage({ account: me, project, now });
+    } else if (named.page === 'project-people') {
       const data = await projectPeopleData(env, project);
       html = peoplePage({
         account: me,
@@ -201,5 +287,5 @@ export async function renderViewAs(env, { operator, target, rest, now = Date.now
     }
   }
 
-  return readOnlyView(html, { email: target.email, base });
+  return readOnlyView(html, { email: target.email, base, exit });
 }

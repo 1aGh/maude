@@ -7,7 +7,6 @@
 
 import { formatDay } from './billing.mjs';
 import { appShell, lockup, PAGE_CSS, PUBLIC_CSS } from './brand.mjs';
-import { BILL_OF_MATERIALS_HTML } from './pages.mjs';
 import { PROVISION_STEPS } from './provisioning.mjs';
 
 const EXTRA_CSS = `
@@ -40,6 +39,25 @@ const EXTRA_CSS = `
   .pair > div { flex: 1; }
   .plan { box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default); border: 0; }
   .plan:has(input:checked) { box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--accent); }
+  .np { display: flex; flex-direction: column; gap: var(--space-4); max-width: 640px; }
+  .np-card { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4) var(--space-5); }
+  .np-card input[type=text] { max-width: none; }
+  .np-l { font-size: var(--type-sm); font-weight: var(--weight-semibold); color: var(--fg-0); margin: 0; }
+  .np-hint { font-size: var(--type-xs); color: var(--fg-2); }
+  .np-plans { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .np-plan { display: flex; align-items: center; gap: var(--space-3); margin: 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--bg-2); box-shadow: inset 0 0 0 0.5px var(--border-default); cursor: pointer; font-weight: var(--weight-regular); transition: box-shadow 140ms ease-out, background-color 140ms ease-out; }
+  .np-plan:hover { box-shadow: inset 0 0 0 1px var(--fg-3); }
+  .np-plan:has(input:checked) { background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 1.5px var(--accent); }
+  .np-plan input { accent-color: var(--accent); margin: 0; }
+  .np-plan-t { flex: 1; display: flex; flex-direction: column; font-size: var(--type-sm); }
+  .np-plan-t strong { font-weight: var(--weight-semibold); color: var(--fg-0); }
+  .np-plan-t span { font-size: var(--type-xs); color: var(--fg-2); }
+  .np-price { font-family: var(--font-display); font-size: var(--type-lg); font-weight: var(--weight-semibold); color: var(--fg-0); white-space: nowrap; }
+  .np-price small { margin-left: 2px; font-family: var(--font-body); font-size: var(--type-xs); font-weight: var(--weight-regular); color: var(--fg-2); }
+  .np-int { max-width: 26rem; }
+  .np-need { margin: 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--accent-muted); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-0); }
+  .np-go { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+  .np-fine { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); max-width: 34rem; }
 `;
 // The centered waiting room keeps the narrow column; inside the shell the
 // column is the shell's own `.main-inner`.
@@ -64,18 +82,19 @@ function euros(minor) {
 }
 
 /**
- * The wizard. One page: name, plan, billing rhythm. The id the name becomes is
+ * The wizard. One page, three answers — a name, a plan, monthly or annual —
+ * and the one thing a buyer must know before a card form (the bill of
+ * materials), said in one line rather than a box. The id the name becomes is
  * decided server-side and shown on the NEXT page rather than live — no script.
  */
 export function newProjectPage({ account = null, pricing, error = null, values = {} }) {
   const plans = pricing.plans
-    .map((p, _i) => {
+    .map((p) => {
       const monthly = euros(p.amounts.monthlyMinor);
-      return `<label class="plan">
+      return `<label class="np-plan">
         <input type="radio" name="plan" value="${esc(p.id)}" ${(values.plan ?? pricing.plans[0].id) === p.id ? 'checked' : ''} required>
-        <strong>${esc(p.name)}</strong>
-        <span class="quiet" style="display:block">${esc(p.summary)}</span>
-        <p class="price">${monthly}<span class="per"> / month</span></p>
+        <span class="np-plan-t"><strong>${esc(p.name)}</strong><span>${esc(p.summary)}</span></span>
+        <span class="np-price">${monthly}<small>/ month</small></span>
       </label>`;
     })
     .join('\n');
@@ -83,26 +102,32 @@ export function newProjectPage({ account = null, pricing, error = null, values =
     account,
     title: 'Start a project',
     active: 'new',
+    crumb: [{ label: 'Projects', href: '/projects' }],
     extraCss: EXTRA_CSS,
-    lede: `One project is one workspace with its own address, its own people, and its own design system. The first ${pricing.trialDays} days are free — your card is not charged until the trial ends, and you can stop any time before that.`,
+    lede: `The first ${pricing.trialDays} days are free. Nothing is charged today.`,
     body: `${error ? `<p class="error">${esc(error)}</p>` : ''}
-     <form method="post" action="/projects/new">
-       <label for="name">What is the project called?</label>
-       <input type="text" id="name" name="name" required minlength="3" maxlength="60"
-              value="${esc(values.name ?? '')}" placeholder="e.g. Brno Alligators">
-       <div class="plan-grid">${plans}</div>
-       <div class="interval">
-         <label><input type="radio" name="interval" value="monthly" ${values.interval !== 'annual' ? 'checked' : ''}> Monthly</label>
-         <label><input type="radio" name="interval" value="annual" ${values.interval === 'annual' ? 'checked' : ''}> Annual — two months free</label>
+     <form class="np" method="post" action="/projects/new">
+       <section class="ma-card np-card">
+         <label class="np-l" for="name">Name</label>
+         <input type="text" id="name" name="name" required minlength="3" maxlength="60" autofocus
+                value="${esc(values.name ?? '')}" placeholder="e.g. Brno Alligators">
+         <span class="np-hint">One project is one workspace: its own address, people and design system.</span>
+       </section>
+       <section class="ma-card np-card">
+         <span class="np-l">Plan</span>
+         <div class="np-plans" role="radiogroup" aria-label="Plan">${plans}</div>
+         <span class="seg ma-seg np-int" role="radiogroup" aria-label="Billed">
+           <label class="ma-seg-b"><input type="radio" name="interval" value="monthly" ${values.interval !== 'annual' ? 'checked' : ''}>Monthly</label>
+           <label class="ma-seg-b"><input type="radio" name="interval" value="annual" ${values.interval === 'annual' ? 'checked' : ''}>Annual — two months free</label>
+         </span>
+       </section>
+       <p class="np-need"><strong>What you’ll need:</strong> a Mac or a PC (not a phone or a tablet) with the free Maude app, and
+         <strong>your own Claude subscription</strong> — about €20 a month, paid to Anthropic, not to Maude. Your designs are drawn only on your machine.</p>
+       <div class="np-go">
+         <span class="np-fine">By continuing you agree to the <a href="https://maude.sh/terms">Terms</a> and the
+           <a href="https://maude.sh/privacy">Privacy notice</a>. Stripe adds your country’s VAT and shows the total next.</span>
+         <button type="submit" class="btn btn--primary btn--lg">Continue to payment details</button>
        </div>
-       ${BILL_OF_MATERIALS_HTML}
-       <p class="quiet" style="margin:var(--space-5) 0 var(--space-4)">By continuing you agree to
-         the <a href="https://maude.sh/terms">Terms</a> and the
-         <a href="https://maude.sh/privacy">Privacy notice</a>.</p>
-       <button type="submit">Continue to payment details</button>
-       <p class="quiet" style="margin-top:var(--space-4)">Payment details are handled by Stripe,
-         who also add your country's VAT to the price above — the next screen shows the exact
-         total. Nothing is charged today.</p>
      </form>`,
   });
 }
@@ -181,7 +206,7 @@ export function billingPage({
   // (canvas 16, cl-promo-owner); a trial shows the DATE it is free until, so
   // free time an operator gave is visible here; an operator's pause says so,
   // with no countdown — nothing is scheduled to be deleted.
-  const choose = `<span class="ma-head-a"><a class="btn btn--primary" href="/account/billing">Choose a plan</a></span>`;
+  const choose = `<span class="ma-head-a"><a class="btn btn--primary" href="/account/plans">Choose a plan</a></span>`;
   const planBox = (kicker, title, body, { tone = '' } = {}) =>
     `<div class="ma-card ma-card--pad ma-plan${tone ? ` ${tone}` : ''}">
        <span class="ma-promo-l">${esc(kicker)}</span>
@@ -240,7 +265,19 @@ export function billingPage({
                  everyone can still open and download everything.</p>${choose}`,
                 { tone: 'warn' }
               )
-            : null;
+            : plan?.state === 'paid'
+              ? planBox(
+                  'Plan',
+                  esc(String(plan.line ?? 'A plan').replace(/ · plan chosen$/, '')),
+                  '<p class="ma-sub">Billed by Stripe. The plan, the card and the invoices are below.</p>'
+                )
+              : plan
+                ? planBox(
+                    'Plan',
+                    'Free — no plan',
+                    '<p class="ma-sub">This project was made before plans existed, so nothing is billed.</p>'
+                  )
+                : null;
   const d = details ?? {
     company: '',
     line1: '',
@@ -374,8 +411,10 @@ export function billingPage({
             ${invoiceSection}
             <h2 style="margin-top:var(--space-7)">Billing details</h2>
             ${detailsSection}`
-         : `<p class="quiet" style="margin-top:var(--space-5)">There is no billing set up for this
-              project yet.</p>`
+         : plan?.state === 'paid'
+           ? `<p class="quiet" style="margin-top:var(--space-5)">The card and the invoices cannot be
+                reached just now. Try again in a minute.</p>`
+           : ''
 }`,
   });
 }

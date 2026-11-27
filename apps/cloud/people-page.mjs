@@ -19,8 +19,13 @@ import { ROLES, removalEffect } from './membership.mjs';
 // adds lives here. The table wears the same one-material card the admin
 // surfaces use.
 const CSS = `
-  form.inline { display: inline-flex; align-items: center; gap: var(--space-1); }
-  td select, td input[type=email] { width: auto; height: 26px; font-size: var(--type-xs); }
+  form.inline { display: inline-flex; align-items: center; gap: var(--space-1); margin: 0; }
+  td select, td input[type=email] { width: auto; height: 28px; font-size: var(--type-xs); }
+  .pp-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+  .pp-add input[type=email] { flex: 1; min-width: 16rem; max-width: none; }
+  .pp-add select { width: auto; }
+  .pp-h { margin: var(--space-5) 0 var(--space-2); font-family: var(--font-body); font-size: var(--type-base); font-weight: var(--weight-semibold); }
+  .ma-table td .quiet { color: var(--fg-2); }
   .card h2 { margin: 0 0 var(--space-3); font-family: var(--font-body); font-size: var(--type-base); line-height: var(--lh-base); }
   .card form { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
   .card form input[type=email] { flex: 1; min-width: 14rem; }
@@ -160,11 +165,11 @@ function personRow(person, { projectId, isOwner, selfId, withControls = true, ca
       ? `<form class="inline" method="post" action="/projects/${esc(projectId)}/people">
          <input type="hidden" name="account" value="${esc(person.account_id)}">
          ${roleSelect('role', person.role, { canView })}
-         <button type="submit" name="do" value="role">Save</button>
+         <button type="submit" name="do" value="role" class="btn btn--sm">Save</button>
        </form>
        <form class="inline" method="get" action="/projects/${esc(projectId)}/people/remove">
          <input type="hidden" name="account" value="${esc(person.account_id)}">
-         <button type="submit">Remove…</button>
+         <button type="submit" class="btn btn--sm btn--ghost">Remove…</button>
        </form>`
       : '';
   return `<tr><td>${label}</td><td>${word} <span class="quiet">${esc(ROLE_MEANING[person.role] ?? '')}</span></td><td class="right">${controls}</td></tr>`;
@@ -185,8 +190,8 @@ function inviteRow(invite, { projectId = null, withControls = false, csrf = null
       ? `<form class="inline" method="post" action="/projects/${esc(projectId)}/people">
            <input type="hidden" name="csrf" value="${esc(csrf ?? '')}">
            <input type="hidden" name="invite" value="${esc(invite.id)}">
-           <button type="submit" name="do" value="invite-resend">Send again</button>
-           <button type="submit" name="do" value="invite-cancel" class="ghost">Cancel invite</button>
+           <button type="submit" name="do" value="invite-resend" class="btn btn--sm">Send again</button>
+           <button type="submit" name="do" value="invite-cancel" class="btn btn--sm btn--ghost">Cancel invite</button>
          </form>`
       : '';
   return `<tr><td>${esc(invite.email)}</td><td><strong>${esc(roleWord(invite.role))}</strong>${where} <span class="quiet">· not joined yet · the link works until ${esc(day(invite.expires_at))}</span></td><td class="right">${controls}</td></tr>`;
@@ -214,16 +219,16 @@ export function peopleRowsTable({
   ];
   const pending =
     isOwner && invites.length
-      ? `<h3>Invited</h3>
-         <table>
+      ? `<h3 class="pp-h">Invited <span class="ma-quiet">${invites.length}</span></h3>
+         <div class="ma-card ma-card--clip"><table class="ma-table">
            <thead><tr><th>Address</th><th>What they can do</th><th></th></tr></thead>
            <tbody>${invites.map((i) => inviteRow(i, { projectId, withControls, csrf })).join('\n')}</tbody>
-         </table>`
+         </table></div>`
       : '';
-  return `<table>
+  return `<div class="ma-card ma-card--clip"><table class="ma-table">
        <thead><tr><th>Person</th><th>What they can do</th><th></th></tr></thead>
        <tbody>${rows.join('\n')}</tbody>
-     </table>
+     </table></div>
      ${pending}`;
 }
 
@@ -253,20 +258,16 @@ export function peoplePage({
 }) {
   const selfId = account?.id ?? null;
   const invite = isOwner
-    ? `<div class="card">
-         <h2>Add someone</h2>
-         <form method="post" action="/projects/${esc(project.id)}/people">
-           <input type="email" name="email" placeholder="their email" aria-label="Their email"
+    ? `<section class="ma-card ma-card--pad ma-gap-b">
+         <h2 class="ma-set-h" style="margin-bottom:var(--space-3)">Add someone</h2>
+         <form class="pp-add" method="post" action="/projects/${esc(project.id)}/people">
+           <input type="email" name="email" placeholder="Their e-mail" aria-label="Their email"
                   required>
            ${roleSelect('role', 'member', { canView })}
-           <button type="submit" name="do" value="invite">Send invitation</button>
+           <button type="submit" name="do" value="invite" class="btn btn--primary">Send invitation</button>
          </form>
-         <p class="quiet" style="font-size:.87rem;margin:.6rem 0 0">
-           They get an email with a link. If they do not have a Maude account yet,
-           the link makes one — they never have to find this project themselves.
-         </p>
-         ${canView ? '' : `<p class="quiet" style="font-size:.87rem;margin:.4rem 0 0">${esc(CAN_VIEW_UNAVAILABLE)}</p>`}
-       </div>`
+         <p class="ma-set-p ma-quiet" style="margin-top:var(--space-2)">They get an e-mail with a link — it makes them an account if they need one.${canView ? '' : ` ${esc(CAN_VIEW_UNAVAILABLE)}`}</p>
+       </section>`
     : '';
   return page(
     'People',
@@ -279,7 +280,7 @@ export function peoplePage({
       account,
       project,
       isOwner,
-      lede: `Who is on ${project.name}, and what each person can do.`,
+      lede: null,
     }
   );
 }
