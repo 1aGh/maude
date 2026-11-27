@@ -1,8 +1,8 @@
 {
-  "version": "v2.4.11",
+  "version": "v2.4.12",
   "nodeRange": ">=20",
-  "publishedDate": "2026-11-25",
-  "releases": 169,
+  "publishedDate": "2026-11-27",
+  "releases": 170,
   "firstReleaseDate": "2026-05-11",
   "contributors": 1,
   "plugins": {
